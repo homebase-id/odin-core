@@ -2,10 +2,12 @@
 {
     public static class ClientTokenConstants
     {
-        /// <summary>
-        /// Scheme for authenticating external Digital Identity hosts. 
-        /// </summary>
-        public const string Scheme = "ClientToken";
+
+        public const string AppSchemeName = "app-auth-token";
+
+        public static string ClientAuthTokenCookieName = "BX0900";
+        
+        public const string YouAuthScheme = "youauth-token";
         
     }
 }

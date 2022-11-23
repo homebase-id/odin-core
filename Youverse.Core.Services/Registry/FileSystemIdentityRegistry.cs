@@ -1,8 +1,10 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Youverse.Core.Identity;
-using Youverse.Core.Util;
+using Youverse.Core.Serialization;
+using Youverse.Core.Trie;
 
 namespace Youverse.Core.Services.Registry;
 
@@ -11,90 +13,148 @@ namespace Youverse.Core.Services.Registry;
 /// </summary>
 public class FileSystemIdentityRegistry : IIdentityRegistry
 {
-    private readonly string _dataRoot;
+    private readonly Trie.Trie<IdentityRegistration> _trie;
+    private readonly string _tenantDataRootPath;
+    private readonly string _tempDataStoragePath;
 
-    public FileSystemIdentityRegistry(string dataRoot)
+    public FileSystemIdentityRegistry(string tenantDataRootPath, string tempDataStoragePath)
     {
-        _dataRoot = dataRoot;
+        if (!Directory.Exists(tenantDataRootPath))
+        {
+            throw new InvalidDataException($"Could find or access path at [{tenantDataRootPath}]");
+        }
+
+        if (!Directory.Exists(tempDataStoragePath))
+        {
+            throw new InvalidDataException($"Could find or access path at [{tempDataStoragePath}]");
+        }
+
+        _trie = new Trie<IdentityRegistration>();
+        _tenantDataRootPath = tenantDataRootPath;
+        _tempDataStoragePath = tempDataStoragePath;
     }
+
 
     public void Initialize()
     {
-        //read from disk; load in trie
+        var dirs = Directory.GetDirectories(_tenantDataRootPath, "*", SearchOption.TopDirectoryOnly);
+
+        foreach (var d in dirs)
+        {
+            var id = d.Split(Path.DirectorySeparatorChar).LastOrDefault();
+            if (Guid.TryParse(id, out var g))
+            {
+                var regFile = GetRegFilePath(g);
+                var json = File.ReadAllText(regFile);
+                var registration = DotYouSystemSerializer.Deserialize<IdentityRegistration>(json);
+                _trie.AddDomain(registration.DomainName, registration);
+            }
+        }
     }
 
-    public Guid ResolveId(string domainName)
+    public Guid ResolveId(string domain)
     {
-        throw new NotImplementedException();
+        var reg = _trie.LookupName(domain);
+        return reg.Id;
     }
-    
+
     public Task<bool> IsIdentityRegistered(string domain)
     {
-        throw new NotImplementedException();
+        return Task.FromResult(_trie.LookupName(domain) != null);
     }
 
-    public Task Add(IdentityRegistrationRequest request)
+    public Task<bool> HasValidCertificate(string domain)
     {
-        /*
-         * By the time this method is called, the certificates already exist
-         * so this needs to accept the certificate
-         * th question is
-         *
-         * what calls this method?
-         * when is it called?
-         *
-         * well, there is a provisioning site that is managing the process of creating a wildcard domain
-         * but what about creating it for a personal domain?
-         */
+        var reg = _trie.LookupName(domain);
+        if (null == reg)
+        {
+            return Task.FromResult(false);
+        }
+
+        var cert = CertificateResolver.LoadCertificate(this.GetCertificatePath(reg), this.GetPrivateKeyPath(reg));
+
+        if (cert == null)
+        {
+            return Task.FromResult(false);
+        }
+        
+        var now = DateTime.Now;
+        var isValid = now < cert.NotAfter && now > cert.NotBefore;
+
+        return Task.FromResult(isValid);
+    }
+
+    public async Task AddRegistration(IdentityRegistrationRequest request)
+    {
         var registration = new IdentityRegistration()
         {
             Id = Guid.NewGuid(),
-            DomainName = default,
-            CertificateRenewalInfo = null,
-            IsCertificateManaged = default,
-            PrivateKeyRelativePath = default,
-            FullChainCertificateRelativePath = default,
-            PublicKeyCertificateRelativePath = default
+            DomainName = request.DotYouId,
+            IsCertificateManaged = request.IsCertificateManaged,
+            CertificateRenewalInfo = new CertificateRenewalInfo()
+            {
+                CreatedTimestamp = UnixTimeUtc.Now(),
+                CertificateSigningRequest = request.CertificateSigningRequest
+            },
         };
-        
-        throw new NotImplementedException();
 
+        string root = Path.Combine(_tenantDataRootPath, registration.Id.ToString());
+        Console.WriteLine($"Writing certificates to path [{root}]");
 
+        if (!Directory.Exists(root))
+        {
+            Directory.CreateDirectory(root);
+        }
+
+        var json = DotYouSystemSerializer.Serialize(registration);
+        await File.WriteAllTextAsync(GetRegFilePath(registration.Id), json);
+
+        await File.WriteAllTextAsync(GetCertificatePath(registration), request.CertificateContent.PublicKeyCertificate);
+        await File.WriteAllTextAsync(GetPrivateKeyPath(registration), request.CertificateContent.PrivateKey);
+        // await File.WriteAllTextAsync(registration.FullChainCertificateRelativePath, request.CertificateContent.FullChain);
     }
 
+    private string GetRegFilePath(Guid registrationId)
+    {
+        return Path.Combine(_tempDataStoragePath, registrationId.ToString(), "reg.json");
+    }
+    
     public Task<PagedResult<IdentityRegistration>> GetList(PageOptions pageOptions)
     {
-        var domains = Directory.GetDirectories(_dataRoot);
+        var domains = Directory.GetDirectories(_tenantDataRootPath);
 
         //TODO: get from DI
         foreach (var domain in domains)
         {
             //todo: add isValidDomain name check
-            
+
             // Guid domainId = CalculateDomainId(dotYouId);
             // string certificatePath = PathUtil.Combine(rootPath, registryId.ToString(), "ssl", domainId.ToString(), "certificate.crt");
             // string privateKeyPath = PathUtil.Combine(rootPath, registryId.ToString(), "ssl", domainId.ToString(), "private.key");
             // return LoadCertificate(certificatePath, privateKeyPath);
-            
+
             DotYouIdentity dotYouId = (DotYouIdentity)domain;
             Guid domainId = CertificateResolver.CalculateDomainId(dotYouId);
-            var certificate = CertificateResolver.GetSslCertificate(_dataRoot, domainId, dotYouId);
+            var certificate = CertificateResolver.GetSslCertificate(_tenantDataRootPath, domainId, dotYouId);
         }
-        throw new NotImplementedException();
 
+        throw new NotImplementedException();
     }
 
     public Task<IdentityRegistration> Get(string domainName)
     {
         throw new NotImplementedException();
     }
-    
-    private string GetCertificatePath(DotYouIdentity dotYouId)
-    {
-        throw new NotImplementedException();
 
-        // string certificatePath = PathUtil.Combine(_dataRoot, registryId.ToString(), "ssl", domainId.ToString(), "certificate.crt");
-        // string privateKeyPath = PathUtil.Combine(rootPath, registryId.ToString(), "ssl", domainId.ToString(), "private.key");
+    private string GetCertificatePath(IdentityRegistration registration)
+    {
+        string path = Path.Combine(_tenantDataRootPath, registration.Id.ToString(), "ssl", registration.DomainName.ToLower(), "certificate.crt");
+        return path;
     }
-    
+
+    private string GetPrivateKeyPath(IdentityRegistration registration)
+    {
+        string path = Path.Combine(_tenantDataRootPath, registration.Id.ToString(), "ssl", registration.DomainName.ToLower(), "private.key");
+        return path;
+    }
 }

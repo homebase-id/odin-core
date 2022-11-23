@@ -1,6 +1,7 @@
 ﻿using Certes;
 using Certes.Acme;
 using Dawn;
+using Youverse.Core.Services.Registry;
 using Youverse.Core.Util;
 
 namespace Youverse.Provisioning.Services.Certificate

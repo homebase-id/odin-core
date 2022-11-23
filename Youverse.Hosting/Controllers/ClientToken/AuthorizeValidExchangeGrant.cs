@@ -7,7 +7,7 @@ public class AuthorizeValidExchangeGrant : AuthorizeAttribute
 {
     public AuthorizeValidExchangeGrant()
     {
-        AuthenticationSchemes = ClientTokenConstants.Scheme;
+        AuthenticationSchemes = ClientTokenConstants.YouAuthScheme;
         // Policy = OwnerPolicies.IsAuthorizedApp;
     }
 }

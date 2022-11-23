@@ -1,7 +1,6 @@
 using Dawn;
 using Youverse.Provisioning.Services.Certificate;
 using Youverse.Provisioning.Services.Registration;
-using Youverse.Provisioning.Services.Registry;
 
 namespace Youverse.Provisioning;
 

@@ -31,27 +31,43 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Cdn
             var publishResult = await _staticFileContentService.Publish(request.Filename, request.Config, request.Sections);
             return publishResult;
         }
-        //
-        // /// <summary>
-        // /// Returns the static file's contents
-        // /// </summary>
-        // /// <returns></returns>
-        // [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCdn })]
-        // [HttpGet("files/{filename}")]
-        // public async Task<IActionResult> GetStaticFile(string filename)
-        // {
-        //     var (config, stream) = await _staticFileContentService.GetStaticFileStream(filename);
-        //     if (null == stream)
-        //     {
-        //         return NotFound();
-        //     }
-        //
-        //     if (config.CrossOriginBehaviour == CrossOriginBehaviour.AllowAllOrigins)
-        //     {
-        //         this.Response.Headers.Add("Access-Control-Allow-Origin", "*");
-        //     }
-        //
-        //     return new FileStreamResult(stream, "application/json");
-        // }
+
+
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCdn })]
+        [HttpPost("profileimage")]
+        public async Task<IActionResult> PublishPublicProfileImage([FromBody] PublishPublicProfileImageRequest request)
+        {
+            await _staticFileContentService.PublishProfileImage(request.Image64, request.ContentType);
+            return Ok();
+        }
+
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCdn })]
+        [HttpPost("profilecard")]
+        public async Task<IActionResult> PublishPublicProfileCard([FromBody] PublishPublicProfileCardRequest request)
+        {
+            await _staticFileContentService.PublishProfileCard(request.ProfileCardJson);
+            return Ok();
+        }
+    }
+
+    public class PublishPublicProfileCardRequest
+    {
+        /// <summary>
+        /// The json string of the profile card.
+        /// </summary>
+        public string ProfileCardJson { get; set; }
+    }
+
+    public class PublishPublicProfileImageRequest
+    {
+        /// <summary>
+        /// Base64 encoded byte array of the image
+        /// </summary>
+        public string Image64 { get; set; }
+
+        /// <summary>
+        ///  The mime-type
+        /// </summary>
+        public string ContentType { get; set; }
     }
 }

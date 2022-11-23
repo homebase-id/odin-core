@@ -2,12 +2,13 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Mime;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core;
-using Youverse.Core.Cryptography;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive.Query;
@@ -16,11 +17,9 @@ using Youverse.Core.Services.Optimization.Cdn;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
-using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Controllers.OwnerToken.Cdn;
 using Youverse.Hosting.Tests.AppAPI;
 using Youverse.Hosting.Tests.OwnerApi.Drive;
-using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
 {
@@ -192,12 +191,67 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                 //TODO: open the file and check it against what was uploaded.  going to have to do some json acrobatics maybe?
                 var json = await getFileResponse.Content.ReadAsStringAsync();
                 // Console.WriteLine(json);
-                
+
                 var sectionOutputArray = DotYouSystemSerializer.Deserialize<SectionOutput[]>(json);
-                
+
                 Assert.IsNotNull(sectionOutputArray);
                 Assert.IsTrue(sectionOutputArray.Length == pubResult.SectionResults.Count);
                 Assert.IsTrue(sectionOutputArray.Length == publishRequest.Sections.Count);
+            }
+        }
+
+        [Test]
+        public async Task CanPublishPublicProfileCard()
+        {
+            var identity = TestIdentities.Frodo;
+            var testContext = await _scaffold.OwnerApi.SetupTestSampleApp(identity);
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret))
+            {
+                var staticFileSvc = RefitCreator.RestServiceFor<IStaticFileTestHttpClientForOwner>(client, ownerSharedSecret);
+                var getProfileCardResponse1 = await staticFileSvc.GetPublicProfileCard();
+                Assert.IsTrue(getProfileCardResponse1.StatusCode == HttpStatusCode.NotFound);
+
+
+                string expectedJson = "{name:'Sam'}";
+                await staticFileSvc.PublishPublicProfileCard(new PublishPublicProfileCardRequest()
+                {
+                    ProfileCardJson = expectedJson
+                });
+                
+                var getProfileCardResponse2 = await staticFileSvc.GetPublicProfileCard();
+                Assert.IsTrue(getProfileCardResponse2.IsSuccessStatusCode);
+                Assert.IsNotNull(getProfileCardResponse2.Content);
+                Assert.IsTrue(getProfileCardResponse2.ContentHeaders.ContentType.MediaType == MediaTypeNames.Application.Json);
+                var json = await getProfileCardResponse2.Content.ReadAsStringAsync();
+                Assert.IsNotNull(json);
+                Assert.IsTrue(json == expectedJson);
+            }
+        }
+        
+        [Test]
+        public async Task CanPublishPublicProfileImage()
+        {
+            var identity = TestIdentities.Frodo;
+            var testContext = await _scaffold.OwnerApi.SetupTestSampleApp(identity);
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret))
+            {
+                var staticFileSvc = RefitCreator.RestServiceFor<IStaticFileTestHttpClientForOwner>(client, ownerSharedSecret);
+                var getPublicProfileImage1 = await staticFileSvc.GetPublicProfileImage();
+                Assert.IsTrue(getPublicProfileImage1.StatusCode == HttpStatusCode.NotFound);
+
+                var expectedImage = TestMedia.ThumbnailBytes300;
+                await staticFileSvc.PublishPublicProfileImage(new PublishPublicProfileImageRequest()
+                {
+                    Image64 = expectedImage.ToBase64(),
+                    ContentType = MediaTypeNames.Image.Jpeg
+                });
+                
+                var getPublicProfileImage2 = await staticFileSvc.GetPublicProfileImage();
+                Assert.IsTrue(getPublicProfileImage2.IsSuccessStatusCode);
+                Assert.IsNotNull(getPublicProfileImage2.Content);
+                Assert.IsTrue(getPublicProfileImage2.ContentHeaders.ContentType.MediaType == MediaTypeNames.Image.Jpeg);
+                var bytes = await getPublicProfileImage2.Content.ReadAsByteArrayAsync();
+                Assert.IsNotNull(ByteArrayUtil.EquiByteArrayCompare(expectedImage, bytes));
             }
         }
 

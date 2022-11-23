@@ -1,14 +1,18 @@
 ﻿#nullable enable
+using System.IO;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Youverse.Core;
+using Youverse.Core.Cryptography;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Optimization.Cdn;
 using Youverse.Core.Services.Tenant;
+using NotImplementedException = System.NotImplementedException;
 
 namespace Youverse.Hosting.Controllers.Anonymous
 {
     [ApiController]
-    [Route("/cdn")]
     public class StaticFileController : Controller
     {
         private readonly IYouAuthService _youAuthService;
@@ -25,16 +29,40 @@ namespace Youverse.Hosting.Controllers.Anonymous
 
         //
 
-
         /// <summary>
         /// Returns the static file's contents
         /// </summary>
         /// <returns></returns>
-        [HttpGet("{filename}")]
+        [HttpGet("cdn/{filename}")]
         public async Task<IActionResult> GetStaticFile(string filename)
         {
             var (config, stream) = await _staticFileContentService.GetStaticFileStream(filename);
-            if (null == stream)
+            return SendStream(config, stream);
+        }
+
+        /// <summary>
+        /// Returns the public profile image
+        /// </summary>
+        [HttpGet("pub/image")]
+        public async Task<IActionResult> GetPublicImage()
+        {
+            var (config, stream) = await _staticFileContentService.GetStaticFileStream(StaticFileConstants.ProfileImageFileName);
+            return SendStream(config, stream);
+        }
+        
+        /// <summary>
+        /// Returns the public profile data
+        /// </summary>
+        [HttpGet("pub/profile")]
+        public async Task<IActionResult> GetPublicProfileData()
+        {
+            var (config, stream) = await _staticFileContentService.GetStaticFileStream(StaticFileConstants.PublicProfileCardFileName);
+            return SendStream(config, stream);
+        }
+
+        private IActionResult SendStream(StaticFileConfiguration config, Stream? stream)
+        {
+            if (null == stream || stream == Stream.Null)
             {
                 return NotFound();
             }
@@ -45,10 +73,8 @@ namespace Youverse.Hosting.Controllers.Anonymous
             }
 
             this.Response.Headers.Add("Cache-Control", "max-age=3600");
-
             return new FileStreamResult(stream, config.ContentType);
         }
-
         //
     }
 }

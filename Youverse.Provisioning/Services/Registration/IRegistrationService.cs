@@ -22,7 +22,7 @@ namespace Youverse.Provisioning.Services.Registration
         /// </summary>
         /// <param name="pendingRegistrationId"></param>
         /// <returns></returns>
-        Task<object> FinalizeRegistration(Guid pendingRegistrationId);
+        Task FinalizeRegistration(Guid pendingRegistrationId);
         
         /// <summary>
         /// Reserves a domain for a configured amount of time.

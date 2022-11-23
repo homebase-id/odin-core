@@ -18,8 +18,20 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
 
         [Post(RootEndpoint + "/publish")]
         Task<ApiResponse<StaticFilePublishResult>> Publish([Body] PublishStaticFileRequest request);
+        
+        [Post(RootEndpoint + "/profileimage")]
+        Task<ApiResponse<HttpContent>> PublishPublicProfileImage([Body] PublishPublicProfileImageRequest request);
+        
+        [Post(RootEndpoint + "/profilecard")]
+        Task<ApiResponse<HttpContent>> PublishPublicProfileCard([Body] PublishPublicProfileCardRequest request);
 
         [Get("/cdn/{filename}")]
         Task<ApiResponse<HttpContent>> GetStaticFile(string filename);
+        
+        [Get("/pub/image")]
+        Task<ApiResponse<HttpContent>> GetPublicProfileImage();
+        
+        [Get("/pub/profile")]
+        Task<ApiResponse<HttpContent>> GetPublicProfileCard();
     }
 }

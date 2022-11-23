@@ -6,8 +6,8 @@ using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit;
+using Youverse.Hosting.Authentication.ClientToken;
 using Youverse.Hosting.Controllers.Anonymous;
-using Youverse.Hosting.Controllers.OwnerToken.Drive;
 
 namespace Youverse.Hosting.Controllers.ClientToken.Drive
 {
@@ -53,6 +53,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
                 return NotFound();
             }
 
+            AddCacheHeader();
             return new JsonResult(result);
         }
 
@@ -76,9 +77,11 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             {
                 return NotFound();
             }
+
+            AddCacheHeader();
             return new FileStreamResult(payload, "application/octet-stream");
         }
-        
+
         /// <summary>
         /// Returns the thumbnail matching the width and height.  Note: you should get the content type from the file header
         /// </summary>
@@ -97,7 +100,17 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             {
                 return NotFound();
             }
+
+            AddCacheHeader();
             return new FileStreamResult(payload, "application/octet-stream");
+        }
+
+        private void AddCacheHeader()
+        {
+            if (_contextAccessor.GetCurrent().AuthContext == ClientTokenConstants.YouAuthScheme)
+            {
+                this.Response.Headers.Add("Cache-Control", "max-age=3600");
+            }
         }
     }
 }

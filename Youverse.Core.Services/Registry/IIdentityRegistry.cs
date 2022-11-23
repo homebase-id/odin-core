@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Youverse.Core.Services.Registry
@@ -8,7 +7,7 @@ namespace Youverse.Core.Services.Registry
     {
         void Initialize();
 
-        Guid ResolveId(string domainName);
+        Guid ResolveId(string domain);
 
         
         /// <summary>
@@ -19,10 +18,17 @@ namespace Youverse.Core.Services.Registry
         Task<bool> IsIdentityRegistered(string domain);
 
         /// <summary>
+        /// Checks if the domain has a valid (active) ssl certificate
+        /// </summary>
+        /// <param name="domain"></param>
+        /// <returns></returns>
+        Task<bool> HasValidCertificate(string domain);
+        
+        /// <summary>
         /// Adds an identity to this host
         /// </summary>
         /// <param name="request"></param>
-        Task Add(IdentityRegistrationRequest request);
+        Task AddRegistration(IdentityRegistrationRequest request);
 
         /// <summary>
         /// Gets a list of <see cref="IdentityRegistration"/>s based on the paging options sorted by domain name ascending

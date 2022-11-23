@@ -181,6 +181,52 @@ public class StaticFileContentService
         return Task.FromResult((config, (Stream)fileStream));
     }
 
+    public async Task PublishProfileImage(string image64, string contentType)
+    {
+        string filename = StaticFileConstants.ProfileImageFileName;
+        string targetFolder = EnsurePath();
+        string tempTargetPath = Path.Combine(targetFolder,  Guid.NewGuid().ToString("N"));
+        
+        await using var fileStream = File.Create(tempTargetPath);
+        var imageBytes = Convert.FromBase64String(image64);
+        await fileStream.WriteAsync(imageBytes);
+        fileStream.Close();
+
+        string finalTargetPath = Path.Combine(targetFolder, filename);
+        File.Move(tempTargetPath, finalTargetPath, true);
+        
+        var config = new StaticFileConfiguration()
+        {
+            ContentType = contentType,
+            CrossOriginBehavior = CrossOriginBehavior.AllowAllOrigins
+        };
+        
+        _systemStorage.SingleKeyValueStorage.Upsert(GetConfigKey(filename), config);
+    }
+
+    public async Task PublishProfileCard(string json)
+    {
+        string filename = StaticFileConstants.PublicProfileCardFileName;
+        string targetFolder = EnsurePath();
+        string tempTargetPath = Path.Combine(targetFolder,  Guid.NewGuid().ToString("N"));
+        
+        await using var fileStream = new StreamWriter(File.Create(tempTargetPath));
+        await fileStream.WriteAsync(json);
+        fileStream.Close();
+
+        string finalTargetPath = Path.Combine(targetFolder, filename);
+        File.Move(tempTargetPath, finalTargetPath, true);
+        
+        var config = new StaticFileConfiguration()
+        {
+            ContentType = MediaTypeNames.Application.Json,
+            CrossOriginBehavior = CrossOriginBehavior.AllowAllOrigins
+        };
+        
+        config.ContentType = MediaTypeNames.Application.Json;
+        _systemStorage.SingleKeyValueStorage.Upsert(GetConfigKey(filename), config);
+    }
+    
     private GuidId GetConfigKey(string filename)
     {
         return new GuidId(HashUtil.ReduceSHA256Hash(filename.ToLower()));

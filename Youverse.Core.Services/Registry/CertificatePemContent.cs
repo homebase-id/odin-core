@@ -1,4 +1,4 @@
-﻿namespace Youverse.Provisioning.Services.Certificate
+﻿namespace Youverse.Core.Services.Registry
 {
     /// <summary>
     /// Holds the content of a generated certificate

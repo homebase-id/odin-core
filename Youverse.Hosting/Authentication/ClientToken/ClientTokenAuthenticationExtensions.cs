@@ -13,7 +13,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
             }
 
             return builder.AddScheme<ClientTokenAuthenticationSchemeOptions, ClientTokenAuthenticationHandler>(
-                ClientTokenConstants.Scheme, op => { });
+                ClientTokenConstants.YouAuthScheme, op => { });
         }
     }
 }

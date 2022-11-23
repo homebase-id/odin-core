@@ -1,8 +1,8 @@
 using Dawn;
 using Youverse.Core;
+using Youverse.Core.Exceptions;
+using Youverse.Core.Identity;
 using Youverse.Core.Services.Registry;
-using Youverse.Core.Storage;
-using Youverse.Core.Storage.SQLite.KeyValue;
 using Youverse.Core.Util;
 using Youverse.Provisioning.Controllers;
 using Youverse.Provisioning.Services.Certificate;
@@ -10,78 +10,6 @@ using Youverse.Provisioning.Services.Certificate;
 
 namespace Youverse.Provisioning.Services.Registration
 {
-    public class PendingRegistrationStorage
-    {
-        private readonly KeyValueDatabase _db;
-        private readonly SingleKeyValueStorage _storage;
-
-        public PendingRegistrationStorage(string dbPath)
-        {
-            string dbName = "pending_reg.db";
-            if (!Directory.Exists(dbPath))
-            {
-                Directory.CreateDirectory(dbPath!);
-            }
-
-            string finalPath = PathUtil.Combine(dbPath, $"{dbName}");
-            _db = new KeyValueDatabase($"URI=file:{finalPath}");
-            _db.CreateDatabase(false);
-
-            _storage = new SingleKeyValueStorage(_db.tblKeyValue);
-        }
-
-        public PendingRegistration? Get(Guid id)
-        {
-            return _storage.Get<PendingRegistration>(id);
-        }
-
-        public void Delete(Guid id)
-        {
-            _storage.Delete(id);
-        }
-
-        public void Save(PendingRegistration reservation)
-        {
-            _storage.Upsert(reservation.DomainKey, reservation);
-        }
-    }
-
-    public class ReservationStorage
-    {
-        private readonly KeyValueDatabase _db;
-        private readonly SingleKeyValueStorage _storage;
-
-        public ReservationStorage(string dbPath)
-        {
-            string dbName = "reservations.db";
-            if (!Directory.Exists(dbPath))
-            {
-                Directory.CreateDirectory(dbPath!);
-            }
-
-            string finalPath = PathUtil.Combine(dbPath, $"{dbName}");
-            _db = new KeyValueDatabase($"URI=file:{finalPath}");
-            _db.CreateDatabase(false);
-
-            _storage = new SingleKeyValueStorage(_db.tblKeyValue);
-        }
-
-        public Reservation Get(Guid id)
-        {
-            return _storage.Get<Reservation>(id);
-        }
-
-        public void Delete(Guid id)
-        {
-            _storage.Delete(id);
-        }
-
-        public void Save(Reservation reservation)
-        {
-            _storage.Upsert(reservation.DomainKey, reservation);
-        }
-    }
-
     public class RegistrationService : IRegistrationService
     {
         private readonly ILogger<RegistrationService> _logger;
@@ -98,7 +26,7 @@ namespace Youverse.Provisioning.Services.Registration
             _registry = registry;
             _config = config;
             _certificateService = certificateService;
-            
+
             _reservationStorage = new ReservationStorage(config.DataRootPath);
             _pendingRegistrationStorage = new PendingRegistrationStorage(config.DataRootPath);
         }
@@ -170,55 +98,35 @@ namespace Youverse.Provisioning.Services.Registration
             }
         }
 
-        public async Task<object> FinalizeRegistration(Guid pendingRegistrationId)
+        public async Task FinalizeRegistration(Guid pendingRegistrationId)
         {
             var reg = _pendingRegistrationStorage.Get(pendingRegistrationId);
-            var isReady = await _certificateService.IsCertificateIsReady(reg.OrderId);
+
+            if (reg == null)
+            {
+                throw new YouverseClientException("Invalid Registration Id", YouverseClientErrorCode.UnknownId);
+            }
+
+            var isReady = await _certificateService.IsCertificateIsReady(reg!.OrderId);
             if (!isReady)
             {
-                throw new Exception("Certificate is not ready.  See GetRegistrationStatus if you want to create a polling mechanism");
+                throw new YouverseClientException("Certificate is not ready.  See GetRegistrationStatus if you want to create a polling mechanism", YouverseClientErrorCode.Todo);
             }
 
             var certContent = await _certificateService.GenerateCertificate(reg.OrderId);
-
-            string envRoot = _config.CertificateRootPath;
-            string root = Path.Combine(envRoot, reg.Domain);
-
-            if (!Directory.Exists(root))
+            var request = new IdentityRegistrationRequest()
             {
-                Directory.CreateDirectory(root);
-            }
-
-            Console.WriteLine($"Writing certificates to path [{root}]");
-            var identReg = new IdentityRegistration()
-            {
-                Id = Guid.NewGuid(),
-                DomainName = reg.Domain,
-                IsCertificateManaged = reg.IsCertificateManaged,
-                CertificateRenewalInfo = new CertificateRenewalInfo()
-                {
-                    CreatedTimestamp = UnixTimeUtc.Now(),
-                    CertificateSigningRequest = reg.Order.Account.CertificateSigningRequest
-                },
-
-                PrivateKeyRelativePath = Path.Combine(root, "private.key"),
-                PublicKeyCertificateRelativePath = Path.Combine(root, "certificate.cer"),
-                FullChainCertificateRelativePath = Path.Combine(root, "fullchain.cer")
+                DotYouId = (DotYouIdentity)reg.Domain,
+                CertificateContent = certContent,
+                IsCertificateManaged = false, //TODO
+                CertificateSigningRequest = reg.Order.Account.CertificateSigningRequest
             };
 
-            await File.WriteAllTextAsync(identReg.PublicKeyCertificateRelativePath, certContent.PublicKeyCertificate);
-            await File.WriteAllTextAsync(identReg.PrivateKeyRelativePath, certContent.PrivateKey);
-            await File.WriteAllTextAsync(identReg.FullChainCertificateRelativePath, certContent.FullChain);
-
-            throw new NotImplementedException("update the registry");
-            // await _registry.Add(identReg);
+            await _registry.AddRegistration(request);
 
             //clean up
             _pendingRegistrationStorage.Delete(reg.Id);
             _reservationStorage.Delete(reg.Reservation.Id);
-
-            //TODO: what do i return here?
-            return null;
         }
 
         public async Task<Reservation> Reserve(ReservationRequest request)

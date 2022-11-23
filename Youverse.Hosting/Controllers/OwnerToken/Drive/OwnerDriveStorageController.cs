@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Dawn;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
@@ -124,6 +126,30 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             }
 
             return new JsonResult(result);
+        }
+
+        /// <summary>
+        /// Hard deletes a file
+        /// </summary>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        [HttpPost("harddelete")]
+        public async Task<IActionResult> HardDeleteFile([FromBody] DeleteFileRequest request)
+        {
+            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.File.TargetDrive);
+
+            if (request.Recipients.Any())
+            {
+                throw new YouverseClientException("Cannot specify recipients when hard-deleting a file", YouverseClientErrorCode.InvalidRecipient);
+            }
+
+            var file = new InternalDriveFileId()
+            {
+                DriveId = driveId,
+                FileId = request.File.FileId
+            };
+
+            await _driveService.HardDeleteLongTermFile(file);
+            return Ok();
         }
     }
 }

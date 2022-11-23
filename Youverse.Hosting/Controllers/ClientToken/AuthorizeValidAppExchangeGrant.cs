@@ -10,7 +10,7 @@ namespace Youverse.Hosting.Controllers.ClientToken
     {
         public AuthorizeValidAppExchangeGrant()
         {
-            AuthenticationSchemes = ClientTokenConstants.Scheme;
+            AuthenticationSchemes = ClientTokenConstants.YouAuthScheme;
             Policy = ClientTokenPolicies.IsAuthorizedApp;
         }
     }

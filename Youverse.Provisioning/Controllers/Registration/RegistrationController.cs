@@ -62,7 +62,7 @@ namespace Youverse.Provisioning.Controllers.Registration
         {
             if (info.RequestedManagedCertificate == false)
             {
-                throw new NotSupportedException("Self-managed certificates will be supported after the prototrial");
+                throw new NotSupportedException("Self-managed certificates are not yet supported");
             }
             
             // var info = new RegistrationInfo()

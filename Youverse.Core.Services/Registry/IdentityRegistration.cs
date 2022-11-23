@@ -7,6 +7,10 @@ namespace Youverse.Core.Services.Registry
     public class IdentityRegistrationRequest
     {
         public DotYouIdentity DotYouId { get; set; }
+        
+        public CertificatePemContent CertificateContent { get; set; }
+        public bool IsCertificateManaged { get; set; }
+        public CertificateSigningRequest CertificateSigningRequest { get; set; }
     }
     
     public class IdentityRegistration
@@ -38,13 +42,7 @@ namespace Youverse.Core.Services.Registry
                 _domainKey = new Guid(HashUtil.ReduceSHA256Hash(value.ToUtf8ByteArray()));
             }
         }
-
-        public string PrivateKeyRelativePath { get; set; }
-
-        public string PublicKeyCertificateRelativePath { get; set; }
-
-        public string FullChainCertificateRelativePath { get; set; }
-
+        
         /// <summary>
         /// Specifies the user requested the DI host manage the certificate
         /// </summary>

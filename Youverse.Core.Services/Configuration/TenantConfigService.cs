@@ -74,6 +74,8 @@ public class TenantConfigService
             await CreateCircleIfNotExists(rc);
         }
 
+        _configStorage.Upsert(TenantSystemConfig.ConfigKey, TenantSystemConfig.Default);
+
         _configStorage.Upsert(FirstRunInfo.Key, new FirstRunInfo()
         {
             FirstRunDate = UnixTimeUtc.Now().milliseconds

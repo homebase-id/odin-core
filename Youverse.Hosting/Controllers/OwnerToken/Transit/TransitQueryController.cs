@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
@@ -120,6 +121,13 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
             HttpContext.Response.Headers.Add(TransitConstants.DecryptedContentType, decryptedContentType);
             HttpContext.Response.Headers.Add(TransitConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader.ToBase64());
             return new FileStreamResult(thumb, "application/octet-stream");
+        }
+
+        [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
+        [HttpPost("metadata")]
+        public async Task<IActionResult> GetMetdata()
+        {
+            throw new NotImplementedException();
         }
     }
 }

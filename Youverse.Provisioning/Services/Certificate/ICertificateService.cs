@@ -1,3 +1,5 @@
+using Youverse.Core.Services.Registry;
+
 namespace Youverse.Provisioning.Services.Certificate
 {
     /// <summary>

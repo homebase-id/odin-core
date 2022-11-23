@@ -8,6 +8,7 @@ namespace Youverse.Core.Services.Base
 {
     public class TenantContext
     {
+        private TenantSystemConfig _tenantSystemConfig;
         public Guid DotYouRegistryId { get; set; }
 
         /// <summary>
@@ -38,11 +39,11 @@ namespace Youverse.Core.Services.Base
         /// <summary>
         /// Configuration set by the tenant indicating various settings
         /// </summary>
-        public TenantSystemConfig TenantSystemConfig { get; private set; }
+        public TenantSystemConfig TenantSystemConfig => _tenantSystemConfig ?? TenantSystemConfig.Default;
 
         public void UpdateSystemConfig(TenantSystemConfig newConfig)
         {
-            this.TenantSystemConfig = newConfig;
+            _tenantSystemConfig = newConfig;
         }
     }
 }

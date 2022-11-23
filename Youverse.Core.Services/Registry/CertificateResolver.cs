@@ -30,9 +30,14 @@ namespace Youverse.Core.Services.Registry
             Guid domainId = CalculateDomainId(_tenantContext.HostDotYouId);
             string certificatePath = Path.Combine(_tenantContext.DataRoot, "ssl", domainId.ToString(), "certificate.crt");
             string privateKeyPath = Path.Combine(_tenantContext.DataRoot, "ssl", domainId.ToString(), "private.key");
-            return LoadCertificate(certificatePath, privateKeyPath);
+            return GetSslCertificate(certificatePath, privateKeyPath);
         }
-        
+
+        public X509Certificate2 GetSslCertificate(string publicKeyPath, string privateKeyPath)
+        {
+            return LoadCertificate(publicKeyPath, privateKeyPath);
+        }
+
         /// <summary>
         /// Loads and returns a certificate for the given dotYouId
         /// </summary>
@@ -48,7 +53,7 @@ namespace Youverse.Core.Services.Registry
             return LoadCertificate(certificatePath, privateKeyPath);
         }
 
-        private static X509Certificate2 LoadCertificate(string publicKeyPath, string privateKeyPath)
+        public static X509Certificate2 LoadCertificate(string publicKeyPath, string privateKeyPath)
         {
             if (File.Exists(publicKeyPath) == false || File.Exists(privateKeyPath) == false)
             {
@@ -64,7 +69,7 @@ namespace Youverse.Core.Services.Registry
                     rsaPrivateKey.ImportFromPem(encodedKey.ToCharArray());
 
 
-                    if(Environment.OSVersion.Platform == PlatformID.Win32NT)
+                    if (Environment.OSVersion.Platform == PlatformID.Win32NT)
                     {
                         using (X509Certificate2 pubPrivEphemeral = publicKey.CopyWithPrivateKey(rsaPrivateKey))
                         {

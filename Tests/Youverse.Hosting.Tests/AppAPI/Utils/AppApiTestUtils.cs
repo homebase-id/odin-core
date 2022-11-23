@@ -50,7 +50,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
         public HttpClient CreateAppApiHttpClient(DotYouIdentity identity, ClientAuthenticationToken token)
         {
             var cookieJar = new CookieContainer();
-            cookieJar.Add(new Cookie(AppAuthConstants.ClientAuthTokenCookieName, token.ToString(), null, identity));
+            cookieJar.Add(new Cookie(ClientTokenConstants.ClientAuthTokenCookieName, token.ToString(), null, identity));
             HttpMessageHandler handler = new HttpClientHandler()
             {
                 CookieContainer = cookieJar

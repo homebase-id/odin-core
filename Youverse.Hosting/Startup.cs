@@ -61,7 +61,7 @@ namespace Youverse.Hosting
                     // });
 
                     q.UseDefaultTransitOutboxSchedule(config.Quartz.BackgroundJobStartDelaySeconds);
-                    q.UseDefaultCertificateRenewalSchedule(config.Quartz.CertificateRenewalCheckIntervalMinutes);
+                    // q.UseDefaultCertificateRenewalSchedule(config.Quartz.CertificateRenewalCheckIntervalMinutes);
                 });
 
                 services.AddQuartzServer(options => { options.WaitForJobsToComplete = true; });

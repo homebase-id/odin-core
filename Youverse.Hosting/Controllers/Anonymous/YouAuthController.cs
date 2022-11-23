@@ -79,7 +79,7 @@ namespace Youverse.Hosting.Controllers.Anonymous
 
         [HttpGet(YouAuthApiPathConstants.IsAuthenticatedMethodName)]
         [Produces("application/json")]
-        [Authorize(AuthenticationSchemes = ClientTokenConstants.Scheme, Policy = ClientTokenPolicies.IsIdentified)]
+        [Authorize(AuthenticationSchemes = ClientTokenConstants.YouAuthScheme, Policy = ClientTokenPolicies.IsIdentified)]
         public ActionResult IsAuthenticated()
         {
             return Ok(true);
@@ -89,7 +89,7 @@ namespace Youverse.Hosting.Controllers.Anonymous
 
         [HttpGet(YouAuthApiPathConstants.DeleteTokenMethodName)]
         [Produces("application/json")]
-        [Authorize(AuthenticationSchemes = ClientTokenConstants.Scheme)]
+        [Authorize(AuthenticationSchemes = ClientTokenConstants.YouAuthScheme)]
         public async Task<ActionResult> DeleteToken()
         {
             if (User?.Identity?.Name != null)

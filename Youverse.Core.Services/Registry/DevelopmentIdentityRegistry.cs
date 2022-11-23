@@ -99,13 +99,13 @@ namespace Youverse.Core.Services.Registry
             }
         }
 
-        public Guid ResolveId(string domainName)
+        public Guid ResolveId(string domain)
         {
-            var key = _identityMap.LookupName(domainName);
+            var key = _identityMap.LookupName(domain);
 
             if (key == Guid.Empty)
             {
-                throw new InvalidTenantClientException($"No tenant with domain '{domainName}'");
+                throw new InvalidTenantClientException($"No tenant with domain '{domain}'");
             }
 
             return key;
@@ -116,7 +116,12 @@ namespace Youverse.Core.Services.Registry
             throw new NotImplementedException();
         }
 
-        public Task Add(IdentityRegistrationRequest request)
+        public Task<bool> HasValidCertificate(string domain)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task AddRegistration(IdentityRegistrationRequest request)
         {
             throw new NotImplementedException();
         }

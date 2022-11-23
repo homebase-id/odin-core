@@ -90,7 +90,7 @@ namespace Youverse.Hosting
             //HACK until I decide if we want to have ServerCertificateSelector read directly from disk
             _registry = cfg.Host.UseLocalCertificateRegistry
                 ? new DevelopmentIdentityRegistry(cfg.Host.TenantDataRootPath, cfg.Host.TempTenantDataRootPath)
-                : new FileSystemIdentityRegistry(cfg.Host.TenantDataRootPath);
+                : new FileSystemIdentityRegistry(cfg.Host.TenantDataRootPath, cfg.Host.TempTenantDataRootPath);
 
             _registry.Initialize();
 

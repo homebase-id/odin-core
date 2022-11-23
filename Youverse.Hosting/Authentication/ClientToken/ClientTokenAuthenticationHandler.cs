@@ -61,7 +61,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
 
         private async Task<AuthenticateResult> HandleAppAuth(DotYouContext dotYouContext)
         {
-            if (!TryGetClientAuthToken(AppAuthConstants.ClientAuthTokenCookieName, out var authToken))
+            if (!TryGetClientAuthToken(ClientTokenConstants.ClientAuthTokenCookieName, out var authToken))
             {
                 AuthenticateResult.Fail("Invalid App Token");
             }
@@ -82,7 +82,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
             var (appId, permissionContext) = await appRegService.GetPermissionContext(authToken);
 
             dotYouContext.SetPermissionContext(permissionContext);
-            dotYouContext.AuthContext = AppAuthConstants.SchemeName;
+            dotYouContext.AuthContext = ClientTokenConstants.AppSchemeName;
 
             var claims = new List<Claim>();
             claims.Add(new Claim(ClaimTypes.Name, Request.Host.Host)); //caller is this owner
@@ -90,7 +90,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
             claims.Add(new Claim(DotYouClaimTypes.IsAuthenticated, true.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
             claims.Add(new Claim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
 
-            return CreateAuthenticationResult(claims, AppAuthConstants.SchemeName);
+            return CreateAuthenticationResult(claims, ClientTokenConstants.AppSchemeName);
         }
 
         private async Task<AuthenticateResult> HandleYouAuth(DotYouContext dotYouContext)
@@ -109,14 +109,14 @@ namespace Youverse.Hosting.Authentication.ClientToken
 
             dotYouContext.Caller = cc;
             dotYouContext.SetPermissionContext(permissionContext);
-            dotYouContext.AuthContext = ClientTokenConstants.Scheme;
+            dotYouContext.AuthContext = ClientTokenConstants.YouAuthScheme;
 
             var claims = new List<Claim>();
             claims.Add(new Claim(ClaimTypes.Name, dotYouContext.Caller.DotYouId));
             claims.Add(new Claim(DotYouClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
             claims.Add(new Claim(DotYouClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
 
-            return CreateAuthenticationResult(claims, ClientTokenConstants.Scheme);
+            return CreateAuthenticationResult(claims, ClientTokenConstants.YouAuthScheme);
         }
 
         private AuthenticateResult CreateAuthenticationResult(IEnumerable<Claim> claims, string scheme)
@@ -182,7 +182,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
                 new Claim(DotYouClaimTypes.IsAuthenticated, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer)
             };
 
-            var claimsIdentity = new ClaimsIdentity(claims, ClientTokenConstants.Scheme);
+            var claimsIdentity = new ClaimsIdentity(claims, ClientTokenConstants.YouAuthScheme);
             return new AuthenticationTicket(new ClaimsPrincipal(claimsIdentity), this.Scheme.Name);
         }
 
