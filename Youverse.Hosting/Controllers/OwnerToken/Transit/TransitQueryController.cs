@@ -127,7 +127,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
             return new FileStreamResult(thumb, "application/octet-stream");
         }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
         [HttpPost("metadata/type")]
         public async Task<PagedResult<ClientDriveData>> GetDrivesByType([FromBody] TransitGetDrivesByTypeRequest request)
         {
