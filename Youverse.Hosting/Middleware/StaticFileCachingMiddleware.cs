@@ -9,6 +9,7 @@ namespace Youverse.Hosting.Middleware
     {
         private readonly RequestDelegate _next;
 
+        //Note: be sure it does not end with a "/"
         private static readonly List<string> paths = new List<string>()
         {
             "/home/static/js",

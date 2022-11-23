@@ -218,6 +218,18 @@ namespace Youverse.Core.Services.Transit.Quarantine
             return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, thumbnail.ContentType, thumb);
         }
 
+        public async Task<IEnumerable<PerimeterDriveData>> GetDrives(Guid driveType)
+        {
+            //filter drives by only returning those the caller can see
+            var allDrives = await _driveService.GetDrives(driveType, PageOptions.All);
+            var perms = _contextAccessor.GetCurrent().PermissionsContext;
+            var readableDrives = allDrives.Results.Where(drive => perms.HasDrivePermission(drive.Id, DrivePermission.Read));
+            return readableDrives.Select(drive => new PerimeterDriveData()
+            {
+                TargetDrive = drive.TargetDriveInfo,
+            });
+        }
+
         private async Task<FilterAction> ApplyFilters(MultipartHostTransferParts part, Stream data)
         {
             //TODO: when this has the full set of filters

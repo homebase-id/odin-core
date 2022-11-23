@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers.Anonymous;
 using Youverse.Hosting.Controllers.OwnerToken;
 using Youverse.Hosting.Controllers.OwnerToken.Drive;
@@ -39,9 +40,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             var clientDriveData = drives.Results.Select(drive =>
                 new ClientDriveData()
                 {
-                    Name = drive.Name,
                     TargetDrive = drive.TargetDriveInfo,
-                    Metadata = drive.Metadata //TODO should we return metadata to youauth?
                 }).ToList();
 
             var page = new PagedResult<ClientDriveData>(drives.Request, drives.TotalPages, clientDriveData);

@@ -1,4 +1,7 @@
-﻿using System.IO;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -63,7 +66,7 @@ namespace Youverse.Hosting.Controllers.Certificate
         [HttpPost("payload")]
         public async Task<IActionResult> GetPayloadStream([FromBody] ExternalFileIdentifier request)
         {
-            var (encryptedKeyHeader64,payloadIsEncrypted, decryptedContentType, payload) = await _perimeterService.GetPayloadStream(request.TargetDrive, request.FileId);
+            var (encryptedKeyHeader64, payloadIsEncrypted, decryptedContentType, payload) = await _perimeterService.GetPayloadStream(request.TargetDrive, request.FileId);
 
             if (payload == Stream.Null)
             {
@@ -85,7 +88,8 @@ namespace Youverse.Hosting.Controllers.Certificate
         [HttpPost("thumb")]
         public async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
         {
-            var (encryptedKeyHeader64,payloadIsEncrypted, decryptedContentType, thumb) = await _perimeterService.GetThumbnail(request.File.TargetDrive, request.File.FileId, request.Height, request.Width);
+            var (encryptedKeyHeader64, payloadIsEncrypted, decryptedContentType, thumb) =
+                await _perimeterService.GetThumbnail(request.File.TargetDrive, request.File.FileId, request.Height, request.Width);
 
             if (thumb == Stream.Null)
             {
@@ -97,6 +101,14 @@ namespace Youverse.Hosting.Controllers.Certificate
             HttpContext.Response.Headers.Add(TransitConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
             return new FileStreamResult(thumb, "application/octet-stream");
         }
+
+        [HttpPost("metadata/type")]
+        public async Task<IEnumerable<PerimeterDriveData>> GetDrives([FromBody]GetDrivesByTypeRequest request)
+        {
+            var drives = await _perimeterService.GetDrives(request.DriveType);
+            return drives;
+        }
+
 
         [HttpPost("deletelinkedfile")]
         public async Task<HostTransitResponse> DeleteLinkedFile(DeleteLinkedFileTransitRequest transitRequest)

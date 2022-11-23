@@ -1,7 +1,6 @@
 using System;
-using Youverse.Core;
 
-namespace Youverse.Hosting.Controllers.OwnerToken.Drive;
+namespace Youverse.Core.Services.Transit;
 
 public class GetDrivesByTypeRequest
 {

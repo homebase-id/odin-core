@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -11,6 +12,7 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit.Encryption;
+using Youverse.Core.Services.Transit.Quarantine;
 using Youverse.Core.Storage.SQLite;
 
 namespace Youverse.Core.Services.Transit;
@@ -134,6 +136,23 @@ public class TransitQueryService
         var stream = await response!.Content!.ReadAsStreamAsync();
 
         return (ownerSharedSecretEncryptedKeyHeader, payloadIsEncrypted, decryptedContentType, stream);
+    }
+
+    public async Task<IEnumerable<PerimeterDriveData>> GetDrivesByType(DotYouIdentity dotYouId, Guid driveType)
+    {
+        var (icr, httpClient) = await CreateClient(dotYouId);
+        var response = await httpClient.GetDrives(new GetDrivesByTypeRequest()
+        {
+            DriveType = driveType
+        });
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        AssertValidResponse(response);
+        return response.Content;
     }
 
     private async Task<(IdentityConnectionRegistration, ITransitHostHttpClient)> CreateClient(DotYouIdentity dotYouId)

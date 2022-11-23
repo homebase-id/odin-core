@@ -1,11 +1,15 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
+using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Transit;
+using Youverse.Hosting.Controllers.ClientToken.Drive;
+using Youverse.Hosting.Controllers.OwnerToken.Drive;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Transit
 {
@@ -123,11 +127,19 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
             return new FileStreamResult(thumb, "application/octet-stream");
         }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
-        [HttpPost("metadata")]
-        public async Task<IActionResult> GetMetdata()
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpPost("metadata/type")]
+        public async Task<PagedResult<ClientDriveData>> GetDrivesByType([FromBody] TransitGetDrivesByTypeRequest request)
         {
-            throw new NotImplementedException();
+            var drives = await _transitQueryService.GetDrivesByType((DotYouIdentity)request.DotYouId, request.DriveType);
+            var clientDriveData = drives.Select(drive =>
+                new ClientDriveData()
+                {
+                    TargetDrive = drive.TargetDrive,
+                }).ToList();
+
+            var page = new PagedResult<ClientDriveData>(PageOptions.All, 1, clientDriveData);
+            return page;
         }
     }
 }

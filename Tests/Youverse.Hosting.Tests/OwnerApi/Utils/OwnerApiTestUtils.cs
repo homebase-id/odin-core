@@ -629,7 +629,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 };
 
                 var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
-                var payloadCipherBytes = keyHeader.EncryptDataAes(payloadData.ToUtf8ByteArray()); 
+                var payloadCipherBytes = keyHeader.EncryptDataAes(payloadData.ToUtf8ByteArray());
                 var payloadCipher = encryptPayload ? new MemoryStream(payloadCipherBytes) : new MemoryStream(payloadData.ToUtf8ByteArray());
                 var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
 
@@ -783,21 +783,26 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
         public async Task<CircleDefinition> CreateCircleWithDrive(DotYouIdentity identity, string circleName, IEnumerable<int> permissionKeys, PermissionedDrive drive)
         {
+            return await this.CreateCircleWithDrive(identity, circleName, permissionKeys, new List<PermissionedDrive>() { drive });
+        }
+
+        public async Task<CircleDefinition> CreateCircleWithDrive(DotYouIdentity identity, string circleName, IEnumerable<int> permissionKeys, List<PermissionedDrive> drives)
+        {
             using (var client = CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
                 var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
 
-                var dgr1 = new DriveGrantRequest()
+                var dgrList = drives.Select(d => new DriveGrantRequest()
                 {
-                    PermissionedDrive = drive
-                };
+                    PermissionedDrive = d
+                }).ToList();
 
                 var request = new CreateCircleRequest()
                 {
                     Id = Guid.NewGuid(),
                     Name = circleName,
                     Description = $"Description for {circleName}",
-                    DriveGrants = new List<DriveGrantRequest>() { dgr1 },
+                    DriveGrants = dgrList,
                     Permissions = permissionKeys?.Any() ?? false ? new PermissionSet(permissionKeys?.ToArray()) : new PermissionSet()
                 };
 
@@ -812,7 +817,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
                 var circle = definitionList.Single(c => c.Id == request.Id);
 
-                Assert.IsNotNull(circle.DriveGrants.SingleOrDefault(d => d == dgr1));
+                foreach (var dgr in dgrList)
+                {
+                    Assert.IsNotNull(circle.DriveGrants.SingleOrDefault(d => d == dgr));
+                }
 
                 foreach (var k in permissionKeys)
                 {

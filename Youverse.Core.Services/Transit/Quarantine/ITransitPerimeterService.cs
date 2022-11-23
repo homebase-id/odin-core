@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Youverse.Core.Services.Apps;
@@ -49,5 +50,9 @@ namespace Youverse.Core.Services.Transit.Quarantine
         Task<(string encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, Stream stream)> GetPayloadStream(TargetDrive targetDrive, Guid fileId);
 
         Task<(string encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, Stream stream)> GetThumbnail(TargetDrive targetDrive, Guid fileId, int height, int width);
+
+        Task<IEnumerable<PerimeterDriveData>> GetDrives(Guid driveType);
     }
+    
+    
 }

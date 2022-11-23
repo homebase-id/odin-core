@@ -292,9 +292,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
             await _scaffold.OwnerApi.DisconnectIdentities(sender.DotYouId, recipientContext.Identity);
         }
 
-
         [Test]
-        public async Task CanSendTransferAndRecipientCanGetFile()
+        public async Task CanSendTransferAndRecipientCanGetFileHeaderThumbAndPayload()
         {
             var sender = TestIdentities.Frodo;
             var recipient = TestIdentities.Samwise;
@@ -539,7 +538,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                 PixelWidth = thumbnail1.PixelWidth,
                 Content = thumbnail1OriginalBytes
             }, keyHeader);
-            
+
             //
             //  The final test - use transit query batch for the sender to get the file on the recipients identity over transit
             //
@@ -598,7 +597,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
 
                 var payloadIsEncrypted = bool.Parse(getTransitPayloadResponse.Headers.GetValues(TransitConstants.PayloadEncrypted).Single());
                 Assert.IsTrue(payloadIsEncrypted);
-                
+
                 var payloadSharedSecretKeyHeaderValue = getTransitPayloadResponse.Headers.GetValues(TransitConstants.SharedSecretEncryptedHeader64).Single();
                 var ownerSharedSecretEncryptedKeyHeaderForPayload = EncryptedKeyHeader.FromBase64(payloadSharedSecretKeyHeaderValue);
 
@@ -610,7 +609,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                 Assert.IsTrue(reuploadedContext.PayloadCipher.Length == payloadResponseCipherBytes.Length);
                 var decryptedPayloadBytes = decryptedPayloadKeyHeader.Decrypt(payloadResponseCipherBytes);
                 Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(originalPayloadData.ToUtf8ByteArray(), decryptedPayloadBytes));
-                
+
                 //
                 // Get the thumbnail that was sent to the recipient via transit, test it
                 // can get the thumbnail that as uploaded and sent
@@ -629,7 +628,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
 
                 var thumbnailIsEncrypted = bool.Parse(getTransitThumbnailResponse.Headers.GetValues(TransitConstants.PayloadEncrypted).Single());
                 Assert.IsTrue(thumbnailIsEncrypted);
-                
+
                 var thumbnailSharedSecretKeyHeaderValue = getTransitThumbnailResponse.Headers.GetValues(TransitConstants.SharedSecretEncryptedHeader64).Single();
                 var ownerSharedSecretEncryptedKeyHeaderForThumbnail = EncryptedKeyHeader.FromBase64(thumbnailSharedSecretKeyHeaderValue);
 
@@ -644,6 +643,105 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
 
             keyHeader.AesKey.Wipe();
             key.Wipe();
+
+            await _scaffold.OwnerApi.DisconnectIdentities(sender.DotYouId, recipientContext.Identity);
+        }
+
+        [Test]
+        public async Task CanGetDrivesByType()
+        {
+            var sender = TestIdentities.Frodo;
+            var recipient = TestIdentities.Samwise;
+
+            Guid appId = Guid.NewGuid();
+            var expectedDriveType = Guid.NewGuid();
+
+            var targetDriveReadOnly = new TargetDrive()
+            {
+                Alias = Guid.NewGuid(),
+                Type = expectedDriveType
+            };
+
+            var targetDriveReadWrite = new TargetDrive()
+            {
+                Alias = Guid.NewGuid(),
+                Type = expectedDriveType
+            };
+
+            var targetDriveWriteOnly = new TargetDrive()
+            {
+                Alias = Guid.NewGuid(),
+                Type = expectedDriveType
+            };
+
+            var senderContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, sender, false, targetDriveReadOnly);
+            var recipientContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, recipient, false, targetDriveReadOnly);
+
+            //give add additional to recipient
+            await _scaffold.OwnerApi.CreateDrive(recipient.DotYouId, targetDriveReadWrite, "ReadWrite Drive", "", false);
+            await _scaffold.OwnerApi.CreateDrive(recipient.DotYouId, targetDriveWriteOnly, "Write Only Drive", "", false);
+
+            var senderCircleDef =
+                await _scaffold.OwnerApi.CreateCircleWithDrive(sender.DotYouId, "Sender Circle",
+                    permissionKeys: new List<int>() { },
+                    drive: new PermissionedDrive()
+                    {
+                        Drive = targetDriveReadOnly,
+                        Permission = DrivePermission.ReadWrite
+                    });
+
+            //grant sender access to the drives
+            var recipientCircleDef =
+                await _scaffold.OwnerApi.CreateCircleWithDrive(recipient.DotYouId, "Recipient Circle",
+                    permissionKeys: new List<int>() { },
+                    drives: new List<PermissionedDrive>()
+                    {
+                        new()
+                        {
+                            Drive = targetDriveReadWrite,
+                            Permission = DrivePermission.ReadWrite
+                        },
+                        new()
+                        {
+                            Drive = targetDriveReadOnly,
+                            Permission = DrivePermission.Read
+                        },
+                        new()
+                        {
+                            Drive = targetDriveWriteOnly,
+                            Permission = DrivePermission.Write
+                        }
+                    });
+
+            await _scaffold.OwnerApi.CreateConnection(sender.DotYouId, recipient.DotYouId,
+                createConnectionOptions: new CreateConnectionOptions()
+                {
+                    CircleIdsGrantedToRecipient = new List<GuidId>() { senderCircleDef.Id },
+                    CircleIdsGrantedToSender = new List<GuidId>() { recipientCircleDef.Id }
+                });
+
+            //
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sender, out var ownerSharedSecret))
+            {
+                var transitQueryService = RefitCreator.RestServiceFor<ITransitQueryHttpClientForOwner>(client, ownerSharedSecret);
+
+                var getTransitDrives = await transitQueryService.GetDrives(new TransitGetDrivesByTypeRequest()
+                {
+                    DotYouId = recipient.DotYouId,
+                    DriveType = targetDriveReadOnly.Type
+                });
+
+                Assert.IsTrue(getTransitDrives.IsSuccessStatusCode);
+                Assert.IsNotNull(getTransitDrives.Content);
+
+                var drivesOnRecipientIdentityAccessibleToSender = getTransitDrives.Content.Results;
+
+                Assert.IsTrue(drivesOnRecipientIdentityAccessibleToSender.All(d => d.TargetDrive.Type == expectedDriveType));
+                Assert.IsTrue(drivesOnRecipientIdentityAccessibleToSender.Count == 2);
+                Assert.IsNotNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == targetDriveReadOnly));
+                Assert.IsNotNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == targetDriveReadWrite));
+                Assert.IsNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == targetDriveWriteOnly), "should not have access to write only drive");
+            }
 
             await _scaffold.OwnerApi.DisconnectIdentities(sender.DotYouId, recipientContext.Identity);
         }
