@@ -182,6 +182,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
                 new Claim(DotYouClaimTypes.IsAuthenticated, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer)
             };
 
+            dotYouContext.AuthContext = ClientTokenConstants.YouAuthScheme;
             var claimsIdentity = new ClaimsIdentity(claims, ClientTokenConstants.YouAuthScheme);
             return new AuthenticationTicket(new ClaimsPrincipal(claimsIdentity), this.Scheme.Name);
         }

@@ -72,7 +72,8 @@ namespace Youverse.Hosting.Controllers.Anonymous
                 this.Response.Headers.Add("Access-Control-Allow-Origin", "*");
             }
 
-            this.Response.Headers.Add("Cache-Control", "max-age=3600");
+            this.Response.Headers.Add("Cache-Control", "max-age=10, stale-while-revalidate=60");
+
             return new FileStreamResult(stream, config.ContentType);
         }
         //

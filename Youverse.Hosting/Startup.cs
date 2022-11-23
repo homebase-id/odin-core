@@ -188,6 +188,7 @@ namespace Youverse.Hosting
             app.UseMiddleware<DotYouContextMiddleware>();
             app.UseResponseCompression();
             app.UseMiddleware<SharedSecretEncryptionMiddleware>();
+            app.UseMiddleware<StaticFileCachingMiddleware>();
             app.UseHttpsRedirection();
             
             // app.UseWebSockets();
