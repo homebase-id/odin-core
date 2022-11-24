@@ -49,10 +49,6 @@ namespace Youverse.Hosting.Middleware
             {
                 await HandleDriveAccessException(context, dex);
             }
-            catch (SharedSecretException sharedSecretException)
-            {
-                await HandleSharedSecretException(context, sharedSecretException);
-            }
             catch (YouverseSecurityException yse)
             {
                 await HandleSecurityException(context, yse);
@@ -88,39 +84,24 @@ namespace Youverse.Hosting.Middleware
             return context.Response.WriteAsync(result);
         }
 
-        private Task HandleSharedSecretException(HttpContext context, SharedSecretException sharedSecretException)
-        {
-            const int status = 403;
-            const string title = "Shared Secret Required";
-
-            _logger.LogError(sharedSecretException, "{ErrorText}", sharedSecretException.Message);
-
-            var problemDetails = new ProblemDetails
-            {
-                Status = status,
-                Title = title,
-                Detail = "The request body you provided must be formatted as a SharedSecretEncryptedPayload.",
-                Extensions =
-                {
-                    ["correlationId"] = _correlationContext.Id
-                }
-            };
-
-            var result = JsonSerializer.Serialize(problemDetails, DotYouSystemSerializer.JsonSerializerOptions);
-            context.Response.ContentType = "application/problem+json";
-            context.Response.StatusCode = status;
-
-            return context.Response.WriteAsync(result);
-        }
-
         //
-        
+
         private Task HandleApplicationAccessException(HttpContext context, YouverseClientException appException)
         {
             const int status = (int)HttpStatusCode.BadRequest;
             const string title = "Bad Request";
 
             _logger.LogError(appException, "{ErrorText}", appException.Message);
+
+            string internalErrorMessage = "";
+            string stackTrace = "";
+
+            var b = int.TryParse(Environment.GetEnvironmentVariable("DOTYOUCORE_EX_INFO"), out var env);
+            if (b && env == 1)
+            {
+                internalErrorMessage = appException.Message;
+                stackTrace = appException.StackTrace ?? "";
+            }
 
             var problemDetails = new ProblemDetails
             {
@@ -129,7 +110,9 @@ namespace Youverse.Hosting.Middleware
                 Extensions =
                 {
                     ["errorCode"] = appException.ErrorCode,
-                    ["correlationId"] = _correlationContext.Id
+                    ["correlationId"] = _correlationContext.Id,
+                    ["internalErrorMessage"] = internalErrorMessage,
+                    ["stackTrace"] = stackTrace
                 }
             };
 

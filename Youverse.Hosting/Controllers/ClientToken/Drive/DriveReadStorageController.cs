@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
@@ -57,6 +58,21 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             return new JsonResult(result);
         }
 
+        [HttpGet("files/header")]
+        public async Task<IActionResult> GetFileHeaderAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type)
+        {
+            return await GetFileHeader(
+                new ExternalFileIdentifier()
+                {
+                    FileId = fileId,
+                    TargetDrive = new TargetDrive()
+                    {
+                        Alias = alias,
+                        Type = type
+                    }
+                });
+        }
+
         /// <summary>
         /// Returns the payload for a given file
         /// </summary>
@@ -82,6 +98,21 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             return new FileStreamResult(payload, "application/octet-stream");
         }
 
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpGet("files/payload")]
+        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type)
+        {
+            return await GetPayloadStream(new ExternalFileIdentifier()
+            {
+                FileId = fileId,
+                TargetDrive = new()
+                {
+                    Alias = alias,
+                    Type = type
+                }
+            });
+        }
+
         /// <summary>
         /// Returns the thumbnail matching the width and height.  Note: you should get the content type from the file header
         /// </summary>
@@ -103,6 +134,25 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
 
             AddCacheHeader();
             return new FileStreamResult(payload, "application/octet-stream");
+        }
+
+        [HttpGet("files/thumb")]
+        public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] int width, [FromQuery] int height)
+        {
+            return await GetThumbnail(new GetThumbnailRequest()
+            {
+                File = new ExternalFileIdentifier()
+                {
+                    FileId = fileId,
+                    TargetDrive = new()
+                    {
+                        Alias = alias,
+                        Type = type
+                    }
+                },
+                Width = width,
+                Height = height
+            });
         }
 
         private void AddCacheHeader()

@@ -6,6 +6,7 @@ using System.Net;
 using System.Net.Mime;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Web;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -22,9 +23,10 @@ namespace Youverse.Hosting.Middleware
 {
     public class SharedSecretEncryptionMiddleware
     {
+        private const string SharedSecretQueryStringParam = "ss";
+
         private readonly RequestDelegate _next;
         private readonly ILogger<SharedSecretEncryptionMiddleware> _logger;
-
         private readonly List<string> IgnoredPathsForRequests;
 
         /// <summary>
@@ -111,26 +113,53 @@ namespace Youverse.Hosting.Middleware
         {
             var request = context.Request;
 
-            //TODO: need to detect if the request has a payload
             try
             {
-                var encryptedRequest = await DotYouSystemSerializer.Deserialize<SharedSecretEncryptedPayload>(request.Body, context.RequestAborted);
-
-                if (null == encryptedRequest)
+                SharedSecretEncryptedPayload encryptedRequest;
+                if (request.Method.ToUpper() == "GET")
                 {
-                    throw new SharedSecretException("Failed to deserialize SharedSecretEncryptedRequest, result was null");
+                    var qs = request.Query[SharedSecretQueryStringParam].FirstOrDefault();
+
+                    if (string.IsNullOrEmpty(qs) || string.IsNullOrWhiteSpace(qs))
+                    {
+                        throw new YouverseClientException("Querystring must be encrypted", YouverseClientErrorCode.SharedSecretEncryptionIsInvalid);
+                    }
+
+                    encryptedRequest = DotYouSystemSerializer.Deserialize<SharedSecretEncryptedPayload>(qs);
+
+                    if (null == encryptedRequest)
+                    {
+                        throw new YouverseClientException("Failed to deserialize SharedSecretEncryptedRequest, result was null", YouverseClientErrorCode.SharedSecretEncryptionIsInvalid);
+                    }
+
+                    var key = this.GetSharedSecret(context);
+                    var encryptedBytes = Convert.FromBase64String(encryptedRequest.Data);
+                    var decryptedBytes = AesCbc.Decrypt(encryptedBytes, ref key, encryptedRequest.Iv);
+                    var newQs = decryptedBytes.ToStringFromUtf8Bytes();
+                    var prefix = newQs.FirstOrDefault() == '?' ? "" : "?";
+                    request.QueryString = new QueryString($"{prefix}{newQs}");
                 }
+                else
+                {
+                    encryptedRequest = await DotYouSystemSerializer.Deserialize<SharedSecretEncryptedPayload>(request.Body, context.RequestAborted);
 
-                var key = this.GetSharedSecret(context);
-                var encryptedBytes = Convert.FromBase64String(encryptedRequest.Data);
-                var decryptedBytes = AesCbc.Decrypt(encryptedBytes, ref key, encryptedRequest.Iv);
+                    if (null == encryptedRequest)
+                    {
+                        throw new YouverseClientException("Failed to deserialize SharedSecretEncryptedRequest, result was null", YouverseClientErrorCode.SharedSecretEncryptionIsInvalid);
+                    }
 
-                //update the body with the decrypted json file so it can be read down stream as expected
-                request.Body = new MemoryStream(decryptedBytes);
+                    var key = this.GetSharedSecret(context);
+                    var encryptedBytes = Convert.FromBase64String(encryptedRequest.Data);
+                    var decryptedBytes = AesCbc.Decrypt(encryptedBytes, ref key, encryptedRequest.Iv);
+
+                    //update the body with the decrypted json file so it can be read down stream as expected
+                    request.Body = new MemoryStream(decryptedBytes);
+                }
             }
             catch (JsonException e)
             {
-                throw new SharedSecretException("Failed to decrypt shared secret payload.  Ensure you've provided a body of json formatted as SharedSecretEncryptedPayload");
+                throw new YouverseClientException("Failed to decrypt shared secret payload.  Ensure you've provided a body of json formatted as SharedSecretEncryptedPayload",
+                    YouverseClientErrorCode.SharedSecretEncryptionIsInvalid);
             }
         }
 
@@ -176,12 +205,18 @@ namespace Youverse.Hosting.Middleware
 
         private bool ShouldDecryptRequest(HttpContext context)
         {
-            if (context.Request.Headers.ContentLength == 0)
+            // if (!context.Request.Path.StartsWithSegments("/api") || context.Request.Method.ToUpper() != "POST" || !CallerMustHaveSharedSecret(context))
+            if (!context.Request.Path.StartsWithSegments("/api") || !CallerMustHaveSharedSecret(context))
             {
                 return false;
             }
 
-            if (!context.Request.Path.StartsWithSegments("/api") || context.Request.Method.ToUpper() != "POST" || !CallerMustHaveSharedSecret(context))
+            if (context.Request.Method.ToUpper() == "POST" && context.Request.Headers.ContentLength == 0)
+            {
+                return false;
+            }
+
+            if (context.Request.Method.ToUpper() == "GET" && context.Request.QueryString.HasValue == false)
             {
                 return false;
             }
@@ -198,7 +233,6 @@ namespace Youverse.Hosting.Middleware
 
             return !IgnoredPathsForResponses.Any(p => context.Request.Path.StartsWithSegments(p));
         }
-
 
         private bool CallerMustHaveSharedSecret(HttpContext context)
         {
