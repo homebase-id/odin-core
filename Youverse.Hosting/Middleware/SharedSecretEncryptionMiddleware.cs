@@ -118,14 +118,12 @@ namespace Youverse.Hosting.Middleware
                 SharedSecretEncryptedPayload encryptedRequest;
                 if (request.Method.ToUpper() == "GET")
                 {
-                    var qs = request.Query[SharedSecretQueryStringParam].FirstOrDefault();
-
-                    if (string.IsNullOrEmpty(qs) || string.IsNullOrWhiteSpace(qs))
+                    if (request.Query.TryGetValue(SharedSecretQueryStringParam, out var qs) == false || string.IsNullOrEmpty(qs.FirstOrDefault()) || string.IsNullOrWhiteSpace(qs.FirstOrDefault()))
                     {
                         throw new YouverseClientException("Querystring must be encrypted", YouverseClientErrorCode.SharedSecretEncryptionIsInvalid);
                     }
 
-                    encryptedRequest = DotYouSystemSerializer.Deserialize<SharedSecretEncryptedPayload>(qs);
+                    encryptedRequest = DotYouSystemSerializer.Deserialize<SharedSecretEncryptedPayload>(qs.FirstOrDefault() ?? "");
 
                     if (null == encryptedRequest)
                     {

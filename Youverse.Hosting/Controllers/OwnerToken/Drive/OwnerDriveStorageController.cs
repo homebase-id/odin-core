@@ -54,6 +54,21 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 
             return new JsonResult(result);
         }
+        
+        [HttpGet("header")]
+        public async Task<IActionResult> GetFileHeaderAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type)
+        {
+            return await GetFileHeader(
+                new ExternalFileIdentifier()
+                {
+                    FileId = fileId,
+                    TargetDrive = new TargetDrive()
+                    {
+                        Alias = alias,
+                        Type = type
+                    }
+                });
+        }
 
         /// <summary>
         /// Retrieves a file's encrypted payload
@@ -77,6 +92,20 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             return new FileStreamResult(payload, "application/octet-stream");
         }
 
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpGet("payload")]
+        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type)
+        {
+            return await GetPayloadStream(new ExternalFileIdentifier()
+            {
+                FileId = fileId,
+                TargetDrive = new()
+                {
+                    Alias = alias,
+                    Type = type
+                }
+            });
+        }
 
         /// <summary>
         /// Retrieves an encrypted thumbnail.  The available thumbnails are defined on the AppFileMeta.
@@ -104,6 +133,25 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             return new FileStreamResult(payload, "application/octet-stream");
         }
 
+        [HttpGet("thumb")]
+        public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] int width, [FromQuery] int height)
+        {
+            return await GetThumbnail(new GetThumbnailRequest()
+            {
+                File = new ExternalFileIdentifier()
+                {
+                    FileId = fileId,
+                    TargetDrive = new()
+                    {
+                        Alias = alias,
+                        Type = type
+                    }
+                },
+                Width = width,
+                Height = height
+            });
+        }
+        
         /// <summary>
         /// Deletes a file
         /// </summary>
