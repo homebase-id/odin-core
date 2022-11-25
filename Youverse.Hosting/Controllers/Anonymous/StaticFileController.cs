@@ -49,7 +49,7 @@ namespace Youverse.Hosting.Controllers.Anonymous
             var (config, stream) = await _staticFileContentService.GetStaticFileStream(StaticFileConstants.ProfileImageFileName);
             return SendStream(config, stream);
         }
-        
+
         /// <summary>
         /// Returns the public profile data
         /// </summary>
@@ -72,7 +72,7 @@ namespace Youverse.Hosting.Controllers.Anonymous
                 this.Response.Headers.Add("Access-Control-Allow-Origin", "*");
             }
 
-            this.Response.Headers.Add("Cache-Control", "max-age=10, stale-while-revalidate=60");
+            this.Response.Headers.Add("Cache-Control", "max-age=60, stale-while-revalidate=120");
 
             return new FileStreamResult(stream, config.ContentType);
         }
