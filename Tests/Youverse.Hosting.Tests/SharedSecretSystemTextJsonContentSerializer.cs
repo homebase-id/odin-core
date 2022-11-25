@@ -66,7 +66,7 @@ public sealed class SharedSecretSystemTextJsonContentSerializer : IHttpContentSe
         {
             return default;
         }
-        
+
         var payload = DotYouSystemSerializer.Deserialize<SharedSecretEncryptedPayload>(json);
 
         if (payload == null)
@@ -88,5 +88,33 @@ public sealed class SharedSecretSystemTextJsonContentSerializer : IHttpContentSe
         return propertyInfo.GetCustomAttributes<JsonPropertyNameAttribute>(true)
             .Select(a => a.Name)
             .FirstOrDefault();
+    }
+}
+
+public sealed class SharedSecretUrlParameterFormatter : IUrlParameterFormatter
+{
+    private readonly SensitiveByteArray _sharedSecret;
+
+    public SharedSecretUrlParameterFormatter(SensitiveByteArray sharedSecret)
+    {
+        _sharedSecret = sharedSecret;
+    }
+
+    public string Format(object value, ICustomAttributeProvider attributeProvider, Type type)
+    {
+        var name = ((ParameterInfo)attributeProvider).Name;
+        string qs = $"{name}={value}";
+
+        var iv = ByteArrayUtil.GetRndByteArray(16);
+        var key = _sharedSecret; //#wierd
+        var encryptedBytes = AesCbc.Encrypt(qs.ToUtf8ByteArray(), ref key, iv);
+
+        var payload = new SharedSecretEncryptedPayload()
+        {
+            Iv = iv,
+            Data = encryptedBytes.ToBase64()
+        };
+
+        return DotYouSystemSerializer.Serialize(payload);
     }
 }

@@ -7,6 +7,7 @@ using System.Net.Http;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using System.Web;
+using Microsoft.AspNetCore.WebUtilities;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core;
@@ -178,14 +179,12 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             var cookieJar = new CookieContainer();
             cookieJar.Add(new Cookie(OwnerAuthConstants.CookieName, token.ToString(), null, identity));
 
-            HttpMessageHandler cookieHandler = new HttpClientHandler()
+            var sharedSecretGetRequestHandler = new SharedSecretGetRequestHandler(sharedSecret)
             {
                 CookieContainer = cookieJar
             };
-
-            // var handler = new SharedSecretHandler(sharedSecret, cookieHandler);
-
-            HttpClient client = new(cookieHandler);
+            
+            HttpClient client = new(sharedSecretGetRequestHandler);
             client.Timeout = TimeSpan.FromMinutes(15);
 
             client.BaseAddress = new Uri($"https://{identity}");
