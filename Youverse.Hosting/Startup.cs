@@ -60,7 +60,7 @@ namespace Youverse.Hosting
                     //     options.MaxConcurrency = 10; //TODO: good idea?
                     // });
 
-                    q.UseDefaultTransitOutboxSchedule(config.Quartz.BackgroundJobStartDelaySeconds);
+                    q.UseDefaultTransitOutboxSchedule(config.Quartz.BackgroundJobStartDelaySeconds, config.Quartz.ProcessOutboxIntervalSeconds);
                     // q.UseDefaultCertificateRenewalSchedule(config.Quartz.CertificateRenewalCheckIntervalMinutes);
                 });
 

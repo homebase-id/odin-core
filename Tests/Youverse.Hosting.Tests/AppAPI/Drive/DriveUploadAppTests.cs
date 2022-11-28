@@ -77,7 +77,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             var payloadDataRaw = "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadDataRaw);
 
-            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(identity.DotYouId, testContext.ClientAuthenticationToken))
+            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(testContext))
             {
                 var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
                 var response = await transitSvc.Upload(
@@ -206,7 +206,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             var payloadDataRaw = "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadDataRaw);
 
-            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(identity.DotYouId, testContext.ClientAuthenticationToken))
+            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(testContext))
             {
                 var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
                 var response = await transitSvc.Upload(

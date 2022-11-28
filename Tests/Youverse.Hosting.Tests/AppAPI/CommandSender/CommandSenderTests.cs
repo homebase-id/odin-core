@@ -105,7 +105,7 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
             //
             // Send the command
             //
-            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(senderTestContext.Identity, senderTestContext.ClientAuthenticationToken))
+            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(senderTestContext))
             {
                 var cmdService = RefitCreator.RestServiceFor<IAppCommandSenderHttpClient>(client, senderTestContext.SharedSecret);
                 var sendCommandResponse = await cmdService.SendCommand(new SendCommandRequest()
@@ -151,7 +151,7 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
         {
             var drive = originalFileSendResult.UploadedFile.TargetDrive;
 
-            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(recipientAppContext.Identity, recipientAppContext.ClientAuthenticationToken))
+            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(recipientAppContext))
             {
                 var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);
                 var resp = await transitAppSvc.ProcessIncomingInstructions(new ProcessTransitInstructionRequest() { TargetDrive = drive });

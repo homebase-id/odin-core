@@ -113,14 +113,14 @@ public class StaticFileContentService
                     FileId = fileHeader.FileId,
                     DriveId = driveId
                 };
-                
+
                 if (section.ResultOptions.IncludeAdditionalThumbnails)
                 {
                     foreach (var thumbHeader in fileHeader.FileMetadata.AppData?.AdditionalThumbnails ?? new List<ImageDataHeader>())
                     {
                         var thumbnailStream = await _driveService.GetThumbnailPayloadStream(
                             internalFileId, thumbHeader.PixelWidth, thumbHeader.PixelHeight);
-                        
+
                         thumbnails.Add(new ImageDataContent()
                         {
                             PixelHeight = thumbHeader.PixelHeight,
@@ -157,14 +157,14 @@ public class StaticFileContentService
         fileStream.Close();
 
         string finalTargetPath = Path.Combine(targetFolder, filename);
-            
+
         File.Move(tempTargetPath, finalTargetPath, true);
         config.ContentType = MediaTypeNames.Application.Json;
         _systemStorage.SingleKeyValueStorage.Upsert(GetConfigKey(filename), config);
 
         return result;
     }
-    
+
     public Task<(StaticFileConfiguration config, Stream fileStream)> GetStaticFileStream(string filename)
     {
         Guard.Argument(filename, nameof(filename)).NotEmpty().NotNull().Require(Validators.IsValidFilename);
@@ -185,8 +185,8 @@ public class StaticFileContentService
     {
         string filename = StaticFileConstants.ProfileImageFileName;
         string targetFolder = EnsurePath();
-        string tempTargetPath = Path.Combine(targetFolder,  Guid.NewGuid().ToString("N"));
-        
+        string tempTargetPath = Path.Combine(targetFolder, Guid.NewGuid().ToString("N"));
+
         await using var fileStream = File.Create(tempTargetPath);
         var imageBytes = Convert.FromBase64String(image64);
         await fileStream.WriteAsync(imageBytes);
@@ -194,13 +194,13 @@ public class StaticFileContentService
 
         string finalTargetPath = Path.Combine(targetFolder, filename);
         File.Move(tempTargetPath, finalTargetPath, true);
-        
+
         var config = new StaticFileConfiguration()
         {
             ContentType = contentType,
             CrossOriginBehavior = CrossOriginBehavior.AllowAllOrigins
         };
-        
+
         _systemStorage.SingleKeyValueStorage.Upsert(GetConfigKey(filename), config);
     }
 
@@ -208,25 +208,25 @@ public class StaticFileContentService
     {
         string filename = StaticFileConstants.PublicProfileCardFileName;
         string targetFolder = EnsurePath();
-        string tempTargetPath = Path.Combine(targetFolder,  Guid.NewGuid().ToString("N"));
-        
+        string tempTargetPath = Path.Combine(targetFolder, Guid.NewGuid().ToString("N"));
+
         await using var fileStream = new StreamWriter(File.Create(tempTargetPath));
         await fileStream.WriteAsync(json);
         fileStream.Close();
 
         string finalTargetPath = Path.Combine(targetFolder, filename);
         File.Move(tempTargetPath, finalTargetPath, true);
-        
+
         var config = new StaticFileConfiguration()
         {
             ContentType = MediaTypeNames.Application.Json,
             CrossOriginBehavior = CrossOriginBehavior.AllowAllOrigins
         };
-        
+
         config.ContentType = MediaTypeNames.Application.Json;
         _systemStorage.SingleKeyValueStorage.Upsert(GetConfigKey(filename), config);
     }
-    
+
     private GuidId GetConfigKey(string filename)
     {
         return new GuidId(HashUtil.ReduceSHA256Hash(filename.ToLower()));
@@ -247,7 +247,8 @@ public class StaticFileContentService
     private IEnumerable<ClientFileHeader> Filter(IEnumerable<ClientFileHeader> headers)
     {
         return headers.Where(r =>
-            r.FileMetadata.PayloadIsEncrypted == false && r.ServerMetadata.AccessControlList.RequiredSecurityGroup ==
-            SecurityGroupType.Anonymous);
+            r.FileState == FileState.Active &&
+            r.FileMetadata.PayloadIsEncrypted == false &&
+            r.ServerMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Anonymous);
     }
 }

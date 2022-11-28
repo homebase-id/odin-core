@@ -54,8 +54,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
 
             Guid appId = Guid.NewGuid();
             var targetDrive = TargetDrive.NewTargetDrive();
-            var testContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, sender, false, targetDrive, driveAllowAnonymousReads: true);
-            var recipientContext = await _scaffold.OwnerApi.SetupTestSampleApp(testContext.AppId, recipient, false, targetDrive);
+            var senderContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, sender, false, targetDrive, driveAllowAnonymousReads: true);
+            var recipientContext = await _scaffold.OwnerApi.SetupTestSampleApp(senderContext.AppId, recipient, false, targetDrive);
 
             Guid fileTag = Guid.NewGuid();
 
@@ -92,7 +92,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                 TransferIv = transferIv,
                 StorageOptions = new StorageOptions()
                 {
-                    Drive = testContext.TargetDrive,
+                    Drive = senderContext.TargetDrive,
                     OverwriteFileId = null
                 },
 
@@ -105,7 +105,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
             var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
             var instructionStream = new MemoryStream(bytes);
 
-            var key = testContext.SharedSecret.ToSensitiveByteArray();
+            var key = senderContext.SharedSecret.ToSensitiveByteArray();
             var descriptor = new UploadFileDescriptor()
             {
                 EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref key),
@@ -131,7 +131,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
             //
             // upload and send the file 
             //
-            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(sender, testContext.ClientAuthenticationToken))
+            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext))
             {
                 var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
                 var response = await transitSvc.Upload(
@@ -167,7 +167,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
             //
             // validate recipient got the file
             //
-            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(recipient, recipientContext.ClientAuthenticationToken))
+            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(recipientContext))
             {
                 //First force transfers to be put into their long term location
                 var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);
@@ -300,8 +300,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
 
             Guid appId = Guid.NewGuid();
             var targetDrive = TargetDrive.NewTargetDrive();
-            var testContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, sender, false, targetDrive, driveAllowAnonymousReads: true);
-            var recipientContext = await _scaffold.OwnerApi.SetupTestSampleApp(testContext.AppId, recipient, false, targetDrive);
+            var senderContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, sender, false, targetDrive, driveAllowAnonymousReads: true);
+            var recipientContext = await _scaffold.OwnerApi.SetupTestSampleApp(senderContext.AppId, recipient, false, targetDrive);
 
             Guid fileTag = Guid.NewGuid();
 
@@ -338,7 +338,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                 TransferIv = transferIv,
                 StorageOptions = new StorageOptions()
                 {
-                    Drive = testContext.TargetDrive,
+                    Drive = senderContext.TargetDrive,
                     OverwriteFileId = null
                 },
 
@@ -351,7 +351,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
             var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
             var instructionStream = new MemoryStream(bytes);
 
-            var key = testContext.SharedSecret.ToSensitiveByteArray();
+            var key = senderContext.SharedSecret.ToSensitiveByteArray();
             var json = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" });
             var encryptedJsonContent64 = keyHeader.EncryptDataAesAsStream(json).ToByteArray().ToBase64();
 
@@ -390,7 +390,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
             //
             // upload and send the file 
             //
-            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(sender, testContext.ClientAuthenticationToken))
+            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext))
             {
                 var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
                 var response = await transitSvc.Upload(
@@ -426,7 +426,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
             //
             // Validate recipient got the file
             //
-            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(recipient, recipientContext.ClientAuthenticationToken))
+            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(recipientContext))
             {
                 //First force transfers to be put into their long term location
                 var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);

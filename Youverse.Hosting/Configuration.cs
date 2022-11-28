@@ -64,12 +64,15 @@ namespace Youverse.Hosting
             /// </summary>
             public int CertificateRenewalCheckIntervalMinutes { get; }
             public int BackgroundJobStartDelaySeconds { get; }
+            
+            public int ProcessOutboxIntervalSeconds { get; }
             public bool EnableQuartzBackgroundService { get; }
 
             public QuartzSection(IConfiguration config)
             {
                 BackgroundJobStartDelaySeconds = config.Required<int>("Quartz:BackgroundJobStartDelaySeconds");
                 EnableQuartzBackgroundService = config.Required<bool>("Quartz:EnableQuartzBackgroundService");
+                ProcessOutboxIntervalSeconds = config.Required<int>("Quartz:ProcessOutboxIntervalSeconds");
             }
         }
 

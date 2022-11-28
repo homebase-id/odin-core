@@ -39,24 +39,23 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
             _ownerApi = ownerApi;
         }
 
-        public HttpClient CreateAppApiHttpClient(TestIdentity identity, ClientAuthenticationToken token)
-        {
-            return this.CreateAppApiHttpClient(identity.DotYouId, token);
-        }
+        
 
         /// <summary>
         /// Creates a client for use with the app API (/api/apps/v1/...)
         /// </summary>
-        public HttpClient CreateAppApiHttpClient(DotYouIdentity identity, ClientAuthenticationToken token)
+        public HttpClient CreateAppApiHttpClient(DotYouIdentity identity, ClientAuthenticationToken token, byte[] sharedSecret)
         {
             var cookieJar = new CookieContainer();
             cookieJar.Add(new Cookie(ClientTokenConstants.ClientAuthTokenCookieName, token.ToString(), null, identity));
-            HttpMessageHandler handler = new HttpClientHandler()
+            
+            var sharedSecretGetRequestHandler = new SharedSecretGetRequestHandler(sharedSecret.ToSensitiveByteArray())
             {
                 CookieContainer = cookieJar
             };
-
-            HttpClient client = new(handler);
+            
+            HttpClient client = new(sharedSecretGetRequestHandler);
+            
             client.Timeout = TimeSpan.FromMinutes(15);
 
             client.BaseAddress = new Uri($"https://{identity}");
@@ -65,7 +64,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
 
         public HttpClient CreateAppApiHttpClient(TestAppContext appTestContext)
         {
-            return CreateAppApiHttpClient(appTestContext.Identity, appTestContext.ClientAuthenticationToken);
+            return CreateAppApiHttpClient(appTestContext.Identity, appTestContext.ClientAuthenticationToken, appTestContext.SharedSecret);
         }
 
         public async Task<AppTransitTestUtilsContext> CreateAppAndUploadFileMetadata(TestIdentity identity, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options = null)
@@ -108,7 +107,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
 
             var payloadData = options?.PayloadData ?? "{payload:true, image:'b64 data'}";
 
-            using (var client = this.CreateAppApiHttpClient(senderAppContext.Identity, senderAppContext.ClientAuthenticationToken))
+            using (var client = this.CreateAppApiHttpClient(senderAppContext))
             {
                 var keyHeader = KeyHeader.NewRandom16();
                 var transferIv = instructionSet.TransferIv;
@@ -190,7 +189,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
 
                     foreach (var rCtx in recipientContexts)
                     {
-                        using (var rClient = this.CreateAppApiHttpClient(rCtx.Key, rCtx.Value.ClientAuthenticationToken))
+                        using (var rClient = this.CreateAppApiHttpClient(rCtx.Value))
                         {
                             var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
                             var resp = await transitAppSvc.ProcessIncomingInstructions(new ProcessTransitInstructionRequest() { TargetDrive = rCtx.Value.TargetDrive });
@@ -268,7 +267,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
         public async Task DeleteFile(TestAppContext testAppContext, ExternalFileIdentifier fileId, List<TestAppContext> recipients = null)
         {
             var recipients2 = recipients ?? new List<TestAppContext>();
-            using (var client = this.CreateAppApiHttpClient(testAppContext.Identity, testAppContext.ClientAuthenticationToken))
+            using (var client = this.CreateAppApiHttpClient(testAppContext))
             {
                 var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, testAppContext.SharedSecret);
                 var deleteFileResponse = await svc.DeleteFile(new DeleteFileRequest()
@@ -295,7 +294,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
             {
                 foreach (var rCtx in recipients2)
                 {
-                    using (var rClient = this.CreateAppApiHttpClient(rCtx.Identity, rCtx.ClientAuthenticationToken))
+                    using (var rClient = this.CreateAppApiHttpClient(rCtx))
                     {
                         var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
                         var resp = await transitAppSvc.ProcessIncomingInstructions(new ProcessTransitInstructionRequest() { TargetDrive = rCtx.TargetDrive });
@@ -307,7 +306,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
 
         public async Task<ApiResponse<ClientFileHeader>> GetFileHeader(TestAppContext appContext, ExternalFileIdentifier file)
         {
-            using (var client = this.CreateAppApiHttpClient(appContext.Identity, appContext.ClientAuthenticationToken))
+            using (var client = this.CreateAppApiHttpClient(appContext))
             {
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, appContext.SharedSecret);
                 var fileResponse = await driveSvc.GetFileHeader(file);
@@ -317,7 +316,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
 
         public async Task<ApiResponse<HttpContent>> GetFilePayload(TestAppContext appContext, ExternalFileIdentifier file)
         {
-            using (var client = this.CreateAppApiHttpClient(appContext.Identity, appContext.ClientAuthenticationToken))
+            using (var client = this.CreateAppApiHttpClient(appContext))
             {
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, appContext.SharedSecret);
                 var payloadResponse = await driveSvc.GetPayload(file);
@@ -327,7 +326,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
 
         public async Task<ApiResponse<HttpContent>> GetThumbnail(TestAppContext appContext, ExternalFileIdentifier file, int width, int height)
         {
-            using (var client = this.CreateAppApiHttpClient(appContext.Identity, appContext.ClientAuthenticationToken))
+            using (var client = this.CreateAppApiHttpClient(appContext))
             {
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, appContext.SharedSecret);
 
@@ -344,7 +343,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
 
         public async Task<ApiResponse<QueryBatchResponse>> QueryBatch(TestAppContext appContext, FileQueryParams queryParams, QueryBatchResultOptionsRequest options)
         {
-            using (var client = this.CreateAppApiHttpClient(appContext.Identity, appContext.ClientAuthenticationToken))
+            using (var client = this.CreateAppApiHttpClient(appContext))
             {
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, appContext.SharedSecret);
 

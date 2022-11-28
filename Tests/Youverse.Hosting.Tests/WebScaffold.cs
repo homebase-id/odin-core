@@ -48,6 +48,7 @@ namespace Youverse.Hosting.Tests
             Environment.SetEnvironmentVariable("Host__UseLocalCertificateRegistry", "true");
             Environment.SetEnvironmentVariable("Quartz__EnableQuartzBackgroundService", "false");
             Environment.SetEnvironmentVariable("Quartz__BackgroundJobStartDelaySeconds", "10");
+            Environment.SetEnvironmentVariable("Quartz__ProcessOutboxIntervalSeconds", "5");
             Environment.SetEnvironmentVariable("Logging__LogFilePath", TempDataPath);
 
             _webserver = Program.CreateHostBuilder(Array.Empty<string>()).Build();
