@@ -13,9 +13,11 @@ namespace Youverse.Hosting.Middleware
         private static readonly List<string> paths = new List<string>()
         {
             "/home/static/js",
-            "/owner/static/js"
+            "/owner/static/js",
+            "/home/static/css",
+            "/owner/static/css"
         };
-        
+
         public StaticFileCachingMiddleware(RequestDelegate next)
         {
             _next = next;
