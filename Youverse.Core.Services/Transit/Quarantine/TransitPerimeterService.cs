@@ -207,15 +207,33 @@ namespace Youverse.Core.Services.Transit.Quarantine
             var header = await _appService.GetClientEncryptedFileHeader(file);
             string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
 
-            // var thumbnail = header.FileMetadata.AppData.AdditionalThumbnails.SingleOrDefault(t => t.PixelWidth == width && t.PixelHeight == height);
+            // Exact duplicate of the code in DriveService.GetThumbnailPayloadStream
+            var thumbs = header.FileMetadata.AppData.AdditionalThumbnails?.ToList();
+            if (null == thumbs || !thumbs.Any())
+            {
+                return (null, default, null, null);
+            }
 
-            // if (null == thumbnail)
-            // {
-            //     return (null, default, null, null);
-            // }
+            var directMatchingThumb = thumbs.SingleOrDefault(t => t.PixelHeight == height && t.PixelWidth == width);
+            if (null != directMatchingThumb)
+            {
+                var innerThumb = await _driveService.GetThumbnailPayloadStream(file, width, height);
+                return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, directMatchingThumb.ContentType, innerThumb);
+            }
+
+            //TODO: add more logic here to compare width and height separately or together
+            var nextSizeUp = thumbs.FirstOrDefault(t => t.PixelHeight > height || t.PixelWidth > width);
+            if (null == nextSizeUp)
+            {
+                nextSizeUp = thumbs.LastOrDefault();
+                if (null == nextSizeUp)
+                {
+                    return (null, default, null, null);
+                }
+            }
 
             var thumb = await _driveService.GetThumbnailPayloadStream(file, width, height);
-            return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, "image/webp", thumb);
+            return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, nextSizeUp.ContentType, thumb);
         }
 
         public async Task<IEnumerable<PerimeterDriveData>> GetDrives(Guid driveType)
