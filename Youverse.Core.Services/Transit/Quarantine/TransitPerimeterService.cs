@@ -207,15 +207,15 @@ namespace Youverse.Core.Services.Transit.Quarantine
             var header = await _appService.GetClientEncryptedFileHeader(file);
             string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
 
-            var thumbnail = header.FileMetadata.AppData.AdditionalThumbnails.SingleOrDefault(t => t.PixelWidth == width && t.PixelHeight == height);
+            // var thumbnail = header.FileMetadata.AppData.AdditionalThumbnails.SingleOrDefault(t => t.PixelWidth == width && t.PixelHeight == height);
 
-            if (null == thumbnail)
-            {
-                return (null, default, null, null);
-            }
+            // if (null == thumbnail)
+            // {
+            //     return (null, default, null, null);
+            // }
 
             var thumb = await _driveService.GetThumbnailPayloadStream(file, width, height);
-            return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, thumbnail.ContentType, thumb);
+            return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, "image/webp", thumb);
         }
 
         public async Task<IEnumerable<PerimeterDriveData>> GetDrives(Guid driveType)

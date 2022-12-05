@@ -152,11 +152,11 @@ namespace Youverse.Core.Services.Drive
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
             var sdb  = _systemStorage.ThreeKeyValueStorage.Get<StorageDriveBase>(driveId);
             sdb.Metadata = metadata;
-            
+
             _systemStorage.ThreeKeyValueStorage.Upsert(driveId, sdb.TargetDriveInfo.ToKey(), _driveDataType, sdb);
             return Task.CompletedTask;
         }
-        
+
 
         public async Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false)
         {
@@ -344,10 +344,31 @@ namespace Youverse.Core.Services.Drive
             this.AssertCanReadDrive(file.DriveId);
 
             //Note: calling to get the file header so we can ensure the caller can read this file
-            var _ = await this.GetServerFileHeader(file);
+            var header = await this.GetServerFileHeader(file);
+            var thumbs = header.FileMetadata.AppData.AdditionalThumbnails?.ToList();
+            if (null == thumbs || !thumbs.Any())
+            {
+                return Stream.Null;
+            }
 
-            var stream = await GetLongTermStorageManager(file.DriveId).GetThumbnail(file.FileId, width, height);
-            return stream;
+            var directMatchingThumb = thumbs.SingleOrDefault(t => t.PixelHeight == height && t.PixelWidth == width);
+            if (null != directMatchingThumb)
+            {
+                return await GetLongTermStorageManager(file.DriveId).GetThumbnail(file.FileId, width, height);
+            }
+
+            //TODO: add more logic here to compare width and height separately or together
+            var nextSizeUp = thumbs.FirstOrDefault(t => t.PixelHeight > height || t.PixelWidth > width);
+            if (null == nextSizeUp)
+            {
+                nextSizeUp = thumbs.LastOrDefault();
+                if (null == nextSizeUp)
+                {
+                    return Stream.Null;
+                }
+            }
+
+            return await GetLongTermStorageManager(file.DriveId).GetThumbnail(file.FileId, nextSizeUp.PixelWidth, nextSizeUp.PixelHeight);
         }
 
         public async Task WriteThumbnailStream(InternalDriveFileId file, int width, int height, Stream stream)
