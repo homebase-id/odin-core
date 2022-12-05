@@ -71,13 +71,13 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             return Task.FromResult(false);
         }
 
-        var cert = CertificateResolver.LoadCertificate(this.GetCertificatePath(reg), this.GetPrivateKeyPath(reg));
+        var cert = CertificateResolver.LoadCertificate(reg.DomainName, this.GetCertificatePath(reg), this.GetPrivateKeyPath(reg));
 
         if (cert == null)
         {
             return Task.FromResult(false);
         }
-        
+
         var now = DateTime.Now;
         var isValid = now < cert.NotAfter && now > cert.NotBefore;
 
@@ -118,7 +118,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     {
         return Path.Combine(_tempDataStoragePath, registrationId.ToString(), "reg.json");
     }
-    
+
     public Task<PagedResult<IdentityRegistration>> GetList(PageOptions pageOptions)
     {
         var domains = Directory.GetDirectories(_tenantDataRootPath);

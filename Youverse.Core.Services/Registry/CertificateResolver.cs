@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using Serilog;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
@@ -11,6 +13,30 @@ using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Registry
 {
+    public static class TestCertificateMemoryCache
+    {
+        private static readonly ConcurrentDictionary<string, X509Certificate2> _cache;
+        private static object _lock = new();
+
+        static TestCertificateMemoryCache()
+        {
+            _cache = new ConcurrentDictionary<string, X509Certificate2>(1, 1000, StringComparer.InvariantCultureIgnoreCase);
+        }
+
+        public static void AddCertificate(string domain, X509Certificate2 certificate)
+        {
+            lock (_lock)
+            {
+                _cache.TryAdd(domain, certificate);
+            }
+        }
+
+        public static bool TryGetCertificate(string domain, out X509Certificate2 certificate)
+        {
+            return _cache.TryGetValue(domain, out certificate);
+        }
+    }
+
     public class CertificateResolver : ICertificateResolver
     {
         private readonly TenantContext _tenantContext;
@@ -28,15 +54,17 @@ namespace Youverse.Core.Services.Registry
         public X509Certificate2 GetSslCertificate()
         {
             Guid domainId = CalculateDomainId(_tenantContext.HostDotYouId);
-            string certificatePath = Path.Combine(_tenantContext.DataRoot, "ssl", domainId.ToString(), "certificate.crt");
-            string privateKeyPath = Path.Combine(_tenantContext.DataRoot, "ssl", domainId.ToString(), "private.key");
-            return GetSslCertificate(certificatePath, privateKeyPath);
-        }
 
-        public X509Certificate2 GetSslCertificate(string publicKeyPath, string privateKeyPath)
-        {
-            return LoadCertificate(publicKeyPath, privateKeyPath);
+            if (!TestCertificateMemoryCache.TryGetCertificate(_tenantContext.HostDotYouId, out var certificate))
+            {
+                string certificatePath = Path.Combine(_tenantContext.DataRoot, "ssl", domainId.ToString(), "certificate.crt");
+                string privateKeyPath = Path.Combine(_tenantContext.DataRoot, "ssl", domainId.ToString(), "private.key");
+                return LoadCertificate(_tenantContext.HostDotYouId, certificatePath, privateKeyPath);
+            }
+
+            return certificate;
         }
+        
 
         /// <summary>
         /// Loads and returns a certificate for the given dotYouId
@@ -47,18 +75,24 @@ namespace Youverse.Core.Services.Registry
         /// <returns></returns>
         public static X509Certificate2 GetSslCertificate(string rootPath, Guid registryId, DotYouIdentity dotYouId)
         {
-            Guid domainId = CalculateDomainId(dotYouId);
-            string certificatePath = PathUtil.Combine(rootPath, registryId.ToString(), "ssl", domainId.ToString(), "certificate.crt");
-            string privateKeyPath = PathUtil.Combine(rootPath, registryId.ToString(), "ssl", domainId.ToString(), "private.key");
-            return LoadCertificate(certificatePath, privateKeyPath);
+            if (!TestCertificateMemoryCache.TryGetCertificate(dotYouId, out var certificate))
+            {
+                Guid domainId = CalculateDomainId(dotYouId);
+                string certificatePath = PathUtil.Combine(rootPath, registryId.ToString(), "ssl", domainId.ToString(), "certificate.crt");
+                string privateKeyPath = PathUtil.Combine(rootPath, registryId.ToString(), "ssl", domainId.ToString(), "private.key");
+                return LoadCertificate(dotYouId, certificatePath, privateKeyPath);
+            }
+            return certificate;
         }
 
-        public static X509Certificate2 LoadCertificate(string publicKeyPath, string privateKeyPath)
+        public static X509Certificate2 LoadCertificate(string domain, string publicKeyPath, string privateKeyPath)
         {
             if (File.Exists(publicKeyPath) == false || File.Exists(privateKeyPath) == false)
             {
                 throw new YouverseSystemException("Cannot find certificate or key file(s)");
             }
+
+            Log.Logger.Information($"Loading Certificate for {domain}");
 
             using (X509Certificate2 publicKey = new X509Certificate2(publicKeyPath))
             {
@@ -68,7 +102,7 @@ namespace Youverse.Core.Services.Registry
                 {
                     rsaPrivateKey.ImportFromPem(encodedKey.ToCharArray());
 
-
+                    X509Certificate2 certificate;
                     if (Environment.OSVersion.Platform == PlatformID.Win32NT)
                     {
                         using (X509Certificate2 pubPrivEphemeral = publicKey.CopyWithPrivateKey(rsaPrivateKey))
@@ -76,12 +110,12 @@ namespace Youverse.Core.Services.Registry
                             // Export as PFX and re-import if you want "normal PFX private key lifetime"
                             // (this step is currently required for SslStream, but not for most other things
                             // using certificates)
-                            return new X509Certificate2(pubPrivEphemeral.Export(X509ContentType.Pfx));
+                            certificate = new X509Certificate2(pubPrivEphemeral.Export(X509ContentType.Pfx));
                         }
                     }
                     else
                     {
-                        return publicKey.CopyWithPrivateKey(rsaPrivateKey);
+                        certificate = publicKey.CopyWithPrivateKey(rsaPrivateKey);
                     }
 
                     //// Disabled this part as it causes too many changes within Keychain causing Chrome to not open the Page:
@@ -92,9 +126,54 @@ namespace Youverse.Core.Services.Registry
                     //     // using certificates)
                     //     return new X509Certificate2(pubPrivEphemeral.Export(X509ContentType.Pfx));
                     // }
+                    TestCertificateMemoryCache.AddCertificate(domain, certificate);
+                    return certificate;
                 }
             }
         }
+        
+        // public static X509Certificate2 LoadCertificate(string publicKeyPath, string privateKeyPath)
+        // {
+        //     if (File.Exists(publicKeyPath) == false || File.Exists(privateKeyPath) == false)
+        //     {
+        //         throw new YouverseSystemException("Cannot find certificate or key file(s)");
+        //     }
+        //
+        //     using (X509Certificate2 publicKey = new X509Certificate2(publicKeyPath))
+        //     {
+        //         string encodedKey = File.ReadAllText(privateKeyPath);
+        //         RSA rsaPrivateKey;
+        //         using (rsaPrivateKey = RSA.Create())
+        //         {
+        //             rsaPrivateKey.ImportFromPem(encodedKey.ToCharArray());
+        //
+        //
+        //             if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+        //             {
+        //                 using (X509Certificate2 pubPrivEphemeral = publicKey.CopyWithPrivateKey(rsaPrivateKey))
+        //                 {
+        //                     // Export as PFX and re-import if you want "normal PFX private key lifetime"
+        //                     // (this step is currently required for SslStream, but not for most other things
+        //                     // using certificates)
+        //                     return new X509Certificate2(pubPrivEphemeral.Export(X509ContentType.Pfx));
+        //                 }
+        //             }
+        //             else
+        //             {
+        //                 return publicKey.CopyWithPrivateKey(rsaPrivateKey);
+        //             }
+        //
+        //             //// Disabled this part as it causes too many changes within Keychain causing Chrome to not open the Page:
+        //             // using (X509Certificate2 pubPrivEphemeral = publicKey.CopyWithPrivateKey(rsaPrivateKey))
+        //             // {
+        //             //     // Export as PFX and re-import if you want "normal PFX private key lifetime"
+        //             //     // (this step is currently required for SslStream, but not for most other things
+        //             //     // using certificates)
+        //             //     return new X509Certificate2(pubPrivEphemeral.Export(X509ContentType.Pfx));
+        //             // }
+        //         }
+        //     }
+        // }
 
         public static Guid CalculateDomainId(DotYouIdentity input)
         {

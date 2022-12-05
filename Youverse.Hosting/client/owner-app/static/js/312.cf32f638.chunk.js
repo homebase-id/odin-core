@@ -1,2 +1,0 @@
-"use strict";(self.webpackChunkowner_app=self.webpackChunkowner_app||[]).push([[312],{9312:function(e,t,n){n.r(t);n(2791);var l=n(184);t.default=function(){return(0,l.jsx)("section",{className:"flex h-full grow flex-col bg-red-400 py-5",children:(0,l.jsx)("h1",{className:"m-auto text-center text-5xl text-white",children:"404'd! Nothing to see here."})})}}}]);
-//# sourceMappingURL=312.cf32f638.chunk.js.map
