@@ -41,7 +41,7 @@ namespace Youverse.Hosting
 
         public void ConfigureServices(IServiceCollection services)
         {
-            //HACK: why is this suddenly needed!? 
+            //HACK: why is this suddenly needed!?
             services.Configure<KestrelServerOptions>(options => { options.AllowSynchronousIO = true; });
 
             var config = new Configuration(Configuration);
@@ -190,7 +190,7 @@ namespace Youverse.Hosting
             app.UseMiddleware<SharedSecretEncryptionMiddleware>();
             app.UseMiddleware<StaticFileCachingMiddleware>();
             app.UseHttpsRedirection();
-            
+
             // app.UseWebSockets();
             // app.Map("/owner/api/live/notifications", appBuilder => appBuilder.UseMiddleware<NotificationWebSocketMiddleware>());
 
@@ -199,7 +199,7 @@ namespace Youverse.Hosting
                 endpoints.Map("/", async context => { context.Response.Redirect("/home"); });
                 endpoints.MapControllers();
             });
-            
+
             //Note: I have ZERO clue why you have to use a .MapWhen versus .map
             if (env.IsDevelopment())
             {
@@ -218,14 +218,14 @@ namespace Youverse.Hosting
 
                 // route provisioning app on disk
                 // route acme-challenge-handler only on port 80
-                // 
-                // 
+                //
+                //
                 // app.MapWhen(ctx => ctx.Request.Host.Host.StartsWith("provisioning.", StringComparison.InvariantCultureIgnoreCase), provisioningApp =>
                 // {
                 //     provisioningApp.
                 // });
 
-                
+
                 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
                     ownerApp =>
                     {
