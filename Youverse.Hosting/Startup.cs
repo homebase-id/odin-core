@@ -201,7 +201,7 @@ namespace Youverse.Hosting
             });
             
             //Note: I have ZERO clue why you have to use a .MapWhen versus .map
-            if (false)
+            if (env.IsDevelopment())
             {
                 app.UseSwagger();
                 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "DotYouCore v1"));
