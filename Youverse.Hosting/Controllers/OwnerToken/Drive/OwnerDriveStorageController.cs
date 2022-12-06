@@ -54,7 +54,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 
             return new JsonResult(result);
         }
-        
+
         [HttpGet("header")]
         public async Task<IActionResult> GetFileHeaderAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type)
         {
@@ -83,12 +83,15 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
                 FileId = request.FileId
             };
 
-            var payload = await _driveService.GetPayloadStream(file);
+            var (encryptedKeyHeader, payloadIsEncrypted, decryptedContentType, payload) = await _driveService.GetPayloadStream(file);
             if (payload == Stream.Null)
             {
                 return NotFound();
             }
 
+            HttpContext.Response.Headers.Add(TransitConstants.PayloadEncrypted, payloadIsEncrypted.ToString());
+            HttpContext.Response.Headers.Add(TransitConstants.DecryptedContentType, decryptedContentType);
+            HttpContext.Response.Headers.Add(TransitConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader.ToBase64());
             return new FileStreamResult(payload, "application/octet-stream");
         }
 
@@ -123,13 +126,16 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
                 FileId = request.File.FileId
             };
 
-            var payload = await _driveService.GetThumbnailPayloadStream(file, request.Width, request.Height);
+            var (encryptedKeyHeader, payloadIsEncrypted, decryptedContentType, payload)  = await _driveService.GetThumbnailPayloadStream(file, request.Width, request.Height);
 
             if (payload == Stream.Null)
             {
                 return NotFound();
             }
 
+            HttpContext.Response.Headers.Add(TransitConstants.PayloadEncrypted, payloadIsEncrypted.ToString());
+            HttpContext.Response.Headers.Add(TransitConstants.DecryptedContentType, decryptedContentType);
+            HttpContext.Response.Headers.Add(TransitConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader.ToBase64());
             return new FileStreamResult(payload, "application/octet-stream");
         }
 
@@ -151,7 +157,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
                 Height = height
             });
         }
-        
+
         /// <summary>
         /// Deletes a file
         /// </summary>

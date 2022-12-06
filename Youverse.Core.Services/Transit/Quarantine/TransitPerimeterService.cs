@@ -191,7 +191,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             }
 
             string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
-            var payload = await _driveService.GetPayloadStream(file);
+            var payload = (await _driveService.GetPayloadStream(file)).stream;
 
             return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, header.FileMetadata.ContentType, payload);
         }
@@ -217,7 +217,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             var directMatchingThumb = thumbs.SingleOrDefault(t => t.PixelHeight == height && t.PixelWidth == width);
             if (null != directMatchingThumb)
             {
-                var innerThumb = await _driveService.GetThumbnailPayloadStream(file, width, height);
+                var innerThumb = (await _driveService.GetThumbnailPayloadStream(file, width, height)).stream;
                 return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, directMatchingThumb.ContentType, innerThumb);
             }
 
@@ -232,7 +232,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
                 }
             }
 
-            var thumb = await _driveService.GetThumbnailPayloadStream(file, width, height);
+            var thumb = (await _driveService.GetThumbnailPayloadStream(file, width, height)).stream;
             return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, nextSizeUp.ContentType, thumb);
         }
 

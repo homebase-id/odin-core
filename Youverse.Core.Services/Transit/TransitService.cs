@@ -141,7 +141,7 @@ namespace Youverse.Core.Services.Transit
             return keyStatus;
         }
 
-        // 
+        //
 
         private void StoreEncryptedRecipientTransferInstructionSet(byte[] recipientPublicKeyDer, KeyHeader keyHeader,
             ClientAuthenticationToken clientAuthenticationToken, InternalDriveFileId internalFile, DotYouIdentity recipient, TargetDrive targetDrive, TransferFileType transferFileType)
@@ -348,12 +348,12 @@ namespace Youverse.Core.Services.Transit
                 var stream = new MemoryStream(json.ToUtf8ByteArray());
                 var metaDataStream = new StreamPart(stream, "metadata.encrypted", "application/json", Enum.GetName(MultipartHostTransferParts.Metadata));
 
-                var payload = new StreamPart(await _driveService.GetPayloadStream(file), "payload.encrypted", "application/x-binary", Enum.GetName(MultipartHostTransferParts.Payload));
+                var payload = new StreamPart((await _driveService.GetPayloadStream(file)).stream, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartHostTransferParts.Payload));
 
                 var thumbnails = new List<StreamPart>();
                 foreach (var thumb in redactedMetadata.AppData?.AdditionalThumbnails ?? new List<ImageDataHeader>())
                 {
-                    var thumbStream = await _driveService.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight);
+                    var thumbStream = (await _driveService.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight)).stream;
                     thumbnails.Add(new StreamPart(thumbStream, thumb.GetFilename(), thumb.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
                 }
 
@@ -424,7 +424,7 @@ namespace Youverse.Core.Services.Transit
     }
 
     /// <summary>
-    /// Specifies the type of instruction incoming from another identity 
+    /// Specifies the type of instruction incoming from another identity
     /// </summary>
     public enum TransferInstructionType
     {

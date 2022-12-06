@@ -56,7 +56,7 @@ namespace Youverse.Core.Services.Drive
         Task UpdateActiveFileHeader(InternalDriveFileId file, ServerFileHeader header);
 
         /// <summary>
-        /// Writes a stream for a given file and part to the configured provider. 
+        /// Writes a stream for a given file and part to the configured provider.
         /// </summary>
         Task WritePartStream(InternalDriveFileId file, FilePart filePart, Stream stream);
 
@@ -74,7 +74,7 @@ namespace Youverse.Core.Services.Drive
         Task<T> GetDeserializedStream<T>(InternalDriveFileId file, string extension, StorageDisposition disposition = StorageDisposition.LongTerm);
 
         /// <summary>
-        /// Stores the metadata and associated payload (from the temp storage) in long term storage 
+        /// Stores the metadata and associated payload (from the temp storage) in long term storage
         /// </summary>
         /// <returns></returns>
         Task CommitTempFileToLongTerm(InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata, string payloadExtension);
@@ -105,7 +105,7 @@ namespace Youverse.Core.Services.Drive
         /// <returns>The <see cref="FileMetadata"/> for the specified file and the <see cref="AccessControlList"/> of that specified file</returns>
         Task<ServerFileHeader> GetServerFileHeader(InternalDriveFileId file);
 
-        Task<Stream> GetPayloadStream(InternalDriveFileId file);
+        public Task<(EncryptedKeyHeader encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, Stream stream)> GetPayloadStream(InternalDriveFileId file);
 
         /// <summary>
         /// Ensures there is a valid file available for the given Id.
@@ -133,7 +133,7 @@ namespace Youverse.Core.Services.Drive
 
         Task<IEnumerable<ServerFileHeader>> GetMetadataFiles(Guid driveId, PageOptions pageOptions);
 
-        Task<Stream> GetThumbnailPayloadStream(InternalDriveFileId file, int width, int height);
+        Task<(EncryptedKeyHeader encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, Stream stream)> GetThumbnailPayloadStream(InternalDriveFileId file, int width, int height);
 
         Task WriteThumbnailStream(InternalDriveFileId file, int width, int height, Stream stream);
 
