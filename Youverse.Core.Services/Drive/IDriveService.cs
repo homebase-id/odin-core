@@ -105,7 +105,7 @@ namespace Youverse.Core.Services.Drive
         /// <returns>The <see cref="FileMetadata"/> for the specified file and the <see cref="AccessControlList"/> of that specified file</returns>
         Task<ServerFileHeader> GetServerFileHeader(InternalDriveFileId file);
 
-        public Task<(EncryptedKeyHeader encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, Stream stream)> GetPayloadStream(InternalDriveFileId file);
+        public Task<Stream> GetPayloadStream(InternalDriveFileId file);
 
         /// <summary>
         /// Ensures there is a valid file available for the given Id.
@@ -133,7 +133,7 @@ namespace Youverse.Core.Services.Drive
 
         Task<IEnumerable<ServerFileHeader>> GetMetadataFiles(Guid driveId, PageOptions pageOptions);
 
-        Task<(EncryptedKeyHeader encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, Stream stream)> GetThumbnailPayloadStream(InternalDriveFileId file, int width, int height);
+        Task<Stream> GetThumbnailPayloadStream(InternalDriveFileId file, int width, int height);
 
         Task WriteThumbnailStream(InternalDriveFileId file, int width, int height, Stream stream);
 

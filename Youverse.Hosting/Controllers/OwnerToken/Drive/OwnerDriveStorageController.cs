@@ -83,15 +83,18 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
                 FileId = request.FileId
             };
 
-            var (encryptedKeyHeader, payloadIsEncrypted, decryptedContentType, payload) = await _driveService.GetPayloadStream(file);
+            var payload = await _driveService.GetPayloadStream(file);
             if (payload == Stream.Null)
             {
                 return NotFound();
             }
 
-            HttpContext.Response.Headers.Add(TransitConstants.PayloadEncrypted, payloadIsEncrypted.ToString());
-            HttpContext.Response.Headers.Add(TransitConstants.DecryptedContentType, decryptedContentType);
-            HttpContext.Response.Headers.Add(TransitConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader.ToBase64());
+            var header = await _appService.GetClientEncryptedFileHeader(file);
+            string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
+
+            HttpContext.Response.Headers.Add(TransitConstants.PayloadEncrypted, header.FileMetadata.PayloadIsEncrypted.ToString());
+            HttpContext.Response.Headers.Add(TransitConstants.DecryptedContentType, header.FileMetadata.ContentType);
+            HttpContext.Response.Headers.Add(TransitConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader64);
             return new FileStreamResult(payload, "application/octet-stream");
         }
 
@@ -126,16 +129,19 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
                 FileId = request.File.FileId
             };
 
-            var (encryptedKeyHeader, payloadIsEncrypted, decryptedContentType, payload)  = await _driveService.GetThumbnailPayloadStream(file, request.Width, request.Height);
+            var payload = await _driveService.GetThumbnailPayloadStream(file, request.Width, request.Height);
 
             if (payload == Stream.Null)
             {
                 return NotFound();
             }
 
-            HttpContext.Response.Headers.Add(TransitConstants.PayloadEncrypted, payloadIsEncrypted.ToString());
-            HttpContext.Response.Headers.Add(TransitConstants.DecryptedContentType, decryptedContentType);
-            HttpContext.Response.Headers.Add(TransitConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader.ToBase64());
+            var header = await _appService.GetClientEncryptedFileHeader(file);
+            string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
+
+            HttpContext.Response.Headers.Add(TransitConstants.PayloadEncrypted, header.FileMetadata.PayloadIsEncrypted.ToString());
+            HttpContext.Response.Headers.Add(TransitConstants.DecryptedContentType, header.FileMetadata.ContentType);
+            HttpContext.Response.Headers.Add(TransitConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader64);
             return new FileStreamResult(payload, "application/octet-stream");
         }
 
