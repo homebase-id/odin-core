@@ -345,7 +345,7 @@ namespace Youverse.Core.Services.Drive
 
             //Note: calling to get the file header so we can ensure the caller can read this file
             var header = await this.GetServerFileHeader(file);
-            var thumbs = header.FileMetadata.AppData.AdditionalThumbnails?.ToList();
+            var thumbs = header?.FileMetadata?.AppData?.AdditionalThumbnails?.ToList();
             if (null == thumbs || !thumbs.Any())
             {
                 return Stream.Null;
