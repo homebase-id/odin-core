@@ -339,37 +339,22 @@ namespace Youverse.Core.Services.Drive
             return GetLongTermStorageManager(driveId).GetServerFileHeaders(pageOptions);
         }
 
-        public async Task<(EncryptedKeyHeader encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, Stream stream)> GetThumbnailPayloadStream(InternalDriveFileId file, int width, int height)
+        public async Task<Stream> GetThumbnailPayloadStream(InternalDriveFileId file, int width, int height)
         {
             this.AssertCanReadDrive(file.DriveId);
 
             //Note: calling to get the file header so we can ensure the caller can read this file
             var header = await this.GetServerFileHeader(file);
-
-            EncryptedKeyHeader sharedSecretEncryptedKeyHeader;
-            if (header.FileMetadata.PayloadIsEncrypted)
-            {
-                var storageKey = _contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(file.DriveId);
-                var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
-                var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
-                sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, header.EncryptedKeyHeader.Iv, ref clientSharedSecret);
-            }
-            else
-            {
-                sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
-            }
-
             var thumbs = header.FileMetadata.AppData.AdditionalThumbnails?.ToList();
             if (null == thumbs || !thumbs.Any())
             {
-                return (null, default, null, null);
+                return Stream.Null;
             }
 
             var directMatchingThumb = thumbs.SingleOrDefault(t => t.PixelHeight == height && t.PixelWidth == width);
             if (null != directMatchingThumb)
             {
-                var directStream = await GetLongTermStorageManager(file.DriveId).GetThumbnail(file.FileId, width, height);
-                return (sharedSecretEncryptedKeyHeader, header.FileMetadata.PayloadIsEncrypted, header.FileMetadata.ContentType, directStream);
+                return await GetLongTermStorageManager(file.DriveId).GetThumbnail(file.FileId, width, height);
             }
 
             //TODO: add more logic here to compare width and height separately or together
@@ -379,12 +364,11 @@ namespace Youverse.Core.Services.Drive
                 nextSizeUp = thumbs.LastOrDefault();
                 if (null == nextSizeUp)
                 {
-                    return (null, default, null, null);
+                    return Stream.Null;
                 }
             }
 
-            var stream = await GetLongTermStorageManager(file.DriveId).GetThumbnail(file.FileId, nextSizeUp.PixelWidth, nextSizeUp.PixelHeight);
-            return (sharedSecretEncryptedKeyHeader, header.FileMetadata.PayloadIsEncrypted, header.FileMetadata.ContentType, stream);
+            return await GetLongTermStorageManager(file.DriveId).GetThumbnail(file.FileId, nextSizeUp.PixelWidth, nextSizeUp.PixelHeight);
         }
 
         public async Task WriteThumbnailStream(InternalDriveFileId file, int width, int height, Stream stream)
@@ -441,32 +425,15 @@ namespace Youverse.Core.Services.Drive
             return header;
         }
 
-        public async Task<(EncryptedKeyHeader encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, Stream stream)> GetPayloadStream(InternalDriveFileId file)
+        public async Task<Stream> GetPayloadStream(InternalDriveFileId file)
         {
             this.AssertCanReadDrive(file.DriveId);
 
             //Note: calling to get the file header so we can ensure the caller can read this file
-            var header = await this.GetServerFileHeader(file);
-            if (header == null)
-            {
-                return (null, default, null, null);
-            }
 
-            EncryptedKeyHeader sharedSecretEncryptedKeyHeader;
-            if (header.FileMetadata.PayloadIsEncrypted)
-            {
-                var storageKey = _contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(file.DriveId);
-                var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
-                var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
-                sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, header.EncryptedKeyHeader.Iv, ref clientSharedSecret);
-            }
-            else
-            {
-                sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
-            }
-
+            var _ = await this.GetServerFileHeader(file);
             var stream = await GetLongTermStorageManager(file.DriveId).GetFilePartStream(file.FileId, FilePart.Payload);
-            return (sharedSecretEncryptedKeyHeader, header.FileMetadata.PayloadIsEncrypted, header.FileMetadata.ContentType, stream);
+            return stream;
         }
 
         public void AssertFileIsValid(InternalDriveFileId file)
