@@ -4,7 +4,7 @@
 
 ![Build](https://github.com/YouFoundation/DotYouCore/actions/workflows/ubuntu-build.yml/badge.svg)
 
-![Build](https://github.com/YouFoundation/DotYouCore/actions/workflows/deploy-to-demo.yml/badge.svg)
+[//]: # (![Build]&#40;https://github.com/YouFoundation/DotYouCore/actions/workflows/deploy-to-demo.yml/badge.svg&#41;)
 
 
 ### Setup
