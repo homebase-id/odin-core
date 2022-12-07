@@ -17,8 +17,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\dotyoucore-lib\Youverse.Core.Cryptography\Youverse.Core.Cryptography.csproj" />
-        <ProjectReference Include="..\..\dotyoucore-lib\Youverse.Core\Youverse.Core.csproj" />
+        <ProjectReference Include="..\dotyoucore-lib\Youverse.Core.Cryptography\Youverse.Core.Cryptography.csproj" />
+        <ProjectReference Include="..\dotyoucore-lib\Youverse.Core\Youverse.Core.csproj" />
         <ProjectReference Include="..\Youverse.Core.Services.Background\Youverse.Core.Services.Background.csproj" />
         <ProjectReference Include="..\Youverse.Core.Services\Youverse.Core.Services.csproj" />
     </ItemGroup>

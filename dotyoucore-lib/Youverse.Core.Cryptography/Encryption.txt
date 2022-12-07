@@ -1,0 +1,440 @@
+﻿
+** NEXT TODO:
+** Make an AES encrypt & decrypt that inputs & outputs streams
+** Make a Cryptonite function that inputs & outputs stream
+**
+
+// NOTES TO REMEMBER
+//
+// Write scenario for chat client to get rights to update status and to check
+// contact card for other identities.
+//
+
+Documentation for Basic Encryption
+==================================
+
+
+Fields / Properties / Values
+----------------------------
+
+Everything password/login related:
+
+Client Cookie("")
+   The client cookie when set, is both a HTTPS secure cookie, meaning it only transmits over https.
+   Also, it is HTTP ONLY, meaning it is not possible to access the cookie via JavaScript.
+
+   ** We'll add a shared client / server secret and introduce a nonce as well to prevent cookie
+      theft.
+
+Password (volatile)
+   The owner's clear text password (will never leave the client).
+   Password only exists briefly in memory on the client when entered into the password dialogue
+
+DataEncryptionKey (DeK) (volatile)
+    Is the owner's random 16-byte AES random key used for all data encryption.
+    The DataEncryptionKey is necessary so that the owner can change password without
+    reencrypting all data.
+    
+EncryptedDeK [DB] (owner property)
+    The encrypted DeK. 
+    (isn't XORing DeK and the KEK good enough?)
+    Stored in owner's database.
+
+saltPassword (owner property) [DB]
+   A 16 byte random salt stored in owner's DB. Used to salt the password.
+
+hashPassword (owner property) [DB]
+    HashPassword = KeyDerivation.Pbkdf2(password, SaltPassword, KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS,CryptographyConstants.HASH_SIZE);
+    hashPassword is the 16 byte result of hashing the clear text password with the saltPassword.
+    The value is stored in the owner's DB.
+    When checking if the user entered the correct password, this value, hashed with the 
+    nonce will have to match the nonce-hash sent by the client.
+
+saltKek (owner property) [DB]
+   A 16 byte random salt stored in owner's DB. Used to salt the KeK (done by client)
+
+KeyEncryptionKey / KeK (volatile) 
+   The KeK is a 16 byte key calculated as follows:
+   KeyEncryptionKey = KeyDerivation.Pbkdf2(password, SaltKek, KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
+   The KeK is used for en- / de- cryption of the DeK (XOR?) and the RsaPrivate key (AES).
+
+Nonce (owner DB lookup [DB], timeout)
+   Is a temporary 16 byte key used to prevent playback when logging in via the client.
+   HashedNonceHashedPassword = KeyDerivation.Pbkdf2(Convert.ToBase64String(HashPassword), nonce, KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE);
+
+   When the owner enters his password on the client, the password hashed with the saltPassword, then hashed with the nonce.
+   The value is sent back to the server. On the server, the nonce is used to hash the hashPassword stored in the database.
+   If they match, the password has been entered correctly and the user can login.
+
+--
+
+HostRSA - RSA key pair on the host which is available also when the user is not logged in.
+          Typically renewed daily.
+
+EncryptionRSA - RSA key pair where the secret key is only accessible while the user is 
+                sending requests to the host. Used for sending encrypted data header to
+                the Host.
+
+SignRSA - RSA key pair where the secret key is only accessible while the user is 
+                sending requests to the host.
+--
+
+
+RsaPublic (owner property) [DB] [to-be-added]
+   Is the owner's 2048 bit public key, stored in the database. Used for
+   encryption of secrets. Available as:
+   .RsaPublic
+
+RsaPrivate (volatile)
+   Is the owner's 2048 bit private key (in-memory value only). Used for encryption of secrets.
+
+EncryptedRsaPrivate (owner property) [DB] [to-be-added]
+   Is the owner's 2048 bit private key, encrypted using AES with the KeK.
+   Stored in the owner's database. Available as the pair:
+
+   (.EncryptedRsaPrivate, IV) = AesCbc.EncryptBytesToBytes_Aes(RsaPrivate, KeyEncryptionKey);
+
+   Note that the IV (128 bit vector) needs to be stored for decryption purposes.
+
+
+
+
+Password handling:
+------------------
+
+Password initialization(first time password setup):
+   ** TO BE DONE: Server generates HostToHost RSA key (unencrypted). Pass public key in noncePackage.
+
+   Owner enters password on client.
+   Client requests Nonce package from server, server replies with 'NoncePackage'
+   Client receives, saltPassword, saltKek, Nonce.
+   Client calculates hashNonce (Hash(Hash(password, saltPassword), Nonce) and hashKek (=KeK)
+   Client sends package 'PasswordReply' containing hashNonce, hashKek to the server.
+   Server receives 'PasswordReply', then looks up Nonce, checks for timeout. ** XXX is timeout added yet?
+   Server uses the PasswordReply and NoncePackage to generate the PasswordKey package. Which contains 
+        a newly generated DeK as a random 16-byte array, and encrypts it with the KeK (XOR).
+
+   ** TO BE DONE:
+     Server generates the RsaPublic & RsaPrivate. Encrypts RsaPrivate using AES() with the KeK.
+
+
+Password verify
+   Owner enters password on client.
+   Client requests Nonce package from server.
+   Client receives, saltPassword, saltKek, Nonce.
+   Client calculates hashNonce (Hash(Hash(password, saltPassword), Nonce) and hashKek (=KeK)
+   Client sends hashNonce, hashKek to the server.
+   Server looks up Nonce, checks for timeout.
+   Server checks if the owner property for Hash(hashPassword, Nonce) equals the same hashNonce value from the client.
+
+   If a match, server splits the KeK in two halves: It takes the KeK. Generates random 16-byte array. XORs the KeK 
+   with the random bytes, stores the XOR'ed KEK in the DB with the random bytes as key. Sets the client cookie("name?") 
+   to the 16 random bytes.
+
+   Thus, even without further encryption, the password never leaves client. Playback impossible due to Nonce.
+   Kek only exists briefly on the wire and never lives on the server. Server is thus unable to decrypt data
+   encrypted with the EncryptedDataKey.
+
+   [TODO: The above transmission from the client to the server will be RSA public key encrypted.
+          Server passes its rsaPublicKey to the client, and the client encrypts its return transmission to 
+          the server]
+
+
+Password change
+   Enter current & new password
+   Verify old password is correct.
+   Use current password to decrypt EncryptedRSAPrivate and EncryptedDataKey.
+   Calculate new KeK and associated values, store them. 
+   Re-encrypt EncryptedRSAPrivate and EncryptedDataKey with the new KeK.
+   Invalidate all client keys in DB (each client will need to login again)
+
+Salt update
+   Can happen when the password is entered.
+   First verify password is correct.
+   Then update Salt values, recalculate derived values
+   Re-encrypt EncryptedRSAPrivate and EncryptedDataKey with the new KeK.
+
+---
+
+Note that the KeK split in half on client and server
+
+   The KeK is calculated when the password is entered and is sent to the server.
+   On the server a 16 byte random value is generated. The value stored on the
+   client as a cookie("mynameis?"). The KeK is xor'ed with the cookie value and
+   stored in the database. 
+
+   On subsequent web requests, the random 16 byte cookie value XOR'ed with the 
+   stored XOR'ed KeK value will result in the KeK. 
+
+
+
+Data encryption
+---------------
+This section describes the fundamental data encryption exchange that takes place between
+hosts and also between a host and it's apps.
+
+       {protocol-header}, {key-header}, {payload}
+
+The protocol-header has information pertaining to the protocol, e.g. message type, possibly
+length of payload, possibly CRCs, wherter or not the payload is encrypted, etc.
+
+The key-header is only present if the payload is encrypted.
+
+The payload is the actual data, possibly encrypted.
+
+Firstly, to send encrypted data a packet of data is to be sent from a sender to a receiver.
+The payload that is to be encrypted will be AES-CBC encrypted with a random-key and a random-iv and
+becomes the {encrypted-payload}. All payloads are encrypted in this way and stay this way.
+
+Next, a key-header is created containing the random-key and random-iv used to encrypt the payload.
+We call this the key-header. There are two options:
+
+1) If the sender and receiver share a secret, a key-header is created which consists of:
+       {random-iv2, aes({random-key, random-iv})}, {encrypted-payload}
+   The header is aes encrypted with the shared-secret and the random-iv2.
+
+
+2) If the sender and receiver do not a share a secret, a key-header is created based on the 
+   receiver's public key, the header consists of:
+       {{crc-uint32}, rsa({random-key, random-iv})}, {encrypted-payload}
+       {{crc-uint32-rsa1, crc-unit32-rsa2}, rsa1({random-key, random-iv})}, {rsa2(offline-payload)}, {rsa1(online-payload)}
+
+       (byte[] rsaHeader, byte[] encryptedPayload) EncryptRSAPacket(byte[] payload, string recipientPublicKey)
+
+   The CRC is a 32 bit CRC of the public key and is unencrypted. It is used by the recipient
+   to ensure the right public key was used. The second part of the header is encrypted with the public 
+   RSA OAEP key of the receiver. 
+
+This means that an encrypted-payload stays encrypted with the same random-key and random-iv
+as it was orginally created with. Both on the receiving host but might as well stay the same on
+owner's devices or when forwarded to other hosts. To access such an encrypted-payload the header needs to be
+decrypted to provide the random-key and random-iv that has been used to encrypt the payload. 
+Thus if an encrypted packet is forwarded to another host, a new header is created which is appropriately 
+encrypted for the receiving host.
+
+A host receiving an encrypted package will queue the data. When the owner goes online, the RSA secret key
+is revealed. The host will then convert the queued package header from RSA to AES for faster / easier access. 
+
+
+[We might want to stuff more into the header from a protocol point of view - is it e.g. a chat message?]
+
+---
+
+Create a header:
+   A. Unencrypted 4-byte CRC of the recipient's public encryption key used to encrypt (stored in the DB)
+
+   This part of the header is encrypted with the recipient's public key:
+   B. 16-byte random guid used for encrypting the data.
+   C. 16-byte iv for the encrypted message (this means we dont need a CRC)
+   E. Optional. Sender's signature of the message. This way we know for sure it's from Sender.
+   F. Optional. 4-byte CRC of the sender's public signature key (stored in the DB) needed for verify signature
+
+Create the payload:
+   Q. Create encrypted data:
+        AES encrypted version of the data using the above 16-byte random value as key.
+
+Once sent, only the recipient can access the message by means of their rsaPrivateKey which
+allows access to the 16-byte random key which in turns allows AES decryption of the data.
+The decrypted data should verify against the header embedded CRC32.
+The two CRC values is used to make sure it's the right public / private key pair used
+(we need to support switching public/private keys if they were compromised).
+---
+H2H EXAMPLE
+
+Sam wants to send the message "Let's go to Mordor tomorrow." to Frodo.
+
+Sam is online, Frodo is offline:
+
+   - Sam gets Frodo's RSA public key from his host (or locally cached version)
+        Sam calculates a CRC32 for the public key 'A' (or gets the cached CRC).
+   - Sam generates a random 16 byte message-secret 'B'
+   - Sam encrypts the data message with AES using the message-secret and gets the iv 'C'. 
+     Encrypted result saved in "Q"
+   - // Optional. Sam signs the message with his private key (available via his KeK only). 'E,F'
+   - Sam encrypts 'B' & 'C' with Frodo's public key into 'G'. 
+   - Sam sends Frodo's host a message {(A+G), Q}
+        
+   - o O o - 
+
+   - The message is now arrivng at Frodo's host:
+
+   - If Frodo's current public key CRC doesn't match CRC-Frodo, reject the message with 
+     appropriate error message.
+
+   - // Frodo should be sure to have Sam's public key matching CRC-Sam. If not, get it and store it.
+   - Frodo's host is currently unable to decrypt the message, stores it "as is" in a queue.
+   - A notification can be sent to Frodo's phone saying there is 'something' from Sam.
+
+   - Frodo comes online, the client ½ and host ½ of the KeK join at the server, the DeK is
+     retrieved for the request.
+
+   - Frodo's host should now process all waiting packages in the queue:
+   - Frodo can now chec the CRC of 'A' matches his public key.
+   - Frodo's host can now decrypt G using's Frodo's private key (decrypted with the KeK)
+   - The host can then decrypt Q using the message-secret and iv obtained in G
+   - The host can optionally verify Sam's signature using Sam's public key or the CRC32
+
+   - Message is now either stored in clear text or optionally be re-encrypted with AES(DeK, Message)
+     and the queue package can be discarded.
+
+     ===
+
+   - The clear text message could be sent to Frodo's client device.
+     More likely the client device should hold an encryption key, the host 
+     should encrypt the message with this key, and send the data to the client.
+
+     Should the client's encryption key simply be the DataKey? 
+
+============================================
+Work in progress
+
+Management client.  ½ DeK needed.
+Chat/mail client.  ½ DeK needed.
+Social. Simple ID needed
+BestBuy. Simple ID needed
+--
+Data stored at host:
+Name, clear
+Credit Card, DeK encrypted.
+--
+Best buy requests your info. When interactively logged in, they'll need to do a browser redirect
+to get e.g. your credit card data. Or run a Https GET from your own browser. Only then will your 
+DeK be available.
+
+
+--
+Exploring chat-client to host communication:
+
+Would it be possible that the chat client doesn't hold ½ KeK.
+
+Using the host to host encryption scheme, the chat client could create 
+and send the encrypted chat package from the client to the host. However,
+the host would be unable to decrypt the chat package.
+
+So one solution could be for the client to create one such encrypted
+chat package for the owner and each recipient.
+
+Another solution could be that the chat client and host share a different
+secret than the KeK. This would allow the chat client to send the encrypted
+chat message to the host. The host could then decrypt the message and create
+a host to host package for each recipient. Including the sender.
+
+However, when wanting to read 
+
+- o O o -
+
+Suggested field security (the owner can override the default
+security level if e.g. they want their address hidden away):
+
+Lite-Encryption (DB only):
+    Name, address, phone, email, connected identities, ....
+    These properties are only encrypted at the database level.
+
+    Field that cannot meaningfully get a higher level encryption:
+        Connected identities
+    
+    When someone is visiting your page or trying to access data
+    they will only be abke to retrieve lite fields (because the
+    other fields are irreversibly encrypted and therefore inaccessible
+    unless the owner is involved for e.g. credit card data transfer).
+    If you make all your fields Encrypted, then nobody can see
+    anything about you, e.g. name, profile picture, unless you're
+    interactively giving it to them online. And that's rather inconvenient. :)
+
+Key Encrypted:
+    Credit-Card, Contacts (?), ....
+    These properties are DeK encrypted.
+
+Doubly Key Encrypted:
+    Diary, ...
+    These properties require an additional password to access (DeK-TWO).
+    * DeK-TWO is the password-two salted with the DeK.
+
+Fields might have a symbol next to them illustrating their encryption level.
+Or there might be an overview showing you which is which, e.g. first listing
+all lite fields, etc.
+
+- o O o -
+** Also remain a bit undecided if we should use AES-CBC or GCM. **
+** C# example for streaming AES-GCM !? **
+https://crypto.stackexchange.com/questions/86557/encrypt-a-big-file-in-blocks-with-aes-gcm-how-many-nonce-do-we-need
+** .net doesn't support streaming of GCM. We could maybe can write our own. **
+** GCM allows random access, CBC doesn't. GCM is slightly faster. **
+** GCM allows max 256GB file size or security will be compromised **
+
+
+** Undecided if the app should en/de-crypt with the same DeK as on the server  **
+** If we choose a different DeK for the clients, then all data from the server **
+** to the client needs to be re-encrypted before being sent to the client.     **
+
+[AuthenticationToken]
+    An App receives an authentication token (with the help of the owner). The App 
+    must store the authentication token and present it in all requests to the Host.
+    The Host has stored which access rights are associated with the access token.
+
+[AuthenticationTokenHalfKeKDek]
+    Furthermore, Apps that need the host to be able to process queued data or
+    decrypt encrypted data will need ½ KeK to present to the host.
+
+    Presuming the App encrypts data locally with the same DeK as on the server 
+    the App will also hold ½ DeK. The host will provide the other ½ DeK to the
+    App such that the App can generate and use the DeK in memory without storing it.
+
+    This should only be granted to Hosts not to 3rd parties such as BestBuy
+    (unless they use a host e.g. id.bestbuy.com). 
+
+    The 
+
+
+
+Lite-encryption apps:
+    Can e.g. query the host for lite encrypted data fields.
+    Cannot query for encrypted information such as credit-card.
+    CC information can only be passed interactively with the user's consent.
+
+    E.g. BestBuy, Circle Manager, Blog, Social
+
+Secure Apps:
+   These apps may need for the host to be able to decrypt queued packages
+   or access Encrypted properties.
+   Therefore they need the ½ KeK because the KeK is needed
+   to access the RSA private key necessary for decrypting
+   the queued packages or access the DeK for decrypting
+   encrypted fields.
+
+   E.g. Chat, Email, Collaboration, Management, Drive, Signing, 
+   Contact Manager (or is that a Lite app?).
+
+Double Secure Apps:
+    These apps hold ½ KeK and ½ Kek-TWO and can access the doubly 
+    encrypted properties
+
+    E.g. Management interface.
+
+I'm wondering:
+    Companies are struggling with leaking customer data. Name, address, 
+    credit cards, etc.
+
+    Would it make sense that when I pass e.g. my credit card to Best Buy, then
+    I pass it as e.g. base-64 encrypted data. Best Buy can store this information
+    with my customer record and they don't hold the decryption key. No harm
+    done if it leaks.
+
+    My identity host exposes a host to host API, so that if Best Buy's host
+    sends over this base64 encrypted data, then it is decrypted for the Best Buy host.
+    They can then use it for their transaction and immediately discard the decrypted 
+    data. My host would know if it is Best Buy requesting the data because of the SSL
+    cert valdation DNSSEC.
+
+    Wonder if anyone would use that.
+
+---
+More App security thoughts:
+    If I want to be able to read and write chat-messages while connected online only,
+    then 
+
+
+---
+Note to self: We should have a fallback profile-picture. So that if no profile-picture is accessible
+for the current viewer, the fallback picture is shown. I might e.g. want my fallback picture to be 
+the Valhalla logo, or a hat. And my profile picture as a picture of myself.

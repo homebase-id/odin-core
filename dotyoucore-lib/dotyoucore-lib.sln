@@ -1,0 +1,67 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.3.32825.248
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{A98EA801-5CF3-4550-920B-F48963F4C123}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Youverse.Core.Tests", "Tests\Youverse.Core.Tests\Youverse.Core.Tests.csproj", "{99F77839-75B5-4C90-9E5C-213DEB23D5DC}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Youverse.Core.Cryptography.Tests", "Tests\Youverse.Core.Cryptography.Tests\Youverse.Core.Cryptography.Tests.csproj", "{DD1DF899-8D30-4AED-9BD7-6C1D15A3E68C}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Youverse.Core", "Youverse.Core\Youverse.Core.csproj", "{183C2DC2-CAEC-408B-BE1E-3409AE822BAA}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Youverse.Core.Cryptography", "Youverse.Core.Cryptography\Youverse.Core.Cryptography.csproj", "{37FCB7C5-17AF-4515-9F11-F275201504A1}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{8FEEC708-FFA8-4CAD-9C24-597F28ADBB9B}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Youverse.Core.Storage.Tests", "Tests\Youverse.Core.Storage.Tests\Youverse.Core.Storage.Tests.csproj", "{78719110-F5A0-4492-A08F-C689E99E0241}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Youverse.Core.Storage", "Youverse.Core.Storage\Youverse.Core.Storage.csproj", "{8773CA76-DB45-4B3D-AFE8-9A478D7C9C3C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{99F77839-75B5-4C90-9E5C-213DEB23D5DC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{99F77839-75B5-4C90-9E5C-213DEB23D5DC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{99F77839-75B5-4C90-9E5C-213DEB23D5DC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{99F77839-75B5-4C90-9E5C-213DEB23D5DC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DD1DF899-8D30-4AED-9BD7-6C1D15A3E68C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DD1DF899-8D30-4AED-9BD7-6C1D15A3E68C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DD1DF899-8D30-4AED-9BD7-6C1D15A3E68C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DD1DF899-8D30-4AED-9BD7-6C1D15A3E68C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{183C2DC2-CAEC-408B-BE1E-3409AE822BAA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{183C2DC2-CAEC-408B-BE1E-3409AE822BAA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{183C2DC2-CAEC-408B-BE1E-3409AE822BAA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{183C2DC2-CAEC-408B-BE1E-3409AE822BAA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{37FCB7C5-17AF-4515-9F11-F275201504A1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{37FCB7C5-17AF-4515-9F11-F275201504A1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{37FCB7C5-17AF-4515-9F11-F275201504A1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{37FCB7C5-17AF-4515-9F11-F275201504A1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{78719110-F5A0-4492-A08F-C689E99E0241}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{78719110-F5A0-4492-A08F-C689E99E0241}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{78719110-F5A0-4492-A08F-C689E99E0241}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{78719110-F5A0-4492-A08F-C689E99E0241}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8773CA76-DB45-4B3D-AFE8-9A478D7C9C3C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8773CA76-DB45-4B3D-AFE8-9A478D7C9C3C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8773CA76-DB45-4B3D-AFE8-9A478D7C9C3C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8773CA76-DB45-4B3D-AFE8-9A478D7C9C3C}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{99F77839-75B5-4C90-9E5C-213DEB23D5DC} = {A98EA801-5CF3-4550-920B-F48963F4C123}
+		{DD1DF899-8D30-4AED-9BD7-6C1D15A3E68C} = {A98EA801-5CF3-4550-920B-F48963F4C123}
+		{78719110-F5A0-4492-A08F-C689E99E0241} = {A98EA801-5CF3-4550-920B-F48963F4C123}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {C1E48754-E921-4FC3-8BF2-123D1E7112F4}
+	EndGlobalSection
+EndGlobal
