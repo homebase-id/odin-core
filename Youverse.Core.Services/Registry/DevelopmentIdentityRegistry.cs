@@ -74,29 +74,10 @@ namespace Youverse.Core.Services.Registry
             Directory.CreateDirectory(domainRootPath);
 
             string sourceCertPath = Path.Combine(Environment.CurrentDirectory, "https", domain, "certificate.crt");
-
-            //only copy if needed
-            if (!File.Exists(destCertPath))
-            {
-                if (!File.Exists(sourceCertPath))
-                {
-                    throw new Exception($"Cannot find [{sourceCertPath}]");
-                }
-
-                File.Copy(sourceCertPath, destCertPath);
-            }
+            File.Copy(sourceCertPath, destCertPath, true);
 
             string sourceKeyPath = Path.Combine(Environment.CurrentDirectory, "https", domain, "private.key");
-
-            if (!File.Exists(destKeyPath))
-            {
-                if (!File.Exists(sourceKeyPath))
-                {
-                    throw new Exception($"Cannot find [{sourceKeyPath}]");
-                }
-
-                File.Copy(sourceKeyPath, destKeyPath);
-            }
+            File.Copy(sourceKeyPath, destKeyPath, true);
         }
 
         public Guid ResolveId(string domain)
@@ -135,6 +116,5 @@ namespace Youverse.Core.Services.Registry
         {
             throw new NotImplementedException();
         }
-        
     }
 }

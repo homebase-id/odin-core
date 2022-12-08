@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Data.Entity.ModelConfiguration.Configuration;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -28,8 +29,8 @@ namespace Youverse.Core.Services.Drive
 
     public class DriveService : IDriveService
     {
+        private readonly DriveManager _driveManager;
         private readonly IDriveAclAuthorizationService _driveAclAuthorizationService;
-        private readonly ISystemStorage _systemStorage;
         private readonly IMediator _mediator;
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly TenantContext _tenantContext;
@@ -41,7 +42,6 @@ namespace Youverse.Core.Services.Drive
             IDriveAclAuthorizationService driveAclAuthorizationService, TenantContext tenantContext)
         {
             _contextAccessor = contextAccessor;
-            _systemStorage = systemStorage;
 
             _loggerFactory = loggerFactory;
             _mediator = mediator;
@@ -50,177 +50,49 @@ namespace Youverse.Core.Services.Drive
             _longTermStorageManagers = new ConcurrentDictionary<Guid, ILongTermStorageManager>();
             _tempStorageManagers = new ConcurrentDictionary<Guid, ITempStorageManager>();
 
+            _driveManager = new DriveManager(contextAccessor, systemStorage, mediator, tenantContext);
             InitializeStorageDrives().GetAwaiter().GetResult();
         }
 
-        private readonly object _createDriveLock = new object();
-        private readonly byte[] _driveDataType = "drive".ToUtf8ByteArray(); //keep it lower case
-
         public Task<StorageDrive> CreateDrive(CreateDriveRequest request)
         {
-            Guard.Argument(request, nameof(request)).NotNull();
-            Guard.Argument(request.Name, nameof(request.Name)).NotNull().NotEmpty();
-
-            if (request.OwnerOnly && request.AllowAnonymousReads)
-            {
-                throw new YouverseClientException("A drive cannot be owner-only and allow anonymous reads", YouverseClientErrorCode.CannotAllowAnonymousReadsOnOwnerOnlyDrive);
-            }
-
-            var mk = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-
-            StorageDrive storageDrive;
-
-            lock (_createDriveLock)
-            {
-                //driveAlias and type must be unique
-                if (null != this.GetDriveIdByAlias(request.TargetDrive, false).GetAwaiter().GetResult())
-                {
-                    throw new YouverseClientException("Drive alias and type must be unique", YouverseClientErrorCode.DriveAliasAndTypeAlreadyExists);
-                }
-
-                var driveKey = new SymmetricKeyEncryptedAes(ref mk);
-
-                var id = Guid.NewGuid();
-                var secret = driveKey.DecryptKeyClone(ref mk);
-
-                (byte[] encryptedIdIv, byte[] encryptedIdValue) = AesCbc.Encrypt(id.ToByteArray(), ref secret);
-
-                var sdb = new StorageDriveBase()
-                {
-                    Id = id,
-                    Name = request.Name,
-                    TargetDriveInfo = request.TargetDrive,
-                    Metadata = request.Metadata,
-                    MasterKeyEncryptedStorageKey = driveKey,
-                    EncryptedIdIv = encryptedIdIv,
-                    EncryptedIdValue = encryptedIdValue,
-                    AllowAnonymousReads = request.AllowAnonymousReads,
-                    OwnerOnly = request.OwnerOnly
-                };
-
-                secret.Wipe();
-
-                _systemStorage.ThreeKeyValueStorage.Upsert(sdb.Id, request.TargetDrive.ToKey(), _driveDataType, sdb);
-
-                storageDrive = ToStorageDrive(sdb);
-                storageDrive.EnsureDirectories();
-            }
-
-            _mediator.Publish(new DriveDefinitionAddedNotification()
-            {
-                IsNewDrive = true,
-                Drive = storageDrive
-            });
-
-            return Task.FromResult(storageDrive);
+            return _driveManager.CreateDrive(request);
         }
 
         public Task SetDriveReadMode(Guid driveId, bool allowAnonymous)
         {
-            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-            StorageDrive storageDrive = this.GetDrive(driveId).GetAwaiter().GetResult();
-
-            if (storageDrive.TargetDriveInfo == SystemDriveConstants.ContactDrive || storageDrive.TargetDriveInfo == SystemDriveConstants.ProfileDrive)
-            {
-                throw new YouverseSecurityException("Cannot change system drive");
-            }
-
-            if (storageDrive.OwnerOnly && allowAnonymous)
-            {
-                throw new YouverseSecurityException("Cannot set Owner Only drive to allow anonymous");
-            }
-
-            //only change if needed
-            if (storageDrive.AllowAnonymousReads != allowAnonymous)
-            {
-                storageDrive.AllowAnonymousReads = allowAnonymous;
-
-                _systemStorage.ThreeKeyValueStorage.Upsert(driveId, storageDrive.TargetDriveInfo.ToKey(), _driveDataType, storageDrive);
-
-                _mediator.Publish(new DriveDefinitionAddedNotification()
-                {
-                    IsNewDrive = false,
-                    Drive = storageDrive
-                });
-            }
-
-            return Task.CompletedTask;
+            return _driveManager.SetDriveReadMode(driveId, allowAnonymous);
         }
 
         public Task UpdateMetadata(Guid driveId, string metadata)
         {
-            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-            var sdb  = _systemStorage.ThreeKeyValueStorage.Get<StorageDriveBase>(driveId);
-            sdb.Metadata = metadata;
-
-            _systemStorage.ThreeKeyValueStorage.Upsert(driveId, sdb.TargetDriveInfo.ToKey(), _driveDataType, sdb);
-            return Task.CompletedTask;
+            return _driveManager.UpdateMetadata(driveId, metadata);
         }
 
 
         public async Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false)
         {
-            var sdb = _systemStorage.ThreeKeyValueStorage.Get<StorageDriveBase>(driveId);
-            if (null == sdb)
-            {
-                if (failIfInvalid)
-                {
-                    throw new InvalidDriveClientException(driveId);
-                }
-
-                return null;
-            }
-
-            var drive = ToStorageDrive(sdb);
-            return drive;
+            return await _driveManager.GetDrive(driveId, failIfInvalid);
         }
 
         public async Task<Guid?> GetDriveIdByAlias(TargetDrive targetDrive, bool failIfInvalid = false)
         {
-            var list = _systemStorage.ThreeKeyValueStorage.GetByKey2<StorageDriveBase>(targetDrive.ToKey());
-            var drives = list as StorageDriveBase[] ?? list.ToArray();
-            if (!drives.Any())
-            {
-                if (failIfInvalid)
-                {
-                    throw new InvalidDriveClientException(targetDrive.Alias);
-                }
-
-                return null;
-            }
-
-            var drive = ToStorageDrive(drives.Single());
-            return drive.Id;
+            return await _driveManager.GetDriveIdByAlias(targetDrive, failIfInvalid);
         }
 
         public async Task<PagedResult<StorageDrive>> GetDrives(PageOptions pageOptions)
         {
-            return await this.GetDrivesInternal(true, pageOptions);
+            return await _driveManager.GetDrives(pageOptions);
         }
 
         public async Task<PagedResult<StorageDrive>> GetDrives(GuidId type, PageOptions pageOptions)
         {
-            Func<StorageDrive, bool> predicate = drive => drive.TargetDriveInfo.Type == type;
-
-            if (_contextAccessor.GetCurrent().Caller.IsAnonymous)
-            {
-                predicate = drive => drive.TargetDriveInfo.Type == type && drive.AllowAnonymousReads == true && drive.OwnerOnly == false;
-            }
-
-            var page = await this.GetDrivesInternal(false, pageOptions);
-
-            var storageDrives = page.Results.Where(predicate).ToList();
-            var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
-            return results;
+            return await _driveManager.GetDrives(type, pageOptions);
         }
 
         public async Task<PagedResult<StorageDrive>> GetAnonymousDrives(PageOptions pageOptions)
         {
-            var page = await this.GetDrivesInternal(false, pageOptions);
-            // var storageDrives = page.Results.Where(drive => drive.AllowAnonymousReads && drive.OwnerOnly == false).ToList();
-            var storageDrives = page.Results.Where(drive => drive.AllowAnonymousReads).ToList();
-            var results = new PagedResult<StorageDrive>(pageOptions, 1, storageDrives);
-            return results;
+            return await _driveManager.GetAnonymousDrives(pageOptions);
         }
 
         public InternalDriveFileId CreateInternalFileId(Guid driveId)
@@ -419,9 +291,6 @@ namespace Youverse.Core.Services.Drive
 
             await _driveAclAuthorizationService.AssertCallerHasPermission(header.ServerMetadata.AccessControlList);
 
-            var size = await GetLongTermStorageManager(file.DriveId).GetPayloadFileSize(file.FileId);
-            header.FileMetadata.PayloadSize = size;
-
             return header;
         }
 
@@ -488,16 +357,16 @@ namespace Youverse.Core.Services.Drive
         public async Task CommitTempFileToLongTerm(InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata, string payloadExtension)
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(targetFile.DriveId);
-
-            //TODO: this method is so hacky 🤢
+            
             metadata.File = targetFile;
 
             var storageManager = GetLongTermStorageManager(targetFile.DriveId);
             var tempStorageManager = GetTempStorageManager(targetFile.DriveId);
 
             string sourceFile = await tempStorageManager.GetPath(targetFile.FileId, payloadExtension);
+            metadata.PayloadSize = new FileInfo(sourceFile).Length;
             await storageManager.MoveToLongTerm(targetFile.FileId, sourceFile, FilePart.Payload);
-
+            
             if (metadata.AppData.AdditionalThumbnails != null)
             {
                 foreach (var thumb in metadata.AppData.AdditionalThumbnails)
@@ -531,6 +400,7 @@ namespace Youverse.Core.Services.Drive
             var tempStorageManager = GetTempStorageManager(tempFile.DriveId);
 
             string sourceFile = await tempStorageManager.GetPath(tempFile.FileId, payloadExtension);
+            metadata.PayloadSize = new FileInfo(sourceFile).Length;
             await storageManager.MoveToLongTerm(targetFile.FileId, sourceFile, FilePart.Payload);
 
             var thumbs = metadata.AppData.AdditionalThumbnails?.ToList() ?? new List<ImageDataHeader>();
@@ -554,27 +424,6 @@ namespace Youverse.Core.Services.Drive
             await this.UpdateActiveFileHeader(targetFile, serverHeader);
         }
 
-        private async Task<PagedResult<StorageDrive>> GetDrivesInternal(bool enforceSecurity, PageOptions pageOptions)
-        {
-            var storageDrives = _systemStorage.ThreeKeyValueStorage.GetByKey3<StorageDriveBase>(_driveDataType);
-
-            if (_contextAccessor.GetCurrent()?.Caller?.IsOwner ?? false)
-            {
-                return new PagedResult<StorageDrive>(pageOptions, 1, storageDrives.Select(ToStorageDrive).ToList());
-            }
-
-            Func<StorageDriveBase, bool> predicate = null;
-            predicate = drive => drive.OwnerOnly == false;
-            if (enforceSecurity)
-            {
-                if (_contextAccessor.GetCurrent().Caller.IsAnonymous)
-                {
-                    predicate = drive => drive.AllowAnonymousReads == true && drive.OwnerOnly == false;
-                }
-            }
-
-            return new PagedResult<StorageDrive>(pageOptions, 1, storageDrives.Where(predicate).Select(ToStorageDrive).ToList());
-        }
 
         private void OnLongTermFileChanged(InternalDriveFileId file, ServerFileHeader header)
         {
@@ -587,19 +436,10 @@ namespace Youverse.Core.Services.Drive
             _mediator.Publish(notification);
         }
 
-        private StorageDrive ToStorageDrive(StorageDriveBase sdb)
-        {
-            //TODO: this should probably go in config
-            const string driveFolder = "drives";
-            return new StorageDrive(
-                Path.Combine(_tenantContext.StorageConfig.DataStoragePath, driveFolder),
-                Path.Combine(_tenantContext.StorageConfig.TempStoragePath, driveFolder), sdb);
-        }
-
         private async Task InitializeStorageDrives()
         {
-            var drives = _systemStorage.ThreeKeyValueStorage.GetByKey3<StorageDriveBase>(_driveDataType) ?? new List<StorageDrive>();
-            foreach (var drive in drives.Select(ToStorageDrive))
+            var drives = await _driveManager.GetDrivesInternal(false, PageOptions.All);
+            foreach (var drive in drives.Results)
             {
                 LoadLongTermStorage(drive, out var _);
             }

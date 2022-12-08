@@ -15,7 +15,9 @@ namespace Youverse.Core.Services.Drive.Storage
         private readonly ILogger<ILongTermStorageManager> _logger;
 
         private readonly StorageDrive _drive;
+
         private const int WriteChunkSize = 1024;
+
         // private const string ThumbnailDelimiter = "-";
         private const string ThumbnailDelimiter = "_";
         private const string ThumbnailSizeDelimiter = "x";
@@ -50,13 +52,8 @@ namespace Youverse.Core.Services.Drive.Storage
         public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart)
         {
             string path = GetFilenameAndPath(fileId, filePart);
-            if (File.Exists(path))
-            {
-                var fileStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                return Task.FromResult((Stream)fileStream);
-            }
-
-            return Task.FromResult(Stream.Null);
+            var fileStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            return Task.FromResult((Stream)fileStream);
         }
 
         public Task<Stream> GetThumbnail(Guid fileId, int width, int height)
@@ -64,13 +61,8 @@ namespace Youverse.Core.Services.Drive.Storage
             string fileName = GetThumbnailFileName(fileId, width, height);
             string dir = GetFilePath(fileId, false);
             string path = Path.Combine(dir, fileName);
-            if (File.Exists(path))
-            {
-                var fileStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                return Task.FromResult((Stream)fileStream);
-            }
-
-            return Task.FromResult(Stream.Null);
+            var fileStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            return Task.FromResult((Stream)fileStream);
         }
 
         private string GetThumbnailFileName(Guid fileId, int width, int height)
@@ -142,18 +134,6 @@ namespace Youverse.Core.Services.Drive.Storage
             _logger.LogInformation($"File Moved to {dest}");
 
             return Task.CompletedTask;
-        }
-
-        public Task<long> GetPayloadFileSize(Guid id)
-        {
-            //TODO: make more efficient by reading metadata or something else?
-            var path = GetFilenameAndPath(id, FilePart.Payload);
-            if (!System.IO.File.Exists(path))
-            {
-                return Task.FromResult((long)0);
-            }
-
-            return Task.FromResult(new FileInfo(path).Length);
         }
 
         public async Task<IEnumerable<ServerFileHeader>> GetServerFileHeaders(PageOptions pageOptions)

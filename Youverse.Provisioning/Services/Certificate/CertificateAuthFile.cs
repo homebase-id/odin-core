@@ -17,17 +17,11 @@ public static class CertificateAuthFile
     {
         string fullPath = PathUtil.OsIfy(Path.Combine(path, token));
         Console.WriteLine($"CertificateAuth->Reading token at path: [{fullPath}]");
-        if (File.Exists(fullPath))
+        return new CertificateAuth()
         {
-            return new CertificateAuth()
-            {
-                Token = token,
-                Auth = File.ReadAllText(fullPath)
-            };
-        }
-
-        Console.WriteLine($"CertificateAuth->File not found or inaccessible.");
-        return null;
+            Token = token,
+            Auth = File.ReadAllText(fullPath)
+        };
     }
 
     public static void Delete(string path, string token, bool ignoreErrors = true)

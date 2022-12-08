@@ -25,9 +25,7 @@ namespace Youverse.Core.Services.Drive.Storage
         /// Writes a stream for a given file and part to the configured provider.
         /// </summary>
         Task WritePartStream(Guid fileId, FilePart part, Stream stream);
-
-        Task<long> GetPayloadFileSize(Guid fileId);
-
+        
         /// <summary>
         /// Gets a read stream for the given <see cref="FilePart"/>
         /// </summary>

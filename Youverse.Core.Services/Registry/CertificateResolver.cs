@@ -87,11 +87,6 @@ namespace Youverse.Core.Services.Registry
 
         public static X509Certificate2 LoadCertificate(string domain, string publicKeyPath, string privateKeyPath)
         {
-            if (File.Exists(publicKeyPath) == false || File.Exists(privateKeyPath) == false)
-            {
-                throw new YouverseSystemException("Cannot find certificate or key file(s)");
-            }
-
             Log.Logger.Information($"Loading Certificate for {domain}");
 
             using (X509Certificate2 publicKey = new X509Certificate2(publicKeyPath))

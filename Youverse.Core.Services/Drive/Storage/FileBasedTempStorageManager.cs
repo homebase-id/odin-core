@@ -32,7 +32,7 @@ namespace Youverse.Core.Services.Drive.Storage
         {
             string path = GetFilenameAndPath(fileId, extension);
             var fileStream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
-            return Task.FromResult((Stream) fileStream);
+            return Task.FromResult((Stream)fileStream);
         }
 
         public Task WriteStream(Guid fileId, string extension, Stream stream)
@@ -78,11 +78,7 @@ namespace Youverse.Core.Services.Drive.Storage
         public Task Delete(Guid fileId, string extension)
         {
             string filePath = GetFilenameAndPath(fileId, extension);
-            if (File.Exists(filePath))
-            {
-                File.Delete(filePath);
-            }
-
+            File.Delete(filePath);
             return Task.CompletedTask;
         }
 

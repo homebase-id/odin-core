@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -49,9 +50,17 @@ namespace Youverse.Hosting.Middleware
             {
                 await HandleDriveAccessException(context, dex);
             }
+            catch (UnauthorizedAccessException uex)
+            {
+                await HandleDriveAccessException(context, uex);
+            }
             catch (YouverseSecurityException yse)
             {
                 await HandleSecurityException(context, yse);
+            }
+            catch (IOException iox)
+            {
+                await HandleIoException(context, iox);
             }
             catch (Exception ex)
             {
@@ -71,6 +80,31 @@ namespace Youverse.Hosting.Middleware
                 Status = status,
                 Title = title,
                 Detail = "No access",
+                Extensions =
+                {
+                    ["correlationId"] = _correlationContext.Id
+                }
+            };
+
+            var result = JsonSerializer.Serialize(problemDetails, DotYouSystemSerializer.JsonSerializerOptions);
+            context.Response.ContentType = "application/problem+json";
+            context.Response.StatusCode = status;
+
+            return context.Response.WriteAsync(result);
+        }
+
+        private Task HandleIoException(HttpContext context, IOException exception)
+        {
+            const int status = 404;
+            const string title = "Not Found";
+
+            _logger.LogError(exception, "{ErrorText}", $"IOException - {exception.GetType().Name} - {exception.Message}");
+
+            var problemDetails = new ProblemDetails
+            {
+                Status = status,
+                Title = title,
+                Detail = "File or directory not found",
                 Extensions =
                 {
                     ["correlationId"] = _correlationContext.Id

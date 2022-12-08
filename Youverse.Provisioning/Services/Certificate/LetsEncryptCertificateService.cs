@@ -103,12 +103,7 @@ namespace Youverse.Provisioning.Services.Certificate
 
                 Directory.CreateDirectory(path);
 
-                string pem = "";
-                if (File.Exists(filePath))
-                {
-                    pem = await File.ReadAllTextAsync(filePath);
-                }
-                
+                string pem = await File.ReadAllTextAsync(filePath);
                 if (!string.IsNullOrEmpty(pem) && !string.IsNullOrWhiteSpace(pem))
                 {
                     pem = await CreateNewAccount(_config.CertificateAuthorityAssociatedEmail);
