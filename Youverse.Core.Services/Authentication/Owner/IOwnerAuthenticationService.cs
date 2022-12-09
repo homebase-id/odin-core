@@ -4,13 +4,14 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.Authentication.Owner
 {
     /// <summary>
     /// Methods use for logging into the admin client of an Individual's DigitalIdentity
     /// </summary>
-    public interface IOwnerAuthenticationService
+    public interface IOwnerAuthenticationService: ICacheDotYouContext
     {
         /// <summary>
         /// Authenticates the owner based on the <see cref="IPasswordReply"/> specified.
@@ -51,12 +52,8 @@ namespace Youverse.Core.Services.Authentication.Owner
         /// Returns the LoginKek used to access the primary and application data encryption keys
         /// </summary>
         /// <returns></returns>
-        //Task<SensitiveByteArray> GetMasterKey(Guid sessionToken, SensitiveByteArray rClientHalfKek);
-        
-        /// <summary>
-        /// Returns the LoginKek used to access the primary and application data encryption keys
-        /// </summary>
-        /// <returns></returns>
         Task<(SensitiveByteArray, SensitiveByteArray)> GetMasterKey(Guid sessionToken, SensitiveByteArray rClientHalfKek);
+
+      
     }
 }

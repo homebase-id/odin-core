@@ -10,7 +10,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
     /// <summary>
     /// Manages the registered <see cref="DotYouIdentity"/>'s  who are 'logged in' to this Identity
     /// </summary>
-    public interface IYouAuthRegistrationService
+    public interface IYouAuthRegistrationService : ICacheDotYouContext
     {
         /// <summary>
         /// Grants access to the <see cref="dotYouId"/>
@@ -20,8 +20,8 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         // ValueTask<YouAuthRegistration?> LoadFromId(Guid id);
         ValueTask<YouAuthRegistration?> LoadFromSubject(string subject);
         ValueTask DeleteFromSubject(string subject);
-
         
         ValueTask<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContext(ClientAuthenticationToken authToken);
+        
     }
 }

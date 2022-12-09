@@ -41,16 +41,7 @@ namespace Youverse.Hosting.Middleware
                 await _next(httpContext);
                 return;
             }
-
-            if (authType == OwnerAuthConstants.SchemeName)
-            {
-                await LoadOwnerContext(httpContext, dotYouContext);
-                dotYouContext.AuthContext = OwnerAuthConstants.SchemeName;
-
-                await _next(httpContext);
-                return;
-            }
-
+            
             if (authType == PerimeterAuthConstants.TransitCertificateAuthScheme)
             {
                 await LoadTransitContext(httpContext, dotYouContext);
@@ -72,48 +63,7 @@ namespace Youverse.Hosting.Middleware
 
             await _next(httpContext);
         }
-
-        private async Task LoadOwnerContext(HttpContext httpContext, DotYouContext dotYouContext)
-        {
-            var user = httpContext.User;
-
-            var driveService = httpContext.RequestServices.GetRequiredService<IDriveService>();
-            var authService = httpContext.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
-            var authResult = ClientAuthenticationToken.Parse(user.FindFirstValue(DotYouClaimTypes.AuthResult));
-            var (masterKey, clientSharedSecret) = await authService.GetMasterKey(authResult.Id, authResult.AccessTokenHalfKey);
-
-            dotYouContext.Caller = new CallerContext(
-                dotYouId: (DotYouIdentity)user.Identity!.Name,
-                masterKey: masterKey,
-                securityLevel: SecurityGroupType.Owner);
-
-            var allDrives = await driveService.GetDrives(PageOptions.All);
-            var allDriveGrants = allDrives.Results.Select(d => new DriveGrant()
-            {
-                DriveId = d.Id,
-                KeyStoreKeyEncryptedStorageKey = d.MasterKeyEncryptedStorageKey,
-                PermissionedDrive = new PermissionedDrive()
-                {
-                    Drive = d.TargetDriveInfo,
-                    Permission = DrivePermission.All
-                },
-            });
-
-            //permission set is null because this is the owner
-            var permissionGroupMap = new Dictionary<string, PermissionGroup>
-            {
-                //HACK: giving this the master key makes my hairs raise >:-[
-                { "owner_drive_grants", new PermissionGroup(null, allDriveGrants, masterKey) },
-            };
-
-            dotYouContext.SetPermissionContext(
-                new PermissionContext(
-                    permissionGroupMap,
-                    sharedSecretKey: clientSharedSecret,
-                    isOwner: true
-                ));
-        }
-
+        
         private async Task LoadTransitContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
             var user = httpContext.User;

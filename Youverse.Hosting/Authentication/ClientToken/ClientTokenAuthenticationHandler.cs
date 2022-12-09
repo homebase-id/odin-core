@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Serilog;
 using Youverse.Core;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
@@ -67,25 +68,36 @@ namespace Youverse.Hosting.Authentication.ClientToken
             }
 
             var appRegService = Context.RequestServices.GetRequiredService<IAppRegistrationService>();
-            var (isValid, _, _) = await appRegService.ValidateClientAuthToken(authToken);
-
-            if (!isValid)
-            {
-                AuthenticateResult.Fail("Invalid App Token");
-            }
-
-            dotYouContext.Caller = new CallerContext(
-                dotYouId: (DotYouIdentity)Request.Host.Host,
-                masterKey: null,
-                securityLevel: SecurityGroupType.Owner);
-
-            var (appId, permissionContext) = await appRegService.GetPermissionContext(authToken);
-
-            dotYouContext.SetPermissionContext(permissionContext);
             dotYouContext.AuthContext = ClientTokenConstants.AppSchemeName;
 
+            if (await appRegService.TryGetCachedContext(authToken, out var ctx))
+            {
+                dotYouContext.Caller = ctx.Caller;
+                dotYouContext.SetPermissionContext(ctx.PermissionsContext);
+            }
+            else
+            {
+                Log.Information("ClientTokenHandler - AppAuth: Creating new DotYouContext");
+                
+                var (isValid, _, _) = await appRegService.ValidateClientAuthToken(authToken);
+
+                if (!isValid)
+                {
+                    AuthenticateResult.Fail("Invalid App Token");
+                }
+
+                dotYouContext.Caller = new CallerContext(
+                    dotYouId: (DotYouIdentity)Request.Host.Host,
+                    masterKey: null,
+                    securityLevel: SecurityGroupType.Owner);
+
+                var (appId, permissionContext) = await appRegService.GetPermissionContext(authToken);
+
+                dotYouContext.SetPermissionContext(permissionContext);
+            }
+
             var claims = new List<Claim>();
-            claims.Add(new Claim(ClaimTypes.Name, Request.Host.Host)); //caller is this owner
+            claims.Add(new Claim(ClaimTypes.Name, dotYouContext.Caller.DotYouId)); //caller is this owner
             claims.Add(new Claim(DotYouClaimTypes.IsAuthorizedApp, true.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
             claims.Add(new Claim(DotYouClaimTypes.IsAuthenticated, true.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
             claims.Add(new Claim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
@@ -93,6 +105,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
             return CreateAuthenticationResult(claims, ClientTokenConstants.AppSchemeName);
         }
 
+      
         private async Task<AuthenticateResult> HandleYouAuth(DotYouContext dotYouContext)
         {
             if (!TryGetClientAuthToken(YouAuthDefaults.XTokenCookieName, out var clientAuthToken))
@@ -100,17 +113,29 @@ namespace Youverse.Hosting.Authentication.ClientToken
                 return AuthenticateResult.Success(await CreateAnonYouAuthTicket(dotYouContext));
             }
 
-            var youAuthRegService = this.Context.RequestServices.GetRequiredService<IYouAuthRegistrationService>();
-            var (cc, permissionContext) = await youAuthRegService.GetPermissionContext(clientAuthToken);
-            if (null == cc)
-            {
-                return AuthenticateResult.Success(await CreateAnonYouAuthTicket(dotYouContext));
-            }
-
-            dotYouContext.Caller = cc;
-            dotYouContext.SetPermissionContext(permissionContext);
             dotYouContext.AuthContext = ClientTokenConstants.YouAuthScheme;
 
+            var youAuthRegService = this.Context.RequestServices.GetRequiredService<IYouAuthRegistrationService>();
+            if (await youAuthRegService.TryGetCachedContext(clientAuthToken, out var ctx))
+            {
+                dotYouContext.Caller = ctx.Caller;
+                dotYouContext.SetPermissionContext(ctx.PermissionsContext);
+            }
+            else
+            {
+                Log.Information("ClientTokenHandler - YouAuth: Creating new DotYouContext");
+                var (cc, permissionContext) = await youAuthRegService.GetPermissionContext(clientAuthToken);
+                if (null == cc)
+                {
+                    return AuthenticateResult.Success(await CreateAnonYouAuthTicket(dotYouContext));
+                }
+                
+                dotYouContext.Caller = cc;
+                dotYouContext.SetPermissionContext(permissionContext);
+             
+                youAuthRegService.CacheContext(clientAuthToken, dotYouContext);
+            }
+            
             var claims = new List<Claim>();
             claims.Add(new Claim(ClaimTypes.Name, dotYouContext.Caller.DotYouId));
             claims.Add(new Claim(DotYouClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
@@ -139,7 +164,8 @@ namespace Youverse.Hosting.Authentication.ClientToken
 
             if (!anonymousDrives.Results.Any())
             {
-                throw new YouverseClientException("No anonymous drives configured.  There should be at least one; be sure you accessed /owner to initialize them.", YouverseClientErrorCode.NotInitialized);
+                throw new YouverseClientException("No anonymous drives configured.  There should be at least one; be sure you accessed /owner to initialize them.",
+                    YouverseClientErrorCode.NotInitialized);
             }
 
             var anonDriveGrants = anonymousDrives.Results.Select(d => new DriveGrant()

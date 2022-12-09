@@ -30,5 +30,7 @@ namespace Youverse.Core.Services.Transit.Upload
         public InternalDriveFileId InternalFile { get; init; }
 
         public bool IsUpdateOperation { get; init; }
+        
+        public bool HasPayload { get; set; }
     }
 }

@@ -82,7 +82,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                         AppData = new()
                         {
                             Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
-                            ContentIsComplete = true,
+                            ContentIsComplete = false,
                             JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
                         }
                     },
@@ -277,7 +277,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                         AppData = new()
                         {
                             Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
-                            ContentIsComplete = true,
+                            ContentIsComplete = false,
                             JsonContent = DotYouSystemSerializer.Serialize(new { content = "some content" }),
 
                             PreviewThumbnail = new ImageDataContent()
@@ -462,7 +462,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                         AppData = new()
                         {
                             Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
-                            ContentIsComplete = true,
+                            ContentIsComplete = false,
                             JsonContent = "some content"
                         }
                     },
@@ -483,7 +483,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
                 Assert.IsTrue(int.TryParse(DotYouSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
                     "Could not parse problem result");
-                Assert.IsTrue(code == (int)YouverseClientErrorCode.CannotOverwriteNonExistentFileStef);
+                Assert.IsTrue(code == (int)YouverseClientErrorCode.CannotOverwriteNonExistentFile);
 
                 keyHeader.AesKey.Wipe();
             }
@@ -526,7 +526,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                         {
                             UniqueId = Guid.NewGuid(),
                             Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
-                            ContentIsComplete = true,
+                            ContentIsComplete = false,
                             JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
                         }
                     },
@@ -611,7 +611,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                         AppData = new()
                         {
                             UniqueId = uid1, // Here we try to reuse the uniqueId associated with first upload
-                            ContentIsComplete = true,
+                            ContentIsComplete = false,
                             JsonContent = DotYouSystemSerializer.Serialize(new { message = "I am a second file" })
                         }
                     },
@@ -670,7 +670,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                         AppData = new()
                         {
                             UniqueId = uid2,
-                            ContentIsComplete = true,
+                            ContentIsComplete = false,
                             JsonContent = DotYouSystemSerializer.Serialize(new { message = "I am a second file" })
                         }
                     },
@@ -722,7 +722,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                         AppData = new()
                         {
                             UniqueId = uid1, //here we try to reuse the uniqueId associated with first upload
-                            ContentIsComplete = true,
+                            ContentIsComplete = false,
                             JsonContent = DotYouSystemSerializer.Serialize(new { message = "Some message" })
                         }
                     },
@@ -771,7 +771,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                         AppData = new()
                         {
                             UniqueId = uniqueId,
-                            ContentIsComplete = true,
+                            ContentIsComplete = false,
                             JsonContent = DotYouSystemSerializer.Serialize(new { message = "Some message" })
                         }
                     },
