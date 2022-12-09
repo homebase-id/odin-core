@@ -8,7 +8,7 @@ public interface ICacheDotYouContext
     /// <summary>
     /// Returns a bool indicating if DotYouContext is cached.  Value comes from the out param 
     /// </summary>
-    Task<bool> TryGetCachedContext(ClientAuthenticationToken token, out DotYouContext context);
+    bool TryGetCachedContext(ClientAuthenticationToken token, out DotYouContext context);
         
     /// <summary>
     /// Adds or updates the DotYouContext to cache

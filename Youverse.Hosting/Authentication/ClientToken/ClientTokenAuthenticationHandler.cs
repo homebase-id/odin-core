@@ -70,7 +70,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
             var appRegService = Context.RequestServices.GetRequiredService<IAppRegistrationService>();
             dotYouContext.AuthContext = ClientTokenConstants.AppSchemeName;
 
-            if (await appRegService.TryGetCachedContext(authToken, out var ctx))
+            if (appRegService.TryGetCachedContext(authToken, out var ctx))
             {
                 dotYouContext.Caller = ctx.Caller;
                 dotYouContext.SetPermissionContext(ctx.PermissionsContext);
@@ -116,7 +116,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
             dotYouContext.AuthContext = ClientTokenConstants.YouAuthScheme;
 
             var youAuthRegService = this.Context.RequestServices.GetRequiredService<IYouAuthRegistrationService>();
-            if (await youAuthRegService.TryGetCachedContext(clientAuthToken, out var ctx))
+            if (youAuthRegService.TryGetCachedContext(clientAuthToken, out var ctx))
             {
                 dotYouContext.Caller = ctx.Caller;
                 dotYouContext.SetPermissionContext(ctx.PermissionsContext);

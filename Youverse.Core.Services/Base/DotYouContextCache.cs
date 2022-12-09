@@ -16,27 +16,36 @@ public class DotYouContextCache
 {
     private readonly int _ttlSeconds;
 
-    //TODO: make this a sliding cache
+    //TODO: maybe make this a sliding cache?
     private readonly ConcurrentDictionary<Guid, CacheItem> _contextCache = new();
-
+    private readonly object _readLock = new();
+    
     public DotYouContextCache(int ttlSeconds = 60)
     {
         this._ttlSeconds = ttlSeconds;
     }
 
-    public Task<bool> TryGetContext(ClientAuthenticationToken token, out DotYouContext context)
+    public bool TryGetContext(ClientAuthenticationToken token, out DotYouContext context)
     {
-        var found = Task.FromResult(_contextCache.TryGetValue(token.AsKey(), out var item));
+        CacheItem item;
+        lock (_readLock)
+        {
+            if(! _contextCache.TryGetValue(token.AsKey(), out item))
+            {
+                context = null;
+                return false;
+            }
+        }
 
         var expires = item.Created.AddSeconds(_ttlSeconds);
         if (UnixTimeUtc.Now() > expires)
         {
             context = null;
-            return Task.FromResult(false);
+            return false;
         }
 
         context = item.DotYouContext;
-        return found;
+        return true;
     }
 
     public void CacheContext(ClientAuthenticationToken token, DotYouContext dotYouContext)

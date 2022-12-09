@@ -116,7 +116,7 @@ namespace Youverse.Core.Services.Authentication.Owner
             return (mk, clone.ToSensitiveByteArray());
         }
 
-        public Task<bool> TryGetCachedContext(ClientAuthenticationToken token, out DotYouContext context)
+        public bool TryGetCachedContext(ClientAuthenticationToken token, out DotYouContext context)
         {
             return _cache.TryGetContext(token, out context);
         }

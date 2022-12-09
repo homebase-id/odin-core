@@ -194,7 +194,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             return appReg;
         }
 
-        public Task<bool> TryGetCachedContext(ClientAuthenticationToken token, out DotYouContext context)
+        public bool TryGetCachedContext(ClientAuthenticationToken token, out DotYouContext context)
         {
             return _cache.TryGetContext(token, out context);
         }

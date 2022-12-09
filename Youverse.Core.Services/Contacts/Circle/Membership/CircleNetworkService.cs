@@ -279,13 +279,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             return info.Status == ConnectionStatus.Connected;
         }
 
-        public async Task<bool> IsCircleMember(GuidId circleId, DotYouIdentity dotYouId)
-        {
-            // _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionFlags.ReadCircleMembership);
-            var icr = await this.GetIdentityConnectionRegistrationInternal(dotYouId);
-            return icr.AccessGrant.CircleGrants.ContainsKey(circleId.ToBase64());
-        }
-
         public async Task<IEnumerable<DotYouIdentity>> GetCircleMembers(GuidId circleId)
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);

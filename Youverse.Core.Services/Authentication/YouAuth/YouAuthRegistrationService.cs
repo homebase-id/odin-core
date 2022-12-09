@@ -143,7 +143,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             throw new YouverseSecurityException("Unhandled access registration type");
         }
 
-        public Task<bool> TryGetCachedContext(ClientAuthenticationToken token, out DotYouContext context)
+        public bool TryGetCachedContext(ClientAuthenticationToken token, out DotYouContext context)
         {
             return _cache.TryGetContext(token, out context);
         }

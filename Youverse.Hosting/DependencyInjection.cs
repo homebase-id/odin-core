@@ -73,10 +73,12 @@ namespace Youverse.Hosting
 
             cb.RegisterType<DotYouHttpClientFactory>().As<IDotYouHttpClientFactory>().SingleInstance();
             cb.RegisterType<OwnerSecretService>().As<IOwnerSecretService>().SingleInstance();
-            cb.RegisterType<OwnerAuthenticationService>().As<IOwnerAuthenticationService>().SingleInstance();
+            cb.RegisterType<OwnerAuthenticationService>()
+                .As<IOwnerAuthenticationService>()
+                .As<INotificationHandler<DriveDefinitionAddedNotification>>()
+                .SingleInstance();
 
             cb.RegisterType<AppAuthenticationService>().As<IAppAuthenticationService>().SingleInstance();
-
             cb.RegisterType<DriveAclAuthorizationService>().As<IDriveAclAuthorizationService>().SingleInstance();
 
             cb.RegisterType<DriveService>().As<IDriveService>().SingleInstance();

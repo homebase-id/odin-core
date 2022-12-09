@@ -86,12 +86,12 @@ namespace Youverse.Hosting.Authentication.Owner
             dotYouContext.AuthContext = OwnerAuthConstants.SchemeName;
             
             var authService = Context.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
-            if (await authService.TryGetCachedContext(authResult, out var ctx))
-            {
-                dotYouContext.Caller = ctx.Caller;
-                dotYouContext.SetPermissionContext(ctx.PermissionsContext);
-                return;
-            }
+            // if (authService.TryGetCachedContext(authResult, out var ctx))
+            // {
+            //     dotYouContext.Caller = ctx.Caller;
+            //     dotYouContext.SetPermissionContext(ctx.PermissionsContext);
+            //     return;
+            // }
 
             Log.Information("OwnerAuthHandler: Creating new DotYouContext");
             if (await authService.IsValidToken(authResult.Id))
