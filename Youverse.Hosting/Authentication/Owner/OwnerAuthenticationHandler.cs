@@ -15,7 +15,6 @@ using Microsoft.Extensions.Options;
 using Serilog;
 using Youverse.Core;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authentication.Owner;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Authorization.Acl;
@@ -86,12 +85,12 @@ namespace Youverse.Hosting.Authentication.Owner
             dotYouContext.AuthContext = OwnerAuthConstants.SchemeName;
             
             var authService = Context.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
-            // if (authService.TryGetCachedContext(authResult, out var ctx))
-            // {
-            //     dotYouContext.Caller = ctx.Caller;
-            //     dotYouContext.SetPermissionContext(ctx.PermissionsContext);
-            //     return;
-            // }
+            if (authService.TryGetCachedContext(authResult, out var ctx))
+            {
+                dotYouContext.Caller = ctx.Caller;
+                dotYouContext.SetPermissionContext(ctx.PermissionsContext);
+                return;
+            }
 
             Log.Information("OwnerAuthHandler: Creating new DotYouContext");
             if (await authService.IsValidToken(authResult.Id))

@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Dawn;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Serilog;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
@@ -97,6 +98,10 @@ public class DriveManager
 
             storageDrive = ToStorageDrive(sdb);
             storageDrive.EnsureDirectories();
+            
+            Log.Debug($"Created a new Drive - {storageDrive.TargetDriveInfo}");
+            CacheDrive(storageDrive);
+            Log.Debug($"End - Created a new Drive - {storageDrive.TargetDriveInfo}");
         }
 
         _mediator.Publish(new DriveDefinitionAddedNotification()
@@ -104,9 +109,7 @@ public class DriveManager
             IsNewDrive = true,
             Drive = storageDrive
         });
-
-        CacheDrive(storageDrive);
-
+        
         return Task.FromResult(storageDrive);
     }
 
@@ -250,12 +253,15 @@ public class DriveManager
         if (_driveCache.Any())
         {
             allDrives = _driveCache.Values.ToList();
+            Log.Debug($"GetDrivesInternal - cache read:  Count: {allDrives.Count}");
         }
         else
         {
             allDrives = _systemStorage.ThreeKeyValueStorage
                 .GetByKey3<StorageDriveBase>(_driveDataType)
                 .Select(ToStorageDrive).ToList();
+            
+            Log.Debug($"GetDrivesInternal - disk read:  Count: {allDrives.Count}");
         }
 
         if (_contextAccessor.GetCurrent()?.Caller?.IsOwner ?? false)
@@ -287,6 +293,7 @@ public class DriveManager
 
     private void CacheDrive(StorageDrive drive)
     {
+        Log.Debug($"Cached Drive {drive.TargetDriveInfo}");
         _driveCache.AddOrUpdate(drive.Id, drive, (id, oldDrive) => drive);
     }
 

@@ -30,12 +30,14 @@ namespace Youverse.Core.Services.Authentication.Owner
     public class OwnerAuthenticationService : IOwnerAuthenticationService, INotificationHandler<DriveDefinitionAddedNotification>
     {
         private readonly ISystemStorage _systemStorage;
+        private readonly ILogger<IOwnerAuthenticationService> _logger;
         private readonly IOwnerSecretService _secretService;
 
         private readonly DotYouContextCache _cache;
 
         public OwnerAuthenticationService(ILogger<IOwnerAuthenticationService> logger, IOwnerSecretService secretService, ISystemStorage systemStorage)
         {
+            _logger = logger;
             _secretService = secretService;
             _systemStorage = systemStorage;
 
@@ -171,6 +173,7 @@ namespace Youverse.Core.Services.Authentication.Owner
             //reset cache so the drive is reached on the next request
             if (notification.IsNewDrive)
             {
+                _logger.LogDebug("New drive created [{0}]; Purging cache ", notification.Drive.TargetDriveInfo);
                 _cache.Purge();
             }
             

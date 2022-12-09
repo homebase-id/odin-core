@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -27,7 +28,7 @@ public class DriveUploadService
     private readonly DotYouContextAccessor _contextAccessor;
     private readonly ITransitService _transitService;
 
-    private readonly Dictionary<Guid, UploadPackage> _packages;
+    private readonly ConcurrentDictionary<Guid, UploadPackage> _packages;
     private readonly IDriveQueryService _driveQueryService;
 
     public DriveUploadService(IDriveService driveService, TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITransitService transitService, IDriveQueryService driveQueryService)
@@ -38,7 +39,7 @@ public class DriveUploadService
         _transitService = transitService;
         _driveQueryService = driveQueryService;
 
-        _packages = new Dictionary<Guid, UploadPackage>();
+        _packages = new ConcurrentDictionary<Guid, UploadPackage>();
     }
 
     /// <summary>
@@ -102,7 +103,10 @@ public class DriveUploadService
 
         var pkgId = Guid.NewGuid();
         var package = new UploadPackage(pkgId, file, instructionSet!, isUpdateOperation);
-        _packages.Add(pkgId, package);
+        if (!_packages.TryAdd(pkgId, package))
+        {
+            throw new YouverseSystemException("Failed to add the upload package");
+        }
 
         return pkgId;
     }
