@@ -47,4 +47,9 @@ public class DotYouContextCache
             Created = UnixTimeUtc.Now()
         });
     }
+
+    public void Purge()
+    {
+        _contextCache.Clear();
+    }
 }

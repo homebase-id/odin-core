@@ -1,6 +1,8 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Dawn;
+using MediatR;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
@@ -8,6 +10,7 @@ using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Mediator;
 using Youverse.Core.Storage;
 
 /// <summary>
@@ -24,13 +27,13 @@ namespace Youverse.Core.Services.Authentication.Owner
     /// <summary>
     /// Basic password authentication.  Returns a token you can use to maintain state of authentication (i.e. store in a cookie)
     /// </summary>
-    public class OwnerAuthenticationService : IOwnerAuthenticationService
+    public class OwnerAuthenticationService : IOwnerAuthenticationService, INotificationHandler<DriveDefinitionAddedNotification>
     {
         private readonly ISystemStorage _systemStorage;
         private readonly IOwnerSecretService _secretService;
 
         private readonly DotYouContextCache _cache;
-       
+
         public OwnerAuthenticationService(ILogger<IOwnerAuthenticationService> logger, IOwnerSecretService secretService, ISystemStorage systemStorage)
         {
             _secretService = secretService;
@@ -43,7 +46,7 @@ namespace Youverse.Core.Services.Authentication.Owner
         {
             var salts = await _secretService.GetStoredSalts();
             var (publicKeyCrc32C, publicKeyPem) = await _secretService.GetCurrentAuthenticationRsaKey();
-            
+
             var nonce = new NonceData(salts.SaltPassword64, salts.SaltKek64, publicKeyPem, publicKeyCrc32C);
             _systemStorage.SingleKeyValueStorage.Upsert(nonce.Id, nonce);
             return nonce;
@@ -161,6 +164,17 @@ namespace Youverse.Core.Services.Authentication.Owner
             {
                 throw new YouverseSecurityException();
             }
+        }
+
+        public Task Handle(DriveDefinitionAddedNotification notification, CancellationToken cancellationToken)
+        {
+            //reset cache so the drive is reached on the next request
+            if (notification.IsNewDrive)
+            {
+                _cache.Purge();
+            }
+            
+            return Task.CompletedTask;
         }
     }
 }
