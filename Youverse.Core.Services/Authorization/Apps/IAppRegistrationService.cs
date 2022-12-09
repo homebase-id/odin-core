@@ -9,7 +9,7 @@ using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
-    public interface IAppRegistrationService: ICacheDotYouContext
+    public interface IAppRegistrationService
     {
         /// <summary>
         /// Registers an application to be used with this host.  Returns the record Id of the newly registered app
@@ -51,6 +51,8 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// >
         /// <returns></returns>
         Task<AppClientRegistrationResponse> RegisterClient(GuidId appId, byte[] clientPublicKey, string friendlyName);
+
+        Task<AppClientRegistrationResponse> RegisterChatClient_Temp(GuidId appId, string friendlyName);
 
         Task<List<RegisteredAppClientResponse>> GetRegisteredClients();
     }

@@ -45,7 +45,7 @@ namespace Youverse.Hosting
 
                 var sd = config.Required<string>("Host:SystemDataRootPath");
                 SystemDataRootPath = isDev && !p.StartsWith(home) ? PathUtil.Combine(home, sd.Substring(1)) : sd;
-
+                
                 UseLocalCertificateRegistry = config.Required<bool>("Host:UseLocalCertificateRegistry");
 
                 if (UseLocalCertificateRegistry == false)
@@ -63,9 +63,8 @@ namespace Youverse.Hosting
             /// Interval in minutes to scan the identity registry to check for certificates that need to be renewed
             /// </summary>
             public int CertificateRenewalCheckIntervalMinutes { get; }
-
             public int BackgroundJobStartDelaySeconds { get; }
-
+            
             public int ProcessOutboxIntervalSeconds { get; }
             public bool EnableQuartzBackgroundService { get; }
 
@@ -81,22 +80,14 @@ namespace Youverse.Hosting
 
         public class LoggingSection
         {
-            public LoggingLevel Level { get; }
             public string LogFilePath { get; }
 
             public LoggingSection(IConfiguration config)
             {
-                Level = Enum.Parse<LoggingLevel>(config.Required<string>("Logging:Level"));
                 LogFilePath = config.Required<string>("Logging:LogFilePath");
             }
         }
 
         //
-    }
-
-    public enum LoggingLevel
-    {
-        Verbose,
-        ErrorsOnly
     }
 }

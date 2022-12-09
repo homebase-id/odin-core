@@ -115,7 +115,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                     AppData = new()
                     {
                         Tags = new List<Guid>() { fileTag },
-                        ContentIsComplete = false,
+                        ContentIsComplete = true,
                         JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
                     PayloadIsEncrypted = true,
@@ -373,7 +373,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                     AppData = new()
                     {
                         Tags = new List<Guid>() { fileTag },
-                        ContentIsComplete = false,
+                        ContentIsComplete = true,
                         JsonContent = encryptedJsonContent64,
                         AdditionalThumbnails = new[] { thumbnail1 }
                     },

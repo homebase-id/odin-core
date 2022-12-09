@@ -397,7 +397,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     AppData = new()
                     {
                         Tags = new List<Guid>() { fileTag },
-                        ContentIsComplete = false,
+                        ContentIsComplete = true,
                         JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                         PreviewThumbnail = new ImageDataContent()
                         {

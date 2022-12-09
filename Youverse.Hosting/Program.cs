@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
-using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.Configuration;
@@ -96,9 +94,25 @@ namespace Youverse.Hosting
 
             _registry.Initialize();
 
-            var builder = Host.CreateDefaultBuilder(args)
+            return Host.CreateDefaultBuilder(args)
                 .UseSystemd()
                 .UseServiceProviderFactory(new MultiTenantServiceProviderFactory(DependencyInjection.ConfigureMultiTenantServices, DependencyInjection.InitializeTenant))
+                .UseSerilog((context, services, configuration) => configuration
+                    .ReadFrom.Services(services)
+                    .MinimumLevel.Error()
+                    // .MinimumLevel.Debug()
+                    // .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+                    // .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+                    // .MinimumLevel.Override("Quartz", LogEventLevel.Warning)
+                    // .MinimumLevel.Override("Youverse.Hosting.Middleware.Logging.RequestLoggingMiddleware", LogEventLevel.Information)
+                    // .MinimumLevel.Override("Youverse.Core.Services.Transit.Outbox", LogEventLevel.Warning)
+                    // .MinimumLevel.Override("Youverse.Core.Services.Workers.Transit.StokeOutboxJob", LogEventLevel.Warning)
+                    // .Enrich.FromLogContext()
+                    // .Enrich.WithHostname(new StickyHostnameGenerator())
+                    // .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
+                    // .WriteTo.Async(sink => sink.Console(outputTemplate: LogOutputTemplate, theme: LogOutputTheme))
+                    // .WriteTo.Async(sink => sink.RollingFile(Path.Combine(cfg.Logging.LogFilePath, "app-{Date}.log"), outputTemplate: LogOutputTemplate))
+                )
                 .ConfigureServices(services =>
                 {
                     //TODO: I'm not sure it's a good idea to add this as a service.
@@ -117,7 +131,30 @@ namespace Youverse.Hosting
                                     return true;
                                 };
 
-                                opts.ServerCertificateSelector = (context, s) => ServerCertificateSelector(context, s, cfg);
+                                opts.ServerCertificateSelector = (connectionContext, hostName) =>
+                                {
+                                    if (!string.IsNullOrEmpty(hostName))
+                                    {
+                                        //TODO: add caching of loaded certificates
+                                        Guid domainId = _registry.ResolveId(hostName);
+                                        DotYouIdentity dotYouId = (DotYouIdentity)hostName;
+                                        var cert = CertificateResolver.GetSslCertificate(cfg.Host.TenantDataRootPath, domainId, dotYouId);
+                                        if (null == cert)
+                                        {
+                                            //TODO: add logging or throw exception
+                                            Console.WriteLine($"No certificate configured for {hostName}");
+                                        }
+
+                                        return cert;
+                                    }
+
+                                    return null;
+                                };
+
+
+                                //Let the OS decide
+                                //TODO: revisit if we should let the OS decide
+                                //opts.SslProtocols = SslProtocols.None;
                                 opts.ClientCertificateMode = ClientCertificateMode.AllowCertificate;
                             });
                         })
@@ -125,57 +162,6 @@ namespace Youverse.Hosting
                         .UseUrls("https://*:443", "http://*:80") //you need to configure netsh on windows to allow 443
                         .UseStartup<Startup>();
                 });
-
-            if (cfg.Logging.Level == LoggingLevel.ErrorsOnly)
-            {
-                builder.UseSerilog((context, services, configuration) => configuration
-                    .ReadFrom.Services(services)
-                    .MinimumLevel.Error());
-
-                return builder;
-            }
-
-            if (cfg.Logging.Level == LoggingLevel.Verbose)
-            {
-                builder.UseSerilog((context, services, configuration) => configuration
-                    .ReadFrom.Services(services)
-                    .MinimumLevel.Error()
-                    .MinimumLevel.Debug()
-                    .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
-                    .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
-                    .MinimumLevel.Override("Quartz", LogEventLevel.Warning)
-                    .MinimumLevel.Override("Youverse.Hosting.Middleware.Logging.RequestLoggingMiddleware", LogEventLevel.Information)
-                    .MinimumLevel.Override("Youverse.Core.Services.Transit.Outbox", LogEventLevel.Warning)
-                    .MinimumLevel.Override("Youverse.Core.Services.Workers.Transit.StokeOutboxJob", LogEventLevel.Warning)
-                    .Enrich.FromLogContext()
-                    .Enrich.WithHostname(new StickyHostnameGenerator())
-                    .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
-                    .WriteTo.Async(sink => sink.Console(outputTemplate: LogOutputTemplate, theme: LogOutputTheme))
-                    .WriteTo.Async(sink => sink.RollingFile(Path.Combine(cfg.Logging.LogFilePath, "app-{Date}.log"), outputTemplate: LogOutputTemplate)));
-                return builder;
-            }
-
-            return builder;
-        }
-
-        private static X509Certificate2 ServerCertificateSelector(ConnectionContext connectionContext, string hostName, Configuration config)
-        {
-            if (!string.IsNullOrEmpty(hostName))
-            {
-                //TODO: add caching of loaded certificates
-                Guid domainId = _registry.ResolveId(hostName);
-                DotYouIdentity dotYouId = (DotYouIdentity)hostName;
-                var cert = CertificateResolver.GetSslCertificate(config.Host.TenantDataRootPath, domainId, dotYouId);
-                if (null == cert)
-                {
-                    //TODO: add logging or throw exception
-                    Console.WriteLine($"No certificate configured for {hostName}");
-                }
-
-                return cert;
-            }
-
-            return null;
         }
     }
 }

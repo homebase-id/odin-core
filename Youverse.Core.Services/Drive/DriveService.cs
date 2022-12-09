@@ -7,7 +7,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Dawn;
-using DnsClient;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography.Crypto;
@@ -178,7 +177,7 @@ namespace Youverse.Core.Services.Drive
             }
         }
 
-        public Task<uint> WriteTempStream(InternalDriveFileId file, string extension, Stream stream)
+        public Task WriteTempStream(InternalDriveFileId file, string extension, Stream stream)
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(file.DriveId);
             return GetTempStorageManager(file.DriveId).WriteStream(file.FileId, extension, stream);
@@ -301,14 +300,9 @@ namespace Youverse.Core.Services.Drive
 
             //Note: calling to get the file header so we can ensure the caller can read this file
 
-            var header = await this.GetServerFileHeader(file);
-            if(header.FileMetadata.AppData.ContentIsComplete == false)
-            {
-                var stream = await GetLongTermStorageManager(file.DriveId).GetFilePartStream(file.FileId, FilePart.Payload);
-                return stream;
-            }
-
-            return Stream.Null;
+            var _ = await this.GetServerFileHeader(file);
+            var stream = await GetLongTermStorageManager(file.DriveId).GetFilePartStream(file.FileId, FilePart.Payload);
+            return stream;
         }
 
         public void AssertFileIsValid(InternalDriveFileId file)
@@ -363,19 +357,16 @@ namespace Youverse.Core.Services.Drive
         public async Task CommitTempFileToLongTerm(InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata, string payloadExtension)
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(targetFile.DriveId);
-
+            
             metadata.File = targetFile;
 
             var storageManager = GetLongTermStorageManager(targetFile.DriveId);
             var tempStorageManager = GetTempStorageManager(targetFile.DriveId);
 
-            if (metadata.AppData.ContentIsComplete == false)
-            {
-                string sourceFile = await tempStorageManager.GetPath(targetFile.FileId, payloadExtension);
-                metadata.PayloadSize = new FileInfo(sourceFile).Length;
-                await storageManager.MoveToLongTerm(targetFile.FileId, sourceFile, FilePart.Payload);
-            }
-
+            string sourceFile = await tempStorageManager.GetPath(targetFile.FileId, payloadExtension);
+            metadata.PayloadSize = new FileInfo(sourceFile).Length;
+            await storageManager.MoveToLongTerm(targetFile.FileId, sourceFile, FilePart.Payload);
+            
             if (metadata.AppData.AdditionalThumbnails != null)
             {
                 foreach (var thumb in metadata.AppData.AdditionalThumbnails)
@@ -408,14 +399,9 @@ namespace Youverse.Core.Services.Drive
             var storageManager = GetLongTermStorageManager(targetFile.DriveId);
             var tempStorageManager = GetTempStorageManager(tempFile.DriveId);
 
-            if (metadata.AppData.ContentIsComplete == false)
-            {
-                string sourceFile = await tempStorageManager.GetPath(tempFile.FileId, payloadExtension);
-                metadata.PayloadSize = new FileInfo(sourceFile).Length;
-                await storageManager.MoveToLongTerm(targetFile.FileId, sourceFile, FilePart.Payload);
-            }
-            
-            //TODO: clean up old payload if it was removed?
+            string sourceFile = await tempStorageManager.GetPath(tempFile.FileId, payloadExtension);
+            metadata.PayloadSize = new FileInfo(sourceFile).Length;
+            await storageManager.MoveToLongTerm(targetFile.FileId, sourceFile, FilePart.Payload);
 
             var thumbs = metadata.AppData.AdditionalThumbnails?.ToList() ?? new List<ImageDataHeader>();
             await storageManager.ReconcileThumbnailsOnDisk(targetFile.FileId, thumbs);

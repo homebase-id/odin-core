@@ -24,6 +24,7 @@ namespace Youverse.Core.Services.Authorization
         /// </summary>
         public static string IsAuthenticated = "https://schemas.youfoundation.id/2021/3/identity/IsAuthenticated";
 
+        public static string AuthResult = "https://schemas.youfoundation.id/2021/3/identity/AuthResult";
 
         public static string IsAuthorizedApp = "https://schemas.youfoundation.id/2021/3/identity/IsAuthorizedApp";
     }

@@ -23,7 +23,7 @@ namespace Youverse.Core.Services.Drive.Storage
         /// <summary>
         /// Writes a stream for a given file and part to the configured provider.
         /// </summary>
-        Task<uint> WriteStream(Guid fileId, string extension, Stream stream);
+        Task WriteStream(Guid fileId, string extension, Stream stream);
 
         /// <summary>
         /// Checks if the file exists.  Returns true if all parts exist, otherwise false

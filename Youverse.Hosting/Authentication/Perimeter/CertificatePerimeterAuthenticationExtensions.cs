@@ -63,7 +63,7 @@ namespace Youverse.Hosting.Authentication.Perimeter
             string domain = CertificateUtils.GetDomainFromCommonName(context.ClientCertificate.Subject);
             
             // start hack
-            //HACK: temp hack to continue until I build the letsencrypt cert system
+            //temp hack to continue until I build the letsencrypt cert system
             if (domain == "*.onekin.io")
             {
                  domain = context.Request.Headers["dns_hack"].FirstOrDefault();
@@ -90,11 +90,13 @@ namespace Youverse.Hosting.Authentication.Perimeter
 
         private static Task HandleAuthenticationFailed(CertificateAuthenticationFailedContext context)
         {
+            Console.WriteLine("Authentication Failed");
             return Task.CompletedTask;
         }
 
         private static Task HandleCertificateChallenge(CertificateChallengeContext context)
         {
+            Console.WriteLine("handle cert challenge");
             return Task.CompletedTask;
         }
     }

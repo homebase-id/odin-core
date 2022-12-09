@@ -28,15 +28,12 @@ namespace Youverse.Core.Services.Authentication.Owner
     {
         private readonly ISystemStorage _systemStorage;
         private readonly IOwnerSecretService _secretService;
+        private const string AUTH_TOKEN_COLLECTION = "tko";
 
-        private readonly DotYouContextCache _cache;
-       
-        public OwnerAuthenticationService(ILogger<IOwnerAuthenticationService> logger, IOwnerSecretService secretService, ISystemStorage systemStorage)
+        public OwnerAuthenticationService(DotYouContextAccessor contextAccessor, ILogger<IOwnerAuthenticationService> logger, IOwnerSecretService secretService, ISystemStorage systemStorage)
         {
             _secretService = secretService;
             _systemStorage = systemStorage;
-
-            _cache = new DotYouContextCache();
         }
 
         public async Task<NonceData> GenerateAuthenticationNonce()
@@ -113,15 +110,17 @@ namespace Youverse.Core.Services.Authentication.Owner
             return (mk, clone.ToSensitiveByteArray());
         }
 
-        public Task<bool> TryGetCachedContext(ClientAuthenticationToken token, out DotYouContext context)
-        {
-            return _cache.TryGetContext(token, out context);
-        }
-
-        public void CacheContext(ClientAuthenticationToken token, DotYouContext dotYouContext)
-        {
-            _cache.CacheContext(token, dotYouContext);
-        }
+        // public async Task<SensitiveByteArray> GetMasterKey(Guid sessionToken, SensitiveByteArray clientSecret)
+        // {
+        //     //TODO: need to audit who and what and why this was accessed (add justification/reason on parameters)
+        //     var loginToken = await _systemStorage.WithTenantSystemStorageReturnSingle<OwnerConsoleToken>(AUTH_TOKEN_COLLECTION, s => s.Get(sessionToken));
+        //     if (!IsAuthTokenEntryValid(loginToken))
+        //     {
+        //         throw new YouverseClientException("Token is invalid");
+        //     }
+        //
+        //     return await _secretService.GetMasterKey(loginToken, clientSecret);
+        // }
 
         public async Task ExtendTokenLife(Guid token, int ttlSeconds)
         {

@@ -22,8 +22,6 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         private readonly CircleDefinitionService _circleDefinitionService;
         private readonly TenantContext _tenantContext;
 
-        private readonly DotYouContextCache _cache;
-
         public YouAuthRegistrationService(ILogger<YouAuthRegistrationService> logger, IYouAuthRegistrationStorage youAuthRegistrationStorage, ExchangeGrantService exchangeGrantService,
             ICircleNetworkService circleNetworkService, CircleDefinitionService circleDefinitionService, TenantContext tenantContext)
         {
@@ -33,8 +31,6 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             _circleNetworkService = circleNetworkService;
             _circleDefinitionService = circleDefinitionService;
             _tenantContext = tenantContext;
-
-            _cache = new DotYouContextCache();
         }
 
         //
@@ -143,16 +139,6 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             throw new YouverseSecurityException("Unhandled access registration type");
         }
 
-        public Task<bool> TryGetCachedContext(ClientAuthenticationToken token, out DotYouContext context)
-        {
-            return _cache.TryGetContext(token, out context);
-        }
-
-        public void CacheContext(ClientAuthenticationToken token, DotYouContext dotYouContext)
-        {
-            _cache.CacheContext(token, dotYouContext);
-        }
-        
         private PermissionContext CreateAuthenticatedYouAuthPermissionContext(ClientAuthenticationToken authToken, YouAuthClient client)
         {
             List<int> permissionKeys = new List<int>() { };
