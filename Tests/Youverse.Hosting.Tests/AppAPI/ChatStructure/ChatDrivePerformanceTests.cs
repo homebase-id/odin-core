@@ -27,15 +27,15 @@ using System.Timers;
 
 namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
 {
-    public class ChatDrivePerformanceTests
+    public class ThreadedPerformanceTests
     {
         // For the performance test
-        const int MAXTHREADS = 24;
+        const int MAXTHREADS = 50;
         const int MAXITERATIONS = 1000;
 
 
         [Test]
-        public async Task PerformanceTest()
+        public async Task TaskPerformanceTest()
         {
             Task[] tasks = new Task[MAXTHREADS];
             List<long[]> timers = new List<long[]>();
@@ -75,7 +75,8 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
             Console.WriteLine($"Maximum   : {oneDimensionalArray[MAXTHREADS*MAXITERATIONS - 1]}ms");
             Console.WriteLine($"Average   : {oneDimensionalArray.Sum() / (MAXTHREADS*MAXITERATIONS)}ms");
             Console.WriteLine($"Median    : {oneDimensionalArray[(MAXTHREADS*MAXITERATIONS)/2]}ms");
-            Console.WriteLine($"Per sec   : {(1000 * MAXITERATIONS * MAXTHREADS) / sw.ElapsedMilliseconds}");
+
+            Console.WriteLine($"Capacity  : {(1000 * MAXITERATIONS * MAXTHREADS) / Math.Max(1, sw.ElapsedMilliseconds)} / second");
         }
 
 
@@ -87,15 +88,20 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
 
             for (int count = 0; count < MAXITERATIONS; count++)
             {
-                sw.Reset();
-                sw.Start();
+                sw.Restart();
 
                 // Do all the work here
-                Thread.Sleep(1);
+
+                //
+                // Suggestion that you first simply try to load a static URL here.
+                //
+
+
                 // Finished doing all the work
-                sw.Stop();
 
                 timers[count] = sw.ElapsedMilliseconds;
+                //
+                // If you want to introduce a delay be sure to use: await Task.Delay(1);
             }
 
             return timers;
