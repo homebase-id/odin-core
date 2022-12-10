@@ -30,7 +30,7 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
     public class ChatDrivePerformanceTests
     {
         // For the performance test
-        const int MAXTHREADS = 8;
+        const int MAXTHREADS = 24;
         const int MAXITERATIONS = 1000;
 
 
@@ -40,7 +40,9 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
             Task[] tasks = new Task[MAXTHREADS];
             List<long[]> timers = new List<long[]>();
 
+
             var sw = new Stopwatch();
+            sw.Reset();
             sw.Start();
 
             for (var i = 0; i < MAXTHREADS; i++)
@@ -49,28 +51,31 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
                 {
                     var measurements = await DoSomeWork(i);
                     Debug.Assert(measurements.Length == MAXITERATIONS);
-                    timers.Add(measurements);
+                    lock (timers) {
+                        timers.Add(measurements);
+                    }
                 });
             }
 
+            Task.WaitAll(tasks);
             sw.Stop();
 
-            Task.WaitAll(tasks);
-
+            Debug.Assert(timers.Count == MAXTHREADS);
             long[] oneDimensionalArray = timers.SelectMany(arr => arr).ToArray();
+            Debug.Assert(oneDimensionalArray.Length == (MAXTHREADS * MAXITERATIONS));
 
-            // timers.CopyTo(oneDimensionalArray, 0);
             Array.Sort(oneDimensionalArray);
-            Console.WriteLine($"Total  : {oneDimensionalArray.Sum()}ms\n");
-            Console.WriteLine($"Minimum: {oneDimensionalArray[0]}ms\n");
-            Console.WriteLine($"Maximum: {oneDimensionalArray[MAXITERATIONS - 1]}ms\n");
-            Console.WriteLine($"Average: {oneDimensionalArray.Sum() / (MAXTHREADS*MAXITERATIONS)}ms\n");
-            Console.WriteLine($"\n");
-            Console.WriteLine($"Median : {oneDimensionalArray[(MAXTHREADS*MAXITERATIONS)/2]}ms\n");
-            if(sw.ElapsedMilliseconds>0)
-            {
-                Console.WriteLine($"Per sec: {(1000 * MAXITERATIONS * MAXTHREADS) / sw.ElapsedMilliseconds}ms\n");
-            }
+            for (var i = 1; i < MAXTHREADS*MAXITERATIONS; i++)
+                Debug.Assert(oneDimensionalArray[i-1] <= oneDimensionalArray[i]);
+
+            Console.WriteLine($"Threads   : {MAXTHREADS}");
+            Console.WriteLine($"Iterations: {MAXITERATIONS}");
+            Console.WriteLine($"Time      : {sw.ElapsedMilliseconds}ms");
+            Console.WriteLine($"Minimum   : {oneDimensionalArray[0]}ms");
+            Console.WriteLine($"Maximum   : {oneDimensionalArray[MAXTHREADS*MAXITERATIONS - 1]}ms");
+            Console.WriteLine($"Average   : {oneDimensionalArray.Sum() / (MAXTHREADS*MAXITERATIONS)}ms");
+            Console.WriteLine($"Median    : {oneDimensionalArray[(MAXTHREADS*MAXITERATIONS)/2]}ms");
+            Console.WriteLine($"Per sec   : {(1000 * MAXITERATIONS * MAXTHREADS) / sw.ElapsedMilliseconds}");
         }
 
 
@@ -82,12 +87,14 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
 
             for (int count = 0; count < MAXITERATIONS; count++)
             {
+                sw.Reset();
                 sw.Start();
-                // Do all the work here
-                Thread.Sleep(10);
-                // Finished doing all the work
 
+                // Do all the work here
+                Thread.Sleep(1);
+                // Finished doing all the work
                 sw.Stop();
+
                 timers[count] = sw.ElapsedMilliseconds;
             }
 
