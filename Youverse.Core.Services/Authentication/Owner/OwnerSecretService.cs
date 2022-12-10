@@ -16,11 +16,13 @@ namespace Youverse.Core.Services.Authentication.Owner
         private readonly GuidId _passwordKey = GuidId.FromString("_passwordKey");
         private readonly GuidId _rsaKeyStorageId = GuidId.FromString("_rsaKeyStorageId");
 
-        private readonly ISystemStorage _systemStorage;
+        private readonly ITenantSystemStorage _tenantSystemStorage;
+        private readonly TenantContext _tenantContext;
 
-        public OwnerSecretService(TenantContext tenantContext, ISystemStorage systemStorage)
+        public OwnerSecretService(TenantContext tenantContext, ITenantSystemStorage tenantSystemStorage)
         {
-            _systemStorage = systemStorage;
+            _tenantContext = tenantContext;
+            _tenantSystemStorage = tenantSystemStorage;
         }
 
         /// <summary>
@@ -33,45 +35,52 @@ namespace Youverse.Core.Services.Authentication.Owner
             var key = RsaKeyListManagement.GetCurrentKey(ref RsaKeyListManagement.zeroSensitiveKey, ref rsaKeyList, out var keyListWasUpdated); // TODO
             if (keyListWasUpdated)
             {
-                _systemStorage.SingleKeyValueStorage.Upsert(_rsaKeyStorageId, rsaKeyList);
+                _tenantSystemStorage.SingleKeyValueStorage.Upsert(_rsaKeyStorageId, rsaKeyList);
             }
 
             var nonce = NonceData.NewRandomNonce(key);
-            _systemStorage.SingleKeyValueStorage.Upsert(nonce.Id, nonce);
+            _tenantSystemStorage.SingleKeyValueStorage.Upsert(nonce.Id, nonce);
 
             return nonce;
         }
-
+        
         public async Task SetNewPassword(PasswordReply reply)
         {
+            var canSet = _tenantContext.FirstRunToken == reply.FirstRunToken;
+            
+            if (!canSet)
+            {
+            	throw new YouverseSystemException("Invalid first run token; cannot set password");
+            }
+            
             if (await IsMasterPasswordSet())
             {
                 throw new YouverseSecurityException("Password already set");
             }
 
             Guid originalNoncePackageKey = new Guid(Convert.FromBase64String(reply.Nonce64));
-            var originalNoncePackage = _systemStorage.SingleKeyValueStorage.Get<NonceData>(originalNoncePackageKey);
+            var originalNoncePackage = _tenantSystemStorage.SingleKeyValueStorage.Get<NonceData>(originalNoncePackageKey);
 
             //HACK: this will be moved to the overall provisioning process
             //await this.GenerateRsaKeyList();
             var keys = await this.GetRsaKeyList();
 
             var pk = PasswordDataManager.SetInitialPassword(originalNoncePackage, reply, keys);
-            _systemStorage.SingleKeyValueStorage.Upsert(_passwordKey, pk);
+            _tenantSystemStorage.SingleKeyValueStorage.Upsert(_passwordKey, pk);
 
             //delete the temporary salts
-            _systemStorage.SingleKeyValueStorage.Delete(originalNoncePackageKey);
+            _tenantSystemStorage.SingleKeyValueStorage.Delete(originalNoncePackageKey);
         }
 
         public Task<bool> IsMasterPasswordSet()
         {
-            var existingPwd = _systemStorage.SingleKeyValueStorage.Get<PasswordData>(_passwordKey);
+            var existingPwd = _tenantSystemStorage.SingleKeyValueStorage.Get<PasswordData>(_passwordKey);
             return Task.FromResult(existingPwd != null);
         }
 
         public async Task<SensitiveByteArray> GetMasterKey(OwnerConsoleToken serverToken, SensitiveByteArray clientSecret)
         {
-            var pk = _systemStorage.SingleKeyValueStorage.Get<PasswordData>(_passwordKey);
+            var pk = _tenantSystemStorage.SingleKeyValueStorage.Get<PasswordData>(_passwordKey);
             if (null == pk)
             {
                 throw new YouverseClientException("Secrets configuration invalid. Did you initialize a password?");
@@ -96,7 +105,7 @@ namespace Youverse.Core.Services.Authentication.Owner
 
             if (keyListWasUpdated)
             {
-                _systemStorage.SingleKeyValueStorage.Upsert(_rsaKeyStorageId, rsaKeyList);
+                _tenantSystemStorage.SingleKeyValueStorage.Upsert(_rsaKeyStorageId, rsaKeyList);
             }
 
             return (key.crc32c, key.publicPem());
@@ -104,7 +113,7 @@ namespace Youverse.Core.Services.Authentication.Owner
 
         public async Task<SaltsPackage> GetStoredSalts()
         {
-            var pk = _systemStorage.SingleKeyValueStorage.Get<PasswordData>(_passwordKey);
+            var pk = _tenantSystemStorage.SingleKeyValueStorage.Get<PasswordData>(_passwordKey);
 
             if (null == pk)
             {
@@ -123,7 +132,7 @@ namespace Youverse.Core.Services.Authentication.Owner
             const int MAX_KEYS = 2; //leave this size
 
             var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(ref RsaKeyListManagement.zeroSensitiveKey, MAX_KEYS); // TODO
-            _systemStorage.SingleKeyValueStorage.Upsert(_rsaKeyStorageId, rsaKeyList);
+            _tenantSystemStorage.SingleKeyValueStorage.Upsert(_rsaKeyStorageId, rsaKeyList);
             return rsaKeyList;
         }
 
@@ -134,7 +143,7 @@ namespace Youverse.Core.Services.Authentication.Owner
 
         public async Task<RsaFullKeyListData> GetRsaKeyList()
         {
-            var result = _systemStorage.SingleKeyValueStorage.Get<RsaFullKeyListData>(_rsaKeyStorageId);
+            var result = _tenantSystemStorage.SingleKeyValueStorage.Get<RsaFullKeyListData>(_rsaKeyStorageId);
 
 //            if (result == null || result.ListRSA == null) 
             if (result == null || result.ListRSA == null || result.ListRSA.Count == 0 || result.ListRSA.TrueForAll(x => x.IsDead()))
@@ -149,7 +158,7 @@ namespace Youverse.Core.Services.Authentication.Owner
         // and with that info we can validate if the client calculated the right hash.
         public async Task TryPasswordKeyMatch(string nonceHashedPassword64, string nonce64)
         {
-            var pk = _systemStorage.SingleKeyValueStorage.Get<PasswordData>(_passwordKey);
+            var pk = _tenantSystemStorage.SingleKeyValueStorage.Get<PasswordData>(_passwordKey);
 
             // TODO XXX Where the heck do we validate the server has the nonce64 (prevent replay)
 

@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Net.Mime;
 using System.Reflection;
 using Autofac;
+using Dawn;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.HostFiltering;
 using Microsoft.AspNetCore.Hosting;
@@ -15,10 +17,14 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Quartz;
 using Microsoft.Extensions.Logging;
+using Serilog;
 using Youverse.Core.Serialization;
+using Youverse.Core.Services.Certificate.Renewal;
+using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Workers.Transit;
 using Youverse.Core.Services.Logging;
+using Youverse.Core.Services.Registry.Registration;
 using Youverse.Core.Services.Workers.Certificate;
 using Youverse.Hosting.Authentication.ClientToken;
 using Youverse.Hosting.Authentication.Owner;
@@ -27,6 +33,7 @@ using Youverse.Hosting.Authentication.System;
 using Youverse.Hosting.Middleware;
 using Youverse.Hosting.Middleware.Logging;
 using Youverse.Hosting.Multitenant;
+using Youverse.Provisioning.Services.IdentityServer;
 
 namespace Youverse.Hosting
 {
@@ -41,13 +48,14 @@ namespace Youverse.Hosting
 
         public void ConfigureServices(IServiceCollection services)
         {
-            //HACK: why is this suddenly needed!?
+            //HACK: why is this suddenly needed!? 
             services.Configure<KestrelServerOptions>(options => { options.AllowSynchronousIO = true; });
 
-            var config = new Configuration(Configuration);
+            var config = new YouverseConfiguration(Configuration);
             services.AddSingleton(config);
 
             PrepareEnvironment(config);
+            AssertValidRenewalConfiguration(config.CertificateRenewal);
 
             if (config.Quartz.EnableQuartzBackgroundService)
             {
@@ -61,7 +69,9 @@ namespace Youverse.Hosting
                     // });
 
                     q.UseDefaultTransitOutboxSchedule(config.Quartz.BackgroundJobStartDelaySeconds, config.Quartz.ProcessOutboxIntervalSeconds);
-                    // q.UseDefaultCertificateRenewalSchedule(config.Quartz.CertificateRenewalCheckIntervalMinutes);
+                    q.UseDefaultCertificateRenewalSchedule(config.Quartz.BackgroundJobStartDelaySeconds,
+                        config.Quartz.EnsureCertificateProcessorIntervalSeconds,
+                        config.Quartz.ProcessPendingCertificateOrderIntervalInSeconds);
                 });
 
                 services.AddQuartzServer(options => { options.WaitForJobsToComplete = true; });
@@ -136,6 +146,11 @@ namespace Youverse.Hosting
             var pendingTransferService = new PendingTransfersService(config.Host.SystemDataRootPath);
             services.AddSingleton(typeof(IPendingTransfersService), pendingTransferService);
 
+            var certOrderListService = new PendingCertificateOrderListService(config.Host.SystemDataRootPath);
+            services.AddSingleton(typeof(PendingCertificateOrderListService), certOrderListService);
+
+            services.AddSingleton<IIdentityRegistrationService, IdentityRegistrationService>();
+
             // In production, the React files will be served from this directory
             services.AddSpaStaticFiles(configuration => { configuration.RootPath = "client/"; });
         }
@@ -172,102 +187,144 @@ namespace Youverse.Hosting
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILogger<Startup> logger)
+        public void Configure(IApplicationBuilder appx, IWebHostEnvironment env, ILogger<Startup> logger)
         {
-            app.UseLoggingMiddleware();
-            app.UseMiddleware<ExceptionHandlingMiddleware>();
-            app.UseMultiTenancy();
+            var config = new YouverseConfiguration(Configuration);
 
-            app.UseDefaultFiles();
-            app.UseCertificateForwarding();
-            app.UseStaticFiles();
+            bool IsProvisioningSite(HttpContext context) => context.Request.Host.Equals(new HostString(config.Registry.ProvisioningDomain));
+            appx.MapWhen(IsProvisioningSite, app => Provisioning.Map(app, env, logger));
 
-            app.UseRouting();
-            app.UseAuthentication();
-            app.UseAuthorization();
-            app.UseMiddleware<DotYouContextMiddleware>();
-            app.UseResponseCompression();
-            app.UseMiddleware<SharedSecretEncryptionMiddleware>();
-            app.UseMiddleware<StaticFileCachingMiddleware>();
-            app.UseHttpsRedirection();
-
-            // app.UseWebSockets();
-            // app.Map("/owner/api/live/notifications", appBuilder => appBuilder.UseMiddleware<NotificationWebSocketMiddleware>());
-
-            app.UseEndpoints(endpoints =>
+            appx.MapWhen(ctx => !IsProvisioningSite(ctx), app =>
             {
-                endpoints.Map("/", async context => { context.Response.Redirect("/home"); });
-                endpoints.MapControllers();
+                bool IsPathUsedForCertificateCreation(HttpContext context)
+                {
+                    var path = context.Request.Path;
+                    bool isCertificateRegistrationPath = path.StartsWithSegments("/api/owner/v1/config/certificate") ||
+                                                         path.StartsWithSegments("/.well-known/acme-challenge");
+                    return isCertificateRegistrationPath && !context.Request.IsHttps;
+                }
+
+                app.MapWhen(IsPathUsedForCertificateCreation, certificateApp =>
+                {
+                    certificateApp.UseLoggingMiddleware();
+                    certificateApp.UseMiddleware<ExceptionHandlingMiddleware>();
+                    certificateApp.UseMultiTenancy();
+
+                    certificateApp.UseDefaultFiles();
+                    certificateApp.UseCertificateForwarding();
+                    certificateApp.UseStaticFiles();
+
+                    certificateApp.UseRouting();
+                    certificateApp.UseAuthentication();
+                    certificateApp.UseAuthorization();
+
+                    certificateApp.UseEndpoints(endpoints => { endpoints.MapControllers(); });
+                });
+
+                app.MapWhen(ctx => !IsPathUsedForCertificateCreation(ctx), normalApp =>
+                {
+                    
+                    normalApp.UseLoggingMiddleware();
+                    normalApp.UseMiddleware<ExceptionHandlingMiddleware>();
+                    normalApp.UseMultiTenancy();
+                    
+                    normalApp.UseDefaultFiles();
+                    normalApp.UseCertificateForwarding();
+                    normalApp.UseStaticFiles();
+                    
+                    normalApp.UseRouting();
+                    normalApp.UseAuthentication();
+                    normalApp.UseAuthorization();
+                    
+                    normalApp.UseMiddleware<DotYouContextMiddleware>();
+                    normalApp.UseResponseCompression();
+                    normalApp.UseMiddleware<SharedSecretEncryptionMiddleware>();
+                    normalApp.UseMiddleware<StaticFileCachingMiddleware>();
+
+                    
+                    normalApp.UseHttpsRedirection();
+                    // app.UseWebSockets();
+                    // app.Map("/owner/api/live/notifications", appBuilder => appBuilder.UseMiddleware<NotificationWebSocketMiddleware>());
+                    normalApp.UseEndpoints(endpoints =>
+                    {
+                        endpoints.Map("/", async context => { context.Response.Redirect("/home"); });
+                        endpoints.MapControllers();
+                    });
+
+                    if (env.IsDevelopment())
+                    {
+                        normalApp.UseSwagger();
+                        normalApp.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "DotYouCore v1"));
+
+                        normalApp.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/home"),
+                            homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3000/home/"); }); });
+
+                        normalApp.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
+                            homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3001/owner/"); }); });
+                    }
+                    else
+                    {
+                        logger.LogInformation("Mapping SPA paths on local disk");
+                        normalApp.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
+                            ownerApp =>
+                            {
+                                var ownerPath = Path.Combine(env.ContentRootPath, "client", "owner-app");
+                                ownerApp.UseStaticFiles(new StaticFileOptions()
+                                {
+                                    FileProvider = new PhysicalFileProvider(ownerPath),
+                                    RequestPath = "/owner"
+                                });
+
+                                ownerApp.Run(async context =>
+                                {
+                                    context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
+                                    await context.Response.SendFileAsync(Path.Combine(ownerPath, "index.html"));
+                                    return;
+                                });
+                            });
+
+
+                        normalApp.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/home"),
+                            homeApp =>
+                            {
+                                var publicPath = Path.Combine(env.ContentRootPath, "client", "public-app");
+
+                                homeApp.UseStaticFiles(new StaticFileOptions()
+                                {
+                                    FileProvider = new PhysicalFileProvider(publicPath),
+                                    RequestPath = "/home"
+                                });
+
+                                homeApp.Run(async context =>
+                                {
+                                    context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
+                                    await context.Response.SendFileAsync(Path.Combine(publicPath, "index.html"));
+                                    return;
+                                });
+                            });
+                    }
+                });
             });
-
-            //Note: I have ZERO clue why you have to use a .MapWhen versus .map
-            if (env.IsDevelopment())
-            {
-                app.UseSwagger();
-                app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "DotYouCore v1"));
-
-                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/home"),
-                    homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3000/home/"); }); });
-
-                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
-                    homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3001/owner/"); }); });
-            }
-            else
-            {
-                logger.LogInformation("Mapping SPA paths on local disk");
-                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
-                    ownerApp =>
-                    {
-                        var ownerPath = Path.Combine(env.ContentRootPath, "client", "owner-app");
-                        ownerApp.UseStaticFiles(new StaticFileOptions()
-                        {
-                            FileProvider = new PhysicalFileProvider(ownerPath),
-                            RequestPath = "/owner"
-                        });
-
-                        ownerApp.Run(async context =>
-                        {
-                            context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
-                            await context.Response.SendFileAsync(Path.Combine(ownerPath, "index.html"));
-                            return;
-                        });
-                    });
-
-
-                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/home"),
-                    homeApp =>
-                    {
-                        var publicPath = Path.Combine(env.ContentRootPath, "client", "public-app");
-
-                        homeApp.UseStaticFiles(new StaticFileOptions()
-                        {
-                            FileProvider = new PhysicalFileProvider(publicPath),
-                            RequestPath = "/home"
-                        });
-
-                        homeApp.Run(async context =>
-                        {
-                            context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
-                            await context.Response.SendFileAsync(Path.Combine(publicPath, "index.html"));
-                            return;
-                        });
-                    });
-
-                //
-            }
-
-            //redirect everything else to root so the default behavior can start (i.e. clientside rendering)
-            //TODO: not sure I like this since it means we'll miss 404s.  will need to consider
-            // app.Run(async (context) =>
-            // {
-            //     context.Response.Redirect("/");
-            // });
         }
 
-        private void PrepareEnvironment(Configuration cfg)
+        private void PrepareEnvironment(YouverseConfiguration cfg)
         {
             Directory.CreateDirectory(cfg.Host.TenantDataRootPath);
-            Directory.CreateDirectory(cfg.Host.TempTenantDataRootPath);
+            Directory.CreateDirectory(cfg.Host.SystemDataRootPath);
+            Directory.CreateDirectory(cfg.Host.SystemSslRootPath);
+        }
+
+        private void AssertValidRenewalConfiguration(YouverseConfiguration.CertificateRenewalSection section)
+        {
+            Guard.Argument(section, nameof(section)).NotNull();
+            Guard.Argument(section.CertificateAuthorityAssociatedEmail, nameof(section.CertificateAuthorityAssociatedEmail)).NotNull().NotEmpty();
+            Guard.Argument(section.NumberOfCertificateValidationTries, nameof(section.NumberOfCertificateValidationTries)).Min(3);
+
+            Guard.Argument(section.CsrCountryName, nameof(section.CsrCountryName)).NotNull().NotEmpty();
+            Guard.Argument(section.CsrState, nameof(section.CsrState)).NotNull().NotEmpty();
+            Guard.Argument(section.CsrLocality, nameof(section.CsrLocality)).NotNull().NotEmpty();
+            Guard.Argument(section.CsrOrganization, nameof(section.CsrOrganization)).NotNull().NotEmpty();
+            Guard.Argument(section.CsrOrganizationUnit, nameof(section.CsrOrganizationUnit)).NotNull().NotEmpty();
         }
     }
 }

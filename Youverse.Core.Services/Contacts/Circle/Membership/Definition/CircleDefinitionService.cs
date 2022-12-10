@@ -18,10 +18,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
         private readonly GuidId _circleDataType = GuidId.FromString("circle__");
         private readonly ThreeKeyValueStorage _circleValueStorage;
 
-        public CircleDefinitionService(ISystemStorage systemStorage, IDriveService driveService)
+        public CircleDefinitionService(ITenantSystemStorage tenantSystemStorage, IDriveService driveService)
         {
             _driveService = driveService;
-            _circleValueStorage = systemStorage.ThreeKeyValueStorage;
+            _circleValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
         }
 
         public Task<CircleDefinition> Create(CreateCircleRequest request)

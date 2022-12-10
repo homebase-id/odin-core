@@ -18,4 +18,11 @@
       <ProjectReference Include="..\Youverse.Core.Services\Youverse.Core.Services.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <_ContentIncludedByDefault Remove="ClientApp\package-lock.json" />
+      <_ContentIncludedByDefault Remove="ClientApp\package.json" />
+      <_ContentIncludedByDefault Remove="ClientApp\public\manifest.json" />
+      <_ContentIncludedByDefault Remove="ClientApp\tsconfig.json" />
+    </ItemGroup>
+
 </Project>

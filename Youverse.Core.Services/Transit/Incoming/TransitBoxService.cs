@@ -18,15 +18,15 @@ namespace Youverse.Core.Services.Transit.Incoming
     /// </summary>
     public class TransitBoxService : ITransitBoxService
     {
-        private readonly ISystemStorage _systemStorage;
+        private readonly ITenantSystemStorage _tenantSystemStorage;
         private readonly IMediator _mediator;
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly IDriveService _driveService;
 
 
-        public TransitBoxService(ILogger<ITransitBoxService> logger, ISystemStorage systemStorage, IMediator mediator, DotYouContextAccessor contextAccessor, IDriveService driveService)
+        public TransitBoxService(ILogger<ITransitBoxService> logger, ITenantSystemStorage tenantSystemStorage, IMediator mediator, DotYouContextAccessor contextAccessor, IDriveService driveService)
         {
-            _systemStorage = systemStorage;
+            _tenantSystemStorage = tenantSystemStorage;
             _mediator = mediator;
             _contextAccessor = contextAccessor;
             _driveService = driveService;
@@ -37,7 +37,7 @@ namespace Youverse.Core.Services.Transit.Incoming
             item.AddedTimestamp = UnixTimeUtc.Now();
 
             var state = DotYouSystemSerializer.Serialize(item).ToUtf8ByteArray();
-            _systemStorage.Inbox.InsertRow(item.DriveId.ToByteArray(), item.FileId.ToByteArray(), 1, state);
+            _tenantSystemStorage.Inbox.InsertRow(item.DriveId.ToByteArray(), item.FileId.ToByteArray(), 1, state);
 
             // _mediator.Publish(new NewInboxItemNotification()
             // {
@@ -56,7 +56,7 @@ namespace Youverse.Core.Services.Transit.Incoming
         public async Task<List<TransferBoxItem>> GetPendingItems(Guid driveId)
         {
             //CRITICAL NOTE: we can only get back one item since we want to make sure the marker is for that one item in-case the operation fails
-            var records = this._systemStorage.Inbox.Pop(driveId.ToByteArray(), 1, out var marker);
+            var records = this._tenantSystemStorage.Inbox.Pop(driveId.ToByteArray(), 1, out var marker);
 
             var record = records.SingleOrDefault();
             if (null == record)
@@ -94,13 +94,13 @@ namespace Youverse.Core.Services.Transit.Incoming
 
         public Task MarkComplete(Guid driveId, byte[] marker)
         {
-            _systemStorage.Inbox.PopCommit(marker);
+            _tenantSystemStorage.Inbox.PopCommit(marker);
             return Task.CompletedTask;
         }
 
         public Task MarkFailure(Guid driveId, byte[] marker)
         {
-            _systemStorage.Inbox.PopCancel(marker);
+            _tenantSystemStorage.Inbox.PopCancel(marker);
             return Task.CompletedTask;
         }
     }

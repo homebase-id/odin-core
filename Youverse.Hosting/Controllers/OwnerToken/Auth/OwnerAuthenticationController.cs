@@ -103,7 +103,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Auth
             return result;
         }
 
-        [HttpPost("todo_move_this")]
+        [HttpPost("passwd")]
         public async Task<NoResultResponse> SetNewPassword([FromBody] PasswordReply reply)
         {
             await _ss.SetNewPassword(reply);

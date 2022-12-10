@@ -39,7 +39,7 @@ namespace Youverse.Core.Services.Drive
         private readonly ConcurrentDictionary<Guid, ITempStorageManager> _tempStorageManagers;
         private readonly ILoggerFactory _loggerFactory;
 
-        public DriveService(DotYouContextAccessor contextAccessor, ISystemStorage systemStorage, ILoggerFactory loggerFactory, IMediator mediator,
+        public DriveService(DotYouContextAccessor contextAccessor, ITenantSystemStorage tenantSystemStorage, ILoggerFactory loggerFactory, IMediator mediator,
             IDriveAclAuthorizationService driveAclAuthorizationService, TenantContext tenantContext)
         {
             _contextAccessor = contextAccessor;
@@ -51,7 +51,7 @@ namespace Youverse.Core.Services.Drive
             _longTermStorageManagers = new ConcurrentDictionary<Guid, ILongTermStorageManager>();
             _tempStorageManagers = new ConcurrentDictionary<Guid, ITempStorageManager>();
 
-            _driveManager = new DriveManager(contextAccessor, systemStorage, mediator, tenantContext);
+            _driveManager = new DriveManager(contextAccessor, tenantSystemStorage, mediator, tenantContext);
             InitializeStorageDrives().GetAwaiter().GetResult();
         }
 

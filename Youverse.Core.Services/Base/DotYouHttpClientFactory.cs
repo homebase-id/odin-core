@@ -6,7 +6,7 @@ using Refit;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Registry;
+using Youverse.Core.Services.Certificate;
 
 namespace Youverse.Core.Services.Base
 {
@@ -16,13 +16,13 @@ namespace Youverse.Core.Services.Base
     public class DotYouHttpClientFactory : IDotYouHttpClientFactory
     {
         private readonly DotYouContextAccessor _contextAccessor;
-        private readonly ICertificateResolver _certificateResolver;
+        private readonly ITenantCertificateService _tenantCertificateService;
         private readonly TenantContext _tenantContext;
 
-        public DotYouHttpClientFactory(DotYouContextAccessor contextAccessor, ICertificateResolver certificateResolver, TenantContext tenantContext)
+        public DotYouHttpClientFactory(DotYouContextAccessor contextAccessor, ITenantCertificateService tenantCertificateService, TenantContext tenantContext)
         {
             _contextAccessor = contextAccessor;
-            _certificateResolver = certificateResolver;
+            _tenantCertificateService = tenantCertificateService;
             _tenantContext = tenantContext;
         }
 
@@ -48,10 +48,7 @@ namespace Youverse.Core.Services.Base
 
             var handler = new HttpClientHandler();
 
-            //HACK: this appIdOverride is strange but required so the background sender
-            //can specify the app since it doesnt know
-            // Console.WriteLine("CreateClient -> Loading certificate");
-            var cert = _certificateResolver.GetSslCertificate();
+            var cert = _tenantCertificateService.GetSslCertificate(dotYouId.Id);
             if (null == cert)
             {
                 throw new YouverseSystemException($"No certificate configured for {_tenantContext.HostDotYouId}");

@@ -13,6 +13,12 @@ namespace Youverse.Core.Cryptography
         
         public UInt32 crc { get; set; }
         public string RsaEncrypted { get; set; }
+        
+        /// <summary>
+        /// The token given during the provisioning process used to
+        /// allow the caller to set the password the firs time
+        /// </summary>
+        public Guid? FirstRunToken { get; set; }
     }
 
     public class PasswordReply: IPasswordReply
@@ -23,5 +29,6 @@ namespace Youverse.Core.Cryptography
         
         public UInt32 crc { get; set; }
         public string RsaEncrypted { get; set; }
+        public Guid? FirstRunToken { get; set; }
     }
 }

@@ -6,25 +6,45 @@ namespace Youverse.Core.Services.Workers.Certificate;
 public static class DefaultCertificateRenewalSchedulerExtensions
 {
     /// <summary>
-    /// Configure the outbox processing for Transit
+    /// Watches for certificates that need renewal; starts the process when required
     /// </summary>
     /// <param name="quartz"></param>
-    /// <param name="backgroundJobStartDelaySeconds">Number of seconds to wait before starting the outbox processing during
-    /// system startup.  This is mainly useful long initiations and unit testing.</param>
-    public static void UseDefaultCertificateRenewalSchedule(this IServiceCollectionQuartzConfigurator quartz, int backgroundJobStartDelaySeconds)
+    /// <param name="backgroundJobStartDelaySeconds">Number of seconds to wait before starting the outbox processing during system startup.  This is mainly useful long initialization and unit testing.</param>
+    /// <param name="certificateRenewalIntervalInSeconds"></param>
+    /// <param name="processPendingCertificateOrderIntervalInSeconds"></param>
+    public static void UseDefaultCertificateRenewalSchedule(this IServiceCollectionQuartzConfigurator quartz, int backgroundJobStartDelaySeconds,
+        int certificateRenewalIntervalInSeconds,
+        int processPendingCertificateOrderIntervalInSeconds)
     {
-        var jobKey = new JobKey(nameof(CheckCertificateStatusJob), "CertificateRenewal");
-        quartz.AddJob<CheckCertificateStatusJob>(options => { options.WithIdentity(jobKey); });
-
-        var triggerKey = new TriggerKey(jobKey.Name + "-trigger");
+        string group = "CertificateRenewal";
+        
+        var ensureCertificateJobKey = new JobKey(nameof(EnsureIdentityHasValidCertificateJob), group);
+        quartz.AddJob<EnsureIdentityHasValidCertificateJob>(options => { options.WithIdentity(ensureCertificateJobKey); });
+        
         quartz.AddTrigger(config =>
         {
-            config.ForJob(jobKey);
-            config.WithIdentity(triggerKey);
+            config.ForJob(ensureCertificateJobKey);
+            config.WithIdentity(new TriggerKey(ensureCertificateJobKey.Name + "-trigger"));
 
             config.WithSimpleSchedule(schedule => schedule
                 .RepeatForever()
-                .WithInterval(TimeSpan.FromSeconds(5))
+                .WithInterval(TimeSpan.FromSeconds(certificateRenewalIntervalInSeconds))
+                .WithMisfireHandlingInstructionNextWithRemainingCount());
+
+            config.StartAt(DateTimeOffset.UtcNow.Add(TimeSpan.FromSeconds(backgroundJobStartDelaySeconds)));
+        });
+
+        var processPendingCertificateOrdersJobKey = new JobKey(nameof(ProcessPendingCertificatesJob), group);
+        quartz.AddJob<ProcessPendingCertificatesJob>(options => { options.WithIdentity(processPendingCertificateOrdersJobKey); });
+
+        quartz.AddTrigger(config =>
+        {
+            config.ForJob(processPendingCertificateOrdersJobKey);
+            config.WithIdentity(new TriggerKey($"{processPendingCertificateOrdersJobKey.Name}-trigger"));
+
+            config.WithSimpleSchedule(schedule => schedule
+                .RepeatForever()
+                .WithInterval(TimeSpan.FromSeconds(processPendingCertificateOrderIntervalInSeconds))
                 .WithMisfireHandlingInstructionNextWithRemainingCount());
 
             config.StartAt(DateTimeOffset.UtcNow.Add(TimeSpan.FromSeconds(backgroundJobStartDelaySeconds)));

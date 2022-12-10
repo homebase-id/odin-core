@@ -179,7 +179,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
             }).ToList();
 
             var tenantContext = this.Context.RequestServices.GetRequiredService<TenantContext>();
-            var permissionSet = tenantContext.TenantSystemConfig.AnonymousVisitorsCanViewConnections
+            var permissionSet = tenantContext.Settings.AnonymousVisitorsCanViewConnections
                 ? new PermissionSet(new List<int>() { PermissionKeys.ReadConnections })
                 : new PermissionSet();
 

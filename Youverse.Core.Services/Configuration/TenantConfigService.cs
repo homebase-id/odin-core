@@ -26,17 +26,14 @@ public class TenantConfigService
     private readonly TenantContext _tenantContext;
     private readonly SingleKeyValueStorage _configStorage;
 
-    public TenantConfigService(ICircleNetworkService cns, DotYouContextAccessor contextAccessor, IDriveService driveService, ISystemStorage storage, TenantContext tenantContext)
+    public TenantConfigService(ICircleNetworkService cns, DotYouContextAccessor contextAccessor, IDriveService driveService, ITenantSystemStorage storage, TenantContext tenantContext)
     {
         _cns = cns;
         _contextAccessor = contextAccessor;
         _driveService = driveService;
         _tenantContext = tenantContext;
         _configStorage = storage.SingleKeyValueStorage;
-
-        //var tenantConfigSvc = scope.Resolve<TenantConfigService>();
-        //ctx.UpdateSystemConfig(tenantConfigSvc.GetTenantSystemConfig());
-        _tenantContext.UpdateSystemConfig(this.GetTenantSystemConfig());
+        _tenantContext.UpdateSystemConfig(this.GetTenantSettings());
     }
 
     public bool IsIdentityServerConfigured()
@@ -74,7 +71,7 @@ public class TenantConfigService
             await CreateCircleIfNotExists(rc);
         }
 
-        _configStorage.Upsert(TenantSystemConfig.ConfigKey, TenantSystemConfig.Default);
+        _configStorage.Upsert(TenantSettings.ConfigKey, TenantSettings.Default);
 
         _configStorage.Upsert(FirstRunInfo.Key, new FirstRunInfo()
         {
@@ -91,7 +88,7 @@ public class TenantConfigService
             throw new YouverseClientException("Invalid flag name", YouverseClientErrorCode.InvalidFlagName);
         }
 
-        var cfg = _configStorage.Get<TenantSystemConfig>(TenantSystemConfig.ConfigKey) ?? new TenantSystemConfig();
+        var cfg = _configStorage.Get<TenantSettings>(TenantSettings.ConfigKey) ?? new TenantSettings();
 
         switch (flag)
         {
@@ -112,7 +109,7 @@ public class TenantConfigService
                 throw new YouverseClientException("Flag name is valid but not handled", YouverseClientErrorCode.UnknownFlagName);
         }
 
-        _configStorage.Upsert(TenantSystemConfig.ConfigKey, cfg);
+        _configStorage.Upsert(TenantSettings.ConfigKey, cfg);
 
         //TODO: eww, use mediator instead
         _tenantContext.UpdateSystemConfig(cfg);
@@ -140,9 +137,9 @@ public class TenantConfigService
         _cns.UpdateCircleDefinition(systemCircle);
     }
 
-    public TenantSystemConfig GetTenantSystemConfig()
+    public TenantSettings GetTenantSettings()
     {
-        return _configStorage.Get<TenantSystemConfig>(TenantSystemConfig.ConfigKey) ?? TenantSystemConfig.Default;
+        return _configStorage.Get<TenantSettings>(TenantSettings.ConfigKey) ?? TenantSettings.Default;
     }
 
     public OwnerAppSettings GetOwnerAppSettings()

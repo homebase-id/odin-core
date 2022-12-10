@@ -1,9 +1,17 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
+using Refit;
+using Serilog;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
+using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Certificate;
+using Youverse.Core.Services.Certificate.Renewal;
 using Youverse.Core.Trie;
 
 namespace Youverse.Core.Services.Registry;
@@ -13,43 +21,27 @@ namespace Youverse.Core.Services.Registry;
 /// </summary>
 public class FileSystemIdentityRegistry : IIdentityRegistry
 {
+    private readonly Dictionary<Guid, IdentityRegistration> _cache;
     private readonly Trie.Trie<IdentityRegistration> _trie;
     private readonly string _tenantDataRootPath;
-    private readonly string _tempDataStoragePath;
+    private readonly CertificateRenewalConfig _certificateRenewalConfig;
 
-    public FileSystemIdentityRegistry(string tenantDataRootPath, string tempDataStoragePath)
+    public FileSystemIdentityRegistry(string tenantDataRootPath, CertificateRenewalConfig certificateRenewalConfig)
     {
         if (!Directory.Exists(tenantDataRootPath))
         {
             throw new InvalidDataException($"Could find or access path at [{tenantDataRootPath}]");
         }
 
-        if (!Directory.Exists(tempDataStoragePath))
-        {
-            throw new InvalidDataException($"Could find or access path at [{tempDataStoragePath}]");
-        }
-
+        _cache = new Dictionary<Guid, IdentityRegistration>();
         _trie = new Trie<IdentityRegistration>();
         _tenantDataRootPath = tenantDataRootPath;
-        _tempDataStoragePath = tempDataStoragePath;
+        _certificateRenewalConfig = certificateRenewalConfig;
     }
-
 
     public void Initialize()
     {
-        var dirs = Directory.GetDirectories(_tenantDataRootPath, "*", SearchOption.TopDirectoryOnly);
-
-        foreach (var d in dirs)
-        {
-            var id = d.Split(Path.DirectorySeparatorChar).LastOrDefault();
-            if (Guid.TryParse(id, out var g))
-            {
-                var regFile = GetRegFilePath(g);
-                var json = File.ReadAllText(regFile);
-                var registration = DotYouSystemSerializer.Deserialize<IdentityRegistration>(json);
-                _trie.AddDomain(registration.DomainName, registration);
-            }
-        }
+        LoadCache();
     }
 
     public Guid ResolveId(string domain)
@@ -63,98 +55,235 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return Task.FromResult(_trie.LookupName(domain) != null);
     }
 
-    public Task<bool> HasValidCertificate(string domain)
-    {
-        var reg = _trie.LookupName(domain);
-        if (null == reg)
-        {
-            return Task.FromResult(false);
-        }
-
-        var cert = CertificateResolver.LoadCertificate(reg.DomainName, this.GetCertificatePath(reg), this.GetPrivateKeyPath(reg));
-
-        if (cert == null)
-        {
-            return Task.FromResult(false);
-        }
-
-        var now = DateTime.Now;
-        var isValid = now < cert.NotAfter && now > cert.NotBefore;
-
-        return Task.FromResult(isValid);
-    }
-
-    public async Task AddRegistration(IdentityRegistrationRequest request)
+    public async Task<Guid> AddRegistration(IdentityRegistrationRequest request)
     {
         var registration = new IdentityRegistration()
         {
             Id = Guid.NewGuid(),
-            DomainName = request.DotYouId,
+            PrimaryDomainName = request.DotYouId,
             IsCertificateManaged = request.IsCertificateManaged,
-            CertificateRenewalInfo = new CertificateRenewalInfo()
-            {
-                CreatedTimestamp = UnixTimeUtc.Now(),
-                CertificateSigningRequest = request.CertificateSigningRequest
-            },
+            FirstRunToken = Guid.NewGuid()
         };
 
-        string root = Path.Combine(_tenantDataRootPath, registration.Id.ToString());
-        Console.WriteLine($"Writing certificates to path [{root}]");
+        await this.SaveRegistrationInternal(registration);
 
-        if (!Directory.Exists(root))
+        if (request.OptionalCertificatePemContent == null)
         {
-            Directory.CreateDirectory(root);
+            await this.InitializeCertificate(request.DotYouId);
+            // var ctx = TenantContext.Create(registration.Id, request.DotYouId, _tenantDataRootPath, _certificateRenewalConfig);
+            // ITenantCertificateService tenantCertificateService = new TenantCertificateService(ctx);
+            // var logger = new NullLoggerFactory().CreateLogger<LetsEncryptTenantCertificateRenewalService>()
+            // ITenantCertificateRenewalService renewalService = new LetsEncryptTenantCertificateRenewalService(logger, ctx, tenantCertificateService, , ctx.)
         }
+        else
+        {
+            //optionally, let an ssl certificate be provided 
+            //TODO: is there a way to pull a specific tenant's service config from Autofac?
+            ITenantCertificateService tc = new TenantCertificateService(TenantContext.Create(registration.Id, request.DotYouId, _tenantDataRootPath, _certificateRenewalConfig));
+            await tc.SaveSslCertificate(registration.Id, request.DotYouId.Id, request.OptionalCertificatePemContent);
+        }
+
+        return registration.FirstRunToken.GetValueOrDefault();
+    }
+
+    public async Task MarkRegistrationComplete(Guid firstRunToken)
+    {
+        var registration = GetByFirstRunToken(firstRunToken);
+
+        registration.FirstRunToken = null;
+        await this.SaveRegistrationInternal(registration);
+    }
+
+    public async Task<RegistrationStatus> GetRegistrationStatus(Guid firstRunToken)
+    {
+        var registration = GetByFirstRunToken(firstRunToken);
+
+        if (null == registration)
+        {
+            return RegistrationStatus.Unknown;
+        }
+
+        //the other option here is to load the certs via the registry, which i dont like
+        var svc = SystemHttpClient.CreateHttps<ICertificateStatusHttpClient>((DotYouIdentity)registration.PrimaryDomainName);
+        try
+        {
+            var certsValidResponse = await svc.VerifyCertificatesValid();
+            if (certsValidResponse.IsSuccessStatusCode)
+            {
+                if (certsValidResponse.Content)
+                {
+                    return RegistrationStatus.ReadyForPassword;
+                }
+                else
+                {
+                    return RegistrationStatus.AwaitingCertificate;
+                }
+            }
+        }
+        catch (HttpRequestException hre)
+        {
+            //hre.HResult == -2146232800
+            return RegistrationStatus.AwaitingCertificate;
+        }
+        catch (Exception e)
+        {
+            return RegistrationStatus.Unknown;
+        }
+        
+        //TODO: Log system error here?
+
+        return RegistrationStatus.Unknown;
+    }
+
+    private async Task SaveRegistrationInternal(IdentityRegistration registration)
+    {
+        string root = Path.Combine(_tenantDataRootPath, registration.Id.ToString());
+        Directory.CreateDirectory(root);
 
         var json = DotYouSystemSerializer.Serialize(registration);
         await File.WriteAllTextAsync(GetRegFilePath(registration.Id), json);
 
-        await File.WriteAllTextAsync(GetCertificatePath(registration), request.CertificateContent.PublicKeyCertificate);
-        await File.WriteAllTextAsync(GetPrivateKeyPath(registration), request.CertificateContent.PrivateKey);
-        // await File.WriteAllTextAsync(registration.FullChainCertificateRelativePath, request.CertificateContent.FullChain);
+        Log.Information($"Write registration file for [{registration.Id}]");
+        
+        Cache(registration);
+    }
+
+    public Task<PagedResult<IdentityRegistration>> GetList(PageOptions pageOptions = null)
+    {
+        var list = _cache.Values.ToList();
+        return Task.FromResult(new PagedResult<IdentityRegistration>(PageOptions.All, 1, list));
+    }
+
+    public Task<IdentityRegistration> Get(string domain)
+    {
+        var reg = _trie.LookupName(domain);
+        return Task.FromResult(reg);
+    }
+
+    public async Task EnsureCertificate(string domain)
+    {
+        try
+        {
+            var svc = SystemHttpClient.CreateHttps<ICertificateStatusHttpClient>((DotYouIdentity)domain);
+            var response = await svc.EnsureValidCertificates();
+            await response.EnsureSuccessStatusCodeAsync();
+        }
+        catch (ApiException e)
+        {
+            //TODO: need to log an error here and notify sys admins?
+            // keep a list of those continuing to fail so we can deactivate, etc.
+            Log.Error($"{e.RequestMessage.Method} to {e.RequestMessage.RequestUri} failed with {e.ReasonPhrase}.\n Exception Message: [{e.Message}]");
+        }
+        catch (HttpRequestException ex)
+        {
+            //TODO: need to log an error here and notify sys admins?
+            // keep a list of those continuing to fail so we can deactivate, etc.
+            Log.Error($"Request to EnsureValidCertificates failed with {ex.StatusCode}.\n Exception Message: [{ex.Message}]");
+        }
+    }
+
+    public async Task EnsureCertificates()
+    {
+        //TODO: could optimize by breaking into multiple threaded requests, etc.
+        var identities = await this.GetList(PageOptions.All);
+        foreach (var ident in identities.Results)
+        {
+            await this.EnsureCertificate(ident.PrimaryDomainName);
+        }
     }
 
     private string GetRegFilePath(Guid registrationId)
     {
-        return Path.Combine(_tempDataStoragePath, registrationId.ToString(), "reg.json");
+        return Path.Combine(_tenantDataRootPath, registrationId.ToString(), "reg.json");
     }
 
-    public Task<PagedResult<IdentityRegistration>> GetList(PageOptions pageOptions)
+    private void LoadCache()
     {
-        var domains = Directory.GetDirectories(_tenantDataRootPath);
+        var directories = Directory.GetDirectories(_tenantDataRootPath);
 
-        //TODO: get from DI
-        foreach (var domain in domains)
+        foreach (var dir in directories)
         {
-            //todo: add isValidDomain name check
+            try
+            {
+                var path = Path.TrimEndingDirectorySeparator(dir.ToCharArray()).ToString();
+                var potentialId = path.Split(Path.DirectorySeparatorChar).Last();
+                if (!Guid.TryParse(potentialId, out var id))
+                {
+                    Log.Warning($"Identity Registry: Found invalid folder not in GUID format named [{potentialId}]; moving to next");
+                    continue;
+                }
+                
+                var regFile = GetRegFilePath(id);
 
-            // Guid domainId = CalculateDomainId(dotYouId);
-            // string certificatePath = PathUtil.Combine(rootPath, registryId.ToString(), "ssl", domainId.ToString(), "certificate.crt");
-            // string privateKeyPath = PathUtil.Combine(rootPath, registryId.ToString(), "ssl", domainId.ToString(), "private.key");
-            // return LoadCertificate(certificatePath, privateKeyPath);
+                if (!File.Exists(regFile))
+                {
+                    Log.Warning($"Identity Registry: could not find reg file for Id: [{id.ToString()}]; moving to next");
+                    continue;
+                }
 
-            DotYouIdentity dotYouId = (DotYouIdentity)domain;
-            Guid domainId = CertificateResolver.CalculateDomainId(dotYouId);
-            var certificate = CertificateResolver.GetSslCertificate(_tenantDataRootPath, domainId, dotYouId);
+                var json = File.ReadAllText(regFile);
+
+                var registration = DotYouSystemSerializer.Deserialize<IdentityRegistration>(json);
+
+                Cache(registration);
+            }
+            catch (Exception e)
+            {
+                //TODO: log as startup error with details.
+                string message = $"Identity Registry: Failed to load identity at path [{dir}]";
+                Log.Error(e, message);
+                continue;
+            }
+        }
+    }
+
+    private void Cache(IdentityRegistration registration)
+    {
+        if (null != _trie.LookupName(registration.PrimaryDomainName))
+        {
+            _trie.RemoveDomain(registration.PrimaryDomainName);
         }
 
-        throw new NotImplementedException();
+        _trie.AddDomain(registration.PrimaryDomainName, registration);
+
+        if (_cache.ContainsKey(registration.Id))
+        {
+            _cache.Remove(registration.Id);
+        }
+
+        _cache.Add(registration.Id, registration);
     }
 
-    public Task<IdentityRegistration> Get(string domainName)
+    private IdentityRegistration GetByFirstRunToken(Guid firstRunToken)
     {
-        throw new NotImplementedException();
+        var registration = _cache.Values.SingleOrDefault(reg => reg.FirstRunToken == firstRunToken);
+        if (null == registration)
+        {
+            throw new YouverseClientException("Invalid first run token", YouverseClientErrorCode.UnknownId);
+        }
+
+        return registration;
     }
 
-    private string GetCertificatePath(IdentityRegistration registration)
+    private async Task InitializeCertificate(string domain)
     {
-        string path = Path.Combine(_tenantDataRootPath, registration.Id.ToString(), "ssl", registration.DomainName.ToLower(), "certificate.crt");
-        return path;
-    }
-
-    private string GetPrivateKeyPath(IdentityRegistration registration)
-    {
-        string path = Path.Combine(_tenantDataRootPath, registration.Id.ToString(), "ssl", registration.DomainName.ToLower(), "private.key");
-        return path;
+        try
+        {
+            var svc = SystemHttpClient.CreateHttp<ICertificateStatusHttpClient>((DotYouIdentity)domain);
+            var response = await svc.InitializeCertificate();
+            await response.EnsureSuccessStatusCodeAsync();
+        }
+        catch (ApiException e)
+        {
+            //TODO: need to log an error here and notify sys admins?
+            // keep a list of those continuing to fail so we can deactivate, etc.
+            Log.Error($"{e.RequestMessage.Method} to {e.RequestMessage.RequestUri} failed with {e.ReasonPhrase}.\n Exception Message: [{e.Message}]");
+        }
+        catch (HttpRequestException ex)
+        {
+            //TODO: need to log an error here and notify sys admins?
+            // keep a list of those continuing to fail so we can deactivate, etc.
+            Log.Error($"Request to InitializeCertificate failed with {ex.StatusCode}.\n Exception Message: [{ex.Message}]");
+        }
     }
 }

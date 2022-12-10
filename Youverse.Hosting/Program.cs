@@ -18,7 +18,11 @@ using Youverse.Core.Logging.CorrelationId;
 using Youverse.Core.Logging.CorrelationId.Serilog;
 using Youverse.Core.Logging.Hostname;
 using Youverse.Core.Logging.Hostname.Serilog;
+using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Certificate;
+using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Registry;
+using Youverse.Hosting._dev;
 using Youverse.Hosting.Multitenant;
 
 namespace Youverse.Hosting
@@ -57,19 +61,29 @@ namespace Youverse.Hosting
             return 0;
         }
 
-        private static Configuration LoadConfig()
+        public static (YouverseConfiguration, IConfiguration) LoadConfig()
         {
+            const string envVar = "DOTYOU_ENVIRONMENT";
+            var env = Environment.GetEnvironmentVariable(envVar) ?? "";
+
+            if (string.IsNullOrEmpty(env))
+            {
+                throw new YouverseSystemException($"You must set an environment variable named [{envVar}] which specifies your environment.\n" +
+                                                  $"This must match your app settings file as follows 'appsettings.ENV.json");
+            }
+
             var config = new ConfigurationBuilder()
-                .AddJsonFile("appsettings.json", optional: false)
+                // .AddJsonFile("appsettings.json", optional: false)
+                .AddJsonFile($"appsettings.{env}.json", optional: false)
                 .AddEnvironmentVariables()
                 .Build();
 
-            return new Configuration(config);
+            return (new YouverseConfiguration(config), config);
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args)
         {
-            var cfg = LoadConfig();
+            var (cfg, configuration2) = LoadConfig();
 
             var loggingDirInfo = Directory.CreateDirectory(cfg.Logging.LogFilePath);
             if (!loggingDirInfo.Exists)
@@ -83,18 +97,10 @@ namespace Youverse.Hosting
                 throw new YouverseClientException($"Could not create logging folder at [{cfg.Logging.LogFilePath}]");
             }
 
-            var tempDataRootDirInfo = Directory.CreateDirectory(cfg.Host.TempTenantDataRootPath);
-            if (!tempDataRootDirInfo.Exists)
-            {
-                throw new YouverseClientException($"Could not create logging folder at [{cfg.Logging.LogFilePath}]");
-            }
-
-            //HACK until I decide if we want to have ServerCertificateSelector read directly from disk
-            _registry = cfg.Host.UseLocalCertificateRegistry
-                ? new DevelopmentIdentityRegistry(cfg.Host.TenantDataRootPath, cfg.Host.TempTenantDataRootPath)
-                : new FileSystemIdentityRegistry(cfg.Host.TenantDataRootPath, cfg.Host.TempTenantDataRootPath);
-
+            _registry = new FileSystemIdentityRegistry(cfg.Host.TenantDataRootPath, cfg.CertificateRenewal.ToCertificateRenewalConfig());
             _registry.Initialize();
+
+            DevEnvironmentSetup.ConfigureIfPresent(cfg, _registry);
 
             var builder = Host.CreateDefaultBuilder(args)
                 .UseSystemd()
@@ -106,6 +112,9 @@ namespace Youverse.Hosting
                 })
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
+                    var urls = cfg.Host.IPAddressListenList.Select(entry => $"https://{entry.Ip}:{entry.HttpsPort}").ToList();
+                    urls.AddRange(cfg.Host.IPAddressListenList.Select(entry => $"http://{entry.Ip}:{entry.HttpPort}"));
+
                     webBuilder.ConfigureKestrel(options =>
                         {
                             options.ConfigureHttpsDefaults(opts =>
@@ -159,8 +168,47 @@ namespace Youverse.Hosting
             return builder;
         }
 
-        private static X509Certificate2 ServerCertificateSelector(ConnectionContext connectionContext, string hostName, Configuration config)
+        private static X509Certificate2 ServerCertificateSelector(ConnectionContext connectionContext, string hostName, YouverseConfiguration config)
         {
+            throw new NotImplementedException("handle provisioning domain");
+            // Log.Information($"provisioning domain: [{cfg.Host.ProvisioningDomain}]");
+            // if (hostName.ToLower().Trim() == config.Registry.ProvisioningDomain.ToLower().Trim())
+            // {
+            //     Log.Information("Loading certificate for provisioning domain");
+            //     string publicKeyPath = Path.Combine(config.Host.SystemSslRootPath, config.Registry.ProvisioningDomain, "certificate.crt");
+            //     string privateKeyPath = Path.Combine(config.Host.SystemSslRootPath, config.Registry.ProvisioningDomain, "private.key");
+            //     Log.Information($"Checking path [{publicKeyPath}]");
+            //
+            //     var cert = DotYouCertificateLoader.LoadCertificate(publicKeyPath, privateKeyPath);
+            //     if (null == cert)
+            //     {
+            //         Log.Error($"No certificate configured for {hostName}");
+            //     }
+            //
+            //     return cert;
+            // }
+
+            // connectionContext.ConnectionId
+            if (!string.IsNullOrEmpty(hostName))
+            {
+                //TODO: add caching of loaded certificates
+                Guid registryId = _registry.ResolveId(hostName);
+                DotYouIdentity dotYouId = (DotYouIdentity)hostName;
+
+                ITenantCertificateService tc = new TenantCertificateService(TenantContext.Create(registryId, dotYouId, config.Host.TenantDataRootPath, null));
+                var cert = tc.ResolveCertificate(dotYouId);
+
+                if (null == cert)
+                {
+                    Log.Error($"No certificate configured for {hostName}");
+                }
+
+                return cert;
+            }
+
+            return null;
+
+
             if (!string.IsNullOrEmpty(hostName))
             {
                 //TODO: add caching of loaded certificates

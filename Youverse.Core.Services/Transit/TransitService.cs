@@ -33,7 +33,7 @@ namespace Youverse.Core.Services.Transit
         private readonly ITransferKeyEncryptionQueueService _transferKeyEncryptionQueueService;
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly ILogger<TransitService> _logger;
-        private readonly ISystemStorage _systemStorage;
+        private readonly ITenantSystemStorage _tenantSystemStorage;
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
         private readonly TenantContext _tenantContext;
         private readonly ICircleNetworkService _circleNetworkService;
@@ -45,7 +45,7 @@ namespace Youverse.Core.Services.Transit
             IDriveService driveService,
             ITransferKeyEncryptionQueueService transferKeyEncryptionQueueService,
             ITransitBoxService transitBoxService,
-            ISystemStorage systemStorage,
+            ITenantSystemStorage tenantSystemStorage,
             IDotYouHttpClientFactory dotYouHttpClientFactory, TenantContext tenantContext, ICircleNetworkService circleNetworkService, IPublicKeyService publicKeyService) : base()
         {
             _contextAccessor = contextAccessor;
@@ -53,7 +53,7 @@ namespace Youverse.Core.Services.Transit
             _driveService = driveService;
             _transferKeyEncryptionQueueService = transferKeyEncryptionQueueService;
             _transitBoxService = transitBoxService;
-            _systemStorage = systemStorage;
+            _tenantSystemStorage = tenantSystemStorage;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
             _tenantContext = tenantContext;
             _circleNetworkService = circleNetworkService;
@@ -141,7 +141,7 @@ namespace Youverse.Core.Services.Transit
             return keyStatus;
         }
 
-        //
+        // 
 
         private void StoreEncryptedRecipientTransferInstructionSet(byte[] recipientPublicKeyDer, KeyHeader keyHeader,
             ClientAuthenticationToken clientAuthenticationToken, InternalDriveFileId internalFile, DotYouIdentity recipient, TargetDrive targetDrive, TransferFileType transferFileType)
@@ -165,7 +165,7 @@ namespace Youverse.Core.Services.Transit
                 TransferFileType = transferFileType
             };
 
-            _systemStorage.SingleKeyValueStorage.Upsert(CreateInstructionSetStorageKey(recipient, internalFile), instructionSet);
+            _tenantSystemStorage.SingleKeyValueStorage.Upsert(CreateInstructionSetStorageKey(recipient, internalFile), instructionSet);
         }
 
         private void AddToTransferKeyEncryptionQueue(DotYouIdentity recipient, InternalDriveFileId file)
@@ -413,7 +413,7 @@ namespace Youverse.Core.Services.Transit
 
         private Task<RsaEncryptedRecipientTransferInstructionSet> GetTransferInstructionSetFromCache(string recipient, InternalDriveFileId file)
         {
-            var instructionSet = _systemStorage.SingleKeyValueStorage.Get<RsaEncryptedRecipientTransferInstructionSet>(CreateInstructionSetStorageKey((DotYouIdentity)recipient, file));
+            var instructionSet = _tenantSystemStorage.SingleKeyValueStorage.Get<RsaEncryptedRecipientTransferInstructionSet>(CreateInstructionSetStorageKey((DotYouIdentity)recipient, file));
             return Task.FromResult(instructionSet);
         }
 
@@ -425,7 +425,7 @@ namespace Youverse.Core.Services.Transit
     }
 
     /// <summary>
-    /// Specifies the type of instruction incoming from another identity
+    /// Specifies the type of instruction incoming from another identity 
     /// </summary>
     public enum TransferInstructionType
     {

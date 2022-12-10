@@ -15,13 +15,13 @@ namespace Youverse.Core.Services.Transit.Quarantine
 {
     public class TransitPerimeterTransferStateService : ITransitPerimeterTransferStateService
     {
-        private readonly ISystemStorage _systemStorage;
+        private readonly ITenantSystemStorage _tenantSystemStorage;
         private readonly IDriveService _driveService;
         private readonly DotYouContextAccessor _contextAccessor;
 
-        public TransitPerimeterTransferStateService(ISystemStorage systemStorage, IDriveService driveService, DotYouContextAccessor contextAccessor)
+        public TransitPerimeterTransferStateService(ITenantSystemStorage tenantSystemStorage, IDriveService driveService, DotYouContextAccessor contextAccessor)
         {
-            _systemStorage = systemStorage;
+            _tenantSystemStorage = tenantSystemStorage;
             _driveService = driveService;
             _contextAccessor = contextAccessor;
         }
@@ -49,7 +49,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
         public async Task<IncomingTransferStateItem> GetStateItem(Guid id)
         {
-            var item = _systemStorage.SingleKeyValueStorage.Get<IncomingTransferStateItem>(id);
+            var item = _tenantSystemStorage.SingleKeyValueStorage.Get<IncomingTransferStateItem>(id);
 
             if (null == item)
             {
@@ -89,13 +89,13 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
         public Task RemoveStateItem(Guid transferStateItemId)
         {
-            _systemStorage.SingleKeyValueStorage.Delete(transferStateItemId);
+            _tenantSystemStorage.SingleKeyValueStorage.Delete(transferStateItemId);
             return Task.CompletedTask;
         }
 
         private void Save(IncomingTransferStateItem stateItem)
         {
-            _systemStorage.SingleKeyValueStorage.Upsert(stateItem.Id, stateItem);
+            _tenantSystemStorage.SingleKeyValueStorage.Upsert(stateItem.Id, stateItem);
         }
     }
 }

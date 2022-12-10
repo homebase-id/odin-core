@@ -7,26 +7,26 @@ namespace Youverse.Core.Services.Transit
     public class TransferKeyEncryptionQueueService : ITransferKeyEncryptionQueueService
     {
         private readonly GuidId _queueKey = GuidId.FromString("tkequeue__");
-        private readonly ISystemStorage _systemStorage;
+        private readonly ITenantSystemStorage _tenantSystemStorage;
 
-        public TransferKeyEncryptionQueueService(ISystemStorage systemStorage)
+        public TransferKeyEncryptionQueueService(ITenantSystemStorage tenantSystemStorage)
         {
-            _systemStorage = systemStorage;
+            _tenantSystemStorage = tenantSystemStorage;
         }
 
         public Task Enqueue(TransitKeyEncryptionQueueItem item)
         {
-            var items = _systemStorage.SingleKeyValueStorage.Get<List<TransitKeyEncryptionQueueItem>>(_queueKey);
+            var items = _tenantSystemStorage.SingleKeyValueStorage.Get<List<TransitKeyEncryptionQueueItem>>(_queueKey);
 
             items.Add(item);
-            this._systemStorage.SingleKeyValueStorage.Upsert(_queueKey, items);
+            this._tenantSystemStorage.SingleKeyValueStorage.Upsert(_queueKey, items);
 
             return Task.CompletedTask;
         }
 
         public Task<IEnumerable<TransitKeyEncryptionQueueItem>> GetNext()
         {
-            var items = _systemStorage.SingleKeyValueStorage.Get<List<TransitKeyEncryptionQueueItem>>(_queueKey);
+            var items = _tenantSystemStorage.SingleKeyValueStorage.Get<List<TransitKeyEncryptionQueueItem>>(_queueKey);
             return Task.FromResult<IEnumerable<TransitKeyEncryptionQueueItem>>(items);
         }
     }

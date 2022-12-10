@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Quartz;
 using Refit;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Transit.Outbox;
 
 namespace Youverse.Core.Services.Workers.Transit
@@ -27,10 +28,9 @@ namespace Youverse.Core.Services.Workers.Transit
 
         public async Task Execute(IJobExecutionContext context)
         {
-            InitializeHttpClient();
 
             _logger.LogInformation("Send Payload Job running now");
-            var (senders, marker) = await _pendingTransfers.GetSenders();
+            var (senders, marker) = await _pendingTransfers.GetIdentities();
             foreach (var sender in senders)
             {
                 try
@@ -48,41 +48,19 @@ namespace Youverse.Core.Services.Workers.Transit
             _pendingTransfers.MarkComplete(marker);
         }
 
-        private void InitializeHttpClient()
+        private async Task StokeOutbox(DotYouIdentity identity)
         {
-            //TODO: add a certificate for the stoker
-            // var handler = new HttpClientHandler();
-            // handler.ClientCertificates.Add(cert);
-            // handler.AllowAutoRedirect = false;
-            //handler.ServerCertificateCustomValidationCallback
-            //handler.SslProtocols = SslProtocols.None;// | SslProtocols.Tls13;
+            _logger.LogInformation($"Stoke running for {identity}");
 
-            //_client = new System.Net.Http.HttpClient(handler);
-            this._client = new HttpClient();
-        }
-
-        private async Task StokeOutbox(DotYouIdentity sender)
-        {
-            var uri = new UriBuilder()
-            {
-                Scheme = "https",
-                Host = sender
-            }.Uri;
-
-
-            _logger.LogInformation($"Stoke running for {sender}");
-
-            _client.BaseAddress = uri;
-            _client.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
-            var svc = RestService.For<IOutboxHttpClient>(_client);
-
+            var svc = SystemHttpClient.CreateHttps<IOutboxHttpClient>(identity);
             var response = await svc.ProcessOutbox(batchSize: 1);
+
             //TODO: needs information to determine if it should stoke again; and when
 
             if (!response.IsSuccessStatusCode)
             {
                 //TODO: need to log an error here and notify sys admins?
-                _logger.LogWarning($"Background stoking for [{uri}] failed.");
+                _logger.LogWarning($"Background stoking for [{identity}] failed.");
             }
         }
     }

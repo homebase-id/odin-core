@@ -29,19 +29,17 @@ namespace Youverse.Core.Services.Authentication.Owner
     /// </summary>
     public class OwnerAuthenticationService : IOwnerAuthenticationService, INotificationHandler<DriveDefinitionAddedNotification>
     {
-        private readonly ISystemStorage _systemStorage;
-        private readonly ILogger<IOwnerAuthenticationService> _logger;
+        private readonly ITenantSystemStorage _tenantSystemStorage;
         private readonly IOwnerSecretService _secretService;
 
         private readonly DotYouContextCache _cache;
+        private readonly ILogger<IOwnerAuthenticationService> _logger;
 
-        public OwnerAuthenticationService(ILogger<IOwnerAuthenticationService> logger, IOwnerSecretService secretService, ISystemStorage systemStorage)
+        public OwnerAuthenticationService(ILogger<IOwnerAuthenticationService> logger, IOwnerSecretService secretService, ITenantSystemStorage tenantSystemStorage)
         {
             _logger = logger;
             _secretService = secretService;
-            _systemStorage = systemStorage;
-
-            _cache = new DotYouContextCache();
+            _tenantSystemStorage = tenantSystemStorage;
         }
 
         public async Task<NonceData> GenerateAuthenticationNonce()
@@ -50,7 +48,7 @@ namespace Youverse.Core.Services.Authentication.Owner
             var (publicKeyCrc32C, publicKeyPem) = await _secretService.GetCurrentAuthenticationRsaKey();
 
             var nonce = new NonceData(salts.SaltPassword64, salts.SaltKek64, publicKeyPem, publicKeyCrc32C);
-            _systemStorage.SingleKeyValueStorage.Upsert(nonce.Id, nonce);
+            _tenantSystemStorage.SingleKeyValueStorage.Upsert(nonce.Id, nonce);
             return nonce;
         }
 
@@ -58,13 +56,13 @@ namespace Youverse.Core.Services.Authentication.Owner
         {
             byte[] key = Convert.FromBase64String(reply.Nonce64);
             // Ensure that the Nonce given by the client can be loaded, throw exception otherwise
-            var noncePackage = _systemStorage.SingleKeyValueStorage.Get<NonceData>(new GuidId(key));
+            var noncePackage = _tenantSystemStorage.SingleKeyValueStorage.Get<NonceData>(new GuidId(key));
 
             // TODO TEST Make sure an exception is thrown if it does not exist.
             Guard.Argument(noncePackage, nameof(noncePackage)).NotNull("Invalid nonce specified");
 
             // TODO TEST Make sure the nonce saved is deleted and can't be replayed.
-            _systemStorage.SingleKeyValueStorage.Delete(new GuidId(key));
+            _tenantSystemStorage.SingleKeyValueStorage.Delete(new GuidId(key));
 
             // Here we test if the client's provided nonce is saved on the server and if the
             // client's calculated nonceHash is equal to the same calculation on the server
@@ -73,7 +71,7 @@ namespace Youverse.Core.Services.Authentication.Owner
             var keys = await this._secretService.GetRsaKeyList();
             var (clientToken, serverToken) = OwnerConsoleTokenManager.CreateToken(noncePackage, reply, keys);
 
-            _systemStorage.SingleKeyValueStorage.Upsert(serverToken.Id, serverToken);
+            _tenantSystemStorage.SingleKeyValueStorage.Upsert(serverToken.Id, serverToken);
 
             // TODO - where do we set the MasterKek and MasterDek?
 
@@ -93,14 +91,14 @@ namespace Youverse.Core.Services.Authentication.Owner
         public async Task<bool> IsValidToken(Guid sessionToken)
         {
             //TODO: need to add some sort of validation that this deviceUid has not been rejected/blocked
-            var entry = _systemStorage.SingleKeyValueStorage.Get<OwnerConsoleToken>(sessionToken);
+            var entry = _tenantSystemStorage.SingleKeyValueStorage.Get<OwnerConsoleToken>(sessionToken);
             return IsAuthTokenEntryValid(entry);
         }
 
         public async Task<(SensitiveByteArray, SensitiveByteArray)> GetMasterKey(Guid sessionToken, SensitiveByteArray clientSecret)
         {
             //TODO: need to audit who and what and why this was accessed (add justification/reason on parameters)
-            var loginToken = _systemStorage.SingleKeyValueStorage.Get<OwnerConsoleToken>(sessionToken);
+            var loginToken = _tenantSystemStorage.SingleKeyValueStorage.Get<OwnerConsoleToken>(sessionToken);
 
             if (!IsAuthTokenEntryValid(loginToken))
             {
@@ -134,17 +132,17 @@ namespace Youverse.Core.Services.Authentication.Owner
 
             entry.ExpiryUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + ttlSeconds;
 
-            _systemStorage.SingleKeyValueStorage.Upsert(entry.Id, entry);
+            _tenantSystemStorage.SingleKeyValueStorage.Upsert(entry.Id, entry);
         }
 
         public void ExpireToken(Guid token)
         {
-            _systemStorage.SingleKeyValueStorage.Delete(token);
+            _tenantSystemStorage.SingleKeyValueStorage.Delete(token);
         }
 
         private Task<OwnerConsoleToken> GetValidatedEntry(Guid token)
         {
-            var entry = _systemStorage.SingleKeyValueStorage.Get<OwnerConsoleToken>(token);
+            var entry = _tenantSystemStorage.SingleKeyValueStorage.Get<OwnerConsoleToken>(token);
             AssertTokenIsValid(entry);
             return Task.FromResult(entry);
         }

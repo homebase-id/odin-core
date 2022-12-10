@@ -16,7 +16,7 @@ namespace Youverse.Core.Services.Authorization.Apps
     public class AppRegistrationService : IAppRegistrationService
     {
         private readonly DotYouContextAccessor _contextAccessor;
-        private readonly ISystemStorage _systemStorage;
+        private readonly ITenantSystemStorage _tenantSystemStorage;
         private readonly ExchangeGrantService _exchangeGrantService;
 
         private readonly GuidId _appRegistrationDataType = GuidId.FromString("__app_reg");
@@ -26,16 +26,14 @@ namespace Youverse.Core.Services.Authorization.Apps
         private readonly ThreeKeyValueStorage _appClientValueStorage;
         private DotYouContextCache _cache;
 
-        public AppRegistrationService(DotYouContextAccessor contextAccessor, ILogger<IAppRegistrationService> logger, ISystemStorage systemStorage, ExchangeGrantService exchangeGrantService)
+        public AppRegistrationService(DotYouContextAccessor contextAccessor, ILogger<IAppRegistrationService> logger, ITenantSystemStorage tenantSystemStorage, ExchangeGrantService exchangeGrantService)
         {
             _contextAccessor = contextAccessor;
-            _systemStorage = systemStorage;
+            _tenantSystemStorage = tenantSystemStorage;
             _exchangeGrantService = exchangeGrantService;
 
-            _appRegistrationValueStorage = systemStorage.ThreeKeyValueStorage;
-            _appClientValueStorage = systemStorage.ThreeKeyValueStorage;
-
-            _cache = new DotYouContextCache();
+            _appRegistrationValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
+            _appClientValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
         }
 
         public async Task<RedactedAppRegistration> RegisterApp(GuidId appId, string name, PermissionSet permissions, IEnumerable<DriveGrantRequest> drives)
@@ -170,7 +168,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         public async Task<List<RegisteredAppClientResponse>> GetRegisteredClients()
         {
-            var list = _systemStorage.ThreeKeyValueStorage.GetByKey3<AccessRegistration>(_appClientDataType);
+            var list = _tenantSystemStorage.ThreeKeyValueStorage.GetByKey3<AccessRegistration>(_appClientDataType);
             var resp = list.Select(accessReg => new RegisteredAppClientResponse()
             {
                 IsRevoked = accessReg.IsRevoked,

@@ -29,7 +29,7 @@ namespace Youverse.Core.Services.Drive;
 /// </summary>
 public class DriveManager
 {
-    private readonly ISystemStorage _systemStorage;
+    private readonly ITenantSystemStorage _tenantSystemStorage;
     private readonly IMediator _mediator;
     private readonly DotYouContextAccessor _contextAccessor;
     private readonly TenantContext _tenantContext;
@@ -39,10 +39,10 @@ public class DriveManager
     private readonly object _createDriveLock = new object();
     private readonly byte[] _driveDataType = "drive".ToUtf8ByteArray(); //keep it lower case
 
-    public DriveManager(DotYouContextAccessor contextAccessor, ISystemStorage systemStorage, IMediator mediator, TenantContext tenantContext)
+    public DriveManager(DotYouContextAccessor contextAccessor, ITenantSystemStorage tenantSystemStorage, IMediator mediator, TenantContext tenantContext)
     {
         _contextAccessor = contextAccessor;
-        _systemStorage = systemStorage;
+        _tenantSystemStorage = tenantSystemStorage;
         _mediator = mediator;
         _tenantContext = tenantContext;
         _driveCache = new ConcurrentDictionary<Guid, StorageDrive>();
@@ -94,7 +94,7 @@ public class DriveManager
 
             secret.Wipe();
 
-            _systemStorage.ThreeKeyValueStorage.Upsert(sdb.Id, request.TargetDrive.ToKey(), _driveDataType, sdb);
+            _tenantSystemStorage.ThreeKeyValueStorage.Upsert(sdb.Id, request.TargetDrive.ToKey(), _driveDataType, sdb);
 
             storageDrive = ToStorageDrive(sdb);
             storageDrive.EnsureDirectories();
@@ -133,7 +133,7 @@ public class DriveManager
         {
             storageDrive.AllowAnonymousReads = allowAnonymous;
 
-            _systemStorage.ThreeKeyValueStorage.Upsert(driveId, storageDrive.TargetDriveInfo.ToKey(), _driveDataType, storageDrive);
+            _tenantSystemStorage.ThreeKeyValueStorage.Upsert(driveId, storageDrive.TargetDriveInfo.ToKey(), _driveDataType, storageDrive);
 
             CacheDrive(storageDrive);
 
@@ -150,10 +150,10 @@ public class DriveManager
     public Task UpdateMetadata(Guid driveId, string metadata)
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-        var sdb = _systemStorage.ThreeKeyValueStorage.Get<StorageDriveBase>(driveId);
+        var sdb = _tenantSystemStorage.ThreeKeyValueStorage.Get<StorageDriveBase>(driveId);
         sdb.Metadata = metadata;
 
-        _systemStorage.ThreeKeyValueStorage.Upsert(driveId, sdb.TargetDriveInfo.ToKey(), _driveDataType, sdb);
+        _tenantSystemStorage.ThreeKeyValueStorage.Upsert(driveId, sdb.TargetDriveInfo.ToKey(), _driveDataType, sdb);
 
         CacheDrive(ToStorageDrive(sdb));
         return Task.CompletedTask;
@@ -166,7 +166,7 @@ public class DriveManager
             return cachedDrive;
         }
 
-        var sdb = _systemStorage.ThreeKeyValueStorage.Get<StorageDriveBase>(driveId);
+        var sdb = _tenantSystemStorage.ThreeKeyValueStorage.Get<StorageDriveBase>(driveId);
         if (null == sdb)
         {
             if (failIfInvalid)
@@ -189,7 +189,7 @@ public class DriveManager
             return cachedDrive.Id;
         }
 
-        var list = _systemStorage.ThreeKeyValueStorage.GetByKey2<StorageDriveBase>(targetDrive.ToKey());
+        var list = _tenantSystemStorage.ThreeKeyValueStorage.GetByKey2<StorageDriveBase>(targetDrive.ToKey());
         var drives = list as StorageDriveBase[] ?? list.ToArray();
         if (!drives.Any())
         {
@@ -257,7 +257,7 @@ public class DriveManager
         }
         else
         {
-            allDrives = _systemStorage.ThreeKeyValueStorage
+            allDrives = _tenantSystemStorage.ThreeKeyValueStorage
                 .GetByKey3<StorageDriveBase>(_driveDataType)
                 .Select(ToStorageDrive).ToList();
             
@@ -299,7 +299,7 @@ public class DriveManager
 
     private void LoadCache()
     {
-        var storageDrives = _systemStorage.ThreeKeyValueStorage.GetByKey3<StorageDriveBase>(_driveDataType);
+        var storageDrives = _tenantSystemStorage.ThreeKeyValueStorage.GetByKey3<StorageDriveBase>(_driveDataType);
         foreach (var drive in storageDrives.Select(ToStorageDrive).ToList())
         {
             CacheDrive(drive);

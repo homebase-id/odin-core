@@ -156,7 +156,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         private PermissionContext CreateAuthenticatedYouAuthPermissionContext(ClientAuthenticationToken authToken, YouAuthClient client)
         {
             List<int> permissionKeys = new List<int>() { };
-            if (_tenantContext.TenantSystemConfig.AuthenticatedIdentitiesCanViewConnections)
+            if (_tenantContext.Settings.AuthenticatedIdentitiesCanViewConnections)
             {
                 permissionKeys.Add(PermissionKeys.ReadConnections);
             }
