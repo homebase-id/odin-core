@@ -49,10 +49,13 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
             {
                 timers[i] = new long[MAXITERATIONS];
                 Debug.Assert(timers[i].Length == MAXITERATIONS);
-                tasks[i] = Task.Run(async () => {
-                    await DoSomeWork(i, timers[i]);
+                tasks[i] = Task.Run(async () =>
+                {
+                    var counts = await DoSomeWork(i);
+                    timers[i] = counts;
                 });
             }
+
             sw.Stop();
 
             Task.WaitAll(tasks);
@@ -69,12 +72,13 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
             Console.WriteLine($"Average: {oneDimensionalArray.Sum() / MAXITERATIONS}ms\n");
             Console.WriteLine($"\n");
             Console.WriteLine($"Median : {oneDimensionalArray[MAXITERATIONS / 2]}ms\n");
-            Console.WriteLine($"Per sec: {(1000*MAXITERATIONS*MAXTHREADS) / sw.ElapsedMilliseconds}ms\n");
+            Console.WriteLine($"Per sec: {(1000 * MAXITERATIONS * MAXTHREADS) / sw.ElapsedMilliseconds}ms\n");
         }
 
 
-        public async Task DoSomeWork(int threadNo, long[] timers)
+        public async Task<long[]> DoSomeWork(int threadNo)
         {
+            long[] timers = new long[MAXITERATIONS];
             Debug.Assert(timers.Length == MAXITERATIONS);
             var sw = new Stopwatch();
 
@@ -88,6 +92,8 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
                 sw.Stop();
                 timers[count] = sw.ElapsedMilliseconds;
             }
+
+            return timers;
         }
     }
 }
