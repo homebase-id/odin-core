@@ -170,23 +170,22 @@ namespace Youverse.Hosting
 
         private static X509Certificate2 ServerCertificateSelector(ConnectionContext connectionContext, string hostName, YouverseConfiguration config)
         {
-            throw new NotImplementedException("handle provisioning domain");
-            // Log.Information($"provisioning domain: [{cfg.Host.ProvisioningDomain}]");
-            // if (hostName.ToLower().Trim() == config.Registry.ProvisioningDomain.ToLower().Trim())
-            // {
-            //     Log.Information("Loading certificate for provisioning domain");
-            //     string publicKeyPath = Path.Combine(config.Host.SystemSslRootPath, config.Registry.ProvisioningDomain, "certificate.crt");
-            //     string privateKeyPath = Path.Combine(config.Host.SystemSslRootPath, config.Registry.ProvisioningDomain, "private.key");
-            //     Log.Information($"Checking path [{publicKeyPath}]");
-            //
-            //     var cert = DotYouCertificateLoader.LoadCertificate(publicKeyPath, privateKeyPath);
-            //     if (null == cert)
-            //     {
-            //         Log.Error($"No certificate configured for {hostName}");
-            //     }
-            //
-            //     return cert;
-            // }
+            Log.Information($"provisioning domain: [{config.Registry.ProvisioningDomain}]");
+            if (hostName.ToLower().Trim() == config.Registry.ProvisioningDomain.ToLower().Trim())
+            {
+                Log.Information("Loading certificate for provisioning domain");
+                string publicKeyPath = Path.Combine(config.Host.SystemSslRootPath, config.Registry.ProvisioningDomain, "certificate.crt");
+                string privateKeyPath = Path.Combine(config.Host.SystemSslRootPath, config.Registry.ProvisioningDomain, "private.key");
+                Log.Information($"Checking path [{publicKeyPath}]");
+            
+                var cert = DotYouCertificateLoader.LoadCertificate(publicKeyPath, privateKeyPath);
+                if (null == cert)
+                {
+                    Log.Error($"No certificate configured for {hostName}");
+                }
+            
+                return cert;
+            }
 
             // connectionContext.ConnectionId
             if (!string.IsNullOrEmpty(hostName))
