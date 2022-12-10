@@ -40,7 +40,8 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
             //Assert.Pass();
             //return;
             Task[] tasks = new Task[MAXTHREADS];
-            long[][] timers = new long[MAXTHREADS][];
+            // long[][] timers = new long[MAXTHREADS][];
+            List<long[]> timers = new List<long[]>();
 
             var sw = new Stopwatch();
             sw.Start();
@@ -49,10 +50,11 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
             {
                 tasks[i] = Task.Run(async () =>
                 {
-                    var i2 = i; // This is a little better, but not a real solution.
-                    var measurements = await DoSomeWork(i2);
+                    // var i2 = i; // This is a little better, but not a real solution.
+                    var measurements = await DoSomeWork(i);
                     Debug.Assert(measurements.Length == MAXITERATIONS);
-                    timers[i2] = measurements;
+                    // timers[i2] = measurements;
+                    timers.Add(measurements);
                 });
             }
 
@@ -62,9 +64,10 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
 
             // I'll have to build my own semaphore...
 
-            long[] oneDimensionalArray = new long[MAXITERATIONS * MAXTHREADS];
+            // long[] oneDimensionalArray = new long[MAXITERATIONS * MAXTHREADS];
+            long[] oneDimensionalArray = timers.SelectMany(arr => arr).ToArray();
 
-            timers.CopyTo(oneDimensionalArray, 0);
+            // timers.CopyTo(oneDimensionalArray, 0);
             Array.Sort(oneDimensionalArray);
             Console.WriteLine($"Total  : {oneDimensionalArray.Sum()}ms\n");
             Console.WriteLine($"Minimum: {oneDimensionalArray[0]}ms\n");
@@ -72,7 +75,10 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
             Console.WriteLine($"Average: {oneDimensionalArray.Sum() / MAXITERATIONS}ms\n");
             Console.WriteLine($"\n");
             Console.WriteLine($"Median : {oneDimensionalArray[MAXITERATIONS / 2]}ms\n");
-            Console.WriteLine($"Per sec: {(1000 * MAXITERATIONS * MAXTHREADS) / sw.ElapsedMilliseconds}ms\n");
+            if(sw.ElapsedMilliseconds>0)
+            {
+                Console.WriteLine($"Per sec: {(1000 * MAXITERATIONS * MAXTHREADS) / sw.ElapsedMilliseconds}ms\n");
+            }
         }
 
 
