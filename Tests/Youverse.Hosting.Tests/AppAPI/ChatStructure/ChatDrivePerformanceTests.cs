@@ -47,12 +47,12 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
 
             for (var i = 0; i < MAXTHREADS; i++)
             {
-                timers[i] = new long[MAXITERATIONS];
-                Debug.Assert(timers[i].Length == MAXITERATIONS);
                 tasks[i] = Task.Run(async () =>
                 {
-                    var counts = await DoSomeWork(i);
-                    timers[i] = counts;
+                    var i2 = i; // This is a little better, but not a real solution.
+                    var measurements = await DoSomeWork(i2);
+                    Debug.Assert(measurements.Length == MAXITERATIONS);
+                    timers[i2] = measurements;
                 });
             }
 
