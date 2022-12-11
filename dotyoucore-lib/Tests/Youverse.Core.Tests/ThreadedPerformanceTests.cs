@@ -1,37 +1,17 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Runtime.Intrinsics.X86;
-using System.Security.Cryptography.X509Certificates;
-using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.VisualBasic;
-using Microsoft.VisualStudio.TestPlatform.PlatformAbstractions.Interfaces;
 using NUnit.Framework;
-using NUnit.Framework.Interfaces;
-using Youverse.Core;
-using Youverse.Core.Identity;
-using Youverse.Hosting.Tests.AppAPI.ChatStructure.Api;
-using Org.BouncyCastle.Security;
-using Youverse.Core.Cryptography.Crypto;
-using System.ComponentModel.DataAnnotations;
-using System.Security.Cryptography;
-using Org.BouncyCastle.Crypto.Parameters;
-using Org.BouncyCastle.Crypto;
-using Org.BouncyCastle.OpenSsl;
-using Org.BouncyCastle.Utilities.IO.Pem;
-using System.Timers;
 
-namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
+namespace Youverse.Core.Tests
 {
     public class ThreadedPerformanceTests
     {
         // For the performance test
-        const int MAXTHREADS = 50;
-        const int MAXITERATIONS = 1000;
+        const int MAXTHREADS = 50;   // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
+        const int MAXITERATIONS = 1000;  // A number high enough to get warmed up and reliable
 
 
         [Test]
@@ -98,10 +78,10 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
 
 
                 // Finished doing all the work
-
                 timers[count] = sw.ElapsedMilliseconds;
                 //
                 // If you want to introduce a delay be sure to use: await Task.Delay(1);
+                // Take.Delay() is very inaccurate.
             }
 
             return timers;
