@@ -16,7 +16,7 @@ namespace Youverse.Hosting._dev
         public static void RegisterPreconfiguredDomains(YouverseConfiguration youverseConfiguration, IIdentityRegistry identityRegistry)
         {
             Dictionary<Guid, string> certificates = new();
-            if (youverseConfiguration.Development.PreconfiguredDomains.Any())
+            if (youverseConfiguration.Development?.PreconfiguredDomains.Any() ?? false)
             {
                 foreach (var domain in youverseConfiguration.Development.PreconfiguredDomains)
                 {
@@ -44,7 +44,7 @@ namespace Youverse.Hosting._dev
             {
                 if (identityRegistry.Get(domain).GetAwaiter().GetResult() != null)
                 {
-                    continue;
+                    identityRegistry.DeleteRegistration(domain).GetAwaiter().GetResult();
                 }
 
                 var (sourcePublicKeyPath, sourcePrivateKeyPath) = GetSourceDomainPath(domain, youverseConfiguration);

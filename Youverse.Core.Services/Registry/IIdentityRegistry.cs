@@ -22,6 +22,14 @@ namespace Youverse.Core.Services.Registry
         /// <param name="request"></param>
         Task<Guid> AddRegistration(IdentityRegistrationRequest request);
 
+
+        /// <summary>
+        /// Fully deletes a registration and all data; use with caution
+        /// </summary>
+        /// <param name="domain"></param>
+        /// <returns></returns>
+        Task DeleteRegistration(string domain);
+        
         /// <summary>
         /// Gets a list of <see cref="IdentityRegistration"/>s based on the paging options sorted by domain name ascending
         /// </summary>

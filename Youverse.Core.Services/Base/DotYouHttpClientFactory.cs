@@ -48,7 +48,7 @@ namespace Youverse.Core.Services.Base
 
             var handler = new HttpClientHandler();
 
-            var cert = _tenantCertificateService.GetSslCertificate(dotYouId.Id);
+            var cert = _tenantCertificateService.GetSslCertificate(_tenantContext.HostDotYouId);
             if (null == cert)
             {
                 throw new YouverseSystemException($"No certificate configured for {_tenantContext.HostDotYouId}");

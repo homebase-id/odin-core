@@ -36,6 +36,7 @@ namespace Youverse.Hosting.Tests
         public void RunBeforeAnyTests(bool initializeIdentity = true)
         {
             Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
+            Environment.SetEnvironmentVariable("DOTYOU_ENVIRONMENT", "Development");
 
             Environment.SetEnvironmentVariable("Host__ProvisioningDomain", "provisioning-dev.onekin.io");
             Environment.SetEnvironmentVariable("Host__TenantDataRootPath", TestDataPath);
@@ -48,7 +49,7 @@ namespace Youverse.Hosting.Tests
             Environment.SetEnvironmentVariable("Logging__LogFilePath", TempDataPath);
 
             Environment.SetEnvironmentVariable("CertificateRenewal__NumberOfCertificateValidationTries", "3");
-            Environment.SetEnvironmentVariable("CertificateRenewal__NumberOfCertificateValidationTries", "false");
+            Environment.SetEnvironmentVariable("CertificateRenewal__UseCertificateAuthorityProductionServers", "false");
             Environment.SetEnvironmentVariable("CertificateRenewal__CertificateAuthorityAssociatedEmail", "email@nowhere.com");
             Environment.SetEnvironmentVariable("CertificateRenewal__CsrCountryName", "US");
             Environment.SetEnvironmentVariable("CertificateRenewal__CsrState", "CA");

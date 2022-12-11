@@ -40,6 +40,7 @@ namespace Youverse.Core.Services.Authentication.Owner
             _logger = logger;
             _secretService = secretService;
             _tenantSystemStorage = tenantSystemStorage;
+            _cache = new DotYouContextCache();
         }
 
         public async Task<NonceData> GenerateAuthenticationNonce()
@@ -174,7 +175,7 @@ namespace Youverse.Core.Services.Authentication.Owner
                 _logger.LogDebug("New drive created [{0}]; Purging cache ", notification.Drive.TargetDriveInfo);
                 _cache.Purge();
             }
-            
+
             return Task.CompletedTask;
         }
     }

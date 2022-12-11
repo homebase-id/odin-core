@@ -30,7 +30,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Authentication
 
         //TODO: move these to a secrets/provisioning controller
 
-        [Post(RootPath + "/todo_move_this")]
+        [Post(RootPath + "/passwd")]
         Task<ApiResponse<NoResultResponse>> SetNewPassword([Body] PasswordReply reply);
 
         [Get(RootPath + "/getsalts")]

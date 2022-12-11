@@ -86,6 +86,18 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         return registration.FirstRunToken.GetValueOrDefault();
     }
 
+    public async Task DeleteRegistration(string domain)
+    {
+        var registration = await Get(domain);
+
+        if (null != registration)
+        {
+            string tenantRoot = Path.Combine(_tenantDataRootPath, registration.Id.ToString());
+            Directory.Delete(tenantRoot, true);
+            _trie.RemoveDomain(domain);
+        }
+    }
+
     public async Task MarkRegistrationComplete(Guid firstRunToken)
     {
         var registration = GetByFirstRunToken(firstRunToken);
@@ -129,7 +141,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         {
             return RegistrationStatus.Unknown;
         }
-        
+
         //TODO: Log system error here?
 
         return RegistrationStatus.Unknown;
@@ -144,7 +156,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         await File.WriteAllTextAsync(GetRegFilePath(registration.Id), json);
 
         Log.Information($"Write registration file for [{registration.Id}]");
-        
+
         Cache(registration);
     }
 
@@ -212,7 +224,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                     Log.Warning($"Identity Registry: Found invalid folder not in GUID format named [{potentialId}]; moving to next");
                     continue;
                 }
-                
+
                 var regFile = GetRegFilePath(id);
 
                 if (!File.Exists(regFile))
