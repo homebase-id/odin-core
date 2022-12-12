@@ -63,7 +63,7 @@ namespace Youverse.Core.Services.Drive
         /// <summary>
         /// Writes a stream to the drive's temporary storage
         /// </summary>
-        Task WriteTempStream(InternalDriveFileId file, string extension, Stream stream);
+        Task<uint> WriteTempStream(InternalDriveFileId file, string extension, Stream stream);
 
         Task<Stream> GetTempStream(InternalDriveFileId file, string extension);
 

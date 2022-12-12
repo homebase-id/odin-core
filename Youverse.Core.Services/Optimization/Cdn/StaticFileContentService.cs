@@ -40,16 +40,16 @@ public class StaticFileContentService
     private readonly IDriveQueryService _driveQueryService;
     private readonly TenantContext _tenantContext;
     private readonly DotYouContextAccessor _contextAccessor;
-    private readonly ISystemStorage _systemStorage;
+    private readonly ITenantSystemStorage _tenantSystemStorage;
 
     public StaticFileContentService(IDriveService driveService, IDriveQueryService driveQueryService,
-        TenantContext tenantContext, DotYouContextAccessor contextAccessor, ISystemStorage systemStorage)
+        TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITenantSystemStorage tenantSystemStorage)
     {
         _driveService = driveService;
         _driveQueryService = driveQueryService;
         _tenantContext = tenantContext;
         _contextAccessor = contextAccessor;
-        _systemStorage = systemStorage;
+        _tenantSystemStorage = tenantSystemStorage;
     }
 
     public async Task<StaticFilePublishResult> Publish(string filename, StaticFileConfiguration config,
@@ -113,14 +113,14 @@ public class StaticFileContentService
                     FileId = fileHeader.FileId,
                     DriveId = driveId
                 };
-
+                
                 if (section.ResultOptions.IncludeAdditionalThumbnails)
                 {
                     foreach (var thumbHeader in fileHeader.FileMetadata.AppData?.AdditionalThumbnails ?? new List<ImageDataHeader>())
                     {
                         var thumbnailStream = await _driveService.GetThumbnailPayloadStream(
                             internalFileId, thumbHeader.PixelWidth, thumbHeader.PixelHeight);
-
+                        
                         thumbnails.Add(new ImageDataContent()
                         {
                             PixelHeight = thumbHeader.PixelHeight,
@@ -157,10 +157,10 @@ public class StaticFileContentService
         fileStream.Close();
 
         string finalTargetPath = Path.Combine(targetFolder, filename);
-
+            
         File.Move(tempTargetPath, finalTargetPath, true);
         config.ContentType = MediaTypeNames.Application.Json;
-        _systemStorage.SingleKeyValueStorage.Upsert(GetConfigKey(filename), config);
+        _tenantSystemStorage.SingleKeyValueStorage.Upsert(GetConfigKey(filename), config);
 
         return result;
     }
@@ -170,7 +170,9 @@ public class StaticFileContentService
         Guard.Argument(filename, nameof(filename)).NotEmpty().NotNull().Require(Validators.IsValidFilename);
         string targetFile = Path.Combine(_tenantContext.StaticFileDataRoot, filename);
 
-        var config = _systemStorage.SingleKeyValueStorage.Get<StaticFileConfiguration>(GetConfigKey(filename));
+        var config = _tenantSystemStorage.SingleKeyValueStorage.Get<StaticFileConfiguration>(GetConfigKey(filename));
+
+
 
         var fileStream = File.Open(targetFile, FileMode.Open, FileAccess.Read, FileShare.Read);
         return Task.FromResult((config, (Stream)fileStream));
@@ -195,8 +197,8 @@ public class StaticFileContentService
             ContentType = contentType,
             CrossOriginBehavior = CrossOriginBehavior.AllowAllOrigins
         };
-
-        _systemStorage.SingleKeyValueStorage.Upsert(GetConfigKey(filename), config);
+        
+        _tenantSystemStorage.SingleKeyValueStorage.Upsert(GetConfigKey(filename), config);
     }
 
     public async Task PublishProfileCard(string json)
@@ -219,7 +221,7 @@ public class StaticFileContentService
         };
 
         config.ContentType = MediaTypeNames.Application.Json;
-        _systemStorage.SingleKeyValueStorage.Upsert(GetConfigKey(filename), config);
+        _tenantSystemStorage.SingleKeyValueStorage.Upsert(GetConfigKey(filename), config);
     }
 
     private GuidId GetConfigKey(string filename)

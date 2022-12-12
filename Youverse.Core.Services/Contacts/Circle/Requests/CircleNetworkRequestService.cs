@@ -31,7 +31,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         private readonly ILogger<ICircleNetworkRequestService> _logger;
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
 
-        private readonly ISystemStorage _systemStorage;
+        private readonly ITenantSystemStorage _tenantSystemStorage;
         private readonly IMediator _mediator;
         private readonly TenantContext _tenantContext;
         private readonly IPublicKeyService _rsaPublicKeyService;
@@ -45,7 +45,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             DotYouContextAccessor contextAccessor,
             ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger,
             IDotYouHttpClientFactory dotYouHttpClientFactory,
-            ISystemStorage systemStorage,
+            ITenantSystemStorage tenantSystemStorage,
             IMediator mediator,
             TenantContext tenantContext,
             IPublicKeyService rsaPublicKeyService,
@@ -56,7 +56,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             _cns = cns;
             _logger = logger;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
-            _systemStorage = systemStorage;
+            _tenantSystemStorage = tenantSystemStorage;
             _mediator = mediator;
             _tenantContext = tenantContext;
             _rsaPublicKeyService = rsaPublicKeyService;
@@ -64,8 +64,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             _circleDefinitionService = circleDefinitionService;
             _contextAccessor = contextAccessor;
 
-            _pendingRequestValueStorage = systemStorage.ThreeKeyValueStorage;
-            _sentRequestValueStorage = systemStorage.ThreeKeyValueStorage;
+            _pendingRequestValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
+            _sentRequestValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
         }
 
         public async Task<PagedResult<ConnectionRequest>> GetPendingRequests(PageOptions pageOptions)

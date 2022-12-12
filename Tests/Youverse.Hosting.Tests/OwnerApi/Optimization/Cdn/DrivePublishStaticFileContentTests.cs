@@ -287,7 +287,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                         AppData = new()
                         {
                             Tags = tags,
-                            ContentIsComplete = true,
+                            ContentIsComplete = payloadContent == null,
                             JsonContent = jsonContent,
                             FileType = fileType,
                             DataType = dataType,
@@ -357,15 +357,17 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                 Assert.IsTrue(clientFileHeader.FileMetadata.AppData.AdditionalThumbnails.Count() == (additionalThumbs?.Count ?? 0));
 
                 //
-                // Get the payload that was uploaded, test it
+                // If payload was uploaded, get the payload that was uploaded, test it
                 // 
+                if(payloadContent != null)
+                {
+                    var payloadResponse = await getFilesDriveSvc.GetPayload(uploadedFile);
+                    Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
+                    Assert.That(payloadResponse.Content, Is.Not.Null);
 
-                var payloadResponse = await getFilesDriveSvc.GetPayload(uploadedFile);
-                Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
-                Assert.That(payloadResponse.Content, Is.Not.Null);
-
-                var payloadResponseBytes = await payloadResponse.Content.ReadAsByteArrayAsync();
-                Assert.That(payloadContent ?? Array.Empty<byte>(), Is.EqualTo(payloadResponseBytes));
+                    var payloadResponseBytes = await payloadResponse.Content.ReadAsByteArrayAsync();
+                    Assert.That(payloadContent ?? Array.Empty<byte>(), Is.EqualTo(payloadResponseBytes));
+                }
 
                 //
                 // Validate additional thumbnails

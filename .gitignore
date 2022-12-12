@@ -40,3 +40,5 @@ dist/
 # examples stuffs dependencies
 /youverse.hosting/client/examples/node_modules
 /youverse.hosting/client/examples/build
+node_modules/
+

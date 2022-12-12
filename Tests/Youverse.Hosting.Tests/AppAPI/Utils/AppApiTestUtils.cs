@@ -136,6 +136,12 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
 
                 fileMetadata.PayloadIsEncrypted = true;
 
+                payloadData = options?.PayloadData ?? payloadData;
+                if (payloadData.Length > 0)
+                {
+                    fileMetadata.AppData.ContentIsComplete = false;
+                }
+                
                 var descriptor = new UploadFileDescriptor()
                 {
                     EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref sharedSecret),
@@ -144,9 +150,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
 
                 var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
 
-                payloadData = options?.PayloadData ?? payloadData;
                 var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadData);
-
+                
                 var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
 
                 var response = await transitSvc.Upload(

@@ -16,13 +16,13 @@ namespace Youverse.Core.Services.EncryptionKeyService
     {
         private readonly Guid _rsaKeyStorageId = Guid.Parse("AAAAAAAF-0f85-EEEE-E77E-e8e0b06c2777");
 
-        private readonly ISystemStorage _systemStorage;
+        private readonly ITenantSystemStorage _tenantSystemStorage;
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
 
-        public RsaKeyService(ISystemStorage systemStorage, DotYouContextAccessor contextAccessor, IDotYouHttpClientFactory dotYouHttpClientFactory)
+        public RsaKeyService(ITenantSystemStorage tenantSystemStorage, DotYouContextAccessor contextAccessor, IDotYouHttpClientFactory dotYouHttpClientFactory)
         {
-            _systemStorage = systemStorage;
+            _tenantSystemStorage = tenantSystemStorage;
             _contextAccessor = contextAccessor;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
         }
@@ -68,7 +68,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
 
         public async Task InvalidatePublicKey(DotYouIdentity recipient)
         {
-            _systemStorage.SingleKeyValueStorage.Delete(GuidId.FromString(recipient.Id));
+            _tenantSystemStorage.SingleKeyValueStorage.Delete(GuidId.FromString(recipient.Id));
         }
 
         public async Task<bool> IsValidPublicKey(UInt32 crc)
@@ -92,7 +92,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
             var pk = RsaKeyListManagement.GetCurrentKey(ref key, ref keys, out var keyListWasUpdated); // TODO
             if (keyListWasUpdated)
             {
-                _systemStorage.SingleKeyValueStorage.Upsert(_rsaKeyStorageId, keys);
+                _tenantSystemStorage.SingleKeyValueStorage.Upsert(_rsaKeyStorageId, keys);
             }
 
             return pk;
@@ -103,7 +103,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
         {
             //TODO: need to clean up the cache for expired items
             //TODO: optimize by reading a dictionary cache
-            var cacheItem = _systemStorage.SingleKeyValueStorage.Get<RsaPublicKeyData>(GuidId.FromString(recipient.Id));
+            var cacheItem = _tenantSystemStorage.SingleKeyValueStorage.Get<RsaPublicKeyData>(GuidId.FromString(recipient.Id));
             
             if ((cacheItem == null || cacheItem.IsExpired()) && lookupIfInvalid)
             {
@@ -123,7 +123,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
                     expiration = new UnixTimeUtc(tpkResponse.Content.Expiration)
                 };
 
-                _systemStorage.SingleKeyValueStorage.Upsert(GuidId.FromString(recipient.Id), cacheItem);
+                _tenantSystemStorage.SingleKeyValueStorage.Upsert(GuidId.FromString(recipient.Id), cacheItem);
             }
 
             if (null == cacheItem && failIfCannotRetrieve)
@@ -148,14 +148,14 @@ namespace Youverse.Core.Services.EncryptionKeyService
 
         private Task<RsaFullKeyListData> GetOfflineKeyInternal()
         {
-            var result = _systemStorage.SingleKeyValueStorage.Get<RsaFullKeyListData>(_rsaKeyStorageId);
+            var result = _tenantSystemStorage.SingleKeyValueStorage.Get<RsaFullKeyListData>(_rsaKeyStorageId);
 
             if (result == null || result.ListRSA == null)
             {
                 var key = GetOfflineKeyDecryptionKey();
                 var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(ref key, 2);
 
-                _systemStorage.SingleKeyValueStorage.Upsert(_rsaKeyStorageId, rsaKeyList);
+                _tenantSystemStorage.SingleKeyValueStorage.Upsert(_rsaKeyStorageId, rsaKeyList);
                 return Task.FromResult(rsaKeyList);
             }
 

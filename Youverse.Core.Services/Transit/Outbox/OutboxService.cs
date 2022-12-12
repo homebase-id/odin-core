@@ -26,17 +26,17 @@ namespace Youverse.Core.Services.Transit.Outbox
     public class OutboxService : IOutboxService
     {
         private readonly IPendingTransfersService _pendingTransfers;
-        private readonly ISystemStorage _systemStorage;
+        private readonly ITenantSystemStorage _tenantSystemStorage;
         private readonly DotYouContextAccessor _contextAccessorAccessor;
         private readonly TenantContext _tenantContext;
         private const string OutboxItemsCollection = "obxitems";
 
-        public OutboxService(DotYouContextAccessor contextAccessor, ILogger<IOutboxService> logger, IPendingTransfersService pendingTransfers, ISystemStorage systemStorage,
+        public OutboxService(DotYouContextAccessor contextAccessor, ILogger<IOutboxService> logger, IPendingTransfersService pendingTransfers, ITenantSystemStorage tenantSystemStorage,
             TenantContext tenantContext)
         {
             _contextAccessorAccessor = contextAccessor;
             _pendingTransfers = pendingTransfers;
-            _systemStorage = systemStorage;
+            _tenantSystemStorage = tenantSystemStorage;
             _tenantContext = tenantContext;
         }
 
@@ -54,13 +54,13 @@ namespace Youverse.Core.Services.Transit.Outbox
                 Attempts = { }
             }).ToUtf8ByteArray();
 
-            _systemStorage.Outbox.InsertRow(
+            _tenantSystemStorage.Outbox.InsertRow(
                 item.File.DriveId.ToByteArray(),
                 item.File.FileId.ToByteArray(),
                 item.Priority,
                 state);
 
-            _pendingTransfers.EnsureSenderIsPending(_tenantContext.HostDotYouId);
+            _pendingTransfers.EnsureIdentityIsPending(_tenantContext.HostDotYouId);
             return Task.CompletedTask;
         }
 
@@ -76,7 +76,7 @@ namespace Youverse.Core.Services.Transit.Outbox
 
         public Task MarkComplete(byte[] marker)
         {
-            _systemStorage.Outbox.PopCommit(marker);
+            _tenantSystemStorage.Outbox.PopCommit(marker);
             return Task.CompletedTask;
         }
 
@@ -85,9 +85,9 @@ namespace Youverse.Core.Services.Transit.Outbox
         /// </summary>
         public async Task MarkFailure(byte[] marker, TransferFailureReason reason)
         {
-            _systemStorage.Outbox.PopCommitList(marker, listFileId: new List<byte[]>());
+            _tenantSystemStorage.Outbox.PopCommitList(marker, listFileId: new List<byte[]>());
             //TODO: there is no way to keep information on why an item failed
-            _systemStorage.Outbox.PopCancel(marker);
+            _tenantSystemStorage.Outbox.PopCancel(marker);
 
             // if (null == item)
             // {
@@ -104,7 +104,7 @@ namespace Youverse.Core.Services.Transit.Outbox
         public async Task<List<OutboxItem>> GetBatchForProcessing(Guid driveId, int batchSize)
         {
             //CRITICAL NOTE: To integrate this with the existing outbox design, you can only pop one item at a time since the marker defines a set
-            var records = _systemStorage.Outbox.Pop(driveId.ToByteArray(), batchSize, out var marker);
+            var records = _tenantSystemStorage.Outbox.Pop(driveId.ToByteArray(), batchSize, out var marker);
 
             var items = records.Select(r =>
             {

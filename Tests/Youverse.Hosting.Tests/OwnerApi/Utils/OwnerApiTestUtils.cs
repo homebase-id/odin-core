@@ -72,6 +72,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             };
             var saltyReply = PasswordDataManager.CalculatePasswordReply(password, saltyNonce);
 
+            //saltyReply.FirstRunToken = ???
+     
             var newPasswordResponse = await svc.SetNewPassword(saltyReply);
             Assert.IsTrue(newPasswordResponse.IsSuccessStatusCode, "failed forcing a new password");
         }

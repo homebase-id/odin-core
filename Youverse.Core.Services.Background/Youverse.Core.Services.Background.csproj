@@ -14,6 +14,7 @@
     <ItemGroup>
       <ProjectReference Include="..\dotyoucore-lib\Youverse.Core\Youverse.Core.csproj" />
       <ProjectReference Include="..\Youverse.Core.Services\Youverse.Core.Services.csproj" />
+      <ProjectReference Include="..\Youverse.Provisioning\Youverse.Provisioning.csproj" />
     </ItemGroup>
 
 </Project>

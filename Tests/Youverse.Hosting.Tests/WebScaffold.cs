@@ -10,6 +10,7 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Util;
+using Youverse.Hosting._dev;
 using Youverse.Hosting.Tests.AppAPI.Utils;
 using Youverse.Hosting.Tests.OwnerApi.Utils;
 
@@ -23,7 +24,7 @@ namespace Youverse.Hosting.Tests
         private readonly OwnerApiTestUtils _ownerApi;
         private AppApiTestUtils _appApi;
         private ScenarioBootstrapper _scenarios;
-        private DevelopmentIdentityRegistry _registry;
+        private IIdentityRegistry _registry;
 
         public WebScaffold(string folder)
         {
@@ -35,21 +36,46 @@ namespace Youverse.Hosting.Tests
         public void RunBeforeAnyTests(bool initializeIdentity = true)
         {
             Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
+            Environment.SetEnvironmentVariable("DOTYOU_ENVIRONMENT", "Development");
 
-            this.DeleteData();
-            this.DeleteLogs();
-
-            _registry = new DevelopmentIdentityRegistry(TestDataPath, TempDataPath);
-            _registry.Initialize();
-
-            Environment.SetEnvironmentVariable("Host__RegistryServerUri", "https://r.youver.se:9443");
+            Environment.SetEnvironmentVariable("Host__ProvisioningDomain", "provisioning-dev.onekin.io");
             Environment.SetEnvironmentVariable("Host__TenantDataRootPath", TestDataPath);
-            Environment.SetEnvironmentVariable("Host__TempTenantDataRootPath", TempDataPath);
             Environment.SetEnvironmentVariable("Host__UseLocalCertificateRegistry", "true");
             Environment.SetEnvironmentVariable("Quartz__EnableQuartzBackgroundService", "false");
             Environment.SetEnvironmentVariable("Quartz__BackgroundJobStartDelaySeconds", "10");
             Environment.SetEnvironmentVariable("Quartz__ProcessOutboxIntervalSeconds", "5");
+            Environment.SetEnvironmentVariable("Quartz__EnsureCertificateProcessorIntervalSeconds", "1000");
+            Environment.SetEnvironmentVariable("Quartz__ProcessPendingCertificateOrderIntervalInSeconds", "1000");
             Environment.SetEnvironmentVariable("Logging__LogFilePath", TempDataPath);
+
+            Environment.SetEnvironmentVariable("CertificateRenewal__NumberOfCertificateValidationTries", "3");
+            Environment.SetEnvironmentVariable("CertificateRenewal__UseCertificateAuthorityProductionServers", "false");
+            Environment.SetEnvironmentVariable("CertificateRenewal__CertificateAuthorityAssociatedEmail", "email@nowhere.com");
+            Environment.SetEnvironmentVariable("CertificateRenewal__CsrCountryName", "US");
+            Environment.SetEnvironmentVariable("CertificateRenewal__CsrState", "CA");
+            Environment.SetEnvironmentVariable("CertificateRenewal__CsrLocality", "Berkeley");
+            Environment.SetEnvironmentVariable("CertificateRenewal__CsrOrganization", "YF");
+            Environment.SetEnvironmentVariable("CertificateRenewal__CsrOrganizationUnit", "Dev");
+            
+            Environment.SetEnvironmentVariable("Development__SslSourcePath", "./https/");
+            // Environment.SetEnvironmentVariable("Development__PreconfiguredDomains",);
+
+                // "PreconfiguredDomains": [
+                // "frodo.digital",
+                // "samwise.gamgee",
+                // "merry.onekin.io",
+                // "pippin.onekin.io"
+                //     ]
+            
+                
+            this.DeleteData();
+            this.DeleteLogs();
+            
+            
+            _registry = new FileSystemIdentityRegistry(TestDataPath, null);
+            _registry.Initialize();
+            var (config, _) = Program.LoadConfig();
+            DevEnvironmentSetup.RegisterPreconfiguredDomains(config, _registry);
 
             _webserver = Program.CreateHostBuilder(Array.Empty<string>()).Build();
             _webserver.Start();

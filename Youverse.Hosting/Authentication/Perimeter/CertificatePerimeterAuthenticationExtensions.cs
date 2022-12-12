@@ -61,20 +61,24 @@ namespace Youverse.Hosting.Authentication.Perimeter
 
             //TODO: PROTOTRIAL: assumes the certificate has a format where the domain is a common name. revisit
             string domain = CertificateUtils.GetDomainFromCommonName(context.ClientCertificate.Subject);
-            
+
+
             // start hack
-            //temp hack to continue until I build the letsencrypt cert system
+#if DEBUG
+//temp hack to continue until I build the letsencrypt cert system
             if (domain == "*.onekin.io")
             {
-                 domain = context.Request.Headers["dns_hack"].FirstOrDefault();
+                domain = context.Request.Headers["dns_hack"].FirstOrDefault();
             }
+#endif
+// end hack
 
             if (string.IsNullOrWhiteSpace(domain))
             {
                 throw new YouverseSecurityException("invalid certificate");
             }
-            // end hack
-            
+
+
             var claims = new List<Claim>()
             {
                 new Claim(ClaimTypes.NameIdentifier, domain, ClaimValueTypes.String, context.Options.ClaimsIssuer),
@@ -90,13 +94,11 @@ namespace Youverse.Hosting.Authentication.Perimeter
 
         private static Task HandleAuthenticationFailed(CertificateAuthenticationFailedContext context)
         {
-            Console.WriteLine("Authentication Failed");
             return Task.CompletedTask;
         }
 
         private static Task HandleCertificateChallenge(CertificateChallengeContext context)
         {
-            Console.WriteLine("handle cert challenge");
             return Task.CompletedTask;
         }
     }

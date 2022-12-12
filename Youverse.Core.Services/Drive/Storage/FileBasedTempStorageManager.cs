@@ -35,18 +35,19 @@ namespace Youverse.Core.Services.Drive.Storage
             return Task.FromResult((Stream)fileStream);
         }
 
-        public Task WriteStream(Guid fileId, string extension, Stream stream)
+        public Task<uint> WriteStream(Guid fileId, string extension, Stream stream)
         {
             //TODO: this is probably highly inefficient and probably need to revisit 
             string filePath = GetFilenameAndPath(fileId, extension, true);
             string tempFilePath = GetTempFilePath(fileId, extension);
 
+            uint bytesWritten;
             try
             {
                 //Process: if there's a file, we write to a temp file then rename.
                 if (File.Exists(filePath))
                 {
-                    WriteStream(stream, tempFilePath);
+                    bytesWritten=WriteStream(stream, tempFilePath);
                     lock (filePath)
                     {
                         //TODO: need to know if this replace method is faster than renaming files
@@ -55,7 +56,7 @@ namespace Youverse.Core.Services.Drive.Storage
                 }
                 else
                 {
-                    WriteStream(stream, filePath);
+                    bytesWritten=WriteStream(stream, filePath);
                 }
             }
             finally
@@ -67,7 +68,7 @@ namespace Youverse.Core.Services.Drive.Storage
                 }
             }
 
-            return Task.CompletedTask;
+            return Task.FromResult(bytesWritten);
         }
 
         public bool FileExists(Guid fileId, string extension)
@@ -146,7 +147,7 @@ namespace Youverse.Core.Services.Drive.Storage
             return Path.Combine(dir, filename);
         }
 
-        private void WriteStream(Stream stream, string filePath)
+        private uint WriteStream(Stream stream, string filePath)
         {
             var buffer = new byte[WriteChunkSize];
 
@@ -160,7 +161,9 @@ namespace Youverse.Core.Services.Drive.Storage
                     output.Write(buffer, 0, bytesRead);
                 } while (bytesRead > 0);
 
+                var bytesWritten = output.Length;
                 output.Close();
+                return (uint)bytesWritten;
             }
         }
     }

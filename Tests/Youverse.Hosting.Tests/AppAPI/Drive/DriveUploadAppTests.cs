@@ -65,7 +65,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     AppData = new()
                     {
                         Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
-                        ContentIsComplete = true,
+                        ContentIsComplete = false,
                         JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
                     }
                 },

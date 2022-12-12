@@ -15,6 +15,8 @@ using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Certificate;
+using Youverse.Core.Services.Certificate.Renewal;
 using Youverse.Core.Services.ClientNotifications;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Contacts.Circle.Membership;
@@ -47,7 +49,7 @@ namespace Youverse.Hosting
         {
             RegisterMediator(ref cb);
 
-            cb.RegisterType<SystemStorage>().As<ISystemStorage>().SingleInstance();
+            cb.RegisterType<TenantSystemStorage>().As<ITenantSystemStorage>().SingleInstance();
 
             cb.RegisterType<SocketConnectionManager>().InstancePerDependency();
             cb.RegisterType<AppNotificationHandler>()
@@ -63,7 +65,7 @@ namespace Youverse.Hosting
             cb.RegisterType<DotYouContextAccessor>().AsSelf().InstancePerLifetimeScope();
             cb.RegisterType<DotYouContext>().AsSelf().InstancePerLifetimeScope();
 
-            cb.RegisterType<CertificateResolver>().As<ICertificateResolver>().SingleInstance();
+            cb.RegisterType<TenantCertificateService>().As<ITenantCertificateService>().SingleInstance();
             cb.RegisterType<DotYouHttpClientFactory>().As<IDotYouHttpClientFactory>().SingleInstance();
 
             cb.RegisterType<YouAuthService>().As<IYouAuthService>().SingleInstance();
@@ -71,9 +73,11 @@ namespace Youverse.Hosting
             cb.RegisterType<YouAuthRegistrationStorage>().As<IYouAuthRegistrationStorage>().SingleInstance();
             cb.RegisterType<YouAuthAuthorizationCodeManager>().As<IYouAuthAuthorizationCodeManager>().SingleInstance();
 
-            cb.RegisterType<DotYouHttpClientFactory>().As<IDotYouHttpClientFactory>().SingleInstance();
             cb.RegisterType<OwnerSecretService>().As<IOwnerSecretService>().SingleInstance();
-            cb.RegisterType<OwnerAuthenticationService>().As<IOwnerAuthenticationService>().SingleInstance();
+            cb.RegisterType<OwnerAuthenticationService>()
+                .As<IOwnerAuthenticationService>()
+                .As<INotificationHandler<DriveDefinitionAddedNotification>>()
+                .SingleInstance();
 
             cb.RegisterType<AppAuthenticationService>().As<IAppAuthenticationService>().SingleInstance();
 
@@ -93,7 +97,7 @@ namespace Youverse.Hosting
                 .As<ICircleNetworkService>()
                 .As<INotificationHandler<DriveDefinitionAddedNotification>>()
                 .SingleInstance();
-            
+
             cb.RegisterType<CircleNetworkRequestService>().As<ICircleNetworkRequestService>().SingleInstance();
 
             cb.RegisterType<OutboxService>().As<IOutboxService>().SingleInstance();
@@ -108,7 +112,7 @@ namespace Youverse.Hosting
 
             cb.RegisterType<DriveUploadService>().AsSelf().SingleInstance();
             cb.RegisterType<CommandMessagingService>().AsSelf().SingleInstance();
-            
+
             cb.RegisterType<AppService>().As<IAppService>().SingleInstance();
 
             cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();
@@ -120,6 +124,8 @@ namespace Youverse.Hosting
             cb.RegisterType<CircleNetworkNotificationService>();
 
             cb.RegisterType<StaticFileContentService>().AsSelf().SingleInstance();
+
+            cb.RegisterType<LetsEncryptTenantCertificateRenewalService>().As<ITenantCertificateRenewalService>();
         }
 
         private static void RegisterMediator(ref ContainerBuilder cb)
@@ -163,22 +169,12 @@ namespace Youverse.Hosting
             // logger.LogInformation("Initializing tenant {Tenant}", tenant.Name);
 
             var registry = scope.Resolve<IIdentityRegistry>();
-            var config = scope.Resolve<Configuration>();
-            var ctx = scope.Resolve<TenantContext>();
+            var config = scope.Resolve<YouverseConfiguration>();
+            var tenantContext = scope.Resolve<TenantContext>();
 
-            //Note: the rest of DotYouContext will be initialized with DotYouContextMiddleware
-            var id = registry.ResolveId(tenant.Name);
-            ctx.DotYouRegistryId = id;
-            ctx.HostDotYouId = (DotYouIdentity)tenant.Name;
-
-            ctx.DataRoot = Path.Combine(config.Host.TenantDataRootPath, id.ToString());
-            ctx.TempDataRoot = Path.Combine(config.Host.TempTenantDataRootPath, id.ToString());
-            ctx.StorageConfig = new TenantStorageConfig(Path.Combine(ctx.DataRoot, "data"), Path.Combine(ctx.TempDataRoot, "temp"));
-
-            // //Note: the TenantConfigService relies on ctx.StorageConfig so you must do this after setting it. 
-            // //TODO: consider putting this tenant system config elsewhere so the order is less important
-            // var tenantConfigSvc = scope.Resolve<TenantConfigService>();
-            // ctx.UpdateSystemConfig(tenantConfigSvc.GetTenantSystemConfig());
+            var reg = registry.Get(tenant.Name).GetAwaiter().GetResult();
+            tenantContext.Update(reg.Id, reg.PrimaryDomainName, config.Host.TenantDataRootPath, config.CertificateRenewal.ToCertificateRenewalConfig());
+            tenantContext.FirstRunToken = reg.FirstRunToken;
         }
     }
 }

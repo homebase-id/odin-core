@@ -22,11 +22,11 @@ namespace Youverse.Core.Services.Transit
         Task AcceptTransfer(InternalDriveFileId file, uint publicKeyCrc);
 
         /// <summary>
-        /// Sends a collection if <see cref="OutboxItem"/>s
+        /// Sends a collection if <see cref="OutboxItem"/>s.  Returns the results of each recipient
         /// </summary>
         /// <param name="items"></param>
         /// <returns></returns>
-        Task SendBatchNow(IEnumerable<OutboxItem> items);
+        Task<List<SendResult>> SendBatchNow(IEnumerable<OutboxItem> items);
 
         /// <summary>
         /// Processes and sends any files in the outbox across all drives

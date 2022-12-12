@@ -9,6 +9,7 @@ COPY ["/dotyoucore-lib/Youverse.Core/Youverse.Core.csproj", "dotyoucore-lib/Youv
 COPY ["/dotyoucore-lib/Youverse.Core.Storage/Youverse.Core.Storage.csproj", "dotyoucore-lib/Youverse.Core.Storage/"]
 COPY ["/dotyoucore-lib/Youverse.Core.Cryptography/Youverse.Core.Cryptography.csproj", "dotyoucore-lib/Youverse.Core.Cryptography/"]
 COPY ["Youverse.Core.Services/Youverse.Core.Services.csproj", "Youverse.Core.Services/"]
+COPY ["Youverse.Provisioning/Youverse.Provisioning.csproj", "Youverse.Provisioning/"]
 COPY ["Youverse.Hosting/Youverse.Hosting.csproj", "Youverse.Hosting/"]
 COPY ["Youverse.Core.Services.Background/Youverse.Core.Services.Background.csproj", "Youverse.Core.Services.Background/"]
 RUN dotnet restore "Youverse.Hosting/Youverse.Hosting.csproj"

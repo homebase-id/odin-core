@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -27,7 +28,7 @@ public class DriveUploadService
     private readonly DotYouContextAccessor _contextAccessor;
     private readonly ITransitService _transitService;
 
-    private readonly Dictionary<Guid, UploadPackage> _packages;
+    private readonly ConcurrentDictionary<Guid, UploadPackage> _packages;
     private readonly IDriveQueryService _driveQueryService;
 
     public DriveUploadService(IDriveService driveService, TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITransitService transitService, IDriveQueryService driveQueryService)
@@ -38,7 +39,7 @@ public class DriveUploadService
         _transitService = transitService;
         _driveQueryService = driveQueryService;
 
-        _packages = new Dictionary<Guid, UploadPackage>();
+        _packages = new ConcurrentDictionary<Guid, UploadPackage>();
     }
 
     /// <summary>
@@ -102,7 +103,10 @@ public class DriveUploadService
 
         var pkgId = Guid.NewGuid();
         var package = new UploadPackage(pkgId, file, instructionSet!, isUpdateOperation);
-        _packages.Add(pkgId, package);
+        if (!_packages.TryAdd(pkgId, package))
+        {
+            throw new YouverseSystemException("Failed to add the upload package");
+        }
 
         return pkgId;
     }
@@ -124,7 +128,9 @@ public class DriveUploadService
             throw new YouverseSystemException("Invalid package Id");
         }
 
-        await _driveService.WriteTempStream(pkg.InternalFile, MultipartUploadParts.Payload.ToString(), data);
+        var bytesWritten = await _driveService.WriteTempStream(pkg.InternalFile, MultipartUploadParts.Payload.ToString(), data);
+        var package = await this.GetPackage(packageId);
+        package.HasPayload = bytesWritten > 0;
     }
 
     public async Task AddThumbnail(Guid packageId, int width, int height, string contentType, Stream data)
@@ -167,6 +173,16 @@ public class DriveUploadService
             throw new YouverseClientException("Cannot upload an encrypted file that is accessible to anonymous visitors", YouverseClientErrorCode.CannotUploadEncryptedFileForAnonymous);
         }
 
+        if (metadata.AppData.ContentIsComplete && package.HasPayload)
+        {
+            throw new YouverseClientException("Content is marked complete in metadata but there is also a payload", YouverseClientErrorCode.InvalidPayload);
+        }
+
+        if (metadata.AppData.ContentIsComplete == false && package.HasPayload == false)
+        {
+            throw new YouverseClientException("Content is marked incomplete yet there is no payload", YouverseClientErrorCode.InvalidPayload);
+        }
+
         var drive = await _driveService.GetDrive(package.InternalFile.DriveId, true);
         if (drive.OwnerOnly && serverMetadata.AccessControlList.RequiredSecurityGroup != SecurityGroupType.Owner)
         {
@@ -186,7 +202,7 @@ public class DriveUploadService
             //validate the file exists by the ID
             if (!_driveService.FileExists(package.InternalFile))
             {
-                throw new YouverseClientException("OverwriteFileId is specified but file does not exist", YouverseClientErrorCode.CannotOverwriteNonExistentFileStef);
+                throw new YouverseClientException("OverwriteFileId is specified but file does not exist", YouverseClientErrorCode.CannotOverwriteNonExistentFile);
             }
 
             if (metadata.AppData.UniqueId.HasValue)

@@ -30,7 +30,7 @@ namespace Youverse.Core.Services.Transit.Outbox
             _table = new TableOutbox(db);
         }
 
-        public void EnsureSenderIsPending(DotYouIdentity sender)
+        public void EnsureIdentityIsPending(DotYouIdentity sender)
         {
             //Note: I use sender here because boxId has a unique constraint; and we only a sender in this table once.
             //I swallow the exception because there's no direct way to see if a record exists for this sender already
@@ -51,7 +51,7 @@ namespace Youverse.Core.Services.Transit.Outbox
             }
         }
 
-        public async Task<(IEnumerable<DotYouIdentity>, byte[] marker)> GetSenders()
+        public async Task<(IEnumerable<DotYouIdentity>, byte[] marker)> GetIdentities()
         {
             var records = _table.PopAll(out var marker);
 

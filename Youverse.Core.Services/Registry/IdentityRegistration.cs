@@ -1,5 +1,6 @@
 using System;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Certificate;
 using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Registry
@@ -7,16 +8,18 @@ namespace Youverse.Core.Services.Registry
     public class IdentityRegistrationRequest
     {
         public DotYouIdentity DotYouId { get; set; }
-        
-        public CertificatePemContent CertificateContent { get; set; }
         public bool IsCertificateManaged { get; set; }
-        public CertificateSigningRequest CertificateSigningRequest { get; set; }
+        
+        /// <summary>
+        /// Optional certificates to match the <see cref="IdentityRegistrationRequest.DotYouId"/>
+        /// </summary>
+        public CertificatePemContent OptionalCertificatePemContent { get; set; }
     }
     
     public class IdentityRegistration
     {
 
-        private string _domainName;
+        private string _primaryDomainName;
         private Guid _domainKey;
 
         public Guid Id { get; set; }
@@ -33,12 +36,12 @@ namespace Youverse.Core.Services.Registry
             }
         }
 
-        public string DomainName
+        public string PrimaryDomainName
         {
-            get => _domainName;
+            get => _primaryDomainName;
             set
             {
-                _domainName = value;
+                _primaryDomainName = value;
                 _domainKey = new Guid(HashUtil.ReduceSHA256Hash(value.ToUtf8ByteArray()));
             }
         }
@@ -48,6 +51,10 @@ namespace Youverse.Core.Services.Registry
         /// </summary>
         public bool IsCertificateManaged { get; set; }
 
-        public CertificateRenewalInfo CertificateRenewalInfo { get; set; }
+        /// <summary>
+        /// A random id linking the registration process to this IdentityRegistration
+        /// indicating the bearer was the one who registered the token
+        /// </summary>
+        public Guid? FirstRunToken { get; set; }
     }
 }

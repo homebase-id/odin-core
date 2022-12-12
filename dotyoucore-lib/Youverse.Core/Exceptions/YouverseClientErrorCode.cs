@@ -27,7 +27,7 @@ public enum YouverseClientErrorCode
     InvalidGrantNonExistingDrive = 4004,
 
     // Drive errors 41xx
-    CannotOverwriteNonExistentFileStef = 4101,
+    CannotOverwriteNonExistentFile = 4101,
     CannotUploadEncryptedFileForAnonymous = 4102,
     CannotUseGlobalTransitIdOnTransientFile = 4103,
     DriveSecurityAndAclMismatch = 4104,
@@ -45,7 +45,8 @@ public enum YouverseClientErrorCode
     MissingUploadData = 4116,
     TransferTypeNotSpecified = 4117,
     UnknownId = 4118,
-
+    InvalidPayload  = 4119,
+    
     // Connection errors 50xx
     CannotSendConnectionRequestToExistingIncomingRequest = 5001,
     CannotSendMultipleConnectionRequestToTheSameIdentity = 5002,
@@ -64,5 +65,4 @@ public enum YouverseClientErrorCode
     InvalidFlagName = 9001,
     NotInitialized = 9002,
     UnknownFlagName = 9003,
-    
 }

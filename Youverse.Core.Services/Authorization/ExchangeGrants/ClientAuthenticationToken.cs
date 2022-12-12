@@ -1,5 +1,4 @@
 ﻿using System;
-using Youverse.Core.Cryptography;
 
 namespace Youverse.Core.Services.Authorization.ExchangeGrants
 {
@@ -37,6 +36,11 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         {
             var data = ByteArrayUtil.Combine(this.Id.ToByteArray(), AccessTokenHalfKey.GetKey(), new[] { (byte)this.ClientTokenType });
             return data;
+        }
+
+        public Guid AsKey()
+        {
+            return new Guid(ByteArrayUtil.EquiByteArrayXor(Id.ToByteArray(), AccessTokenHalfKey.GetKey()));
         }
 
         public static ClientAuthenticationToken FromPortableBytes(byte[] data)

@@ -122,6 +122,8 @@ namespace Youverse.Core.Services.Drive.Storage
         public Task MoveToLongTerm(Guid targetFileId, string sourcePath, FilePart part)
         {
             var dest = GetFilenameAndPath(targetFileId, part, ensureDirectoryExists: true);
+            Directory.CreateDirectory(Path.GetDirectoryName(dest));
+            
             File.Move(sourcePath, dest, true);
             _logger.LogInformation($"File Moved to {dest}");
             return Task.CompletedTask;
@@ -130,6 +132,7 @@ namespace Youverse.Core.Services.Drive.Storage
         public Task MoveThumbnailToLongTerm(Guid targetFileId, string sourceThumbnail, int width, int height)
         {
             var dest = GetThumbnailPath(targetFileId, width, height);
+            Directory.CreateDirectory(Path.GetDirectoryName(dest));
             File.Move(sourceThumbnail, dest, true);
             _logger.LogInformation($"File Moved to {dest}");
 

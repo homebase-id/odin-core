@@ -65,7 +65,8 @@ public class CommandMessagingService
             {
                 FileType = ReservedFileTypes.CommandMessage,
                 JsonContent = DotYouSystemSerializer.Serialize(msg),
-                DataType = command.Code
+                DataType = command.Code,
+                ContentIsComplete = true
             }
         };
 

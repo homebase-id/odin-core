@@ -21,6 +21,7 @@
         <ProjectReference Include="..\dotyoucore-lib\Youverse.Core\Youverse.Core.csproj" />
         <ProjectReference Include="..\Youverse.Core.Services.Background\Youverse.Core.Services.Background.csproj" />
         <ProjectReference Include="..\Youverse.Core.Services\Youverse.Core.Services.csproj" />
+        <ProjectReference Include="..\Youverse.Provisioning\Youverse.Provisioning.csproj" />
     </ItemGroup>
 
     <ItemGroup>
@@ -58,6 +59,12 @@
         </None>
         <None Update="dotyoucore.service">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="appsettings.development.json">
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="appsettings.demo.json">
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>
     </ItemGroup>
 

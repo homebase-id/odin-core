@@ -33,7 +33,7 @@ namespace Youverse.Core.Services.Transit
         private readonly ITransferKeyEncryptionQueueService _transferKeyEncryptionQueueService;
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly ILogger<TransitService> _logger;
-        private readonly ISystemStorage _systemStorage;
+        private readonly ITenantSystemStorage _tenantSystemStorage;
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
         private readonly TenantContext _tenantContext;
         private readonly ICircleNetworkService _circleNetworkService;
@@ -45,7 +45,7 @@ namespace Youverse.Core.Services.Transit
             IDriveService driveService,
             ITransferKeyEncryptionQueueService transferKeyEncryptionQueueService,
             ITransitBoxService transitBoxService,
-            ISystemStorage systemStorage,
+            ITenantSystemStorage tenantSystemStorage,
             IDotYouHttpClientFactory dotYouHttpClientFactory, TenantContext tenantContext, ICircleNetworkService circleNetworkService, IPublicKeyService publicKeyService) : base()
         {
             _contextAccessor = contextAccessor;
@@ -53,7 +53,7 @@ namespace Youverse.Core.Services.Transit
             _driveService = driveService;
             _transferKeyEncryptionQueueService = transferKeyEncryptionQueueService;
             _transitBoxService = transitBoxService;
-            _systemStorage = systemStorage;
+            _tenantSystemStorage = tenantSystemStorage;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
             _tenantContext = tenantContext;
             _circleNetworkService = circleNetworkService;
@@ -95,9 +95,10 @@ namespace Youverse.Core.Services.Transit
             //Since the owner is online (in this request) we can prepare a transfer key.  the outbox processor
             //will read the transfer key during the background send process
 
-            var keyStatus = new Dictionary<string, TransferStatus>();
-            var header = await _driveService.GetServerFileHeader(internalFile);
+            var transferStatus = new Dictionary<string, TransferStatus>();
+            var outboxItems = new List<OutboxItem>();
 
+            var header = await _driveService.GetServerFileHeader(internalFile);
             var storageKey = this._contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(internalFile.DriveId);
             var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
             storageKey.Wipe();
@@ -112,36 +113,62 @@ namespace Youverse.Core.Services.Transit
                     if (null == pk)
                     {
                         AddToTransferKeyEncryptionQueue(recipient, internalFile);
-                        keyStatus.Add(recipient, TransferStatus.AwaitingTransferKey);
+                        transferStatus.Add(recipient, TransferStatus.AwaitingTransferKey);
                         continue;
                     }
 
                     var clientAuthToken = _circleNetworkService.GetConnectionAuthToken(recipient).GetAwaiter().GetResult();
                     this.StoreEncryptedRecipientTransferInstructionSet(pk.publicKey, keyHeader, clientAuthToken, internalFile, recipient, drive.TargetDriveInfo, transferFileType);
 
-                    keyStatus.Add(recipient, TransferStatus.TransferKeyCreated);
+                    transferStatus.Add(recipient, TransferStatus.TransferKeyCreated);
+                    outboxItems.Add(new OutboxItem()
+                    {
+                        IsTransientFile = options.IsTransient,
+                        File = internalFile,
+                        Recipient = (DotYouIdentity)r,
+                    });
                 }
                 catch (Exception ex)
                 {
                     AddToTransferKeyEncryptionQueue(recipient, internalFile);
-                    keyStatus.Add(recipient, TransferStatus.AwaitingTransferKey);
+                    transferStatus.Add(recipient, TransferStatus.AwaitingTransferKey);
                 }
             }
 
             //TODO: keyHeader.AesKey.Wipe();
 
-            //a transfer per recipient is added to the outbox queue since there is a background process
-            //that will pick up the items and attempt to send.
-            await _outboxService.Add(recipients.Select(r => new OutboxItem()
+            if (options.Schedule == ScheduleOptions.SendNowAwaitResponse)
             {
-                IsTransientFile = options.IsTransient,
-                File = internalFile,
-                Recipient = (DotYouIdentity)r,
-            }));
-            return keyStatus;
+                //send now
+                var sendResults = await this.SendBatchNow(outboxItems);
+
+                foreach (var result in sendResults)
+                {
+                    if (result.Success)
+                    {
+                        transferStatus[result.Recipient.Id] = TransferStatus.Delivered;
+                    }
+                    else
+                    {
+                        //enqueue the failures into the outbox
+                        await _outboxService.Add(result.OutboxItem);
+                        transferStatus[result.Recipient.Id] = TransferStatus.PendingRetry;
+                    }
+                    
+                }
+            }
+            else
+            {
+                //a transfer per recipient is added to the outbox queue
+                //since there is a background process
+                //that will pick up the items and attempt to send.
+                await _outboxService.Add(outboxItems);
+            }
+
+            return transferStatus;
         }
 
-        //
+        // 
 
         private void StoreEncryptedRecipientTransferInstructionSet(byte[] recipientPublicKeyDer, KeyHeader keyHeader,
             ClientAuthenticationToken clientAuthenticationToken, InternalDriveFileId internalFile, DotYouIdentity recipient, TargetDrive targetDrive, TransferFileType transferFileType)
@@ -165,7 +192,7 @@ namespace Youverse.Core.Services.Transit
                 TransferFileType = transferFileType
             };
 
-            _systemStorage.SingleKeyValueStorage.Upsert(CreateInstructionSetStorageKey(recipient, internalFile), instructionSet);
+            _tenantSystemStorage.SingleKeyValueStorage.Upsert(CreateInstructionSetStorageKey(recipient, internalFile), instructionSet);
         }
 
         private void AddToTransferKeyEncryptionQueue(DotYouIdentity recipient, InternalDriveFileId file)
@@ -184,14 +211,12 @@ namespace Youverse.Core.Services.Transit
             _transferKeyEncryptionQueueService.Enqueue(item);
         }
 
-        public async Task SendBatchNow(IEnumerable<OutboxItem> items)
+        public async Task<List<SendResult>> SendBatchNow(IEnumerable<OutboxItem> items)
         {
             var tasks = new List<Task<SendResult>>();
+            var results = new List<SendResult>();
 
-            foreach (var item in items)
-            {
-                tasks.Add(SendAsync(item));
-            }
+            tasks.AddRange(items.Select(SendAsync));
 
             await Task.WhenAll(tasks);
 
@@ -199,12 +224,13 @@ namespace Youverse.Core.Services.Transit
             tasks.ForEach(task =>
             {
                 var sendResult = task.Result;
-                var outboxItem = sendResult.OutboxItem;
+                results.Add(sendResult);
+                
                 if (sendResult.Success)
                 {
-                    if (outboxItem.IsTransientFile)
+                    if (sendResult.OutboxItem.IsTransientFile)
                     {
-                        filesForDeletion.Add(outboxItem.File);
+                        filesForDeletion.Add(sendResult.OutboxItem.File);
                     }
 
                     _outboxService.MarkComplete(sendResult.OutboxItem.Marker);
@@ -220,6 +246,8 @@ namespace Youverse.Core.Services.Transit
                 //TODO: add logging?
                 await _driveService.HardDeleteLongTermFile(fileId);
             }
+
+            return results;
         }
 
         public async Task ProcessOutbox(int batchSize)
@@ -292,11 +320,6 @@ namespace Youverse.Core.Services.Transit
             await _transitBoxService.Add(item);
         }
 
-        public async Task AcceptCommandMessage(Guid driveId, CommandMessage message)
-        {
-        }
-
-
         private async Task<SendResult> SendAsync(OutboxItem outboxItem)
         {
             DotYouIdentity recipient = outboxItem.Recipient;
@@ -348,7 +371,8 @@ namespace Youverse.Core.Services.Transit
                 var stream = new MemoryStream(json.ToUtf8ByteArray());
                 var metaDataStream = new StreamPart(stream, "metadata.encrypted", "application/json", Enum.GetName(MultipartHostTransferParts.Metadata));
 
-                var payload = new StreamPart(await _driveService.GetPayloadStream(file), "payload.encrypted", "application/x-binary", Enum.GetName(MultipartHostTransferParts.Payload));
+                var payloadStream = metadata.AppData.ContentIsComplete ? Stream.Null : await _driveService.GetPayloadStream(file);
+                var payload = new StreamPart(payloadStream, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartHostTransferParts.Payload));
 
                 var thumbnails = new List<StreamPart>();
                 foreach (var thumb in redactedMetadata.AppData?.AdditionalThumbnails ?? new List<ImageDataHeader>())
@@ -412,7 +436,7 @@ namespace Youverse.Core.Services.Transit
 
         private Task<RsaEncryptedRecipientTransferInstructionSet> GetTransferInstructionSetFromCache(string recipient, InternalDriveFileId file)
         {
-            var instructionSet = _systemStorage.SingleKeyValueStorage.Get<RsaEncryptedRecipientTransferInstructionSet>(CreateInstructionSetStorageKey((DotYouIdentity)recipient, file));
+            var instructionSet = _tenantSystemStorage.SingleKeyValueStorage.Get<RsaEncryptedRecipientTransferInstructionSet>(CreateInstructionSetStorageKey((DotYouIdentity)recipient, file));
             return Task.FromResult(instructionSet);
         }
 
@@ -424,7 +448,7 @@ namespace Youverse.Core.Services.Transit
     }
 
     /// <summary>
-    /// Specifies the type of instruction incoming from another identity
+    /// Specifies the type of instruction incoming from another identity 
     /// </summary>
     public enum TransferInstructionType
     {

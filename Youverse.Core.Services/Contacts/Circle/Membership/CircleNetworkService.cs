@@ -39,7 +39,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         private readonly GuidId _icrClientDataType = GuidId.FromString("__icr_client_reg");
         private readonly ThreeKeyValueStorage _icrClientValueStorage;
 
-        public CircleNetworkService(DotYouContextAccessor contextAccessor, ILogger<ICircleNetworkService> logger, ISystemStorage systemStorage,
+        public CircleNetworkService(DotYouContextAccessor contextAccessor, ILogger<ICircleNetworkService> logger, ITenantSystemStorage tenantSystemStorage,
             IDotYouHttpClientFactory dotYouHttpClientFactory, ExchangeGrantService exchangeGrantService, TenantContext tenantContext, CircleDefinitionService circleDefinitionService)
         {
             _contextAccessor = contextAccessor;
@@ -50,10 +50,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             _storage = new CircleNetworkStorage(tenantContext.StorageConfig.DataStoragePath);
 
-            _circleMemberStorage = new TableCircleMember(systemStorage.GetDBInstance());
+            _circleMemberStorage = new TableCircleMember(tenantSystemStorage.GetDBInstance());
             _circleMemberStorage.EnsureTableExists(false);
 
-            _icrClientValueStorage = new ThreeKeyValueStorage(systemStorage.GetDBInstance().TblKeyThreeValue);
+            _icrClientValueStorage = new ThreeKeyValueStorage(tenantSystemStorage.GetDBInstance().TblKeyThreeValue);
         }
 
         public async Task<ClientAuthenticationToken> GetConnectionAuthToken(DotYouIdentity dotYouId, bool failIfNotConnected, bool overrideHack = false)
@@ -140,7 +140,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                     securityLevel: SecurityGroupType.Authenticated);
 
                 List<int> permissionKeys = new List<int>() { };
-                if (_tenantContext.TenantSystemConfig.AuthenticatedIdentitiesCanViewConnections)
+                if (_tenantContext.Settings.AuthenticatedIdentitiesCanViewConnections)
                 {
                     permissionKeys.Add(PermissionKeys.ReadConnections);
                 }
@@ -277,13 +277,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             var info = await this.GetIdentityConnectionRegistration(dotYouId);
             return info.Status == ConnectionStatus.Connected;
-        }
-
-        public async Task<bool> IsCircleMember(GuidId circleId, DotYouIdentity dotYouId)
-        {
-            // _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionFlags.ReadCircleMembership);
-            var icr = await this.GetIdentityConnectionRegistrationInternal(dotYouId);
-            return icr.AccessGrant.CircleGrants.ContainsKey(circleId.ToBase64());
         }
 
         public async Task<IEnumerable<DotYouIdentity>> GetCircleMembers(GuidId circleId)
@@ -664,7 +657,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             }
 
             List<int> permissionKeys = new List<int>() { };
-            if (_tenantContext.TenantSystemConfig?.AllConnectedIdentitiesCanViewConnections ?? false)
+            if (_tenantContext.Settings?.AllConnectedIdentitiesCanViewConnections ?? false)
             {
                 permissionKeys.Add(PermissionKeys.ReadConnections);
             }
