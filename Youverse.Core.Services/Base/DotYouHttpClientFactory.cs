@@ -74,13 +74,6 @@ namespace Youverse.Core.Services.Base
                 //TODO: need to encrypt this token somehow? (shared secret?)
                 client.DefaultRequestHeaders.Add(DotYouHeaderNames.ClientAuthToken, clientAuthenticationToken.ToString());
             }
-            
-            // start hack
-            if (cert.Subject.Contains("*.onekin.io"))
-            {
-                client.DefaultRequestHeaders.Add("dns_hack", _tenantContext.HostDotYouId);
-            }
-            // end hack
 
             var ogClient = RestService.For<T>(client);
             return ogClient;

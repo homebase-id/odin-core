@@ -24,7 +24,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         private readonly GuidId _appClientDataType = GuidId.FromString("__app_client_reg");
         private readonly ThreeKeyValueStorage _appClientValueStorage;
-        private DotYouContextCache _cache;
+        private readonly DotYouContextCache _cache;
 
         public AppRegistrationService(DotYouContextAccessor contextAccessor, ILogger<IAppRegistrationService> logger, ITenantSystemStorage tenantSystemStorage, ExchangeGrantService exchangeGrantService)
         {
