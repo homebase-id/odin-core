@@ -3,7 +3,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Refit;
 using Youverse.Core;
-using Youverse.Core.Cryptography;
 
 namespace Youverse.Hosting.Tests;
 

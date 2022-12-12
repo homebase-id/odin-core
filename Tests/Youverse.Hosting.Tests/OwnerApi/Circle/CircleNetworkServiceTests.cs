@@ -5,11 +5,8 @@ using System.Net;
 using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
-using Grpc.Core.Interceptors;
 using NUnit.Framework;
-using Refit;
 using Youverse.Core;
-using Youverse.Core.Cryptography;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
@@ -18,10 +15,8 @@ using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Storage;
 using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Controllers.OwnerToken.Circles;
-using Youverse.Hosting.Tests.OwnerApi.Configuration;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Circle
 {

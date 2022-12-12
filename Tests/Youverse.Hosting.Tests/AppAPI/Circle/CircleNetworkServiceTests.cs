@@ -1,15 +1,9 @@
 using System;
-using System.ComponentModel;
 using System.Linq;
-using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Refit;
 using Youverse.Core;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Services.Contacts.Circle;
-using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Tests.OwnerApi.Circle;
