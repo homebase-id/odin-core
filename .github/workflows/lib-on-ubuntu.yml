@@ -1,4 +1,4 @@
-name: Ubuntu DotYouCore
+name: Lib on Ubuntu
 
 on:
   push:
@@ -22,12 +22,12 @@ jobs:
 
       - name: Restore dependencies
         #        working-directory: ./dotyoucore
-        run: dotnet restore services/dotyoucore.sln
+        run: dotnet restore lib/lib.sln
 
       - name: Build
         #        working-directory: ./dotyoucore
-        run: dotnet build --no-restore services/dotyoucore.sln
+        run: dotnet build --no-restore lib/lib.sln
 
       - name: Test
         #        working-directory: ./dotyoucore
-        run: sudo dotnet test --no-build --verbosity normal services/dotyoucore.sln
+        run: sudo dotnet test --no-build --verbosity normal lib/lib.sln

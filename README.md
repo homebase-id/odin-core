@@ -1,11 +1,8 @@
 # DotYouCore
 
-[//]: # (![Build]&#40;https://github.com/YouFoundation/DotYouCore/actions/workflows/dotnet.yml/badge.svg&#41;)
+![Build](https://github.com/YouFoundation/DotYouCore/actions/workflows/lib-on-ubuntu.yml/badge.svg)
 
-![Build](https://github.com/YouFoundation/DotYouCore/actions/workflows/ubuntu-build.yml/badge.svg)
-
-[//]: # (![Build]&#40;https://github.com/YouFoundation/DotYouCore/actions/workflows/deploy-to-demo.yml/badge.svg&#41;)
-
+![Build](https://github.com/YouFoundation/DotYouCore/actions/workflows/services-on-ubuntu.yml/badge.svg)
 
 ### Setup
 
