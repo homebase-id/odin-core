@@ -17,14 +17,6 @@ jobs:
         with:
           dotnet-version: 6.0.x
 
-      - name: Checkout dotyoucore-lib
-        uses: actions/checkout@v3
-        with:
-          repository: youfoundation/dotyoucore-lib
-          ref: 'main'
-          token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }}
-          path: dotyoucore-lib
-
       - name: Checkout dotyoucore
         uses: actions/checkout@v3
         with:
@@ -32,12 +24,12 @@ jobs:
 
       - name: Restore dependencies
         #        working-directory: ./dotyoucore
-        run: dotnet restore dotyoucore/DotYouCore.sln
+        run: dotnet restore services/dotyoucore.sln
 
       - name: Build
         #        working-directory: ./dotyoucore
-        run: dotnet build --no-restore dotyoucore/DotYouCore.sln
+        run: dotnet build --no-restore services/dotyoucore.sln
 
       - name: Test
         #        working-directory: ./dotyoucore
-        run: sudo dotnet test --no-build --verbosity normal dotyoucore/DotYouCore.sln
+        run: sudo dotnet test --no-build --verbosity normal services/dotyoucore.sln
