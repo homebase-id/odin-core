@@ -19,8 +19,6 @@ jobs:
 
       - name: Checkout dotyoucore
         uses: actions/checkout@v3
-        with:
-          path: dotyoucore
 
       - name: Restore dependencies
         #        working-directory: ./dotyoucore
