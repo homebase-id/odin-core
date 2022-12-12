@@ -1,0 +1,15 @@
+﻿{
+  "profiles": {
+    "Youverse.Hosting": {
+      "commandName": "Project",
+      "dotnetRunMessages": "true",
+      "launchBrowser": false,
+      "applicationUrl": "https://frodo.digital",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DOTYOUCORE_EX_INFO": "1",
+        "DOTYOU_ENVIRONMENT": "development"
+      }
+    }
+  }
+}
