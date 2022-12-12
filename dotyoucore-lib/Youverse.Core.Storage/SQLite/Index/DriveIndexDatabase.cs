@@ -357,7 +357,7 @@ namespace Youverse.Core.Storage.SQLite
         /// <param name="tagsAnyOf"></param>
         /// <param name="tagsAllOf"></param>
         /// <returns></returns>
-        public List<Guid> QueryBatch(int noOfItems,
+        private (List<Guid>, bool moreRows) QueryBatchRaw(int noOfItems,
             ref QueryBatchCursor cursor,
             IntRange requiredSecurityGroup = null,
             List<Guid> globalTransitIdAnyOf = null,
@@ -371,8 +371,6 @@ namespace Youverse.Core.Storage.SQLite
             List<Guid> tagsAnyOf = null,
             List<Guid> tagsAllOf = null)
         {
-            Stopwatch stopWatch = new Stopwatch();
-
             var con = this.GetConnection();
             string stm;
             string strWhere = "";
@@ -384,8 +382,6 @@ namespace Youverse.Core.Storage.SQLite
 
             // var list = new List<string>();
             // var query = string.Join(" ", list);
-
-            stopWatch.Start();
 
             if (cursor.pagingCursor != null)
                 strWhere += $"fileid < x'{Convert.ToHexString(cursor.pagingCursor)}' ";
@@ -488,7 +484,8 @@ namespace Youverse.Core.Storage.SQLite
                 strWhere = "WHERE " + strWhere;
             }
 
-            stm = $"SELECT fileid FROM mainindex " + strWhere + $"ORDER BY fileid DESC LIMIT {noOfItems}";
+            // Read 1 more than requested to see if we're at the end of the dataset
+            stm = $"SELECT fileid FROM mainindex " + strWhere + $"ORDER BY fileid DESC LIMIT {noOfItems+1}";
 
             var cmd = new SQLiteCommand(stm, con);
             var rdr = cmd.ExecuteReader();
@@ -502,14 +499,99 @@ namespace Youverse.Core.Storage.SQLite
                 rdr.GetBytes(0, 0, fileId, 0, 16);
                 result.Add(new Guid(fileId));
                 i++;
+                if (i >= noOfItems)
+                    break;
             }
 
-            if (i > 0)
+            return (result, rdr.Read());
+        }
+
+
+
+        /// <summary>
+        /// Will get the newest item first as specified by the cursor.
+        /// </summary>
+        /// <param name="noOfItems">Maximum number of results you want back</param>
+        /// <param name="cursor">Pass null to get a complete set of data. Continue to pass the cursor to get the next page.</param>
+        /// <param name="requiredSecurityGroup"></param>
+        /// <param name="filetypesAnyOf"></param>
+        /// <param name="datatypesAnyOf"></param>
+        /// <param name="senderidAnyOf"></param>
+        /// <param name="groupIdAnyOf"></param>
+        /// <param name="userdateSpan"></param>
+        /// <param name="aclAnyOf"></param>
+        /// <param name="tagsAnyOf"></param>
+        /// <param name="tagsAllOf"></param>
+        /// <returns></returns>
+        public List<Guid> QueryBatch(int noOfItems,
+            ref QueryBatchCursor cursor,
+            IntRange requiredSecurityGroup = null,
+            List<Guid> globalTransitIdAnyOf = null,
+            List<int> filetypesAnyOf = null,
+            List<int> datatypesAnyOf = null,
+            List<byte[]> senderidAnyOf = null,
+            List<Guid> groupIdAnyOf = null,
+            List<Guid> uniqueIdAnyOf = null,
+            UnixTimeUtcRange userdateSpan = null,
+            List<Guid> aclAnyOf = null,
+            List<Guid> tagsAnyOf = null,
+            List<Guid> tagsAllOf = null)
+        {
+            var (result, moreRows) = QueryBatchRaw(noOfItems, ref cursor, requiredSecurityGroup, globalTransitIdAnyOf, filetypesAnyOf, datatypesAnyOf, senderidAnyOf, groupIdAnyOf, uniqueIdAnyOf, userdateSpan, aclAnyOf, tagsAnyOf, tagsAllOf);
+
+            if (result.Count > 0)
             {
-                // If we are getting a set with the newest chat, then set the resultFirstCursor
+                // If pagingCursor is null, it means we are getting a the newest data,
+                // and since we got a dataset back then we need to set the nextBoundaryCursor for this first set
+                //
                 if (cursor.pagingCursor == null)
                     cursor.nextBoundaryCursor = result[0].ToByteArray(); // Set to the newest cursor
                 cursor.pagingCursor = result[result.Count - 1].ToByteArray(); // The oldest cursor
+
+                if (result.Count < noOfItems)
+                {
+                    if (moreRows == false) // Advance the cursor
+                    {
+                        if (cursor.nextBoundaryCursor != null)
+                        {
+                            cursor.currentBoundaryCursor = cursor.nextBoundaryCursor;
+                            cursor.nextBoundaryCursor = null;
+                            cursor.pagingCursor = null;
+                        }
+                        else
+                        {
+                            cursor.nextBoundaryCursor = null;
+                            cursor.pagingCursor = null;
+                        }
+                    }
+
+                    // If we didn't get all the items that were requested and there is no more data, then we
+                    // need to be sure there is no more data in the next data set. 
+                    // The API contract says that if you receive less than the requested
+                    // items then there is no more data.
+                    //
+                    // Do a recursive call to check there are no more items.
+                    //
+                    var r2 = QueryBatch(noOfItems - result.Count, ref cursor, requiredSecurityGroup,
+                                            globalTransitIdAnyOf,
+                                            filetypesAnyOf,
+                                            datatypesAnyOf,
+                                            senderidAnyOf,
+                                            groupIdAnyOf,
+                                            uniqueIdAnyOf,
+                                            userdateSpan,
+                                            aclAnyOf,
+                                            tagsAnyOf,
+                                            tagsAllOf);
+
+                    // There was more data
+                    if (r2.Count > 0)
+                    {
+                        // The r2 result set should be newer than the result set
+                        r2.AddRange(result);
+                        return r2;
+                    }
+                }
             }
             else
             {
@@ -527,12 +609,9 @@ namespace Youverse.Core.Storage.SQLite
                 }
             }
 
-
-            stopWatch.Stop();
-            // Utils.StopWatchStatus("QueryBatch() " + stm, stopWatch);
-
             return result;
         }
+
 
         /// <summary>
         /// Will fetch all items that have been modified as defined by the cursors. The oldest modified item will be returned first.
