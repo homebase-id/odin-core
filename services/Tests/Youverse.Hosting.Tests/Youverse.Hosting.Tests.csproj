@@ -20,8 +20,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\lib\Youverse.Core.Cryptography\Youverse.Core.Cryptography.csproj" />
-    <ProjectReference Include="..\..\lib\Youverse.Core\Youverse.Core.csproj" />
+    <ProjectReference Include="..\..\..\lib\Youverse.Core.Cryptography\Youverse.Core.Cryptography.csproj" />
+    <ProjectReference Include="..\..\..\lib\Youverse.Core\Youverse.Core.csproj" />
     <ProjectReference Include="..\..\Youverse.Core.Services\Youverse.Core.Services.csproj" />
     <ProjectReference Include="..\..\Youverse.Hosting\Youverse.Hosting.csproj" />
   </ItemGroup>

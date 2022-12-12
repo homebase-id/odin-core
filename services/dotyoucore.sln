@@ -20,13 +20,13 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core.Services.Back
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core.Services.Tests", "Tests\Youverse.Core.Services.Tests\Youverse.Core.Services.Tests.csproj", "{1F5F88D2-3F0C-4147-927F-5646AC79A65D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core", "lib\Youverse.Core\Youverse.Core.csproj", "{E0E7DC9E-48E3-47FF-96EC-1F598072B2E8}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core", "..\lib\Youverse.Core\Youverse.Core.csproj", "{E0E7DC9E-48E3-47FF-96EC-1F598072B2E8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core.Cryptography", "lib\Youverse.Core.Cryptography\Youverse.Core.Cryptography.csproj", "{6CE05E06-E573-4EA5-96FE-DFABD46C2EF6}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core.Cryptography", "..\lib\Youverse.Core.Cryptography\Youverse.Core.Cryptography.csproj", "{6CE05E06-E573-4EA5-96FE-DFABD46C2EF6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core.Storage", "lib\Youverse.Core.Storage\Youverse.Core.Storage.csproj", "{04F38CEB-D6AD-41FE-B91F-ABA56B98C7DE}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core.Storage", "..\lib\Youverse.Core.Storage\Youverse.Core.Storage.csproj", "{04F38CEB-D6AD-41FE-B91F-ABA56B98C7DE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core.Storage.Tests", "lib\Tests\Youverse.Core.Storage.Tests\Youverse.Core.Storage.Tests.csproj", "{23C12B0C-1EB3-445E-B82A-5A74BD7F1C10}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core.Storage.Tests", "..\lib\Tests\Youverse.Core.Storage.Tests\Youverse.Core.Storage.Tests.csproj", "{23C12B0C-1EB3-445E-B82A-5A74BD7F1C10}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Provisioning", "Youverse.Provisioning\Youverse.Provisioning.csproj", "{2653E8AA-CEC9-4E6B-B56C-08AAB30A445E}"
 EndProject
