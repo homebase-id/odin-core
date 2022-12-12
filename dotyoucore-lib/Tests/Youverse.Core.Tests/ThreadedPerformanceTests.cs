@@ -35,7 +35,7 @@ namespace Youverse.Core.Tests
                         timers.Add(measurements);
                     }
                 });
-            }
+            } 
 
             Task.WaitAll(tasks);
             sw.Stop();
