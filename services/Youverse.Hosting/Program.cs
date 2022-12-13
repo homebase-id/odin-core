@@ -72,6 +72,12 @@ namespace Youverse.Hosting
                                                   $"This must match your app settings file as follows 'appsettings.ENV.json");
             }
 
+            Console.WriteLine("current directory");
+            Console.WriteLine(Environment.CurrentDirectory);
+            foreach (var file in Directory.GetFiles(Environment.CurrentDirectory))
+            {
+                Console.WriteLine(file);
+            }
             var config = new ConfigurationBuilder()
                 // .AddJsonFile("appsettings.json", optional: false)
                 .AddJsonFile($"appsettings.{env}.json", optional: false)
