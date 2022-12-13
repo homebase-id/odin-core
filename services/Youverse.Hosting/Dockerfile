@@ -8,10 +8,10 @@ WORKDIR /src
 COPY ["/lib/Youverse.Core/Youverse.Core.csproj", "lib/Youverse.Core/"]
 COPY ["/lib/Youverse.Core.Storage/Youverse.Core.Storage.csproj", "lib/Youverse.Core.Storage/"]
 COPY ["/lib/Youverse.Core.Cryptography/Youverse.Core.Cryptography.csproj", "lib/Youverse.Core.Cryptography/"]
-COPY ["Youverse.Core.Services/Youverse.Core.Services.csproj", "Youverse.Core.Services/"]
-COPY ["Youverse.Provisioning/Youverse.Provisioning.csproj", "Youverse.Provisioning/"]
-COPY ["Youverse.Hosting/Youverse.Hosting.csproj", "Youverse.Hosting/"]
-COPY ["Youverse.Core.Services.Background/Youverse.Core.Services.Background.csproj", "Youverse.Core.Services.Background/"]
+COPY ["services/Youverse.Core.Services/Youverse.Core.Services.csproj", "services/Youverse.Core.Services/"]
+COPY ["services/Youverse.Provisioning/Youverse.Provisioning.csproj", "services/Youverse.Provisioning/"]
+COPY ["services/Youverse.Hosting/Youverse.Hosting.csproj", "services/Youverse.Hosting/"]
+COPY ["services/Youverse.Core.Services.Background/Youverse.Core.Services.Background.csproj", "services/Youverse.Core.Services.Background/"]
 RUN dotnet restore "Youverse.Hosting/Youverse.Hosting.csproj"
 COPY . .
 
