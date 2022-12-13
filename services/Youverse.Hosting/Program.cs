@@ -80,7 +80,7 @@ namespace Youverse.Hosting
             }
             var config = new ConfigurationBuilder()
                 // .AddJsonFile("appsettings.json", optional: false)
-                .AddJsonFile($"appsettings.{env}.json", optional: false)
+                .AddJsonFile($"appsettings.{env.ToLower()}.json", optional: false)
                 .AddEnvironmentVariables()
                 .Build();
 
