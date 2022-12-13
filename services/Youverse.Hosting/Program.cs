@@ -72,11 +72,10 @@ namespace Youverse.Hosting
                                                   $"This must match your app settings file as follows 'appsettings.ENV.json");
             }
 
-            Console.WriteLine("current directory");
-            Console.WriteLine(Environment.CurrentDirectory);
+            Log.Information($"Current directory: {Environment.CurrentDirectory}");
             foreach (var file in Directory.GetFiles(Environment.CurrentDirectory))
             {
-                Console.WriteLine(file);
+                Log.Information(file);
             }
             var config = new ConfigurationBuilder()
                 // .AddJsonFile("appsettings.json", optional: false)
@@ -137,7 +136,7 @@ namespace Youverse.Hosting
                             });
                         })
                         .UseKestrel() //Use Kestrel to ensure we can run this on linux
-                        .UseUrls("https://*:443", "http://*:80") //you need to configure netsh on windows to allow 443
+                        .UseUrls(urls.ToArray()) //you need to configure netsh on windows to allow 443
                         .UseStartup<Startup>();
                 });
 

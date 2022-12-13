@@ -39,13 +39,19 @@ namespace Youverse.Hosting.Tests
 
             Environment.SetEnvironmentVariable("Host__ProvisioningDomain", "provisioning-dev.onekin.io");
             Environment.SetEnvironmentVariable("Host__TenantDataRootPath", TestDataPath);
-            Environment.SetEnvironmentVariable("Host__UseLocalCertificateRegistry", "true");
+            Environment.SetEnvironmentVariable("Host__SystemDataRootPath", TestDataPath);
+            Environment.SetEnvironmentVariable("Host__IPAddressListenList", "[{ \"Ip\": \"*\",\"HttpsPort\": 443,\"HttpPort\": 80 }]");
+            
+            
+            Environment.SetEnvironmentVariable("Logging__LogFilePath", TempDataPath);
+            Environment.SetEnvironmentVariable("Logging__Level", "Verbose");
+            
             Environment.SetEnvironmentVariable("Quartz__EnableQuartzBackgroundService", "false");
             Environment.SetEnvironmentVariable("Quartz__BackgroundJobStartDelaySeconds", "10");
             Environment.SetEnvironmentVariable("Quartz__ProcessOutboxIntervalSeconds", "5");
             Environment.SetEnvironmentVariable("Quartz__EnsureCertificateProcessorIntervalSeconds", "1000");
             Environment.SetEnvironmentVariable("Quartz__ProcessPendingCertificateOrderIntervalInSeconds", "1000");
-            Environment.SetEnvironmentVariable("Logging__LogFilePath", TempDataPath);
+            
 
             Environment.SetEnvironmentVariable("CertificateRenewal__NumberOfCertificateValidationTries", "3");
             Environment.SetEnvironmentVariable("CertificateRenewal__UseCertificateAuthorityProductionServers", "false");
