@@ -4,7 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Security;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using System.Web;
 using Microsoft.AspNetCore.WebUtilities;
@@ -49,12 +51,32 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
         private readonly string _password = "EnSøienØ";
         private readonly Dictionary<string, OwnerAuthTokenContext> _ownerLoginTokens = new(StringComparer.InvariantCultureIgnoreCase);
 
+        private static bool ServerCertificateCustomValidation(HttpRequestMessage requestMessage, X509Certificate2 certificate, X509Chain chain, SslPolicyErrors sslErrors)
+        {
+            // It is possible to inspect the certificate provided by the server.
+            Console.WriteLine($"Requested URI: {requestMessage.RequestUri}");
+            Console.WriteLine($"Effective date: {certificate.GetEffectiveDateString()}");
+            Console.WriteLine($"Exp date: {certificate.GetExpirationDateString()}");
+            Console.WriteLine($"Issuer: {certificate.Issuer}");
+            Console.WriteLine($"Subject: {certificate.Subject}");
+
+            // Based on the custom logic it is possible to decide whether the client considers certificate valid or not
+            Console.WriteLine($"Errors: {sslErrors}");
+            // return sslErrors == SslPolicyErrors.None;
+
+            return true;
+        }
+        
+        
         public async Task ForceNewPassword(string identity, string password)
         {
             var handler = new HttpClientHandler();
             var jar = new CookieContainer();
             handler.CookieContainer = jar;
             handler.UseCookies = true;
+
+            // handler.CheckCertificateRevocationList = false;
+            handler.ServerCertificateCustomValidationCallback = ServerCertificateCustomValidation;
 
             using HttpClient authClient = new(handler);
             authClient.BaseAddress = new Uri($"https://{identity}");
@@ -73,7 +95,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             var saltyReply = PasswordDataManager.CalculatePasswordReply(password, saltyNonce);
 
             //saltyReply.FirstRunToken = ???
-     
+
             var newPasswordResponse = await svc.SetNewPassword(saltyReply);
             Assert.IsTrue(newPasswordResponse.IsSuccessStatusCode, "failed forcing a new password");
         }
@@ -185,7 +207,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             {
                 CookieContainer = cookieJar
             };
-            
+
             HttpClient client = new(sharedSecretGetRequestHandler);
             client.Timeout = TimeSpan.FromMinutes(15);
 
