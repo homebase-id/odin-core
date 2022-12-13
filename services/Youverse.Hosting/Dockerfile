@@ -6,8 +6,8 @@ EXPOSE 443
 FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
 WORKDIR /src
 COPY ["lib/Youverse.Core/Youverse.Core.csproj", "lib/Youverse.Core/"]
-COPY ["/lib/Youverse.Core.Storage/Youverse.Core.Storage.csproj", "lib/Youverse.Core.Storage/"]
-COPY ["/lib/Youverse.Core.Cryptography/Youverse.Core.Cryptography.csproj", "lib/Youverse.Core.Cryptography/"]
+COPY ["lib/Youverse.Core.Storage/Youverse.Core.Storage.csproj", "lib/Youverse.Core.Storage/"]
+COPY ["lib/Youverse.Core.Cryptography/Youverse.Core.Cryptography.csproj", "lib/Youverse.Core.Cryptography/"]
 COPY ["services/Youverse.Core.Services/Youverse.Core.Services.csproj", "services/Youverse.Core.Services/"]
 COPY ["services/Youverse.Provisioning/Youverse.Provisioning.csproj", "services/Youverse.Provisioning/"]
 COPY ["services/Youverse.Hosting/Youverse.Hosting.csproj", "services/Youverse.Hosting/"]

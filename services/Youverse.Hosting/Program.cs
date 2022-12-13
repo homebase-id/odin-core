@@ -69,12 +69,19 @@ namespace Youverse.Hosting
             if (string.IsNullOrEmpty(env))
             {
                 throw new YouverseSystemException($"You must set an environment variable named [{envVar}] which specifies your environment.\n" +
-                                                  $"This must match your app settings file as follows 'appsettings.ENV.json");
+                                                  $"This must match your app settings file as follows 'appsettings.ENV.json'");
+            }
+
+            var appSettingsFile = $"appsettings.{env.ToLower()}.json";
+            Log.Information($"Current Folder: {Environment.CurrentDirectory}");
+            if (!File.Exists(Path.Combine(Environment.CurrentDirectory, appSettingsFile)))
+            {
+                Log.Information($"Missing {appSettingsFile}");
             }
             
             var config = new ConfigurationBuilder()
                 // .AddJsonFile("appsettings.json", optional: false)
-                .AddJsonFile($"appsettings.{env.ToLower()}.json", optional: false)
+                .AddJsonFile(appSettingsFile, optional: false)
                 .AddEnvironmentVariables()
                 .Build();
 
