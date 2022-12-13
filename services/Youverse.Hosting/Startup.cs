@@ -189,9 +189,14 @@ namespace Youverse.Hosting
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder appx, IWebHostEnvironment env, ILogger<Startup> logger)
         {
-            var config = new YouverseConfiguration(Configuration);
+            // var config = new YouverseConfiguration(Configuration);
 
-            bool IsProvisioningSite(HttpContext context) => context.Request.Host.Equals(new HostString(config.Registry.ProvisioningDomain));
+            bool IsProvisioningSite(HttpContext context)
+            {
+                var domain = context.RequestServices.GetService<YouverseConfiguration>()?.Registry.ProvisioningDomain;
+                return context.Request.Host.Equals(new HostString(domain ?? ""));
+            }
+            
             appx.MapWhen(IsProvisioningSite, app => Provisioning.Map(app, env, logger));
 
             appx.MapWhen(ctx => !IsProvisioningSite(ctx), app =>
@@ -223,25 +228,24 @@ namespace Youverse.Hosting
 
                 app.MapWhen(ctx => !IsPathUsedForCertificateCreation(ctx), normalApp =>
                 {
-                    
                     normalApp.UseLoggingMiddleware();
                     normalApp.UseMiddleware<ExceptionHandlingMiddleware>();
                     normalApp.UseMultiTenancy();
-                    
+
                     normalApp.UseDefaultFiles();
                     normalApp.UseCertificateForwarding();
                     normalApp.UseStaticFiles();
-                    
+
                     normalApp.UseRouting();
                     normalApp.UseAuthentication();
                     normalApp.UseAuthorization();
-                    
+
                     normalApp.UseMiddleware<DotYouContextMiddleware>();
                     normalApp.UseResponseCompression();
                     normalApp.UseMiddleware<SharedSecretEncryptionMiddleware>();
                     normalApp.UseMiddleware<StaticFileCachingMiddleware>();
 
-                    
+
                     normalApp.UseHttpsRedirection();
                     // app.UseWebSockets();
                     // app.Map("/owner/api/live/notifications", appBuilder => appBuilder.UseMiddleware<NotificationWebSocketMiddleware>());

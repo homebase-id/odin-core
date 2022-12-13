@@ -73,12 +73,12 @@ namespace Youverse.Hosting
             }
 
             var appSettingsFile = $"appsettings.{env.ToLower()}.json";
-            Log.Information($"Current Folder: {Environment.CurrentDirectory}");
+            Log.Information($"xxCurrent Folder: {Environment.CurrentDirectory}");
             if (!File.Exists(Path.Combine(Environment.CurrentDirectory, appSettingsFile)))
             {
                 Log.Information($"Missing {appSettingsFile}");
             }
-            
+
             var config = new ConfigurationBuilder()
                 // .AddJsonFile("appsettings.json", optional: false)
                 .AddJsonFile(appSettingsFile, optional: false)
@@ -103,6 +103,8 @@ namespace Youverse.Hosting
             {
                 throw new YouverseClientException($"Could not create logging folder at [{cfg.Logging.LogFilePath}]");
             }
+
+            Log.Information($"Root path:{cfg.Host.TenantDataRootPath}");
 
             _registry = new FileSystemIdentityRegistry(cfg.Host.TenantDataRootPath, cfg.CertificateRenewal.ToCertificateRenewalConfig());
             _registry.Initialize();
@@ -184,13 +186,13 @@ namespace Youverse.Hosting
                 string publicKeyPath = Path.Combine(config.Host.SystemSslRootPath, config.Registry.ProvisioningDomain, "certificate.crt");
                 string privateKeyPath = Path.Combine(config.Host.SystemSslRootPath, config.Registry.ProvisioningDomain, "private.key");
                 Log.Information($"Checking path [{publicKeyPath}]");
-            
+
                 var cert = DotYouCertificateLoader.LoadCertificate(publicKeyPath, privateKeyPath);
                 if (null == cert)
                 {
                     Log.Error($"No certificate configured for {hostName}");
                 }
-            
+
                 return cert;
             }
 
@@ -207,24 +209,6 @@ namespace Youverse.Hosting
                 if (null == cert)
                 {
                     Log.Error($"No certificate configured for {hostName}");
-                }
-
-                return cert;
-            }
-
-            return null;
-
-
-            if (!string.IsNullOrEmpty(hostName))
-            {
-                //TODO: add caching of loaded certificates
-                Guid domainId = _registry.ResolveId(hostName);
-                DotYouIdentity dotYouId = (DotYouIdentity)hostName;
-                var cert = CertificateResolver.GetSslCertificate(config.Host.TenantDataRootPath, domainId, dotYouId);
-                if (null == cert)
-                {
-                    //TODO: add logging or throw exception
-                    Console.WriteLine($"No certificate configured for {hostName}");
                 }
 
                 return cert;

@@ -44,7 +44,8 @@ namespace Youverse.Hosting._dev
             {
                 if (identityRegistry.Get(domain).GetAwaiter().GetResult() != null)
                 {
-                    identityRegistry.DeleteRegistration(domain).GetAwaiter().GetResult();
+                    // identityRegistry.DeleteRegistration(domain).GetAwaiter().GetResult();
+                    continue;
                 }
 
                 var (sourcePublicKeyPath, sourcePrivateKeyPath) = GetSourceDomainPath(domain, youverseConfiguration);
