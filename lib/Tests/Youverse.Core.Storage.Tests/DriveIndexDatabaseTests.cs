@@ -82,10 +82,9 @@ namespace IndexerTests
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f5) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(result[4], f1) == 0);
 
-            Debug.Assert(cursor.currentBoundaryCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].ToByteArray(), cursor.nextBoundaryCursor) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[4].ToByteArray(), cursor.pagingCursor) == 0);
-
+            Debug.Assert(cursor.pagingCursor == null);
+            Debug.Assert(cursor.nextBoundaryCursor == null);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].ToByteArray(), cursor.currentBoundaryCursor) == 0);
 
             // We do a refresh a few seconds later and since no new items have hit the DB nothing more is returned
             result = _testDatabase.QueryBatch(100, ref cursor, requiredSecurityGroup: allIntRange);
@@ -142,9 +141,9 @@ namespace IndexerTests
 
             result = _testDatabase.QueryBatch(2, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
-            Debug.Assert(cursor.currentBoundaryCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.nextBoundaryCursor) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f1.ToByteArray(), cursor.pagingCursor) == 0);
+            Debug.Assert(cursor.nextBoundaryCursor == null);
+            Debug.Assert(cursor.pagingCursor == null);
+            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
 
             result = _testDatabase.QueryBatch(2, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
@@ -185,9 +184,9 @@ namespace IndexerTests
             QueryBatchCursor cursor = null;
             var result = _testDatabase.QueryBatch(100, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 5);
-            Debug.Assert(cursor.currentBoundaryCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.nextBoundaryCursor) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f1.ToByteArray(), cursor.pagingCursor) == 0);
+            Debug.Assert(cursor.nextBoundaryCursor == null);
+            Debug.Assert(cursor.pagingCursor == null);
+            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
 
             // Now there should be no more items
             result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange);
@@ -206,9 +205,9 @@ namespace IndexerTests
             // But stop at stopAtBoundaryCursor: pagingCursor
             result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
-            Debug.Assert(ByteArrayUtil.muidcmp(f6.ToByteArray(), cursor.pagingCursor) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), cursor.nextBoundaryCursor) == 0);
+            Debug.Assert(cursor.nextBoundaryCursor == null);
+            Debug.Assert(cursor.pagingCursor == null);
+            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), cursor.currentBoundaryCursor) == 0);
 
             // Now there should be no more items
             result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange);
@@ -323,9 +322,9 @@ namespace IndexerTests
             QueryBatchCursor cursor = null;
             var result = _testDatabase.QueryBatch(100, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 5);
-            Debug.Assert(cursor.currentBoundaryCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.nextBoundaryCursor) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f1.ToByteArray(), cursor.pagingCursor) == 0);
+            Debug.Assert(cursor.nextBoundaryCursor == null);
+            Debug.Assert(cursor.pagingCursor == null);
+            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
 
             // Add two more items
             var f6 = SequentialGuid.CreateGuid();
@@ -336,9 +335,9 @@ namespace IndexerTests
             // Now there should be no more items (recursive call in QueryBatch())
             result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), cursor.nextBoundaryCursor) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f6.ToByteArray(), cursor.pagingCursor) == 0);
+            Debug.Assert(cursor.nextBoundaryCursor == null);
+            Debug.Assert(cursor.pagingCursor == null);
+            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), cursor.currentBoundaryCursor) == 0);
 
             // Now there should be no more items (recursive call in QueryBatch())
             result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange);
@@ -387,9 +386,14 @@ namespace IndexerTests
             QueryBatchCursor cursor = null;
             var result = _testDatabase.QueryBatch(100, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 5);
-            Debug.Assert(cursor.currentBoundaryCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.nextBoundaryCursor) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f1.ToByteArray(), cursor.pagingCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f5) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[1], f4) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[2], f3) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[3], f2) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[4], f1) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(cursor.nextBoundaryCursor == null);
+            Debug.Assert(cursor.pagingCursor == null);
 
             // Now there should be no more items
             result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange);
@@ -406,14 +410,14 @@ namespace IndexerTests
             _testDatabase.AddEntry(f7, Guid.NewGuid(), 1, 1, s1, t1, null, 0, 1, null, null);
             _testDatabase.AddEntry(f8, Guid.NewGuid(), 1, 1, s1, t1, null, 0, 1, null, null);
 
-            // Now we get two of the three new items, we ghet the newest first f8 & f7
+            // Now we get two of the three new items, we get the newest first f8 & f7
             result = _testDatabase.QueryBatch(2, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f8) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[1], f7) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), cursor.pagingCursor) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(f8.ToByteArray(), cursor.nextBoundaryCursor) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f8) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[1], f7) == 0);
 
 
             // Now add two more items
@@ -422,26 +426,29 @@ namespace IndexerTests
             _testDatabase.AddEntry(f9, Guid.NewGuid(), 1, 1, s1, t1, null, 0, 1, null, null);
             _testDatabase.AddEntry(f10, Guid.NewGuid(), 1, 1, s1, t1, null, 0, 1, null, null);
 
-            // Now we get two more items, but because there is only 1 left in the previous range
-            // we'll get that solo one first which is f6 - even though there are two newer items.
-            // Also note we only get 1 back even though there are more to get (something which
-            // could be optimized I believe).
-            result = _testDatabase.QueryBatch(2, ref cursor, requiredSecurityGroup: allIntRange);
-            Debug.Assert(result.Count == 1);
-            Debug.Assert(ByteArrayUtil.muidcmp(f6.ToByteArray(), cursor.pagingCursor) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f8.ToByteArray(), cursor.nextBoundaryCursor) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f6) == 0);
-
-
-            // Now we get two more items, only one should be left
+            // Now we get two more items. Internally, this will turn into two QueryBatchRaw()
+            // because there is only 1 left in the previous range. A second request will get the
+            // next item. Leaving us with 1 left over. The order of the items will be newest first,
+            // so f10, f6. Note that you'll get a gap between {f8,f7,f6} and {f10,f9}, i.e. f9 still
+            // waiting for the next query
+            //
             result = _testDatabase.QueryBatch(2, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
-            Debug.Assert(ByteArrayUtil.muidcmp(f9.ToByteArray(), cursor.pagingCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f10) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[1], f6) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f10.ToByteArray(), cursor.pagingCursor) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(f8.ToByteArray(), cursor.currentBoundaryCursor) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(f10.ToByteArray(), cursor.nextBoundaryCursor) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f10) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[1], f9) == 0);
+
+
+            // Now we get two more items, only one should be left (f9)
+            result = _testDatabase.QueryBatch(2, ref cursor, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 1);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f9) == 0);
+
+            Debug.Assert(cursor.nextBoundaryCursor == null);
+            Debug.Assert(cursor.pagingCursor == null);
+            Debug.Assert(ByteArrayUtil.muidcmp(f10.ToByteArray(), cursor.currentBoundaryCursor) == 0);
         }
 
 
@@ -771,7 +778,7 @@ namespace IndexerTests
                 _testDatabase.AddEntry(f2, g1, 1, 1, s1.ToByteArray(), t1, null, 0, 1, null, null);
                 Assert.Fail();
             }
-            catch 
+            catch
             {
                 Assert.Pass();
             }
