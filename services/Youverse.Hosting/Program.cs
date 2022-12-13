@@ -71,12 +71,7 @@ namespace Youverse.Hosting
                 throw new YouverseSystemException($"You must set an environment variable named [{envVar}] which specifies your environment.\n" +
                                                   $"This must match your app settings file as follows 'appsettings.ENV.json");
             }
-
-            Log.Information($"Current directory: {Environment.CurrentDirectory}");
-            foreach (var file in Directory.GetFiles(Environment.CurrentDirectory))
-            {
-                Log.Information(file);
-            }
+            
             var config = new ConfigurationBuilder()
                 // .AddJsonFile("appsettings.json", optional: false)
                 .AddJsonFile($"appsettings.{env.ToLower()}.json", optional: false)
@@ -88,7 +83,7 @@ namespace Youverse.Hosting
 
         public static IHostBuilder CreateHostBuilder(string[] args)
         {
-            var (cfg, configuration2) = LoadConfig();
+            var (cfg, _) = LoadConfig();
 
             var loggingDirInfo = Directory.CreateDirectory(cfg.Logging.LogFilePath);
             if (!loggingDirInfo.Exists)

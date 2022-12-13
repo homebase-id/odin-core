@@ -96,8 +96,10 @@ namespace Youverse.Core.Services.Configuration
                 //     Log.Information($"Key={k.Key} = Value: {k.Value}"); 
                 // }
                 // Log.Information("\n\nend dumping config\n\n");
-                
-
+                if (isDev)
+                {
+                    Log.Information("In dev mode");
+                }
                 var p = config.Required<string>("Host:TenantDataRootPath");
                 TenantDataRootPath = isDev && !p.StartsWith(home) ? PathUtil.Combine(home, p.Substring(1)) : p;
 
