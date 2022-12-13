@@ -9,7 +9,6 @@ using UnixTime = Youverse.Core.UnixTimeUtcUniqueGenerator;
 
 namespace IndexerTests
 {
-    [Ignore("")]
     public class DriveIndexDatabaseTests
     {
         IntRange allIntRange = new IntRange(start: 0, end: 1000);
