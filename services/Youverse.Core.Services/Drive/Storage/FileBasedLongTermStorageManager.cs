@@ -92,10 +92,21 @@ namespace Youverse.Core.Services.Drive.Storage
 
         private bool IsFileValid(Guid fileId)
         {
-            string metadata = GetFilenameAndPath(fileId, FilePart.Header);
-            string payload = GetFilenameAndPath(fileId, FilePart.Payload);
+            string headerPath = GetFilenameAndPath(fileId, FilePart.Header);
+            if (!File.Exists(headerPath))
+            {
+                return false;
+            }
+            
+            var header = this.GetServerFileHeader(fileId).GetAwaiter().GetResult();
+            if (!header.FileMetadata.AppData.ContentIsComplete) //there should be a payload
+            {
+                //check for payload
+                string payload = GetFilenameAndPath(fileId, FilePart.Payload);
+                return File.Exists(payload);
+            }
 
-            return File.Exists(metadata) && File.Exists(payload);
+            return true;
         }
 
         public Task HardDelete(Guid fileId)
