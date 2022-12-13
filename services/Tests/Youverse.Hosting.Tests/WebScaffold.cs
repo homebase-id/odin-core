@@ -37,7 +37,14 @@ namespace Youverse.Hosting.Tests
             Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
             Environment.SetEnvironmentVariable("DOTYOU_ENVIRONMENT", "Development");
 
-            Environment.SetEnvironmentVariable("Host__ProvisioningDomain", "provisioning-dev.onekin.io");
+            Environment.SetEnvironmentVariable("Development__SslSourcePath", "./https/");
+            Environment.SetEnvironmentVariable("Development__PreconfiguredDomains", "[\"frodo.digital\",\"samwise.digital\", \"merry.onekin.io\",\"pippin.onekin.io\"]");
+            
+            Environment.SetEnvironmentVariable("Registry__ProvisioningDomain", "provisioning-dev.onekin.io");
+            Environment.SetEnvironmentVariable("Registry__ManagedDomains", "[\"dev.dominion.id\"]");
+            Environment.SetEnvironmentVariable("Registry__DnsTargetRecordType", "[\"dev.dominion.id\"]");
+            Environment.SetEnvironmentVariable("Registry__DnsTargetAddress", "[\"dev.dominion.id\"]");
+            
             Environment.SetEnvironmentVariable("Host__TenantDataRootPath", TestDataPath);
             Environment.SetEnvironmentVariable("Host__SystemDataRootPath", TestDataPath);
             Environment.SetEnvironmentVariable("Host__IPAddressListenList", "[{ \"Ip\": \"*\",\"HttpsPort\": 443,\"HttpPort\": 80 }]");
@@ -61,18 +68,7 @@ namespace Youverse.Hosting.Tests
             Environment.SetEnvironmentVariable("CertificateRenewal__CsrLocality", "Berkeley");
             Environment.SetEnvironmentVariable("CertificateRenewal__CsrOrganization", "YF");
             Environment.SetEnvironmentVariable("CertificateRenewal__CsrOrganizationUnit", "Dev");
-            
-            Environment.SetEnvironmentVariable("Development__SslSourcePath", "./https/");
-            // Environment.SetEnvironmentVariable("Development__PreconfiguredDomains",);
 
-                // "PreconfiguredDomains": [
-                // "frodo.digital",
-                // "samwise.gamgee",
-                // "merry.onekin.io",
-                // "pippin.onekin.io"
-                //     ]
-            
-                
             this.DeleteData();
             this.DeleteLogs();
             
