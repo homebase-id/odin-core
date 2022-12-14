@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Net.Mime;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
@@ -101,7 +102,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             HttpContext.Response.Headers.Add(TransitConstants.DecryptedContentType, header.FileMetadata.ContentType);
             HttpContext.Response.Headers.Add(TransitConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader64);
             AddCacheHeader();
-            return new FileStreamResult(payload, "application/octet-stream");
+            return new FileStreamResult(payload, header.FileMetadata.PayloadIsEncrypted ? "application/octet-stream" : header.FileMetadata.ContentType);
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
@@ -140,12 +141,12 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
 
             var header = await _appService.GetClientEncryptedFileHeader(file);
             string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
-
+            
             HttpContext.Response.Headers.Add(TransitConstants.PayloadEncrypted, header.FileMetadata.PayloadIsEncrypted.ToString());
             HttpContext.Response.Headers.Add(TransitConstants.DecryptedContentType, header.FileMetadata.ContentType);
             HttpContext.Response.Headers.Add(TransitConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader64);
             AddCacheHeader();
-            return new FileStreamResult(payload, "application/octet-stream");
+            return new FileStreamResult(payload, header.FileMetadata.PayloadIsEncrypted ? "application/octet-stream" : header.FileMetadata.ContentType);
         }
 
         [HttpGet("files/thumb")]
