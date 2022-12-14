@@ -52,13 +52,6 @@ namespace Youverse.Hosting
             //HACK: why is this suddenly needed!? 
             services.Configure<KestrelServerOptions>(options => { options.AllowSynchronousIO = true; });
 
-            Log.Information("\n\nDumping config from ConfigureServices\n\n");
-            foreach (var k in Configuration.AsEnumerable())
-            {
-                Log.Information($"Key={k.Key} = Value: {k.Value}"); 
-            }
-            Log.Information("\n\nend dumping config\n\n");
-            
             var config = new YouverseConfiguration(Configuration);
             services.AddSingleton(config);
 

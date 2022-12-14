@@ -1,13 +1,17 @@
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using Serilog;
 using Youverse.Core.Exceptions;
 
 namespace Youverse.Core.Services.Certificate;
 
 public static class DotYouCertificateLoader
 {
+    private static readonly ConcurrentDictionary<string, X509Certificate2> _tempCache = new ConcurrentDictionary<string, X509Certificate2>(StringComparer.InvariantCultureIgnoreCase);
+
     public static X509Certificate2 LoadCertificate(string publicKeyPath, string privateKeyPath, bool failIfInvalid = false)
     {
         if (File.Exists(publicKeyPath) == false || File.Exists(privateKeyPath) == false)
@@ -19,6 +23,16 @@ public static class DotYouCertificateLoader
 
             return null;
         }
+        
+        string key = publicKeyPath.ToLower();
+        if (_tempCache.TryGetValue(key, out var cachedCert))
+        {
+            Log.Debug($"Cert Loader - from cache: {publicKeyPath}");
+            return cachedCert;
+        }
+
+        Log.Debug($"Cert Loader - from disk: {publicKeyPath}");
+
 
         using (X509Certificate2 publicKey = new X509Certificate2(publicKeyPath))
         {

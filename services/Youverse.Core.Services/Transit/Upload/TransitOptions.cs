@@ -30,7 +30,7 @@ namespace Youverse.Core.Services.Transit.Upload
         /// <summary>
         /// Sends file now; blocks the return of the thread until a response is received from the all recipients.
         /// </summary>
-        SendNowAwaitResponse,
+        SendNowAwaitResponse = 1,
         
         /// <summary>
         /// Sends immediately from the same thread as the caller but spawns a new thread so the caller's request
@@ -39,6 +39,6 @@ namespace Youverse.Core.Services.Transit.Upload
         //SendNowFireAndForget
         
         
-        SendLater
+        SendLater = 2
     }
 }

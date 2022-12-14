@@ -85,7 +85,8 @@ public class CommandMessagingService
             {
                 IsTransient = true,
                 Recipients = command.Recipients,
-                UseGlobalTransitId = false
+                UseGlobalTransitId = false,
+                Schedule = ScheduleOptions.SendNowAwaitResponse //TODO: let the caller specify this
             },
             transferFileType: TransferFileType.CommandMessage);
 

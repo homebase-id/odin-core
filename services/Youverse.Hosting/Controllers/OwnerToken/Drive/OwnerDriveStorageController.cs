@@ -95,7 +95,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             HttpContext.Response.Headers.Add(TransitConstants.PayloadEncrypted, header.FileMetadata.PayloadIsEncrypted.ToString());
             HttpContext.Response.Headers.Add(TransitConstants.DecryptedContentType, header.FileMetadata.ContentType);
             HttpContext.Response.Headers.Add(TransitConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader64);
-            return new FileStreamResult(payload, "application/octet-stream");
+            return new FileStreamResult(payload, header.FileMetadata.PayloadIsEncrypted ? "application/octet-stream" : header.FileMetadata.ContentType);
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
@@ -142,7 +142,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             HttpContext.Response.Headers.Add(TransitConstants.PayloadEncrypted, header.FileMetadata.PayloadIsEncrypted.ToString());
             HttpContext.Response.Headers.Add(TransitConstants.DecryptedContentType, header.FileMetadata.ContentType);
             HttpContext.Response.Headers.Add(TransitConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader64);
-            return new FileStreamResult(payload, "application/octet-stream");
+            return new FileStreamResult(payload, header.FileMetadata.PayloadIsEncrypted ? "application/octet-stream" : header.FileMetadata.ContentType);
         }
 
         [HttpGet("thumb")]

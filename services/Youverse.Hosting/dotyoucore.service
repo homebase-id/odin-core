@@ -27,6 +27,7 @@ KillSignal=SIGINT
 Environment="ASPNETCORE_ENVIRONMENT=Production"
 Environment="DOTNET_PRINT_TELEMETRY_MESSAGE=false"
 Environment="DOTYOUCORE_EX_INFO=1"
+Environment="DOTYOU_ENVIRONMENT=demo"
 
 # give the executed process the CAP_NET_BIND_SERVICE capability. This capability allows the process to bind to well known ports.
 AmbientCapabilities=CAP_NET_BIND_SERVICE
