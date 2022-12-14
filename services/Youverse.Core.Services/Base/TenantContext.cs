@@ -25,7 +25,7 @@ namespace Youverse.Core.Services.Base
         /// The root path for temp data
         /// </summary>
         public string TempDataRoot { get; private set; }
-        
+
         public string SslRoot { get; private set; }
 
         /// <summary>
@@ -48,9 +48,12 @@ namespace Youverse.Core.Services.Base
         /// <summary>
         /// Set during the first provisioning process which allows for the bearer to set execute on-boarding steps such as setting the owner password
         /// </summary>
-        public Guid? FirstRunToken { get; set; }
+        public Guid? FirstRunToken { get; private set; }
 
-        public void Update(Guid registrationId, string tenantHostName, string rootPath, CertificateRenewalConfig certificateRenewalConfig)
+        [Obsolete("temporary measure for auto-provisioning of development domains; need a better solution")]
+        public bool IsPreconfigured { get; private set; }
+
+        public void Update(Guid registrationId, string tenantHostName, string rootPath, CertificateRenewalConfig certificateRenewalConfig, Guid? firstRunToken, bool isPreconfigured)
         {
             this.DotYouRegistryId = registrationId;
             this.HostDotYouId = (DotYouIdentity)tenantHostName;
@@ -60,13 +63,15 @@ namespace Youverse.Core.Services.Base
             this.TempDataRoot = Path.Combine(rootPath, "temp", DotYouRegistryId.ToString());
             this.StorageConfig = new TenantStorageConfig(Path.Combine(this.DataRoot, "data"), Path.Combine(this.TempDataRoot, "temp"));
             this.SslRoot = Path.Combine(DataRoot, "ssl");
+            this.FirstRunToken = firstRunToken.GetValueOrDefault();
+
+            this.IsPreconfigured = isPreconfigured;
 
             Directory.CreateDirectory(this.DataRoot);
             Directory.CreateDirectory(this.SslRoot);
             Directory.CreateDirectory(this.TempDataRoot);
-
         }
-        
+
         public void UpdateSystemConfig(TenantSettings newConfig)
         {
             _tenantSettings = newConfig;
@@ -75,7 +80,7 @@ namespace Youverse.Core.Services.Base
         public static TenantContext Create(Guid registryId, string tenantHostName, string rootPath, CertificateRenewalConfig certificateRenewalConfig)
         {
             var tc = new TenantContext();
-            tc.Update(registryId, tenantHostName, rootPath,certificateRenewalConfig);
+            tc.Update(registryId, tenantHostName, rootPath, certificateRenewalConfig, null, false);
             return tc;
         }
     }

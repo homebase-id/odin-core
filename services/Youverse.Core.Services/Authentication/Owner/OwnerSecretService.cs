@@ -46,14 +46,11 @@ namespace Youverse.Core.Services.Authentication.Owner
 
         public async Task SetNewPassword(PasswordReply reply)
         {
-            
-#if !DEBUG
-            bool canSet = reply.FirstRunToken == _tenantContext.FirstRunToken;
+            bool canSet = reply.FirstRunToken == _tenantContext.FirstRunToken || _tenantContext.IsPreconfigured;
             if (!canSet)
             {
                 throw new YouverseSystemException("Invalid first run token; cannot set password");
             }
-#endif
             if (await IsMasterPasswordSet())
             {
                 throw new YouverseSecurityException("Password already set");
