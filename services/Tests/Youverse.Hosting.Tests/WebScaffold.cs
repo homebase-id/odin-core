@@ -75,6 +75,7 @@ namespace Youverse.Hosting.Tests
             
             _registry = new FileSystemIdentityRegistry(TestDataPath, null);
             _registry.Initialize();
+            
             var (config, _) = Program.LoadConfig();
             DevEnvironmentSetup.RegisterPreconfiguredDomains(config, _registry);
 

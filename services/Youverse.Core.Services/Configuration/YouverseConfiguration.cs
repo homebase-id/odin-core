@@ -90,13 +90,6 @@ namespace Youverse.Core.Services.Configuration
                 var isDev = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development";
                 var home = Environment.GetEnvironmentVariable("HOME") ?? "";
 
-                Log.Information("\n\nxx-dumping config\n\n");
-                foreach (var k in config.AsEnumerable())
-                {
-                    Log.Information($"Key={k.Key} = Value: {k.Value}"); 
-                }
-                Log.Information("\n\nend dumping config\n\n");
-
                 var p = config.Required<string>("Host:TenantDataRootPath");
                 TenantDataRootPath = isDev && !p.StartsWith(home) ? PathUtil.Combine(home, p.Substring(1)) : p;
 

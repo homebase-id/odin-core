@@ -90,28 +90,32 @@ namespace Youverse.Hosting
 
         public static IHostBuilder CreateHostBuilder(string[] args)
         {
-            var (cfg, _) = LoadConfig();
+            var (youverseConfig, appSettingsConfig) = LoadConfig();
 
-            var loggingDirInfo = Directory.CreateDirectory(cfg.Logging.LogFilePath);
+            var loggingDirInfo = Directory.CreateDirectory(youverseConfig.Logging.LogFilePath);
             if (!loggingDirInfo.Exists)
             {
-                throw new YouverseClientException($"Could not create logging folder at [{cfg.Logging.LogFilePath}]");
+                throw new YouverseClientException($"Could not create logging folder at [{youverseConfig.Logging.LogFilePath}]");
             }
 
-            var dataRootDirInfo = Directory.CreateDirectory(cfg.Host.TenantDataRootPath);
+            var dataRootDirInfo = Directory.CreateDirectory(youverseConfig.Host.TenantDataRootPath);
             if (!dataRootDirInfo.Exists)
             {
-                throw new YouverseClientException($"Could not create logging folder at [{cfg.Logging.LogFilePath}]");
+                throw new YouverseClientException($"Could not create logging folder at [{youverseConfig.Logging.LogFilePath}]");
             }
 
-            Log.Information($"Root path:{cfg.Host.TenantDataRootPath}");
+            Log.Information($"Root path:{youverseConfig.Host.TenantDataRootPath}");
 
-            _registry = new FileSystemIdentityRegistry(cfg.Host.TenantDataRootPath, cfg.CertificateRenewal.ToCertificateRenewalConfig());
+            _registry = new FileSystemIdentityRegistry(youverseConfig.Host.TenantDataRootPath, youverseConfig.CertificateRenewal.ToCertificateRenewalConfig());
             _registry.Initialize();
 
-            DevEnvironmentSetup.ConfigureIfPresent(cfg, _registry);
+            DevEnvironmentSetup.ConfigureIfPresent(youverseConfig, _registry);
 
             var builder = Host.CreateDefaultBuilder(args)
+                .ConfigureAppConfiguration(builder =>
+                {
+                    builder.AddConfiguration(appSettingsConfig);
+                })
                 .UseSystemd()
                 .UseServiceProviderFactory(new MultiTenantServiceProviderFactory(DependencyInjection.ConfigureMultiTenantServices, DependencyInjection.InitializeTenant))
                 .ConfigureServices(services =>
@@ -121,8 +125,8 @@ namespace Youverse.Hosting
                 })
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
-                    var urls = cfg.Host.IPAddressListenList.Select(entry => $"https://{entry.Ip}:{entry.HttpsPort}").ToList();
-                    urls.AddRange(cfg.Host.IPAddressListenList.Select(entry => $"http://{entry.Ip}:{entry.HttpPort}"));
+                    var urls = youverseConfig.Host.IPAddressListenList.Select(entry => $"https://{entry.Ip}:{entry.HttpsPort}").ToList();
+                    urls.AddRange(youverseConfig.Host.IPAddressListenList.Select(entry => $"http://{entry.Ip}:{entry.HttpPort}"));
 
                     webBuilder.ConfigureKestrel(options =>
                         {
@@ -135,7 +139,7 @@ namespace Youverse.Hosting
                                     return true;
                                 };
 
-                                opts.ServerCertificateSelector = (context, s) => ServerCertificateSelector(context, s, cfg);
+                                opts.ServerCertificateSelector = (context, s) => ServerCertificateSelector(context, s, youverseConfig);
                                 opts.ClientCertificateMode = ClientCertificateMode.AllowCertificate;
                             });
                         })
@@ -144,7 +148,7 @@ namespace Youverse.Hosting
                         .UseStartup<Startup>();
                 });
 
-            if (cfg.Logging.Level == LoggingLevel.ErrorsOnly)
+            if (youverseConfig.Logging.Level == LoggingLevel.ErrorsOnly)
             {
                 builder.UseSerilog((context, services, configuration) => configuration
                     .ReadFrom.Services(services)
@@ -153,7 +157,7 @@ namespace Youverse.Hosting
                 return builder;
             }
 
-            if (cfg.Logging.Level == LoggingLevel.Verbose)
+            if (youverseConfig.Logging.Level == LoggingLevel.Verbose)
             {
                 builder.UseSerilog((context, services, configuration) => configuration
                     .ReadFrom.Services(services)
@@ -170,7 +174,7 @@ namespace Youverse.Hosting
                     .Enrich.WithHostname(new StickyHostnameGenerator())
                     .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
                     .WriteTo.Async(sink => sink.Console(outputTemplate: LogOutputTemplate, theme: LogOutputTheme))
-                    .WriteTo.Async(sink => sink.RollingFile(Path.Combine(cfg.Logging.LogFilePath, "app-{Date}.log"), outputTemplate: LogOutputTemplate)));
+                    .WriteTo.Async(sink => sink.RollingFile(Path.Combine(youverseConfig.Logging.LogFilePath, "app-{Date}.log"), outputTemplate: LogOutputTemplate)));
                 return builder;
             }
 
