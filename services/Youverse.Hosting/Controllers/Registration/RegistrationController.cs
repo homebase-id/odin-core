@@ -93,19 +93,19 @@ namespace Youverse.Hosting.Controllers.Registration
         /// <summary>
         /// Finalizes registration.  Finalization will fail if you call this before the RegistrationStatus == Complete.  You can just call it again.
         /// </summary>
-        /// <param name="firstRunToken"></param>
+        /// <param name="frid"></param>
         /// <returns></returns>
         [HttpGet("finalize")]
-        public async Task<IActionResult> FinalizeRegistration(Guid firstRunToken)
+        public async Task<IActionResult> FinalizeRegistration(Guid frid)
         {
-            var status = await _regService.GetRegistrationStatus(firstRunToken);
+            var status = await _regService.GetRegistrationStatus(frid);
 
             if (status != RegistrationStatus.ReadyForPassword)
             {
                 throw new YouverseClientException("Cannot finalize pending registration", YouverseClientErrorCode.RegistrationStatusNotReadyForFinalization);
             }
             
-            await _regService.FinalizeRegistration(firstRunToken);
+            await _regService.FinalizeRegistration(frid);
             return Ok();
         }
         
