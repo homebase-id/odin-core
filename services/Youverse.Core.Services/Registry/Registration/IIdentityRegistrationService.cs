@@ -16,7 +16,13 @@ namespace Youverse.Core.Services.Registry.Registration
         /// <returns>A first run token used to allow the setting of the owner password</returns>
         Task<Guid> StartRegistration(RegistrationInfo registrationInfo);
 
-
+        /// <summary>
+        /// Performs all of the ending tasks to complete a registration
+        /// </summary>
+        /// <param name="firstRunToken"></param>
+        /// <returns></returns>
+        Task FinalizeRegistration(Guid firstRunToken);
+        
         /// <summary>
         /// Finalizes the registration by storing the final records as well as providing certificate files if requested by the user.
         /// </summary>

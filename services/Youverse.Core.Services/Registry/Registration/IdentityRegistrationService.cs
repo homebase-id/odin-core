@@ -51,9 +51,14 @@ namespace Youverse.Core.Services.Registry.Registration
             };
 
             var firstRunToken = await _registry.AddRegistration(request);
-
+            
             _logger.LogInformation($"Pending registration record saved:{registrationInfo.ReservationId}");
             return firstRunToken;
+        }
+
+        public async Task FinalizeRegistration(Guid firstRunToken)
+        {
+            await _registry.MarkRegistrationComplete(firstRunToken);
         }
 
         public async Task<RegistrationStatus> GetRegistrationStatus(Guid firstRunToken)
