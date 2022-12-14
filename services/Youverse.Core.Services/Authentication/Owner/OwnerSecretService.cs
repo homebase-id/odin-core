@@ -43,10 +43,16 @@ namespace Youverse.Core.Services.Authentication.Owner
 
             return nonce;
         }
-        
+
         public async Task SetNewPassword(PasswordReply reply)
         {
+            
 #if !DEBUG
+            bool canSet = reply.FirstRunToken == _tenantContext.FirstRunToken;
+            if (!canSet)
+            {
+                throw new YouverseSystemException("Invalid first run token; cannot set password");
+            }
 #endif
             if (await IsMasterPasswordSet())
             {
@@ -133,7 +139,6 @@ namespace Youverse.Core.Services.Authentication.Owner
 
         public async Task UpdateKeyList()
         {
-            
         }
 
         public async Task<RsaFullKeyListData> GetRsaKeyList()

@@ -62,8 +62,25 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
             // Based on the custom logic it is possible to decide whether the client considers certificate valid or not
             Console.WriteLine($"Errors: {sslErrors}");
-            // return sslErrors == SslPolicyErrors.None;
-
+            
+            if (chain == null)
+            {
+                Console.WriteLine("No chain...");
+            }
+            else
+            {
+                foreach (X509ChainElement element in chain.ChainElements)
+                {
+                    Console.WriteLine();
+                    Console.WriteLine(element.Certificate.Subject);
+                    Console.WriteLine(element.ChainElementStatus.Length);
+                    foreach (X509ChainStatus status in element.ChainElementStatus)
+                    {
+                        Console.WriteLine($"Status:  {status.Status}: {status.StatusInformation}");
+                    }
+                }
+            }
+            
             return true;
         }
         
