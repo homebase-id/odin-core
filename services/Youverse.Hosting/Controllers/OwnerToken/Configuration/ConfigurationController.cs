@@ -4,8 +4,11 @@ using System.Threading.Tasks;
 using Dawn;
 using Microsoft.AspNetCore.Mvc;
 using Refit;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Registry;
+using Youverse.Core.Services.Registry.Registration;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Configuration;
 
@@ -17,14 +20,16 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Configuration;
 [Route(OwnerApiPathConstants.ConfigurationV1)]
 public class ConfigurationController : Controller
 {
+    private readonly IIdentityRegistrationService _regService;
     private readonly TenantConfigService _tenantConfigService;
     private readonly IDriveService _driveService;
 
     /// <summary />
-    public ConfigurationController(TenantConfigService tenantConfigService, IDriveService driveService)
+    public ConfigurationController(TenantConfigService tenantConfigService, IDriveService driveService, IIdentityRegistrationService regService)
     {
         _tenantConfigService = tenantConfigService;
         _driveService = driveService;
+        _regService = regService;
     }
 
     /// <summary>
@@ -111,5 +116,26 @@ public class ConfigurationController : Controller
         var settings = _tenantConfigService.GetOwnerAppSettings();
         return settings;
     }
+    
+    /// <summary>
+    /// Finalizes registration.  Finalization will fail if you call this before the RegistrationStatus == Complete.  You can just call it again.
+    /// </summary>
+    /// <param name="frid"></param>
+    /// <returns></returns>
+    [HttpGet("registration/finalize")]
+    public async Task<IActionResult> FinalizeRegistration(Guid frid)
+    {
+        var status = await _regService.GetRegistrationStatus(frid);
+
+        if (status != RegistrationStatus.ReadyForPassword)
+        {
+            throw new YouverseClientException("Cannot finalize pending registration", YouverseClientErrorCode.RegistrationStatusNotReadyForFinalization);
+        }
+            
+        await _regService.FinalizeRegistration(frid);
+        return Ok();
+    }
     //
+    
+    
 }
