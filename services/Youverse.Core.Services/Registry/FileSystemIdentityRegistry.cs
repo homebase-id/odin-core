@@ -4,6 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Autofac.Core;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Refit;
 using Serilog;
 using Youverse.Core.Exceptions;
@@ -25,20 +28,18 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private readonly Trie.Trie<IdentityRegistration> _trie;
     private readonly string _tenantDataRootPath;
     private readonly CertificateRenewalConfig _certificateRenewalConfig;
-    private readonly TenantContext _tenantContext;
-
-    public FileSystemIdentityRegistry(string tenantDataRootPath, CertificateRenewalConfig certificateRenewalConfig, TenantContext tenantContext)
+    
+    public FileSystemIdentityRegistry(string tenantDataRootPath, CertificateRenewalConfig certificateRenewalConfig)
     {
         if (!Directory.Exists(tenantDataRootPath))
         {
             throw new InvalidDataException($"Could find or access path at [{tenantDataRootPath}]");
         }
-
+        
         _cache = new Dictionary<Guid, IdentityRegistration>();
         _trie = new Trie<IdentityRegistration>();
         _tenantDataRootPath = tenantDataRootPath;
         _certificateRenewalConfig = certificateRenewalConfig;
-        _tenantContext = tenantContext;
     }
 
     public void Initialize()
@@ -102,14 +103,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     public async Task MarkRegistrationComplete(Guid firstRunToken)
     {
-        if (null == _tenantContext)
-        {
-            throw new YouverseClientException("Can only be called from a Tenant");
-        }
-
-        var registration = await Get(_tenantContext.HostDotYouId);
-        // var registration = GetByFirstRunToken(firstRunToken);
-
+        var registration = GetByFirstRunToken(firstRunToken);
         registration.FirstRunToken = null;
         await this.SaveRegistrationInternal(registration);
     }
