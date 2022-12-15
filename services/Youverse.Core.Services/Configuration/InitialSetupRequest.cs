@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Drive;
@@ -9,6 +10,9 @@ namespace Youverse.Core.Services.Configuration;
 /// </summary>
 public class InitialSetupRequest
 {
+    
+    public Guid? FirstRunToken { get; set; }
+    
     /// <summary>
     /// Drives to be created
     /// </summary>

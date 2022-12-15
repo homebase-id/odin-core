@@ -20,16 +20,12 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Configuration;
 [Route(OwnerApiPathConstants.ConfigurationV1)]
 public class ConfigurationController : Controller
 {
-    private readonly IIdentityRegistrationService _regService;
     private readonly TenantConfigService _tenantConfigService;
-    private readonly IDriveService _driveService;
 
     /// <summary />
-    public ConfigurationController(TenantConfigService tenantConfigService, IDriveService driveService, IIdentityRegistrationService regService)
+    public ConfigurationController(TenantConfigService tenantConfigService)
     {
         _tenantConfigService = tenantConfigService;
-        _driveService = driveService;
-        _regService = regService;
     }
 
     /// <summary>
@@ -116,26 +112,5 @@ public class ConfigurationController : Controller
         var settings = _tenantConfigService.GetOwnerAppSettings();
         return settings;
     }
-    
-    /// <summary>
-    /// Finalizes registration.  Finalization will fail if you call this before the RegistrationStatus == Complete.  You can just call it again.
-    /// </summary>
-    /// <param name="frid"></param>
-    /// <returns></returns>
-    [HttpGet("registration/finalize")]
-    public async Task<IActionResult> FinalizeRegistration(Guid frid)
-    {
-        var status = await _regService.GetRegistrationStatus(frid);
-
-        if (status != RegistrationStatus.ReadyForPassword)
-        {
-            throw new YouverseClientException("Cannot finalize pending registration", YouverseClientErrorCode.RegistrationStatusNotReadyForFinalization);
-        }
-            
-        await _regService.FinalizeRegistration(frid);
-        return Ok();
-    }
-    //
-    
     
 }

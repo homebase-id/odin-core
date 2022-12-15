@@ -11,6 +11,7 @@ using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Registry;
 using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Configuration;
@@ -25,13 +26,15 @@ public class TenantConfigService
     private readonly DotYouContextAccessor _contextAccessor;
     private readonly TenantContext _tenantContext;
     private readonly SingleKeyValueStorage _configStorage;
+    private readonly IIdentityRegistry _registry;
 
-    public TenantConfigService(ICircleNetworkService cns, DotYouContextAccessor contextAccessor, IDriveService driveService, ITenantSystemStorage storage, TenantContext tenantContext)
+    public TenantConfigService(ICircleNetworkService cns, DotYouContextAccessor contextAccessor, IDriveService driveService, ITenantSystemStorage storage, TenantContext tenantContext, IIdentityRegistry registry)
     {
         _cns = cns;
         _contextAccessor = contextAccessor;
         _driveService = driveService;
         _tenantContext = tenantContext;
+        _registry = registry;
         _configStorage = storage.SingleKeyValueStorage;
         _tenantContext.UpdateSystemConfig(this.GetTenantSettings());
     }
@@ -50,6 +53,11 @@ public class TenantConfigService
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
+        if(request.FirstRunToken.HasValue)
+        {
+            await _registry.MarkRegistrationComplete(request.FirstRunToken.GetValueOrDefault());
+        }
+        
         //Note: the order here is important.  if the request or system drives include any anonymous
         //drives, they should be added after the system circle exists
         await _cns.CreateSystemCircle();
