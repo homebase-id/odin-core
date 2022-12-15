@@ -1,4 +1,6 @@
+using System;
 using System.IO;
+using System.Linq;
 using System.Net.NetworkInformation;
 using System.Reflection;
 using Autofac;
@@ -172,9 +174,10 @@ namespace Youverse.Hosting
             var config = scope.Resolve<YouverseConfiguration>();
             var tenantContext = scope.Resolve<TenantContext>();
 
+            var isPreconfigured = config?.Development?.PreconfiguredDomains?.Any(d => d.Equals(tenant.Name, StringComparison.InvariantCultureIgnoreCase)) ?? false;
+
             var reg = registry.Get(tenant.Name).GetAwaiter().GetResult();
-            tenantContext.Update(reg.Id, reg.PrimaryDomainName, config.Host.TenantDataRootPath, config.CertificateRenewal.ToCertificateRenewalConfig());
-            tenantContext.FirstRunToken = reg.FirstRunToken;
+            tenantContext.Update(reg.Id, reg.PrimaryDomainName, config.Host.TenantDataRootPath, config.CertificateRenewal.ToCertificateRenewalConfig(), reg.FirstRunToken, isPreconfigured);
         }
     }
 }
