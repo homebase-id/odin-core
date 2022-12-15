@@ -12,13 +12,8 @@ public class ContactRequestData
     /// <summary>
     /// The name to be shown the recipient on the request
     /// </summary>
-    public string GivenName { get; set; }
-        
-    /// <summary>
-    /// The name to be shown the recipient on the request
-    /// </summary>
-    public string Surname { get; set; }
-    
+    public string Name { get; set; }
+
     /// <summary>
     /// An image to be sent with the connection request
     /// </summary>
@@ -26,7 +21,6 @@ public class ContactRequestData
 
     public void Validate()
     {
-        Guard.Argument(GivenName, nameof(GivenName)).NotNull().NotEmpty();
-        Guard.Argument(Surname, nameof(Surname)).NotNull().NotEmpty();
+        Guard.Argument(Name, nameof(Name)).NotNull().NotEmpty();
     }
 }
