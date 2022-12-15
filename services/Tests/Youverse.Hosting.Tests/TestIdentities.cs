@@ -19,8 +19,7 @@ namespace Youverse.Hosting.Tests
             DotYouId = (DotYouIdentity)"frodo.digital",
             ContactData = new ContactRequestData()
             {
-                GivenName = "frodo",
-                Surname = "baggins",
+                Name = "frodo baggins",
                 ImageId = new Guid()
             }
         };
@@ -30,8 +29,7 @@ namespace Youverse.Hosting.Tests
             DotYouId = (DotYouIdentity)"samwise.digital",
             ContactData = new ContactRequestData()
             {
-                GivenName = "Samwise",
-                Surname = "Gamgee",
+                Name = "Samwise Gamgee",
                 ImageId = new Guid()
             }
         };
@@ -41,8 +39,7 @@ namespace Youverse.Hosting.Tests
             DotYouId = (DotYouIdentity)"merry.onekin.io",
             ContactData = new ContactRequestData()
             {
-                GivenName = "Merry",
-                Surname = "Brandybuck"
+                Name = "Merry Brandybuck"
             }
         };
 
@@ -51,8 +48,7 @@ namespace Youverse.Hosting.Tests
             DotYouId = (DotYouIdentity)"pippin.onekin.io",
             ContactData = new ContactRequestData()
             {
-                GivenName = "Pippin",
-                Surname = "Took"
+                Name = "Pippin Took"
             }
         };
 
