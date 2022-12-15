@@ -28,8 +28,8 @@ namespace Youverse.Hosting.Tests.Performance
     public class MyPerformance
     {
         // For the performance test
-        const int MAXTHREADS = 1;   // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
-        const int MAXITERATIONS = 500;  // A number high enough to get warmed up and reliable
+        private const int MAXTHREADS = 64;   // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
+        const int MAXITERATIONS = 5000;  // A number high enough to get warmed up and reliable
 
 
         [Test]
