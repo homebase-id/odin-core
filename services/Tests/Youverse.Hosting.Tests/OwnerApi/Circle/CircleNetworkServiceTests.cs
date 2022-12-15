@@ -41,8 +41,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         [SetUp]
         public void Setup()
         {
-            //runs before each test 
-            //_scaffold.DeleteData(); 
+            //runs before each test
+            //_scaffold.DeleteData();
         }
 
         [Test]
@@ -110,8 +110,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.IsNotNull(response.Content, $"No request found from {sender.Identity}");
                 Assert.IsTrue(response.Content.SenderDotYouId == sender.Identity);
 
-                Assert.IsTrue(response.Content.ContactData.GivenName == sender.ContactData.GivenName);
-                Assert.IsTrue(response.Content.ContactData.Surname == sender.ContactData.Surname);
+                Assert.IsTrue(response.Content.ContactData.Name == sender.ContactData.Name);
                 Assert.IsTrue(response.Content.ContactData.ImageId == sender.ContactData.ImageId);
             }
 
@@ -226,8 +225,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 await this.CreateCircleWith2Drives(TestIdentities.Frodo.DotYouId, "frodo c1", new List<int>() { PermissionKeys.ReadConnections, PermissionKeys.ReadConnections });
             var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo.DotYouId, "frodo c2", new List<int> { PermissionKeys.ReadCircleMembership });
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam(circleOnFrodosIdentity1, circleOnFrodosIdentity2);
-            
-            // create 2 circles on sam's identity and give frodo access 
+
+            // create 2 circles on sam's identity and give frodo access
             var circleOnSamsIdentity1 = await this.CreateCircleWith2Drives(sam.Identity, "c1", new List<int>());
             var circleOnSamsIdentity2 = await this.CreateCircleWith2Drives(sam.Identity, "c2", new List<int> { PermissionKeys.ReadConnections, PermissionKeys.ReadConnections });
 
@@ -265,8 +264,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 //
                 // Validate the contact data sent by frodo was set on his ICR on sam's identity
                 //
-                Assert.IsTrue(getFrodoInfoResponse.Content.OriginalContactData.GivenName == frodo.ContactData.GivenName);
-                Assert.IsTrue(getFrodoInfoResponse.Content.OriginalContactData.Surname == frodo.ContactData.Surname);
+                Assert.IsTrue(getFrodoInfoResponse.Content.OriginalContactData.Name == frodo.ContactData.Name);
                 Assert.IsTrue(getFrodoInfoResponse.Content.OriginalContactData.ImageId == frodo.ContactData.ImageId);
 
                 var frodoAccess = getFrodoInfoResponse.Content.AccessGrant;
@@ -283,7 +281,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
                 //
                 // Frodo should show up in the member list for each circle
-                // 
+                //
                 await AssertIdentityIsInCircle(client, ownerSharedSecret, circleOnSamsIdentity1.Id, frodo.Identity);
                 await AssertIdentityIsInCircle(client, ownerSharedSecret, circleOnSamsIdentity2.Id, frodo.Identity);
             }
@@ -296,7 +294,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             {
                 //
                 // Sent request should be deleted
-                // 
+                //
                 var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
                 var getSentRequestResponse = await svc.GetSentRequest(new DotYouIdRequest() { DotYouId = sam.Identity });
                 Assert.IsTrue(getSentRequestResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - sent request to {sam.Identity} still exists");
@@ -314,8 +312,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 //
                 // Validate the contact data sent by sam was set on his ICR on frodo's identity
                 //
-                Assert.IsTrue(getSamConnectionInfoResponse.Content.OriginalContactData.GivenName == sam.ContactData.GivenName);
-                Assert.IsTrue(getSamConnectionInfoResponse.Content.OriginalContactData.Surname == sam.ContactData.Surname);
+                Assert.IsTrue(getSamConnectionInfoResponse.Content.OriginalContactData.Name == sam.ContactData.Name);
                 Assert.IsTrue(getSamConnectionInfoResponse.Content.OriginalContactData.ImageId == sam.ContactData.ImageId);
 
                 var samAccess = getSamConnectionInfoResponse.Content.AccessGrant;
@@ -332,7 +329,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
                 //
                 // Sam should show up in the member list for each circle
-                // 
+                //
                 await AssertIdentityIsInCircle(client, ownerSharedSecret, circleOnFrodosIdentity1.Id, sam.Identity);
                 await AssertIdentityIsInCircle(client, ownerSharedSecret, circleOnFrodosIdentity2.Id, sam.Identity);
             }
@@ -349,7 +346,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo.DotYouId, "frodo c2", new List<int>() { PermissionKeys.ReadConnections });
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam(circleOnFrodosIdentity1, circleOnFrodosIdentity2);
 
-            // create 2 circles on sam's identity and give frodo access 
+            // create 2 circles on sam's identity and give frodo access
             var circleOnSamsIdentity1 = await this.CreateCircleWith2Drives(sam.Identity, "c1", new List<int>() { PermissionKeys.ReadCircleMembership });
             var circleOnSamsIdentity2 = await this.CreateCircleWith2Drives(sam.Identity, "c2", new List<int>());
 
@@ -398,7 +395,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
                 //
                 // Frodo should show up in the member list for each circle
-                // 
+                //
                 await AssertIdentityIsInCircle(client, ownerSharedSecret, circleOnSamsIdentity1.Id, frodo.Identity);
                 await AssertIdentityIsInCircle(client, ownerSharedSecret, circleOnSamsIdentity2.Id, frodo.Identity);
             }
@@ -409,7 +406,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             {
                 //
                 // Sent request should be deleted
-                // 
+                //
                 var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
                 var getSentRequestResponse = await svc.GetSentRequest(new DotYouIdRequest() { DotYouId = sam.Identity });
                 Assert.IsTrue(getSentRequestResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - sent request to {sam.Identity} still exists");
@@ -438,7 +435,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
                 //
                 // Sam should show up in the member list for each circle
-                // 
+                //
                 await AssertIdentityIsInCircle(client, ownerSharedSecret, circleOnFrodosIdentity1.Id, sam.Identity);
                 await AssertIdentityIsInCircle(client, ownerSharedSecret, circleOnFrodosIdentity2.Id, sam.Identity);
             }
@@ -454,13 +451,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             {
                 //
                 // Frodo should show in both original circles
-                // 
+                //
                 await AssertIdentityIsInCircle(client, ownerSharedSecret, circleOnSamsIdentity1.Id, frodo.Identity);
                 await AssertIdentityIsInCircle(client, ownerSharedSecret, circleOnSamsIdentity2.Id, frodo.Identity);
 
                 //
                 // Add Frodo to newCircleDefinitionOnSamsIdentity
-                // 
+                //
                 var circleMemberSvc = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
                 var addMemberResponse = await circleMemberSvc.AddCircle(new AddCircleMembershipRequest()
                 {
@@ -477,7 +474,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 await AssertIdentityIsInCircle(client, ownerSharedSecret, circleOnSamsIdentity2.Id, frodo.Identity);
                 await AssertIdentityIsInCircle(client, ownerSharedSecret, circleOnSamsIdentity2.Id, frodo.Identity);
 
-                // 
+                //
                 // Get frodo's connection info to see he s been given access to the new circle's drives
                 //
                 var samsConnectionsService = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
@@ -519,7 +516,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo.DotYouId, "frodo c2", new List<int>() { PermissionKeys.ReadConnections });
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam(circleOnFrodosIdentity1, circleOnFrodosIdentity2);
 
-            // create 2 circles on sam's identity and give frodo access 
+            // create 2 circles on sam's identity and give frodo access
             var circleOnSamsIdentity1 = await this.CreateCircleWith2Drives(sam.Identity, "c1", new List<int>() { PermissionKeys.ReadCircleMembership });
             var circleOnSamsIdentity2 = await this.CreateCircleWith2Drives(sam.Identity, "c2", new List<int>());
 
@@ -568,7 +565,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
                 //
                 // Frodo should show up in the member list for each circle
-                // 
+                //
                 await AssertIdentityIsInCircle(client, ownerSharedSecret, circleOnSamsIdentity1.Id, frodo.Identity);
                 await AssertIdentityIsInCircle(client, ownerSharedSecret, circleOnSamsIdentity2.Id, frodo.Identity);
             }
@@ -579,7 +576,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             {
                 //
                 // Sent request should be deleted
-                // 
+                //
                 var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
                 var getSentRequestResponse = await svc.GetSentRequest(new DotYouIdRequest() { DotYouId = sam.Identity });
                 Assert.IsTrue(getSentRequestResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - sent request to {sam.Identity} still exists");
@@ -608,7 +605,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
                 //
                 // Sam should show up in the member list for each circle
-                // 
+                //
                 await AssertIdentityIsInCircle(client, ownerSharedSecret, circleOnFrodosIdentity1.Id, sam.Identity);
                 await AssertIdentityIsInCircle(client, ownerSharedSecret, circleOnFrodosIdentity2.Id, sam.Identity);
             }
@@ -624,13 +621,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
                 //
                 // Frodo should show in both circles
-                // 
+                //
                 await AssertIdentityIsInCircle(client, ownerSharedSecret, revokedCircle.Id, frodo.Identity);
                 await AssertIdentityIsInCircle(client, ownerSharedSecret, circleOnSamsIdentity2.Id, frodo.Identity);
 
                 //
                 // Revoke circleOnSamsIdentity1 from frodo
-                // 
+                //
                 var circleMemberSvc = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
                 var removeMembersResponse = await circleMemberSvc.RevokeCircle(new RevokeCircleMembershipRequest()
                 {
@@ -655,7 +652,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 //
                 await AssertIdentityIsInCircle(client, ownerSharedSecret, circleOnSamsIdentity2.Id, frodo.Identity);
 
-                // 
+                //
                 // Get frodo's connection info to see he's no longer has the drives for this circle
                 //
                 var samsConnectionsService = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
@@ -825,7 +822,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 // Assert.IsTrue(getSystemDrivesResponse.Content.TryGetValue("profile", out var standardProfileDrive), "standardProfileDrive should have returned");
 
                 // Frodo should show up in the member list for each circle
-                // 
+                //
                 await AssertIdentityIsInCircle(client, ownerSharedSecret, CircleConstants.SystemCircleId, frodo.Identity);
             }
 
@@ -864,7 +861,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 // Assert.IsTrue(getSystemDrivesResponse.Content.TryGetValue("profile", out var standardProfileDrive), "standardProfileDrive should have returned");
 
                 // Frodo should show up in the member list for each circle
-                // 
+                //
                 await AssertIdentityIsInCircle(client, ownerSharedSecret, CircleConstants.SystemCircleId, sam.Identity);
             }
 
@@ -1069,7 +1066,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var definitionList = getCircleDefinitionsResponse.Content;
                 Assert.IsNotNull(definitionList);
 
-                //grab the circle by the id we put in the description.  we don't have the newly created circle's id because i need to update the create circle method  
+                //grab the circle by the id we put in the description.  we don't have the newly created circle's id because i need to update the create circle method
                 var circle = definitionList.Single(c => c.Description.Contains(someId.ToString()));
 
                 Assert.IsNotNull(circle.DriveGrants.SingleOrDefault(d => d == dgr1));

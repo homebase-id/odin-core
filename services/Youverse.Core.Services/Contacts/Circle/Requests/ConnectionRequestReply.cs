@@ -3,7 +3,7 @@
 namespace Youverse.Core.Services.Contacts.Circle.Requests
 {
     /// <summary>
-    /// Sent when a <see cref="ConnectionRequest"/> is accepted by the <see cref="ConnectionRequest.Recipient"/> 
+    /// Sent when a <see cref="ConnectionRequest"/> is accepted by the <see cref="ConnectionRequest.Recipient"/>
     /// to establish a connection
     /// </summary>
     public class ConnectionRequestReply
@@ -19,8 +19,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         public void Validate()
         {
             Guard.Argument(SenderDotYouId.ToString(), nameof(SenderDotYouId)).NotEmpty().NotNull();
-            Guard.Argument(ContactData.GivenName, nameof(ContactData.GivenName)).NotEmpty().NotNull();
-            Guard.Argument(ContactData.Surname, nameof(ContactData.Surname)).NotEmpty().NotNull();
+            Guard.Argument(ContactData.Name, nameof(ContactData.Name)).NotEmpty().NotNull();
         }
     }
 }
