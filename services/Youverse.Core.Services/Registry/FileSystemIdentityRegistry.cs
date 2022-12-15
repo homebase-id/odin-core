@@ -25,8 +25,9 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private readonly Trie.Trie<IdentityRegistration> _trie;
     private readonly string _tenantDataRootPath;
     private readonly CertificateRenewalConfig _certificateRenewalConfig;
+    private readonly TenantContext _tenantContext;
 
-    public FileSystemIdentityRegistry(string tenantDataRootPath, CertificateRenewalConfig certificateRenewalConfig)
+    public FileSystemIdentityRegistry(string tenantDataRootPath, CertificateRenewalConfig certificateRenewalConfig, TenantContext tenantContext)
     {
         if (!Directory.Exists(tenantDataRootPath))
         {
@@ -37,6 +38,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         _trie = new Trie<IdentityRegistration>();
         _tenantDataRootPath = tenantDataRootPath;
         _certificateRenewalConfig = certificateRenewalConfig;
+        _tenantContext = tenantContext;
     }
 
     public void Initialize()
@@ -100,7 +102,13 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     public async Task MarkRegistrationComplete(Guid firstRunToken)
     {
-        var registration = GetByFirstRunToken(firstRunToken);
+        if (null == _tenantContext)
+        {
+            throw new YouverseClientException("Can only be called from a Tenant");
+        }
+
+        var registration = await Get(_tenantContext.HostDotYouId);
+        // var registration = GetByFirstRunToken(firstRunToken);
 
         registration.FirstRunToken = null;
         await this.SaveRegistrationInternal(registration);

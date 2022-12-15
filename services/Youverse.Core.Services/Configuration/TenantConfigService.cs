@@ -28,7 +28,8 @@ public class TenantConfigService
     private readonly SingleKeyValueStorage _configStorage;
     private readonly IIdentityRegistry _registry;
 
-    public TenantConfigService(ICircleNetworkService cns, DotYouContextAccessor contextAccessor, IDriveService driveService, ITenantSystemStorage storage, TenantContext tenantContext, IIdentityRegistry registry)
+    public TenantConfigService(ICircleNetworkService cns, DotYouContextAccessor contextAccessor, IDriveService driveService, ITenantSystemStorage storage, TenantContext tenantContext,
+        IIdentityRegistry registry)
     {
         _cns = cns;
         _contextAccessor = contextAccessor;
@@ -53,11 +54,11 @@ public class TenantConfigService
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-        if(request.FirstRunToken.HasValue)
-        {
-            await _registry.MarkRegistrationComplete(request.FirstRunToken.GetValueOrDefault());
-        }
-        
+        // if(request.FirstRunToken.HasValue)
+        // {
+        await _registry.MarkRegistrationComplete(request.FirstRunToken.GetValueOrDefault());
+        //}
+
         //Note: the order here is important.  if the request or system drives include any anonymous
         //drives, they should be added after the system circle exists
         await _cns.CreateSystemCircle();
