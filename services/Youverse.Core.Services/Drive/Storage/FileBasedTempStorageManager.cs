@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Cryptography;
 
 namespace Youverse.Core.Services.Drive.Storage
 {
@@ -47,16 +48,17 @@ namespace Youverse.Core.Services.Drive.Storage
                 //Process: if there's a file, we write to a temp file then rename.
                 if (File.Exists(filePath))
                 {
-                    bytesWritten=WriteStream(stream, tempFilePath);
+                    bytesWritten = WriteStream(stream, tempFilePath);
                     lock (filePath)
                     {
+                        // File.WriteAllBytes(filePath, stream.ToByteArray());
                         //TODO: need to know if this replace method is faster than renaming files
                         File.Replace(tempFilePath, filePath, null, true);
                     }
                 }
                 else
                 {
-                    bytesWritten=WriteStream(stream, filePath);
+                    bytesWritten = WriteStream(stream, filePath);
                 }
             }
             finally
