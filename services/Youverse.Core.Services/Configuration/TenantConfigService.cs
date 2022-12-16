@@ -28,7 +28,8 @@ public class TenantConfigService
     private readonly SingleKeyValueStorage _configStorage;
     private readonly IIdentityRegistry _registry;
 
-    public TenantConfigService(ICircleNetworkService cns, DotYouContextAccessor contextAccessor, IDriveService driveService, ITenantSystemStorage storage, TenantContext tenantContext,
+    public TenantConfigService(ICircleNetworkService cns, DotYouContextAccessor contextAccessor,
+        IDriveService driveService, ITenantSystemStorage storage, TenantContext tenantContext,
         IIdentityRegistry registry)
     {
         _cns = cns;
@@ -54,10 +55,10 @@ public class TenantConfigService
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-        // if(request.FirstRunToken.HasValue)
-        // {
-        await _registry.MarkRegistrationComplete(request.FirstRunToken.GetValueOrDefault());
-        //}
+        if (request.FirstRunToken.HasValue)
+        {
+            await _registry.MarkRegistrationComplete(request.FirstRunToken.GetValueOrDefault());
+        }
 
         //Note: the order here is important.  if the request or system drives include any anonymous
         //drives, they should be added after the system circle exists
@@ -115,7 +116,8 @@ public class TenantConfigService
                 break;
 
             default:
-                throw new YouverseClientException("Flag name is valid but not handled", YouverseClientErrorCode.UnknownFlagName);
+                throw new YouverseClientException("Flag name is valid but not handled",
+                    YouverseClientErrorCode.UnknownFlagName);
         }
 
         _configStorage.Upsert(TenantSettings.ConfigKey, cfg);
