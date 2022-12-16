@@ -30,10 +30,9 @@ namespace Youverse.Hosting.Tests.Performance
     {
         // For the performance test
         private const int
-            MAXTHREADS =
-                2; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
+            MAXTHREADS = 8; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
 
-        const int MAXITERATIONS = 10000; // A number high enough to get warmed up and reliable
+        const int MAXITERATIONS = 2000; // A number high enough to get warmed up and reliable
 
 
         [Test]
@@ -43,90 +42,9 @@ namespace Youverse.Hosting.Tests.Performance
             List<long[]> timers = new List<long[]>();
             int fileByteLength = 0;
 
-            var sw = new Stopwatch();
-            sw.Reset();
-            sw.Start();
-
-            for (var i = 0; i < MAXTHREADS; i++)
-            {
-                tasks[i] = Task.Run(async () =>
-                {
-                    var (tmp, measurements) = await CanPublishStaticFileContentWithThumbnails(i, MAXITERATIONS);
-                    Debug.Assert(measurements.Length == MAXITERATIONS);
-                    lock (timers)
-                    {
-                        fileByteLength = tmp;
-                        timers.Add(measurements);
-                    }
-                });
-            }
-
-            try
-            {
-                Task.WaitAll(tasks);
-            }
-            catch (AggregateException ae)
-            {
-                foreach (var ex in ae.InnerExceptions)
-                {
-                    Console.WriteLine(ex.Message);
-                }
-
-                throw;
-            }
-
-            sw.Stop();
-
-            Debug.Assert(timers.Count == MAXTHREADS);
-            long[] oneDimensionalArray = timers.SelectMany(arr => arr).ToArray();
-            Debug.Assert(oneDimensionalArray.Length == (MAXTHREADS * MAXITERATIONS));
-
-            Array.Sort(oneDimensionalArray);
-            for (var i = 1; i < MAXTHREADS * MAXITERATIONS; i++)
-                Debug.Assert(oneDimensionalArray[i - 1] <= oneDimensionalArray[i]);
-
-            Console.WriteLine($"Threads   : {MAXTHREADS}");
-            Console.WriteLine($"Iterations: {MAXITERATIONS}");
-            Console.WriteLine($"Time      : {sw.ElapsedMilliseconds}ms");
-            Console.WriteLine($"Minimum   : {oneDimensionalArray[0]}ms");
-            Console.WriteLine($"Maximum   : {oneDimensionalArray[MAXTHREADS * MAXITERATIONS - 1]}ms");
-            Console.WriteLine($"Average   : {sw.ElapsedMilliseconds / (MAXTHREADS * MAXITERATIONS)}ms");
-            Console.WriteLine($"Median    : {oneDimensionalArray[(MAXTHREADS * MAXITERATIONS) / 2]}ms");
-
-            Console.WriteLine(
-                $"Capacity  : {(1000 * MAXITERATIONS * MAXTHREADS) / Math.Max(1, sw.ElapsedMilliseconds)} / second");
-            Console.WriteLine(
-                $"Bandwidth : {fileByteLength * ((1000 * MAXITERATIONS * MAXTHREADS) / Math.Max(1, sw.ElapsedMilliseconds))} bytes / second");
-        }
-        
-        private WebScaffold _scaffold;
-
-        [OneTimeSetUp]
-        public void OneTimeSetUp()
-        {
-            string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
-            _scaffold = new WebScaffold(folder);
-            _scaffold.RunBeforeAnyTests();
-        }
-
-        [OneTimeTearDown]
-        public void OneTimeTearDown()
-        {
-            _scaffold.RunAfterAnyTests();
-        }
-
-        // First make this test pass, then change it from a test to something else.
-        //
-        // [Test(Description = "publish static content to file, including payload and thumbnails")]
-        public async Task<(int, long[])> CanPublishStaticFileContentWithThumbnails(int threadno, int iterations)
-        {
-            long[] timers = new long[iterations];
-            Debug.Assert(timers.Length == iterations);
-            var sw = new Stopwatch();
-            int fileByteLength = 0;
 
             //
-            // Here's the original test
+            // Some initialization to prepare for the test
             //
             var identity = TestIdentities.Frodo;
             var testContext = await _scaffold.OwnerApi.SetupTestSampleApp(identity);
@@ -199,118 +117,201 @@ namespace Youverse.Hosting.Tests.Performance
                 },
                 additionalThumbs: new List<ImageDataContent>() { thumbnail2 });
 
+            using var client =
+                   _scaffold.OwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret);
+            var staticFileSvc =
+                RefitCreator.RestServiceFor<IStaticFileTestHttpClientForOwner>(client, ownerSharedSecret);
 
-            using (var client =
-                   _scaffold.OwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret))
+            //publish a static file
+            var publishRequest = new PublishStaticFileRequest()
             {
-                var staticFileSvc =
-                    RefitCreator.RestServiceFor<IStaticFileTestHttpClientForOwner>(client, ownerSharedSecret);
-
-                //publish a static file
-                var publishRequest = new PublishStaticFileRequest()
+                Filename = "test-file.ok",
+                Config = new StaticFileConfiguration()
                 {
-                    Filename = "test-file.ok",
-                    Config = new StaticFileConfiguration()
-                    {
-                        CrossOriginBehavior = CrossOriginBehavior.AllowAllOrigins
-                    },
-                    Sections = new List<QueryParamSection>(),
-                };
+                    CrossOriginBehavior = CrossOriginBehavior.AllowAllOrigins
+                },
+                Sections = new List<QueryParamSection>(),
+            };
 
-                publishRequest.Sections.Add(new QueryParamSection()
+            publishRequest.Sections.Add(new QueryParamSection()
+            {
+                Name = $"Section matching filetype ({section_1_filetype})",
+                QueryParams = new FileQueryParams()
                 {
-                    Name = $"Section matching filetype ({section_1_filetype})",
-                    QueryParams = new FileQueryParams()
-                    {
-                        TargetDrive = testContext.TargetDrive,
-                        FileType = new List<int>() { section_1_filetype },
-                    },
+                    TargetDrive = testContext.TargetDrive,
+                    FileType = new List<int>() { section_1_filetype },
+                },
 
-                    ResultOptions = new SectionResultOptions()
-                    {
-                        IncludePayload = true,
-                        ExcludePreviewThumbnail = false,
-                        IncludeAdditionalThumbnails = true,
-                        IncludeJsonContent = true
-                    }
-                });
-
-                publishRequest.Sections.Add(new QueryParamSection()
+                ResultOptions = new SectionResultOptions()
                 {
-                    Name = $"Files matching datatype {section_2_datatype}",
-                    QueryParams = new FileQueryParams()
-                    {
-                        TargetDrive = testContext.TargetDrive,
-                        DataType = new List<int>() { section_2_datatype },
-                    },
-
-                    ResultOptions = new SectionResultOptions()
-                    {
-                        IncludePayload = false,
-                        ExcludePreviewThumbnail = false,
-                        IncludeAdditionalThumbnails = false,
-                        IncludeJsonContent = false
-                    }
-                });
-
-                var publishResponse = await staticFileSvc.Publish(publishRequest);
-                if (!publishResponse.IsSuccessStatusCode)
-                    Console.WriteLine("staticFileSvc.Publish(publishRequest): " + publishResponse.ReasonPhrase);
-
-                Assert.True(publishResponse.IsSuccessStatusCode, publishResponse.ReasonPhrase);
-                Assert.NotNull(publishResponse.Content);
-
-                var pubResult = publishResponse.Content;
-
-                Assert.AreEqual(pubResult.Filename, publishRequest.Filename);
-                Assert.AreEqual(pubResult.SectionResults.Count, publishRequest.Sections.Count);
-                Assert.AreEqual(pubResult.SectionResults[0].Name, publishRequest.Sections[0].Name);
-                Assert.AreEqual(pubResult.SectionResults[0].FileCount, total_files_uploaded);
-
-
-                var getStaticFileSvc = RestService.For<IStaticFileTestHttpClientForOwner>(client);
-
-                //
-                // I presume here we retrieve the file and download it
-                //
-
-                for (int count = 0; count < iterations; count++)
-                {
-                    sw.Restart();
-
-                    // Do all the work here
-                    var getFileResponse = await getStaticFileSvc.GetStaticFile(publishRequest.Filename);
-                    if (!getFileResponse.IsSuccessStatusCode)
-                        Console.WriteLine("GetStaticFile(): " + getFileResponse.ReasonPhrase);
-                    Assert.True(getFileResponse.IsSuccessStatusCode, getFileResponse.ReasonPhrase);
-                    Assert.IsNotNull(getFileResponse.Content);
-
-                    Assert.IsTrue(getFileResponse.Headers.TryGetValues("Access-Control-Allow-Origin", out var values));
-                    Assert.IsNotNull(values);
-                    Assert.IsTrue(values.Single() == "*");
-
-                    //TODO: open the file and check it against what was uploaded.  going to have to do some json acrobatics maybe?
-                    var json = await getFileResponse.Content.ReadAsStringAsync();
-                    fileByteLength = json.Length;
-                    // Console.WriteLine(json);
-
-                    var sectionOutputArray = DotYouSystemSerializer.Deserialize<SectionOutput[]>(json);
-
-                    Assert.IsNotNull(sectionOutputArray);
-                    Assert.IsTrue(sectionOutputArray.Length == pubResult.SectionResults.Count);
-                    Assert.IsTrue(sectionOutputArray.Length == publishRequest.Sections.Count);
-
-                    //
-                    // Suggestion that you first simply try to load a static URL here.
-                    //
-
-
-                    // Finished doing all the work
-                    timers[count] = sw.ElapsedMilliseconds;
-                    //
-                    // If you want to introduce a delay be sure to use: await Task.Delay(1);
-                    // Take.Delay() is very inaccurate.
+                    IncludePayload = true,
+                    ExcludePreviewThumbnail = false,
+                    IncludeAdditionalThumbnails = true,
+                    IncludeJsonContent = true
                 }
+            });
+
+            publishRequest.Sections.Add(new QueryParamSection()
+            {
+                Name = $"Files matching datatype {section_2_datatype}",
+                QueryParams = new FileQueryParams()
+                {
+                    TargetDrive = testContext.TargetDrive,
+                    DataType = new List<int>() { section_2_datatype },
+                },
+
+                ResultOptions = new SectionResultOptions()
+                {
+                    IncludePayload = false,
+                    ExcludePreviewThumbnail = false,
+                    IncludeAdditionalThumbnails = false,
+                    IncludeJsonContent = false
+                }
+            });
+
+            var publishResponse = await staticFileSvc.Publish(publishRequest);
+            if (!publishResponse.IsSuccessStatusCode)
+                Console.WriteLine("staticFileSvc.Publish(publishRequest): " + publishResponse.ReasonPhrase);
+
+            Assert.True(publishResponse.IsSuccessStatusCode, publishResponse.ReasonPhrase);
+            Assert.NotNull(publishResponse.Content);
+
+            var pubResult = publishResponse.Content;
+
+            Assert.AreEqual(pubResult.Filename, publishRequest.Filename);
+            Assert.AreEqual(pubResult.SectionResults.Count, publishRequest.Sections.Count);
+            Assert.AreEqual(pubResult.SectionResults[0].Name, publishRequest.Sections[0].Name);
+            Assert.AreEqual(pubResult.SectionResults[0].FileCount, total_files_uploaded);
+
+
+            var getStaticFileSvc = RestService.For<IStaticFileTestHttpClientForOwner>(client);
+
+            //
+            // Now back to performance testing
+            //
+            var sw = new Stopwatch();
+            sw.Reset();
+            sw.Start();
+
+            for (var i = 0; i < MAXTHREADS; i++)
+            {
+                tasks[i] = Task.Run(async () =>
+                {
+                    var (tmp, measurements) = await CanPublishStaticFileContentWithThumbnails(i, MAXITERATIONS, getStaticFileSvc, publishRequest, pubResult);
+                    Debug.Assert(measurements.Length == MAXITERATIONS);
+                    lock (timers)
+                    {
+                        fileByteLength = tmp;
+                        timers.Add(measurements);
+                    }
+                });
+            }
+
+            try
+            {
+                Task.WaitAll(tasks);
+            }
+            catch (AggregateException ae)
+            {
+                foreach (var ex in ae.InnerExceptions)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+
+                throw;
+            }
+
+            sw.Stop();
+
+            Debug.Assert(timers.Count == MAXTHREADS);
+            long[] oneDimensionalArray = timers.SelectMany(arr => arr).ToArray();
+            Debug.Assert(oneDimensionalArray.Length == (MAXTHREADS * MAXITERATIONS));
+
+            Array.Sort(oneDimensionalArray);
+            for (var i = 1; i < MAXTHREADS * MAXITERATIONS; i++)
+                Debug.Assert(oneDimensionalArray[i - 1] <= oneDimensionalArray[i]);
+
+            Console.WriteLine($"Threads   : {MAXTHREADS}");
+            Console.WriteLine($"Iterations: {MAXITERATIONS}");
+            Console.WriteLine($"Time      : {sw.ElapsedMilliseconds}ms");
+            Console.WriteLine($"Minimum   : {oneDimensionalArray[0]}ms");
+            Console.WriteLine($"Maximum   : {oneDimensionalArray[MAXTHREADS * MAXITERATIONS - 1]}ms");
+            Console.WriteLine($"Average   : {sw.ElapsedMilliseconds / (MAXTHREADS * MAXITERATIONS)}ms");
+            Console.WriteLine($"Median    : {oneDimensionalArray[(MAXTHREADS * MAXITERATIONS) / 2]}ms");
+
+            Console.WriteLine(
+                $"Capacity  : {(1000 * MAXITERATIONS * MAXTHREADS) / Math.Max(1, sw.ElapsedMilliseconds)} / second");
+            Console.WriteLine(
+                $"Bandwidth : {fileByteLength * ((1000 * MAXITERATIONS * MAXTHREADS) / Math.Max(1, sw.ElapsedMilliseconds))} bytes / second");
+        }
+        
+        private WebScaffold _scaffold;
+
+        [OneTimeSetUp]
+        public void OneTimeSetUp()
+        {
+            string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+            _scaffold = new WebScaffold(folder);
+            _scaffold.RunBeforeAnyTests();
+        }
+
+        [OneTimeTearDown]
+        public void OneTimeTearDown()
+        {
+            _scaffold.RunAfterAnyTests();
+        }
+
+        // First make this test pass, then change it from a test to something else.
+        //
+        // [Test(Description = "publish static content to file, including payload and thumbnails")]
+        public async Task<(int, long[])> CanPublishStaticFileContentWithThumbnails(int threadno, int iterations, IStaticFileTestHttpClientForOwner getStaticFileSvc, PublishStaticFileRequest publishRequest, StaticFilePublishResult pubResult)
+        {
+            long[] timers = new long[iterations];
+            Debug.Assert(timers.Length == iterations);
+            var sw = new Stopwatch();
+            int fileByteLength = 0;
+
+
+            //
+            // I presume here we retrieve the file and download it
+            //
+
+            for (int count = 0; count < iterations; count++)
+            {
+                sw.Restart();
+
+                // Do all the work here
+                var getFileResponse = await getStaticFileSvc.GetStaticFile(publishRequest.Filename);
+                if (!getFileResponse.IsSuccessStatusCode)
+                    Console.WriteLine("GetStaticFile(): " + getFileResponse.ReasonPhrase);
+                Assert.True(getFileResponse.IsSuccessStatusCode, getFileResponse.ReasonPhrase);
+                Assert.IsNotNull(getFileResponse.Content);
+
+                Assert.IsTrue(getFileResponse.Headers.TryGetValues("Access-Control-Allow-Origin", out var values));
+                Assert.IsNotNull(values);
+                Assert.IsTrue(values.Single() == "*");
+
+                //TODO: open the file and check it against what was uploaded.  going to have to do some json acrobatics maybe?
+                var json = await getFileResponse.Content.ReadAsStringAsync();
+                fileByteLength = json.Length;
+                // Console.WriteLine(json);
+
+                var sectionOutputArray = DotYouSystemSerializer.Deserialize<SectionOutput[]>(json);
+
+                Assert.IsNotNull(sectionOutputArray);
+                Assert.IsTrue(sectionOutputArray.Length == pubResult.SectionResults.Count);
+                Assert.IsTrue(sectionOutputArray.Length == publishRequest.Sections.Count);
+
+                //
+                // Suggestion that you first simply try to load a static URL here.
+                //
+
+
+                // Finished doing all the work
+                timers[count] = sw.ElapsedMilliseconds;
+                //
+                // If you want to introduce a delay be sure to use: await Task.Delay(1);
+                // Take.Delay() is very inaccurate.
             }
 
             return (fileByteLength, timers);
