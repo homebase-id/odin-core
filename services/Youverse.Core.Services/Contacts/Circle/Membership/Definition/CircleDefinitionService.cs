@@ -39,7 +39,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
                     Name = "System Circle",
                     Description = "All Connected Identities",
                     DriveGrants = CircleConstants.InitialSystemCircleDrives,
-                    Permissions = new PermissionSet()
+                    PermissionsKey = new PermissionKeySet()
                     {
                         Keys = new List<int>() { }
                     }
@@ -52,7 +52,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
         {
             Guard.Argument(newCircleDefinition, nameof(newCircleDefinition)).NotNull();
 
-            AssertValid(newCircleDefinition.Permissions, newCircleDefinition.DriveGrants?.ToList());
+            AssertValid(newCircleDefinition.PermissionsKey, newCircleDefinition.DriveGrants?.ToList());
 
             var existingCircle = this.GetCircle(newCircleDefinition.Id);
 
@@ -65,7 +65,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
             existingCircle.Description = newCircleDefinition.Description;
             existingCircle.Name = newCircleDefinition.Name;
             existingCircle.DriveGrants = newCircleDefinition.DriveGrants;
-            existingCircle.Permissions = newCircleDefinition.Permissions;
+            existingCircle.PermissionsKey = newCircleDefinition.PermissionsKey;
 
             _circleValueStorage.Upsert(existingCircle.Id, GuidId.Empty, _circleDataType, newCircleDefinition);
 
@@ -139,10 +139,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
 
         //
 
-        private void AssertValid(PermissionSet permissionSet, List<DriveGrantRequest> driveGrantRequests)
+        private void AssertValid(PermissionKeySet permissionKeySet, List<DriveGrantRequest> driveGrantRequests)
         {
             bool hasDrives = driveGrantRequests?.Any() ?? false;
-            bool hasPermissions = permissionSet?.Keys?.Any() ?? false;
+            bool hasPermissions = permissionKeySet?.Keys?.Any() ?? false;
 
             if (!hasPermissions && !hasDrives)
             {
@@ -151,7 +151,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
 
             if (hasPermissions)
             {
-                AssertValidPermissionSet(permissionSet);
+                AssertValidPermissionSet(permissionKeySet);
             }
 
             if (hasDrives)
@@ -160,9 +160,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
             }
         }
 
-        private void AssertValidPermissionSet(PermissionSet permissionSet)
+        private void AssertValidPermissionSet(PermissionKeySet permissionKeySet)
         {
-            if (permissionSet.Keys.Any(k => !PermissionKeyAllowance.IsValidCirclePermission(k)))
+            if (permissionKeySet.Keys.Any(k => !PermissionKeyAllowance.IsValidCirclePermission(k)))
             {
                 throw new YouverseClientException("Invalid Permission key specified");
             }
@@ -176,7 +176,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
 
             if (!skipValidation)
             {
-                AssertValid(request.Permissions, request.DriveGrants?.ToList());
+                AssertValid(request.PermissionsKey, request.DriveGrants?.ToList());
             }
 
             if (null != this.GetCircle(request.Id))
@@ -193,7 +193,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
                 Name = request.Name,
                 Description = request.Description,
                 DriveGrants = request.DriveGrants,
-                Permissions = request.Permissions
+                PermissionsKey = request.PermissionsKey
             };
 
             _circleValueStorage.Upsert(circle.Id, GuidId.Empty, _circleDataType, circle);

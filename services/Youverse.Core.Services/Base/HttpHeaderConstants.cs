@@ -1,6 +1,6 @@
-namespace Youverse.Core.Services.Transit;
+namespace Youverse.Core.Services.Base;
 
-public class TransitConstants
+public class HttpHeaderConstants
 {
     public const string IcrEncryptedSharedSecret64Header = "IcrEncryptedSharedSecret64";
     public const string SharedSecretEncryptedHeader64 = "SharedSecretEncryptedHeader64";

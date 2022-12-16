@@ -15,14 +15,14 @@ public class ExchangeGrant
     public SymmetricKeyEncryptedAes MasterKeyEncryptedKeyStoreKey { get; set; }
     public bool IsRevoked { get; set; }
     public List<DriveGrant> KeyStoreKeyEncryptedDriveGrants { get; set; }
-    public PermissionSet PermissionSet { get; set; }
+    public PermissionKeySet PermissionKeySet { get; set; }
 
     public RedactedExchangeGrant Redacted()
     {
         return new RedactedExchangeGrant()
         {
             IsRevoked = this.IsRevoked,
-            PermissionSet = this.PermissionSet,
+            PermissionKeySet = this.PermissionKeySet,
             DriveGrants = this.KeyStoreKeyEncryptedDriveGrants.Select(cg => cg.Redacted()).ToList()
         };
     }
@@ -31,6 +31,6 @@ public class ExchangeGrant
 public class RedactedExchangeGrant
 {
     public bool IsRevoked { get; set; }
-    public PermissionSet PermissionSet { get; set; }
+    public PermissionKeySet PermissionKeySet { get; set; }
     public List<RedactedDriveGrant> DriveGrants { get; set; }
 }

@@ -232,10 +232,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             return client;
         }
 
-        public async Task<RedactedAppRegistration> AddApp(DotYouIdentity identity, Guid appId, TargetDrive targetDrive, bool createDrive = false, bool canReadConnections = false,
+        public async Task<RedactedAppRegistration> AddAppWithAllDrivePermissions(DotYouIdentity identity, Guid appId, TargetDrive targetDrive, bool createDrive = false, bool canReadConnections = false,
             bool driveAllowAnonymousReads = false, bool ownerOnlyDrive = false)
         {
-            PermissionSet permissionSet;
+            PermissionKeySet permissionKeySet;
 
             if (canReadConnections)
             {
@@ -243,11 +243,11 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
                 keys.Add(PermissionKeys.ReadConnections);
                 keys.Add(PermissionKeys.ReadConnectionRequests);
-                permissionSet = new PermissionSet(keys.ToArray());
+                permissionKeySet = new PermissionKeySet(keys.ToArray());
             }
             else
             {
-                permissionSet = new PermissionSet();
+                permissionKeySet = new PermissionKeySet();
             }
 
 
@@ -274,7 +274,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                         PermissionedDrive = new PermissionedDrive()
                         {
                             Drive = targetDrive,
-                            Permission = DrivePermission.Read
+                            Permission = DrivePermission.All
                         }
                     });
                 }
@@ -285,7 +285,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 {
                     Name = $"Test_{appId}",
                     AppId = appId,
-                    PermissionSet = permissionSet,
+                    PermissionKeySet = permissionKeySet,
                     Drives = drives
                 };
 
@@ -385,7 +385,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 };
             }
 
-            this.AddApp(identity.DotYouId, appId, targetDrive, true, canReadConnections, driveAllowAnonymousReads, ownerOnlyDrive).GetAwaiter().GetResult();
+            this.AddAppWithAllDrivePermissions(identity.DotYouId, appId, targetDrive, true, canReadConnections, driveAllowAnonymousReads, ownerOnlyDrive).GetAwaiter().GetResult();
 
             var (authResult, sharedSecret) = this.AddAppClient(identity.DotYouId, appId).GetAwaiter().GetResult();
             return new TestAppContext()
@@ -843,7 +843,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                     Name = circleName,
                     Description = $"Description for {circleName}",
                     DriveGrants = dgrList,
-                    Permissions = permissionKeys?.Any() ?? false ? new PermissionSet(permissionKeys?.ToArray()) : new PermissionSet()
+                    PermissionsKey = permissionKeys?.Any() ?? false ? new PermissionKeySet(permissionKeys?.ToArray()) : new PermissionKeySet()
                 };
 
                 var createCircleResponse = await svc.CreateCircleDefinition(request);
@@ -864,12 +864,12 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
                 foreach (var k in permissionKeys)
                 {
-                    Assert.IsTrue(circle.Permissions.HasKey(k));
+                    Assert.IsTrue(circle.PermissionsKey.HasKey(k));
                 }
 
                 Assert.AreEqual(request.Name, circle.Name);
                 Assert.AreEqual(request.Description, circle.Description);
-                Assert.IsTrue(request.Permissions == circle.Permissions);
+                Assert.IsTrue(request.PermissionsKey == circle.PermissionsKey);
 
                 return circle;
             }

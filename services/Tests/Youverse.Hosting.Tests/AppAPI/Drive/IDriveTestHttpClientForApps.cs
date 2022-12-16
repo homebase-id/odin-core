@@ -1,5 +1,7 @@
-﻿using System.Net.Http;
+﻿using System;
+using System.Net.Http;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
 using Refit;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Drive;
@@ -23,13 +25,22 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         Task<ApiResponse<UploadResult>> Upload(StreamPart instructionSet, StreamPart metaData, StreamPart payload, params StreamPart[] thumbnail);
 
         [Post(RootEndpoint + "/files/header")]
-        Task<ApiResponse<ClientFileHeader>> GetFileHeader(ExternalFileIdentifier file);
+        Task<ApiResponse<ClientFileHeader>> GetFileHeaderAsPost(ExternalFileIdentifier file);
 
         [Post(RootEndpoint + "/files/payload")]
-        Task<ApiResponse<HttpContent>> GetPayload(ExternalFileIdentifier file);
+        Task<ApiResponse<HttpContent>> GetPayloadAsPost(ExternalFileIdentifier file);
 
         [Post(RootEndpoint + "/files/thumb")]
-        Task<ApiResponse<HttpContent>> GetThumbnail(GetThumbnailRequest request);
+        Task<ApiResponse<HttpContent>> GetThumbnailAsPost(GetThumbnailRequest request);
+
+        [Get(RootEndpoint + "/files/thumb")]
+        Task<ApiResponse<HttpContent>> GetThumbnail(Guid fileId, Guid alias, Guid type, int width, int height);
+
+        [Get(RootEndpoint + "/files/payload")]
+        Task<ApiResponse<HttpContent>> GetPayload(Guid fileId, Guid alias, Guid type);
+
+        [Get(RootEndpoint + "/files/header")]
+        Task<ApiResponse<ClientFileHeader>> GetFileHeader(Guid fileId, Guid alias, Guid type);
 
         [Post(RootEndpoint + "/query/modified")]
         Task<ApiResponse<QueryModifiedResult>> QueryModified(QueryModifiedRequest request);

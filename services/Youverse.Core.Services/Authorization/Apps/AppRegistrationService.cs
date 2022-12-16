@@ -37,7 +37,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             _cache = new DotYouContextCache();
         }
 
-        public async Task<RedactedAppRegistration> RegisterApp(GuidId appId, string name, PermissionSet permissions, IEnumerable<DriveGrantRequest> drives)
+        public async Task<RedactedAppRegistration> RegisterApp(GuidId appId, string name, PermissionKeySet permissionsKey, IEnumerable<DriveGrantRequest> drives)
         {
             Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
             Guard.Argument(appId, nameof(appId)).Require(appId != Guid.Empty);
@@ -45,7 +45,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-            var grant = await _exchangeGrantService.CreateExchangeGrant(permissions, drives, masterKey);
+            var grant = await _exchangeGrantService.CreateExchangeGrant(permissionsKey, drives, masterKey);
 
             var appReg = new AppRegistration()
             {

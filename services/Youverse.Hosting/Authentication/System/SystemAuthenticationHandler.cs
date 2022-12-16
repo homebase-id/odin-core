@@ -60,7 +60,7 @@ namespace Youverse.Hosting.Authentication.System
                         masterKey: null,
                         securityLevel: SecurityGroupType.System);
                     
-                    dotYouContext.SetPermissionContext(new PermissionContext(new Dictionary<string, PermissionGroup>(), null, false, true));
+                    dotYouContext.SetPermissionContext(new PermissionContext(new Dictionary<string, PermissionGroup>(), null, true));
 
                     var identity = new ClaimsIdentity(claims, SystemAuthConstants.SchemeName);
                     ClaimsPrincipal principal = new ClaimsPrincipal(identity);

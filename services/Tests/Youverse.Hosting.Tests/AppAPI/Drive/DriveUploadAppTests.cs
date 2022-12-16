@@ -104,7 +104,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 //retrieve the file that was uploaded; decrypt; 
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, testContext.SharedSecret);
 
-                var fileResponse = await driveSvc.GetFileHeader(new ExternalFileIdentifier() { TargetDrive = targetDrive, FileId = fileId });
+                var fileResponse = await driveSvc.GetFileHeaderAsPost(new ExternalFileIdentifier() { TargetDrive = targetDrive, FileId = fileId });
 
                 Assert.That(fileResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(fileResponse.Content, Is.Not.Null);
@@ -132,7 +132,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.That(fileKey, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
 
                 //get the payload and decrypt, then compare
-                var payloadResponse = await driveSvc.GetPayload(new ExternalFileIdentifier() { TargetDrive = targetDrive, FileId = fileId });
+                var payloadResponse = await driveSvc.GetPayloadAsPost(new ExternalFileIdentifier() { TargetDrive = targetDrive, FileId = fileId });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 

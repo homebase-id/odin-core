@@ -17,7 +17,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
         /// <summary>
         /// Permissions to be granted to this app
         /// </summary>
-        public PermissionSet PermissionSet { get; set; }
+        public PermissionKeySet PermissionKeySet { get; set; }
         
         /// <summary>
         /// The list of drives of which this app should receive access

@@ -78,9 +78,9 @@ public class TransitQueryService
 
         AssertValidResponse(response);
 
-        var decryptedContentType = response.Headers.GetValues(TransitConstants.DecryptedContentType).Single();
-        var ssHeader = response.Headers.GetValues(TransitConstants.IcrEncryptedSharedSecret64Header).Single();
-        var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(TransitConstants.PayloadEncrypted).Single());
+        var decryptedContentType = response.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
+        var ssHeader = response.Headers.GetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header).Single();
+        var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
 
         EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
         if (payloadIsEncrypted)
@@ -118,13 +118,13 @@ public class TransitQueryService
 
         AssertValidResponse(response);
 
-        var decryptedContentType = response.Headers.GetValues(TransitConstants.DecryptedContentType).Single();
-        var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(TransitConstants.PayloadEncrypted).Single());
+        var decryptedContentType = response.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
+        var payloadIsEncrypted = bool.Parse(response.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
 
         EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
         if (payloadIsEncrypted)
         {
-            var ssHeader = response.Headers.GetValues(TransitConstants.IcrEncryptedSharedSecret64Header).Single();
+            var ssHeader = response.Headers.GetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header).Single();
             var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeader);
             ownerSharedSecretEncryptedKeyHeader = ReEncrypt(icr.ClientAccessTokenSharedSecret.ToSensitiveByteArray(), icrEncryptedKeyHeader);
         }

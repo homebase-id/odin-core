@@ -11,6 +11,11 @@ namespace Youverse.Core.Services.Authorization.Permissions
         public static readonly int ReadConnectionRequests = 30;
 
         public static readonly int ReadCircleMembership = 50;
+
+        public static readonly List<int> All = new List<int>()
+        {
+            ReadConnections, ReadConnectionRequests, ReadCircleMembership
+        };
     }
 
     /// <summary>

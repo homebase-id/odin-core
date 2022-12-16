@@ -321,8 +321,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
             Guid appId = Guid.NewGuid();
             var targetDrive = TargetDrive.NewTargetDrive();
-            var senderContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, sender, false, targetDrive, driveAllowAnonymousReads: true);
-            var recipientContext = await _scaffold.OwnerApi.SetupTestSampleApp(senderContext.AppId, recipient, false, targetDrive);
+            var senderContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, sender, canReadConnections: true, targetDrive, driveAllowAnonymousReads: true);
+            var recipientContext = await _scaffold.OwnerApi.SetupTestSampleApp(senderContext.AppId, recipient, canReadConnections: true, targetDrive);
 
             Guid fileTag = Guid.NewGuid();
 
@@ -444,7 +444,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.Delivered, $"file was not delivered to {r}");
                 }
             }
-            
+
             using (var client = _scaffold.AppApi.CreateAppApiHttpClient(recipientContext))
             {
                 //First force transfers to be put into their long term location
@@ -480,7 +480,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     FileId = queryBatchResponse.Content.SearchResults.Single().FileId
                 };
 
-                var fileResponse = await driveSvc.GetFileHeader(uploadedFile);
+                var fileResponse = await driveSvc.GetFileHeaderAsPost(uploadedFile);
 
                 Assert.That(fileResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(fileResponse.Content, Is.Not.Null);
@@ -519,7 +519,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 // Get the payload that was uploaded, test it
                 // 
 
-                var payloadResponse = await driveSvc.GetPayload(uploadedFile);
+                var payloadResponse = await driveSvc.GetPayloadAsPost(uploadedFile);
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 
@@ -550,7 +550,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.IsTrue(descriptorList[0].PixelWidth == clientFileHeaderList[0].PixelWidth);
                 Assert.IsTrue(descriptorList[0].PixelHeight == clientFileHeaderList[0].PixelHeight);
 
-                var thumbnailResponse1 = await driveSvc.GetThumbnail(new GetThumbnailRequest()
+                var thumbnailResponse1 = await driveSvc.GetThumbnailAsPost(new GetThumbnailRequest()
                 {
                     File = uploadedFile,
                     Height = thumbnail1.PixelHeight,
@@ -568,7 +568,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.IsTrue(descriptorList[1].PixelWidth == clientFileHeaderList[1].PixelWidth);
                 Assert.IsTrue(descriptorList[1].PixelHeight == clientFileHeaderList[1].PixelHeight);
 
-                var thumbnailResponse2 = await driveSvc.GetThumbnail(new GetThumbnailRequest()
+                var thumbnailResponse2 = await driveSvc.GetThumbnailAsPost(new GetThumbnailRequest()
                 {
                     File = uploadedFile,
                     Height = thumbnail2.PixelHeight,
@@ -598,8 +598,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
             Guid appId = Guid.NewGuid();
             var targetDrive = TargetDrive.NewTargetDrive();
-            var senderContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, sender, false, targetDrive, driveAllowAnonymousReads: true);
-            var recipientContext = await _scaffold.OwnerApi.SetupTestSampleApp(senderContext.AppId, recipient, false, targetDrive);
+            var senderContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, sender, canReadConnections: true, targetDrive, driveAllowAnonymousReads: true);
+            var recipientContext = await _scaffold.OwnerApi.SetupTestSampleApp(senderContext.AppId, recipient, canReadConnections: true, targetDrive);
 
             Guid fileTag = Guid.NewGuid();
 
@@ -759,7 +759,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     FileId = queryBatchResponse.Content.SearchResults.Single().FileId
                 };
 
-                var fileResponse = await driveSvc.GetFileHeader(uploadedFile);
+                var fileResponse = await driveSvc.GetFileHeaderAsPost(uploadedFile);
 
                 Assert.That(fileResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(fileResponse.Content, Is.Not.Null);
@@ -798,7 +798,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 // Get the payload that was uploaded, test it
                 // 
 
-                var payloadResponse = await driveSvc.GetPayload(uploadedFile);
+                var payloadResponse = await driveSvc.GetPayloadAsPost(uploadedFile);
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 
@@ -829,7 +829,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.IsTrue(descriptorList[0].PixelWidth == clientFileHeaderList[0].PixelWidth);
                 Assert.IsTrue(descriptorList[0].PixelHeight == clientFileHeaderList[0].PixelHeight);
 
-                var thumbnailResponse1 = await driveSvc.GetThumbnail(new GetThumbnailRequest()
+                var thumbnailResponse1 = await driveSvc.GetThumbnailAsPost(new GetThumbnailRequest()
                 {
                     File = uploadedFile,
                     Height = thumbnail1.PixelHeight,
@@ -847,7 +847,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.IsTrue(descriptorList[1].PixelWidth == clientFileHeaderList[1].PixelWidth);
                 Assert.IsTrue(descriptorList[1].PixelHeight == clientFileHeaderList[1].PixelHeight);
 
-                var thumbnailResponse2 = await driveSvc.GetThumbnail(new GetThumbnailRequest()
+                var thumbnailResponse2 = await driveSvc.GetThumbnailAsPost(new GetThumbnailRequest()
                 {
                     File = uploadedFile,
                     Height = thumbnail2.PixelHeight,
