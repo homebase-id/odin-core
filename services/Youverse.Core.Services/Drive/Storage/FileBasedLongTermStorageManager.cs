@@ -178,7 +178,7 @@ namespace Youverse.Core.Services.Drive.Storage
 
         public async Task<ServerFileHeader> GetServerFileHeader(Guid fileId)
         {
-            await using var stream = await this.GetFilePartStream(fileId, FilePart.Header);
+            var stream = await this.GetFilePartStream(fileId, FilePart.Header);
             if (stream == Stream.Null)
             {
                 stream.Close();
@@ -291,9 +291,9 @@ namespace Youverse.Core.Services.Drive.Storage
                     WriteStream(stream, tempFilePath);
                     lock (targetFilePath)
                     {
-                        File.WriteAllBytes(targetFilePath, stream.ToByteArray());
+                        // File.WriteAllBytes(targetFilePath, stream.ToByteArray());
                         //TODO: need to know if this replace method is faster than renaming files
-                        // File.Replace(tempFilePath, targetFilePath, null, true);
+                        File.Replace(tempFilePath, targetFilePath, null, true);
                     }
                 }
                 else
@@ -326,6 +326,7 @@ namespace Youverse.Core.Services.Drive.Storage
                     output.Write(buffer, 0, bytesRead);
                 } while (bytesRead > 0);
 
+                // stream.Close();
                 output.Close();
             }
         }

@@ -51,9 +51,9 @@ namespace Youverse.Core.Services.Drive.Storage
                     bytesWritten = WriteStream(stream, tempFilePath);
                     lock (filePath)
                     {
-                        File.WriteAllBytes(filePath, stream.ToByteArray());
+                        // File.WriteAllBytes(filePath, stream.ToByteArray());
                         //TODO: need to know if this replace method is faster than renaming files
-                        // File.Replace(tempFilePath, filePath, null, true);
+                        File.Replace(tempFilePath, filePath, null, true);
                     }
                 }
                 else
