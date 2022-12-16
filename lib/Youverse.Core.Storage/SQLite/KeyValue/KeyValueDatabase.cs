@@ -17,7 +17,7 @@ https://www.sqlitetutorial.net/sqlite-index/
 
 namespace Youverse.Core.Storage.SQLite.KeyValue
 {
-    public class KeyValueDatabase // IDisposable ?
+    public class KeyValueDatabase :IDisposable
     {
         private string _connectionString;
 
@@ -53,19 +53,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
         ~KeyValueDatabase()
         {
-            if (_Transaction != null)
-            {
-                throw new Exception("Transaction in progress not completed.");
-            }
-
-            if (_connection != null)
-            {
-                _connection.Dispose();
-                _connection = null;
-            }
-
-            // Oh no, I can't delete objects. Blast :-)
-            // I need help making the tables disposable so I can trigger them here
+            Dispose(false);
         }
 
         public SQLiteCommand CreateCommand()
@@ -151,6 +139,27 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                     _Transaction = null;
                 }
             }
+        }
+
+        private void ReleaseUnmanagedResources()
+        {
+            // TODO release unmanaged resources here
+        }
+
+        private void Dispose(bool disposing)
+        {
+            ReleaseUnmanagedResources();
+            if (disposing)
+            {
+                _connection?.Dispose();
+                _Transaction?.Dispose();
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
     }
 }
