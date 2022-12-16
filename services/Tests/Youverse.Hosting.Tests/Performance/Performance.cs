@@ -42,7 +42,6 @@ namespace Youverse.Hosting.Tests.Performance
             List<long[]> timers = new List<long[]>();
             int fileByteLength = 0;
 
-
             //
             // Some initialization to prepare for the test
             //
