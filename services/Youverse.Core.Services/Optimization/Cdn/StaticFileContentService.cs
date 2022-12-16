@@ -66,8 +66,7 @@ public class StaticFileContentService
         Guard.Argument(filename, nameof(filename)).NotEmpty().NotNull().Require(Validators.IsValidFilename);
         Guard.Argument(sections, nameof(sections)).NotNull().NotEmpty();
         string targetFolder = EnsurePath();
-        string tempFile = Guid.NewGuid().ToString("N");
-        string tempTargetPath = Path.Combine(targetFolder, tempFile);
+
         foreach (var s in sections)
         {
             s.AssertIsValid();
@@ -152,16 +151,22 @@ public class StaticFileContentService
             });
         }
 
+        string tempFile = Guid.NewGuid().ToString("N");
+        string tempTargetPath = Path.Combine(targetFolder, tempFile);
         await using var fileStream = File.Create(tempTargetPath);
         await DotYouSystemSerializer.Serialize(fileStream, sectionOutputList, sectionOutputList.GetType());
         fileStream.Close();
-
+        
         string finalTargetPath = Path.Combine(targetFolder, filename);
-            
-        File.Move(tempTargetPath, finalTargetPath, true);
-        config.ContentType = MediaTypeNames.Application.Json;
-        _tenantSystemStorage.SingleKeyValueStorage.Upsert(GetConfigKey(filename), config);
-
+        
+        lock(finalTargetPath)
+        {
+            File.Replace(tempTargetPath, finalTargetPath, null, true);
+            // File.Move(tempTargetPath, finalTargetPath, true);
+            config.ContentType = MediaTypeNames.Application.Json;
+            _tenantSystemStorage.SingleKeyValueStorage.Upsert(GetConfigKey(filename), config);
+        }
+        
         return result;
     }
 

@@ -31,7 +31,8 @@ public class DriveUploadService
     private readonly ConcurrentDictionary<Guid, UploadPackage> _packages;
     private readonly IDriveQueryService _driveQueryService;
 
-    public DriveUploadService(IDriveService driveService, TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITransitService transitService, IDriveQueryService driveQueryService)
+    public DriveUploadService(IDriveService driveService, TenantContext tenantContext,
+        DotYouContextAccessor contextAccessor, ITransitService transitService, IDriveQueryService driveQueryService)
     {
         _driveService = driveService;
         _tenantContext = tenantContext;
@@ -53,7 +54,8 @@ public class DriveUploadService
 
         if (package.InstructionSet.TransitOptions?.Recipients?.Contains(_tenantContext.HostDotYouId) ?? false)
         {
-            throw new YouverseClientException("Cannot transfer a file to the sender; what's the point?", YouverseClientErrorCode.InvalidRecipient);
+            throw new YouverseClientException("Cannot transfer a file to the sender; what's the point?",
+                YouverseClientErrorCode.InvalidRecipient);
         }
 
         //TODO: this is pending.  for now, you upload a full set of streams (payload, thumbnail, etc.) to overwrite a file
@@ -76,11 +78,13 @@ public class DriveUploadService
 
         if (instructionSet!.TransitOptions?.Recipients?.Contains(_tenantContext.HostDotYouId) ?? false)
         {
-            throw new YouverseClientException("Cannot transfer to yourself; what's the point?", YouverseClientErrorCode.InvalidRecipient);
+            throw new YouverseClientException("Cannot transfer to yourself; what's the point?",
+                YouverseClientErrorCode.InvalidRecipient);
         }
 
         InternalDriveFileId file;
-        var driveId = _driveService.GetDriveIdByAlias(instructionSet!.StorageOptions!.Drive, true).Result.GetValueOrDefault();
+        var driveId = _driveService.GetDriveIdByAlias(instructionSet!.StorageOptions!.Drive, true).Result
+            .GetValueOrDefault();
         var overwriteFileId = instructionSet?.StorageOptions?.OverwriteFileId.GetValueOrDefault() ?? Guid.Empty;
 
         bool isUpdateOperation = false;
@@ -128,7 +132,8 @@ public class DriveUploadService
             throw new YouverseSystemException("Invalid package Id");
         }
 
-        var bytesWritten = await _driveService.WriteTempStream(pkg.InternalFile, MultipartUploadParts.Payload.ToString(), data);
+        var bytesWritten =
+            await _driveService.WriteTempStream(pkg.InternalFile, MultipartUploadParts.Payload.ToString(), data);
         var package = await this.GetPackage(packageId);
         package.HasPayload = bytesWritten > 0;
     }
@@ -167,33 +172,42 @@ public class DriveUploadService
 
         serverMetadata.AccessControlList.Validate();
 
-        if (serverMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Anonymous && metadata.PayloadIsEncrypted)
+        if (serverMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Anonymous &&
+            metadata.PayloadIsEncrypted)
         {
             //Note: dont allow anonymously accessible encrypted files because we wont have a client shared secret to secure the key header
-            throw new YouverseClientException("Cannot upload an encrypted file that is accessible to anonymous visitors", YouverseClientErrorCode.CannotUploadEncryptedFileForAnonymous);
+            throw new YouverseClientException(
+                "Cannot upload an encrypted file that is accessible to anonymous visitors",
+                YouverseClientErrorCode.CannotUploadEncryptedFileForAnonymous);
         }
 
         if (metadata.AppData.ContentIsComplete && package.HasPayload)
         {
-            throw new YouverseClientException("Content is marked complete in metadata but there is also a payload", YouverseClientErrorCode.InvalidPayload);
+            throw new YouverseClientException("Content is marked complete in metadata but there is also a payload",
+                YouverseClientErrorCode.InvalidPayload);
         }
 
         if (metadata.AppData.ContentIsComplete == false && package.HasPayload == false)
         {
-            throw new YouverseClientException("Content is marked incomplete yet there is no payload", YouverseClientErrorCode.InvalidPayload);
+            throw new YouverseClientException("Content is marked incomplete yet there is no payload",
+                YouverseClientErrorCode.InvalidPayload);
         }
 
         var drive = await _driveService.GetDrive(package.InternalFile.DriveId, true);
         if (drive.OwnerOnly && serverMetadata.AccessControlList.RequiredSecurityGroup != SecurityGroupType.Owner)
         {
-            throw new YouverseClientException("Drive is owner only so all files must have RequiredSecurityGroup of Owner", YouverseClientErrorCode.DriveSecurityAndAclMismatch);
+            throw new YouverseClientException(
+                "Drive is owner only so all files must have RequiredSecurityGroup of Owner",
+                YouverseClientErrorCode.DriveSecurityAndAclMismatch);
         }
 
         if (metadata.PayloadIsEncrypted)
         {
-            if (ByteArrayUtil.IsStrongKey(keyHeader.Iv) == false || ByteArrayUtil.IsStrongKey(keyHeader.AesKey.GetKey()) == false)
+            if (ByteArrayUtil.IsStrongKey(keyHeader.Iv) == false ||
+                ByteArrayUtil.IsStrongKey(keyHeader.AesKey.GetKey()) == false)
             {
-                throw new YouverseClientException("Payload is set as encrypted but the encryption key is too simple", code: YouverseClientErrorCode.InvalidKeyHeader);
+                throw new YouverseClientException("Payload is set as encrypted but the encryption key is too simple",
+                    code: YouverseClientErrorCode.InvalidKeyHeader);
             }
         }
 
@@ -202,7 +216,8 @@ public class DriveUploadService
             //validate the file exists by the ID
             if (!_driveService.FileExists(package.InternalFile))
             {
-                throw new YouverseClientException("OverwriteFileId is specified but file does not exist", YouverseClientErrorCode.CannotOverwriteNonExistentFile);
+                throw new YouverseClientException("OverwriteFileId is specified but file does not exist",
+                    YouverseClientErrorCode.CannotOverwriteNonExistentFile);
             }
 
             if (metadata.AppData.UniqueId.HasValue)
@@ -213,10 +228,14 @@ public class DriveUploadService
                 var isChangingUniqueId = incomingClientUniqueId != existingFileHeader.FileMetadata.AppData.UniqueId;
                 if (isChangingUniqueId)
                 {
-                    var existingFile = await _driveQueryService.GetFileByClientUniqueId(package.InternalFile.DriveId, incomingClientUniqueId);
+                    var existingFile =
+                        await _driveQueryService.GetFileByClientUniqueId(package.InternalFile.DriveId,
+                            incomingClientUniqueId);
                     if (null != existingFile && existingFile.FileId != existingFileHeader.FileMetadata.File.FileId)
                     {
-                        throw new YouverseClientException($"File already exists with ClientUniqueId: [{incomingClientUniqueId}]", YouverseClientErrorCode.ExistingFileWithUniqueId);
+                        throw new YouverseClientException(
+                            $"File already exists with ClientUniqueId: [{incomingClientUniqueId}]",
+                            YouverseClientErrorCode.ExistingFileWithUniqueId);
                     }
                 }
             }
@@ -227,21 +246,27 @@ public class DriveUploadService
             if (metadata.AppData.UniqueId.HasValue)
             {
                 var incomingClientUniqueId = metadata.AppData.UniqueId.Value;
-                var existingFile = await _driveQueryService.GetFileByClientUniqueId(package.InternalFile.DriveId, incomingClientUniqueId);
+                var existingFile =
+                    await _driveQueryService.GetFileByClientUniqueId(package.InternalFile.DriveId,
+                        incomingClientUniqueId);
                 if (null != existingFile)
                 {
-                    throw new YouverseClientException($"File already exists with ClientUniqueId: [{incomingClientUniqueId}]", YouverseClientErrorCode.ExistingFileWithUniqueId);
+                    throw new YouverseClientException(
+                        $"File already exists with ClientUniqueId: [{incomingClientUniqueId}]",
+                        YouverseClientErrorCode.ExistingFileWithUniqueId);
                 }
             }
         }
 
-        await _driveService.CommitTempFileToLongTerm(package.InternalFile, keyHeader, metadata, serverMetadata, MultipartUploadParts.Payload.ToString());
+        await _driveService.CommitTempFileToLongTerm(package.InternalFile, keyHeader, metadata, serverMetadata,
+            MultipartUploadParts.Payload.ToString());
 
         Dictionary<string, TransferStatus> recipientStatus = null;
         var recipients = package.InstructionSet.TransitOptions?.Recipients;
         if (recipients?.Any() ?? false)
         {
-            recipientStatus = await _transitService.SendFile(package.InternalFile, package.InstructionSet.TransitOptions, TransferFileType.Normal);
+            recipientStatus = await _transitService.SendFile(package.InternalFile,
+                package.InstructionSet.TransitOptions, TransferFileType.Normal);
         }
 
         var uploadResult = new UploadResult()
@@ -263,18 +288,21 @@ public class DriveUploadService
         throw new NotImplementedException("Partial updates for files are not currently supported");
     }
 
-    private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadata(UploadPackage package)
+    private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadata(
+        UploadPackage package)
     {
-        var metadataStream = await _driveService.GetTempStream(package.InternalFile, MultipartUploadParts.Metadata.ToString());
-
         var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
-        var jsonBytes = AesCbc.Decrypt(metadataStream.ToByteArray(), ref clientSharedSecret, package.InstructionSet.TransferIv);
-        metadataStream.Close();
 
-        var json = System.Text.Encoding.UTF8.GetString(jsonBytes);
+        string json;
+        using (var metadataStream =
+               await _driveService.GetTempStream(package.InternalFile, MultipartUploadParts.Metadata.ToString()))
+        {
+            var jsonBytes = AesCbc.Decrypt(metadataStream.ToByteArray(), ref clientSharedSecret,
+                package.InstructionSet.TransferIv);
+            json = System.Text.Encoding.UTF8.GetString(jsonBytes);
+        }
         
         var uploadDescriptor = DotYouSystemSerializer.Deserialize<UploadFileDescriptor>(json);
-
         var transferEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;
 
         if (null == transferEncryptedKeyHeader)
@@ -282,10 +310,14 @@ public class DriveUploadService
             throw new YouverseClientException("Invalid transfer key header", YouverseClientErrorCode.InvalidKeyHeader);
         }
 
-        KeyHeader keyHeader = uploadDescriptor.FileMetadata.PayloadIsEncrypted ? transferEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret) : KeyHeader.Empty();
+        KeyHeader keyHeader = uploadDescriptor.FileMetadata.PayloadIsEncrypted
+            ? transferEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret)
+            : KeyHeader.Empty();
         var metadata = new FileMetadata(package.InternalFile)
         {
-            GlobalTransitId = (package.InstructionSet.TransitOptions?.UseGlobalTransitId ?? false) ? Guid.NewGuid() : null,
+            GlobalTransitId = (package.InstructionSet.TransitOptions?.UseGlobalTransitId ?? false)
+                ? Guid.NewGuid()
+                : null,
             ContentType = uploadDescriptor.FileMetadata.ContentType,
 
             //TODO: need an automapper *sigh
@@ -309,7 +341,8 @@ public class DriveUploadService
             OriginalRecipientList = package.InstructionSet.TransitOptions?.Recipients,
 
             // SenderDotYouId = _contextAccessor.GetCurrent().Caller.DotYouId
-            SenderDotYouId = "" //Note: in this case, this is who uploaded the file therefore should be empty; until we support youauth uploads
+            SenderDotYouId =
+                "" //Note: in this case, this is who uploaded the file therefore should be empty; until we support youauth uploads
         };
 
         var serverMetadata = new ServerMetadata()

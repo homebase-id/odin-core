@@ -98,7 +98,7 @@ namespace Youverse.Hosting.Tests.Performance
             Console.WriteLine(
                 $"Bandwidth : {fileByteLength * ((1000 * MAXITERATIONS * MAXTHREADS) / Math.Max(1, sw.ElapsedMilliseconds))} bytes / second");
         }
-        
+
         private WebScaffold _scaffold;
 
         [OneTimeSetUp]
