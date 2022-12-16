@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Cryptography;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
 
@@ -177,14 +178,16 @@ namespace Youverse.Core.Services.Drive.Storage
 
         public async Task<ServerFileHeader> GetServerFileHeader(Guid fileId)
         {
-            var stream = await this.GetFilePartStream(fileId, FilePart.Header);
+            await using var stream = await this.GetFilePartStream(fileId, FilePart.Header);
             if (stream == Stream.Null)
             {
+                stream.Close();
                 return null;
             }
 
             var json = await new StreamReader(stream).ReadToEndAsync();
             stream.Close();
+            await stream.DisposeAsync();
             var header = DotYouSystemSerializer.Deserialize<ServerFileHeader>(json);
             return header;
         }
@@ -288,8 +291,9 @@ namespace Youverse.Core.Services.Drive.Storage
                     WriteStream(stream, tempFilePath);
                     lock (targetFilePath)
                     {
+                        File.WriteAllBytes(targetFilePath, stream.ToByteArray());
                         //TODO: need to know if this replace method is faster than renaming files
-                        File.Replace(tempFilePath, targetFilePath, null, true);
+                        // File.Replace(tempFilePath, targetFilePath, null, true);
                     }
                 }
                 else

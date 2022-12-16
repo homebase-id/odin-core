@@ -7,6 +7,7 @@ using System.Net;
 using System.Net.Mime;
 using System.Reflection;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.JsonPatch.Internal;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core;
@@ -28,8 +29,11 @@ namespace Youverse.Hosting.Tests.Performance
     public class MyPerformance
     {
         // For the performance test
-        private const int MAXTHREADS = 1;   // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
-        const int MAXITERATIONS = 10000;  // A number high enough to get warmed up and reliable
+        private const int
+            MAXTHREADS =
+                2; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
+
+        const int MAXITERATIONS = 10000; // A number high enough to get warmed up and reliable
 
 
         [Test]
@@ -57,8 +61,20 @@ namespace Youverse.Hosting.Tests.Performance
                 });
             }
 
+            try
+            {
+                Task.WaitAll(tasks);
+            }
+            catch (AggregateException ae)
+            {
+                foreach (var ex in ae.InnerExceptions)
+                {
+                    Console.WriteLine(ex.Message);
+                }
 
-            Task.WaitAll(tasks);
+                throw;
+            }
+
             sw.Stop();
 
             Debug.Assert(timers.Count == MAXTHREADS);
@@ -77,10 +93,12 @@ namespace Youverse.Hosting.Tests.Performance
             Console.WriteLine($"Average   : {sw.ElapsedMilliseconds / (MAXTHREADS * MAXITERATIONS)}ms");
             Console.WriteLine($"Median    : {oneDimensionalArray[(MAXTHREADS * MAXITERATIONS) / 2]}ms");
 
-            Console.WriteLine($"Capacity  : {(1000 * MAXITERATIONS * MAXTHREADS) / Math.Max(1, sw.ElapsedMilliseconds)} / second");
-            Console.WriteLine($"Bandwidth : {fileByteLength * ((1000 * MAXITERATIONS * MAXTHREADS) / Math.Max(1, sw.ElapsedMilliseconds))} bytes / second");
+            Console.WriteLine(
+                $"Capacity  : {(1000 * MAXITERATIONS * MAXTHREADS) / Math.Max(1, sw.ElapsedMilliseconds)} / second");
+            Console.WriteLine(
+                $"Bandwidth : {fileByteLength * ((1000 * MAXITERATIONS * MAXTHREADS) / Math.Max(1, sw.ElapsedMilliseconds))} bytes / second");
         }
-
+        
         private WebScaffold _scaffold;
 
         [OneTimeSetUp]
@@ -182,9 +200,11 @@ namespace Youverse.Hosting.Tests.Performance
                 additionalThumbs: new List<ImageDataContent>() { thumbnail2 });
 
 
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret))
+            using (var client =
+                   _scaffold.OwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret))
             {
-                var staticFileSvc = RefitCreator.RestServiceFor<IStaticFileTestHttpClientForOwner>(client, ownerSharedSecret);
+                var staticFileSvc =
+                    RefitCreator.RestServiceFor<IStaticFileTestHttpClientForOwner>(client, ownerSharedSecret);
 
                 //publish a static file
                 var publishRequest = new PublishStaticFileRequest()
@@ -297,11 +317,13 @@ namespace Youverse.Hosting.Tests.Performance
         }
 
 
-        public async Task CreateAnonymousUnEncryptedFile(TestAppContext testContext, int fileType, int dataType, string jsonContent, List<Guid> tags, byte[] payloadContent,
+        public async Task CreateAnonymousUnEncryptedFile(TestAppContext testContext, int fileType, int dataType,
+            string jsonContent, List<Guid> tags, byte[] payloadContent,
             ImageDataContent previewThumbnail,
             List<ImageDataContent> additionalThumbs)
         {
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret))
+            using (var client =
+                   _scaffold.OwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret))
             {
                 var transferIv = ByteArrayUtil.GetRndByteArray(16);
                 var keyHeader = KeyHeader.NewRandom16();
@@ -321,7 +343,8 @@ namespace Youverse.Hosting.Tests.Performance
 
                 var descriptor = new UploadFileDescriptor()
                 {
-                    EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref ownerSharedSecret),
+                    EncryptedKeyHeader =
+                        EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref ownerSharedSecret),
                     FileMetadata = new()
                     {
                         ContentType = "application/json",
@@ -336,21 +359,26 @@ namespace Youverse.Hosting.Tests.Performance
                             PreviewThumbnail = previewThumbnail,
                             AdditionalThumbnails = additionalThumbs
                         },
-                        AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Anonymous }
+                        AccessControlList = new AccessControlList()
+                            { RequiredSecurityGroup = SecurityGroupType.Anonymous }
                     },
                 };
 
                 var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref ownerSharedSecret);
 
                 var additionalThumbnailContent = additionalThumbs?.Select(thumb =>
-                    new StreamPart(new MemoryStream(thumb.Content), thumb.GetFilename(), thumb.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail))
+                    new StreamPart(new MemoryStream(thumb.Content), thumb.GetFilename(), thumb.ContentType,
+                        Enum.GetName(MultipartUploadParts.Thumbnail))
                 ).ToArray();
 
                 var driveSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
                 var response = await driveSvc.Upload(
-                    new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
-                    new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadContent == null ? new MemoryStream() : new MemoryStream(payloadContent), "payload.encrypted", "application/x-binary",
+                    new StreamPart(instructionStream, "instructionSet.encrypted", "application/json",
+                        Enum.GetName(MultipartUploadParts.Instructions)),
+                    new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json",
+                        Enum.GetName(MultipartUploadParts.Metadata)),
+                    new StreamPart(payloadContent == null ? new MemoryStream() : new MemoryStream(payloadContent),
+                        "payload.encrypted", "application/x-binary",
                         Enum.GetName(MultipartUploadParts.Payload)),
                     additionalThumbnailContent ?? Array.Empty<StreamPart>());
 
@@ -368,7 +396,8 @@ namespace Youverse.Hosting.Tests.Performance
                 //
                 // Retrieve the file header that was uploaded; test it matches; 
                 //
-                var getFilesDriveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
+                var getFilesDriveSvc =
+                    RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
                 var fileResponse = await getFilesDriveSvc.GetFileHeader(uploadedFile);
 
                 Assert.That(fileResponse.IsSuccessStatusCode, Is.True);
@@ -380,28 +409,38 @@ namespace Youverse.Hosting.Tests.Performance
                 Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
 
                 Assert.That(clientFileHeader.FileMetadata.ContentType, Is.EqualTo(descriptor.FileMetadata.ContentType));
-                CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
-                Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
-                Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
+                CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags,
+                    descriptor.FileMetadata.AppData.Tags);
+                Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent,
+                    Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
+                Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete,
+                    Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.Null);
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv.Length, Is.GreaterThanOrEqualTo(16));
-                Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.EqualTo(Guid.Empty.ToByteArray()), "Iv should be all zeros because PayloadIsEncrypted = false");
+                Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.EqualTo(Guid.Empty.ToByteArray()),
+                    "Iv should be all zeros because PayloadIsEncrypted = false");
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
 
                 //validate preview thumbnail
-                Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.ContentType == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.ContentType);
-                Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelHeight == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelHeight);
-                Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelWidth == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelWidth);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(descriptor.FileMetadata.AppData.PreviewThumbnail.Content, clientFileHeader.FileMetadata.AppData.PreviewThumbnail.Content));
+                Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.ContentType ==
+                              clientFileHeader.FileMetadata.AppData.PreviewThumbnail.ContentType);
+                Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelHeight ==
+                              clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelHeight);
+                Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelWidth ==
+                              clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelWidth);
+                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(
+                    descriptor.FileMetadata.AppData.PreviewThumbnail.Content,
+                    clientFileHeader.FileMetadata.AppData.PreviewThumbnail.Content));
 
-                Assert.IsTrue(clientFileHeader.FileMetadata.AppData.AdditionalThumbnails.Count() == (additionalThumbs?.Count ?? 0));
+                Assert.IsTrue(clientFileHeader.FileMetadata.AppData.AdditionalThumbnails.Count() ==
+                              (additionalThumbs?.Count ?? 0));
 
                 //
                 // If payload was uploaded, get the payload that was uploaded, test it
                 // 
-                if(payloadContent != null)
+                if (payloadContent != null)
                 {
                     var payloadResponse = await getFilesDriveSvc.GetPayload(uploadedFile);
                     Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
@@ -438,7 +477,8 @@ namespace Youverse.Hosting.Tests.Performance
                         Assert.IsTrue(thumbnailResponse.IsSuccessStatusCode);
                         Assert.IsNotNull(thumbnailResponse.Content);
 
-                        Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(thumbnailInDescriptor.Content, await thumbnailResponse!.Content!.ReadAsByteArrayAsync()));
+                        Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(thumbnailInDescriptor.Content,
+                            await thumbnailResponse!.Content!.ReadAsByteArrayAsync()));
                     }
                 }
 

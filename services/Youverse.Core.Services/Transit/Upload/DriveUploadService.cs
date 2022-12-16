@@ -269,8 +269,10 @@ public class DriveUploadService
 
         var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
         var jsonBytes = AesCbc.Decrypt(metadataStream.ToByteArray(), ref clientSharedSecret, package.InstructionSet.TransferIv);
-        var json = System.Text.Encoding.UTF8.GetString(jsonBytes);
+        metadataStream.Close();
 
+        var json = System.Text.Encoding.UTF8.GetString(jsonBytes);
+        
         var uploadDescriptor = DotYouSystemSerializer.Deserialize<UploadFileDescriptor>(json);
 
         var transferEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;
