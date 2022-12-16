@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -13,10 +12,10 @@ namespace Youverse.Core.Services.Certificate.Renewal
     /// <summary>
     /// List of identities with an outstanding order to have an SSL certificate created 
     /// </summary>
-    public class PendingCertificateOrderListService : IDisposable
+    public class PendingCertificateOrderListService
     {
         private readonly TableOutbox _table;
-        private readonly KeyValueDatabase _db;
+
         public PendingCertificateOrderListService(string dataPath)
         {
             Guard.Argument(dataPath, nameof(dataPath)).NotNull().NotEmpty();
@@ -28,9 +27,9 @@ namespace Youverse.Core.Services.Certificate.Renewal
             }
 
             var filePath = PathUtil.OsIfy($"{dataPath}\\cert.db");
-            _db = new KeyValueDatabase($"URI=file:{filePath}");
-            _db.CreateDatabase(false);
-            _table = new TableOutbox(_db);
+            var db = new KeyValueDatabase($"URI=file:{filePath}");
+            db.CreateDatabase(false);
+            _table = new TableOutbox(db);
         }
 
         public void Add(DotYouIdentity identity)
@@ -62,7 +61,7 @@ namespace Youverse.Core.Services.Certificate.Renewal
         public async Task<(IEnumerable<DotYouIdentity>, byte[] marker)> GetIdentities()
         {
             var records = _table.PopAll(out var marker);
-
+            
             //see Add method.  fileId = dotYouId
             var senders = records.Select(item => new DotYouIdentity(item.value.ToStringFromUtf8Bytes())).ToList();
             return (senders, marker);
@@ -76,14 +75,6 @@ namespace Youverse.Core.Services.Certificate.Renewal
         public void MarkFailure(byte[] marker)
         {
             _table.PopCancel(marker);
-        }
-
-        public void Dispose()
-        {
-            if (null != _db)
-            {
-                _db.Dispose();
-            }
         }
     }
 }
