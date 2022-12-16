@@ -7,6 +7,7 @@ using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Apps;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers.ClientToken.Drive;
 using Youverse.Hosting.Controllers.OwnerToken.Drive;
@@ -93,9 +94,9 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
                 return NotFound();
             }
 
-            HttpContext.Response.Headers.Add(TransitConstants.PayloadEncrypted, payloadIsEncrypted.ToString());
-            HttpContext.Response.Headers.Add(TransitConstants.DecryptedContentType, decryptedContentType);
-            HttpContext.Response.Headers.Add(TransitConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader.ToBase64());
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, payloadIsEncrypted.ToString());
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader.ToBase64());
             return new FileStreamResult(payload, "application/octet-stream");
         }
 
@@ -121,9 +122,9 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
                 return NotFound();
             }
 
-            HttpContext.Response.Headers.Add(TransitConstants.PayloadEncrypted, payloadIsEncrypted.ToString());
-            HttpContext.Response.Headers.Add(TransitConstants.DecryptedContentType, decryptedContentType);
-            HttpContext.Response.Headers.Add(TransitConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader.ToBase64());
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, payloadIsEncrypted.ToString());
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader.ToBase64());
             return new FileStreamResult(thumb, "application/octet-stream");
         }
 

@@ -12,6 +12,7 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Storage;
@@ -197,7 +198,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                     FileId = queryBatchResponse.Content.SearchResults.Single().FileId
                 };
 
-                var fileResponse = await driveSvc.GetFileHeader(uploadedFile);
+                var fileResponse = await driveSvc.GetFileHeaderAsPost(uploadedFile);
 
                 Assert.That(fileResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(fileResponse.Content, Is.Not.Null);
@@ -228,7 +229,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                 // Get the payload that was uploaded, test it
                 // 
 
-                var payloadResponse = await driveSvc.GetPayload(uploadedFile);
+                var payloadResponse = await driveSvc.GetPayloadAsPost(uploadedFile);
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 
@@ -456,7 +457,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                     FileId = queryBatchResponse.Content.SearchResults.Single().FileId
                 };
 
-                var fileResponse = await driveSvc.GetFileHeader(uploadedFile);
+                var fileResponse = await driveSvc.GetFileHeaderAsPost(uploadedFile);
 
                 Assert.That(fileResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(fileResponse.Content, Is.Not.Null);
@@ -487,7 +488,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                 // Get the payload that was uploaded, test it
                 // 
 
-                var payloadResponse = await driveSvc.GetPayload(uploadedFile);
+                var payloadResponse = await driveSvc.GetPayloadAsPost(uploadedFile);
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 
@@ -505,7 +506,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
 
                 // var decryptedPayloadRaw = System.Text.Encoding.UTF8.GetString(decryptedPayloadBytes);
 
-                var getThumbnailResponse = await driveSvc.GetThumbnail(new GetThumbnailRequest()
+                var getThumbnailResponse = await driveSvc.GetThumbnailAsPost(new GetThumbnailRequest()
                 {
                     File = uploadedFile,
                     Width = thumbnail1.PixelWidth,
@@ -595,13 +596,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                 Assert.That(getTransitPayloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(getTransitPayloadResponse.Content, Is.Not.Null);
 
-                var payloadIsEncrypted = bool.Parse(getTransitPayloadResponse.Headers.GetValues(TransitConstants.PayloadEncrypted).Single());
+                var payloadIsEncrypted = bool.Parse(getTransitPayloadResponse.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
                 Assert.IsTrue(payloadIsEncrypted);
 
-                var payloadSharedSecretKeyHeaderValue = getTransitPayloadResponse.Headers.GetValues(TransitConstants.SharedSecretEncryptedHeader64).Single();
+                var payloadSharedSecretKeyHeaderValue = getTransitPayloadResponse.Headers.GetValues(HttpHeaderConstants.SharedSecretEncryptedHeader64).Single();
                 var ownerSharedSecretEncryptedKeyHeaderForPayload = EncryptedKeyHeader.FromBase64(payloadSharedSecretKeyHeaderValue);
 
-                var getTransitPayloadContentTypeHeader = getTransitPayloadResponse.Headers.GetValues(TransitConstants.DecryptedContentType).Single();
+                var getTransitPayloadContentTypeHeader = getTransitPayloadResponse.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
                 Assert.IsTrue(descriptor.FileMetadata.ContentType == getTransitPayloadContentTypeHeader);
 
                 var decryptedPayloadKeyHeader = ownerSharedSecretEncryptedKeyHeaderForPayload.DecryptAesToKeyHeader(ref ownerSharedSecret);
@@ -626,13 +627,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                 Assert.IsTrue(getTransitThumbnailResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(getTransitThumbnailResponse.Content);
 
-                var thumbnailIsEncrypted = bool.Parse(getTransitThumbnailResponse.Headers.GetValues(TransitConstants.PayloadEncrypted).Single());
+                var thumbnailIsEncrypted = bool.Parse(getTransitThumbnailResponse.Headers.GetValues(HttpHeaderConstants.PayloadEncrypted).Single());
                 Assert.IsTrue(thumbnailIsEncrypted);
 
-                var thumbnailSharedSecretKeyHeaderValue = getTransitThumbnailResponse.Headers.GetValues(TransitConstants.SharedSecretEncryptedHeader64).Single();
+                var thumbnailSharedSecretKeyHeaderValue = getTransitThumbnailResponse.Headers.GetValues(HttpHeaderConstants.SharedSecretEncryptedHeader64).Single();
                 var ownerSharedSecretEncryptedKeyHeaderForThumbnail = EncryptedKeyHeader.FromBase64(thumbnailSharedSecretKeyHeaderValue);
 
-                var getTransitThumbnailContentTypeHeader = getTransitThumbnailResponse.Headers.GetValues(TransitConstants.DecryptedContentType).Single();
+                var getTransitThumbnailContentTypeHeader = getTransitThumbnailResponse.Headers.GetValues(HttpHeaderConstants.DecryptedContentType).Single();
                 Assert.IsTrue(thumbnail1.ContentType == getTransitThumbnailContentTypeHeader);
 
                 var decryptedThumbnailKeyHeader = ownerSharedSecretEncryptedKeyHeaderForThumbnail.DecryptAesToKeyHeader(ref ownerSharedSecret);

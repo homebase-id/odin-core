@@ -9,6 +9,8 @@ namespace Youverse.Core.Services.Authorization.Acl
     public class AccessControlList
     {
         public static AccessControlList OwnerOnly => new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Owner };
+        public static AccessControlList Authenticated => new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Authenticated };
+        public static AccessControlList Connected => new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected };
 
         public SecurityGroupType RequiredSecurityGroup { get; set; }
 

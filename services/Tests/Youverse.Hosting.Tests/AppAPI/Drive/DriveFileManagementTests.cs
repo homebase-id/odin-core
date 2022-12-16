@@ -113,7 +113,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 //retrieve the file that was uploaded; decrypt; 
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, testContext.SharedSecret);
 
-                var fileResponse = await driveSvc.GetFileHeader(new ExternalFileIdentifier() { TargetDrive = targetDrive, FileId = fileId });
+                var fileResponse = await driveSvc.GetFileHeaderAsPost(new ExternalFileIdentifier() { TargetDrive = targetDrive, FileId = fileId });
 
                 Assert.That(fileResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(fileResponse.Content, Is.Not.Null);
@@ -141,7 +141,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.That(fileKey, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
 
                 //get the payload and decrypt, then compare
-                var payloadResponse = await driveSvc.GetPayload(new ExternalFileIdentifier() { TargetDrive = targetDrive, FileId = fileId });
+                var payloadResponse = await driveSvc.GetPayloadAsPost(new ExternalFileIdentifier() { TargetDrive = targetDrive, FileId = fileId });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 
@@ -251,7 +251,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 DotYouTestAssertions.FileHeaderIsMarkedDeleted(queryModifiedDeletedEntry);
 
                 // get file directly
-                var getFileHeaderResponse = await svc.GetFileHeader(fileToDelete);
+                var getFileHeaderResponse = await svc.GetFileHeaderAsPost(fileToDelete);
                 Assert.IsTrue(getFileHeaderResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(getFileHeaderResponse.Content);
                 var deletedFileHeader = getFileHeaderResponse.Content;
@@ -259,7 +259,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
                 //there should not be a thumbnail
                 var thumb = ctx.UploadFileMetadata.AppData.AdditionalThumbnails.FirstOrDefault();
-                var getThumbnailResponse = await svc.GetThumbnail(new GetThumbnailRequest()
+                var getThumbnailResponse = await svc.GetThumbnailAsPost(new GetThumbnailRequest()
                 {
                     File = fileToDelete,
                     Height = thumb.PixelHeight,
@@ -268,7 +268,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.IsTrue(getThumbnailResponse.StatusCode == HttpStatusCode.NotFound);
 
                 //there should not be a payload
-                var getPayloadResponse = await svc.GetPayload(fileToDelete);
+                var getPayloadResponse = await svc.GetPayloadAsPost(fileToDelete);
                 Assert.IsTrue(getPayloadResponse.StatusCode == HttpStatusCode.NotFound);
             }
         }

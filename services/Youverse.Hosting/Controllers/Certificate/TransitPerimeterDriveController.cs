@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core.Services.Apps;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Quarantine;
@@ -73,9 +74,9 @@ namespace Youverse.Hosting.Controllers.Certificate
                 return NotFound();
             }
 
-            HttpContext.Response.Headers.Add(TransitConstants.PayloadEncrypted, payloadIsEncrypted.ToString());
-            HttpContext.Response.Headers.Add(TransitConstants.DecryptedContentType, decryptedContentType);
-            HttpContext.Response.Headers.Add(TransitConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, payloadIsEncrypted.ToString());
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
             return new FileStreamResult(payload, "application/octet-stream");
         }
 
@@ -96,9 +97,9 @@ namespace Youverse.Hosting.Controllers.Certificate
                 return NotFound();
             }
 
-            HttpContext.Response.Headers.Add(TransitConstants.PayloadEncrypted, payloadIsEncrypted.ToString());
-            HttpContext.Response.Headers.Add(TransitConstants.DecryptedContentType, decryptedContentType);
-            HttpContext.Response.Headers.Add(TransitConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, payloadIsEncrypted.ToString());
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, decryptedContentType);
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.IcrEncryptedSharedSecret64Header, encryptedKeyHeader64);
             return new FileStreamResult(thumb, "application/octet-stream");
         }
 

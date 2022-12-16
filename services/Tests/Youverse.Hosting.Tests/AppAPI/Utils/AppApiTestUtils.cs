@@ -314,7 +314,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
             using (var client = this.CreateAppApiHttpClient(appContext))
             {
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, appContext.SharedSecret);
-                var fileResponse = await driveSvc.GetFileHeader(file);
+                var fileResponse = await driveSvc.GetFileHeaderAsPost(file);
                 return fileResponse;
             }
         }
@@ -324,7 +324,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
             using (var client = this.CreateAppApiHttpClient(appContext))
             {
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, appContext.SharedSecret);
-                var payloadResponse = await driveSvc.GetPayload(file);
+                var payloadResponse = await driveSvc.GetPayloadAsPost(file);
                 return payloadResponse;
             }
         }
@@ -335,7 +335,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
             {
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, appContext.SharedSecret);
 
-                var thumbnailResponse = await driveSvc.GetThumbnail(new GetThumbnailRequest()
+                var thumbnailResponse = await driveSvc.GetThumbnailAsPost(new GetThumbnailRequest()
                 {
                     File = file,
                     Height = height,
