@@ -112,14 +112,15 @@ public class StaticFileContentService
                     FileId = fileHeader.FileId,
                     DriveId = driveId
                 };
-                
+
                 if (section.ResultOptions.IncludeAdditionalThumbnails)
                 {
-                    foreach (var thumbHeader in fileHeader.FileMetadata.AppData?.AdditionalThumbnails ?? new List<ImageDataHeader>())
+                    foreach (var thumbHeader in fileHeader.FileMetadata.AppData?.AdditionalThumbnails ??
+                                                new List<ImageDataHeader>())
                     {
                         var thumbnailStream = await _driveService.GetThumbnailPayloadStream(
                             internalFileId, thumbHeader.PixelWidth, thumbHeader.PixelHeight);
-                        
+
                         thumbnails.Add(new ImageDataContent()
                         {
                             PixelHeight = thumbHeader.PixelHeight,
@@ -156,17 +157,13 @@ public class StaticFileContentService
         await using var fileStream = File.Create(tempTargetPath);
         await DotYouSystemSerializer.Serialize(fileStream, sectionOutputList, sectionOutputList.GetType());
         fileStream.Close();
-        
+
         string finalTargetPath = Path.Combine(targetFolder, filename);
-        
-        lock(finalTargetPath)
-        {
-            File.Replace(tempTargetPath, finalTargetPath, null, true);
-            // File.Move(tempTargetPath, finalTargetPath, true);
-            config.ContentType = MediaTypeNames.Application.Json;
-            _tenantSystemStorage.SingleKeyValueStorage.Upsert(GetConfigKey(filename), config);
-        }
-        
+
+        File.Move(tempTargetPath, finalTargetPath, true);
+        config.ContentType = MediaTypeNames.Application.Json;
+        _tenantSystemStorage.SingleKeyValueStorage.Upsert(GetConfigKey(filename), config);
+
         return result;
     }
 
@@ -176,7 +173,6 @@ public class StaticFileContentService
         string targetFile = Path.Combine(_tenantContext.StaticFileDataRoot, filename);
 
         var config = _tenantSystemStorage.SingleKeyValueStorage.Get<StaticFileConfiguration>(GetConfigKey(filename));
-
 
 
         var fileStream = File.Open(targetFile, FileMode.Open, FileAccess.Read, FileShare.Read);
@@ -202,7 +198,7 @@ public class StaticFileContentService
             ContentType = contentType,
             CrossOriginBehavior = CrossOriginBehavior.AllowAllOrigins
         };
-        
+
         _tenantSystemStorage.SingleKeyValueStorage.Upsert(GetConfigKey(filename), config);
     }
 
