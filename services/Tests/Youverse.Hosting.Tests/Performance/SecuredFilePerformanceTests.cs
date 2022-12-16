@@ -63,82 +63,40 @@ namespace Youverse.Hosting.Tests.Performance
             // This is because I've not yet created a login scaffold for YouAuth in our test framework
             // The code paths for youAuth and app are identical (mostly) after authentication has
             // occured (and we cache the token) so this should be sufficient.
+
+            // The primary difference is that app always runs as Owner, however the permission
+            // context is still based on what the app has access to
+            
             using var frodoHttpClient = _scaffold.AppApi.CreateAppApiHttpClient(frodoAppContext);
             var frodoDriveService = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(frodoHttpClient, frodoAppContext.SharedSecret);
 
-            //get the file header
+            //
+            // Calls to get the secured file parts
+            // 
+
+            //
+            
             var headerResponse = await frodoDriveService.GetFileHeader(uploadedFile1.FileId, uploadedFile1.TargetDrive.Alias, uploadedFile1.TargetDrive.Type);
             Assert.IsTrue(headerResponse.IsSuccessStatusCode);
             Assert.IsNotNull(headerResponse.Content);
 
+            //
+            
             var thumbnail1 = headerResponse.Content.FileMetadata.AppData.AdditionalThumbnails.FirstOrDefault();
             var thumbnail1Response = await frodoDriveService.GetThumbnail(uploadedFile1.FileId, uploadedFile1.TargetDrive.Alias, uploadedFile1.TargetDrive.Type, thumbnail1.PixelWidth, thumbnail1.PixelWidth);
             Assert.IsTrue(thumbnail1Response.IsSuccessStatusCode);
             Assert.IsNotNull(thumbnail1Response.Content);
             var encryptedThumbnailBytes = await thumbnail1Response.Content.ReadAsByteArrayAsync();
 
+            //
+            
             var payload1Response = await frodoDriveService.GetPayload(uploadedFile1.FileId, uploadedFile1.TargetDrive.Alias, uploadedFile1.TargetDrive.Type);
             // var contentType = payloadResponse.Headers.SingleOrDefault(h => h.Key == HttpHeaderConstants.DecryptedContentType);
             Assert.IsTrue(payload1Response.IsSuccessStatusCode);
             Assert.IsNotNull(payload1Response.Content);
-
             var encryptedPayloadBytes = await payload1Response.Content.ReadAsByteArrayAsync();
 
-            //
-            // Now back to performance testing
-            //
-            // var sw = new Stopwatch();
-            // sw.Reset();
-            // sw.Start();
-            //
-            // for (var i = 0; i < MAXTHREADS; i++)
-            // {
-            //     tasks[i] = Task.Run(async () =>
-            //     {
-            //         var (tmp, measurements) = await CanPublishStaticFileContentWithThumbnails(i, MAXITERATIONS, getStaticFileSvc, publishRequest, pubResult);
-            //         Debug.Assert(measurements.Length == MAXITERATIONS);
-            //         lock (timers)
-            //         {
-            //             fileByteLength = tmp;
-            //             timers.Add(measurements);
-            //         }
-            //     });
-            // }
-            //
-            // try
-            // {
-            //     Task.WaitAll(tasks);
-            // }
-            // catch (AggregateException ae)
-            // {
-            //     foreach (var ex in ae.InnerExceptions)
-            //     {
-            //         Console.WriteLine(ex.Message);
-            //     }
-            //
-            //     throw;
-            // }
-            //
-            // sw.Stop();
-            //
-            // Debug.Assert(timers.Count == MAXTHREADS);
-            // long[] oneDimensionalArray = timers.SelectMany(arr => arr).ToArray();
-            // Debug.Assert(oneDimensionalArray.Length == (MAXTHREADS * MAXITERATIONS));
-            //
-            // Array.Sort(oneDimensionalArray);
-            // for (var i = 1; i < MAXTHREADS * MAXITERATIONS; i++)
-            //     Debug.Assert(oneDimensionalArray[i - 1] <= oneDimensionalArray[i]);
-            //
-            // Console.WriteLine($"Threads   : {MAXTHREADS}");
-            // Console.WriteLine($"Iterations: {MAXITERATIONS}");
-            // Console.WriteLine($"Time      : {sw.ElapsedMilliseconds}ms");
-            // Console.WriteLine($"Minimum   : {oneDimensionalArray[0]}ms");
-            // Console.WriteLine($"Maximum   : {oneDimensionalArray[MAXTHREADS * MAXITERATIONS - 1]}ms");
-            // Console.WriteLine($"Average   : {sw.ElapsedMilliseconds / (MAXTHREADS * MAXITERATIONS)}ms");
-            // Console.WriteLine($"Median    : {oneDimensionalArray[(MAXTHREADS * MAXITERATIONS) / 2]}ms");
-            //
-            // Console.WriteLine($"Capacity  : {(1000 * MAXITERATIONS * MAXTHREADS) / Math.Max(1, sw.ElapsedMilliseconds)} / second");
-            // Console.WriteLine($"Bandwidth : {fileByteLength * ((1000 * MAXITERATIONS * MAXTHREADS) / Math.Max(1, sw.ElapsedMilliseconds))} bytes / second");
+
         }
 
         private async Task<ExternalFileIdentifier> UploadFileWithPayloadAndTwoThumbnails(TestAppContext testAppContext, string jsonContent, string payload, AccessControlList acl)

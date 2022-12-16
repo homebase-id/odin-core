@@ -272,13 +272,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var frodoAccess = getFrodoInfoResponse.Content.AccessGrant;
                 var frodoAccessFromCircle1 = frodoAccess.CircleGrants.SingleOrDefault(c => c.CircleId == circleOnSamsIdentity1.Id);
                 Assert.NotNull(frodoAccessFromCircle1);
-                Assert.IsTrue(frodoAccessFromCircle1.PermissionSet == circleOnSamsIdentity1.Permissions);
+                Assert.IsTrue(frodoAccessFromCircle1.PermissionKeySet == circleOnSamsIdentity1.PermissionsKey);
 
                 AssertAllDrivesGrantedFromCircle(circleOnSamsIdentity1, frodoAccessFromCircle1);
 
                 var frodoAccessFromCircle2 = frodoAccess.CircleGrants.SingleOrDefault(c => c.CircleId == circleOnSamsIdentity2.Id);
                 Assert.NotNull(frodoAccessFromCircle2);
-                Assert.IsTrue(frodoAccessFromCircle2.PermissionSet == circleOnSamsIdentity2.Permissions);
+                Assert.IsTrue(frodoAccessFromCircle2.PermissionKeySet == circleOnSamsIdentity2.PermissionsKey);
                 AssertAllDrivesGrantedFromCircle(circleOnSamsIdentity2, frodoAccessFromCircle2);
 
                 //
@@ -321,13 +321,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var samAccess = getSamConnectionInfoResponse.Content.AccessGrant;
                 var samAccessFromCircle1 = samAccess.CircleGrants.SingleOrDefault(c => c.CircleId == circleOnFrodosIdentity1.Id);
                 Assert.NotNull(samAccessFromCircle1);
-                Assert.IsTrue(samAccessFromCircle1.PermissionSet == circleOnFrodosIdentity1.Permissions);
+                Assert.IsTrue(samAccessFromCircle1.PermissionKeySet == circleOnFrodosIdentity1.PermissionsKey);
 
                 AssertAllDrivesGrantedFromCircle(circleOnFrodosIdentity1, samAccessFromCircle1);
 
                 var samAccessFromCircle2 = samAccess.CircleGrants.SingleOrDefault(c => c.CircleId == circleOnFrodosIdentity2.Id);
                 Assert.NotNull(samAccessFromCircle2);
-                Assert.IsTrue(samAccessFromCircle2.PermissionSet == circleOnFrodosIdentity2.Permissions);
+                Assert.IsTrue(samAccessFromCircle2.PermissionKeySet == circleOnFrodosIdentity2.PermissionsKey);
                 AssertAllDrivesGrantedFromCircle(circleOnFrodosIdentity2, samAccessFromCircle2);
 
                 //
@@ -387,13 +387,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var frodoAccess = getFrodoInfoResponse.Content.AccessGrant;
                 var frodoAccessFromCircle1 = frodoAccess.CircleGrants.SingleOrDefault(c => c.CircleId == circleOnSamsIdentity1.Id);
                 Assert.NotNull(frodoAccessFromCircle1);
-                Assert.IsTrue(frodoAccessFromCircle1.PermissionSet == circleOnSamsIdentity1.Permissions);
+                Assert.IsTrue(frodoAccessFromCircle1.PermissionKeySet == circleOnSamsIdentity1.PermissionsKey);
 
                 AssertAllDrivesGrantedFromCircle(circleOnSamsIdentity1, frodoAccessFromCircle1);
 
                 var frodoAccessFromCircle2 = frodoAccess.CircleGrants.SingleOrDefault(c => c.CircleId == circleOnSamsIdentity2.Id);
                 Assert.NotNull(frodoAccessFromCircle2);
-                Assert.IsTrue(frodoAccessFromCircle2.PermissionSet == circleOnSamsIdentity2.Permissions);
+                Assert.IsTrue(frodoAccessFromCircle2.PermissionKeySet == circleOnSamsIdentity2.PermissionsKey);
                 AssertAllDrivesGrantedFromCircle(circleOnSamsIdentity2, frodoAccessFromCircle2);
 
                 //
@@ -427,13 +427,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var samAccess = getSamConnectionInfoResponse.Content.AccessGrant;
                 var samAccessFromCircle1 = samAccess.CircleGrants.SingleOrDefault(c => c.CircleId == circleOnFrodosIdentity1.Id);
                 Assert.NotNull(samAccessFromCircle1);
-                Assert.IsTrue(samAccessFromCircle1.PermissionSet == circleOnFrodosIdentity1.Permissions);
+                Assert.IsTrue(samAccessFromCircle1.PermissionKeySet == circleOnFrodosIdentity1.PermissionsKey);
 
                 AssertAllDrivesGrantedFromCircle(circleOnFrodosIdentity1, samAccessFromCircle1);
 
                 var samAccessFromCircle2 = samAccess.CircleGrants.SingleOrDefault(c => c.CircleId == circleOnFrodosIdentity2.Id);
                 Assert.NotNull(samAccessFromCircle2);
-                Assert.IsTrue(samAccessFromCircle2.PermissionSet == circleOnFrodosIdentity2.Permissions);
+                Assert.IsTrue(samAccessFromCircle2.PermissionKeySet == circleOnFrodosIdentity2.PermissionsKey);
                 AssertAllDrivesGrantedFromCircle(circleOnFrodosIdentity2, samAccessFromCircle2);
 
                 //
@@ -496,13 +496,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 // frodo should still access to circle 1
                 var frodoAccessFromCircle1 = frodoAccess.CircleGrants.SingleOrDefault(c => c.CircleId == circleOnSamsIdentity1.Id);
                 Assert.NotNull(frodoAccessFromCircle1);
-                Assert.IsTrue(frodoAccessFromCircle1.PermissionSet == circleOnSamsIdentity1.Permissions);
+                Assert.IsTrue(frodoAccessFromCircle1.PermissionKeySet == circleOnSamsIdentity1.PermissionsKey);
                 AssertAllDrivesGrantedFromCircle(circleOnSamsIdentity1, frodoAccessFromCircle1);
 
                 // frodo should still access to circle 2
                 var frodoAccessFromCircle2 = frodoAccess.CircleGrants.SingleOrDefault(c => c.CircleId == circleOnSamsIdentity2.Id);
                 Assert.NotNull(frodoAccessFromCircle2);
-                Assert.IsTrue(frodoAccessFromCircle2.PermissionSet == circleOnSamsIdentity2.Permissions);
+                Assert.IsTrue(frodoAccessFromCircle2.PermissionKeySet == circleOnSamsIdentity2.PermissionsKey);
                 AssertAllDrivesGrantedFromCircle(circleOnSamsIdentity2, frodoAccessFromCircle2);
             }
 
@@ -557,13 +557,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var frodoAccess = getFrodoInfoResponse.Content.AccessGrant;
                 var frodoAccessFromCircle1 = frodoAccess.CircleGrants.SingleOrDefault(c => c.CircleId == circleOnSamsIdentity1.Id);
                 Assert.NotNull(frodoAccessFromCircle1);
-                Assert.IsTrue(frodoAccessFromCircle1.PermissionSet == circleOnSamsIdentity1.Permissions);
+                Assert.IsTrue(frodoAccessFromCircle1.PermissionKeySet == circleOnSamsIdentity1.PermissionsKey);
 
                 AssertAllDrivesGrantedFromCircle(circleOnSamsIdentity1, frodoAccessFromCircle1);
 
                 var frodoAccessFromCircle2 = frodoAccess.CircleGrants.SingleOrDefault(c => c.CircleId == circleOnSamsIdentity2.Id);
                 Assert.NotNull(frodoAccessFromCircle2);
-                Assert.IsTrue(frodoAccessFromCircle2.PermissionSet == circleOnSamsIdentity2.Permissions);
+                Assert.IsTrue(frodoAccessFromCircle2.PermissionKeySet == circleOnSamsIdentity2.PermissionsKey);
                 AssertAllDrivesGrantedFromCircle(circleOnSamsIdentity2, frodoAccessFromCircle2);
 
                 //
@@ -597,13 +597,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var samAccess = getSamConnectionInfoResponse.Content.AccessGrant;
                 var samAccessFromCircle1 = samAccess.CircleGrants.SingleOrDefault(c => c.CircleId == circleOnFrodosIdentity1.Id);
                 Assert.NotNull(samAccessFromCircle1);
-                Assert.IsTrue(samAccessFromCircle1.PermissionSet == circleOnFrodosIdentity1.Permissions);
+                Assert.IsTrue(samAccessFromCircle1.PermissionKeySet == circleOnFrodosIdentity1.PermissionsKey);
 
                 AssertAllDrivesGrantedFromCircle(circleOnFrodosIdentity1, samAccessFromCircle1);
 
                 var samAccessFromCircle2 = samAccess.CircleGrants.SingleOrDefault(c => c.CircleId == circleOnFrodosIdentity2.Id);
                 Assert.NotNull(samAccessFromCircle2);
-                Assert.IsTrue(samAccessFromCircle2.PermissionSet == circleOnFrodosIdentity2.Permissions);
+                Assert.IsTrue(samAccessFromCircle2.PermissionKeySet == circleOnFrodosIdentity2.PermissionsKey);
                 AssertAllDrivesGrantedFromCircle(circleOnFrodosIdentity2, samAccessFromCircle2);
 
                 //
@@ -672,7 +672,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 // frodo should still access to circle 2
                 var frodoAccessFromCircle2 = frodoAccess.CircleGrants.SingleOrDefault(c => c.CircleId == circleOnSamsIdentity2.Id);
                 Assert.NotNull(frodoAccessFromCircle2);
-                Assert.IsTrue(frodoAccessFromCircle2.PermissionSet == circleOnSamsIdentity2.Permissions);
+                Assert.IsTrue(frodoAccessFromCircle2.PermissionKeySet == circleOnSamsIdentity2.PermissionsKey);
                 AssertAllDrivesGrantedFromCircle(circleOnSamsIdentity2, frodoAccessFromCircle2);
             }
 
@@ -1057,7 +1057,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                     Name = name,
                     Description = $"total hack {someId}",
                     DriveGrants = new List<DriveGrantRequest>() { dgr1, dgr2 },
-                    Permissions = permissionKeys?.Any() ?? false ? new PermissionSet(permissionKeys?.ToArray()) : new PermissionSet()
+                    PermissionsKey = permissionKeys?.Any() ?? false ? new PermissionKeySet(permissionKeys?.ToArray()) : new PermissionKeySet()
                 };
 
                 var createCircleResponse = await svc.CreateCircleDefinition(request);
@@ -1077,12 +1077,12 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
                 foreach (var k in permissionKeys)
                 {
-                    Assert.IsTrue(circle.Permissions.HasKey(k));
+                    Assert.IsTrue(circle.PermissionsKey.HasKey(k));
                 }
 
                 Assert.AreEqual(request.Name, circle.Name);
                 Assert.AreEqual(request.Description, circle.Description);
-                Assert.IsTrue(request.Permissions == circle.Permissions);
+                Assert.IsTrue(request.PermissionsKey == circle.PermissionsKey);
 
                 return circle;
             }

@@ -6,15 +6,15 @@ using Dawn;
 
 namespace Youverse.Core.Services.Authorization.Permissions
 {
-    public class PermissionSet : IEquatable<PermissionSet>
+    public class PermissionKeySet : IEquatable<PermissionKeySet>
     {
         public List<int> Keys { get; init; }
 
-        public PermissionSet()
+        public PermissionKeySet()
         {
         }
 
-        public PermissionSet(IEnumerable<int> permissionKeys)
+        public PermissionKeySet(IEnumerable<int> permissionKeys)
         {
             Guard.Argument(permissionKeys, nameof(permissionKeys)).NotNull();
             Keys = new List<int>(permissionKeys.ToList());
@@ -25,7 +25,7 @@ namespace Youverse.Core.Services.Authorization.Permissions
             return Keys?.Any(k => k == key) ?? false;
         }
 
-        public bool Equals(PermissionSet other)
+        public bool Equals(PermissionKeySet other)
         {
             if (ReferenceEquals(null, other)) return false;
             if (ReferenceEquals(this, other)) return true;
@@ -37,7 +37,7 @@ namespace Youverse.Core.Services.Authorization.Permissions
             if (ReferenceEquals(null, obj)) return false;
             if (ReferenceEquals(this, obj)) return true;
             if (obj.GetType() != this.GetType()) return false;
-            return Equals((PermissionSet)obj);
+            return Equals((PermissionKeySet)obj);
         }
 
         public override int GetHashCode()
@@ -45,7 +45,7 @@ namespace Youverse.Core.Services.Authorization.Permissions
             return (Keys.GetHashCode());
         }
 
-        public static bool operator ==(PermissionSet p1, PermissionSet p2)
+        public static bool operator ==(PermissionKeySet p1, PermissionKeySet p2)
         {
             if (p1 is null)
             {
@@ -58,7 +58,7 @@ namespace Youverse.Core.Services.Authorization.Permissions
             return p1Keys.SequenceEqual(p2Keys);
         }
 
-        public static bool operator !=(PermissionSet p1, PermissionSet p2)
+        public static bool operator !=(PermissionKeySet p1, PermissionKeySet p2)
         {
             return !(p1 == p2);
         }

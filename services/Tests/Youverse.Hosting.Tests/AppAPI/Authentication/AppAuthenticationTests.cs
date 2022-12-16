@@ -34,7 +34,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         {
             Guid appId = Guid.NewGuid();
             var identity = TestIdentities.Samwise;
-            await _scaffold.OwnerApi.AddApp(identity.DotYouId, appId, TargetDrive.NewTargetDrive());
+            await _scaffold.OwnerApi.AddAppWithAllDrivePermissions(identity.DotYouId, appId, TargetDrive.NewTargetDrive());
             var (clientAuthToken, sharedSecret) = await _scaffold.OwnerApi.AddAppClient(identity.DotYouId, appId);
 
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity.DotYouId))
@@ -53,7 +53,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         {
             Guid appId = Guid.NewGuid();
             var identity = TestIdentities.Samwise;
-            await _scaffold.OwnerApi.AddApp(identity.DotYouId, appId, TargetDrive.NewTargetDrive());
+            await _scaffold.OwnerApi.AddAppWithAllDrivePermissions(identity.DotYouId, appId, TargetDrive.NewTargetDrive());
             var (clientAuthToken, sharedSecret) = await _scaffold.OwnerApi.AddAppClient(identity.DotYouId, appId);
 
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity.DotYouId))
@@ -85,7 +85,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         {
             Guid appId = Guid.NewGuid();
             var identity = TestIdentities.Samwise;
-            await _scaffold.OwnerApi.AddApp(identity.DotYouId, appId, TargetDrive.NewTargetDrive());
+            await _scaffold.OwnerApi.AddAppWithAllDrivePermissions(identity.DotYouId, appId, TargetDrive.NewTargetDrive());
             var (clientAuthToken, sharedSecret) = await _scaffold.OwnerApi.AddAppClient(identity.DotYouId, appId);
 
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity.DotYouId))
@@ -105,7 +105,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
             var identity = TestIdentities.Samwise;
 
             Guid appId = Guid.NewGuid();
-            await _scaffold.OwnerApi.AddApp(identity.DotYouId, appId, TargetDrive.NewTargetDrive());
+            await _scaffold.OwnerApi.AddAppWithAllDrivePermissions(identity.DotYouId, appId, TargetDrive.NewTargetDrive());
             var (clientAuthToken, sharedSecret) = await _scaffold.OwnerApi.AddAppClient(identity.DotYouId, appId);
 
             using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity.DotYouId))

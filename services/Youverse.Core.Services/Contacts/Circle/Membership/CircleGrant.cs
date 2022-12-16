@@ -15,7 +15,7 @@ public class CircleGrant
         
     }
     public GuidId CircleId { get; set; }
-    public PermissionSet PermissionSet { get; set; }
+    public PermissionKeySet PermissionKeySet { get; set; }
     public List<DriveGrant> KeyStoreKeyEncryptedDriveGrants { get; set; }
 
     public RedactedCircleGrant Redacted()
@@ -23,7 +23,7 @@ public class CircleGrant
         return new RedactedCircleGrant()
         {
             CircleId = this.CircleId,
-            PermissionSet = this.PermissionSet,
+            PermissionKeySet = this.PermissionKeySet,
             DriveGrants = this.KeyStoreKeyEncryptedDriveGrants.Select(d => d.Redacted()).ToList()
         };
     }
@@ -32,6 +32,6 @@ public class CircleGrant
 public class RedactedCircleGrant
 {
     public GuidId CircleId { get; set; }
-    public PermissionSet PermissionSet { get; set; }
+    public PermissionKeySet PermissionKeySet { get; set; }
     public List<RedactedDriveGrant> DriveGrants { get; set; }
 }

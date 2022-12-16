@@ -13,6 +13,7 @@ using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Storage;
@@ -39,7 +40,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
             _ownerApi = ownerApi;
         }
 
-        
 
         /// <summary>
         /// Creates a client for use with the app API (/api/apps/v1/...)
@@ -48,14 +48,14 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
         {
             var cookieJar = new CookieContainer();
             cookieJar.Add(new Cookie(ClientTokenConstants.ClientAuthTokenCookieName, token.ToString(), null, identity));
-            
+
             var sharedSecretGetRequestHandler = new SharedSecretGetRequestHandler(sharedSecret.ToSensitiveByteArray())
             {
                 CookieContainer = cookieJar
             };
-            
+
             HttpClient client = new(sharedSecretGetRequestHandler);
-            
+
             client.Timeout = TimeSpan.FromMinutes(15);
 
             client.BaseAddress = new Uri($"https://{identity}");
@@ -141,7 +141,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                 {
                     fileMetadata.AppData.ContentIsComplete = false;
                 }
-                
+
                 var descriptor = new UploadFileDescriptor()
                 {
                     EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref sharedSecret),
@@ -151,7 +151,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                 var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
 
                 var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadData);
-                
+
                 var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
 
                 var response = await transitSvc.Upload(
@@ -231,11 +231,11 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
             var targetDrive = instructionSet.StorageOptions.Drive;
 
             Guid appId = Guid.NewGuid();
-            var testAppContext = await _ownerApi.SetupTestSampleApp(appId, sender, false, instructionSet.StorageOptions.Drive, options.DriveAllowAnonymousReads);
+            var testAppContext = await _ownerApi.SetupTestSampleApp(appId, sender, canReadConnections: true, instructionSet.StorageOptions.Drive, options.DriveAllowAnonymousReads);
 
             var senderCircleDef =
                 await _ownerApi.CreateCircleWithDrive(sender.DotYouId, $"Sender ({sender.DotYouId}) Circle",
-                    permissionKeys: new List<int>() { },
+                    permissionKeys: new List<int>() { PermissionKeys.ReadConnections },
                     drive: new PermissionedDrive()
                     {
                         Drive = targetDrive,
@@ -252,7 +252,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
 
                 var recipientCircleDef =
                     await _ownerApi.CreateCircleWithDrive(recipient.DotYouId, $"Circle on {recipient} identity",
-                        permissionKeys: new List<int>() { },
+                        permissionKeys: new List<int>() { PermissionKeys.ReadConnections },
                         drive: new PermissionedDrive()
                         {
                             Drive = targetDrive,

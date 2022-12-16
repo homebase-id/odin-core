@@ -62,7 +62,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 Assert.IsTrue(getSystemCircleResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(getSystemCircleResponse.Content);
                 var systemCircle = getSystemCircleResponse.Content;
-                Assert.IsTrue(systemCircle.Permissions.Keys.Contains(PermissionKeys.ReadConnections));
+                Assert.IsTrue(systemCircle.PermissionsKey.Keys.Contains(PermissionKeys.ReadConnections));
             }
             
             //
@@ -79,7 +79,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 Assert.IsTrue(getSystemCircleResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(getSystemCircleResponse.Content);
                 var systemCircle = getSystemCircleResponse.Content;
-                Assert.IsFalse(systemCircle.Permissions.Keys.Contains(PermissionKeys.ReadConnections));
+                Assert.IsFalse(systemCircle.PermissionsKey.Keys.Contains(PermissionKeys.ReadConnections));
             }
         }
     }

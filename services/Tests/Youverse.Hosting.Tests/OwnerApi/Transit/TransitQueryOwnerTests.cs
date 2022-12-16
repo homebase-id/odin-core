@@ -55,8 +55,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
 
             Guid appId = Guid.NewGuid();
             var targetDrive = TargetDrive.NewTargetDrive();
-            var senderContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, sender, false, targetDrive, driveAllowAnonymousReads: true);
-            var recipientContext = await _scaffold.OwnerApi.SetupTestSampleApp(senderContext.AppId, recipient, false, targetDrive);
+            var senderContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, sender, canReadConnections: true, targetDrive, driveAllowAnonymousReads: true);
+            var recipientContext = await _scaffold.OwnerApi.SetupTestSampleApp(senderContext.AppId, recipient, canReadConnections: true, targetDrive);
 
             Guid fileTag = Guid.NewGuid();
 
@@ -301,8 +301,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
 
             Guid appId = Guid.NewGuid();
             var targetDrive = TargetDrive.NewTargetDrive();
-            var senderContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, sender, false, targetDrive, driveAllowAnonymousReads: true);
-            var recipientContext = await _scaffold.OwnerApi.SetupTestSampleApp(senderContext.AppId, recipient, false, targetDrive);
+            var senderContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, sender, canReadConnections: true, targetDrive, driveAllowAnonymousReads: true);
+            var recipientContext = await _scaffold.OwnerApi.SetupTestSampleApp(senderContext.AppId, recipient, canReadConnections: true, targetDrive);
 
             Guid fileTag = Guid.NewGuid();
 

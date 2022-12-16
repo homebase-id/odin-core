@@ -180,8 +180,8 @@ namespace Youverse.Hosting.Authentication.ClientToken
 
             var tenantContext = this.Context.RequestServices.GetRequiredService<TenantContext>();
             var permissionSet = tenantContext.Settings.AnonymousVisitorsCanViewConnections
-                ? new PermissionSet(new List<int>() { PermissionKeys.ReadConnections })
-                : new PermissionSet();
+                ? new PermissionKeySet(new List<int>() { PermissionKeys.ReadConnections })
+                : new PermissionKeySet();
 
             var permissionGroupMap = new Dictionary<string, PermissionGroup>
             {
@@ -198,8 +198,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
             dotYouContext.SetPermissionContext(
                 new PermissionContext(
                     permissionGroupMap,
-                    sharedSecretKey: null,
-                    isOwner: false
+                    sharedSecretKey: null
                 ));
 
             var claims = new[]

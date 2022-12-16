@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Dawn;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Drive;
@@ -10,13 +9,11 @@ namespace Youverse.Core.Services.Base
     public class PermissionContext
     {
         private readonly Dictionary<string, PermissionGroup> _permissionGroups;
-        private readonly bool _isOwner = false;
         private readonly bool _isSystem = false;
 
         public PermissionContext(
             Dictionary<string, PermissionGroup> permissionGroups,
             SensitiveByteArray sharedSecretKey,
-            bool isOwner,
             bool isSystem = false)
         {
             Guard.Argument(permissionGroups, nameof(permissionGroups)).NotNull();
@@ -24,7 +21,6 @@ namespace Youverse.Core.Services.Base
             this.SharedSecretKey = sharedSecretKey;
             _permissionGroups = permissionGroups;
 
-            this._isOwner = isOwner;
             _isSystem = isSystem;
         }
 
@@ -32,7 +28,7 @@ namespace Youverse.Core.Services.Base
 
         public bool HasDrivePermission(Guid driveId, DrivePermission permission)
         {
-            if (this._isOwner || _isSystem)
+            if (_isSystem)
             {
                 return true;
             }
@@ -52,7 +48,7 @@ namespace Youverse.Core.Services.Base
 
         public bool HasPermission(int permissionKey)
         {
-            if (this._isOwner || _isSystem)
+            if (_isSystem)
             {
                 return true;
             }
