@@ -1,13 +1,18 @@
 using System.Collections.Generic;
 using Dawn;
 using Youverse.Core.Services.Drive.Query;
-using Youverse.Core.Services.Transit;
 
 namespace Youverse.Core.Services.Drive;
 
 public class QueryBatchCollectionResponse
 {
-    IEnumerable<QueryBatchResponse>
+    public QueryBatchCollectionResponse()
+    {
+
+        this.Results = new List<QueryBatchResponse>();
+    }
+    
+    public List<QueryBatchResponse> Results { get; set; }
 }
 
 public class QueryBatchCollectionRequest

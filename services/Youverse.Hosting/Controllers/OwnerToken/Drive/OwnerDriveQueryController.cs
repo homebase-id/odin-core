@@ -41,14 +41,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
             var batch = await _driveQueryService.GetBatch(driveId, request.QueryParams, request.ResultOptionsRequest.ToQueryBatchResultOptions());
 
-            var response = new QueryBatchResponse()
-            {
-                IncludeMetadataHeader = batch.IncludeMetadataHeader,
-                CursorState = batch.Cursor.ToState(),
-                SearchResults = batch.SearchResults
-            };
-
-            return response;
+            return QueryBatchResponse.FromResult(batch);
         }
     }
 }

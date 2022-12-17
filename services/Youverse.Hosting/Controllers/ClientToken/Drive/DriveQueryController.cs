@@ -51,14 +51,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
             var batch = await _driveQueryService.GetBatch(driveId, request.QueryParams, request.ResultOptionsRequest.ToQueryBatchResultOptions());
 
-            var response = new QueryBatchResponse()
-            {
-                IncludeMetadataHeader = batch.IncludeMetadataHeader,
-                CursorState = batch.Cursor.ToState(),
-                SearchResults = batch.SearchResults
-            };
-
-            return response;
+            return QueryBatchResponse.FromResult(batch);
         }
 
         /// <summary>
@@ -66,6 +59,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         /// </summary>
         /// <param name="request"></param>
         /// <returns></returns>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("batchcollection")]
         public async Task<QueryBatchCollectionResponse> QueryBatchCollection([FromBody] QueryBatchCollectionRequest request)
         {

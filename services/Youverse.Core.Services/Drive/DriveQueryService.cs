@@ -14,8 +14,6 @@ using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Query.Sqlite;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Mediator;
-using Youverse.Core.Storage.SQLite;
-using ReservedFileTypes = Youverse.Core.Services.Apps.CommandMessaging.ReservedFileTypes;
 
 namespace Youverse.Core.Services.Drive
 {
@@ -169,76 +167,18 @@ namespace Youverse.Core.Services.Drive
 
         public async Task<QueryBatchCollectionResponse> GetBatchCollection(QueryBatchCollectionRequest request)
         {
+            var collection = new QueryBatchCollectionResponse();
             foreach (var query in request.Queries)
             {
-                var qp = query.QueryParams;
-                var driveId = (await _driveService.GetDriveIdByAlias(qp.TargetDrive, true)).GetValueOrDefault();
+                var driveId = (await _driveService.GetDriveIdByAlias(query.QueryParams.TargetDrive, true)).GetValueOrDefault();
+                var result = await this.GetBatch(driveId, query.QueryParams, query.ResultOptions);
 
-                var options = new QueryBatchResultOptions()
-                {
-                    IncludeJsonContent = query.ResultOptions.IncludeJsonContent,
-                    ExcludePreviewThumbnail = query.ResultOptions.ExcludePreviewThumbnail,
-                    Cursor = null, //TODO?
-                    MaxRecords = query.ResultOptions.
-                };
-
-                var results = await this.GetBatch(driveId, qp, options);
-                
-                var sectionOutput = new SectionOutput()
-                {
-                    Name = query.Name,
-                    Files = new List<StaticFile>()
-                };
-                sectionOutputList.Add(sectionOutput);
-
-                foreach (var fileHeader in filteredHeaders)
-                {
-                    byte[] payload = null;
-                    var thumbnails = new List<ImageDataContent>();
-                    var internalFileId = new InternalDriveFileId()
-                    {
-                        FileId = fileHeader.FileId,
-                        DriveId = driveId
-                    };
-
-                    if (query.ResultOptions.IncludeAdditionalThumbnails)
-                    {
-                        foreach (var thumbHeader in fileHeader.FileMetadata.AppData?.AdditionalThumbnails ??
-                                                    new List<ImageDataHeader>())
-                        {
-                            var thumbnailStream = await _driveService.GetThumbnailPayloadStream(
-                                internalFileId, thumbHeader.PixelWidth, thumbHeader.PixelHeight);
-
-                            thumbnails.Add(new ImageDataContent()
-                            {
-                                PixelHeight = thumbHeader.PixelHeight,
-                                PixelWidth = thumbHeader.PixelWidth,
-                                ContentType = thumbHeader.ContentType,
-                                Content = thumbnailStream.ToByteArray()
-                            });
-                        }
-                    }
-
-                    if (query.ResultOptions.IncludePayload)
-                    {
-                        var payloadStream = await _driveService.GetPayloadStream(internalFileId);
-                        payload = payloadStream.ToByteArray();
-                    }
-
-                    sectionOutput.Files.Add(new StaticFile()
-                    {
-                        Header = fileHeader,
-                        AdditionalThumbnails = thumbnails,
-                        Payload = payload
-                    });
-                }
-
-                result.SectionResults.Add(new SectionPublishResult()
-                {
-                    Name = sectionOutput.Name,
-                    FileCount = sectionOutput.Files.Count
-                });
+                var response = QueryBatchResponse.FromResult(result);
+                response.Name = query.Name;
+                collection.Results.Add(response);
             }
+
+            return collection;
         }
 
         public async Task<ClientFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId)
