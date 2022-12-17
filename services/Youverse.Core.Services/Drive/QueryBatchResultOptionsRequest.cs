@@ -1,6 +1,6 @@
 using Youverse.Core.Storage.SQLite;
 
-namespace Youverse.Core.Services.Transit;
+namespace Youverse.Core.Services.Drive;
 
 public class QueryBatchResultOptionsRequest
 {

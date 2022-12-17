@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Youverse.Core.Services.Apps;
 
-namespace Youverse.Core.Services.Transit;
+namespace Youverse.Core.Services.Drive;
 
 public class QueryBatchResponse
 {
