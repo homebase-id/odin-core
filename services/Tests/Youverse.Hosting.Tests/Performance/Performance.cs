@@ -26,13 +26,45 @@ using Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn;
 
 namespace Youverse.Hosting.Tests.Performance
 {
-    public class MyPerformance
+    /*
+     * File size is : 78,981 bytes
+     * 
+     *  =================== 2022-12-19, SEMIBEAST II
+         TaskPerformanceTest
+           Duration: 36.1 sec
+
+          Standard Output: 
+            Threads   : 10
+            Iterations: 10000
+            Time      : 35308ms
+            Minimum   : 0ms
+            Maximum   : 51ms
+            Average   : 0ms
+            Median    : 2ms
+            Capacity  : 2832 / second
+            Bandwidth : 223674192 bytes / second
+    
+        TaskPerformanceTest
+           Duration: 1.4 min
+
+          Standard Output: 
+            Threads   : 20
+            Iterations: 10000
+            Time      : 85120ms
+            Minimum   : 0ms
+            Maximum   : 64ms
+            Average   : 0ms
+            Median    : 7ms
+            Capacity  : 2349 / second
+            Bandwidth : 185526369 bytes / second        
+     */
+    public class PublicStaticFilePerformanceTest
     {
         // For the performance test
         private const int
-            MAXTHREADS = 8; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
+            MAXTHREADS = 10; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
 
-        const int MAXITERATIONS = 2000; // A number high enough to get warmed up and reliable
+        const int MAXITERATIONS = 1000; // A number high enough to get warmed up and reliable
 
 
         [Test]
@@ -40,7 +72,7 @@ namespace Youverse.Hosting.Tests.Performance
         {
             Task[] tasks = new Task[MAXTHREADS];
             List<long[]> timers = new List<long[]>();
-            int fileByteLength = 0;
+            long fileByteLength = 0;
 
             //
             // Some initialization to prepare for the test
@@ -200,7 +232,7 @@ namespace Youverse.Hosting.Tests.Performance
                     Debug.Assert(measurements.Length == MAXITERATIONS);
                     lock (timers)
                     {
-                        fileByteLength = tmp;
+                        fileByteLength += tmp;
                         timers.Add(measurements);
                     }
                 });
@@ -235,13 +267,13 @@ namespace Youverse.Hosting.Tests.Performance
             Console.WriteLine($"Time      : {sw.ElapsedMilliseconds}ms");
             Console.WriteLine($"Minimum   : {oneDimensionalArray[0]}ms");
             Console.WriteLine($"Maximum   : {oneDimensionalArray[MAXTHREADS * MAXITERATIONS - 1]}ms");
-            Console.WriteLine($"Average   : {sw.ElapsedMilliseconds / (MAXTHREADS * MAXITERATIONS)}ms");
+            Console.WriteLine($"Average   : {oneDimensionalArray.Sum() / (MAXTHREADS * MAXITERATIONS)}ms");
             Console.WriteLine($"Median    : {oneDimensionalArray[(MAXTHREADS * MAXITERATIONS) / 2]}ms");
 
             Console.WriteLine(
                 $"Capacity  : {(1000 * MAXITERATIONS * MAXTHREADS) / Math.Max(1, sw.ElapsedMilliseconds)} / second");
             Console.WriteLine(
-                $"Bandwidth : {fileByteLength * ((1000 * MAXITERATIONS * MAXTHREADS) / Math.Max(1, sw.ElapsedMilliseconds))} bytes / second");
+                $"Bandwidth : {1000*(fileByteLength / Math.Max(1, sw.ElapsedMilliseconds))} bytes / second");
         }
         
         private WebScaffold _scaffold;
@@ -263,12 +295,12 @@ namespace Youverse.Hosting.Tests.Performance
         // First make this test pass, then change it from a test to something else.
         //
         // [Test(Description = "publish static content to file, including payload and thumbnails")]
-        public async Task<(int, long[])> CanPublishStaticFileContentWithThumbnails(int threadno, int iterations, IStaticFileTestHttpClientForOwner getStaticFileSvc, PublishStaticFileRequest publishRequest, StaticFilePublishResult pubResult)
+        public async Task<(long, long[])> CanPublishStaticFileContentWithThumbnails(int threadno, int iterations, IStaticFileTestHttpClientForOwner getStaticFileSvc, PublishStaticFileRequest publishRequest, StaticFilePublishResult pubResult)
         {
             long[] timers = new long[iterations];
             Debug.Assert(timers.Length == iterations);
             var sw = new Stopwatch();
-            int fileByteLength = 0;
+            long fileByteLength = 0;
 
 
             //
@@ -292,7 +324,7 @@ namespace Youverse.Hosting.Tests.Performance
 
                 //TODO: open the file and check it against what was uploaded.  going to have to do some json acrobatics maybe?
                 var json = await getFileResponse.Content.ReadAsStringAsync();
-                fileByteLength = json.Length;
+                fileByteLength += json.Length;
                 // Console.WriteLine(json);
 
                 var sectionOutputArray = DotYouSystemSerializer.Deserialize<SectionOutput[]>(json);
@@ -304,7 +336,6 @@ namespace Youverse.Hosting.Tests.Performance
                 //
                 // Suggestion that you first simply try to load a static URL here.
                 //
-
 
                 // Finished doing all the work
                 timers[count] = sw.ElapsedMilliseconds;

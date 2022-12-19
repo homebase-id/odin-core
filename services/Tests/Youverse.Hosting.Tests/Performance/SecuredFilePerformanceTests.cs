@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -12,20 +13,56 @@ using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Storage;
+using Youverse.Core.Services.Optimization.Cdn;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
+using Youverse.Hosting.Controllers.OwnerToken.Cdn;
 using Youverse.Hosting.Tests.AppAPI;
 using Youverse.Hosting.Tests.AppAPI.Drive;
 using Youverse.Hosting.Tests.OwnerApi.Drive;
+using Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn;
 
 namespace Youverse.Hosting.Tests.Performance
 {
+    /*
+     *  SEMI BEAST II 
+     *  
+     *  2022-12-19
+     *  
+         TaskPerformanceTest_SecuredFiles
+           Duration: 25 sec
+
+          Standard Output: 
+            Threads   : 10
+            Iterations: 2000
+            Time      : 24315ms
+            Minimum   : 1ms
+            Maximum   : 63ms
+            Average   : 1ms
+            Median    : 9ms
+            Capacity  : 822 / second
+            Bandwidth : 64979000 bytes / second
+    
+         TaskPerformanceTest_SecuredFiles
+           Duration: 52.7 sec
+
+          Standard Output: 
+            Threads   : 20
+            Iterations: 2000
+            Time      : 51958ms
+            Minimum   : 1ms
+            Maximum   : 79ms
+            Average   : 1ms
+            Median    : 23ms
+            Capacity  : 769 / second
+            Bandwidth : 60817000 bytes / second
+     */
     public class SecuredFilePerformanceTests
     {
         // For the performance test
-        private const int MAXTHREADS = 8; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
-        const int MAXITERATIONS = 2000; // A number high enough to get warmed up and reliable
+        private const int MAXTHREADS = 20; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
+        const int MAXITERATIONS = 100; // A number high enough to get warmed up and reliable
 
         private WebScaffold _scaffold;
 
@@ -48,15 +85,15 @@ namespace Youverse.Hosting.Tests.Performance
         {
             Task[] tasks = new Task[MAXTHREADS];
             List<long[]> timers = new List<long[]>();
-            int fileByteLength = 0;
+            long fileByteLength = 0;
 
 
             //
             // Prepare environment by uploading secured files
             //
             var frodoAppContext = await _scaffold.OwnerApi.SetupTestSampleApp(TestIdentities.Frodo);
-            var randomHeaderContent = string.Join("", Enumerable.Range(0, 10).Select(i => Guid.NewGuid().ToString("N")));
-            var randomPayloadContent = string.Join("", Enumerable.Range(0, 30).Select(i => Guid.NewGuid().ToString("N")));
+            var randomHeaderContent = string.Join("", Enumerable.Range(10, 10).Select(i => Guid.NewGuid().ToString("N")));  // 32 * 10 = 320 bytes
+            var randomPayloadContent = string.Join("", Enumerable.Range(2468, 2468).Select(i => Guid.NewGuid().ToString("N"))); // 32 * 2468 = 78,976 bytes, almost same size as public test
             var uploadedFile1 = await UploadFileWithPayloadAndTwoThumbnails(frodoAppContext, randomHeaderContent, randomPayloadContent, AccessControlList.Authenticated);
 
             // Note to Michael: your GET requests will be done using the App API instead of YouAuth.
@@ -71,33 +108,115 @@ namespace Youverse.Hosting.Tests.Performance
             var frodoDriveService = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(frodoHttpClient, frodoAppContext.SharedSecret);
 
             //
+            // Now back to performance testing
+            //
+            var sw = new Stopwatch();
+            sw.Reset();
+            sw.Start();
+
+            for (var i = 0; i < MAXTHREADS; i++)
+            {
+                tasks[i] = Task.Run(async () =>
+                {
+                    var (tmp, measurements) = await GetSecuredFile(i, MAXITERATIONS, frodoDriveService, uploadedFile1);
+                    Debug.Assert(measurements.Length == MAXITERATIONS);
+                    lock (timers)
+                    {
+                        fileByteLength += tmp;
+                        timers.Add(measurements);
+                    }
+                });
+            }
+
+            try
+            {
+                Task.WaitAll(tasks);
+            }
+            catch (AggregateException ae)
+            {
+                foreach (var ex in ae.InnerExceptions)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+
+                throw;
+            }
+
+            sw.Stop();
+
+            Debug.Assert(timers.Count == MAXTHREADS);
+            long[] oneDimensionalArray = timers.SelectMany(arr => arr).ToArray();
+            Debug.Assert(oneDimensionalArray.Length == (MAXTHREADS * MAXITERATIONS));
+
+            Array.Sort(oneDimensionalArray);
+            for (var i = 1; i < MAXTHREADS * MAXITERATIONS; i++)
+                Debug.Assert(oneDimensionalArray[i - 1] <= oneDimensionalArray[i]);
+
+            Console.WriteLine($"Threads   : {MAXTHREADS}");
+            Console.WriteLine($"Iterations: {MAXITERATIONS}");
+            Console.WriteLine($"Time      : {sw.ElapsedMilliseconds}ms");
+            Console.WriteLine($"Minimum   : {oneDimensionalArray[0]}ms");
+            Console.WriteLine($"Maximum   : {oneDimensionalArray[MAXTHREADS * MAXITERATIONS - 1]}ms");
+            Console.WriteLine($"Average   : {oneDimensionalArray.Sum() / (MAXTHREADS * MAXITERATIONS)}ms");
+            Console.WriteLine($"Median    : {oneDimensionalArray[(MAXTHREADS * MAXITERATIONS) / 2]}ms");
+
+            Console.WriteLine(
+                $"Capacity  : {(1000 * MAXITERATIONS * MAXTHREADS) / Math.Max(1, sw.ElapsedMilliseconds)} / second");
+            Console.WriteLine(
+                $"Bandwidth : {1000*(fileByteLength / Math.Max(1, sw.ElapsedMilliseconds))} bytes / second");
+        }
+
+
+        public async Task<(long, long[])> GetSecuredFile(int threadno, int iterations, IDriveTestHttpClientForApps frodoDriveService, ExternalFileIdentifier uploadedFile1)
+        {
+            //
             // Calls to get the secured file parts
             // 
 
-            //
-            
+            long[] timers = new long[iterations];
+            Debug.Assert(timers.Length == iterations);
+            var sw = new Stopwatch();
+            int fileByteLength = 0;
+
+
             var headerResponse = await frodoDriveService.GetFileHeader(uploadedFile1.FileId, uploadedFile1.TargetDrive.Alias, uploadedFile1.TargetDrive.Type);
             Assert.IsTrue(headerResponse.IsSuccessStatusCode);
             Assert.IsNotNull(headerResponse.Content);
+            // fileByteLength += (int)headerResponse.Content. .ToString().Length; -- help
+            fileByteLength += 320;
 
-            //
-            
             var thumbnail1 = headerResponse.Content.FileMetadata.AppData.AdditionalThumbnails.FirstOrDefault();
             var thumbnail1Response = await frodoDriveService.GetThumbnail(uploadedFile1.FileId, uploadedFile1.TargetDrive.Alias, uploadedFile1.TargetDrive.Type, thumbnail1.PixelWidth, thumbnail1.PixelWidth);
             Assert.IsTrue(thumbnail1Response.IsSuccessStatusCode);
             Assert.IsNotNull(thumbnail1Response.Content);
             var encryptedThumbnailBytes = await thumbnail1Response.Content.ReadAsByteArrayAsync();
+            fileByteLength += encryptedThumbnailBytes.Length;
 
             //
-            
-            var payload1Response = await frodoDriveService.GetPayload(uploadedFile1.FileId, uploadedFile1.TargetDrive.Alias, uploadedFile1.TargetDrive.Type);
-            // var contentType = payloadResponse.Headers.SingleOrDefault(h => h.Key == HttpHeaderConstants.DecryptedContentType);
-            Assert.IsTrue(payload1Response.IsSuccessStatusCode);
-            Assert.IsNotNull(payload1Response.Content);
-            var encryptedPayloadBytes = await payload1Response.Content.ReadAsByteArrayAsync();
+            // I presume here we retrieve the file and download it
+            //
+            for (int count = 0; count < iterations; count++)
+            {
+                sw.Restart();
 
+                var payload1Response = await frodoDriveService.GetPayload(uploadedFile1.FileId, uploadedFile1.TargetDrive.Alias, uploadedFile1.TargetDrive.Type);
+                // var contentType = payloadResponse.Headers.SingleOrDefault(h => h.Key == HttpHeaderConstants.DecryptedContentType);
+                Assert.IsTrue(payload1Response.IsSuccessStatusCode);
+                Assert.IsNotNull(payload1Response.Content);
+                var encryptedPayloadBytes = await payload1Response.Content.ReadAsByteArrayAsync();
+                fileByteLength += encryptedPayloadBytes.Length;
 
+                // Finished doing all the work
+                timers[count] = sw.ElapsedMilliseconds;
+
+                //
+                // If you want to introduce a delay be sure to use: await Task.Delay(1);
+                // Take.Delay() is very inaccurate.
+            }
+
+            return (fileByteLength, timers);
         }
+
 
         private async Task<ExternalFileIdentifier> UploadFileWithPayloadAndTwoThumbnails(TestAppContext testAppContext, string jsonContent, string payload, AccessControlList acl)
         {
