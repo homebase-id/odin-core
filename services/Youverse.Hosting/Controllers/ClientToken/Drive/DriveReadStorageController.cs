@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Services.Apps;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit;
@@ -39,7 +40,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         /// </summary>
         /// <param name="request"></param>
         /// <returns></returns>
-        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [SwaggerOperation(Tags = new[] {ControllerConstants.ClientTokenDrive})]
         [HttpPost("files/header")]
         public async Task<IActionResult> GetFileHeader([FromBody] ExternalFileIdentifier request)
         {
@@ -79,7 +80,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         /// </summary>
         /// <param name="request"></param>
         /// <returns></returns>
-        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [SwaggerOperation(Tags = new[] {ControllerConstants.ClientTokenDrive})]
         [HttpPost("files/payload")]
         public async Task<IActionResult> GetPayloadStream([FromBody] ExternalFileIdentifier request)
         {
@@ -102,10 +103,11 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, header.FileMetadata.ContentType);
             HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader64);
             AddCacheHeader();
+            AddCorsHeader();
             return new FileStreamResult(payload, header.FileMetadata.PayloadIsEncrypted ? "application/octet-stream" : header.FileMetadata.ContentType);
         }
 
-        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [SwaggerOperation(Tags = new[] {ControllerConstants.ClientTokenDrive})]
         [HttpGet("files/payload")]
         public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type)
         {
@@ -123,7 +125,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         /// <summary>
         /// Returns the thumbnail matching the width and height.  Note: you should get the content type from the file header
         /// </summary>
-        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [SwaggerOperation(Tags = new[] {ControllerConstants.ClientTokenDrive})]
         [HttpPost("files/thumb")]
         public async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
         {
@@ -141,10 +143,12 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
 
             var header = await _appService.GetClientEncryptedFileHeader(file);
             string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
-            
+
             HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, header.FileMetadata.PayloadIsEncrypted.ToString());
             HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, header.FileMetadata.ContentType);
             HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader64);
+
+            AddCorsHeader();
             AddCacheHeader();
             return new FileStreamResult(payload, header.FileMetadata.PayloadIsEncrypted ? "application/octet-stream" : header.FileMetadata.ContentType);
         }
@@ -173,6 +177,15 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             if (_contextAccessor.GetCurrent().AuthContext == ClientTokenConstants.YouAuthScheme)
             {
                 this.Response.Headers.Add("Cache-Control", "max-age=3600");
+            }
+        }
+        
+        private void AddCorsHeader()
+        {
+            var accessor = _contextAccessor.GetCurrent();
+            if (accessor.Caller.SecurityLevel != SecurityGroupType.Anonymous)
+            {
+                HttpContext.Response.Headers.Add("Access-Control-Allow-Origin", accessor.Caller.DotYouId.Id);
             }
         }
     }
