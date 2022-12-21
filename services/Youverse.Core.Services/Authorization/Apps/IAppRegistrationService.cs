@@ -14,7 +14,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <summary>
         /// Registers an application to be used with this host.  Returns the record Id of the newly registered app
         /// </summary>
-        Task<RedactedAppRegistration> RegisterApp(GuidId appId, string name, PermissionKeySet permissionsKey, IEnumerable<DriveGrantRequest> drives);
+        Task<RedactedAppRegistration> RegisterApp(GuidId appId, string name, PermissionSet permissions, IEnumerable<DriveGrantRequest> drives);
 
         Task<RedactedAppRegistration> GetAppRegistration(GuidId appId);
 

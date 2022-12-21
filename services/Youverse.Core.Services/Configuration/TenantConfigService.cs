@@ -132,16 +132,16 @@ public class TenantConfigService
 
         if (canReadConnections)
         {
-            if (!systemCircle.PermissionsKey.Keys.Contains(PermissionKeys.ReadConnections))
+            if (!systemCircle.Permissions.Keys.Contains(PermissionKeys.ReadConnections))
             {
-                systemCircle.PermissionsKey.Keys.Add(PermissionKeys.ReadConnections);
+                systemCircle.Permissions.Keys.Add(PermissionKeys.ReadConnections);
             }
         }
         else
         {
-            if (systemCircle.PermissionsKey.Keys.Contains(PermissionKeys.ReadConnections))
+            if (systemCircle.Permissions.Keys.Contains(PermissionKeys.ReadConnections))
             {
-                systemCircle.PermissionsKey.Keys.Remove(PermissionKeys.ReadConnections);
+                systemCircle.Permissions.Keys.Remove(PermissionKeys.ReadConnections);
             }
         }
 

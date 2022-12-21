@@ -12,13 +12,13 @@ namespace Youverse.Core.Services.Base;
 /// </summary>
 public class PermissionGroup
 {
-    private readonly PermissionKeySet _permissionKeySet;
+    private readonly PermissionSet _permissionSet;
     private readonly IEnumerable<DriveGrant> _driveGrants;
     private readonly SensitiveByteArray _driveDecryptionKey;
 
-    public PermissionGroup(PermissionKeySet permissionKeySet, IEnumerable<DriveGrant> driveGrants, SensitiveByteArray driveDecryptionKey)
+    public PermissionGroup(PermissionSet permissionSet, IEnumerable<DriveGrant> driveGrants, SensitiveByteArray driveDecryptionKey)
     {
-        _permissionKeySet = permissionKeySet;
+        _permissionSet = permissionSet;
         _driveGrants = driveGrants;
         _driveDecryptionKey = driveDecryptionKey;
     }
@@ -31,7 +31,7 @@ public class PermissionGroup
 
     public bool HasPermission(int permission)
     {
-        return this._permissionKeySet.HasKey(permission);
+        return this._permissionSet.HasKey(permission);
     }
 
     /// <summary>

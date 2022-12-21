@@ -118,7 +118,7 @@ namespace Youverse.Hosting.Authentication.Owner
 
                 var permissionGroupMap = new Dictionary<string, PermissionGroup>
                 {
-                    { "owner_drive_grants", new PermissionGroup(new PermissionKeySet(PermissionKeys.All), allDriveGrants, masterKey) },
+                    { "owner_drive_grants", new PermissionGroup(new PermissionSet(PermissionKeys.All), allDriveGrants, masterKey) },
                 };
 
                 dotYouContext.SetPermissionContext(

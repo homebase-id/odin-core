@@ -120,7 +120,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 {
                     AppId = applicationId,
                     Name = name,
-                    PermissionKeySet = null,
+                    PermissionSet = null,
                     Drives = null
                 };
 
