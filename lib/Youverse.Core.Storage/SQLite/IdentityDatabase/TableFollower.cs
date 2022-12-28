@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data.SQLite;
 using System.Security.Principal;
+using Youverse.Core.Storage.SQLite.KeyValue;
 
 namespace Youverse.Core.Storage.SQLite.KeyValue
 {
@@ -11,30 +12,30 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         public Guid driveId;
     }
 
-    public class TableFollower: TableKeyValueBase  // Make it IDisposable??
+    public class TableFollower : TableKeyValueBase  // Make it IDisposable??
     {
         public const int GUID_SIZE = 16; // Precisely 16 bytes for the ID key
 
         private SQLiteCommand _insertCommand = null;
         private SQLiteParameter _iparam1 = null;
         private SQLiteParameter _iparam2 = null;
-        private static Object _insertLock = new Object();
+        private static object _insertLock = new object();
 
         private SQLiteCommand _deleteCommand = null;
         private SQLiteParameter _dparam1 = null;
-        private static Object _deleteLock = new Object();
+        private static object _deleteLock = new object();
         private SQLiteCommand _deleteCommand2 = null;
         private SQLiteParameter _dparam2_1 = null;
         private SQLiteParameter _dparam2_2 = null;
 
         private SQLiteCommand _selectCommand = null;
         private SQLiteParameter _sparam1 = null;
-        private static Object _selectLock = new Object();
+        private static object _selectLock = new object();
 
         private SQLiteCommand _select2Command = null;
         private SQLiteParameter _s2param1 = null;
         private SQLiteParameter _s2param2 = null;
-        private static Object _select2Lock = new Object();
+        private static object _select2Lock = new object();
 
         public TableFollower(KeyValueDatabase db) : base(db)
         {
@@ -105,7 +106,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         /// <exception cref="Exception"></exception>
         public List<Guid> Get(string identity)
         {
-            if ((identity == null) || (identity.Length < 1))
+            if (identity == null || identity.Length < 1)
                 throw new Exception("identity cannot be NULL or empty.");
 
             lock (_selectLock)
@@ -187,7 +188,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                     int n = 0;
 
-                    while (rdr.Read() && (n < count))
+                    while (rdr.Read() && n < count)
                     {
                         n++;
                         var s = rdr.GetString(0);
@@ -211,7 +212,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         /// <exception cref="Exception"></exception>
         public void InsertFollower(string identity, Guid driveId)
         {
-            if ((identity == null) || (identity.Length < 1))
+            if (identity == null || identity.Length < 1)
                 throw new Exception("identity can't be NULL or empty.");
 
             lock (_insertLock)
@@ -220,7 +221,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 if (_insertCommand == null)
                 {
                     _insertCommand = _keyValueDatabase.CreateCommand();
-                    _insertCommand.CommandText = @"INSERT INTO followers(identity, driveid) "+
+                    _insertCommand.CommandText = @"INSERT INTO followers(identity, driveid) " +
                                                   "VALUES ($identity, $driveid)";
 
                     _iparam1 = _insertCommand.CreateParameter();
@@ -248,7 +249,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         /// <exception cref="Exception"></exception>
         public void DeleteFollower(string identity)
         {
-            if ((identity == null) || (identity.Length < 1))
+            if (identity == null || identity.Length < 1)
                 throw new Exception("identity cannot be NULL or empty");
 
             lock (_deleteLock)
@@ -280,7 +281,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         /// <exception cref="Exception"></exception>
         public void DeleteFollower(string identity, Guid driveId)
         {
-            if ((identity == null) || (identity.Length < 1))
+            if (identity == null || identity.Length < 1)
                 throw new Exception("identity cannot be NULL or empty");
 
             lock (_deleteLock)
