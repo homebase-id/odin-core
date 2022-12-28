@@ -13,8 +13,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
     public class TableFollower: TableKeyValueBase  // Make it IDisposable??
     {
-        public const int ID_EQUAL = 16; // Precisely 16 bytes for the ID key
-        public const int MAX_DATA_LENGTH = 65000;  // Some max value for the data
+        public const int GUID_SIZE = 16; // Precisely 16 bytes for the ID key
 
         private SQLiteCommand _insertCommand = null;
         private SQLiteParameter _iparam1 = null;
@@ -75,14 +74,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         }
 
         /// <summary>
-        /// Table description:
-        /// fileId is a SequentialGuid.CreateGuid() because it's unique & contains a timestamp
-        /// priority not currently used, but an integer to indicate priority (lower is higher? or higher is higher? :)
-        /// timestamp is the UnixTime in seconds for when this item was inserted into the DB (kind of not needed since we have the fileId)
-        /// popstamp is a SequentialGuid.CreateGuid() used to handle multi-threaded popping of items in the inbox.
-        ///    An item first needs to be popped (but isn't removed from the table yet)
-        ///    Once the item is safely handled, the pop can be committed and the item is removed from the inbox.
-        ///    There'll be a function to recover 'hanging' pops for threads that died.
+        /// 
         /// </summary>
         public override void EnsureTableExists(bool dropExisting = false)
         {
@@ -140,7 +132,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                     while (rdr.Read())
                     {
                         var n = rdr.GetBytes(0, 0, _tmpbuf, 0, 16);
-                        if (n != ID_EQUAL)
+                        if (n != GUID_SIZE)
                             throw new Exception("Not a GUID");
                         result.Add(new Guid(_tmpbuf));
                     }
@@ -150,7 +142,15 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
             }
         }
 
-
+        /// <summary>
+        /// Return pages of identities, following driveId, up to count size.
+        /// Optionally supply a cursor to indicate the last identity processed (sorted ascending)
+        /// </summary>
+        /// <param name="count">Maximum number of identities per page</param>
+        /// <param name="driveId">The drive they're following that you want to get a list for</param>
+        /// <param name="cursor">If supplied then pick the next page after the supplied identity.</param>
+        /// <returns>A sorted list of identities. If list size is smaller than count then you're finished</returns>
+        /// <exception cref="Exception"></exception>
         public List<string> GetFollowers(int count, Guid driveId, string cursor)
         {
             if (count < 1)
