@@ -53,18 +53,18 @@ namespace Youverse.Core.Storage.SQLite
         }
     }
 
-    public class DriveIndexDatabase
+    public class DriveIndexDatabase : IDisposable
     {
         private string _connectionString;
+
         private SQLiteConnection _connection = null;
+        private SQLiteTransaction _transaction = null;
+        private DatabaseIndexKind _kind;
 
         public TableMainIndex TblMainIndex = null;
         public TableAclIndex TblAclIndex = null;
         public TableTagIndex TblTagIndex = null;
         public TableCommandMessageQueue TblCmdMsgQueue = null;
-
-        private SQLiteTransaction _transaction = null;
-        private DatabaseIndexKind _kind;
 
         private Object _getConnectionLock = new Object();
         private Object _getTransactionLock = new Object();
@@ -93,8 +93,28 @@ namespace Youverse.Core.Storage.SQLite
                 _connection = null;
             }
 
-            // Oh no, I can't delete objects. Blast :-)
-            // I need help making the tables disposable so I can trigger them here
+            Dispose(false);
+        }
+
+        private void ReleaseUnmanagedResources()
+        {
+            // TODO release unmanaged resources here
+        }
+
+        private void Dispose(bool disposing)
+        {
+            ReleaseUnmanagedResources();
+            if (disposing)
+            {
+                _connection?.Dispose();
+                _transaction?.Dispose();
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         public DatabaseIndexKind GetKind()
