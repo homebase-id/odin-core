@@ -159,7 +159,6 @@ namespace IndexerTests.KeyValue
             try
             {
                 // Can't insert duplicate, this is supposed to fail.
-                // Investigate if UNIQUE() directive ignores NULLs in second col
                 db.tblFollow.InsertFollower(i1, null);
             }
             catch
@@ -240,6 +239,7 @@ namespace IndexerTests.KeyValue
 
             db.tblFollow.InsertFollower(i1, d1);
             db.tblFollow.InsertFollower(i2, null);
+
             db.tblFollow.InsertFollower(i2, d1);
             db.tblFollow.InsertFollower(i2, d2);
 
