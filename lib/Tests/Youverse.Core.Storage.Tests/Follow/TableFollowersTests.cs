@@ -39,7 +39,7 @@ namespace IndexerTests.KeyValue
             db.tblFollow.InsertFollower(i4, d2);
 
             // Loke follows everything
-            db.tblFollow.InsertFollower(i5, Guid.Empty);
+            db.tblFollow.InsertFollower(i5, null);
 
 
             // Now Frodo makes a new post to d1, which means we shouold get
@@ -83,10 +83,9 @@ namespace IndexerTests.KeyValue
             Debug.Assert((ByteArrayUtil.muidcmp(r[1], g1) == 0) || (ByteArrayUtil.muidcmp(r[1], g2) == 0));
 
             // This is OK {odin.vahalla.com, {000000}}
-            db.tblFollow.InsertFollower(i1, Guid.Empty);
+            db.tblFollow.InsertFollower(i1, null);
             r = db.tblFollow.Get(i1);
             Debug.Assert((ByteArrayUtil.muidcmp(r[0], Guid.Empty) == 0) || (ByteArrayUtil.muidcmp(r[1], Guid.Empty) == 0) || (ByteArrayUtil.muidcmp(r[2], Guid.Empty) == 0));
-
 
             // Test non ASCII
             db.tblFollow.InsertFollower("ødin.valhalla.com", g1);
@@ -105,7 +104,7 @@ namespace IndexerTests.KeyValue
             var g1 = Guid.NewGuid();
 
             db.tblFollow.InsertFollower(i1, g1);
-            db.tblFollow.InsertFollower(i1, Guid.Empty);
+            db.tblFollow.InsertFollower(i1, null);
 
             bool ok = false;
             try
@@ -147,9 +146,20 @@ namespace IndexerTests.KeyValue
             ok = false;
             try
             {
+                db.tblFollow.InsertFollower("", null);
+            }
+            catch
+            {
+                ok = true;
+            }
+            Debug.Assert(ok);
+
+
+            ok = false;
+            try
+            {
                 // Can't insert duplicate, this is supposed to fail.
-                // Investigate if UNIQUE() directive ignores NULLs in second col
-                db.tblFollow.InsertFollower(i1, Guid.Empty);
+                db.tblFollow.InsertFollower(i1, null);
             }
             catch
             {
@@ -200,7 +210,7 @@ namespace IndexerTests.KeyValue
             var d2 = Guid.NewGuid();
 
             db.tblFollow.InsertFollower(i1, d1);
-            db.tblFollow.InsertFollower(i2, Guid.Empty);
+            db.tblFollow.InsertFollower(i2, null);
             db.tblFollow.InsertFollower(i2, d1);
             db.tblFollow.InsertFollower(i2, d2);
 
@@ -228,7 +238,8 @@ namespace IndexerTests.KeyValue
             var d2 = Guid.NewGuid();
 
             db.tblFollow.InsertFollower(i1, d1);
-            db.tblFollow.InsertFollower(i2, Guid.Empty);
+            db.tblFollow.InsertFollower(i2, null);
+
             db.tblFollow.InsertFollower(i2, d1);
             db.tblFollow.InsertFollower(i2, d2);
 
@@ -288,7 +299,7 @@ namespace IndexerTests.KeyValue
             var d3 = Guid.NewGuid();
 
             db.tblFollow.InsertFollower(i1, d1);
-            db.tblFollow.InsertFollower(i2, Guid.Empty);
+            db.tblFollow.InsertFollower(i2, null);
             db.tblFollow.InsertFollower(i2, d1);
             db.tblFollow.InsertFollower(i2, d2);
 
@@ -323,7 +334,7 @@ namespace IndexerTests.KeyValue
             db.tblFollow.InsertFollower(i2, d1);
             db.tblFollow.InsertFollower(i3, d1);
             db.tblFollow.InsertFollower(i4, d1);
-            db.tblFollow.InsertFollower(i5, Guid.Empty);
+            db.tblFollow.InsertFollower(i5, null);
 
             var r = db.tblFollow.GetFollowers(2, d1, null);
             Debug.Assert(r.Count == 2);

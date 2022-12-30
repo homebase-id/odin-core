@@ -210,8 +210,16 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         /// <param name="identity"></param>
         /// <param name="driveId">if Guid.Empty will follow 'everything' otherwise driveid bring followed</param>
         /// <exception cref="Exception"></exception>
-        public void InsertFollower(string identity, Guid driveId)
+        public void InsertFollower(string identity, Guid? driveId)
         {
+            if (driveId == null)
+                driveId = Guid.Empty;
+            else
+            {
+                if (driveId == Guid.Empty)
+                    throw new Exception("Guid.Empty is reserved for 'all'.");
+            }
+
             if (identity == null || identity.Length < 1)
                 throw new Exception("identity can't be NULL or empty.");
 
