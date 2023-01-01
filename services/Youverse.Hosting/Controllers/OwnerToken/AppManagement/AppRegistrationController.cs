@@ -54,7 +54,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
             var reg = await _appRegistrationService.RegisterApp(
                 appId: appRegistration.AppId,
                 name: appRegistration.Name,
-                permissionsKey: appRegistration.PermissionKeySet,
+                permissions: appRegistration.PermissionSet,
                 drives: appRegistration.Drives);
             return reg;
         }
