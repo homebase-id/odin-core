@@ -84,7 +84,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Notification
 
         private async Task<SharedSecretEncryptedNotification> Encrypt(DotYouIdentity recipient, object notification)
         {
-            var identityReg = await _circleNetworkService.GetIdentityConnectionRegistration(recipient, true);
+            var identityReg = await _circleNetworkService.GetIdentityConnectionRegistration(recipient);
             var sharedSecret = identityReg.ClientAccessTokenSharedSecret.ToSensitiveByteArray();
 
             var json = DotYouSystemSerializer.Serialize(notification);

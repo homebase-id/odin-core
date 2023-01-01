@@ -49,7 +49,6 @@ namespace Youverse.Hosting
 
         public void ConfigureServices(IServiceCollection services)
         {
-            //HACK: why is this suddenly needed!? 
             services.Configure<KestrelServerOptions>(options => { options.AllowSynchronousIO = true; });
 
             var config = new YouverseConfiguration(Configuration);

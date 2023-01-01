@@ -52,7 +52,7 @@ namespace Youverse.Hosting.Controllers.Registration
             var dnsConfig = await _regService.GetDnsConfiguration(domain);
             return new JsonResult(dnsConfig);
         }
-        
+
         /// <summary>
         /// Creates a reservation
         /// </summary>
@@ -90,25 +90,6 @@ namespace Youverse.Hosting.Controllers.Registration
             return registrationId;
         }
 
-        /// <summary>
-        /// Finalizes registration.  Finalization will fail if you call this before the RegistrationStatus == Complete.  You can just call it again.
-        /// </summary>
-        /// <param name="frid"></param>
-        /// <returns></returns>
-        [HttpGet("finalize")]
-        public async Task<IActionResult> FinalizeRegistration(Guid frid)
-        {
-            var status = await _regService.GetRegistrationStatus(frid);
-
-            if (status != RegistrationStatus.ReadyForPassword)
-            {
-                throw new YouverseClientException("Cannot finalize pending registration", YouverseClientErrorCode.RegistrationStatusNotReadyForFinalization);
-            }
-            
-            await _regService.FinalizeRegistration(frid);
-            return Ok();
-        }
-        
         /// <summary>
         /// Gets the status for the ongoing registration
         /// </summary>

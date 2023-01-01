@@ -59,8 +59,6 @@ namespace Youverse.Core.Services.Authentication.Owner
             Guid originalNoncePackageKey = new Guid(Convert.FromBase64String(reply.Nonce64));
             var originalNoncePackage = _tenantSystemStorage.SingleKeyValueStorage.Get<NonceData>(originalNoncePackageKey);
 
-            //HACK: this will be moved to the overall provisioning process
-            //await this.GenerateRsaKeyList();
             var keys = await this.GetRsaKeyList();
 
             var pk = PasswordDataManager.SetInitialPassword(originalNoncePackage, reply, keys);

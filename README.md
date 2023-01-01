@@ -39,3 +39,8 @@ Generate New CSR w/o requiring a passphase.
 
 `openssl req -new -newkey rsa:2048 -nodes -keyout private.key -out domain-name.csr`
 
+Running from your Mac-M1
+* You can run but will not be able to debug due to Sqlite's incompatibility with M1's architecture
+
+`dotnet run --project Youverse.Hosting/Youverse.Hosting.csproj -r osx-x64`
+

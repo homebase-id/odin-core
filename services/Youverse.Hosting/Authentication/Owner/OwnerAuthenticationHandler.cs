@@ -19,7 +19,6 @@ using Youverse.Core.Services.Authentication.Owner;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 
@@ -118,7 +117,7 @@ namespace Youverse.Hosting.Authentication.Owner
 
                 var permissionGroupMap = new Dictionary<string, PermissionGroup>
                 {
-                    { "owner_drive_grants", new PermissionGroup(new PermissionKeySet(PermissionKeys.All), allDriveGrants, masterKey) },
+                    { "owner_drive_grants", new PermissionGroup(null, allDriveGrants, masterKey) },
                 };
 
                 dotYouContext.SetPermissionContext(

@@ -4,8 +4,11 @@ using System.Threading.Tasks;
 using Dawn;
 using Microsoft.AspNetCore.Mvc;
 using Refit;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Registry;
+using Youverse.Core.Services.Registry.Registration;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Configuration;
 
@@ -18,13 +21,11 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Configuration;
 public class ConfigurationController : Controller
 {
     private readonly TenantConfigService _tenantConfigService;
-    private readonly IDriveService _driveService;
 
     /// <summary />
-    public ConfigurationController(TenantConfigService tenantConfigService, IDriveService driveService)
+    public ConfigurationController(TenantConfigService tenantConfigService)
     {
         _tenantConfigService = tenantConfigService;
-        _driveService = driveService;
     }
 
     /// <summary>
@@ -111,5 +112,5 @@ public class ConfigurationController : Controller
         var settings = _tenantConfigService.GetOwnerAppSettings();
         return settings;
     }
-    //
+    
 }
