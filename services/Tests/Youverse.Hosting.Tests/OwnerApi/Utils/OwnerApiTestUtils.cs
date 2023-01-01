@@ -235,7 +235,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
         public async Task<RedactedAppRegistration> AddAppWithAllDrivePermissions(DotYouIdentity identity, Guid appId, TargetDrive targetDrive, bool createDrive = false, bool canReadConnections = false,
             bool driveAllowAnonymousReads = false, bool ownerOnlyDrive = false)
         {
-            PermissionKeySet permissionKeySet;
+            PermissionSet permissionSet;
 
             if (canReadConnections)
             {
@@ -243,11 +243,11 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
                 keys.Add(PermissionKeys.ReadConnections);
                 keys.Add(PermissionKeys.ReadConnectionRequests);
-                permissionKeySet = new PermissionKeySet(keys.ToArray());
+                permissionSet = new PermissionSet(keys.ToArray());
             }
             else
             {
-                permissionKeySet = new PermissionKeySet();
+                permissionSet = new PermissionSet();
             }
 
 
@@ -285,7 +285,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 {
                     Name = $"Test_{appId}",
                     AppId = appId,
-                    PermissionKeySet = permissionKeySet,
+                    PermissionSet = permissionSet,
                     Drives = drives
                 };
 
@@ -843,7 +843,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                     Name = circleName,
                     Description = $"Description for {circleName}",
                     DriveGrants = dgrList,
-                    PermissionsKey = permissionKeys?.Any() ?? false ? new PermissionKeySet(permissionKeys?.ToArray()) : new PermissionKeySet()
+                    Permissions = permissionKeys?.Any() ?? false ? new PermissionSet(permissionKeys?.ToArray()) : new PermissionSet()
                 };
 
                 var createCircleResponse = await svc.CreateCircleDefinition(request);
@@ -864,12 +864,12 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
                 foreach (var k in permissionKeys)
                 {
-                    Assert.IsTrue(circle.PermissionsKey.HasKey(k));
+                    Assert.IsTrue(circle.Permissions.HasKey(k));
                 }
 
                 Assert.AreEqual(request.Name, circle.Name);
                 Assert.AreEqual(request.Description, circle.Description);
-                Assert.IsTrue(request.PermissionsKey == circle.PermissionsKey);
+                Assert.IsTrue(request.Permissions == circle.Permissions);
 
                 return circle;
             }

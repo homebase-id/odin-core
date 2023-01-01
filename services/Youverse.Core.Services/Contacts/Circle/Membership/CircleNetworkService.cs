@@ -621,12 +621,12 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         private async Task<CircleGrant> CreateCircleGrant(CircleDefinition def, SensitiveByteArray keyStoreKey, SensitiveByteArray masterKey)
         {
             //map the exchange grant to a structure that matches ICR
-            var grant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, def.PermissionsKey, def.DriveGrants, masterKey);
+            var grant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, def.Permissions, def.DriveGrants, masterKey);
             return new CircleGrant()
             {
                 CircleId = def.Id,
                 KeyStoreKeyEncryptedDriveGrants = grant.KeyStoreKeyEncryptedDriveGrants,
-                PermissionKeySet = grant.PermissionKeySet,
+                PermissionSet = grant.PermissionSet,
             };
         }
 
@@ -651,7 +651,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                         IsRevoked = false, //TODO
                         KeyStoreKeyEncryptedDriveGrants = cg.KeyStoreKeyEncryptedDriveGrants,
                         MasterKeyEncryptedKeyStoreKey = null, //not required since this is not being created for the owner
-                        PermissionKeySet = cg.PermissionKeySet
+                        PermissionSet = cg.PermissionSet
                     });
                 }
             }

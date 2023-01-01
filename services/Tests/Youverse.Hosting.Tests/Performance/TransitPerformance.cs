@@ -4,62 +4,37 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Security.Policy;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
+using SQLitePCL;
 using Youverse.Core;
 using Youverse.Core.Serialization;
+using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Optimization.Cdn;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
+using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Controllers.OwnerToken.Cdn;
 using Youverse.Hosting.Tests.AppAPI;
 using Youverse.Hosting.Tests.AppAPI.Drive;
+using Youverse.Hosting.Tests.AppAPI.Transit;
 using Youverse.Hosting.Tests.OwnerApi.Drive;
 using Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn;
 
 namespace Youverse.Hosting.Tests.Performance
 {
-    /*
-     *  SEMI BEAST II 
-     *  
-     *  2022-12-19
-     *  
-         TaskPerformanceTest_SecuredFiles
-           Duration: 25 sec
-
-          Standard Output: 
-            Threads   : 10
-            Iterations: 2000
-            Time      : 24315ms
-            Minimum   : 1ms
-            Maximum   : 63ms
-            Average   : 1ms
-            Median    : 9ms
-            Capacity  : 822 / second
-            Bandwidth : 64979000 bytes / second
-    
-         TaskPerformanceTest_SecuredFiles
-           Duration: 52.7 sec
-
-          Standard Output: 
-            Threads   : 20
-            Iterations: 2000
-            Time      : 51958ms
-            Minimum   : 1ms
-            Maximum   : 79ms
-            Average   : 1ms
-            Median    : 23ms
-            Capacity  : 769 / second
-            Bandwidth : 60817000 bytes / second
-     */
-    public class SecuredFilePerformanceTests
+    public class TransitPerformanceTests
     {
+        private const int FileType = 844;
+
         // For the performance test
         private const int MAXTHREADS = 10; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
         const int MAXITERATIONS = 100; // A number high enough to get warmed up and reliable
@@ -81,148 +56,81 @@ namespace Youverse.Hosting.Tests.Performance
         }
 
         [Test]
-        public async Task TaskPerformanceTest_SecuredFiles()
+        public async Task TaskPerformanceTest_Transit()
         {
             Task[] tasks = new Task[MAXTHREADS];
             List<long[]> timers = new List<long[]>();
             long fileByteLength = 0;
 
 
+            TargetDrive targetDrive = TargetDrive.NewTargetDrive();
+
             //
-            // Prepare environment by uploading secured files
+            // Prepare environment by connecting identities
             //
-            var frodoAppContext = await _scaffold.OwnerApi.SetupTestSampleApp(TestIdentities.Frodo);
-            var randomHeaderContent = string.Join("", Enumerable.Range(10, 10).Select(i => Guid.NewGuid().ToString("N")));  // 32 * 10 = 320 bytes
+            var scenarioCtx = await _scaffold.Scenarios.CreateConnectedHobbits(targetDrive);
+            var frodoAppContext = scenarioCtx.AppContexts[TestIdentities.Frodo.DotYouId];
+            var samAppContext = scenarioCtx.AppContexts[TestIdentities.Samwise.DotYouId];
+
+            var randomHeaderContent = string.Join("", Enumerable.Range(10, 10).Select(i => Guid.NewGuid().ToString("N"))); // 32 * 10 = 320 bytes
             var randomPayloadContent = string.Join("", Enumerable.Range(2468, 2468).Select(i => Guid.NewGuid().ToString("N"))); // 32 * 2468 = 78,976 bytes, almost same size as public test
-            var uploadedFile1 = await UploadFileWithPayloadAndTwoThumbnails(frodoAppContext, randomHeaderContent, randomPayloadContent, AccessControlList.Authenticated);
 
-            // Note to Michael: your GET requests will be done using the App API instead of YouAuth.
-            // This is because I've not yet created a login scaffold for YouAuth in our test framework
-            // The code paths for youAuth and app are identical (mostly) after authentication has
-            // occured (and we cache the token) so this should be sufficient.
+            var recipients = new List<string>()
+            {
+                samAppContext.Identity.ToString()
+            };
 
-            // The primary difference is that app always runs as Owner, however the permission
-            // context is still based on what the app has access to
-            
-            using var frodoHttpClient = _scaffold.AppApi.CreateAppApiHttpClient(frodoAppContext);
-            var frodoDriveService = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(frodoHttpClient, frodoAppContext.SharedSecret);
+            var sendMessageResult = await SendMessage(frodoAppContext, recipients, randomHeaderContent, randomPayloadContent);
+
+            var samMessageHeaders = await GetMessages(samAppContext);
+
+            foreach (var msg in samMessageHeaders)
+            {
+                //TODO: the message data will be encrypted. Let me know if you want to decrypt but I dont think that's needed for perf testing
+                Console.WriteLine(msg.FileMetadata.AppData.JsonContent);
+            }
 
             //
             // Now back to performance testing
             //
-            var sw = new Stopwatch();
-            sw.Reset();
-            sw.Start();
+        }
 
-            for (var i = 0; i < MAXTHREADS; i++)
+        private async Task<List<ClientFileHeader>> GetMessages(TestAppContext recipientAppContext)
+        {
+            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(recipientAppContext))
             {
-                tasks[i] = Task.Run(async () =>
+                //First force transfers to be put into their long term location
+                var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);
+                var resp = await transitAppSvc.ProcessIncomingInstructions(new ProcessTransitInstructionRequest() { TargetDrive = recipientAppContext.TargetDrive });
+                Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
+
+                var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, recipientAppContext.SharedSecret);
+
+                var queryBatchResponse = await driveSvc.QueryBatch(new QueryBatchRequest()
                 {
-                    var (tmp, measurements) = await GetSecuredFile(i, MAXITERATIONS, frodoDriveService, uploadedFile1);
-                    Debug.Assert(measurements.Length == MAXITERATIONS);
-                    lock (timers)
+                    QueryParams = new FileQueryParams()
                     {
-                        fileByteLength += tmp;
-                        timers.Add(measurements);
+                        TargetDrive = recipientAppContext.TargetDrive,
+                        FileType = new List<int>() { FileType }
+                    },
+                    ResultOptionsRequest = new QueryBatchResultOptionsRequest()
+                    {
+                        MaxRecords = 100,
+                        IncludeMetadataHeader = true
                     }
                 });
+
+                Assert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
+                Assert.IsNotNull(queryBatchResponse.Content);
+
+                
+                return queryBatchResponse.Content.SearchResults.ToList();
             }
-
-            try
-            {
-                Task.WaitAll(tasks);
-            }
-            catch (AggregateException ae)
-            {
-                foreach (var ex in ae.InnerExceptions)
-                {
-                    Console.WriteLine(ex.Message);
-                }
-
-                throw;
-            }
-
-            sw.Stop();
-
-            Debug.Assert(timers.Count == MAXTHREADS);
-            long[] oneDimensionalArray = timers.SelectMany(arr => arr).ToArray();
-            Debug.Assert(oneDimensionalArray.Length == (MAXTHREADS * MAXITERATIONS));
-
-            Array.Sort(oneDimensionalArray);
-            for (var i = 1; i < MAXTHREADS * MAXITERATIONS; i++)
-                Debug.Assert(oneDimensionalArray[i - 1] <= oneDimensionalArray[i]);
-
-            Console.WriteLine($"Threads   : {MAXTHREADS}");
-            Console.WriteLine($"Iterations: {MAXITERATIONS}");
-            Console.WriteLine($"Time      : {sw.ElapsedMilliseconds}ms");
-            Console.WriteLine($"Minimum   : {oneDimensionalArray[0]}ms");
-            Console.WriteLine($"Maximum   : {oneDimensionalArray[MAXTHREADS * MAXITERATIONS - 1]}ms");
-            Console.WriteLine($"Average   : {oneDimensionalArray.Sum() / (MAXTHREADS * MAXITERATIONS)}ms");
-            Console.WriteLine($"Median    : {oneDimensionalArray[(MAXTHREADS * MAXITERATIONS) / 2]}ms");
-
-            Console.WriteLine(
-                $"Capacity  : {(1000 * MAXITERATIONS * MAXTHREADS) / Math.Max(1, sw.ElapsedMilliseconds)} / second");
-            Console.WriteLine(
-                $"Bandwidth : {1000*(fileByteLength / Math.Max(1, sw.ElapsedMilliseconds))} bytes / second");
         }
 
-
-        public async Task<(long, long[])> GetSecuredFile(int threadno, int iterations, IDriveTestHttpClientForApps frodoDriveService, ExternalFileIdentifier uploadedFile1)
+        private async Task<ExternalFileIdentifier> SendMessage(TestAppContext senderAppContext, List<string> recipients, string message, string payload)
         {
-            //
-            // Calls to get the secured file parts
-            // 
-
-            long[] timers = new long[iterations];
-            Debug.Assert(timers.Length == iterations);
-            var sw = new Stopwatch();
-            int fileByteLength = 0;
-
-
-            var headerResponse = await frodoDriveService.GetFileHeader(uploadedFile1.FileId, uploadedFile1.TargetDrive.Alias, uploadedFile1.TargetDrive.Type);
-            Assert.IsTrue(headerResponse.IsSuccessStatusCode);
-            Assert.IsNotNull(headerResponse.Content);
-            // fileByteLength += (int)headerResponse.Content. .ToString().Length; -- help
-            fileByteLength += 320;
-
-            var thumbnail1 = headerResponse.Content.FileMetadata.AppData.AdditionalThumbnails.FirstOrDefault();
-            var thumbnail1Response = await frodoDriveService.GetThumbnail(uploadedFile1.FileId, uploadedFile1.TargetDrive.Alias, uploadedFile1.TargetDrive.Type, thumbnail1.PixelWidth, thumbnail1.PixelWidth);
-            Assert.IsTrue(thumbnail1Response.IsSuccessStatusCode);
-            Assert.IsNotNull(thumbnail1Response.Content);
-            var encryptedThumbnailBytes = await thumbnail1Response.Content.ReadAsByteArrayAsync();
-            fileByteLength += encryptedThumbnailBytes.Length;
-
-            //
-            // I presume here we retrieve the file and download it
-            //
-            for (int count = 0; count < iterations; count++)
-            {
-                sw.Restart();
-
-                var payload1Response = await frodoDriveService.GetPayload(uploadedFile1.FileId, uploadedFile1.TargetDrive.Alias, uploadedFile1.TargetDrive.Type);
-                // var contentType = payloadResponse.Headers.SingleOrDefault(h => h.Key == HttpHeaderConstants.DecryptedContentType);
-                Assert.IsTrue(payload1Response.IsSuccessStatusCode);
-                Assert.IsNotNull(payload1Response.Content);
-                var encryptedPayloadBytes = await payload1Response.Content.ReadAsByteArrayAsync();
-                fileByteLength += encryptedPayloadBytes.Length;
-
-                // Finished doing all the work
-                timers[count] = sw.ElapsedMilliseconds;
-
-                //
-                // If you want to introduce a delay be sure to use: await Task.Delay(1);
-                // Take.Delay() is very inaccurate.
-            }
-
-            return (fileByteLength, timers);
-        }
-
-
-        private async Task<ExternalFileIdentifier> UploadFileWithPayloadAndTwoThumbnails(TestAppContext testAppContext, string jsonContent, string payload, AccessControlList acl)
-        {
-            var identity = TestIdentities.Frodo;
-
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(senderAppContext.Identity, out var ownerSharedSecret))
             {
                 var transferIv = ByteArrayUtil.GetRndByteArray(16);
                 var keyHeader = KeyHeader.NewRandom16();
@@ -232,7 +140,13 @@ namespace Youverse.Hosting.Tests.Performance
                     TransferIv = transferIv,
                     StorageOptions = new StorageOptions()
                     {
-                        Drive = testAppContext.TargetDrive
+                        Drive = senderAppContext.TargetDrive
+                    },
+                    TransitOptions = new TransitOptions()
+                    {
+                        UseGlobalTransitId = true,
+                        Recipients = recipients,
+                        Schedule = ScheduleOptions.SendNowAwaitResponse
                     }
                 };
 
@@ -265,8 +179,9 @@ namespace Youverse.Hosting.Tests.Performance
                         AppData = new()
                         {
                             Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
+                            FileType = FileType,
                             ContentIsComplete = false,
-                            JsonContent = DotYouSystemSerializer.Serialize(new { content = jsonContent }),
+                            JsonContent = DotYouSystemSerializer.Serialize(new { content = message }),
                             PreviewThumbnail = new ImageDataContent()
                             {
                                 PixelHeight = 100,
@@ -277,7 +192,7 @@ namespace Youverse.Hosting.Tests.Performance
 
                             AdditionalThumbnails = new[] { thumbnail1, thumbnail2 }
                         },
-                        AccessControlList = acl
+                        AccessControlList = AccessControlList.OwnerOnly
                     },
                 };
 
@@ -301,7 +216,12 @@ namespace Youverse.Hosting.Tests.Performance
                 Assert.That(uploadResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
                 Assert.IsTrue(uploadResult.File.TargetDrive.IsValid());
 
-                Assert.That(uploadResult.RecipientStatus, Is.Null);
+                foreach (var recipient in recipients)
+                {
+                    Assert.IsTrue(uploadResult.RecipientStatus.ContainsKey(recipient), $"Message was not delivered to ${recipient}");
+                    Assert.IsTrue(uploadResult.RecipientStatus[recipient] == TransferStatus.Delivered, $"Message was not delivered to ${recipient}");
+                }
+
                 var uploadedFile = uploadResult.File;
 
 

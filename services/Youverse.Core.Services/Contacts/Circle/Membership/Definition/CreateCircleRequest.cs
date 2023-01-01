@@ -20,5 +20,5 @@ public class CreateCircleRequest
     /// <summary>
     /// The permissions to be granted to members of this Circle
     /// </summary>
-    public PermissionKeySet PermissionsKey { get; set; }
+    public PermissionSet Permissions { get; set; }
 }

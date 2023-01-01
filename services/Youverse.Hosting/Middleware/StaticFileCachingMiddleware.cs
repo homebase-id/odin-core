@@ -1,7 +1,9 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Hosting;
 
 namespace Youverse.Hosting.Middleware
 {
@@ -25,7 +27,9 @@ namespace Youverse.Hosting.Middleware
 
         public async Task Invoke(HttpContext httpContext)
         {
-            if (paths.Any(s => httpContext.Request.Path.StartsWithSegments(s)))
+            var isDev = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == Environments.Development;
+                
+            if (paths.Any(s => httpContext.Request.Path.StartsWithSegments(s)) && !isDev)
             {
                 httpContext.Response.Headers.Add("Cache-Control", "max-age=31536000");
             }
