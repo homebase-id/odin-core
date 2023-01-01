@@ -14,8 +14,6 @@ using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Query.Sqlite;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Services.Mediator;
-using Youverse.Core.Storage.SQLite;
-using ReservedFileTypes = Youverse.Core.Services.Apps.CommandMessaging.ReservedFileTypes;
 
 namespace Youverse.Core.Services.Drive
 {
@@ -165,6 +163,22 @@ namespace Youverse.Core.Services.Drive
         {
             await TryGetOrLoadQueryManager(driveId, out var manager);
             await manager.MarkCommandsCompleted(idList);
+        }
+
+        public async Task<QueryBatchCollectionResponse> GetBatchCollection(QueryBatchCollectionRequest request)
+        {
+            var collection = new QueryBatchCollectionResponse();
+            foreach (var query in request.Queries)
+            {
+                var driveId = (await _driveService.GetDriveIdByAlias(query.QueryParams.TargetDrive, true)).GetValueOrDefault();
+                var result = await this.GetBatch(driveId, query.QueryParams, query.ResultOptions);
+
+                var response = QueryBatchResponse.FromResult(result);
+                response.Name = query.Name;
+                collection.Results.Add(response);
+            }
+
+            return collection;
         }
 
         public async Task<ClientFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId)

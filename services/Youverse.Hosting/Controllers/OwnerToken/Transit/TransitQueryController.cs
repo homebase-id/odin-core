@@ -8,6 +8,7 @@ using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers.ClientToken.Drive;
 using Youverse.Hosting.Controllers.OwnerToken.Drive;
@@ -45,15 +46,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         public async Task<QueryBatchResponse> QueryBatch([FromBody] TransitQueryBatchRequest request)
         {
             var batch = await _transitQueryService.GetBatch((DotYouIdentity)request.DotYouId, request);
-
-            var response = new QueryBatchResponse()
-            {
-                IncludeMetadataHeader = batch.IncludeMetadataHeader,
-                CursorState = batch.Cursor.ToState(),
-                SearchResults = batch.SearchResults
-            };
-
-            return response;
+            return QueryBatchResponse.FromResult(batch);
         }
 
         /// <summary>

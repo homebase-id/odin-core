@@ -218,6 +218,99 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
             }
         }
 
+
+        public async Task<UploadTestUtilsContext> UploadFile(TestAppContext identityAppContext, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, bool includeThumbnail,
+            string payloadData)
+        {
+            Guard.Argument(instructionSet, nameof(instructionSet)).NotNull();
+            instructionSet?.AssertIsValid();
+
+            using (var client = this.CreateAppApiHttpClient(identityAppContext))
+            {
+                var keyHeader = KeyHeader.NewRandom16();
+                var transferIv = instructionSet.TransferIv;
+
+                var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+                var instructionStream = new MemoryStream(bytes);
+
+                var sharedSecret = identityAppContext.SharedSecret.ToSensitiveByteArray();
+
+                var thumbnails = new List<StreamPart>();
+                var thumbnailsAdded = new List<ImageDataHeader>();
+                if (includeThumbnail)
+                {
+                    var thumbnail1 = new ImageDataHeader()
+                    {
+                        PixelHeight = 300,
+                        PixelWidth = 300,
+                        ContentType = "image/jpeg"
+                    };
+
+                    var thumbnail1CipherBytes = keyHeader.EncryptDataAes(TestMedia.ThumbnailBytes300);
+                    thumbnails.Add(new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
+                    thumbnailsAdded.Add(thumbnail1);
+                    fileMetadata.AppData.AdditionalThumbnails = thumbnailsAdded;
+                }
+
+                fileMetadata.PayloadIsEncrypted = true;
+
+                if (payloadData.Length > 0)
+                {
+                    fileMetadata.AppData.ContentIsComplete = false;
+                }
+
+                var descriptor = new UploadFileDescriptor()
+                {
+                    EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref sharedSecret),
+                    FileMetadata = fileMetadata
+                };
+
+                var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
+
+                var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadData);
+
+                var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
+
+                var response = await transitSvc.Upload(
+                    new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
+                    new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
+                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
+                    thumbnails.ToArray());
+
+                Assert.That(response.IsSuccessStatusCode, Is.True);
+                Assert.That(response.Content, Is.Not.Null);
+                var transferResult = response.Content;
+
+                Assert.That(transferResult.File, Is.Not.Null);
+                Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
+                Assert.That(transferResult.File.TargetDrive.IsValid(), Is.True);
+
+                int batchSize = 1;
+                if (instructionSet.TransitOptions?.Recipients?.Any() ?? false)
+                {
+                    Assert.IsTrue(transferResult.RecipientStatus.Count == instructionSet.TransitOptions?.Recipients.Count, "expected recipient count does not match");
+
+                    foreach (var recipient in instructionSet.TransitOptions?.Recipients)
+                    {
+                        Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
+                        Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.TransferKeyCreated, $"transfer key not created for {recipient}");
+                    }
+
+                    batchSize = instructionSet.TransitOptions?.Recipients?.Count ?? 1;
+                }
+
+                keyHeader.AesKey.Wipe();
+
+                return new UploadTestUtilsContext()
+                {
+                    InstructionSet = instructionSet,
+                    UploadFileMetadata = fileMetadata,
+                    PayloadData = payloadData,
+                    UploadedFile = transferResult.File
+                };
+            }
+        }
+
         public async Task<AppTransitTestUtilsContext> CreateAppAndTransferFile(TestIdentity sender, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata,
             TransitTestUtilsOptions options)
         {
