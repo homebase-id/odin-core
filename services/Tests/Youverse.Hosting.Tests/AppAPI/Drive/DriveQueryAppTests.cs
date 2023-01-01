@@ -42,7 +42,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
-            List<Guid> tags = new List<Guid>() { tag};
+            List<Guid> tags = new List<Guid>() { tag };
 
             var uploadFileMetadata = new UploadFileMetadata()
             {
@@ -233,5 +233,12 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.IsTrue(batch.SearchResults.All(item => string.IsNullOrEmpty(item.FileMetadata.AppData.JsonContent)), "One or more items had content");
             }
         }
+
+
+        // [Test]
+        // [Ignore("need to complete the app-circles feature first as this requires adding new drives after an app is registered")]
+        // public async Task CanQueryBatchCollectionAcrossDrives()
+        // {
+        // }
     }
 }

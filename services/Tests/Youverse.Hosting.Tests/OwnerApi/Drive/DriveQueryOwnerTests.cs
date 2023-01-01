@@ -138,10 +138,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
 
             var instructionSet = UploadInstructionSet.WithTargetDrive(uploadContext.UploadedFile.TargetDrive);
             instructionSet.StorageOptions.OverwriteFileId = uploadContext.UploadedFile.FileId;
-            
+
             uploadFileMetadata.AppData.DataType = 10844;
             var _ = await _scaffold.OwnerApi.UploadFile(identity.DotYouId, instructionSet, uploadFileMetadata, "a new payload", true);
-            
+
             //
             // query the data to see the changes
             //
@@ -249,6 +249,134 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 Assert.IsNotNull(batch);
                 Assert.IsTrue(batch.SearchResults.Any(), "No items returned");
                 Assert.IsTrue(batch.SearchResults.All(item => string.IsNullOrEmpty(item.FileMetadata.AppData.JsonContent)), "One or more items had content");
+            }
+        }
+
+        [Test]
+        public async Task CanQueryBatchCollectionAcrossDrives()
+        {
+            var identity = TestIdentities.Samwise;
+            Guid file1Tag = Guid.NewGuid();
+
+            TargetDrive file1TargetDrive = TargetDrive.NewTargetDrive();
+            var file1Metadata = new UploadFileMetadata()
+            {
+                ContentType = "application/json",
+                PayloadIsEncrypted = false,
+                AppData = new()
+                {
+                    ContentIsComplete = false,
+                    JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    FileType = 100,
+                    DataType = 202,
+                    UserDate = 0,
+                    Tags = new List<Guid>() { file1Tag }
+                }
+            };
+
+            var file1InstructionSet = new UploadInstructionSet()
+            {
+                TransferIv = ByteArrayUtil.GetRndByteArray(16),
+                StorageOptions = new()
+                {
+                    Drive = file1TargetDrive
+                }
+            };
+
+            await _scaffold.OwnerApi.UploadFile(identity.DotYouId, file1InstructionSet, file1Metadata, "file one payload");
+
+            //
+            // Add another drive and file
+            //
+            Guid file2Tag = Guid.NewGuid();
+            TargetDrive file2TargetDrive = TargetDrive.NewTargetDrive();
+
+            var file2InstructionSet = new UploadInstructionSet()
+            {
+                TransferIv = ByteArrayUtil.GetRndByteArray(16),
+                StorageOptions = new()
+                {
+                    Drive = file2TargetDrive
+                }
+            };
+
+            var file2Metadata = new UploadFileMetadata()
+            {
+                ContentType = "application/json",
+                PayloadIsEncrypted = false,
+                AppData = new()
+                {
+                    ContentIsComplete = false,
+                    JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    FileType = 100,
+                    DataType = 202,
+                    UserDate = 0,
+                    Tags = new List<Guid>() { file2Tag }
+                }
+            };
+
+            await _scaffold.OwnerApi.UploadFile(identity.DotYouId, file2InstructionSet, file2Metadata, "file two payload");
+
+            //
+            // perform the batch search
+            //
+            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            {
+                var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
+
+                var file1Section = new CollectionQueryParamSection()
+                {
+                    Name = "file1Section",
+                    QueryParams = new FileQueryParams()
+                    {
+                        TargetDrive = file1TargetDrive,
+                        TagsMatchAtLeastOne = new[] { file1Tag }
+                    },
+                    ResultOptions = new QueryBatchResultOptions()
+                    {
+                        MaxRecords = 10,
+                        IncludeJsonContent = true
+                    }
+                };
+
+                var file2Section = new CollectionQueryParamSection()
+                {
+                    Name = "file2Section",
+                    QueryParams = new FileQueryParams()
+                    {
+                        TargetDrive = file2TargetDrive,
+                        TagsMatchAtLeastOne = new[] { file2Tag }
+                    },
+                    ResultOptions = new QueryBatchResultOptions()
+                    {
+                        MaxRecords = 10,
+                        IncludeJsonContent = true
+                    }
+                };
+
+
+                var response = await svc.GetBatchCollection(new QueryBatchCollectionRequest()
+                {
+                    Queries = new List<CollectionQueryParamSection>()
+                    {
+                        file1Section, file2Section
+                    }
+                });
+
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+                var batch = response.Content;
+
+                Assert.IsNotNull(batch);
+                Assert.IsTrue(batch.Results.Count == 2);
+
+                var file1Result = batch.Results.Single(x => x.Name == file1Section.Name);
+                CollectionAssert.AreEquivalent(file1Metadata.AppData.Tags, file1Result.SearchResults.Single().FileMetadata.AppData.Tags);
+
+                Assert.IsTrue(file1Result.IncludeMetadataHeader == file1Section.ResultOptions.IncludeJsonContent);
+                
+                var file2Result = batch.Results.Single(x => x.Name == file2Section.Name);
+                CollectionAssert.AreEquivalent(file2Metadata.AppData.Tags, file2Result.SearchResults.Single().FileMetadata.AppData.Tags);
+                Assert.IsTrue(file2Result.IncludeMetadataHeader == file2Section.ResultOptions.IncludeJsonContent);
             }
         }
     }

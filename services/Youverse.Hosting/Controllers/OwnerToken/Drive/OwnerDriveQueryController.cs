@@ -43,5 +43,18 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 
             return QueryBatchResponse.FromResult(batch);
         }
+        
+        /// <summary>
+        /// Returns multiple <see cref="QueryBatchResponse"/>s
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        [HttpPost("batchcollection")]
+        public async Task<QueryBatchCollectionResponse> QueryBatchCollection([FromBody] QueryBatchCollectionRequest request)
+        {
+            var collection = await _driveQueryService.GetBatchCollection(request);
+            return collection;
+        }
     }
 }
