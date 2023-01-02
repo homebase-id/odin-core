@@ -330,7 +330,6 @@ namespace Youverse.Hosting.Tests.Performance
 
                 decryptedKeyHeader.AesKey.Wipe();
                 keyHeader.AesKey.Wipe();
-                ownerSharedSecret.Wipe();
 
 
                 //
