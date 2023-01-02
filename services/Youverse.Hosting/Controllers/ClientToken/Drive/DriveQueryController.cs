@@ -1,8 +1,10 @@
-﻿using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Optimization.Cdn;
 using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers.Anonymous;
 
@@ -48,15 +50,21 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
             var batch = await _driveQueryService.GetBatch(driveId, request.QueryParams, request.ResultOptionsRequest.ToQueryBatchResultOptions());
-            
-            var response = new QueryBatchResponse()
-            {
-                IncludeMetadataHeader = batch.IncludeMetadataHeader,
-                CursorState = batch.Cursor.ToState(),
-                SearchResults = batch.SearchResults
-            };
 
-            return response;
+            return QueryBatchResponse.FromResult(batch);
+        }
+
+        /// <summary>
+        /// Returns multiple <see cref="QueryBatchResponse"/>s
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpPost("batchcollection")]
+        public async Task<QueryBatchCollectionResponse> QueryBatchCollection([FromBody] QueryBatchCollectionRequest request)
+        {
+            var collection = await _driveQueryService.GetBatchCollection(request);
+            return collection;
         }
     }
 }

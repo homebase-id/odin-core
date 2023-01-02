@@ -42,6 +42,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
         [Post(RootQueryEndpoint + "/batch")]
         Task<ApiResponse<QueryBatchResponse>> GetBatch(QueryBatchRequest request);
 
+        [Post(RootQueryEndpoint + "/batchcollection")]
+        Task<ApiResponse<QueryBatchCollectionResponse>> GetBatchCollection(QueryBatchCollectionRequest request);
+
+        
         [Post(OwnerApiPathConstants.TransitV1 + "/outbox/processor/process")]
         Task<ApiResponse<bool>> ProcessOutbox(int batchSize);
     }

@@ -35,13 +35,7 @@ namespace Youverse.Hosting.Controllers.Certificate
         public async Task<QueryBatchResponse> QueryBatch(QueryBatchRequest request)
         {
             var batch = await _perimeterService.QueryBatch(request.QueryParams, request.ResultOptionsRequest.ToQueryBatchResultOptions());
-
-            return new QueryBatchResponse()
-            {
-                IncludeMetadataHeader = batch.IncludeMetadataHeader,
-                CursorState = batch.Cursor.ToState(),
-                SearchResults = batch.SearchResults
-            };
+            return QueryBatchResponse.FromResult(batch);
         }
 
         /// <summary>
