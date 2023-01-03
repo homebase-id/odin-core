@@ -54,12 +54,13 @@ public class NotificationsTest
         // use the client auth token
         ClientWebSocket socket = new ClientWebSocket();
         socket.Options.Cookies = new CookieContainer();
+
         var cookie = new Cookie(ClientTokenConstants.ClientAuthTokenCookieName, deviceClientAuthToken.ToString());
         cookie.Domain = identity.DotYouId;
         socket.Options.Cookies.Add(cookie);
         CancellationTokenSource tokenSource = new CancellationTokenSource();
 
-        var uri = new Uri($"wss://{identity.DotYouId}/api/apps/v1/notify");
+        var uri = new Uri($"wss://{identity.DotYouId}/owner/apps/v1/notify/ws");
         // var uri = new Uri("wss://echo.websocket.org");
         await socket.ConnectAsync(uri, tokenSource.Token);
 
@@ -84,10 +85,15 @@ public class NotificationsTest
                     {
                         receiveResult = await socket.ReceiveAsync(buffer, tokenSource.Token);
                         if (receiveResult.MessageType != WebSocketMessageType.Close)
+                        {
                             outputStream.Write(buffer, 0, receiveResult.Count);
+                        }
                     } while (!receiveResult.EndOfMessage);
 
-                    if (receiveResult.MessageType == WebSocketMessageType.Close) break;
+                    if (receiveResult.MessageType == WebSocketMessageType.Close)
+                    {
+                        break;
+                    }
                     outputStream.Position = 0;
                     ResponseReceived(outputStream);
                 }

@@ -1,26 +1,39 @@
-﻿using System.Net.WebSockets;
+﻿using System.Collections.Generic;
+using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Youverse.Core.Serialization;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.ClientNotifications;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Mediator.ClientNotifications;
 
 namespace Youverse.Core.Services.AppNotifications
 {
+    public class EstablishConnectionRequest
+    {
+        public List<TargetDrive> Drives { get; set; }
+    }
+
     public class AppNotificationHandler : WebSocketHandlerBase,
         INotificationHandler<NewInboxItemNotification>,
         INotificationHandler<IOwnerConsoleNotification>
     {
-        public AppNotificationHandler(SocketConnectionManager webSocketConnectionManager) : base(webSocketConnectionManager) { }
+        private DotYouContextAccessor _contextAccessor;
 
-        public override async Task OnConnected(WebSocket socket)
+        public AppNotificationHandler(SocketConnectionManager webSocketConnectionManager, DotYouContextAccessor contextAccessor) : base(webSocketConnectionManager)
         {
-            await base.OnConnected(socket);
-            
-            //examine the cookie to see if there is a CAT
+            _contextAccessor = contextAccessor;
+        }
+
+        public override async Task OnConnected(WebSocket socket, EstablishConnectionRequest request)
+        {
+            var dotYouContext = _contextAccessor.GetCurrent();
+            await base.OnConnected(socket, request);
+
             var socketId = WebSocketConnectionManager.GetId(socket);
-            await this.SerializeSendToAll(new ClientConnected() {SocketId = socketId});
+            await this.SerializeSendToAll(new ClientConnected() { SocketId = socketId });
         }
 
         public override async Task OnDisconnected(WebSocket socket)
@@ -28,7 +41,7 @@ namespace Youverse.Core.Services.AppNotifications
             await base.OnDisconnected(socket);
 
             var socketId = WebSocketConnectionManager.GetId(socket);
-            await this.SerializeSendToAll(new ClientDisconnected() {SocketId = socketId});
+            await this.SerializeSendToAll(new ClientDisconnected() { SocketId = socketId });
         }
 
         public override Task ReceiveAsync(WebSocket socket, WebSocketReceiveResult result, byte[] buffer)

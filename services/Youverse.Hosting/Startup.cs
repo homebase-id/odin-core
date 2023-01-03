@@ -28,6 +28,7 @@ using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Authentication.Perimeter;
 using Youverse.Hosting.Authentication.System;
 using Youverse.Hosting.Controllers.ClientToken;
+using Youverse.Hosting.Controllers.OwnerToken;
 using Youverse.Hosting.Middleware;
 using Youverse.Hosting.Middleware.Logging;
 using Youverse.Hosting.Multitenant;
@@ -242,9 +243,17 @@ namespace Youverse.Hosting
                     normalApp.UseMiddleware<SharedSecretEncryptionMiddleware>();
                     normalApp.UseMiddleware<StaticFileCachingMiddleware>();
                     normalApp.UseHttpsRedirection();
+
+                    var webSocketOptions = new WebSocketOptions
+                    {
+                        KeepAliveInterval = TimeSpan.FromMinutes(2)
+                    };
+
+                    // webSocketOptions.AllowedOrigins.Add("https://...");
+                    app.UseWebSockets(webSocketOptions);
                     
-                    app.UseWebSockets();
-                    app.Map(AppApiPathConstants.NotificationsV1, appBuilder => appBuilder.UseMiddleware<NotificationWebSocketMiddleware>());
+                    // app.Map(AppApiPathConstants.NotificationsV1, appBuilder => appBuilder.UseMiddleware<NotificationWebSocketMiddleware>());
+                    // app.Map(OwnerApiPathConstants.NotificationsV1, appBuilder => appBuilder.UseMiddleware<NotificationWebSocketMiddleware>());
                     
                     normalApp.UseEndpoints(endpoints =>
                     {

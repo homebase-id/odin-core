@@ -3,8 +3,9 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Youverse.Core.Services.ClientNotifications;
 
-namespace Youverse.Core.Services.ClientNotifications
+namespace Youverse.Core.Services.AppNotifications
 {
     public abstract class WebSocketHandlerBase
     {
@@ -15,7 +16,7 @@ namespace Youverse.Core.Services.ClientNotifications
             WebSocketConnectionManager = webSocketConnectionManager;
         }
 
-        public virtual async Task OnConnected(WebSocket socket)
+        public virtual async Task OnConnected(WebSocket socket, EstablishConnectionRequest request)
         {
             WebSocketConnectionManager.AddSocket(socket);
         }
@@ -45,7 +46,6 @@ namespace Youverse.Core.Services.ClientNotifications
                 //HACK: need to find out what is trying to write when the response is complete
                 Console.WriteLine(e);
             }
-            
         }
 
         public async Task SendMessageAsync(string socketId, string message)
