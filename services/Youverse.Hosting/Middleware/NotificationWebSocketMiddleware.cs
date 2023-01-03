@@ -4,9 +4,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Services.AppNotifications;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.ClientNotifications;
-using Youverse.Core.Services.Notifications;
+using Youverse.Hosting.Controllers.ClientToken;
 
 namespace Youverse.Hosting.Middleware
 {
@@ -26,6 +27,8 @@ namespace Youverse.Hosting.Middleware
                 return;
             }
 
+            var dotYouContext = dotYouContextAccessor.GetCurrent();
+            
             var socket = await context.WebSockets.AcceptWebSocketAsync();
             await appNotificationHandler.OnConnected(socket);
 

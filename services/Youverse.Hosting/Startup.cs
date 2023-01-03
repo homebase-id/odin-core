@@ -1,13 +1,10 @@
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.IO;
 using System.Net.Mime;
 using System.Reflection;
 using Autofac;
 using Dawn;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.HostFiltering;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -30,10 +27,10 @@ using Youverse.Hosting.Authentication.ClientToken;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Authentication.Perimeter;
 using Youverse.Hosting.Authentication.System;
+using Youverse.Hosting.Controllers.ClientToken;
 using Youverse.Hosting.Middleware;
 using Youverse.Hosting.Middleware.Logging;
 using Youverse.Hosting.Multitenant;
-using Youverse.Provisioning.Services.IdentityServer;
 
 namespace Youverse.Hosting
 {
@@ -244,11 +241,11 @@ namespace Youverse.Hosting
                     normalApp.UseResponseCompression();
                     normalApp.UseMiddleware<SharedSecretEncryptionMiddleware>();
                     normalApp.UseMiddleware<StaticFileCachingMiddleware>();
-
-
                     normalApp.UseHttpsRedirection();
-                    // app.UseWebSockets();
-                    // app.Map("/owner/api/live/notifications", appBuilder => appBuilder.UseMiddleware<NotificationWebSocketMiddleware>());
+                    
+                    app.UseWebSockets();
+                    app.Map(AppApiPathConstants.NotificationsV1, appBuilder => appBuilder.UseMiddleware<NotificationWebSocketMiddleware>());
+                    
                     normalApp.UseEndpoints(endpoints =>
                     {
                         endpoints.Map("/", async context => { context.Response.Redirect("/home"); });

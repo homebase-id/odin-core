@@ -5,12 +5,16 @@ using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Youverse.Core.Services.Notifications
+namespace Youverse.Core.Services.ClientNotifications
 {
     public class SocketConnectionManager
     {
         private ConcurrentDictionary<string, WebSocket> _sockets = new ConcurrentDictionary<string, WebSocket>();
 
+        public SocketConnectionManager()
+        {
+            
+        }
         public WebSocket GetSocketById(string id)
         {
             return _sockets.FirstOrDefault(p => p.Key == id).Value;

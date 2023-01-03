@@ -3,23 +3,22 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Youverse.Core.Serialization;
+using Youverse.Core.Services.ClientNotifications;
 using Youverse.Core.Services.Mediator.ClientNotifications;
-using Youverse.Core.Services.Notifications;
 
-namespace Youverse.Core.Services.ClientNotifications
+namespace Youverse.Core.Services.AppNotifications
 {
     public class AppNotificationHandler : WebSocketHandlerBase,
         INotificationHandler<NewInboxItemNotification>,
         INotificationHandler<IOwnerConsoleNotification>
     {
-        public AppNotificationHandler(SocketConnectionManager webSocketConnectionManager) : base(webSocketConnectionManager)
-        {
-        }
+        public AppNotificationHandler(SocketConnectionManager webSocketConnectionManager) : base(webSocketConnectionManager) { }
 
         public override async Task OnConnected(WebSocket socket)
         {
             await base.OnConnected(socket);
-
+            
+            //examine the cookie to see if there is a CAT
             var socketId = WebSocketConnectionManager.GetId(socket);
             await this.SerializeSendToAll(new ClientConnected() {SocketId = socketId});
         }
@@ -50,7 +49,7 @@ namespace Youverse.Core.Services.ClientNotifications
         private async Task SerializeSendToAll(object notification)
         {
             var json = DotYouSystemSerializer.Serialize(notification);
-            await SendMessageToAllAsync(json);
+            // await SendMessageAsync(json);
         }
     }
 }

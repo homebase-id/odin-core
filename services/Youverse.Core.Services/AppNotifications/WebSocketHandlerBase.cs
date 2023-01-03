@@ -4,7 +4,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Youverse.Core.Services.Notifications
+namespace Youverse.Core.Services.ClientNotifications
 {
     public abstract class WebSocketHandlerBase
     {
@@ -51,17 +51,6 @@ namespace Youverse.Core.Services.Notifications
         public async Task SendMessageAsync(string socketId, string message)
         {
             await SendMessageAsync(WebSocketConnectionManager.GetSocketById(socketId), message);
-        }
-
-        public async Task SendMessageToAllAsync(string message)
-        {
-            foreach (var pair in WebSocketConnectionManager.GetAll())
-            {
-                if (pair.Value.State == WebSocketState.Open)
-                {
-                    await SendMessageAsync(pair.Value, message);
-                }
-            }
         }
 
         public abstract Task ReceiveAsync(WebSocket socket, WebSocketReceiveResult result, byte[] buffer);
