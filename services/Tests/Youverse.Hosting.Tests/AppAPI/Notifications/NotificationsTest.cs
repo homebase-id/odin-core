@@ -98,7 +98,7 @@ public class NotificationsTest
             var json = array.ToStringFromUtf8Bytes();
             var response = DotYouSystemSerializer.Deserialize<EstablishConnectionResponse>(json);
             Assert.IsNotNull(response);
-            Assert.IsTrue(response.Success);
+            Assert.IsTrue(response.NotificationType == ClientNotificationType.DeviceHandshakeSuccess);
         }
         else
         {
@@ -166,7 +166,7 @@ public class NotificationsTest
             var json = array.ToStringFromUtf8Bytes();
             var response = DotYouSystemSerializer.Deserialize<EstablishConnectionResponse>(json);
             Assert.IsNotNull(response);
-            Assert.IsTrue(response.Success);
+            Assert.IsTrue(response.NotificationType == ClientNotificationType.DeviceHandshakeSuccess);
         }
         else
         {
@@ -187,15 +187,15 @@ public class NotificationsTest
         var (instructionSet, fileMetadata) =
             NotificationTestUtils.RandomEncryptedFileHeaderNoPayload("contents are here", testAppContext.TargetDrive);
         await _scaffold.AppApi.UploadFile(testAppContext, instructionSet, fileMetadata, false, "payload data");
-        
+
         void ResponseReceived(Stream inputStream)
         {
             var response = DotYouSystemSerializer.Deserialize<ClientNotification>(inputStream, tokenSource.Token)
                 .GetAwaiter().GetResult();
-            
+
             Assert.IsNotNull(response);
             Assert.IsTrue(response.NotificationType == ClientNotificationType.FileAdded);
-            
+
             // inputStream.Dispose();
         }
 

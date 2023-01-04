@@ -9,61 +9,85 @@ using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.AppNotifications
 {
-    public class AppNotificationHandler : WebSocketHandlerBase, INotificationHandler<IClientNotification>
+    public class AppNotificationHandler : INotificationHandler<IClientNotification>
     {
+        private DeviceSocketCollection _deviceSocketCollection { get; set; }
         private readonly DotYouContextAccessor _contextAccessor;
 
-        public AppNotificationHandler(SocketConnectionManager webSocketConnectionManager,
-            DotYouContextAccessor contextAccessor) : base(webSocketConnectionManager)
+        public AppNotificationHandler(DotYouContextAccessor contextAccessor)
         {
             _contextAccessor = contextAccessor;
+            _deviceSocketCollection = new DeviceSocketCollection();
         }
 
-        public override async Task OnConnected(WebSocket socket, EstablishConnectionRequest request)
+        public async Task Connect(WebSocket socket, EstablishConnectionRequest request)
         {
-            // var dotYouContext = _contextAccessor.GetCurrent();
-            await base.OnConnected(socket, request);
+            var dotYouContext = _contextAccessor.GetCurrent();
+            var deviceSocket = new DeviceSocket()
+            {
+                Key = Guid.NewGuid(),
+                DeviceAuthToken = null, //TODO: where is the best place to get the cookie?
+                Socket = socket,
+            };
 
-            var response = new EstablishConnectionResponse() { Success = true };
-            await SendMessageAsync(socket, DotYouSystemSerializer.Serialize(response));
-            await ListenForDisconnect(socket);
+            _deviceSocketCollection.AddSocket(deviceSocket);
+
+            var response = new EstablishConnectionResponse() { };
+            await SendMessageAsync(deviceSocket, DotYouSystemSerializer.Serialize(response));
+            await ListenForDisconnect(deviceSocket);
         }
 
-        private async Task ListenForDisconnect(WebSocket socket)
+        private async Task ListenForDisconnect(DeviceSocket deviceSocket)
         {
             var buffer = new byte[1024 * 4];
-            var receiveResult = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+            var receiveResult = await deviceSocket.Socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
             if (receiveResult.MessageType == WebSocketMessageType.Close)
             {
-                await this.OnDisconnected(socket);
+                await _deviceSocketCollection.RemoveSocket(deviceSocket.Key);
                 //TODO: need to send the right response but not quite sure what that is.
                 // await socket.CloseAsync(receiveResult.CloseStatus.Value, "", CancellationToken.None);
             }
         }
 
-        public override async Task OnDisconnected(WebSocket socket)
-        {
-            await base.OnDisconnected(socket);
-        }
-
-        public override Task ReceiveAsync(WebSocket socket, WebSocketReceiveResult result, byte[] buffer)
-        {
-            throw new System.NotImplementedException();
-        }
-
         public async Task Handle(IClientNotification notification, CancellationToken cancellationToken)
         {
-            await this.SerializeSendToAll(notification);
+            await this.SerializeSendToAllDevices(notification);
         }
 
-        private async Task SerializeSendToAll(object notification)
+        private async Task SerializeSendToAllDevices(object notification)
         {
             var json = DotYouSystemSerializer.Serialize(notification);
 
-            var sockets = base.WebSocketConnectionManager.GetAll().Values;
-            foreach (var socket in sockets)
+            //TODO:  Need to map the notification correctly so we know the type of notification AND only get the data we expect 
+
+            var sockets = this._deviceSocketCollection.GetAll().Values;
+            foreach (var deviceSocket in sockets)
             {
-                await this.SendMessageAsync(socket, json);
+                await this.SendMessageAsync(deviceSocket, json);
+            }
+        }
+
+        private async Task SendMessageAsync(DeviceSocket deviceSocket, string message)
+        {
+            var socket = deviceSocket.Socket;
+
+            if (socket.State != WebSocketState.Open)
+            {
+                return;
+            }
+
+            try
+            {
+                await socket.SendAsync(
+                    buffer: new ArraySegment<byte>(message.ToUtf8ByteArray(), 0, message.Length),
+                    messageType: WebSocketMessageType.Text,
+                    endOfMessage: true,
+                    cancellationToken: CancellationToken.None);
+            }
+            catch (Exception e)
+            {
+                //HACK: need to find out what is trying to write when the response is complete
+                Console.WriteLine(e);
             }
         }
     }

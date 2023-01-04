@@ -52,7 +52,6 @@ namespace Youverse.Hosting
 
             cb.RegisterType<TenantSystemStorage>().As<ITenantSystemStorage>().SingleInstance();
 
-            cb.RegisterType<SocketConnectionManager>().InstancePerDependency();
             cb.RegisterType<AppNotificationHandler>()
                 .As<INotificationHandler<FileAddedNotification>>()
                 .As<INotificationHandler<ConnectionRequestReceived>>()

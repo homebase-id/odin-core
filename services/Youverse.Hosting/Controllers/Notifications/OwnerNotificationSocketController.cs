@@ -45,7 +45,7 @@ namespace Youverse.Hosting.Controllers.Notifications
                 var request = await ReceiveConfiguration(webSocket);
                 if (null != request)
                 {
-                    await _notificationHandler.OnConnected(webSocket, request);
+                    await _notificationHandler.Connect(webSocket, request);
                 }
             }
             else
