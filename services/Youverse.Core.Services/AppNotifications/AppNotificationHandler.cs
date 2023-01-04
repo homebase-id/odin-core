@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO.Compression;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -54,12 +55,15 @@ namespace Youverse.Core.Services.AppNotifications
             await this.SerializeSendToAllDevices(notification);
         }
 
-        private async Task SerializeSendToAllDevices(object notification)
+        private async Task SerializeSendToAllDevices(IClientNotification notification)
         {
-            var json = DotYouSystemSerializer.Serialize(notification);
-
             //TODO:  Need to map the notification correctly so we know the type of notification AND only get the data we expect 
-
+            var json = DotYouSystemSerializer.Serialize(new 
+            {
+                NotificationType = notification.NotificationType,
+                Data = notification.GetClientData()
+            });
+            
             var sockets = this._deviceSocketCollection.GetAll().Values;
             foreach (var deviceSocket in sockets)
             {

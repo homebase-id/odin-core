@@ -1,4 +1,5 @@
 using Youverse.Core.Identity;
+using Youverse.Core.Serialization;
 
 namespace Youverse.Core.Services.AppNotifications.ClientNotifications
 {
@@ -7,5 +8,13 @@ namespace Youverse.Core.Services.AppNotifications.ClientNotifications
         public ClientNotificationType NotificationType { get; } = ClientNotificationType.ConnectionRequestAccepted;
 
         public DotYouIdentity Sender { get; set; }
+        
+        public string GetClientData()
+        {
+            return DotYouSystemSerializer.Serialize(new
+            {
+                Sender = this.Sender.Id
+            });
+        }
     }
 }

@@ -4,5 +4,9 @@ namespace Youverse.Core.Services.AppNotifications.ClientNotifications
     {
         public ClientNotificationType NotificationType { get; } = ClientNotificationType.DeviceDisconnected;
 
+        public string GetClientData()
+        {
+            return "";
+        }
     }
 }

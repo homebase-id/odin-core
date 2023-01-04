@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Linq;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,13 +11,13 @@ namespace Youverse.Core.Services.AppNotifications
     /// </summary>
     public class DeviceSocketCollection
     {
-        private ConcurrentDictionary<Guid, DeviceSocket> _sockets = new ConcurrentDictionary<Guid, DeviceSocket>();
+        private ConcurrentDictionary<Guid, DeviceSocket> _sockets = new();
 
         public ConcurrentDictionary<Guid, DeviceSocket> GetAll()
         {
             return _sockets;
         }
-        
+
 
         public void AddSocket(DeviceSocket socket)
         {
@@ -32,7 +31,7 @@ namespace Youverse.Core.Services.AppNotifications
             try
             {
                 await deviceSocket.Socket.CloseAsync(closeStatus: WebSocketCloseStatus.NormalClosure,
-                    statusDescription: "Closed by the ConnectionManager",
+                    statusDescription: "Closed by the server",
                     cancellationToken: CancellationToken.None);
             }
             catch (Exception e)

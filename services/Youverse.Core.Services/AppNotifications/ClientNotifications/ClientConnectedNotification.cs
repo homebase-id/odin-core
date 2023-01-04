@@ -5,5 +5,10 @@ namespace Youverse.Core.Services.AppNotifications.ClientNotifications
         public ClientNotificationType NotificationType { get; } = ClientNotificationType.DeviceConnected;
 
         public string SocketId { get; set; }
+        
+        public string GetClientData()
+        {
+            return "";
+        }
     }
 }
