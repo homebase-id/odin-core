@@ -1,8 +1,8 @@
 namespace Youverse.Core.Services.AppNotifications.ClientNotifications
 {
-    public class ClientConnected : IOwnerConsoleNotification
+    public class DeviceConnected : IClientNotification
     {
-        public string Key => "ClientConnected";
+        public ClientNotificationType NotificationType { get; } = ClientNotificationType.DeviceConnected;
 
         public string SocketId { get; set; }
     }

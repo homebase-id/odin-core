@@ -250,10 +250,7 @@ namespace Youverse.Hosting
                     };
 
                     // webSocketOptions.AllowedOrigins.Add("https://...");
-                    app.UseWebSockets(webSocketOptions);
-                    
-                    // app.Map(AppApiPathConstants.NotificationsV1, appBuilder => appBuilder.UseMiddleware<NotificationWebSocketMiddleware>());
-                    // app.Map(OwnerApiPathConstants.NotificationsV1, appBuilder => appBuilder.UseMiddleware<NotificationWebSocketMiddleware>());
+                    app.UseWebSockets(webSocketOptions);  //Note: see NotificationSocketController
                     
                     normalApp.UseEndpoints(endpoints =>
                     {

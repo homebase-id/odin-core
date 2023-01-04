@@ -2,9 +2,9 @@ using Youverse.Core.Identity;
 
 namespace Youverse.Core.Services.AppNotifications.ClientNotifications
 {
-    public class ConnectionRequestAccepted : IOwnerConsoleNotification
+    public class ConnectionRequestAccepted : IClientNotification
     {
-        public string Key => "ConnectionRequestAccepted";
+        public ClientNotificationType NotificationType { get; } = ClientNotificationType.ConnectionRequestAccepted;
 
         public DotYouIdentity Sender { get; set; }
     }

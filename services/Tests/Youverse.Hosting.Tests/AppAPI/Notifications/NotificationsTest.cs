@@ -102,7 +102,7 @@ public class NotificationsTest
         }
         else
         {
-            Assert.Fail("Did not valid acknowledgement");
+            Assert.Fail("Did not receive a valid handshake");
         }
     }
 

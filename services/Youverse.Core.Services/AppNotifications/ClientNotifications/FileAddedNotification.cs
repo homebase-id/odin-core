@@ -4,9 +4,9 @@ using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.AppNotifications.ClientNotifications
 {
-    public class FileAddedNotification : IOwnerConsoleNotification
+    public class FileAddedNotification : IClientNotification
     {
-        public string Key => "NewInboxItem";
+        public ClientNotificationType NotificationType { get; } = ClientNotificationType.FileAdded;
         
         public DotYouIdentity Sender { get; set; }
 

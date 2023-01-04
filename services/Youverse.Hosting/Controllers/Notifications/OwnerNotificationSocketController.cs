@@ -22,8 +22,8 @@ namespace Youverse.Hosting.Controllers.Notifications
     [AuthorizeValidOwnerToken]
     [Route(OwnerApiPathConstants.NotificationsV1)]
 
-    [AuthorizeValidAppExchangeGrant]
-    [Route(AppApiPathConstants.NotificationsV1)]
+    // [AuthorizeValidAppExchangeGrant]
+    // [Route(AppApiPathConstants.NotificationsV1)]
     public class NotificationSocketController : Controller
     {
         private readonly string _currentTenant;
@@ -35,7 +35,7 @@ namespace Youverse.Hosting.Controllers.Notifications
             _currentTenant = tenantProvider.GetCurrentTenant()!.Name;
         }
 
-        [Route("ws")]
+        [HttpGet("ws")]
         public async Task Connect()
         {
             if (HttpContext.WebSockets.IsWebSocketRequest)

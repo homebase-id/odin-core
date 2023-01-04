@@ -1,18 +1,15 @@
-﻿using System.Net.WebSockets;
+﻿using System;
+using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.AppNotifications.ClientNotifications;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Mediator;
 
 namespace Youverse.Core.Services.AppNotifications
 {
-    public class AppNotificationHandler : WebSocketHandlerBase,
-        INotificationHandler<IOwnerConsoleNotification>,
-        INotificationHandler<DriveFileChangedNotification>,
-        INotificationHandler<DriveFileDeletedNotification>
+    public class AppNotificationHandler : WebSocketHandlerBase, INotificationHandler<IClientNotification>
     {
         private readonly DotYouContextAccessor _contextAccessor;
 
@@ -29,6 +26,19 @@ namespace Youverse.Core.Services.AppNotifications
 
             var response = new EstablishConnectionResponse() { Success = true };
             await SendMessageAsync(socket, DotYouSystemSerializer.Serialize(response));
+            await ListenForDisconnect(socket);
+        }
+
+        private async Task ListenForDisconnect(WebSocket socket)
+        {
+            var buffer = new byte[1024 * 4];
+            var receiveResult = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+            if (receiveResult.MessageType == WebSocketMessageType.Close)
+            {
+                await this.OnDisconnected(socket);
+                //TODO: need to send the right response but not quite sure what that is.
+                // await socket.CloseAsync(receiveResult.CloseStatus.Value, "", CancellationToken.None);
+            }
         }
 
         public override async Task OnDisconnected(WebSocket socket)
@@ -41,7 +51,7 @@ namespace Youverse.Core.Services.AppNotifications
             throw new System.NotImplementedException();
         }
 
-        public async Task Handle(IOwnerConsoleNotification notification, CancellationToken cancellationToken)
+        public async Task Handle(IClientNotification notification, CancellationToken cancellationToken)
         {
             await this.SerializeSendToAll(notification);
         }
@@ -49,28 +59,12 @@ namespace Youverse.Core.Services.AppNotifications
         private async Task SerializeSendToAll(object notification)
         {
             var json = DotYouSystemSerializer.Serialize(notification);
-            
+
             var sockets = base.WebSocketConnectionManager.GetAll().Values;
             foreach (var socket in sockets)
             {
                 await this.SendMessageAsync(socket, json);
             }
-        }
-
-        public async Task Handle(DriveFileChangedNotification notification, CancellationToken cancellationToken)
-        {
-            var clientNotification = new ClientNotification()
-            {
-                NotificationType = ClientNotificationType.FileAdded,
-                Data = DotYouSystemSerializer.Serialize(notification)
-            };
-            
-            await this.SerializeSendToAll(clientNotification);
-        }
-
-        public async Task Handle(DriveFileDeletedNotification notification, CancellationToken cancellationToken)
-        {
-            await this.SerializeSendToAll(notification);
         }
     }
 }
