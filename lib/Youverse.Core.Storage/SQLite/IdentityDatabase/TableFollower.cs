@@ -9,6 +9,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
     public class FollowerItem
     {
         public string identity;
+        public UnixTimeUtc timeStamp;
         public Guid driveId;
     }
 
@@ -19,6 +20,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         private SQLiteCommand _insertCommand = null;
         private SQLiteParameter _iparam1 = null;
         private SQLiteParameter _iparam2 = null;
+        private SQLiteParameter _iparam3 = null;
         private static object _insertLock = new object();
 
         private SQLiteCommand _deleteCommand = null;
@@ -89,7 +91,8 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 cmd.CommandText =
                     @"CREATE TABLE IF NOT EXISTS followers(
-                     identity STRING NOT NULL, 
+                     identity STRING NOT NULL,
+                     timestamp INT NOT NULL,
                      driveid BLOB NOT NULL,
                      UNIQUE(identity,driveid)); "
                     + "CREATE INDEX if not exists followersidentityidx ON followers(identity);";
@@ -104,7 +107,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         /// <param name="identity">The identity following you</param>
         /// <returns>List of driveIds (possibly includinig Guid.Empty)</returns>
         /// <exception cref="Exception"></exception>
-        public List<Guid> Get(string identity)
+        public List<FollowerItem> Get(string identity)
         {
             if (identity == null || identity.Length < 1)
                 throw new Exception("identity cannot be NULL or empty.");
@@ -116,7 +119,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 {
                     _selectCommand = _keyValueDatabase.CreateCommand();
                     _selectCommand.CommandText =
-                        $"SELECT driveid FROM followers WHERE identity=$identity";
+                        $"SELECT driveid, timestamp FROM followers WHERE identity=$identity";
                     _sparam1 = _selectCommand.CreateParameter();
                     _sparam1.ParameterName = "$identity";
                     _selectCommand.Parameters.Add(_sparam1);
@@ -127,15 +130,21 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 using (SQLiteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.Default))
                 {
-                    var result = new List<Guid>();
+                    var result = new List<FollowerItem>();
                     byte[] _tmpbuf = new byte[16];
+                    var fi = new FollowerItem();
 
                     while (rdr.Read())
                     {
                         var n = rdr.GetBytes(0, 0, _tmpbuf, 0, 16);
                         if (n != GUID_SIZE)
                             throw new Exception("Not a GUID");
-                        result.Add(new Guid(_tmpbuf));
+                        var d = rdr.GetInt64(1);
+                        var f = new FollowerItem();
+                        f.identity = identity;
+                        f.timeStamp = new UnixTimeUtc((ulong) d);
+                        f.driveId = new Guid(_tmpbuf);
+                        result.Add(f);
                     }
 
                     return result;
@@ -229,21 +238,25 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 if (_insertCommand == null)
                 {
                     _insertCommand = _keyValueDatabase.CreateCommand();
-                    _insertCommand.CommandText = @"INSERT INTO followers(identity, driveid) " +
-                                                  "VALUES ($identity, $driveid)";
+                    _insertCommand.CommandText = @"INSERT INTO followers(identity, timestamp, driveid) " +
+                                                  "VALUES ($identity, $timestamp, $driveid)";
 
                     _iparam1 = _insertCommand.CreateParameter();
                     _iparam2 = _insertCommand.CreateParameter();
+                    _iparam3 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_iparam1);
                     _insertCommand.Parameters.Add(_iparam2);
+                    _insertCommand.Parameters.Add(_iparam3);
                     _iparam1.ParameterName = "$identity";
-                    _iparam2.ParameterName = "$driveid";
+                    _iparam2.ParameterName = "$timestamp";
+                    _iparam3.ParameterName = "$driveid";
 
                     _insertCommand.Prepare();
                 }
 
                 _iparam1.Value = identity;
-                _iparam2.Value = driveId;
+                _iparam2.Value = UnixTimeUtc.Now().milliseconds;
+                _iparam3.Value = driveId;
 
                 _insertCommand.ExecuteNonQuery();
             }
