@@ -9,6 +9,7 @@ using MediatR.Pipeline;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.AppNotifications;
+using Youverse.Core.Services.AppNotifications.ClientNotifications;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Apps.CommandMessaging;
 using Youverse.Core.Services.Authentication.Apps;
@@ -20,7 +21,6 @@ using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Certificate;
 using Youverse.Core.Services.Certificate.Renewal;
-using Youverse.Core.Services.ClientNotifications;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
@@ -29,7 +29,6 @@ using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Mediator;
-using Youverse.Core.Services.Mediator.ClientNotifications;
 using Youverse.Core.Services.Optimization.Cdn;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Tenant;
@@ -55,9 +54,11 @@ namespace Youverse.Hosting
 
             cb.RegisterType<SocketConnectionManager>().InstancePerDependency();
             cb.RegisterType<AppNotificationHandler>()
-                .As<INotificationHandler<NewInboxItemNotification>>()
+                .As<INotificationHandler<FileAddedNotification>>()
                 .As<INotificationHandler<ConnectionRequestReceived>>()
                 .As<INotificationHandler<ConnectionRequestAccepted>>()
+                .As<INotificationHandler<DriveFileChangedNotification>>()
+                .As<INotificationHandler<DriveFileDeletedNotification>>()
                 .AsSelf()
                 .SingleInstance();
 

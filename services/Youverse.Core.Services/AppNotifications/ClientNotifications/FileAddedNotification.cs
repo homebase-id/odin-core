@@ -1,15 +1,12 @@
 ﻿using System;
-using MediatR;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Drive;
 
-namespace Youverse.Core.Services.Mediator.ClientNotifications
+namespace Youverse.Core.Services.AppNotifications.ClientNotifications
 {
-    public class NewInboxItemNotification : IOwnerConsoleNotification
+    public class FileAddedNotification : IOwnerConsoleNotification
     {
         public string Key => "NewInboxItem";
-
-        public Guid InboxItemId { get; set; }
         
         public DotYouIdentity Sender { get; set; }
 

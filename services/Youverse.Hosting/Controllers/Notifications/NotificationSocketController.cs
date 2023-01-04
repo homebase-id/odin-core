@@ -13,6 +13,7 @@ using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Tenant;
 using Youverse.Core.Util;
 using Youverse.Hosting.Controllers.Anonymous;
+using Youverse.Hosting.Controllers.ClientToken;
 using Youverse.Hosting.Controllers.OwnerToken;
 
 namespace Youverse.Hosting.Controllers.Notifications
@@ -20,6 +21,9 @@ namespace Youverse.Hosting.Controllers.Notifications
     [ApiController]
     [AuthorizeValidOwnerToken]
     [Route(OwnerApiPathConstants.NotificationsV1)]
+
+    [AuthorizeValidAppExchangeGrant]
+    [Route(AppApiPathConstants.NotificationsV1)]
     public class NotificationSocketController : Controller
     {
         private readonly string _currentTenant;

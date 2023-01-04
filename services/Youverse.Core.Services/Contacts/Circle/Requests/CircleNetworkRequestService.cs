@@ -9,13 +9,13 @@ using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
+using Youverse.Core.Services.AppNotifications.ClientNotifications;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.EncryptionKeyService;
-using Youverse.Core.Services.Mediator.ClientNotifications;
 using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Contacts.Circle.Requests

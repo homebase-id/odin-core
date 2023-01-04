@@ -5,7 +5,7 @@ using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Youverse.Core.Services.ClientNotifications
+namespace Youverse.Core.Services.AppNotifications
 {
     public class SocketConnectionManager
     {

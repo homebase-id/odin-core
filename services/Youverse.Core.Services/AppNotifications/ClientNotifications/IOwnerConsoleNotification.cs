@@ -1,6 +1,6 @@
 using MediatR;
 
-namespace Youverse.Core.Services.Mediator.ClientNotifications
+namespace Youverse.Core.Services.AppNotifications.ClientNotifications
 {
     public interface IOwnerConsoleNotification : INotification
     {

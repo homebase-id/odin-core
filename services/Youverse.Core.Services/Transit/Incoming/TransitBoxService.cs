@@ -8,7 +8,6 @@ using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Mediator.ClientNotifications;
 using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Transit.Incoming

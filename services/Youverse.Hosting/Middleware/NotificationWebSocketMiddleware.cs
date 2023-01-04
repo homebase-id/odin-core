@@ -8,7 +8,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.AppNotifications;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.ClientNotifications;
 using Youverse.Hosting.Controllers.ClientToken;
 
 namespace Youverse.Hosting.Middleware

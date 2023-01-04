@@ -722,6 +722,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             }
 
             var targetDrive = instructionSet.StorageOptions.Drive;
+            
+            //Feature added much later in schedule but it means we don't have to thread sleep in our unit tests
+            if (options.ProcessOutbox && instructionSet.TransitOptions != null)
+            {
+                instructionSet.TransitOptions.Schedule = ScheduleOptions.SendNowAwaitResponse;
+            }
+            
             await this.EnsureDriveExists(sender, targetDrive, options.DriveAllowAnonymousReads);
 
             //Setup the drives on all recipient DIs
@@ -784,16 +791,16 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                     outboxBatchSize = transferResult.RecipientStatus.Count;
                 }
 
-                if (options is { ProcessOutbox: true })
-                {
-                    var resp = await transitSvc.ProcessOutbox(outboxBatchSize);
-                    Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
-                }
+                // if (options is { ProcessOutbox: true })
+                // {
+                //     var resp = await transitSvc.ProcessOutbox(outboxBatchSize);
+                //     Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
+                // }
 
                 if (options is { ProcessTransitBox: true })
                 {
                     //wait for process outbox to run
-                    Task.Delay(2000).Wait();
+                    // Task.Delay(2000).Wait();
 
                     foreach (var recipient in recipients)
                     {

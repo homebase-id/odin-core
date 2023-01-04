@@ -3,7 +3,6 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Youverse.Core.Services.ClientNotifications;
 
 namespace Youverse.Core.Services.AppNotifications
 {
