@@ -89,6 +89,7 @@ namespace Youverse.Hosting
             cb.RegisterType<DriveService>().As<IDriveService>().SingleInstance();
             cb.RegisterType<DriveQueryService>()
                 .As<IDriveQueryService>()
+                .As<INotificationHandler<DriveFileAddedNotification>>()
                 .As<INotificationHandler<DriveFileChangedNotification>>()
                 .As<INotificationHandler<DriveFileDeletedNotification>>()
                 .SingleInstance();
