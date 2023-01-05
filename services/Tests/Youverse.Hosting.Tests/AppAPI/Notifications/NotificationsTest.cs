@@ -190,7 +190,7 @@ public class NotificationsTest
 
         void ResponseReceived(Stream inputStream)
         {
-            var response = DotYouSystemSerializer.Deserialize<ClientNotification>(inputStream, tokenSource.Token)
+            var response = DotYouSystemSerializer.Deserialize<TranslatedClientNotification>(inputStream, tokenSource.Token)
                 .GetAwaiter().GetResult();
 
             Assert.IsNotNull(response);

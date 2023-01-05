@@ -302,7 +302,7 @@ namespace Youverse.Core.Services.Drive
             //Note: calling to get the file header so we can ensure the caller can read this file
 
             var header = await this.GetServerFileHeader(file);
-            if(header.FileMetadata.AppData.ContentIsComplete == false)
+            if (header.FileMetadata.AppData.ContentIsComplete == false)
             {
                 var stream = await GetLongTermStorageManager(file.DriveId).GetFilePartStream(file.FileId, FilePart.Payload);
                 return stream;
@@ -360,7 +360,7 @@ namespace Youverse.Core.Services.Drive
             return result;
         }
 
-        public async Task CommitTempFileToLongTerm(InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata, string payloadExtension)
+        public async Task CommitTempFileToNewLongTermFile(InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata, string payloadExtension)
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(targetFile.DriveId);
 
@@ -396,6 +396,12 @@ namespace Youverse.Core.Services.Drive
 
             //Note: calling write metadata last since it will call OnLongTermFileChanged to ensure it is indexed
             await this.UpdateActiveFileHeader(targetFile, serverHeader);
+
+            await _mediator.Publish(new DriveFileAddedNotification()
+            {
+                File = targetFile,
+                ServerFileHeader = serverHeader
+            });
         }
 
         public async Task OverwriteLongTermWithTempFile(InternalDriveFileId tempFile, InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
@@ -414,7 +420,7 @@ namespace Youverse.Core.Services.Drive
                 metadata.PayloadSize = new FileInfo(sourceFile).Length;
                 await storageManager.MoveToLongTerm(targetFile.FileId, sourceFile, FilePart.Payload);
             }
-            
+
             //TODO: clean up old payload if it was removed?
 
             var thumbs = metadata.AppData.AdditionalThumbnails?.ToList() ?? new List<ImageDataHeader>();
@@ -436,18 +442,12 @@ namespace Youverse.Core.Services.Drive
 
             //Note: calling write metadata last since it will call OnLongTermFileChanged to ensure it is indexed
             await this.UpdateActiveFileHeader(targetFile, serverHeader);
-        }
 
-
-        private void OnLongTermFileChanged(InternalDriveFileId file, ServerFileHeader header)
-        {
-            var notification = new DriveFileChangedNotification()
+            await _mediator.Publish(new DriveFileChangedNotification()
             {
-                File = file,
-                FileHeader = header
-            };
-
-            _mediator.Publish(notification);
+                File = targetFile,
+                ServerFileHeader = serverHeader
+            });
         }
 
         private async Task InitializeStorageDrives()
@@ -512,7 +512,6 @@ namespace Youverse.Core.Services.Drive
             var json = DotYouSystemSerializer.Serialize(header);
             var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
             await GetLongTermStorageManager(header.FileMetadata.File.DriveId).WritePartStream(header.FileMetadata.File.FileId, FilePart.Header, stream);
-            OnLongTermFileChanged(header.FileMetadata.File, header);
         }
     }
 }

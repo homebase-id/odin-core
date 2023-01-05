@@ -2,11 +2,20 @@ using Youverse.Core.Services.AppNotifications.ClientNotifications;
 
 namespace Youverse.Core.Services.AppNotifications;
 
-public class ClientNotification : IClientNotification
+public class TranslatedClientNotification : IClientNotification
 {
+    private readonly string _data;
+
+    public TranslatedClientNotification(ClientNotificationType type, string data)
+    {
+        NotificationType = type;
+        _data = data;
+    }
+
     public ClientNotificationType NotificationType { get; set; }
+
     public string GetClientData()
     {
-        throw new System.NotImplementedException();
+        return _data;
     }
 }

@@ -220,6 +220,16 @@ public class DriveUploadService
                     }
                 }
             }
+
+            //target is same file because it's set earlier in the upload process
+            //using overwrite here so we can ensure the right event is called
+            var targetFile = package.InternalFile;
+            await _driveService.OverwriteLongTermWithTempFile(tempFile: package.InternalFile,
+                targetFile: targetFile,
+                keyHeader: keyHeader,
+                metadata: metadata,
+                serverMetadata: serverMetadata,
+                payloadExtension: MultipartUploadParts.Payload.ToString());
         }
         else
         {
@@ -233,9 +243,10 @@ public class DriveUploadService
                     throw new YouverseClientException($"File already exists with ClientUniqueId: [{incomingClientUniqueId}]", YouverseClientErrorCode.ExistingFileWithUniqueId);
                 }
             }
+            
+            await _driveService.CommitTempFileToNewLongTermFile(package.InternalFile, keyHeader, metadata, serverMetadata, MultipartUploadParts.Payload.ToString());
         }
 
-        await _driveService.CommitTempFileToLongTerm(package.InternalFile, keyHeader, metadata, serverMetadata, MultipartUploadParts.Payload.ToString());
 
         Dictionary<string, TransferStatus> recipientStatus = null;
         var recipients = package.InstructionSet.TransitOptions?.Recipients;
@@ -272,7 +283,7 @@ public class DriveUploadService
         metadataStream.Close();
 
         var json = System.Text.Encoding.UTF8.GetString(jsonBytes);
-        
+
         var uploadDescriptor = DotYouSystemSerializer.Deserialize<UploadFileDescriptor>(json);
 
         var transferEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;

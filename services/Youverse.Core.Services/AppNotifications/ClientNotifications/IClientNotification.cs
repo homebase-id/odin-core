@@ -1,4 +1,6 @@
 using MediatR;
+using Youverse.Core.Services.Apps;
+using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.AppNotifications.ClientNotifications
 {
@@ -11,5 +13,13 @@ namespace Youverse.Core.Services.AppNotifications.ClientNotifications
         /// </summary>
         /// <returns></returns>
         string GetClientData();
+    }
+    
+    public interface IDriveClientNotification : INotification
+    {
+        ClientNotificationType NotificationType { get; }
+        
+        public InternalDriveFileId File { get; set; }
+        
     }
 }

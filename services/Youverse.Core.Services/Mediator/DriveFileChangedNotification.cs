@@ -8,23 +8,14 @@ using Youverse.Core.Services.Drive.Storage;
 
 namespace Youverse.Core.Services.Mediator
 {
-    public class DriveFileChangedNotification : EventArgs, INotification, IClientNotification
+    public class DriveFileChangedNotification : EventArgs, INotification, IDriveClientNotification
     {
         public ClientNotificationType NotificationType { get; } = ClientNotificationType.FileModified;
-        public InternalDriveFileId File { get; set; }
 
-        public ServerFileHeader FileHeader { get; set; }
+        public InternalDriveFileId File { get; set; }
+        public ServerFileHeader ServerFileHeader { get; set; }
+
+        public ExternalFileIdentifier ExternalFile { get; set; }
         
-        public string GetClientData()
-        {
-            return DotYouSystemSerializer.Serialize(new
-            {
-                File = new ExternalFileIdentifier()
-                {
-                    FileId = this.File.FileId,
-                    TargetDrive = null
-                }
-            });
-        }
     }
 }

@@ -1,29 +1,36 @@
 ﻿using System;
-using System.IO.Compression;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.AppNotifications.ClientNotifications;
+using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drive.Query;
 
 namespace Youverse.Core.Services.AppNotifications
 {
-    public class AppNotificationHandler : INotificationHandler<IClientNotification>
+    public class AppNotificationHandler : INotificationHandler<IClientNotification>, INotificationHandler<IDriveClientNotification>
     {
-        private DeviceSocketCollection _deviceSocketCollection { get; set; }
+        private readonly DeviceSocketCollection _deviceSocketCollection;
         private readonly DotYouContextAccessor _contextAccessor;
+        private readonly IAppService _appService;
+        private readonly IDriveService _driveService;
 
-        public AppNotificationHandler(DotYouContextAccessor contextAccessor)
+        public AppNotificationHandler(DotYouContextAccessor contextAccessor, IAppService appService, IDriveService driveService)
         {
             _contextAccessor = contextAccessor;
+            _appService = appService;
+            _driveService = driveService;
             _deviceSocketCollection = new DeviceSocketCollection();
         }
 
         public async Task Connect(WebSocket socket, EstablishConnectionRequest request)
         {
             var dotYouContext = _contextAccessor.GetCurrent();
+
             var deviceSocket = new DeviceSocket()
             {
                 Key = Guid.NewGuid(),
@@ -55,15 +62,28 @@ namespace Youverse.Core.Services.AppNotifications
             await this.SerializeSendToAllDevices(notification);
         }
 
+        public Task Handle(IDriveClientNotification notification, CancellationToken cancellationToken)
+        {
+            //lookup the file from the _appService
+            var data = DotYouSystemSerializer.Serialize(new
+            {
+                TargetDrive = _driveService.GetDrive(notification.File.DriveId).GetAwaiter().GetResult().TargetDriveInfo,
+                Header = _appService.GetClientEncryptedFileHeader(notification.File).GetAwaiter().GetResult()
+            });
+
+            SerializeSendToAllDevices(new TranslatedClientNotification(notification.NotificationType, data)).GetAwaiter().GetResult();
+            return Task.CompletedTask;
+        }
+
         private async Task SerializeSendToAllDevices(IClientNotification notification)
         {
             //TODO:  Need to map the notification correctly so we know the type of notification AND only get the data we expect 
-            var json = DotYouSystemSerializer.Serialize(new 
+            var json = DotYouSystemSerializer.Serialize(new
             {
                 NotificationType = notification.NotificationType,
                 Data = notification.GetClientData()
             });
-            
+
             var sockets = this._deviceSocketCollection.GetAll().Values;
             foreach (var deviceSocket in sockets)
             {

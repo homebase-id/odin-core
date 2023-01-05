@@ -1,6 +1,5 @@
 using System;
 using MediatR;
-using Youverse.Core.Serialization;
 using Youverse.Core.Services.AppNotifications;
 using Youverse.Core.Services.AppNotifications.ClientNotifications;
 using Youverse.Core.Services.Drive;
@@ -8,22 +7,11 @@ using Youverse.Core.Services.Drive.Storage;
 
 namespace Youverse.Core.Services.Mediator;
 
-public class DriveFileAddedNotification : EventArgs, INotification, IClientNotification
+public class DriveFileAddedNotification : EventArgs, INotification, IDriveClientNotification
 {
-    public ClientNotificationType NotificationType { get; } = ClientNotificationType.FileModified;
+    public ClientNotificationType NotificationType { get; } = ClientNotificationType.FileAdded;
+    
     public InternalDriveFileId File { get; set; }
 
-    public ServerFileHeader FileHeader { get; set; }
-        
-    public string GetClientData()
-    {
-        return DotYouSystemSerializer.Serialize(new
-        {
-            File = new ExternalFileIdentifier()
-            {
-                FileId = this.File.FileId,
-                TargetDrive = null
-            }
-        });
-    }
+    public ServerFileHeader ServerFileHeader { get; set; }
 }

@@ -159,7 +159,7 @@ namespace Youverse.Core.Services.Transit
         private async Task StoreCommandMessage(InternalDriveFileId tempFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
         {
             serverMetadata.DoNotIndex = true;
-            await _driveService.CommitTempFileToLongTerm(tempFile, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
+            await _driveService.CommitTempFileToNewLongTermFile(tempFile, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
             await _driveQueryService.EnqueueCommandMessage(tempFile.DriveId, new List<Guid>() { tempFile.FileId });
         }
 
@@ -217,7 +217,7 @@ namespace Youverse.Core.Services.Transit
             }
 
 
-            await _driveService.CommitTempFileToLongTerm(tempFile, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
+            await _driveService.CommitTempFileToNewLongTermFile(tempFile, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
 
         }
 
