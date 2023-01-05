@@ -1,19 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.SQLite;
-using System.Security.Principal;
-using Youverse.Core.Storage.SQLite.KeyValue;
+
+//
+// FollowsMe - this class stores all the people that follow me.
+// I.e. the people I need to notify when I update some content.
+//
 
 namespace Youverse.Core.Storage.SQLite.KeyValue
 {
-    public class FollowerItem
+    public class FollowesMeItem
     {
         public string identity;
         public UnixTimeUtc timeStamp;
         public Guid driveId;
     }
 
-    public class TableFollower : TableKeyValueBase  // Make it IDisposable??
+    public class TableFollowsMe : TableKeyValueBase
     {
         public const int GUID_SIZE = 16; // Precisely 16 bytes for the ID key
 
@@ -39,11 +42,11 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         private SQLiteParameter _s2param2 = null;
         private static object _select2Lock = new object();
 
-        public TableFollower(KeyValueDatabase db) : base(db)
+        public TableFollowsMe(KeyValueDatabase db) : base(db)
         {
         }
 
-        ~TableFollower()
+        ~TableFollowsMe()
         {
             if (_insertCommand != null)
             {
@@ -105,9 +108,9 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         /// For the given identity, return all drives being followed (and possibly Guid.Empty for everything)
         /// </summary>
         /// <param name="identity">The identity following you</param>
-        /// <returns>List of driveIds (possibly includinig Guid.Empty)</returns>
+        /// <returns>List of driveIds (possibly includinig Guid.Empty for 'follow all')</returns>
         /// <exception cref="Exception"></exception>
-        public List<FollowerItem> Get(string identity)
+        public List<FollowesMeItem> Get(string identity)
         {
             if (identity == null || identity.Length < 1)
                 throw new Exception("identity cannot be NULL or empty.");
@@ -130,9 +133,9 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 using (SQLiteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.Default))
                 {
-                    var result = new List<FollowerItem>();
+                    var result = new List<FollowesMeItem>();
                     byte[] _tmpbuf = new byte[16];
-                    var fi = new FollowerItem();
+                    var fi = new FollowesMeItem();
 
                     while (rdr.Read())
                     {
@@ -140,7 +143,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                         if (n != GUID_SIZE)
                             throw new Exception("Not a GUID");
                         var d = rdr.GetInt64(1);
-                        var f = new FollowerItem();
+                        var f = new FollowesMeItem();
                         f.identity = identity;
                         f.timeStamp = new UnixTimeUtc((ulong) d);
                         f.driveId = new Guid(_tmpbuf);

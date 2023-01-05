@@ -6,7 +6,7 @@ using Youverse.Core.Storage.SQLite.KeyValue;
 
 namespace IndexerTests.KeyValue
 {
-    public class TableFollowersTests
+    public class TableFollowersMeTests
     {
         [Test]
         public void ExampleTest()

@@ -31,7 +31,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
  		public TableInbox tblInbox = null;
         public TableOutbox tblOutbox = null;
         public TableCircle tblCircle = null;
-        public TableFollower tblFollow = null;
+        public TableFollowsMe tblFollow = null;
         public TableCircleMember tblCircleMember = null;
 
         private Object _getConnectionLock = new Object();
@@ -49,7 +49,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
             tblOutbox = new TableOutbox(this);
             tblCircle = new TableCircle(this);
             tblCircleMember = new TableCircleMember(this);
-            tblFollow = new TableFollower(this);
+            tblFollow = new TableFollowsMe(this);
         }
 
 
