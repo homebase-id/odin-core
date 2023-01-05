@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
@@ -6,7 +7,6 @@ using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Storage;
 
@@ -99,39 +99,51 @@ namespace Youverse.Core.Services.EncryptionKeyService
         }
 
 
+        private static readonly SemaphoreSlim _rsaPublicKeyCacheLock = new SemaphoreSlim(1, 1);
+
         public async Task<RsaPublicKeyData> GetRecipientOfflinePublicKey(DotYouIdentity recipient, bool lookupIfInvalid = true, bool failIfCannotRetrieve = true)
         {
             //TODO: need to clean up the cache for expired items
             //TODO: optimize by reading a dictionary cache
-            var cacheItem = _tenantSystemStorage.SingleKeyValueStorage.Get<RsaPublicKeyData>(GuidId.FromString(recipient.Id));
-            
-            if ((cacheItem == null || cacheItem.IsExpired()) && lookupIfInvalid)
-            {
-                var svc = _dotYouHttpClientFactory.CreateClient<IEncryptionKeyServiceHttpClient>(recipient);
-                var tpkResponse = await svc.GetOfflinePublicKey();
 
-                if (tpkResponse.Content == null || !tpkResponse.IsSuccessStatusCode)
+            await _rsaPublicKeyCacheLock.WaitAsync();
+            try
+            {
+                var cacheItem = _tenantSystemStorage.SingleKeyValueStorage.Get<RsaPublicKeyData>(GuidId.FromString(recipient.Id));
+
+                if ((cacheItem == null || cacheItem.IsExpired()) && lookupIfInvalid)
                 {
-                    // this._logger.LogWarning("Transit public key is invalid");
-                    return null;
+
+                    var svc = _dotYouHttpClientFactory.CreateClient<IEncryptionKeyServiceHttpClient>(recipient);
+                    var tpkResponse = await svc.GetOfflinePublicKey();
+
+                    if (tpkResponse.Content == null || !tpkResponse.IsSuccessStatusCode)
+                    {
+                        // this._logger.LogWarning("Transit public key is invalid");
+                        return null;
+                    }
+
+                    cacheItem = new RsaPublicKeyData()
+                    {
+                        publicKey = tpkResponse.Content.PublicKey,
+                        crc32c = tpkResponse.Content.Crc32,
+                        expiration = new UnixTimeUtc(tpkResponse.Content.Expiration)
+                    };
+
+                    _tenantSystemStorage.SingleKeyValueStorage.Upsert(GuidId.FromString(recipient.Id), cacheItem);
                 }
 
-                cacheItem = new RsaPublicKeyData()
+                if (null == cacheItem && failIfCannotRetrieve)
                 {
-                    publicKey = tpkResponse.Content.PublicKey,
-                    crc32c = tpkResponse.Content.Crc32,
-                    expiration = new UnixTimeUtc(tpkResponse.Content.Expiration)
-                };
+                    throw new MissingDataException("Could not get recipients offline public key");
+                }
 
-                _tenantSystemStorage.SingleKeyValueStorage.Upsert(GuidId.FromString(recipient.Id), cacheItem);
+                return cacheItem;
             }
-
-            if (null == cacheItem && failIfCannotRetrieve)
+            finally
             {
-                throw new MissingDataException("Could not get recipients offline public key");
+                _rsaPublicKeyCacheLock.Release();
             }
-
-            return cacheItem;
         }
 
         public async Task<RsaEncryptedPayload> EncryptPayloadForRecipient(string recipient, byte[] payload)
