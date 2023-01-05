@@ -19,14 +19,14 @@ using Youverse.Hosting.Controllers.OwnerToken;
 namespace Youverse.Hosting.Controllers.Notifications
 {
     [ApiController]
-    [AuthorizeValidOwnerToken]
-    [Route(OwnerApiPathConstants.NotificationsV1)]
-    public class OwnerNotificationSocketController : Controller
+    [AuthorizeValidAppExchangeGrant]
+    [Route(AppApiPathConstants.NotificationsV1)]
+    public class AppNotificationSocketController : Controller
     {
         private readonly string _currentTenant;
         private AppNotificationHandler _notificationHandler;
 
-        public OwnerNotificationSocketController(ITenantProvider tenantProvider, AppNotificationHandler notificationHandler)
+        public AppNotificationSocketController(ITenantProvider tenantProvider, AppNotificationHandler notificationHandler)
         {
             _notificationHandler = notificationHandler;
             _currentTenant = tenantProvider.GetCurrentTenant()!.Name;
