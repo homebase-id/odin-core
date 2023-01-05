@@ -9,12 +9,8 @@ using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.AppNotifications;
-using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Tenant;
-using Youverse.Core.Util;
-using Youverse.Hosting.Controllers.Anonymous;
 using Youverse.Hosting.Controllers.ClientToken;
-using Youverse.Hosting.Controllers.OwnerToken;
 
 namespace Youverse.Hosting.Controllers.Notifications
 {
@@ -76,26 +72,5 @@ namespace Youverse.Hosting.Controllers.Notifications
             return request;
         }
 
-        private static async Task Echo(WebSocket webSocket)
-        {
-            var buffer = new byte[1024 * 4];
-            var receiveResult = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-
-            while (!receiveResult.CloseStatus.HasValue)
-            {
-                await webSocket.SendAsync(
-                    new ArraySegment<byte>(buffer, 0, receiveResult.Count),
-                    receiveResult.MessageType,
-                    receiveResult.EndOfMessage,
-                    CancellationToken.None);
-
-                receiveResult = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-            }
-
-            await webSocket.CloseAsync(
-                receiveResult.CloseStatus.Value,
-                receiveResult.CloseStatusDescription,
-                CancellationToken.None);
-        }
     }
 }

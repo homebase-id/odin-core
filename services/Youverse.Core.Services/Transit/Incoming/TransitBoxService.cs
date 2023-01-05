@@ -8,6 +8,7 @@ using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Mediator;
 using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Transit.Incoming
@@ -21,8 +22,7 @@ namespace Youverse.Core.Services.Transit.Incoming
         private readonly IMediator _mediator;
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly IDriveService _driveService;
-
-
+        
         public TransitBoxService(ILogger<ITransitBoxService> logger, ITenantSystemStorage tenantSystemStorage, IMediator mediator, DotYouContextAccessor contextAccessor, IDriveService driveService)
         {
             _tenantSystemStorage = tenantSystemStorage;
@@ -38,16 +38,16 @@ namespace Youverse.Core.Services.Transit.Incoming
             var state = DotYouSystemSerializer.Serialize(item).ToUtf8ByteArray();
             _tenantSystemStorage.Inbox.InsertRow(item.DriveId.ToByteArray(), item.FileId.ToByteArray(), 1, state);
 
-            // _mediator.Publish(new NewInboxItemNotification()
-            // {
-            //     InboxItemId = item.Id,
-            //     Sender = item.Sender,
-            //     TempFile = new ExternalFileIdentifier()
-            //     {
-            //         TargetDrive = _driveService.GetDrive(item.DriveId).Result.TargetDriveInfo,
-            //         FileId = item.FileId
-            //     }
-            // });
+            _mediator.Publish(new TransitFileReceivedNotification()
+            {
+                // InboxItemId = item.Id,
+                // Sender = item.Sender,
+                TempFile = new ExternalFileIdentifier()
+                {
+                    TargetDrive = _driveService.GetDrive(item.DriveId).Result.TargetDriveInfo,
+                    FileId = item.FileId
+                }
+            });
 
             return Task.CompletedTask;
         }

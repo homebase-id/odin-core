@@ -8,22 +8,25 @@ using Youverse.Core.Services.AppNotifications.ClientNotifications;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Query;
+using Youverse.Core.Services.Mediator;
+using Youverse.Core.Services.Transit;
 
 namespace Youverse.Core.Services.AppNotifications
 {
-    public class AppNotificationHandler : INotificationHandler<IClientNotification>, INotificationHandler<IDriveClientNotification>
+    public class AppNotificationHandler : INotificationHandler<IClientNotification>, INotificationHandler<IDriveClientNotification>, INotificationHandler<TransitFileReceivedNotification>
     {
         private readonly DeviceSocketCollection _deviceSocketCollection;
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly IAppService _appService;
         private readonly IDriveService _driveService;
+        private readonly ITransitAppService _transitAppService;
 
-        public AppNotificationHandler(DotYouContextAccessor contextAccessor, IAppService appService, IDriveService driveService)
+        public AppNotificationHandler(DotYouContextAccessor contextAccessor, IAppService appService, IDriveService driveService, ITransitAppService transitAppService)
         {
             _contextAccessor = contextAccessor;
             _appService = appService;
             _driveService = driveService;
+            _transitAppService = transitAppService;
             _deviceSocketCollection = new DeviceSocketCollection();
         }
 
@@ -64,7 +67,6 @@ namespace Youverse.Core.Services.AppNotifications
 
         public Task Handle(IDriveClientNotification notification, CancellationToken cancellationToken)
         {
-            //lookup the file from the _appService
             var data = DotYouSystemSerializer.Serialize(new
             {
                 TargetDrive = _driveService.GetDrive(notification.File.DriveId).GetAwaiter().GetResult().TargetDriveInfo,
@@ -77,7 +79,6 @@ namespace Youverse.Core.Services.AppNotifications
 
         private async Task SerializeSendToAllDevices(IClientNotification notification)
         {
-            //TODO:  Need to map the notification correctly so we know the type of notification AND only get the data we expect 
             var json = DotYouSystemSerializer.Serialize(new
             {
                 NotificationType = notification.NotificationType,
@@ -113,6 +114,13 @@ namespace Youverse.Core.Services.AppNotifications
                 //HACK: need to find out what is trying to write when the response is complete
                 Console.WriteLine(e);
             }
+        }
+
+        public Task Handle(TransitFileReceivedNotification notification, CancellationToken cancellationToken)
+        {
+            //calling this here is not working when picking up from the transit because it's running in the transit context (so the sender does not have access)
+            _transitAppService.ProcessIncomingTransitInstructions(notification.TempFile.TargetDrive).GetAwaiter().GetResult();
+            return Task.CompletedTask;
         }
     }
 }
