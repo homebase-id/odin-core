@@ -79,18 +79,18 @@ namespace IndexerTests.KeyValue
             db.tblFollow.InsertFollower("thor.valhalla.com", g1);
 
             var r = db.tblFollow.Get(i1);
-            Debug.Assert((ByteArrayUtil.muidcmp(r[0], g1) == 0) || (ByteArrayUtil.muidcmp(r[0], g2) == 0));
-            Debug.Assert((ByteArrayUtil.muidcmp(r[1], g1) == 0) || (ByteArrayUtil.muidcmp(r[1], g2) == 0));
+            Debug.Assert((ByteArrayUtil.muidcmp(r[0].driveId, g1) == 0) || (ByteArrayUtil.muidcmp(r[0].driveId, g2) == 0));
+            Debug.Assert((ByteArrayUtil.muidcmp(r[1].driveId, g1) == 0) || (ByteArrayUtil.muidcmp(r[1].driveId, g2) == 0));
 
             // This is OK {odin.vahalla.com, {000000}}
             db.tblFollow.InsertFollower(i1, null);
             r = db.tblFollow.Get(i1);
-            Debug.Assert((ByteArrayUtil.muidcmp(r[0], Guid.Empty) == 0) || (ByteArrayUtil.muidcmp(r[1], Guid.Empty) == 0) || (ByteArrayUtil.muidcmp(r[2], Guid.Empty) == 0));
+            Debug.Assert((ByteArrayUtil.muidcmp(r[0].driveId, Guid.Empty) == 0) || (ByteArrayUtil.muidcmp(r[1].driveId, Guid.Empty) == 0) || (ByteArrayUtil.muidcmp(r[2].driveId, Guid.Empty) == 0));
 
             // Test non ASCII
             db.tblFollow.InsertFollower("ødin.valhalla.com", g1);
             r = db.tblFollow.Get("ødin.valhalla.com");
-            Debug.Assert(ByteArrayUtil.muidcmp(r[0], g1) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(r[0].driveId, g1) == 0);
         }
 
 

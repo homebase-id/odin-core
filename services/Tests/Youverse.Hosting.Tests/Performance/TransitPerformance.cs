@@ -36,8 +36,8 @@ namespace Youverse.Hosting.Tests.Performance
         private const int FileType = 844;
 
         // For the performance test
-        private const int MAXTHREADS = 10; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
-        const int MAXITERATIONS = 100; // A number high enough to get warmed up and reliable
+        private const int MAXTHREADS = 8; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
+        const int MAXITERATIONS = 40; // A number high enough to get warmed up and reliable
 
         private WebScaffold _scaffold;
 
@@ -72,6 +72,74 @@ namespace Youverse.Hosting.Tests.Performance
             var frodoAppContext = scenarioCtx.AppContexts[TestIdentities.Frodo.DotYouId];
             var samAppContext = scenarioCtx.AppContexts[TestIdentities.Samwise.DotYouId];
 
+            //
+            // Now back to performance testing
+            //
+            var sw = new Stopwatch();
+            sw.Reset();
+            sw.Start();
+
+            for (var i = 0; i < MAXTHREADS; i++)
+            {
+                tasks[i] = Task.Run(async () =>
+                {
+                    var (tmp, measurements) = await DoChat(i, MAXITERATIONS, frodoAppContext, samAppContext);
+                    Debug.Assert(measurements.Length == MAXITERATIONS);
+                    lock (timers)
+                    {
+                        fileByteLength += tmp;
+                        timers.Add(measurements);
+                    }
+                });
+            }
+
+            try
+            {
+                Task.WaitAll(tasks);
+            }
+            catch (AggregateException ae)
+            {
+                foreach (var ex in ae.InnerExceptions)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+
+                throw;
+            }
+
+            sw.Stop();
+
+            Debug.Assert(timers.Count == MAXTHREADS);
+            long[] oneDimensionalArray = timers.SelectMany(arr => arr).ToArray();
+            Debug.Assert(oneDimensionalArray.Length == (MAXTHREADS * MAXITERATIONS));
+
+            Array.Sort(oneDimensionalArray);
+            for (var i = 1; i < MAXTHREADS * MAXITERATIONS; i++)
+                Debug.Assert(oneDimensionalArray[i - 1] <= oneDimensionalArray[i]);
+
+            Console.WriteLine($"Threads   : {MAXTHREADS}");
+            Console.WriteLine($"Iterations: {MAXITERATIONS}");
+            Console.WriteLine($"Time      : {sw.ElapsedMilliseconds}ms");
+            Console.WriteLine($"Minimum   : {oneDimensionalArray[0]}ms");
+            Console.WriteLine($"Maximum   : {oneDimensionalArray[MAXTHREADS * MAXITERATIONS - 1]}ms");
+            Console.WriteLine($"Average   : {oneDimensionalArray.Sum() / (MAXTHREADS * MAXITERATIONS)}ms");
+            Console.WriteLine($"Median    : {oneDimensionalArray[(MAXTHREADS * MAXITERATIONS) / 2]}ms");
+
+            Console.WriteLine(
+                $"Capacity  : {(1000 * MAXITERATIONS * MAXTHREADS) / Math.Max(1, sw.ElapsedMilliseconds)} / second");
+            Console.WriteLine(
+                $"Bandwidth : {1000 * (fileByteLength / Math.Max(1, sw.ElapsedMilliseconds))} bytes / second");
+        }
+
+
+
+        public async Task<(long, long[])> DoChat(int threadno, int iterations, TestAppContext frodoAppContext, TestAppContext samAppContext)
+        {
+            long fileByteLength = 0;
+            long[] timers = new long[iterations];
+            Debug.Assert(timers.Length == iterations);
+            var sw = new Stopwatch();
+
             var randomHeaderContent = string.Join("", Enumerable.Range(10, 10).Select(i => Guid.NewGuid().ToString("N"))); // 32 * 10 = 320 bytes
             var randomPayloadContent = string.Join("", Enumerable.Range(2468, 2468).Select(i => Guid.NewGuid().ToString("N"))); // 32 * 2468 = 78,976 bytes, almost same size as public test
 
@@ -80,20 +148,30 @@ namespace Youverse.Hosting.Tests.Performance
                 samAppContext.Identity.ToString()
             };
 
-            var sendMessageResult = await SendMessage(frodoAppContext, recipients, randomHeaderContent, randomPayloadContent);
 
-            var samMessageHeaders = await GetMessages(samAppContext);
-
-            foreach (var msg in samMessageHeaders)
+            for (int count = 0; count < iterations; count++)
             {
-                //TODO: the message data will be encrypted. Let me know if you want to decrypt but I dont think that's needed for perf testing
-                Console.WriteLine(msg.FileMetadata.AppData.JsonContent);
+                sw.Restart();
+                var sendMessageResult = await SendMessage(frodoAppContext, recipients, randomHeaderContent, randomPayloadContent);
+                var samMessageHeaders = await GetMessages(samAppContext);
+
+                foreach (var msg in samMessageHeaders)
+                {
+                    fileByteLength += msg.FileMetadata.AppData.JsonContent.Length;
+                    //TODO: the message data will be encrypted. Let me know if you want to decrypt but I dont think that's needed for perf testing
+                    //Console.WriteLine(msg.FileMetadata.AppData.JsonContent);
+                }
+
+                // Finished doing all the work
+                timers[count] = sw.ElapsedMilliseconds;
             }
 
-            //
-            // Now back to performance testing
-            //
+
+            return (fileByteLength, timers);
         }
+
+
+
 
         private async Task<List<ClientFileHeader>> GetMessages(TestAppContext recipientAppContext)
         {
@@ -330,8 +408,6 @@ namespace Youverse.Hosting.Tests.Performance
 
                 decryptedKeyHeader.AesKey.Wipe();
                 keyHeader.AesKey.Wipe();
-                ownerSharedSecret.Wipe();
-
 
                 //
                 // End testing that the file was correctly uploaded
