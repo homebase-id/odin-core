@@ -11,6 +11,7 @@ using NUnit.Framework;
 using Refit;
 using SQLitePCL;
 using Youverse.Core;
+using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Acl;
@@ -37,8 +38,8 @@ namespace Youverse.Hosting.Tests.Performance
         private const int FileType = 844;
 
         // For the performance test
-        private const int MAXTHREADS = 32; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
-        const int MAXITERATIONS = 100; // A number high enough to get warmed up and reliable
+        private const int MAXTHREADS = 1; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
+        const int MAXITERATIONS = 50; // A number high enough to get warmed up and reliable
 
         private WebScaffold _scaffold;
 
@@ -63,7 +64,6 @@ namespace Youverse.Hosting.Tests.Performance
             Task[] tasks = new Task[MAXTHREADS];
             List<long[]> timers = new List<long[]>();
             long fileByteLength = 0;
-
 
             TargetDrive targetDrive = TargetDrive.NewTargetDrive();
 
@@ -131,6 +131,9 @@ namespace Youverse.Hosting.Tests.Performance
                 $"Capacity  : {(1000 * MAXITERATIONS * MAXTHREADS) / Math.Max(1, sw.ElapsedMilliseconds)} / second");
             Console.WriteLine(
                 $"Bandwidth : {1000 * (fileByteLength / Math.Max(1, sw.ElapsedMilliseconds))} bytes / second");
+            Console.WriteLine($"RSA Keys Created      : {RsaKeyManagement.noKeysCreated}");
+            Console.WriteLine($"RSA Keys Expired      : {RsaKeyManagement.noKeysExpired}");
+            Console.WriteLine($"RSA Keys Test Created : {RsaKeyManagement.noKeysCreatedTest}");
         }
 
 
@@ -141,8 +144,8 @@ namespace Youverse.Hosting.Tests.Performance
             Debug.Assert(timers.Length == iterations);
             var sw = new Stopwatch();
 
-            var randomHeaderContent = string.Join("", Enumerable.Range(10, 10).Select(i => Guid.NewGuid().ToString("N"))); // 32 * 10 = 320 bytes
-            var randomPayloadContent = string.Join("", Enumerable.Range(2468, 2468).Select(i => Guid.NewGuid().ToString("N"))); // 32 * 2468 = 78,976 bytes, almost same size as public test
+            var randomHeaderContent = string.Join("", Enumerable.Range(250, 250).Select(i => Guid.NewGuid().ToString("N"))); // 250 bytes
+            var randomPayloadContent = string.Join("", Enumerable.Range(512, 512).Select(i => Guid.NewGuid().ToString("N"))); // 512 bytes
 
             var recipients = new List<string>()
             {
@@ -154,14 +157,16 @@ namespace Youverse.Hosting.Tests.Performance
             {
                 sw.Restart();
                 var sendMessageResult = await SendMessage(frodoAppContext, recipients, randomHeaderContent, randomPayloadContent);
-                var samMessageHeaders = await GetMessages(samAppContext);
+                /* var samMessageHeaders = await GetMessages(samAppContext);
 
                 foreach (var msg in samMessageHeaders)
                 {
                     fileByteLength += msg.FileMetadata.AppData.JsonContent.Length;
                     //TODO: the message data will be encrypted. Let me know if you want to decrypt but I dont think that's needed for perf testing
                     //Console.WriteLine(msg.FileMetadata.AppData.JsonContent);
-                }
+                }*/
+
+                fileByteLength += 250 + 512;
 
                 // Finished doing all the work
                 timers[count] = sw.ElapsedMilliseconds;

@@ -152,6 +152,7 @@ namespace Youverse.Core.Cryptography.Data
             this.publicKey = publicKeyInfo.GetDerEncoded();
             this.crc32c = this.KeyCRC();
 
+            RsaKeyManagement.noKeysCreated++;
         }
 
         /// <summary>
@@ -161,12 +162,13 @@ namespace Youverse.Core.Cryptography.Data
         {
             // ONLY USE FOR TESTING. DOES NOT CREATE PUBLIC KEY PROPERLY
             CreatePrivate(ref key, derEncodedFullKey);
-            
+
             //_privateKey = new SensitiveByteArray(derEncodedFullKey);
             // createdTimeStamp = DateTimeExtensions.UnixTimeSeconds();
             //var pkRestored = PublicKeyFactory.CreateKey(derEncodedFulKey);
             //var pk = SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(pkRestored);
             //publicKey = pk.GetDerEncoded();
+            RsaKeyManagement.noKeysCreatedTest++;
         }
 
 
