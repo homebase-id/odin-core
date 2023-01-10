@@ -334,7 +334,7 @@ namespace Youverse.Core.Storage.SQLite
         {
             bool isLocalTransaction = false;
 
-            // lock (_getTransactionLock)
+            lock (_getTransactionLock)
             {
                 if (_transaction == null)
                 {
