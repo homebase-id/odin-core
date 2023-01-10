@@ -94,6 +94,8 @@ namespace Youverse.Hosting.Authentication.ClientToken
                 var (appId, permissionContext) = await appRegService.GetPermissionContext(authToken);
 
                 dotYouContext.SetPermissionContext(permissionContext);
+                appRegService.CacheContext(authToken, dotYouContext);
+
             }
 
             var claims = new List<Claim>();

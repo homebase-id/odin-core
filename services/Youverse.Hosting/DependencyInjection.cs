@@ -105,6 +105,9 @@ namespace Youverse.Hosting
             cb.RegisterType<OutboxService>().As<IOutboxService>().SingleInstance();
             cb.RegisterType<TransitAppService>().As<ITransitAppService>().SingleInstance();
 
+            cb.RegisterType<TransitContextCache>().As<TransitContextCache>().SingleInstance();
+            
+
 
             cb.RegisterType<TransferKeyEncryptionQueueService>().As<ITransferKeyEncryptionQueueService>().SingleInstance();
             cb.RegisterType<TransitBoxService>().As<ITransitBoxService>().SingleInstance();

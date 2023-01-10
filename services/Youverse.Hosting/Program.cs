@@ -36,7 +36,8 @@ namespace Youverse.Hosting
         public static int Main(string[] args)
         {
             Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Debug()
+                // .MinimumLevel.Debug()
+                .MinimumLevel.Error()
                 .Enrich.WithHostname(new StickyHostnameGenerator())
                 .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
                 .WriteTo.Console(outputTemplate: LogOutputTemplate, theme: LogOutputTheme)
@@ -148,7 +149,7 @@ namespace Youverse.Hosting
                         .UseStartup<Startup>();
                 });
 
-            if (youverseConfig.Logging.Level == LoggingLevel.ErrorsOnly)
+            // if (youverseConfig.Logging.Level == LoggingLevel.ErrorsOnly)
             {
                 builder.UseSerilog((context, services, configuration) => configuration
                     .ReadFrom.Services(services)

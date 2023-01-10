@@ -19,22 +19,19 @@ public class DotYouContextCache
     //TODO: maybe make this a sliding cache?
     private readonly ConcurrentDictionary<Guid, CacheItem> _contextCache = new();
     private readonly object _readLock = new();
-    
+
     public DotYouContextCache(int ttlSeconds = 60)
     {
         this._ttlSeconds = ttlSeconds;
     }
-
+    
     public bool TryGetContext(ClientAuthenticationToken token, out DotYouContext context)
     {
         CacheItem item;
-        lock (_readLock)
+        if (!_contextCache.TryGetValue(token.AsKey(), out item))
         {
-            if(! _contextCache.TryGetValue(token.AsKey(), out item))
-            {
-                context = null;
-                return false;
-            }
+            context = null;
+            return false;
         }
 
         var expires = item.Created.AddSeconds(_ttlSeconds);

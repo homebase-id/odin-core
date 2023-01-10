@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Data.Entity.Migrations.Model;
 using System.Data.SQLite;
 using System.IO;
@@ -49,8 +50,8 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
         public async Task<IncomingTransferStateItem> GetStateItem(Guid id)
         {
-            var item = _tenantSystemStorage.SingleKeyValueStorage.Get<IncomingTransferStateItem>(id);
-
+            // var item = _tenantSystemStorage.SingleKeyValueStorage.Get<IncomingTransferStateItem>(id);
+            _state.TryGetValue(id, out var item);
             if (null == item)
             {
                 throw new TransitException("Invalid perimeter state item");
@@ -89,13 +90,16 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
         public Task RemoveStateItem(Guid transferStateItemId)
         {
-            _tenantSystemStorage.SingleKeyValueStorage.Delete(transferStateItemId);
+            // _tenantSystemStorage.SingleKeyValueStorage.Delete(transferStateItemId);
+            _state.TryRemove(transferStateItemId, out var _);
             return Task.CompletedTask;
         }
 
+        private readonly ConcurrentDictionary<Guid, IncomingTransferStateItem> _state = new ();
         private void Save(IncomingTransferStateItem stateItem)
         {
-            _tenantSystemStorage.SingleKeyValueStorage.Upsert(stateItem.Id, stateItem);
+            _state.TryAdd(stateItem.Id.Value, stateItem);
+            // _tenantSystemStorage.SingleKeyValueStorage.Upsert(stateItem.Id, stateItem);
         }
     }
 }

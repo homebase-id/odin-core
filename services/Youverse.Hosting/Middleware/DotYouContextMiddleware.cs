@@ -14,6 +14,7 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Tenant;
+using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Authentication.Perimeter;
 
@@ -30,7 +31,7 @@ namespace Youverse.Hosting.Middleware
             _tenantProvider = tenantProvider;
         }
 
-        public async Task Invoke(HttpContext httpContext, DotYouContext dotYouContext)
+        public async Task Invoke(HttpContext httpContext, DotYouContext dotYouContext,TransitContextCache transitContextCache)
         {
             var tenant = _tenantProvider.GetCurrentTenant();
             string authType = httpContext.User.Identity?.AuthenticationType;
@@ -41,10 +42,10 @@ namespace Youverse.Hosting.Middleware
                 await _next(httpContext);
                 return;
             }
-            
+
             if (authType == PerimeterAuthConstants.TransitCertificateAuthScheme)
             {
-                await LoadTransitContext(httpContext, dotYouContext);
+                await LoadTransitContext(httpContext, dotYouContext, transitContextCache);
                 dotYouContext.AuthContext = PerimeterAuthConstants.TransitCertificateAuthScheme;
 
                 await _next(httpContext);
@@ -63,8 +64,9 @@ namespace Youverse.Hosting.Middleware
 
             await _next(httpContext);
         }
-        
-        private async Task LoadTransitContext(HttpContext httpContext, DotYouContext dotYouContext)
+
+        private async Task LoadTransitContext(HttpContext httpContext, DotYouContext dotYouContext,
+            TransitContextCache transitContextCache)
         {
             var user = httpContext.User;
             var circleNetworkService = httpContext.RequestServices.GetRequiredService<ICircleNetworkService>();
@@ -75,13 +77,43 @@ namespace Youverse.Hosting.Middleware
                 masterKey: null,
                 securityLevel: SecurityGroupType.Authenticated);
 
-            if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[DotYouHeaderNames.ClientAuthToken], out var clientAuthToken))
+
+            if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[DotYouHeaderNames.ClientAuthToken],
+                    out var clientAuthToken))
             {
-                var (permissionContext, circleIds) = await circleNetworkService.CreateTransitPermissionContext(callerDotYouId, clientAuthToken);
-                dotYouContext.Caller.SecurityLevel = SecurityGroupType.Connected;
-                dotYouContext.Caller.Circles = circleIds;
-                dotYouContext.Caller.SetIsConnected();
-                dotYouContext.SetPermissionContext(permissionContext);
+                // var ctx = transitContextCache.GetOrAdd(clientAuthToken, token =>
+                // {
+                //     var (permissionContext, circleIds) = circleNetworkService
+                //         .CreateTransitPermissionContext(callerDotYouId, token).GetAwaiter().GetResult();
+                //     dotYouContext.Caller.SecurityLevel = SecurityGroupType.Connected;
+                //     dotYouContext.Caller.Circles = circleIds;
+                //     dotYouContext.Caller.SetIsConnected();
+                //     dotYouContext.SetPermissionContext(permissionContext);
+                //     return dotYouContext;
+                // });
+                //
+                // dotYouContext.Caller = ctx.Caller;
+                // //dotYouContext.SetPermissionContext(ctx.PermissionsContext);
+                //
+                //check dotyoucontxt cache for transit
+                // if (transitContextCache.TryGetCachedContext(clientAuthToken, out var ctx))
+                // {
+                //     dotYouContext.Caller = ctx.Caller;
+                //     dotYouContext.SetPermissionContext(ctx.PermissionsContext);
+                //     
+                //     dotYouContext.Caller.SetIsConnected();
+                // }
+                // else
+                // {
+                    var (permissionContext, circleIds) =
+                        await circleNetworkService.CreateTransitPermissionContext(callerDotYouId, clientAuthToken);
+                    dotYouContext.Caller.SecurityLevel = SecurityGroupType.Connected;
+                    dotYouContext.Caller.Circles = circleIds;
+                    dotYouContext.Caller.SetIsConnected();
+                    dotYouContext.SetPermissionContext(permissionContext);
+
+                    // transitContextCache.CacheContext(clientAuthToken, dotYouContext);
+                // }
             }
             else
             {
