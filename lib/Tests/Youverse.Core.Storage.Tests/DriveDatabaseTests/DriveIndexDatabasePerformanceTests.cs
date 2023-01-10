@@ -13,7 +13,7 @@ using static System.Data.Entity.Infrastructure.Design.Executor;
 
 namespace IndexerTests.KeyValue
 {
-    public class PerformanceTests
+    public class DriveIndexDatabasePerformanceTests
     {
         // For the performance test
         private const int MAXTHREADS = 5; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
@@ -21,6 +21,13 @@ namespace IndexerTests.KeyValue
 
         private const int _performanceIterations = 5000; // Set to 5,000 when testing
 
+
+
+        /// <summary>
+        /// 2023-01-10 SEMIBEASTII
+        /// 00:00:15.10 : Added 5000 rows in mainindex, ACL, Tags
+        /// Bandwidth: 330 rows / second
+        /// </summary>
         [Test]
         public void PerformanceTest01()
         {
@@ -53,7 +60,11 @@ namespace IndexerTests.KeyValue
             Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000) / ms} rows / second");
         }
 
-
+        /// <summary>
+        /// 2023-01-10 SEMIBEASTII
+        ///     00:00:00.41 : Added 5000 rows in mainindex, ACL, Tags
+        ///     Bandwidth: 12019 rows / second
+        /// </summary>
         [Test]
         public void PerformanceTest02() // Test batch of 100
         {
@@ -93,7 +104,13 @@ namespace IndexerTests.KeyValue
             Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000) / ms} rows / second");
         }
 
-
+        /// <summary>
+        ///    Threads   : 5
+        ///    Iterations: 1000
+        ///    Time      : 15667ms
+        ///    Bandwidth: 319 rows / second
+        ///    00:00:15.66 : Added 5000 rows in mainindex, ACL, Tags
+        /// </summary>
         [Test]
         public void PerformanceTest03() // Just making sure multi-threaded doesn't give worse performance
         {
