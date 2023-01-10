@@ -28,6 +28,7 @@ using Youverse.Core.Services.Optimization.Cdn;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
+using Youverse.Hosting.Authentication.ClientToken;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Controllers.OwnerToken.Cdn;
 using Youverse.Hosting.Tests.AppAPI;
@@ -38,31 +39,28 @@ using Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn;
 
 namespace Youverse.Hosting.Tests.Performance
 {
-    public class TransitPerformanceTests
+    public class TransitPerformanceTests    
     {
         private const int FileType = 844;
 
         // For the performance test
-        private const int
-            MAXTHREADS =
-                5; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
-
-        const int MAXITERATIONS = 10; // A number high enough to get warmed up and reliable
+        private static readonly int MAXTHREADS = Environment.ProcessorCount * 2; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
+        private const int MAXITERATIONS = 10; // A number high enough to get warmed up and reliable
 
         private WebScaffold _scaffold;
 
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            // string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
-            // _scaffold = new WebScaffold(folder);
-            // _scaffold.RunBeforeAnyTests();
+            string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+            _scaffold = new WebScaffold(folder);
+            _scaffold.RunBeforeAnyTests();
         }
 
         [OneTimeTearDown]
         public void OneTimeTearDown()
         {
-            // _scaffold.RunAfterAnyTests();
+            _scaffold.RunAfterAnyTests();
         }
 
 
@@ -75,12 +73,12 @@ namespace Youverse.Hosting.Tests.Performance
 
             TargetDrive targetDrive = TargetDrive.NewTargetDrive();
 
-            //
+            
             // Prepare environment by connecting identities
-            //
-            // var scenarioCtx = await _scaffold.Scenarios.CreateConnectedHobbits(targetDrive);
-            // var frodoAppContext = scenarioCtx.AppContexts[TestIdentities.Frodo.DotYouId];
-            // var samAppContext = scenarioCtx.AppContexts[TestIdentities.Samwise.DotYouId];
+            
+            var scenarioCtx = await _scaffold.Scenarios.CreateConnectedHobbits(targetDrive);
+            var frodoAppContext = scenarioCtx.AppContexts[TestIdentities.Frodo.DotYouId];
+            var samAppContext = scenarioCtx.AppContexts[TestIdentities.Samwise.DotYouId];
 
             //
             // Now back to performance testing
@@ -89,18 +87,14 @@ namespace Youverse.Hosting.Tests.Performance
             sw.Reset();
             sw.Start();
 
-
-            // DotTrace.EnsurePrerequisite();
-            // DotTrace.Config cfg = new DotTrace.Config();
-            // cfg.SaveToDir("C:\\tmp");
-            // DotTrace.Attach(cfg);
-            // DotTrace.StartCollectingData();
+            
             for (var i = 0; i < MAXTHREADS; i++)
             {
                 tasks[i] = Task.Run(async () =>
                 {
-                    // var (tmp, measurements) = await DoChat(i, MAXITERATIONS, frodoAppContext, samAppContext);
-                    var (tmp, measurements) = await DoChat(i, MAXITERATIONS, null, null);
+                    var (tmp, measurements) = await DoChat(i, MAXITERATIONS, frodoAppContext, samAppContext);
+                    //Todd's hack around
+                    // var (tmp, measurements) = await DoChat(i, MAXITERATIONS, null, null);
                     Debug.Assert(measurements.Length == MAXITERATIONS);
                     lock (timers)
                     {
@@ -172,26 +166,34 @@ namespace Youverse.Hosting.Tests.Performance
                 "samwise.digital"
             };
 
-            var bytes = Convert.FromBase64String(
-                "bf1l2J9Y1qcPhuikIbbYOwIbf+lAMICJAxTPdd1LRMTSz4sBxs38DHjDMiiNutgNkzBUmlY0qP73nMMNxhqly2gsAldrAcfOUlcWKnvBWXTRJH2eHR01lY7TJFO2MPJCnHLmH5+EedONvOlQ6eCGUwJ6Ky0RgzoGIR8svY+pihrcGqQQOeSBC8fzjRB2gIXLUrarWhLUXEbCSn872NvTlxJ6vkr28LQhYDDnd3uqxWXVsxpBKLW6zB/AZn0mt9DY0cA7XjcY6c9HFMpH/Lo0bWznxDVxK2Lsk6LC9HcBTfaZ7gSq/SOueytP+r88Ui9oEa5u0xmIrJct269xvMtEhQ==");
+            //Todd's hack around
+            // var bytes = Convert.FromBase64String(
+            //     "Y3uWlTdQWkuxyQfu7IORnos6g7dlTjECIDmsJjLVyf0DWU5cejhnBsn22iw0/6N/ng==");
+            //
+            // var (_, sharedSecret) = ByteArrayUtil.Split(bytes, 33, 16);
+            // var ctx = new TestAppContext()
+            // {
+            //     AppId = Guid.NewGuid(),
+            //     ClientAuthenticationToken = ClientAuthenticationToken.FromPortableBytes(bytes),
+            //     ContactData = null,
+            //     Identity = (DotYouIdentity)"frodo.digital",
+            //     SharedSecret = sharedSecret,
+            //     TargetDrive = SystemDriveConstants.ChatDrive
+            // };
 
+            //send a primer as a test
+            // using (var client = CreateClient(ctx.Identity, ctx.ClientAuthenticationToken, ctx.SharedSecret))
+            // {
+            //     var sendMessageResult = await SendMessage(client, ctx, recipients, randomHeaderContent,
+            //         randomPayloadContent);
+            // }
 
-            var (_, sharedSecret) = ByteArrayUtil.Split(bytes, 33, 16);
-            var ctx = new TestAppContext()
-            {
-                AppId = Guid.NewGuid(),
-                ClientAuthenticationToken = ClientAuthenticationToken.FromPortableBytes(bytes),
-                ContactData = null,
-                Identity = (DotYouIdentity)"frodo.digital",
-                SharedSecret = sharedSecret,
-                TargetDrive = null
-            };
-
-
+            var ctx = frodoAppContext;
             for (int count = 0; count < iterations; count++)
             {
                 sw.Restart();
                 using (var client = _scaffold.AppApi.CreateAppApiHttpClient(ctx))
+                // using (var client = CreateClient(ctx.Identity, ctx.ClientAuthenticationToken, ctx.SharedSecret))
                 {
                     var sendMessageResult = await SendMessage(client, ctx, recipients, randomHeaderContent,
                         randomPayloadContent);
@@ -215,6 +217,24 @@ namespace Youverse.Hosting.Tests.Performance
             return (fileByteLength, timers);
         }
 
+        private static HttpClient CreateClient(DotYouIdentity identity, ClientAuthenticationToken token,
+            byte[] sharedSecret)
+        {
+            var cookieJar = new CookieContainer();
+            cookieJar.Add(new Cookie(ClientTokenConstants.ClientAuthTokenCookieName, token.ToString(), null, identity));
+
+            var sharedSecretGetRequestHandler = new SharedSecretGetRequestHandler(sharedSecret.ToSensitiveByteArray())
+            {
+                CookieContainer = cookieJar
+            };
+
+            HttpClient client = new(sharedSecretGetRequestHandler);
+
+            client.Timeout = TimeSpan.FromMinutes(15);
+
+            client.BaseAddress = new Uri($"https://{identity}");
+            return client;
+        }
 
         private async Task<List<ClientFileHeader>> GetMessages(TestAppContext recipientAppContext)
         {
@@ -267,6 +287,7 @@ namespace Youverse.Hosting.Tests.Performance
                     {
                         Drive = senderAppContext.TargetDrive
                     },
+                    //TODO: comment transit options if you only want to upload
                     TransitOptions = new TransitOptions()
                     {
                         UseGlobalTransitId = true,
@@ -340,6 +361,20 @@ namespace Youverse.Hosting.Tests.Performance
                         thumbnail2.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
 
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Actual code was {response.StatusCode}");
+                Assert.IsNotNull(response.Content);
+                var uploadResult = response.Content;
+                
+                if(instructionSet.TransitOptions?.Recipients?.Any() ?? false)
+                {
+                    var wasDeliveredToAll =
+                        instructionSet.TransitOptions.Recipients.All(r =>
+                            uploadResult.RecipientStatus[r] == TransferStatus.Delivered);
+
+                    Assert.IsTrue(wasDeliveredToAll);
+                }
+
+                
+                //TODO: since we added the indexer changes of batch commits, we need a way to test it is working and no files are lost
                 return null;
                 // if (response.StatusCode == HttpStatusCode.InternalServerError)
                 // {

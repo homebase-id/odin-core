@@ -84,15 +84,15 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             var data = ByteArrayUtil.Combine(tokenBytes, sharedSecret);
             var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(clientPublicKey);
-            // var encryptedData = publicKey.Encrypt(data);
+            var encryptedData = publicKey.Encrypt(data);
             
-            // data.WriteZeros();
+            data.WriteZeros();
 
             return new AppClientRegistrationResponse()
             {
                 EncryptionVersion = 1,
                 Token = cat.Id,
-                Data = data //encryptedData
+                Data = encryptedData
             };
         }
         
