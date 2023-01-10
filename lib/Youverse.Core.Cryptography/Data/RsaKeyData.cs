@@ -72,6 +72,8 @@ namespace Youverse.Core.Cryptography.Data
             cipher.Init(true, publicKeyRestored);
             var cipherData = cipher.DoFinal(data);
 
+            RsaKeyManagement.noEncryptions++;
+
             return cipherData;
         }
 
@@ -221,6 +223,8 @@ namespace Youverse.Core.Cryptography.Data
             cipher.Init(false, privateKeyRestored);
 
             var clearData = cipher.DoFinal(cipherData);
+
+            RsaKeyManagement.noDecryptions++;
 
             return clearData;
         }
