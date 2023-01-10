@@ -1,16 +1,24 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Youverse.Core;
+using Youverse.Core.Serialization;
 using Youverse.Core.Storage.SQLite;
 using Youverse.Core.Storage.SQLite.KeyValue;
 using Youverse.Core.Util;
+using static System.Data.Entity.Infrastructure.Design.Executor;
 
 namespace IndexerTests.KeyValue
 {
     public class PerformanceTests
     {
+        // For the performance test
+        private const int MAXTHREADS = 5; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
+        private const int MAXITERATIONS = 1000; // A number high enough to get warmed up and reliable
+
         private const int _performanceIterations = 5000; // Set to 5,000 when testing
 
         [Test]
@@ -34,7 +42,7 @@ namespace IndexerTests.KeyValue
             }
 
             stopWatch.Start();
-            for (int i=1; i < _performanceIterations; i++)
+            for (int i = 1; i < _performanceIterations; i++)
             {
                 _testDatabase.AddEntry(Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), 0, 55, tmpacllist, tmptaglist);
             }
@@ -42,7 +50,7 @@ namespace IndexerTests.KeyValue
             int ms = (int)Math.Max(1, stopWatch.ElapsedMilliseconds);
 
             Utils.StopWatchStatus($"Added {_performanceIterations} rows in mainindex, ACL, Tags", stopWatch);
-            Console.WriteLine($"Bandwidth: {(_performanceIterations*1000) / ms}");
+            Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000) / ms} rows / second");
         }
 
 
@@ -71,7 +79,7 @@ namespace IndexerTests.KeyValue
             for (int i = 1; i < _performanceIterations; i++)
             {
                 _testDatabase.AddEntry(Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), 0, 55, tmpacllist, tmptaglist);
-                if (i % 100 ==0)
+                if (i % 100 == 0)
                 {
                     _testDatabase.Commit();
                     _testDatabase.BeginTransaction();
@@ -82,7 +90,87 @@ namespace IndexerTests.KeyValue
             int ms = (int)Math.Max(1, stopWatch.ElapsedMilliseconds);
 
             Utils.StopWatchStatus($"Added {_performanceIterations} rows in mainindex, ACL, Tags", stopWatch);
-            Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000) / ms}");
+            Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000) / ms} rows / second");
+        }
+
+
+        [Test]
+        public void PerformanceTest03() // Just making sure multi-threaded doesn't give worse performance
+        {
+            Task[] tasks = new Task[MAXTHREADS];
+            var _testDatabase = new DriveIndexDatabase($"URI=file:.\\performance-03", DatabaseIndexKind.TimeSeries);
+            _testDatabase.CreateDatabase();
+            var stopWatch = new Stopwatch();
+
+
+            //
+            // Now back to performance testing
+            //
+            var sw = new Stopwatch();
+            sw.Reset();
+            sw.Start();
+
+            for (var i = 0; i < MAXTHREADS; i++)
+            {
+                tasks[i] = Task.Run(async () =>
+                {
+                    await WriteRows(i, MAXITERATIONS, _testDatabase);
+                });
+            }
+
+            try
+            {
+                Task.WaitAll(tasks);
+            }
+            catch (AggregateException ae)
+            {
+                foreach (var ex in ae.InnerExceptions)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+
+                throw;
+            }
+
+            sw.Stop();
+
+            Console.WriteLine($"Threads   : {MAXTHREADS}");
+            Console.WriteLine($"Iterations: {MAXITERATIONS}");
+            Console.WriteLine($"Time      : {sw.ElapsedMilliseconds}ms");
+            long ms = Math.Max(1, sw.ElapsedMilliseconds);
+            Console.WriteLine($"Bandwidth: {(MAXTHREADS * MAXITERATIONS * 1000) / ms} rows / second");
+            Utils.StopWatchStatus($"Added {MAXTHREADS*MAXITERATIONS} rows in mainindex, ACL, Tags", sw);
+        }
+
+        public async Task<long[]> WriteRows(int threadno, int iterations, DriveIndexDatabase db)
+        {
+            long[] timers = new long[iterations];
+            Debug.Assert(timers.Length == iterations);
+            var myRnd = new Random();
+            var sw = new Stopwatch();
+
+
+            var tmpacllist = new List<Guid>();
+            for (int j = 0; j < 1; j++)
+            {
+                tmpacllist.Add(Guid.NewGuid());
+            }
+
+            var tmptaglist = new List<Guid>();
+            for (int j = 0; j < 1; j++)
+            {
+                tmptaglist.Add(Guid.NewGuid());
+            }
+
+            //
+            // I presume here we retrieve the file and download it
+            //
+            for (int count = 0; count < iterations; count++)
+            {
+                db.AddEntry(Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), 0, 55, tmpacllist, tmptaglist);
+            }
+
+            return timers;
         }
     }
 }
