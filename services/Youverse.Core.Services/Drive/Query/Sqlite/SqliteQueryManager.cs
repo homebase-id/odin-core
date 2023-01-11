@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -19,8 +18,6 @@ public class SqliteQueryManager : IDriveQueryManager
     private readonly DriveIndexDatabase _indexDb;
     // private readonly DriveIndexDatabase _secondaryIndexDb;
 
-    private ConcurrentDictionary<Guid, ServerFileHeader> _indexQueue;
-
     public SqliteQueryManager(StorageDrive drive, ILogger<object> logger)
     {
         Drive = drive;
@@ -28,22 +25,20 @@ public class SqliteQueryManager : IDriveQueryManager
 
         var connectionString = $"URI=file:{drive.GetIndexPath()}\\index.db";
         _indexDb = new DriveIndexDatabase(connectionString, DatabaseIndexKind.TimeSeries);
-        _indexQueue = new ConcurrentDictionary<Guid, ServerFileHeader>();
     }
 
     public StorageDrive Drive { get; init; }
 
     public IndexReadyState IndexReadyState { get; set; }
 
-    public Task<(ulong, IEnumerable<Guid>)> GetModified(CallerContext callerContext, FileQueryParams qp,
-        QueryModifiedResultOptions options)
+    public Task<(ulong, IEnumerable<Guid>)> GetModified(CallerContext callerContext, FileQueryParams qp, QueryModifiedResultOptions options)
     {
         Guard.Argument(callerContext, nameof(callerContext)).NotNull();
 
         var requiredSecurityGroup = new IntRange(0, (int)callerContext.SecurityLevel);
         var aclList = GetAcl(callerContext);
         var cursor = new UnixTimeUtcUnique(options.Cursor);
-
+        
         var results = _indexDb.QueryModified(
             noOfItems: options.MaxRecords,
             cursor: ref cursor,
@@ -63,8 +58,7 @@ public class SqliteQueryManager : IDriveQueryManager
     }
 
 
-    public Task<(QueryBatchCursor, IEnumerable<Guid>)> GetBatch(CallerContext callerContext, FileQueryParams qp,
-        QueryBatchResultOptions options)
+    public Task<(QueryBatchCursor, IEnumerable<Guid>)> GetBatch(CallerContext callerContext, FileQueryParams qp, QueryBatchResultOptions options)
     {
         Guard.Argument(callerContext, nameof(callerContext)).NotNull();
 
@@ -115,94 +109,60 @@ public class SqliteQueryManager : IDriveQueryManager
 
     public Task UpdateCurrentIndex(ServerFileHeader header)
     {
-        var key = header.FileMetadata.File.FileId;
+        var metadata = header.FileMetadata;
 
-        _indexQueue.AddOrUpdate(key,
-            (Guid _) => header,
-            (Guid _, ServerFileHeader oldValue) => header);
+        int securityGroup = (int)header.ServerMetadata.AccessControlList.RequiredSecurityGroup;
+        var exists = _indexDb.TblMainIndex.Get(metadata.File.FileId) != null;
 
-        //flush - todo: move to timer if this optimizes performance
-        FlushToIndex();
-
-        return Task.CompletedTask;
-    }
-
-    private object _indexQueueReaderLock = new();
-
-    private Task FlushToIndex()
-    {
-        if (_indexQueue.Count <= 602)
+        if (header.ServerMetadata.DoNotIndex)
         {
+            if (exists) // clean up if the flag was changed after it was indexed
+            {
+                _indexDb.TblMainIndex.DeleteRow(metadata.File.FileId);
+            }
+
             return Task.CompletedTask;
         }
 
-        lock (_indexQueueReaderLock)
+        var sender = string.IsNullOrEmpty(metadata.SenderDotYouId) ? Array.Empty<byte>() : ((DotYouIdentity)metadata.SenderDotYouId).ToByteArray();
+        var acl = new List<Guid>();
+
+        acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles());
+        var ids = header.ServerMetadata.AccessControlList.GetRequiredIdentities().Select(dotYouId =>
+            ((DotYouIdentity)dotYouId).ToGuidIdentifier()
+        );
+        acl.AddRange(ids.ToList());
+
+        var tags = metadata.AppData.Tags?.ToList();
+
+        if (exists)
         {
-            _indexDb.BeginTransaction();
-
-            foreach (var header in _indexQueue.Values)
-            {
-                var metadata = header.FileMetadata;
-
-                int securityGroup = (int)header.ServerMetadata.AccessControlList.RequiredSecurityGroup;
-                var exists = _indexDb.TblMainIndex.Get(metadata.File.FileId) != null;
-
-                if (header.ServerMetadata.DoNotIndex)
-                {
-                    if (exists) // clean up if the flag was changed after it was indexed
-                    {
-                        _indexDb.TblMainIndex.DeleteRow(metadata.File.FileId);
-                    }
-
-                    return Task.CompletedTask;
-                }
-
-                var sender = string.IsNullOrEmpty(metadata.SenderDotYouId)
-                    ? Array.Empty<byte>()
-                    : ((DotYouIdentity)metadata.SenderDotYouId).ToByteArray();
-                var acl = new List<Guid>();
-
-                acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles());
-                var ids = header.ServerMetadata.AccessControlList.GetRequiredIdentities().Select(dotYouId =>
-                    ((DotYouIdentity)dotYouId).ToGuidIdentifier()
-                );
-                acl.AddRange(ids.ToList());
-
-                var tags = metadata.AppData.Tags?.ToList();
-
-                if (exists)
-                {
-                    _indexDb.UpdateEntryZapZap(
-                        fileId: metadata.File.FileId,
-                        fileType: metadata.AppData.FileType,
-                        dataType: metadata.AppData.DataType,
-                        senderId: sender,
-                        groupId: metadata.AppData.GroupId,
-                        uniqueId: metadata.AppData.UniqueId,
-                        userDate: metadata.AppData.UserDate,
-                        requiredSecurityGroup: securityGroup,
-                        accessControlList: acl,
-                        tagIdList: tags);
-                }
-                else
-                {
-                    _indexDb.AddEntry(
-                        fileId: metadata.File.FileId,
-                        globalTransitId: metadata.GlobalTransitId,
-                        fileType: metadata.AppData.FileType,
-                        dataType: metadata.AppData.DataType,
-                        senderId: sender,
-                        groupId: metadata.AppData.GroupId,
-                        uniqueId: metadata.AppData.UniqueId,
-                        userDate: metadata.AppData.UserDate.GetValueOrDefault(),
-                        requiredSecurityGroup: securityGroup,
-                        accessControlList: acl,
-                        tagIdList: tags);
-                }
-            }
-
-            _indexDb.Commit(); //need to ensure this throws an error or returns boolean for success before I clear the queue
-            _indexQueue.Clear();
+            _indexDb.UpdateEntryZapZap(
+                fileId: metadata.File.FileId,
+                fileType: metadata.AppData.FileType,
+                dataType: metadata.AppData.DataType,
+                senderId: sender,
+                groupId: metadata.AppData.GroupId,
+                uniqueId: metadata.AppData.UniqueId,
+                userDate: metadata.AppData.UserDate,
+                requiredSecurityGroup: securityGroup,
+                accessControlList: acl,
+                tagIdList: tags);
+        }
+        else
+        {
+            _indexDb.AddEntry(
+                fileId: metadata.File.FileId,
+                globalTransitId: metadata.GlobalTransitId,
+                fileType: metadata.AppData.FileType,
+                dataType: metadata.AppData.DataType,
+                senderId: sender,
+                groupId: metadata.AppData.GroupId,
+                uniqueId: metadata.AppData.UniqueId,
+                userDate: metadata.AppData.UserDate.GetValueOrDefault(),
+                requiredSecurityGroup: securityGroup,
+                accessControlList: acl,
+                tagIdList: tags);
         }
 
         return Task.CompletedTask;
