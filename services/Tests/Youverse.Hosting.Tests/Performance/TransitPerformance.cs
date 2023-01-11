@@ -144,6 +144,7 @@ namespace Youverse.Hosting.Tests.Performance
             Console.WriteLine($"RSA Keys Created      : {RsaKeyManagement.noKeysCreated}");
             Console.WriteLine($"RSA Keys Expired      : {RsaKeyManagement.noKeysExpired}");
             Console.WriteLine($"RSA Keys Test Created : {RsaKeyManagement.noKeysCreatedTest}");
+            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
         }
 
 
