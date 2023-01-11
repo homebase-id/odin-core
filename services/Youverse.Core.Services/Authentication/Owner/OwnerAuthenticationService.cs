@@ -122,6 +122,11 @@ namespace Youverse.Core.Services.Authentication.Owner
             return _cache.TryGetContext(token, out context);
         }
 
+        public DotYouContext GetOrCreateContext(ClientAuthenticationToken token, Func<ClientAuthenticationToken, DotYouContext> contextFactory)
+        {
+            throw new NotImplementedException();
+        }
+
         public void CacheContext(ClientAuthenticationToken token, DotYouContext dotYouContext)
         {
             _cache.CacheContext(token, dotYouContext);

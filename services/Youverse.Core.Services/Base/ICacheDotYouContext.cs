@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 
@@ -9,7 +10,7 @@ public interface ICacheDotYouContext
     /// Returns a bool indicating if DotYouContext is cached.  Value comes from the out param 
     /// </summary>
     bool TryGetCachedContext(ClientAuthenticationToken token, out DotYouContext context);
-        
+    
     /// <summary>
     /// Adds or updates the DotYouContext to cache
     /// </summary>
