@@ -18,6 +18,9 @@ namespace Youverse.Core.Cryptography.Crypto
         public static int noEncryptions = 0;
         public static int noDecryptions = 0;
 
+        public static int noDBOpened = 0;
+        public static int noDBClosed = 0;
+
 
         // Not a good place for this function. Should be in some of the login stuff... ?
         // I think this is the helper function for login, i.e. replicating what's normally in JS.

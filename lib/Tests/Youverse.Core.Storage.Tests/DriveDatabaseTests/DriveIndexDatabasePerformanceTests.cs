@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Youverse.Core;
+using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Serialization;
 using Youverse.Core.Storage.SQLite;
 using Youverse.Core.Storage.SQLite.KeyValue;
@@ -58,6 +59,7 @@ namespace IndexerTests.KeyValue
 
             Utils.StopWatchStatus($"Added {_performanceIterations} rows in mainindex, ACL, Tags", stopWatch);
             Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000) / ms} rows / second");
+            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
         }
 
         /// <summary>
@@ -102,6 +104,7 @@ namespace IndexerTests.KeyValue
 
             Utils.StopWatchStatus($"Added {_performanceIterations} rows in mainindex, ACL, Tags", stopWatch);
             Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000) / ms} rows / second");
+            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
         }
 
         /// <summary>
@@ -157,6 +160,7 @@ namespace IndexerTests.KeyValue
             long ms = Math.Max(1, sw.ElapsedMilliseconds);
             Console.WriteLine($"Bandwidth: {(MAXTHREADS * MAXITERATIONS * 1000) / ms} rows / second");
             Utils.StopWatchStatus($"Added {MAXTHREADS*MAXITERATIONS} rows in mainindex, ACL, Tags", sw);
+            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
         }
 
         public async Task<long[]> WriteRows(int threadno, int iterations, DriveIndexDatabase db)

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Data.SQLite;
+using Youverse.Core.Cryptography.Crypto;
 
 
 /*
@@ -50,11 +51,15 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
             tblCircle = new TableCircle(this);
             tblCircleMember = new TableCircleMember(this);
             tblFollow = new TableFollowsMe(this);
+
+            RsaKeyManagement.noDBOpened++;
         }
 
 
         ~KeyValueDatabase()
         {
+            RsaKeyManagement.noDBClosed++;
+
             Dispose(false);
         }
 
