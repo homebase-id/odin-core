@@ -32,7 +32,7 @@ namespace Youverse.Hosting.Controllers.Certificate
             {
                 PublicKey = key.publicKey,
                 Crc32 = key.crc32c,
-                Expiration = key.expiration.seconds
+                Expiration = key.expiration.milliseconds
             };
             
         }
