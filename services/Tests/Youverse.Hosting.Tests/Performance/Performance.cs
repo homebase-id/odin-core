@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.JsonPatch.Internal;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core;
+using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive;
@@ -275,8 +276,9 @@ namespace Youverse.Hosting.Tests.Performance
                 $"Capacity  : {(1000 * MAXITERATIONS * MAXTHREADS) / Math.Max(1, sw.ElapsedMilliseconds)} / second");
             Console.WriteLine(
                 $"Bandwidth : {1000*(fileByteLength / Math.Max(1, sw.ElapsedMilliseconds))} bytes / second");
+            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
         }
-        
+
         private WebScaffold _scaffold;
 
         [OneTimeSetUp]
