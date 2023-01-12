@@ -105,6 +105,7 @@ namespace Youverse.Core.Storage.SQLite
 
         private void Dispose(bool disposing)
         {
+            Commit();
             ReleaseUnmanagedResources();
             if (disposing)
             {
