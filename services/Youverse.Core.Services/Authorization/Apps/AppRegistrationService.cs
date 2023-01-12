@@ -4,6 +4,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using LazyCache;
+using LazyCache.Providers;
+using MediatR;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography.Data;
@@ -26,8 +28,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         private readonly GuidId _appClientDataType = GuidId.FromString("__app_client_reg");
         private readonly ThreeKeyValueStorage _appClientValueStorage;
-        private readonly DotYouContextCache _cache;
-        private readonly IAppCache _dotYouContextCache;
+        private IAppCache _dotYouContextCache;
 
 
         public AppRegistrationService(DotYouContextAccessor contextAccessor, ILogger<IAppRegistrationService> logger, ITenantSystemStorage tenantSystemStorage,
@@ -39,7 +40,6 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             _appRegistrationValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
             _appClientValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
-            _cache = new DotYouContextCache();
             _dotYouContextCache = new CachingService();
         }
 
@@ -106,39 +106,34 @@ namespace Youverse.Core.Services.Authorization.Apps
             var result = await GetAppRegistrationInternal(appId);
             return result?.Redacted();
         }
-        
+
         public async Task<(GuidId appId, PermissionContext permissionContext)> GetPermissionContext(ClientAuthenticationToken authToken)
         {
             var key = authToken.AsKey().ToString().ToLower();
             var result = await _dotYouContextCache.GetOrAddAsync<(GuidId appId, PermissionContext permissionContext)>(key, (ICacheEntry entry) =>
             {
                 var (isValid, accessReg, appReg) = this.ValidateClientAuthToken(authToken).GetAwaiter().GetResult();
-            
+
                 if (!isValid)
                 {
                     throw new YouverseSecurityException("Invalid token");
                 }
-            
+
                 var grantDictionary = new Dictionary<string, ExchangeGrant>
                 {
                     { "app_exchange_grant", appReg.Grant }
                 };
-            
+
                 var permissionCtx = _exchangeGrantService.CreatePermissionContext(authToken,
                     grantDictionary,
                     accessReg,
                     _contextAccessor.GetCurrent().Caller.IsOwner,
                     includeAnonymousDrives: true).GetAwaiter().GetResult();
-            
+
                 return Task.FromResult((appReg.AppId, permissionCtx));
             });
 
             return (result.appId, result.permissionContext);
-        }
-
-        private Task AddItemFactory(ICacheEntry arg)
-        {
-            throw new NotImplementedException();
         }
 
         public async Task<(bool isValid, AccessRegistration? accessReg, AppRegistration? appRegistration)> ValidateClientAuthToken(ClientAuthenticationToken authToken)
@@ -175,6 +170,19 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             //TODO: revoke all clients? or is the one flag enough?
             _appRegistrationValueStorage.Upsert(appId, GuidId.Empty, _appRegistrationDataType, appReg);
+
+            ResetPermissionContextCache();
+        }
+
+        /// <summary>
+        /// Empties the cache and creates a new instance that can be built
+        /// </summary>
+        private void ResetPermissionContextCache()
+        {
+            //from: https://github.com/alastairtree/LazyCache/wiki/API-documentation-(v-2.x)#empty-the-entire-cache
+            _dotYouContextCache?.CacheProvider?.Dispose();
+            var provider = new MemoryCacheProvider(new MemoryCache(new MemoryCacheOptions()));
+            _dotYouContextCache = new CachingService(provider);
         }
 
         public async Task RemoveAppRevocation(GuidId appId)
@@ -187,6 +195,8 @@ namespace Youverse.Core.Services.Authorization.Apps
             }
 
             _appRegistrationValueStorage.Upsert(appId, GuidId.Empty, _appRegistrationDataType, appReg);
+            
+            ResetPermissionContextCache();
         }
 
         public async Task<List<RegisteredAppClientResponse>> GetRegisteredClients()

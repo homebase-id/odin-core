@@ -75,60 +75,20 @@ namespace Youverse.Hosting.Authentication.Owner
             return AuthenticateResult.Fail("Invalid or missing token");
         }
 
-        private async Task UpdateDotYouContext(ClientAuthenticationToken authResult, DotYouContext dotYouContext)
+        private async Task UpdateDotYouContext(ClientAuthenticationToken token, DotYouContext dotYouContext)
         {
-            /*
-            * In order to cache -
-            * we do it for X minutes
-            * checking that the token exists in the cache
-            * and you must have a valid access token to read the item
-             */
-            dotYouContext.AuthContext = OwnerAuthConstants.SchemeName;
-            
             var authService = Context.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
-            if (authService.TryGetCachedContext(authResult, out var ctx))
+            dotYouContext.AuthContext = OwnerAuthConstants.SchemeName;
+
+            DotYouContext ctx = await authService.GetDotYouContext(token);
+           
+            if (null == ctx)
             {
-                dotYouContext.Caller = ctx.Caller;
-                dotYouContext.SetPermissionContext(ctx.PermissionsContext);
-                return;
+                AuthenticateResult.Fail("Invalid Owner Token");
             }
-
-            Log.Information("OwnerAuthHandler: Creating new DotYouContext");
-            if (await authService.IsValidToken(authResult.Id))
-            {
-                var (masterKey, clientSharedSecret) = await authService.GetMasterKey(authResult.Id, authResult.AccessTokenHalfKey);
-
-                dotYouContext.Caller = new CallerContext(
-                    dotYouId: (DotYouIdentity)Request.Host.Host,
-                    masterKey: masterKey,
-                    securityLevel: SecurityGroupType.Owner);
-
-                var driveService = Context.RequestServices.GetRequiredService<IDriveService>();
-                var allDrives = await driveService.GetDrives(PageOptions.All);
-                var allDriveGrants = allDrives.Results.Select(d => new DriveGrant()
-                {
-                    DriveId = d.Id,
-                    KeyStoreKeyEncryptedStorageKey = d.MasterKeyEncryptedStorageKey,
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = d.TargetDriveInfo,
-                        Permission = DrivePermission.All
-                    },
-                });
-
-                var permissionGroupMap = new Dictionary<string, PermissionGroup>
-                {
-                    { "owner_drive_grants", new PermissionGroup(new PermissionSet(PermissionKeys.All), allDriveGrants, masterKey) },
-                };
-
-                dotYouContext.SetPermissionContext(
-                    new PermissionContext(
-                        permissionGroupMap,
-                        sharedSecretKey: clientSharedSecret
-                    ));
-
-                authService.CacheContext(authResult, dotYouContext);
-            }
+            
+            dotYouContext.Caller = ctx.Caller;
+            dotYouContext.SetPermissionContext(ctx.PermissionsContext);
         }
 
         public Task SignOutAsync(AuthenticationProperties? properties)

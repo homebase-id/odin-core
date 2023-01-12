@@ -59,6 +59,49 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             throw new YouverseSecurityException("Unhandled case when registering YouAuth access");
         }
 
+        /// <summary>
+        /// Gets the <see cref="GetDotYouContext"/> for the specified token from cache or disk.
+        /// </summary>
+        /// <param name="token"></param>
+        /// <returns></returns>
+        public async Task<DotYouContext> GetDotYouContext(ClientAuthenticationToken token)
+        {
+            throw new NotImplementedException("wip");
+            var creator = new Func<Task<DotYouContext>>(async delegate
+            {
+                var dotYouContext = new DotYouContext();
+                var (callerContext, permissionContext) = await GetPermissionContext(token);
+
+                if (null == permissionContext || callerContext == null)
+                {
+                    return null;
+                }
+
+                dotYouContext.SetPermissionContext(permissionContext);
+
+                dotYouContext.Caller = new CallerContext(
+                    dotYouId: _tenantContext.HostDotYouId, //TODO: this works because we only have one identity per host.  this must be updated when i can have multiple identities for a single host
+                    masterKey: null,
+                    securityLevel: SecurityGroupType.Owner);
+                
+                // Log.Information("ClientTokenHandler - YouAuth: Creating new DotYouContext");
+                // var (cc, permissionContext) = await GetPermissionContext(token);
+                // if (null == cc)
+                // {
+                //     return AuthenticateResult.Success(await CreateAnonYouAuthTicket(dotYouContext));
+                // }
+                //
+                // dotYouContext.Caller = cc;
+                // dotYouContext.SetPermissionContext(permissionContext);
+                // youAuthRegService.GetOrAddContext(clientAuthToken, dotYouContext);
+
+                return dotYouContext;
+            });
+
+            return await _cache.GetOrAddContext(token, creator);
+        }
+        
+        //
 
         /// <summary>
         /// Creates a YouAuth Client for an Identity that is not connected. (will show as authenticated)
@@ -82,7 +125,6 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             return true;
         }
 
-        //
 
         public ValueTask<YouAuthRegistration?> LoadFromSubject(string subject)
         {
@@ -141,21 +183,6 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             }
 
             throw new YouverseSecurityException("Unhandled access registration type");
-        }
-
-        public bool TryGetCachedContext(ClientAuthenticationToken token, out DotYouContext context)
-        {
-            return _cache.TryGetContext(token, out context);
-        }
-
-        public DotYouContext GetOrCreateContext(ClientAuthenticationToken token, Func<ClientAuthenticationToken, DotYouContext> contextFactory)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void CacheContext(ClientAuthenticationToken token, DotYouContext dotYouContext)
-        {
-            _cache.CacheContext(token, dotYouContext);
         }
         
         private PermissionContext CreateAuthenticatedYouAuthPermissionContext(ClientAuthenticationToken authToken, YouAuthClient client)

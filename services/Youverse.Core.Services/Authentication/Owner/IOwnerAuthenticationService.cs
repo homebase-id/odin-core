@@ -11,7 +11,7 @@ namespace Youverse.Core.Services.Authentication.Owner
     /// <summary>
     /// Methods use for logging into the admin client of an Individual's DigitalIdentity
     /// </summary>
-    public interface IOwnerAuthenticationService: ICacheDotYouContext
+    public interface IOwnerAuthenticationService
     {
         /// <summary>
         /// Authenticates the owner based on the <see cref="IPasswordReply"/> specified.
@@ -27,7 +27,7 @@ namespace Youverse.Core.Services.Authentication.Owner
         /// <param name="token">The token to be validated</param>
         /// <returns></returns>
         Task<bool> IsValidToken(Guid sessionToken);
-        
+
         /// <summary>
         /// Extends the token life by <param name="ttlSeconds"></param> if it is valid.  Otherwise an <see cref="InvalidTokenException"/> is thrown
         /// </summary>
@@ -41,7 +41,7 @@ namespace Youverse.Core.Services.Authentication.Owner
         /// <param name="token"></param>
         /// <returns></returns>
         void ExpireToken(Guid token);
-        
+
         /// <summary>
         /// Generates a one time value to used when authenticating a user
         /// </summary>
@@ -54,6 +54,14 @@ namespace Youverse.Core.Services.Authentication.Owner
         /// <returns></returns>
         Task<(SensitiveByteArray, SensitiveByteArray)> GetMasterKey(Guid sessionToken, SensitiveByteArray rClientHalfKek);
 
-      
+        Task<(SensitiveByteArray masterKey, PermissionContext permissionContext)> GetPermissionContext(ClientAuthenticationToken token);
+        
+        /// <summary>
+        /// Gets the <see cref="GetDotYouContext"/> for the specified token from cache or disk.
+        /// </summary>
+        /// <param name="token"></param>
+        /// <returns></returns>
+        Task<DotYouContext> GetDotYouContext(ClientAuthenticationToken token);
+        
     }
 }

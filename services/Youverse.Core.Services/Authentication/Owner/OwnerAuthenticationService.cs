@@ -1,15 +1,21 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Dawn;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Org.BouncyCastle.Asn1.Ocsp;
 using Youverse.Core.Cryptography;
-using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Identity;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Storage;
 
@@ -34,12 +40,18 @@ namespace Youverse.Core.Services.Authentication.Owner
 
         private readonly DotYouContextCache _cache;
         private readonly ILogger<IOwnerAuthenticationService> _logger;
+        private readonly IDriveService _driveService;
 
-        public OwnerAuthenticationService(ILogger<IOwnerAuthenticationService> logger, IOwnerSecretService secretService, ITenantSystemStorage tenantSystemStorage)
+        private readonly TenantContext _tenantContext;
+
+        public OwnerAuthenticationService(ILogger<IOwnerAuthenticationService> logger, IOwnerSecretService secretService, ITenantSystemStorage tenantSystemStorage, IDriveService driveService,
+            TenantContext tenantContext)
         {
             _logger = logger;
             _secretService = secretService;
             _tenantSystemStorage = tenantSystemStorage;
+            _driveService = driveService;
+            _tenantContext = tenantContext;
             _cache = new DotYouContextCache();
         }
 
@@ -117,19 +129,60 @@ namespace Youverse.Core.Services.Authentication.Owner
             return (mk, clone.ToSensitiveByteArray());
         }
 
-        public bool TryGetCachedContext(ClientAuthenticationToken token, out DotYouContext context)
+        public async Task<(SensitiveByteArray masterKey, PermissionContext permissionContext)> GetPermissionContext(ClientAuthenticationToken token)
         {
-            return _cache.TryGetContext(token, out context);
-        }
+            if (await IsValidToken(token.Id))
+            {
+                var (masterKey, clientSharedSecret) = await GetMasterKey(token.Id, token.AccessTokenHalfKey);
 
-        public DotYouContext GetOrCreateContext(ClientAuthenticationToken token, Func<ClientAuthenticationToken, DotYouContext> contextFactory)
-        {
-            throw new NotImplementedException();
-        }
+                var allDrives = await _driveService.GetDrives(PageOptions.All);
+                var allDriveGrants = allDrives.Results.Select(d => new DriveGrant()
+                {
+                    DriveId = d.Id,
+                    KeyStoreKeyEncryptedStorageKey = d.MasterKeyEncryptedStorageKey,
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = d.TargetDriveInfo,
+                        Permission = DrivePermission.All
+                    },
+                });
 
-        public void CacheContext(ClientAuthenticationToken token, DotYouContext dotYouContext)
+                var permissionGroupMap = new Dictionary<string, PermissionGroup>
+                {
+                    { "owner_drive_grants", new PermissionGroup(new PermissionSet(PermissionKeys.All), allDriveGrants, masterKey) },
+                };
+
+                var ctx = new PermissionContext(permissionGroupMap, clientSharedSecret);
+
+                return (masterKey, ctx);
+            }
+
+            throw new YouverseSecurityException("Invalid owner token");
+        }
+        
+        public Task<DotYouContext> GetDotYouContext(ClientAuthenticationToken token)
         {
-            _cache.CacheContext(token, dotYouContext);
+            var creator = new Func<Task<DotYouContext>>(async delegate
+            {
+                var dotYouContext = new DotYouContext();
+                var (masterKey, permissionContext) = await GetPermissionContext(token);
+
+                if (null == permissionContext || masterKey.IsEmpty())
+                {
+                    throw new YouverseSecurityException("Invalid owner token");
+                }
+
+                dotYouContext.SetPermissionContext(permissionContext);
+
+                dotYouContext.Caller = new CallerContext(
+                    dotYouId: _tenantContext.HostDotYouId, //TODO: this works because we only have one identity per host.  this must be updated when i can have multiple identities for a single host
+                    masterKey: masterKey,
+                    securityLevel: SecurityGroupType.Owner);
+
+                return dotYouContext;
+            });
+
+            return _cache.GetOrAddContext(token, creator);
         }
 
         public async Task ExtendTokenLife(Guid token, int ttlSeconds)
@@ -178,7 +231,7 @@ namespace Youverse.Core.Services.Authentication.Owner
             if (notification.IsNewDrive)
             {
                 _logger.LogDebug("New drive created [{0}]; Purging cache ", notification.Drive.TargetDriveInfo);
-                _cache.Purge();
+                _cache.Reset();
             }
 
             return Task.CompletedTask;
