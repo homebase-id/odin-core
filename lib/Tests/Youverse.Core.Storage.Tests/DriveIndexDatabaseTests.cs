@@ -364,7 +364,7 @@ namespace IndexerTests
         [Test]
         public void CursorsBatch07Test()
         {
-            DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-cursor-04.db", DatabaseIndexKind.TimeSeries);
+            DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-cursor-07.db", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();

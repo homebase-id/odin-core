@@ -55,6 +55,7 @@ namespace Youverse.Core.Storage.SQLite
 
     public class DriveIndexDatabase : IDisposable
     {
+        private const long _CommitFrequency = 5000; // ms
         private string _connectionString;
 
         private SQLiteConnection _connection = null;
@@ -68,6 +69,7 @@ namespace Youverse.Core.Storage.SQLite
 
         private Object _getConnectionLock = new Object();
         private Object _getTransactionLock = new Object();
+        private UnixTimeUtc _lastCommit;
 
         public DriveIndexDatabase(string connectionString, DatabaseIndexKind databaseKind)
         {
@@ -170,20 +172,25 @@ namespace Youverse.Core.Storage.SQLite
         }
 
         /// <summary>
-        /// You can only have one transaction per connection. Create a new database object
-        /// if you want a second transaction.
+        /// Call to start a transaction or to continue on the current transaction.
         /// </summary>
-        public void BeginTransaction()
+        private void BeginTransaction()
         {
             lock (_getTransactionLock)
             {
                 if (_transaction == null)
                 {
                     _transaction = GetConnection().BeginTransaction();
+                    _lastCommit = new UnixTimeUtc();
                 }
                 else
                 {
-                    throw new Exception("Transaction already in use");
+                    // We already had a transaction, let's check if we should commit
+                    if (UnixTimeUtc.Now().milliseconds - _lastCommit.milliseconds > _CommitFrequency)
+                    {
+                        Commit();
+                        BeginTransaction();
+                    }
                 }
             }
         }
@@ -195,7 +202,7 @@ namespace Youverse.Core.Storage.SQLite
                 if (_transaction != null)
                 {
                     _transaction.Commit();
-                    _transaction.Dispose(); // I believe these objects need to be disposed
+                    _transaction.Dispose();
                     _transaction = null;
                 }
             }
@@ -227,51 +234,25 @@ namespace Youverse.Core.Storage.SQLite
             List<Guid> accessControlList,
             List<Guid> tagIdList)
         {
-            bool isLocalTransaction = false;
+            BeginTransaction();
 
             lock (_getTransactionLock)
             {
-                if (_transaction == null)
-                {
-                    _transaction = GetConnection().BeginTransaction();
-                    isLocalTransaction = true;
-                }
-
                 TblMainIndex.InsertRow(fileId, globalTransitId, UnixTimeUtc.Now(), fileType, dataType, senderId, groupId, uniqueId, userDate, false, false, requiredSecurityGroup);
                 TblAclIndex.InsertRows(fileId, accessControlList);
                 TblTagIndex.InsertRows(fileId, tagIdList);
-
-                if (isLocalTransaction == true)
-                {
-                    _transaction.Commit();
-                    _transaction.Dispose(); // I believe these objects need to be disposed
-                    _transaction = null;
-                }
             }
         }
 
         public void DeleteEntry(Guid fileId)
         {
-            bool isLocalTransaction = false;
+            BeginTransaction();
 
             lock (_getTransactionLock)
             {
-                if (_transaction == null)
-                {
-                    _transaction = GetConnection().BeginTransaction();
-                    isLocalTransaction = true;
-                }
-
                 TblAclIndex.DeleteAllRows(fileId);
                 TblTagIndex.DeleteAllRows(fileId);
                 TblMainIndex.DeleteRow(fileId);
-
-                if (isLocalTransaction == true)
-                {
-                    _transaction.Commit();
-                    _transaction.Dispose(); // I believe these objects need to be disposed
-                    _transaction = null;
-                }
             }
         }
 
@@ -290,16 +271,10 @@ namespace Youverse.Core.Storage.SQLite
             List<Guid> addTagIdList = null,
             List<Guid> deleteTagIdList = null)
         {
-            bool isLocalTransaction = false;
+            BeginTransaction();
 
             lock (_getTransactionLock)
             {
-                if (_transaction == null)
-                {
-                    _transaction = GetConnection().BeginTransaction();
-                    isLocalTransaction = true;
-                }
-
                 TblMainIndex.UpdateRow(fileId, globalTransitId: globalTransitId, fileType: fileType, dataType: dataType, senderId: senderId,
                     groupId: groupId, uniqueId: uniqueId, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup);
 
@@ -310,12 +285,6 @@ namespace Youverse.Core.Storage.SQLite
 
                 // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
                 //
-                if (isLocalTransaction == true)
-                {
-                    _transaction.Commit();
-                    _transaction.Dispose(); // I believe these objects need to be disposed
-                    _transaction = null;
-                }
             }
         }
 
@@ -332,16 +301,10 @@ namespace Youverse.Core.Storage.SQLite
             List<Guid> accessControlList = null,
             List<Guid> tagIdList = null)
         {
-            bool isLocalTransaction = false;
+            BeginTransaction();
 
             lock (_getTransactionLock)
             {
-                if (_transaction == null)
-                {
-                    _transaction = GetConnection().BeginTransaction();
-                    isLocalTransaction = true;
-                }
-
                 TblMainIndex.UpdateRow(fileId, globalTransitId: globalTransitId, fileType: fileType, dataType: dataType, senderId: senderId,
                     groupId: groupId, uniqueId: uniqueId, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup);
 
@@ -352,12 +315,6 @@ namespace Youverse.Core.Storage.SQLite
 
                 // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
                 //
-                if (isLocalTransaction == true)
-                {
-                    _transaction.Commit();
-                    _transaction.Dispose(); // I believe these objects need to be disposed
-                    _transaction = null;
-                }
             }
         }
 
@@ -508,6 +465,8 @@ namespace Youverse.Core.Storage.SQLite
             stm = $"SELECT fileid FROM mainindex " + strWhere + $"ORDER BY fileid DESC LIMIT {noOfItems+1}";
 
             var cmd = new SQLiteCommand(stm, con);
+
+            // Commit();
             var rdr = cmd.ExecuteReader();
 
             var result = new List<Guid>();
