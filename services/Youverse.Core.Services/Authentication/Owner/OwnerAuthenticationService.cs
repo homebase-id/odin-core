@@ -15,6 +15,7 @@ using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Storage;
@@ -45,14 +46,14 @@ namespace Youverse.Core.Services.Authentication.Owner
         private readonly TenantContext _tenantContext;
 
         public OwnerAuthenticationService(ILogger<IOwnerAuthenticationService> logger, IOwnerSecretService secretService, ITenantSystemStorage tenantSystemStorage, IDriveService driveService,
-            TenantContext tenantContext)
+            TenantContext tenantContext, YouverseConfiguration config)
         {
             _logger = logger;
             _secretService = secretService;
             _tenantSystemStorage = tenantSystemStorage;
             _driveService = driveService;
             _tenantContext = tenantContext;
-            _cache = new DotYouContextCache();
+            _cache = new DotYouContextCache(config.Host.CacheSlidingExpirationSeconds);
         }
 
         public async Task<NonceData> GenerateAuthenticationNonce()

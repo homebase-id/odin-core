@@ -69,19 +69,16 @@ namespace Youverse.Hosting.Authentication.ClientToken
 
             var appRegService = Context.RequestServices.GetRequiredService<IAppRegistrationService>();
             dotYouContext.AuthContext = ClientTokenConstants.AppSchemeName;
-            dotYouContext.Caller = new CallerContext(
-                dotYouId: (DotYouIdentity)Request.Host.Host,
-                masterKey: null,
-                securityLevel: SecurityGroupType.Owner);
-
+            
             var ctx = await appRegService.GetPermissionContext(authToken);
 
-            if (null == ctx.permissionContext)
+            if (null == ctx)
             {
-                AuthenticateResult.Fail("Invalid App Token");
+                return AuthenticateResult.Fail("Invalid App Token");
             }
 
-            dotYouContext.SetPermissionContext(ctx.permissionContext);
+            dotYouContext.Caller = ctx.Caller;
+            dotYouContext.SetPermissionContext(ctx.PermissionsContext);
 
             var claims = new List<Claim>();
             claims.Add(new Claim(ClaimTypes.Name, dotYouContext.Caller.DotYouId)); //caller is this owner
@@ -92,7 +89,6 @@ namespace Youverse.Hosting.Authentication.ClientToken
             return CreateAuthenticationResult(claims, ClientTokenConstants.AppSchemeName);
         }
 
-
         private async Task<AuthenticateResult> HandleYouAuth(DotYouContext dotYouContext)
         {
             if (!TryGetClientAuthToken(YouAuthDefaults.XTokenCookieName, out var clientAuthToken))
@@ -101,12 +97,16 @@ namespace Youverse.Hosting.Authentication.ClientToken
             }
 
             dotYouContext.AuthContext = ClientTokenConstants.YouAuthScheme;
-
             var youAuthRegService = this.Context.RequestServices.GetRequiredService<IYouAuthRegistrationService>();
-
             var ctx = await youAuthRegService.GetDotYouContext(clientAuthToken);
-            
-            
+
+            if (ctx == null)
+            {
+                return AuthenticateResult.Success(await CreateAnonYouAuthTicket(dotYouContext));
+            }
+
+            dotYouContext.Caller = ctx.Caller;
+            dotYouContext.SetPermissionContext(ctx.PermissionsContext);
 
             var claims = new List<Claim>();
             claims.Add(new Claim(ClaimTypes.Name, dotYouContext.Caller.DotYouId));

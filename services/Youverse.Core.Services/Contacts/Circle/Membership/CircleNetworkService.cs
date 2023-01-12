@@ -150,7 +150,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                     authToken: authToken,
                     grants: null,
                     accessReg: icr.AccessGrant.AccessRegistration,
-                    isOwner: false,
                     additionalPermissionKeys: permissionKeys);
 
                 return (cc, anonPermissionContext);
@@ -662,7 +661,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 permissionKeys.Add(PermissionKeys.ReadConnections);
             }
 
-            var permissionCtx = await _exchangeGrantService.CreatePermissionContext(authToken, grants, accessReg, isOwner: false, additionalPermissionKeys: permissionKeys);
+            var permissionCtx = await _exchangeGrantService.CreatePermissionContext(authToken, grants, accessReg, additionalPermissionKeys: permissionKeys);
             return (permissionCtx, enabledCircles);
         }
 

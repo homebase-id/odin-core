@@ -98,7 +98,7 @@ public class DriveManager
 
             storageDrive = ToStorageDrive(sdb);
             storageDrive.EnsureDirectories();
-            
+
             Log.Debug($"Created a new Drive - {storageDrive.TargetDriveInfo}");
             CacheDrive(storageDrive);
             Log.Debug($"End - Created a new Drive - {storageDrive.TargetDriveInfo}");
@@ -109,7 +109,7 @@ public class DriveManager
             IsNewDrive = true,
             Drive = storageDrive
         });
-        
+
         return Task.FromResult(storageDrive);
     }
 
@@ -260,7 +260,7 @@ public class DriveManager
             allDrives = _tenantSystemStorage.ThreeKeyValueStorage
                 .GetByKey3<StorageDriveBase>(_driveDataType)
                 .Select(ToStorageDrive).ToList();
-            
+
             Log.Debug($"GetDrivesInternal - disk read:  Count: {allDrives.Count}");
         }
 

@@ -192,6 +192,12 @@ namespace Youverse.Hosting.Tests.Performance
             var encryptedThumbnailBytes = await thumbnail1Response.Content.ReadAsByteArrayAsync();
             fileByteLength += encryptedThumbnailBytes.Length;
 
+            
+            var payload1Response2 = await frodoDriveService.GetPayload(uploadedFile1.FileId, uploadedFile1.TargetDrive.Alias, uploadedFile1.TargetDrive.Type);
+            Assert.IsTrue(payload1Response2.IsSuccessStatusCode);
+            Assert.IsNotNull(payload1Response2.Content);
+            System.Threading.Thread.Sleep(2000);
+            
             //
             // I presume here we retrieve the file and download it
             //

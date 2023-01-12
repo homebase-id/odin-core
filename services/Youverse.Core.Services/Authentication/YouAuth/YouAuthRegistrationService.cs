@@ -66,7 +66,6 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         /// <returns></returns>
         public async Task<DotYouContext> GetDotYouContext(ClientAuthenticationToken token)
         {
-            throw new NotImplementedException("wip");
             var creator = new Func<Task<DotYouContext>>(async delegate
             {
                 var dotYouContext = new DotYouContext();
@@ -77,55 +76,15 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                     return null;
                 }
 
-                dotYouContext.SetPermissionContext(permissionContext);
-
-                dotYouContext.Caller = new CallerContext(
-                    dotYouId: _tenantContext.HostDotYouId, //TODO: this works because we only have one identity per host.  this must be updated when i can have multiple identities for a single host
-                    masterKey: null,
-                    securityLevel: SecurityGroupType.Owner);
+                dotYouContext.Caller = callerContext;
+                dotYouContext.SetPermissionContext(permissionContext); 
                 
-                // Log.Information("ClientTokenHandler - YouAuth: Creating new DotYouContext");
-                // var (cc, permissionContext) = await GetPermissionContext(token);
-                // if (null == cc)
-                // {
-                //     return AuthenticateResult.Success(await CreateAnonYouAuthTicket(dotYouContext));
-                // }
-                //
-                // dotYouContext.Caller = cc;
-                // dotYouContext.SetPermissionContext(permissionContext);
-                // youAuthRegService.GetOrAddContext(clientAuthToken, dotYouContext);
-
                 return dotYouContext;
             });
 
             return await _cache.GetOrAddContext(token, creator);
         }
         
-        //
-
-        /// <summary>
-        /// Creates a YouAuth Client for an Identity that is not connected. (will show as authenticated)
-        /// </summary>
-        private bool TryCreateAuthenticatedYouAuthClient(string dotYouId, out ClientAccessToken clientAccessToken)
-        {
-            YouAuthRegistration registration = _youAuthRegistrationStorage.LoadFromSubject(dotYouId);
-
-            var emptyKey = Guid.Empty.ToByteArray().ToSensitiveByteArray();
-            if (null == registration)
-            {
-                registration = new YouAuthRegistration(dotYouId, new Dictionary<string, CircleGrant>());
-                _youAuthRegistrationStorage.Save(registration);
-            }
-
-            var (accessRegistration, cat) = _exchangeGrantService.CreateClientAccessToken(emptyKey, ClientTokenType.YouAuth).GetAwaiter().GetResult();
-            var client = new YouAuthClient(accessRegistration.Id, (DotYouIdentity)dotYouId, accessRegistration);
-            _youAuthRegistrationStorage.SaveClient(client);
-
-            clientAccessToken = cat;
-            return true;
-        }
-
-
         public ValueTask<YouAuthRegistration?> LoadFromSubject(string subject)
         {
             var session = _youAuthRegistrationStorage.LoadFromSubject(subject);
@@ -159,8 +118,16 @@ namespace Youverse.Core.Services.Authentication.YouAuth
              */
             if (authToken.ClientTokenType == ClientTokenType.IdentityConnectionRegistration)
             {
-                var (cc, permissionContext) = _circleNetworkService.CreateConnectedClientContext(authToken).GetAwaiter().GetResult();
-                return new ValueTask<(CallerContext callerContext, PermissionContext permissionContext)>((cc, permissionContext));
+                try
+                {
+                    var (cc, permissionContext) = _circleNetworkService.CreateConnectedClientContext(authToken).GetAwaiter().GetResult();
+                    return new ValueTask<(CallerContext callerContext, PermissionContext permissionContext)>((cc, permissionContext));
+                }
+                catch (YouverseSecurityException)
+                {
+                    //TODO: swallow the security exception and return null, otherwise the cache will keep trying to load data from the token 
+                    return new ValueTask<(CallerContext callerContext, PermissionContext permissionContext)>((null, null));
+                }
             }
 
             if (authToken.ClientTokenType == ClientTokenType.YouAuth)
@@ -177,12 +144,35 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                     circleIds: null
                 );
 
-
                 PermissionContext permissionCtx = CreateAuthenticatedYouAuthPermissionContext(authToken, client);
                 return new ValueTask<(CallerContext callerContext, PermissionContext permissionContext)>((cc, permissionCtx));
             }
 
             throw new YouverseSecurityException("Unhandled access registration type");
+        }
+
+        //
+
+        /// <summary>
+        /// Creates a YouAuth Client for an Identity that is not connected. (will show as authenticated)
+        /// </summary>
+        private bool TryCreateAuthenticatedYouAuthClient(string dotYouId, out ClientAccessToken clientAccessToken)
+        {
+            YouAuthRegistration registration = _youAuthRegistrationStorage.LoadFromSubject(dotYouId);
+
+            var emptyKey = Guid.Empty.ToByteArray().ToSensitiveByteArray();
+            if (null == registration)
+            {
+                registration = new YouAuthRegistration(dotYouId, new Dictionary<string, CircleGrant>());
+                _youAuthRegistrationStorage.Save(registration);
+            }
+
+            var (accessRegistration, cat) = _exchangeGrantService.CreateClientAccessToken(emptyKey, ClientTokenType.YouAuth).GetAwaiter().GetResult();
+            var client = new YouAuthClient(accessRegistration.Id, (DotYouIdentity)dotYouId, accessRegistration);
+            _youAuthRegistrationStorage.SaveClient(client);
+
+            clientAccessToken = cat;
+            return true;
         }
         
         private PermissionContext CreateAuthenticatedYouAuthPermissionContext(ClientAuthenticationToken authToken, YouAuthClient client)

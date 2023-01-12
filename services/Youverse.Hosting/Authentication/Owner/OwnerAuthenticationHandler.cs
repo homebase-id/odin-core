@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Org.BouncyCastle.Asn1.Icao;
 using Serilog;
 using Youverse.Core;
 using Youverse.Core.Identity;
@@ -49,7 +50,10 @@ namespace Youverse.Hosting.Authentication.Owner
             {
                 var dotYouContext = Context.RequestServices.GetRequiredService<DotYouContext>();
 
-                await UpdateDotYouContext(authResult, dotYouContext);
+                if (!await UpdateDotYouContext(authResult, dotYouContext))
+                {
+                    return AuthenticateResult.Fail("Invalid Owner Token");
+                }
 
                 var claims = new List<Claim>()
                 {
@@ -75,20 +79,31 @@ namespace Youverse.Hosting.Authentication.Owner
             return AuthenticateResult.Fail("Invalid or missing token");
         }
 
-        private async Task UpdateDotYouContext(ClientAuthenticationToken token, DotYouContext dotYouContext)
+        private async Task<bool> UpdateDotYouContext(ClientAuthenticationToken token, DotYouContext dotYouContext)
         {
             var authService = Context.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
             dotYouContext.AuthContext = OwnerAuthConstants.SchemeName;
-
+            
+            //HACK: fix this
+            //a bit of a hack here: we have to set the context as owner
+            //because it's required to build the permission context
+            // this is justified because we're heading down the owner api path
+            // just below this, we check to see if the token was good.  if not, the call fails.
+            dotYouContext.Caller = new CallerContext(
+                dotYouId:(DotYouIdentity) Request.Host.Host,
+                masterKey: null,
+                securityLevel: SecurityGroupType.Owner);
+            
             DotYouContext ctx = await authService.GetDotYouContext(token);
            
             if (null == ctx)
             {
-                AuthenticateResult.Fail("Invalid Owner Token");
+                return false;
             }
             
             dotYouContext.Caller = ctx.Caller;
             dotYouContext.SetPermissionContext(ctx.PermissionsContext);
+            return true;
         }
 
         public Task SignOutAsync(AuthenticationProperties? properties)
