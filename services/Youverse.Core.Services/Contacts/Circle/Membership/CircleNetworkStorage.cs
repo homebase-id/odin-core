@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -8,7 +9,7 @@ using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Contacts.Circle.Membership;
 
-public class CircleNetworkStorage
+public class CircleNetworkStorage : IDisposable
 {
     private readonly KeyValueDatabase _db;
     private readonly SingleKeyValueStorage _storage;
@@ -63,5 +64,10 @@ public class CircleNetworkStorage
         var dict = _storage.Get<Dictionary<string, IdentityConnectionRegistration>>(_key) ??
                    new Dictionary<string, IdentityConnectionRegistration>();
         return dict;
+    }
+
+    public void Dispose()
+    {
+        _db?.Dispose();
     }
 }

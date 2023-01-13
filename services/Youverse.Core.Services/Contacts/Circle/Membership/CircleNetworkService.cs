@@ -50,10 +50,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             _storage = new CircleNetworkStorage(tenantContext.StorageConfig.DataStoragePath);
 
-            _circleMemberStorage = new TableCircleMember(tenantSystemStorage.GetDBInstance());
-            _circleMemberStorage.EnsureTableExists(false);
-
-            _icrClientValueStorage = new ThreeKeyValueStorage(tenantSystemStorage.GetDBInstance().TblKeyThreeValue);
+            _circleMemberStorage = tenantSystemStorage.CircleMemberStorage;
+            _icrClientValueStorage = tenantSystemStorage.IcrClientStorage;
         }
 
         public async Task<ClientAuthenticationToken> GetConnectionAuthToken(DotYouIdentity dotYouId, bool failIfNotConnected, bool overrideHack = false)
@@ -700,6 +698,11 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             //TODO: this is a critical change; need to audit this
             _storage.Upsert(icr);
+        }
+
+        public void Dispose()
+        {
+            _storage.Dispose();
         }
     }
 }

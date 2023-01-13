@@ -34,8 +34,12 @@ namespace Youverse.Core.Services.Base
             ThreeKeyValueStorage = new ThreeKeyValueStorage(_db.TblKeyThreeValue);
             Outbox = new TableOutbox(_db);
             Inbox = new TableInbox(_db);
+
+            IcrClientStorage = new ThreeKeyValueStorage(_db.TblKeyThreeValue);
+            CircleMemberStorage = new TableCircleMember(_db);
+            CircleMemberStorage.EnsureTableExists(false);
         }
-        
+
         /// <summary>
         /// Store values using a single key
         /// </summary>
@@ -47,12 +51,16 @@ namespace Youverse.Core.Services.Base
         public ThreeKeyValueStorage ThreeKeyValueStorage { get; }
 
         public TableOutbox Outbox { get; }
-        
+
         public TableInbox Inbox { get; }
 
-        public KeyValueDatabase GetDBInstance()
+        public ThreeKeyValueStorage IcrClientStorage { get; }
+
+        public TableCircleMember CircleMemberStorage { get; }
+
+        public void Dispose()
         {
-            return _db;
+            _db.Dispose();
         }
     }
 }

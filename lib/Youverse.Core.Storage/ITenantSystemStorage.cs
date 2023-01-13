@@ -7,17 +7,18 @@ namespace Youverse.Core.Storage
     /// <summary>
     /// Storage of system specific data.
     /// </summary>
-    public interface ITenantSystemStorage
+    public interface ITenantSystemStorage : IDisposable
     {
-        
         ThreeKeyValueStorage ThreeKeyValueStorage { get; }
 
         SingleKeyValueStorage SingleKeyValueStorage { get; }
-        
+
         TableOutbox Outbox { get; }
-        
+
         TableInbox Inbox { get; }
 
-        KeyValueDatabase GetDBInstance();
+        public ThreeKeyValueStorage IcrClientStorage { get; }
+
+        public TableCircleMember CircleMemberStorage { get; }
     }
 }
