@@ -102,12 +102,11 @@ namespace Youverse.Core.Storage.SQLite
 
         private void Dispose(bool disposing)
         {
-            Commit();
+            Commit(); // Will dispose _transaction
             ReleaseUnmanagedResources();
             if (disposing)
             {
                 _connection?.Dispose();
-                _transaction?.Dispose();
             }
         }
 
