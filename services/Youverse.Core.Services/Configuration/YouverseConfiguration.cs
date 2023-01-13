@@ -84,6 +84,7 @@ namespace Youverse.Core.Services.Configuration
             /// </summary>
             public List<ListenEntry> IPAddressListenList { get; }
 
+            public int CacheSlidingExpirationSeconds { get; }
 
             public HostSection(IConfiguration config)
             {
@@ -99,6 +100,8 @@ namespace Youverse.Core.Services.Configuration
                 SystemSslRootPath = Path.Combine(SystemDataRootPath, "ssl");
 
                 IPAddressListenList = config.Required<List<ListenEntry>>("Host:IPAddressListenList");
+
+                CacheSlidingExpirationSeconds = config.Required<int>("Host:CacheSlidingExpirationSeconds");
             }
         }
 

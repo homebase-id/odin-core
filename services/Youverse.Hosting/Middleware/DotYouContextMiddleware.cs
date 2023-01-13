@@ -1,20 +1,12 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using System.Security.Claims;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
-using Youverse.Core;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Authentication.Owner;
-using Youverse.Core.Services.Authorization;
+using Youverse.Core.Services.Authentication.Transit;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Contacts.Circle.Membership;
-using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Tenant;
-using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Authentication.Perimeter;
 
 namespace Youverse.Hosting.Middleware
@@ -41,7 +33,7 @@ namespace Youverse.Hosting.Middleware
                 await _next(httpContext);
                 return;
             }
-            
+
             if (authType == PerimeterAuthConstants.TransitCertificateAuthScheme)
             {
                 await LoadTransitContext(httpContext, dotYouContext);
@@ -63,30 +55,26 @@ namespace Youverse.Hosting.Middleware
 
             await _next(httpContext);
         }
-        
+
         private async Task LoadTransitContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
-            var user = httpContext.User;
-            var circleNetworkService = httpContext.RequestServices.GetRequiredService<ICircleNetworkService>();
-
-            var callerDotYouId = (DotYouIdentity)user.Identity!.Name;
-            dotYouContext.Caller = new CallerContext(
-                dotYouId: callerDotYouId, //note: this will need to come from a claim: re: best buy/3rd party scenario
-                masterKey: null,
-                securityLevel: SecurityGroupType.Authenticated);
-
-            if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[DotYouHeaderNames.ClientAuthToken], out var clientAuthToken))
+            if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[DotYouHeaderNames.ClientAuthToken],
+                    out var clientAuthToken))
             {
-                var (permissionContext, circleIds) = await circleNetworkService.CreateTransitPermissionContext(callerDotYouId, clientAuthToken);
-                dotYouContext.Caller.SecurityLevel = SecurityGroupType.Connected;
-                dotYouContext.Caller.Circles = circleIds;
-                dotYouContext.Caller.SetIsConnected();
-                dotYouContext.SetPermissionContext(permissionContext);
+                var user = httpContext.User;
+                var transitRegService = httpContext.RequestServices.GetRequiredService<TransitRegistrationService>();
+                var callerDotYouId = (DotYouIdentity)user.Identity!.Name;
+                var ctx = await transitRegService.GetDotYouContext(callerDotYouId, clientAuthToken);
+
+                if (ctx != null)
+                {
+                    dotYouContext.Caller = ctx.Caller;
+                    dotYouContext.SetPermissionContext(ctx.PermissionsContext);
+                    return;
+                }
             }
-            else
-            {
-                dotYouContext.SetPermissionContext(null);
-            }
+
+            await LoadPublicTransitContext(httpContext, dotYouContext);
         }
 
         private Task LoadPublicTransitContext(HttpContext httpContext, DotYouContext dotYouContext)
