@@ -95,7 +95,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 throw new YouverseSecurityException("Invalid connection");
             }
 
-            var (permissionContext, enabledCircles) = await CreatePermissionContextInternal(icr.AccessGrant.CircleGrants, icr.AccessGrant.AccessRegistration, authToken);
+            var (permissionContext, enabledCircles) = await CreatePermissionContextInternal(icr.AccessGrant!.CircleGrants, icr.AccessGrant.AccessRegistration, authToken);
 
             return (permissionContext, enabledCircles);
         }

@@ -50,11 +50,11 @@ namespace Youverse.Core.Services.Base
 
         public bool IsConnected => this.SecurityLevel == SecurityGroupType.Connected;
 
-        public void SetIsConnected()
-        {
-            //HACK: this method lsets me set isconnected after I've set the dotyoucaller context since it is needed by the CircleNetworkService
-            this.SecurityLevel = SecurityGroupType.Connected;
-        }
+        // public void SetIsConnected()
+        // {
+        //     //HACK: this method lsets me set isconnected after I've set the dotyoucaller context since it is needed by the CircleNetworkService
+        //     this.SecurityLevel = SecurityGroupType.Connected;
+        // }
 
         public void AssertHasMasterKey()
         {
