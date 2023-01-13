@@ -221,6 +221,11 @@ public class SqliteQueryManager : IDriveQueryManager
         _indexDb.TblCmdMsgQueue.DeleteRow(fileIds);
         return Task.CompletedTask;
     }
+
+    public void EnsureIndexDataCommitted()
+    {
+        _indexDb.Commit();
+    }
 }
 
 public class UnprocessedCommandMessage

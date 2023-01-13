@@ -37,6 +37,9 @@ namespace Youverse.Core.Services.Drive
         Task MarkCommandsProcessed(Guid driveId, List<Guid> idList);
 
         Task<QueryBatchCollectionResponse> GetBatchCollection(QueryBatchCollectionRequest request);
+        
+        
+        Task EnsureIndexerCommits(IEnumerable<Guid> driveIdList);
     }
     
 }

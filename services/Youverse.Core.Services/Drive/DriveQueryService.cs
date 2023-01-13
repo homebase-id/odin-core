@@ -181,6 +181,19 @@ namespace Youverse.Core.Services.Drive
             return collection;
         }
 
+        public Task EnsureIndexerCommits(IEnumerable<Guid> driveIdList)
+        {
+            foreach (var driveId in driveIdList)
+            {
+                if(this.TryGetOrLoadQueryManager(driveId, out var manager, false).GetAwaiter().GetResult())
+                {
+                    manager.EnsureIndexDataCommitted();
+                }
+            }
+            
+            return Task.CompletedTask;
+        }
+
         public async Task<ClientFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId)
         {
             var qp = new FileQueryParams()
