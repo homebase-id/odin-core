@@ -235,12 +235,12 @@ namespace Youverse.Hosting.Tests.Performance
                         Drive = senderAppContext.TargetDrive
                     },
                     //TODO: comment transit options if you only want to upload
-                    // TransitOptions = new TransitOptions()
-                    // {
-                    //     UseGlobalTransitId = true,
-                    //     Recipients = recipients,
-                    //     Schedule = ScheduleOptions.SendNowAwaitResponse
-                    // }
+                    TransitOptions = new TransitOptions()
+                    {
+                        UseGlobalTransitId = true,
+                        Recipients = recipients,
+                        Schedule = ScheduleOptions.SendNowAwaitResponse
+                    }
                 };
 
                 var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));

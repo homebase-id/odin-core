@@ -330,7 +330,13 @@ namespace Youverse.Core.Services.Drive
         {
             foreach (var manager in _queryManagers.Values)
             {
-                manager.Dispose();
+                try
+                {
+                    manager.Dispose();
+                }
+                catch 
+                {
+                }
             }
         }
     }
