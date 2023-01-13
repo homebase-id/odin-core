@@ -84,10 +84,7 @@ namespace Youverse.Core.Storage.SQLite
 
         ~DriveIndexDatabase()
         {
-            if (_transaction != null)
-            {
-                throw new Exception("Transaction in progress not completed.");
-            }
+            Commit();
 
             if (_connection != null)
             {
