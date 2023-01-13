@@ -84,36 +84,37 @@ namespace Youverse.Core.Storage.SQLite
 
         ~DriveIndexDatabase()
         {
-            Commit();
+            _connection?.Dispose();
+            _connection = null;
 
-            if (_connection != null)
-            {
-                _connection.Dispose();
-                _connection = null;
-            }
-
-            Dispose(false);
-        }
-
-        private void ReleaseUnmanagedResources()
-        {
-            // TODO release unmanaged resources here
+            // lock(_getConnectionLock)
+            // {
+            //     if (_connection != null)
+            //     {
+            //         _connection.Dispose();
+            //         _connection = null;
+            //     }
+            // }
+            // Dispose(false);
         }
 
         private void Dispose(bool disposing)
         {
-            Commit(); // Will dispose _transaction
-            ReleaseUnmanagedResources();
             if (disposing)
             {
-                _connection?.Dispose();
+                Commit(); // Will dispose _transaction
+                // lock (_getConnectionLock)
+                {
+                    _connection?.Dispose();
+                    _connection = null;
+                }
             }
         }
 
         public void Dispose()
         {
             Dispose(true);
-            GC.SuppressFinalize(this);
+            // GC.SuppressFinalize(this);
         }
 
         public DatabaseIndexKind GetKind()
@@ -459,7 +460,7 @@ namespace Youverse.Core.Storage.SQLite
             }
 
             // Read 1 more than requested to see if we're at the end of the dataset
-            stm = $"SELECT fileid FROM mainindex " + strWhere + $"ORDER BY fileid DESC LIMIT {noOfItems+1}";
+            stm = $"SELECT fileid FROM mainindex " + strWhere + $"ORDER BY fileid DESC LIMIT {noOfItems + 1}";
 
             var cmd = new SQLiteCommand(stm, con);
 
@@ -481,7 +482,6 @@ namespace Youverse.Core.Storage.SQLite
 
             return (result, rdr.Read());
         }
-
 
 
         /// <summary>
@@ -513,7 +513,8 @@ namespace Youverse.Core.Storage.SQLite
             List<Guid> tagsAnyOf = null,
             List<Guid> tagsAllOf = null)
         {
-            var (result, moreRows) = QueryBatchRaw(noOfItems, ref cursor, requiredSecurityGroup, globalTransitIdAnyOf, filetypesAnyOf, datatypesAnyOf, senderidAnyOf, groupIdAnyOf, uniqueIdAnyOf, userdateSpan, aclAnyOf, tagsAnyOf, tagsAllOf);
+            var (result, moreRows) = QueryBatchRaw(noOfItems, ref cursor, requiredSecurityGroup, globalTransitIdAnyOf, filetypesAnyOf, datatypesAnyOf, senderidAnyOf, groupIdAnyOf, uniqueIdAnyOf,
+                userdateSpan, aclAnyOf, tagsAnyOf, tagsAllOf);
 
             if (result.Count > 0)
             {
@@ -549,16 +550,16 @@ namespace Youverse.Core.Storage.SQLite
                     // Do a recursive call to check there are no more items.
                     //
                     var r2 = QueryBatch(noOfItems - result.Count, ref cursor, requiredSecurityGroup,
-                                            globalTransitIdAnyOf,
-                                            filetypesAnyOf,
-                                            datatypesAnyOf,
-                                            senderidAnyOf,
-                                            groupIdAnyOf,
-                                            uniqueIdAnyOf,
-                                            userdateSpan,
-                                            aclAnyOf,
-                                            tagsAnyOf,
-                                            tagsAllOf);
+                        globalTransitIdAnyOf,
+                        filetypesAnyOf,
+                        datatypesAnyOf,
+                        senderidAnyOf,
+                        groupIdAnyOf,
+                        uniqueIdAnyOf,
+                        userdateSpan,
+                        aclAnyOf,
+                        tagsAnyOf,
+                        tagsAllOf);
 
                     // There was more data
                     if (r2.Count > 0)
@@ -576,7 +577,8 @@ namespace Youverse.Core.Storage.SQLite
                     cursor.currentBoundaryCursor = cursor.nextBoundaryCursor;
                     cursor.nextBoundaryCursor = null;
                     cursor.pagingCursor = null;
-                    return QueryBatch(noOfItems, ref cursor, requiredSecurityGroup, globalTransitIdAnyOf, filetypesAnyOf, datatypesAnyOf, senderidAnyOf, groupIdAnyOf, uniqueIdAnyOf, userdateSpan, aclAnyOf, tagsAnyOf, tagsAllOf);
+                    return QueryBatch(noOfItems, ref cursor, requiredSecurityGroup, globalTransitIdAnyOf, filetypesAnyOf, datatypesAnyOf, senderidAnyOf, groupIdAnyOf, uniqueIdAnyOf, userdateSpan,
+                        aclAnyOf, tagsAnyOf, tagsAllOf);
                 }
                 else
                 {
@@ -634,7 +636,7 @@ namespace Youverse.Core.Storage.SQLite
             }
 
             strWhere += $"AND (requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) ";
-            
+
             if (IsSet(filetypesAnyOf))
             {
                 strWhere += $"AND filetype IN ({IntList(filetypesAnyOf)}) ";
@@ -792,7 +794,7 @@ namespace Youverse.Core.Storage.SQLite
         {
             return list != null && list.Any();
         }
-        
+
         private string AndHexList(List<Guid> list)
         {
             int len = list.Count;
@@ -858,7 +860,7 @@ namespace Youverse.Core.Storage.SQLite
             if (_kind == DatabaseIndexKind.TimeSeries)
             {
                 UnixTimeUtc t = SequentialGuid.ToUnixTimeUtc(fileid);
-                var dt = DateTimeOffset.FromUnixTimeSeconds((long)t.milliseconds/1000).UtcDateTime;
+                var dt = DateTimeOffset.FromUnixTimeSeconds((long)t.milliseconds / 1000).UtcDateTime;
                 return dt.Year + "/" + dt.Month.ToString("2") + "/" + dt.Day.ToString("2");
             }
             else

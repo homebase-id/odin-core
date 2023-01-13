@@ -1080,6 +1080,7 @@ namespace IndexerTests
         [Test]
         public void AddEntryTest()
         {
+            
             var (testDatabase, fileId, conversationId, aclMembers, tags) = this.Init("add_entry_test.db");
 
             Stopwatch stopWatch = new Stopwatch();
@@ -1254,6 +1255,8 @@ namespace IndexerTests
                 requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count >= 1);
             Debug.Assert(result.Count < 100);
+            
+            testDatabase.Dispose();
         }
 
         private (DriveIndexDatabase, List<Guid> _fileId, List<Guid> _ConversationId, List<Guid> _aclMembers, List<Guid> _Tags) Init(string filename)

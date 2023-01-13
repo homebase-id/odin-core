@@ -17,7 +17,7 @@ https://www.sqlitetutorial.net/sqlite-index/
 
 namespace Youverse.Core.Storage.SQLite.KeyValue
 {
-    public class KeyValueDatabase :IDisposable
+    public class KeyValueDatabase : IDisposable
     {
         private string _connectionString;
 
@@ -28,7 +28,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         public TableKeyValue tblKeyValue = null;
         public TableKeyTwoValue tblKeyTwoValue = null;
         public TableKeyThreeValue TblKeyThreeValue = null;
- 		public TableInbox tblInbox = null;
+        public TableInbox tblInbox = null;
         public TableOutbox tblOutbox = null;
         public TableCircle tblCircle = null;
         public TableFollower tblFollow = null;
@@ -45,17 +45,11 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
             tblKeyValue = new TableKeyValue(this);
             tblKeyTwoValue = new TableKeyTwoValue(this);
             TblKeyThreeValue = new TableKeyThreeValue(this);
- 			tblInbox = new TableInbox(this);
+            tblInbox = new TableInbox(this);
             tblOutbox = new TableOutbox(this);
             tblCircle = new TableCircle(this);
             tblCircleMember = new TableCircleMember(this);
             tblFollow = new TableFollower(this);
-        }
-
-
-        ~KeyValueDatabase()
-        {
-            Dispose(false);
         }
 
         public SQLiteCommand CreateCommand()
@@ -103,7 +97,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
             tblKeyTwoValue.EnsureTableExists(dropExistingTables);
             TblKeyThreeValue.EnsureTableExists(dropExistingTables);
             // TblKeyUniqueThreeValue.EnsureTableExists(dropExistingTables);
- 			tblInbox.EnsureTableExists(dropExistingTables);
+            tblInbox.EnsureTableExists(dropExistingTables);
             tblOutbox.EnsureTableExists(dropExistingTables);
             tblCircle.EnsureTableExists(dropExistingTables);
             tblCircleMember.EnsureTableExists(dropExistingTables);
@@ -144,25 +138,11 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
             }
         }
 
-        private void ReleaseUnmanagedResources()
-        {
-            // TODO release unmanaged resources here
-        }
-
-        private void Dispose(bool disposing)
-        {
-            ReleaseUnmanagedResources();
-            if (disposing)
-            {
-                _connection?.Dispose();
-                _Transaction?.Dispose();
-            }
-        }
-
         public void Dispose()
         {
-            Dispose(true);
-            GC.SuppressFinalize(this);
+            Commit();
+            _connection?.Dispose();
+            _Transaction?.Dispose();
         }
     }
 }
