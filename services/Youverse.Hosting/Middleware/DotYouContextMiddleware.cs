@@ -70,6 +70,7 @@ namespace Youverse.Hosting.Middleware
                 {
                     dotYouContext.Caller = ctx.Caller;
                     dotYouContext.SetPermissionContext(ctx.PermissionsContext);
+                    return;
                 }
             }
 

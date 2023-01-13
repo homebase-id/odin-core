@@ -4,6 +4,7 @@ using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 
 namespace Youverse.Core.Services.Authentication.Transit;
@@ -15,10 +16,11 @@ public class TransitRegistrationService
     private readonly DotYouContextCache _cache;
     private readonly ICircleNetworkService _circleNetworkService;
     
-    public TransitRegistrationService(ICircleNetworkService circleNetworkService)
+    public TransitRegistrationService(ICircleNetworkService circleNetworkService, YouverseConfiguration config)
     {
         _circleNetworkService = circleNetworkService;
-        _cache = new DotYouContextCache();
+        _cache = new DotYouContextCache(config.Host.CacheSlidingExpirationSeconds);
+
     }
     
     /// <summary>
