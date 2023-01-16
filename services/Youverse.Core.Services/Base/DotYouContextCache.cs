@@ -1,61 +1,46 @@
 using System;
 using System.Collections.Concurrent;
+using System.Threading;
 using System.Threading.Tasks;
+using LazyCache;
+using LazyCache.Providers;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Primitives;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 
 namespace Youverse.Core.Services.Base;
 
-public struct CacheItem
-{
-    public DotYouContext DotYouContext { get; set; }
-
-    public UnixTimeUtc Created { get; set; }
-}
-
 public class DotYouContextCache
 {
     private readonly int _ttlSeconds;
-
-    //TODO: maybe make this a sliding cache?
-    private readonly ConcurrentDictionary<Guid, CacheItem> _contextCache = new();
-    private readonly object _readLock = new();
+    private IAppCache _dotYouContextCache;
+    private CancellationTokenSource _expiryTokenSource = new ();
 
     public DotYouContextCache(int ttlSeconds = 60)
     {
         this._ttlSeconds = ttlSeconds;
-    }
-    
-    public bool TryGetContext(ClientAuthenticationToken token, out DotYouContext context)
-    {
-        CacheItem item;
-        if (!_contextCache.TryGetValue(token.AsKey(), out item))
-        {
-            context = null;
-            return false;
-        }
-
-        var expires = item.Created.AddSeconds(_ttlSeconds);
-        if (UnixTimeUtc.Now() > expires)
-        {
-            context = null;
-            return false;
-        }
-
-        context = item.DotYouContext;
-        return true;
+        _dotYouContextCache = new CachingService();
     }
 
-    public void CacheContext(ClientAuthenticationToken token, DotYouContext dotYouContext)
+    public async Task<DotYouContext> GetOrAddContext(ClientAuthenticationToken token, Func<Task<DotYouContext>> dotYouContextFactory)
     {
-        _contextCache.TryAdd(token.AsKey(), new CacheItem()
+        var key = token.AsKey().ToString().ToLower();
+        var policy = new MemoryCacheEntryOptions()
         {
-            DotYouContext = dotYouContext,
-            Created = UnixTimeUtc.Now()
-        });
+            SlidingExpiration = TimeSpan.FromSeconds(_ttlSeconds)
+        };
+        
+        policy.AddExpirationToken(new CancellationChangeToken(_expiryTokenSource.Token));
+        var result = await _dotYouContextCache.GetOrAddAsync<DotYouContext>(key, dotYouContextFactory, policy);
+        return result;
     }
 
-    public void Purge()
+    /// <summary>
+    /// Fully empties the Cache
+    /// </summary>
+    public void Reset()
     {
-        _contextCache.Clear();
+        //from: https://github.com/alastairtree/LazyCache/wiki/API-documentation-(v-2.x)#empty-the-entire-cache
+        _expiryTokenSource.Cancel();
     }
 }

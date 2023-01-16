@@ -12,6 +12,7 @@ using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Apps.CommandMessaging;
 using Youverse.Core.Services.Authentication.Apps;
 using Youverse.Core.Services.Authentication.Owner;
+using Youverse.Core.Services.Authentication.Transit;
 using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.Apps;
@@ -103,12 +104,10 @@ namespace Youverse.Hosting
             cb.RegisterType<CircleNetworkRequestService>().As<ICircleNetworkRequestService>().SingleInstance();
 
             cb.RegisterType<OutboxService>().As<IOutboxService>().SingleInstance();
-            cb.RegisterType<TransitAppService>().As<ITransitAppService>().SingleInstance();
-
-            cb.RegisterType<TransitContextCache>().As<TransitContextCache>().SingleInstance();
             
-
-
+            cb.RegisterType<TransitAppService>().As<ITransitAppService>().SingleInstance();
+            cb.RegisterType<TransitRegistrationService>().AsSelf().SingleInstance();
+            
             cb.RegisterType<TransferKeyEncryptionQueueService>().As<ITransferKeyEncryptionQueueService>().SingleInstance();
             cb.RegisterType<TransitBoxService>().As<ITransitBoxService>().SingleInstance();
             cb.RegisterType<TransitService>().As<ITransitService>().SingleInstance();
@@ -131,6 +130,7 @@ namespace Youverse.Hosting
             cb.RegisterType<StaticFileContentService>().AsSelf().SingleInstance();
 
             cb.RegisterType<LetsEncryptTenantCertificateRenewalService>().As<ITenantCertificateRenewalService>();
+
         }
 
         private static void RegisterMediator(ref ContainerBuilder cb)

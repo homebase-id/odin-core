@@ -88,14 +88,14 @@ namespace IndexerTests.KeyValue
             }
 
             stopWatch.Start();
-            _testDatabase.BeginTransaction();
+            // _testDatabase.BeginTransaction();
             for (int i = 1; i < _performanceIterations; i++)
             {
                 _testDatabase.AddEntry(Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), 0, 55, tmpacllist, tmptaglist);
                 if (i % 100 == 0)
                 {
                     _testDatabase.Commit();
-                    _testDatabase.BeginTransaction();
+                    // _testDatabase.BeginTransaction();
                 }
             }
             _testDatabase.Commit();

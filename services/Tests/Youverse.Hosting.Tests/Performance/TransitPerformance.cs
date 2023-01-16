@@ -3,23 +3,17 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
 using System.Reflection;
 using System.Security.Policy;
 using System.Threading.Tasks;
-using JetBrains.Profiler.Api;
-using JetBrains.Profiler.SelfApi;
 using NUnit.Framework;
 using Refit;
 using SQLitePCL;
 using Youverse.Core;
-using Youverse.Core.Cryptography.Crypto;
-using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
@@ -28,7 +22,6 @@ using Youverse.Core.Services.Optimization.Cdn;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
-using Youverse.Hosting.Authentication.ClientToken;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Controllers.OwnerToken.Cdn;
 using Youverse.Hosting.Tests.AppAPI;
@@ -39,7 +32,7 @@ using Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn;
 
 namespace Youverse.Hosting.Tests.Performance
 {
-    public class TransitPerformanceTests    
+    public class TransitPerformanceTests
     {
         private const int FileType = 844;
 
@@ -63,7 +56,6 @@ namespace Youverse.Hosting.Tests.Performance
             _scaffold.RunAfterAnyTests();
         }
 
-
         [Test]
         public async Task TaskPerformanceTest_Transit()
         {
@@ -71,11 +63,12 @@ namespace Youverse.Hosting.Tests.Performance
             List<long[]> timers = new List<long[]>();
             long fileByteLength = 0;
 
+
             TargetDrive targetDrive = TargetDrive.NewTargetDrive();
 
-            
+            //
             // Prepare environment by connecting identities
-            
+            //
             var scenarioCtx = await _scaffold.Scenarios.CreateConnectedHobbits(targetDrive);
             var frodoAppContext = scenarioCtx.AppContexts[TestIdentities.Frodo.DotYouId];
             var samAppContext = scenarioCtx.AppContexts[TestIdentities.Samwise.DotYouId];
@@ -87,14 +80,11 @@ namespace Youverse.Hosting.Tests.Performance
             sw.Reset();
             sw.Start();
 
-            
             for (var i = 0; i < MAXTHREADS; i++)
             {
                 tasks[i] = Task.Run(async () =>
                 {
                     var (tmp, measurements) = await DoChat(i, MAXITERATIONS, frodoAppContext, samAppContext);
-                    //Todd's hack around
-                    // var (tmp, measurements) = await DoChat(i, MAXITERATIONS, null, null);
                     Debug.Assert(measurements.Length == MAXITERATIONS);
                     lock (timers)
                     {
@@ -117,7 +107,6 @@ namespace Youverse.Hosting.Tests.Performance
 
                 throw;
             }
-            // DotTrace.StopCollectingData();
 
             sw.Stop();
 
@@ -141,15 +130,11 @@ namespace Youverse.Hosting.Tests.Performance
                 $"Capacity  : {(1000 * MAXITERATIONS * MAXTHREADS) / Math.Max(1, sw.ElapsedMilliseconds)} / second");
             Console.WriteLine(
                 $"Bandwidth : {1000 * (fileByteLength / Math.Max(1, sw.ElapsedMilliseconds))} bytes / second");
-            Console.WriteLine($"RSA Keys Created      : {RsaKeyManagement.noKeysCreated}");
-            Console.WriteLine($"RSA Keys Expired      : {RsaKeyManagement.noKeysExpired}");
-            Console.WriteLine($"RSA Keys Test Created : {RsaKeyManagement.noKeysCreatedTest}");
-            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
         }
 
 
-        public async Task<(long, long[])> DoChat(int threadno, int iterations, TestAppContext frodoAppContext,
-            TestAppContext samAppContext)
+
+        public async Task<(long, long[])> DoChat(int threadno, int iterations, TestAppContext frodoAppContext, TestAppContext samAppContext)
         {
             long fileByteLength = 0;
             long[] timers = new long[iterations];
@@ -167,27 +152,6 @@ namespace Youverse.Hosting.Tests.Performance
                 "samwise.digital"
             };
 
-            //Todd's hack around
-            // var bytes = Convert.FromBase64String(
-            //     "Y3uWlTdQWkuxyQfu7IORnos6g7dlTjECIDmsJjLVyf0DWU5cejhnBsn22iw0/6N/ng==");
-            //
-            // var (_, sharedSecret) = ByteArrayUtil.Split(bytes, 33, 16);
-            // var ctx = new TestAppContext()
-            // {
-            //     AppId = Guid.NewGuid(),
-            //     ClientAuthenticationToken = ClientAuthenticationToken.FromPortableBytes(bytes),
-            //     ContactData = null,
-            //     Identity = (DotYouIdentity)"frodo.digital",
-            //     SharedSecret = sharedSecret,
-            //     TargetDrive = SystemDriveConstants.ChatDrive
-            // };
-
-            //send a primer as a test
-            // using (var client = CreateClient(ctx.Identity, ctx.ClientAuthenticationToken, ctx.SharedSecret))
-            // {
-            //     var sendMessageResult = await SendMessage(client, ctx, recipients, randomHeaderContent,
-            //         randomPayloadContent);
-            // }
 
             var ctx = frodoAppContext;
             for (int count = 0; count < iterations; count++)
@@ -218,24 +182,8 @@ namespace Youverse.Hosting.Tests.Performance
             return (fileByteLength, timers);
         }
 
-        private static HttpClient CreateClient(DotYouIdentity identity, ClientAuthenticationToken token,
-            byte[] sharedSecret)
-        {
-            var cookieJar = new CookieContainer();
-            cookieJar.Add(new Cookie(ClientTokenConstants.ClientAuthTokenCookieName, token.ToString(), null, identity));
 
-            var sharedSecretGetRequestHandler = new SharedSecretGetRequestHandler(sharedSecret.ToSensitiveByteArray())
-            {
-                CookieContainer = cookieJar
-            };
 
-            HttpClient client = new(sharedSecretGetRequestHandler);
-
-            client.Timeout = TimeSpan.FromMinutes(15);
-
-            client.BaseAddress = new Uri($"https://{identity}");
-            return client;
-        }
 
         private async Task<List<ClientFileHeader>> GetMessages(TestAppContext recipientAppContext)
         {
@@ -243,12 +191,10 @@ namespace Youverse.Hosting.Tests.Performance
             {
                 //First force transfers to be put into their long term location
                 var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);
-                var resp = await transitAppSvc.ProcessIncomingInstructions(new ProcessTransitInstructionRequest()
-                    { TargetDrive = recipientAppContext.TargetDrive });
+                var resp = await transitAppSvc.ProcessIncomingInstructions(new ProcessTransitInstructionRequest() { TargetDrive = recipientAppContext.TargetDrive });
                 Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
 
-                var driveSvc =
-                    RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, recipientAppContext.SharedSecret);
+                var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, recipientAppContext.SharedSecret);
 
                 var queryBatchResponse = await driveSvc.QueryBatch(new QueryBatchRequest()
                 {
@@ -267,7 +213,7 @@ namespace Youverse.Hosting.Tests.Performance
                 Assert.IsTrue(queryBatchResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(queryBatchResponse.Content);
 
-
+                
                 return queryBatchResponse.Content.SearchResults.ToList();
             }
         }
@@ -561,8 +507,7 @@ namespace Youverse.Hosting.Tests.Performance
 
                 var descriptor = new UploadFileDescriptor()
                 {
-                    EncryptedKeyHeader =
-                        EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref ownerSharedSecret),
+                    EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref ownerSharedSecret),
                     FileMetadata = new()
                     {
                         ContentType = "application/json",
@@ -593,16 +538,11 @@ namespace Youverse.Hosting.Tests.Performance
 
                 var driveSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
                 var response = await driveSvc.Upload(
-                    new StreamPart(instructionStream, "instructionSet.encrypted", "application/json",
-                        Enum.GetName(MultipartUploadParts.Instructions)),
-                    new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json",
-                        Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary",
-                        Enum.GetName(MultipartUploadParts.Payload)),
-                    new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(),
-                        thumbnail1.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)),
-                    new StreamPart(new MemoryStream(thumbnail2CipherBytes), thumbnail2.GetFilename(),
-                        thumbnail2.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
+                    new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
+                    new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
+                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
+                    new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)),
+                    new StreamPart(new MemoryStream(thumbnail2CipherBytes), thumbnail2.GetFilename(), thumbnail2.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
 
                 Assert.That(response.IsSuccessStatusCode, Is.True);
                 Assert.That(response.Content, Is.Not.Null);
@@ -614,10 +554,8 @@ namespace Youverse.Hosting.Tests.Performance
 
                 foreach (var recipient in recipients)
                 {
-                    Assert.IsTrue(uploadResult.RecipientStatus.ContainsKey(recipient),
-                        $"Message was not delivered to ${recipient}");
-                    Assert.IsTrue(uploadResult.RecipientStatus[recipient] == TransferStatus.Delivered,
-                        $"Message was not delivered to ${recipient}");
+                    Assert.IsTrue(uploadResult.RecipientStatus.ContainsKey(recipient), $"Message was not delivered to ${recipient}");
+                    Assert.IsTrue(uploadResult.RecipientStatus[recipient] == TransferStatus.Delivered, $"Message was not delivered to ${recipient}");
                 }
 
                 var uploadedFile = uploadResult.File;
@@ -630,8 +568,7 @@ namespace Youverse.Hosting.Tests.Performance
                 //
                 // Retrieve the file header that was uploaded; test it matches; 
                 //
-                var getFilesDriveSvc =
-                    RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
+                var getFilesDriveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
                 var fileResponse = await getFilesDriveSvc.GetFileHeader(uploadedFile);
 
                 Assert.That(fileResponse.IsSuccessStatusCode, Is.True);
@@ -643,37 +580,26 @@ namespace Youverse.Hosting.Tests.Performance
                 Assert.That(clientFileHeader.FileMetadata.AppData, Is.Not.Null);
 
                 Assert.That(clientFileHeader.FileMetadata.ContentType, Is.EqualTo(descriptor.FileMetadata.ContentType));
-                CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags,
-                    descriptor.FileMetadata.AppData.Tags);
-                Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent,
-                    Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
-                Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete,
-                    Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
+                CollectionAssert.AreEquivalent(clientFileHeader.FileMetadata.AppData.Tags, descriptor.FileMetadata.AppData.Tags);
+                Assert.That(clientFileHeader.FileMetadata.AppData.JsonContent, Is.EqualTo(descriptor.FileMetadata.AppData.JsonContent));
+                Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.Null);
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv.Length, Is.GreaterThanOrEqualTo(16));
-                Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv,
-                    Is.Not.EqualTo(Guid.Empty.ToByteArray()), "Iv was all zeros");
+                Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.EqualTo(Guid.Empty.ToByteArray()), "Iv was all zeros");
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
 
-                var decryptedKeyHeader =
-                    clientFileHeader.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ownerSharedSecret);
+                var decryptedKeyHeader = clientFileHeader.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ownerSharedSecret);
 
                 Assert.That(decryptedKeyHeader.AesKey.IsSet(), Is.True);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(decryptedKeyHeader.AesKey.GetKey(),
-                    keyHeader.AesKey.GetKey()));
+                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(decryptedKeyHeader.AesKey.GetKey(), keyHeader.AesKey.GetKey()));
 
                 //validate preview thumbnail
-                Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.ContentType ==
-                              clientFileHeader.FileMetadata.AppData.PreviewThumbnail.ContentType);
-                Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelHeight ==
-                              clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelHeight);
-                Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelWidth ==
-                              clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelWidth);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(
-                    descriptor.FileMetadata.AppData.PreviewThumbnail.Content,
-                    clientFileHeader.FileMetadata.AppData.PreviewThumbnail.Content));
+                Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.ContentType == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.ContentType);
+                Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelHeight == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelHeight);
+                Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelWidth == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelWidth);
+                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(descriptor.FileMetadata.AppData.PreviewThumbnail.Content, clientFileHeader.FileMetadata.AppData.PreviewThumbnail.Content));
 
                 Assert.IsTrue(clientFileHeader.FileMetadata.AppData.AdditionalThumbnails.Count() == 2);
 
@@ -720,8 +646,7 @@ namespace Youverse.Hosting.Tests.Performance
                 Assert.IsTrue(thumbnailResponse1.IsSuccessStatusCode);
                 Assert.IsNotNull(thumbnailResponse1.Content);
 
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(thumbnail1CipherBytes,
-                    await thumbnailResponse1!.Content!.ReadAsByteArrayAsync()));
+                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(thumbnail1CipherBytes, await thumbnailResponse1!.Content!.ReadAsByteArrayAsync()));
 
                 //validate thumbnail 2
                 Assert.IsTrue(descriptorList[1].ContentType == clientFileHeaderList[1].ContentType);
@@ -737,8 +662,7 @@ namespace Youverse.Hosting.Tests.Performance
 
                 Assert.IsTrue(thumbnailResponse2.IsSuccessStatusCode);
                 Assert.IsNotNull(thumbnailResponse2.Content);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(thumbnail2CipherBytes,
-                    await thumbnailResponse2.Content!.ReadAsByteArrayAsync()));
+                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(thumbnail2CipherBytes, await thumbnailResponse2.Content!.ReadAsByteArrayAsync()));
 
                 decryptedKeyHeader.AesKey.Wipe();
                 keyHeader.AesKey.Wipe();

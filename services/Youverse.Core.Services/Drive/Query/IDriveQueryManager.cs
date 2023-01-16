@@ -12,7 +12,7 @@ namespace Youverse.Core.Services.Drive.Query
     /// <summary>
     /// Offers query and indexing features for a specific <see cref="StorageDrive"/>
     /// </summary>
-    public interface IDriveQueryManager
+    public interface IDriveQueryManager : IDisposable
     {
         /// <summary>
         /// Specifies the drive being managed (indexed and queried)
@@ -88,5 +88,7 @@ namespace Youverse.Core.Services.Drive.Query
         Task<List<UnprocessedCommandMessage>> GetUnprocessedCommands(int count);
 
         Task MarkCommandsCompleted(List<Guid> fileIds);
+
+        void EnsureIndexDataCommitted();
     }
 }

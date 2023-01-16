@@ -50,10 +50,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             _storage = new CircleNetworkStorage(tenantContext.StorageConfig.DataStoragePath);
 
-            _circleMemberStorage = new TableCircleMember(tenantSystemStorage.GetDBInstance());
-            _circleMemberStorage.EnsureTableExists(false);
-
-            _icrClientValueStorage = new ThreeKeyValueStorage(tenantSystemStorage.GetDBInstance().TblKeyThreeValue);
+            _circleMemberStorage = tenantSystemStorage.CircleMemberStorage;
+            _icrClientValueStorage = tenantSystemStorage.IcrClientStorage;
         }
 
         public async Task<ClientAuthenticationToken> GetConnectionAuthToken(DotYouIdentity dotYouId, bool failIfNotConnected, bool overrideHack = false)
@@ -95,7 +93,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 throw new YouverseSecurityException("Invalid connection");
             }
 
-            var (permissionContext, enabledCircles) = await CreatePermissionContextInternal(icr.AccessGrant.CircleGrants, icr.AccessGrant.AccessRegistration, authToken);
+            var (permissionContext, enabledCircles) = await CreatePermissionContextInternal(icr.AccessGrant!.CircleGrants, icr.AccessGrant.AccessRegistration, authToken);
 
             return (permissionContext, enabledCircles);
         }
@@ -150,7 +148,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                     authToken: authToken,
                     grants: null,
                     accessReg: icr.AccessGrant.AccessRegistration,
-                    isOwner: false,
                     additionalPermissionKeys: permissionKeys);
 
                 return (cc, anonPermissionContext);
@@ -662,7 +659,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 permissionKeys.Add(PermissionKeys.ReadConnections);
             }
 
-            var permissionCtx = await _exchangeGrantService.CreatePermissionContext(authToken, grants, accessReg, isOwner: false, additionalPermissionKeys: permissionKeys);
+            var permissionCtx = await _exchangeGrantService.CreatePermissionContext(authToken, grants, accessReg, additionalPermissionKeys: permissionKeys);
             return (permissionCtx, enabledCircles);
         }
 
@@ -701,6 +698,11 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             //TODO: this is a critical change; need to audit this
             _storage.Upsert(icr);
+        }
+
+        public void Dispose()
+        {
+            _storage.Dispose();
         }
     }
 }

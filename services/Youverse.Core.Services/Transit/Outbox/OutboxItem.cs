@@ -36,7 +36,7 @@ namespace Youverse.Core.Services.Transit.Outbox
         /// Indicates the file should be read from the temp folder of the drive and deleted after it is sent to all recipients
         /// </summary>
         public bool IsTransientFile { get; set; }
-
+        
         public RsaEncryptedRecipientTransferInstructionSet TransferInstructionSet { get; set; }
     }
 }
