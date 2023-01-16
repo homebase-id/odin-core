@@ -197,7 +197,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.File.TargetDrive);
 
-            if (request.Recipients.Any())
+            if (request.Recipients != null && request.Recipients.Any())
             {
                 throw new YouverseClientException("Cannot specify recipients when hard-deleting a file", YouverseClientErrorCode.InvalidRecipient);
             }

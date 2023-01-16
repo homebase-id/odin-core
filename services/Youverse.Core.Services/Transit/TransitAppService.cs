@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
@@ -38,6 +39,7 @@ namespace Youverse.Core.Services.Transit
             var drive = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(targetDrive);
             var items = await GetAcceptedItems(drive);
 
+            var drivesNeedingACommit = new List<Guid>();
             foreach (var item in items)
             {
                 try
@@ -52,20 +54,25 @@ namespace Youverse.Core.Services.Transit
                     }
                     else if (item.InstructionType == TransferInstructionType.None)
                     {
-                        throw new YouverseClientException("Transfer type not specified", YouverseClientErrorCode.TransferTypeNotSpecified);
+                        throw new YouverseClientException("Transfer type not specified",
+                            YouverseClientErrorCode.TransferTypeNotSpecified);
                     }
                     else
                     {
-                        throw new YouverseClientException("Invalid transfer type", YouverseClientErrorCode.InvalidTransferType);
+                        throw new YouverseClientException("Invalid transfer type",
+                            YouverseClientErrorCode.InvalidTransferType);
                     }
 
                     await _transitBoxService.MarkComplete(item.DriveId, item.Marker);
+                    drivesNeedingACommit.Add(item.DriveId);
                 }
                 catch (Exception e)
                 {
                     await _transitBoxService.MarkFailure(item.DriveId, item.Marker);
                 }
             }
+
+            await _driveQueryService.EnsureIndexerCommits(drivesNeedingACommit.Distinct());
         }
 
         private async Task HandleFile(TransferBoxItem item)
@@ -77,10 +84,12 @@ namespace Youverse.Core.Services.Transit
             };
 
             var transferInstructionSet =
-                await _driveService.GetDeserializedStream<RsaEncryptedRecipientTransferInstructionSet>(tempFile, MultipartHostTransferParts.TransferKeyHeader.ToString(), StorageDisposition.Temporary);
+                await _driveService.GetDeserializedStream<RsaEncryptedRecipientTransferInstructionSet>(tempFile,
+                    MultipartHostTransferParts.TransferKeyHeader.ToString(), StorageDisposition.Temporary);
 
             var (isValidPublicKey, decryptedAesKeyHeaderBytes) =
-                await _publicKeyService.DecryptKeyHeaderUsingOfflineKey(transferInstructionSet.EncryptedAesKeyHeader, transferInstructionSet.PublicKeyCrc);
+                await _publicKeyService.DecryptKeyHeaderUsingOfflineKey(transferInstructionSet.EncryptedAesKeyHeader,
+                    transferInstructionSet.PublicKeyCrc);
 
             if (!isValidPublicKey)
             {
@@ -92,7 +101,8 @@ namespace Youverse.Core.Services.Transit
             decryptedAesKeyHeaderBytes.WriteZeros();
 
             //TODO: this deserialization would be better in the drive service under the name GetTempMetadata or something
-            var metadataStream = await _driveService.GetTempStream(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower());
+            var metadataStream =
+                await _driveService.GetTempStream(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower());
             var json = await new StreamReader(metadataStream).ReadToEndAsync();
             metadataStream.Close();
 
@@ -100,7 +110,8 @@ namespace Youverse.Core.Services.Transit
 
             if (null == metadata)
             {
-                throw new YouverseClientException("Metadata could not be serialized", YouverseClientErrorCode.MalformedMetadata);
+                throw new YouverseClientException("Metadata could not be serialized",
+                    YouverseClientErrorCode.MalformedMetadata);
             }
 
             var serverMetadata = new ServerMetadata()
@@ -126,7 +137,8 @@ namespace Youverse.Core.Services.Transit
                     break;
 
                 default:
-                    throw new YouverseClientException("Invalid TransferFileType", YouverseClientErrorCode.InvalidTransferFileType);
+                    throw new YouverseClientException("Invalid TransferFileType",
+                        YouverseClientErrorCode.InvalidTransferFileType);
             }
         }
 
@@ -156,7 +168,8 @@ namespace Youverse.Core.Services.Transit
         /// <summary>
         /// Stores an incoming command message and updates the queue
         /// </summary>
-        private async Task StoreCommandMessage(InternalDriveFileId tempFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
+        private async Task StoreCommandMessage(InternalDriveFileId tempFile, KeyHeader keyHeader, FileMetadata metadata,
+            ServerMetadata serverMetadata)
         {
             serverMetadata.DoNotIndex = true;
             await _driveService.CommitTempFileToNewLongTermFile(tempFile, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
@@ -166,7 +179,8 @@ namespace Youverse.Core.Services.Transit
         /// <summary>
         /// Stores a long-term file or overwrites an existing long-term file if a global transit id was set
         /// </summary>
-        private async Task StoreNormalFileLongTerm(InternalDriveFileId tempFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
+        private async Task StoreNormalFileLongTerm(InternalDriveFileId tempFile, KeyHeader keyHeader,
+            FileMetadata metadata, ServerMetadata serverMetadata)
         {
             /*
              *

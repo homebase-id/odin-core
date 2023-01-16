@@ -27,8 +27,6 @@ using Youverse.Hosting.Authentication.ClientToken;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Authentication.Perimeter;
 using Youverse.Hosting.Authentication.System;
-using Youverse.Hosting.Controllers.ClientToken;
-using Youverse.Hosting.Controllers.OwnerToken;
 using Youverse.Hosting.Middleware;
 using Youverse.Hosting.Middleware.Logging;
 using Youverse.Hosting.Multitenant;
@@ -251,7 +249,7 @@ namespace Youverse.Hosting
 
                     // webSocketOptions.AllowedOrigins.Add("https://...");
                     app.UseWebSockets(webSocketOptions);  //Note: see NotificationSocketController
-                    
+
                     normalApp.UseEndpoints(endpoints =>
                     {
                         endpoints.Map("/", async context => { context.Response.Redirect("/home"); });

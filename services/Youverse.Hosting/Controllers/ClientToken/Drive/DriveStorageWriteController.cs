@@ -67,6 +67,10 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         [HttpPost("files/upload")]
         public async Task<UploadResult> Upload()
         {
+            // return new UploadResult()
+            // {
+            // };
+            
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
                 throw new YouverseClientException("Data is not multi-part content", YouverseClientErrorCode.MissingUploadData);

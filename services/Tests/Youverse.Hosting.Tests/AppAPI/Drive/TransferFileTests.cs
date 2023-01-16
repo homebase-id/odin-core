@@ -70,6 +70,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 IncludeThumbnail = true
             };
 
+            instructionSet.TransitOptions.Schedule = ScheduleOptions.SendNowAwaitResponse;
             var ctx = await _scaffold.AppApi.CreateAppAndTransferFile(TestIdentities.Samwise, instructionSet, fileMetadata, options);
 
             var sentFile = ctx.UploadedFile;

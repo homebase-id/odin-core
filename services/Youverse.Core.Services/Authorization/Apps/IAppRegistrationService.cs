@@ -9,7 +9,7 @@ using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
-    public interface IAppRegistrationService: ICacheDotYouContext
+    public interface IAppRegistrationService
     {
         /// <summary>
         /// Registers an application to be used with this host.  Returns the record Id of the newly registered app
@@ -18,7 +18,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         Task<RedactedAppRegistration> GetAppRegistration(GuidId appId);
 
-        Task<(GuidId appId, PermissionContext permissionContext)> GetPermissionContext(ClientAuthenticationToken authToken);
+        Task<DotYouContext> GetPermissionContext(ClientAuthenticationToken token);
 
         Task<(bool isValid, AccessRegistration? accessReg, AppRegistration? appRegistration)> ValidateClientAuthToken(ClientAuthenticationToken authToken);
 
@@ -53,5 +53,6 @@ namespace Youverse.Core.Services.Authorization.Apps
         Task<AppClientRegistrationResponse> RegisterClient(GuidId appId, byte[] clientPublicKey, string friendlyName);
 
         Task<List<RegisteredAppClientResponse>> GetRegisteredClients();
+        
     }
 }

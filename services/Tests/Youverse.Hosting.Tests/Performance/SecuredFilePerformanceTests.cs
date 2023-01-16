@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core;
+using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
@@ -62,7 +63,7 @@ namespace Youverse.Hosting.Tests.Performance
     {
         // For the performance test
         private const int MAXTHREADS = 10; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
-        const int MAXITERATIONS = 100; // A number high enough to get warmed up and reliable
+        const int MAXITERATIONS = 2000; // A number high enough to get warmed up and reliable
 
         private WebScaffold _scaffold;
 
@@ -164,6 +165,7 @@ namespace Youverse.Hosting.Tests.Performance
                 $"Capacity  : {(1000 * MAXITERATIONS * MAXTHREADS) / Math.Max(1, sw.ElapsedMilliseconds)} / second");
             Console.WriteLine(
                 $"Bandwidth : {1000*(fileByteLength / Math.Max(1, sw.ElapsedMilliseconds))} bytes / second");
+            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
         }
 
 
@@ -192,6 +194,12 @@ namespace Youverse.Hosting.Tests.Performance
             var encryptedThumbnailBytes = await thumbnail1Response.Content.ReadAsByteArrayAsync();
             fileByteLength += encryptedThumbnailBytes.Length;
 
+            
+            var payload1Response2 = await frodoDriveService.GetPayload(uploadedFile1.FileId, uploadedFile1.TargetDrive.Alias, uploadedFile1.TargetDrive.Type);
+            Assert.IsTrue(payload1Response2.IsSuccessStatusCode);
+            Assert.IsNotNull(payload1Response2.Content);
+            System.Threading.Thread.Sleep(2000);
+            
             //
             // I presume here we retrieve the file and download it
             //

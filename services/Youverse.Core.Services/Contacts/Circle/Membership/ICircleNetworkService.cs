@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
@@ -12,7 +13,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
     /// <summary>
     /// Establishes connections between individuals
     /// </summary>
-    public interface ICircleNetworkService
+    public interface ICircleNetworkService : IDisposable
     {
         /// <summary>
         /// Gets the <see cref="ClientAuthenticationToken"/> for a given connection
@@ -119,7 +120,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <returns></returns>
         Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreateTransitPermissionContext(DotYouIdentity dotYouId, ClientAuthenticationToken clientAuthToken);
 
-        
+
         /// <summary>
         /// Creates a caller and permission context for the caller based on the <see cref="IdentityConnectionRegistrationClient"/> resolved by the authToken
         /// </summary>

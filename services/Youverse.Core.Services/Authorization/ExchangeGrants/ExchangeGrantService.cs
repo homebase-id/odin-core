@@ -136,7 +136,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             return dk;
         }
 
-        public async Task<PermissionContext> CreatePermissionContext(ClientAuthenticationToken authToken, Dictionary<string, ExchangeGrant> grants, AccessRegistration accessReg, bool isOwner,
+        public async Task<PermissionContext> CreatePermissionContext(ClientAuthenticationToken authToken, Dictionary<string, ExchangeGrant> grants, AccessRegistration accessReg,
             List<int>? additionalPermissionKeys = null, bool includeAnonymousDrives = false)
         {
             //TODO: Need to decide if we store shared secret clear text or decrypt just in time.
@@ -159,14 +159,14 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
                 }
             }
 
-            if(includeAnonymousDrives)
+            if (includeAnonymousDrives)
             {
                 //MergeAnonymousDrives
                 //TODO: remove any anonymous drives which are explicitly granted above
                 permissionGroupMap.Add("anonymous_drives", await this.CreateAnonymousDrivePermissionGroup());
             }
-            
-            if(additionalPermissionKeys != null)
+
+            if (additionalPermissionKeys != null)
             {
                 permissionGroupMap.Add("additional_permissions", new PermissionGroup(new PermissionSet(additionalPermissionKeys), null, null));
             }

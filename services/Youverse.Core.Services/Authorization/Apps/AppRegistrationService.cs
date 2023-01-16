@@ -3,12 +3,20 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
+using LazyCache;
+using LazyCache.Providers;
+using MediatR;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
+using Org.BouncyCastle.Asn1.Ocsp;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Identity;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Configuration;
 using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Authorization.Apps
@@ -24,17 +32,21 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         private readonly GuidId _appClientDataType = GuidId.FromString("__app_client_reg");
         private readonly ThreeKeyValueStorage _appClientValueStorage;
-        private readonly DotYouContextCache _cache;
 
-        public AppRegistrationService(DotYouContextAccessor contextAccessor, ILogger<IAppRegistrationService> logger, ITenantSystemStorage tenantSystemStorage, ExchangeGrantService exchangeGrantService)
+        private readonly DotYouContextCache _cache;
+        private readonly TenantContext _tenantContext;
+
+        public AppRegistrationService(DotYouContextAccessor contextAccessor, ILogger<IAppRegistrationService> logger, ITenantSystemStorage tenantSystemStorage,
+            ExchangeGrantService exchangeGrantService, YouverseConfiguration config, TenantContext tenantContext)
         {
             _contextAccessor = contextAccessor;
             _tenantSystemStorage = tenantSystemStorage;
             _exchangeGrantService = exchangeGrantService;
+            _tenantContext = tenantContext;
 
             _appRegistrationValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
             _appClientValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
-            _cache = new DotYouContextCache();
+            _cache = new DotYouContextCache(config.Host.CacheSlidingExpirationSeconds);
         }
 
         public async Task<RedactedAppRegistration> RegisterApp(GuidId appId, string name, PermissionSet permissions, IEnumerable<DriveGrantRequest> drives)
@@ -85,6 +97,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             var data = ByteArrayUtil.Combine(tokenBytes, sharedSecret);
             var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(clientPublicKey);
             var encryptedData = publicKey.Encrypt(data);
+            
             data.WriteZeros();
 
             return new AppClientRegistrationResponse()
@@ -94,29 +107,49 @@ namespace Youverse.Core.Services.Authorization.Apps
                 Data = encryptedData
             };
         }
-        
+
         public async Task<RedactedAppRegistration> GetAppRegistration(GuidId appId)
         {
             var result = await GetAppRegistrationInternal(appId);
             return result?.Redacted();
         }
 
-        public async Task<(GuidId appId, PermissionContext permissionContext)> GetPermissionContext(ClientAuthenticationToken authToken)
+        public async Task<DotYouContext> GetPermissionContext(ClientAuthenticationToken token)
         {
-            var (isValid, accessReg, appReg) = await this.ValidateClientAuthToken(authToken);
-
-            if (!isValid)
+            var creator = new Func<Task<DotYouContext>>(async delegate
             {
-                throw new YouverseSecurityException("Invalid token");
-            }
+                var (isValid, accessReg, appReg) = this.ValidateClientAuthToken(token).GetAwaiter().GetResult();
 
-            var grantDictionary = new Dictionary<string, ExchangeGrant>
-            {
-                { "app_exchange_grant", appReg.Grant }
-            };
+                if (!isValid)
+                {
+                    throw new YouverseSecurityException("Invalid token");
+                }
 
-            var permissionCtx = await _exchangeGrantService.CreatePermissionContext(authToken, grantDictionary, accessReg, _contextAccessor.GetCurrent().Caller.IsOwner, includeAnonymousDrives: true);
-            return (appReg.AppId, permissionCtx);
+                var grantDictionary = new Dictionary<string, ExchangeGrant>
+                {
+                    { "app_exchange_grant", appReg.Grant }
+                };
+
+                //Note: isOwner = true because we passed ValidateClientAuthToken for an ap token above 
+                var permissionContext = _exchangeGrantService.CreatePermissionContext(token,
+                    grantDictionary,
+                    accessReg,
+                    includeAnonymousDrives: true).GetAwaiter().GetResult();
+
+                var dotYouContext = new DotYouContext()
+                {
+                    Caller = new CallerContext(
+                        dotYouId: _tenantContext.HostDotYouId,
+                        masterKey: null,
+                        securityLevel: SecurityGroupType.Owner)
+                };
+
+                dotYouContext.SetPermissionContext(permissionContext);
+                return dotYouContext;
+            });
+
+            var result = await _cache.GetOrAddContext(token, creator);
+            return result;
         }
 
         public async Task<(bool isValid, AccessRegistration? accessReg, AppRegistration? appRegistration)> ValidateClientAuthToken(ClientAuthenticationToken authToken)
@@ -153,6 +186,16 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             //TODO: revoke all clients? or is the one flag enough?
             _appRegistrationValueStorage.Upsert(appId, GuidId.Empty, _appRegistrationDataType, appReg);
+
+            ResetPermissionContextCache();
+        }
+
+        /// <summary>
+        /// Empties the cache and creates a new instance that can be built
+        /// </summary>
+        private void ResetPermissionContextCache()
+        {
+            _cache.Reset();
         }
 
         public async Task RemoveAppRevocation(GuidId appId)
@@ -165,6 +208,8 @@ namespace Youverse.Core.Services.Authorization.Apps
             }
 
             _appRegistrationValueStorage.Upsert(appId, GuidId.Empty, _appRegistrationDataType, appReg);
+
+            ResetPermissionContextCache();
         }
 
         public async Task<List<RegisteredAppClientResponse>> GetRegisteredClients()
@@ -191,16 +236,6 @@ namespace Youverse.Core.Services.Authorization.Apps
         {
             var appReg = _appRegistrationValueStorage.Get<AppRegistration>(appId);
             return appReg;
-        }
-
-        public bool TryGetCachedContext(ClientAuthenticationToken token, out DotYouContext context)
-        {
-            return _cache.TryGetContext(token, out context);
-        }
-
-        public void CacheContext(ClientAuthenticationToken token, DotYouContext dotYouContext)
-        {
-            _cache.CacheContext(token, dotYouContext);
         }
     }
 }

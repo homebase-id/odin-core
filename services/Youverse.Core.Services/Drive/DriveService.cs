@@ -35,8 +35,8 @@ namespace Youverse.Core.Services.Drive
         private readonly IMediator _mediator;
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly TenantContext _tenantContext;
-        private readonly ConcurrentDictionary<Guid, ILongTermStorageManager> _longTermStorageManagers;
-        private readonly ConcurrentDictionary<Guid, ITempStorageManager> _tempStorageManagers;
+        // private readonly ConcurrentDictionary<Guid, ILongTermStorageManager> _longTermStorageManagers;
+        // private readonly ConcurrentDictionary<Guid, ITempStorageManager> _tempStorageManagers;
         private readonly ILoggerFactory _loggerFactory;
 
         public DriveService(DotYouContextAccessor contextAccessor, ITenantSystemStorage tenantSystemStorage, ILoggerFactory loggerFactory, IMediator mediator,
@@ -48,11 +48,14 @@ namespace Youverse.Core.Services.Drive
             _mediator = mediator;
             _driveAclAuthorizationService = driveAclAuthorizationService;
             _tenantContext = tenantContext;
-            _longTermStorageManagers = new ConcurrentDictionary<Guid, ILongTermStorageManager>();
-            _tempStorageManagers = new ConcurrentDictionary<Guid, ITempStorageManager>();
+            // _longTermStorageManagers = new ConcurrentDictionary<Guid, ILongTermStorageManager>();
+            // _tempStorageManagers = new ConcurrentDictionary<Guid, ITempStorageManager>();
 
             _driveManager = new DriveManager(contextAccessor, tenantSystemStorage, mediator, tenantContext);
-            InitializeStorageDrives().GetAwaiter().GetResult();
+
+            //Note: I dropped the dictionaries as multiple threads was causing issues AND there
+            //is not a good reason to cache the I*StorageManager for now.
+            // InitializeStorageDrives().GetAwaiter().GetResult();
         }
 
         public Task<StorageDrive> CreateDrive(CreateDriveRequest request)
@@ -450,62 +453,70 @@ namespace Youverse.Core.Services.Drive
             });
         }
 
-        private async Task InitializeStorageDrives()
-        {
-            var drives = await _driveManager.GetDrivesInternal(false, PageOptions.All);
-            foreach (var drive in drives.Results)
-            {
-                LoadLongTermStorage(drive, out var _);
-            }
-        }
+        // private async Task InitializeStorageDrives()
+        // {
+        //     var drives = await _driveManager.GetDrivesInternal(false, PageOptions.All);
+        //     foreach (var drive in drives.Results)
+        //     {
+        //         LoadLongTermStorage(drive, out var _);
+        //     }
+        // }
 
         private ILongTermStorageManager GetLongTermStorageManager(Guid driveId)
         {
-            if (_longTermStorageManagers.TryGetValue(driveId, out var manager))
-            {
-                return manager;
-            }
-
-            var sd = this.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
-            var success = LoadLongTermStorage(sd, out manager);
-            if (!success)
-            {
-                throw new YouverseClientException($"Could not load long term storage for drive {driveId}", YouverseClientErrorCode.FileNotFound);
-            }
-
+            var logger = _loggerFactory.CreateLogger<ILongTermStorageManager>();
+            var drive = this.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
+            var manager = new FileBasedLongTermStorageManager(drive, logger);
             return manager;
+
+            // if (_longTermStorageManagers.TryGetValue(driveId, out var manager))
+            // {
+            //     return manager;
+            // }
+            //
+            // var sd = this.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
+            // var success = LoadLongTermStorage(sd, out manager);
+            // if (!success)
+            // {
+            //     throw new YouverseClientException($"Could not load long term storage for drive {driveId}", YouverseClientErrorCode.FileNotFound);
+            // }
+            //
+            // return manager;
         }
 
         private ITempStorageManager GetTempStorageManager(Guid driveId)
         {
-            if (_tempStorageManagers.TryGetValue(driveId, out var manager))
-            {
-                return manager;
-            }
-
-            var sd = this.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
-            var success = LoadTempStorage(sd, out manager);
-            if (!success)
-            {
-                throw new YouverseClientException($"Could not load temporary storage for drive {driveId}", YouverseClientErrorCode.FileNotFound);
-            }
-
-            return manager;
-        }
-
-        private bool LoadLongTermStorage(StorageDrive drive, out ILongTermStorageManager manager)
-        {
-            var logger = _loggerFactory.CreateLogger<ILongTermStorageManager>();
-            manager = new FileBasedLongTermStorageManager(drive, logger);
-            return _longTermStorageManagers.TryAdd(drive.Id, manager);
-        }
-
-        private bool LoadTempStorage(StorageDrive drive, out ITempStorageManager manager)
-        {
+            var drive = this.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
             var logger = _loggerFactory.CreateLogger<ITempStorageManager>();
-            manager = new FileBasedTempStorageManager(drive, logger);
-            return _tempStorageManagers.TryAdd(drive.Id, manager);
+            return new FileBasedTempStorageManager(drive, logger);
+            // if (_tempStorageManagers.TryGetValue(driveId, out var manager))
+            // {
+            //     return manager;
+            // }
+            //
+            // var sd = this.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
+            // var success = LoadTempStorage(sd, out manager);
+            // if (!success)
+            // {
+            //     throw new YouverseClientException($"Could not load temporary storage for drive {driveId}", YouverseClientErrorCode.FileNotFound);
+            // }
+            //
+            // return manager;
         }
+
+        // private bool LoadLongTermStorage(StorageDrive drive, out ILongTermStorageManager manager)
+        // {
+        //     var logger = _loggerFactory.CreateLogger<ILongTermStorageManager>();
+        //     manager = new FileBasedLongTermStorageManager(drive, logger);
+        //     return _longTermStorageManagers.TryAdd(drive.Id, manager);
+        // }
+        //
+        // private bool LoadTempStorage(StorageDrive drive, out ITempStorageManager manager)
+        // {
+        //     var logger = _loggerFactory.CreateLogger<ITempStorageManager>();
+        //     manager = new FileBasedTempStorageManager(drive, logger);
+        //     return _tempStorageManagers.TryAdd(drive.Id, manager);
+        // }
 
         private async Task WriteFileHeaderInternal(ServerFileHeader header)
         {

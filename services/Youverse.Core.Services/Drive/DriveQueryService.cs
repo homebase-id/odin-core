@@ -183,6 +183,19 @@ namespace Youverse.Core.Services.Drive
             return collection;
         }
 
+        public Task EnsureIndexerCommits(IEnumerable<Guid> driveIdList)
+        {
+            foreach (var driveId in driveIdList)
+            {
+                if(this.TryGetOrLoadQueryManager(driveId, out var manager, false).GetAwaiter().GetResult())
+                {
+                    manager.EnsureIndexDataCommitted();
+                }
+            }
+            
+            return Task.CompletedTask;
+        }
+
         public async Task<ClientFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId)
         {
             var qp = new FileQueryParams()
@@ -313,6 +326,20 @@ namespace Youverse.Core.Services.Drive
         {
             this.TryGetOrLoadQueryManager(notification.File.DriveId, out var manager, false);
             return manager.RemoveFromCurrentIndex(notification.File);
+        }
+
+        public void Dispose()
+        {
+            foreach (var manager in _queryManagers.Values)
+            {
+                try
+                {
+                    manager.Dispose();
+                }
+                catch 
+                {
+                }
+            }
         }
 
         public Task Handle(DriveFileAddedNotification notification, CancellationToken cancellationToken)

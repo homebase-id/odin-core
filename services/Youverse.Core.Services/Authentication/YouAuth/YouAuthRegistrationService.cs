@@ -59,31 +59,32 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             throw new YouverseSecurityException("Unhandled case when registering YouAuth access");
         }
 
-
         /// <summary>
-        /// Creates a YouAuth Client for an Identity that is not connected. (will show as authenticated)
+        /// Gets the <see cref="GetDotYouContext"/> for the specified token from cache or disk.
         /// </summary>
-        private bool TryCreateAuthenticatedYouAuthClient(string dotYouId, out ClientAccessToken clientAccessToken)
+        /// <param name="token"></param>
+        /// <returns></returns>
+        public async Task<DotYouContext> GetDotYouContext(ClientAuthenticationToken token)
         {
-            YouAuthRegistration registration = _youAuthRegistrationStorage.LoadFromSubject(dotYouId);
-
-            var emptyKey = Guid.Empty.ToByteArray().ToSensitiveByteArray();
-            if (null == registration)
+            var creator = new Func<Task<DotYouContext>>(async delegate
             {
-                registration = new YouAuthRegistration(dotYouId, new Dictionary<string, CircleGrant>());
-                _youAuthRegistrationStorage.Save(registration);
-            }
+                var dotYouContext = new DotYouContext();
+                var (callerContext, permissionContext) = await GetPermissionContext(token);
 
-            var (accessRegistration, cat) = _exchangeGrantService.CreateClientAccessToken(emptyKey, ClientTokenType.YouAuth).GetAwaiter().GetResult();
-            var client = new YouAuthClient(accessRegistration.Id, (DotYouIdentity)dotYouId, accessRegistration);
-            _youAuthRegistrationStorage.SaveClient(client);
+                if (null == permissionContext || callerContext == null)
+                {
+                    return null;
+                }
 
-            clientAccessToken = cat;
-            return true;
+                dotYouContext.Caller = callerContext;
+                dotYouContext.SetPermissionContext(permissionContext); 
+                
+                return dotYouContext;
+            });
+
+            return await _cache.GetOrAddContext(token, creator);
         }
-
-        //
-
+        
         public ValueTask<YouAuthRegistration?> LoadFromSubject(string subject)
         {
             var session = _youAuthRegistrationStorage.LoadFromSubject(subject);
@@ -117,8 +118,16 @@ namespace Youverse.Core.Services.Authentication.YouAuth
              */
             if (authToken.ClientTokenType == ClientTokenType.IdentityConnectionRegistration)
             {
-                var (cc, permissionContext) = _circleNetworkService.CreateConnectedClientContext(authToken).GetAwaiter().GetResult();
-                return new ValueTask<(CallerContext callerContext, PermissionContext permissionContext)>((cc, permissionContext));
+                try
+                {
+                    var (cc, permissionContext) = _circleNetworkService.CreateConnectedClientContext(authToken).GetAwaiter().GetResult();
+                    return new ValueTask<(CallerContext callerContext, PermissionContext permissionContext)>((cc, permissionContext));
+                }
+                catch (YouverseSecurityException)
+                {
+                    //TODO: swallow the security exception and return null, otherwise the cache will keep trying to load data from the token 
+                    return new ValueTask<(CallerContext callerContext, PermissionContext permissionContext)>((null, null));
+                }
             }
 
             if (authToken.ClientTokenType == ClientTokenType.YouAuth)
@@ -135,7 +144,6 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                     circleIds: null
                 );
 
-
                 PermissionContext permissionCtx = CreateAuthenticatedYouAuthPermissionContext(authToken, client);
                 return new ValueTask<(CallerContext callerContext, PermissionContext permissionContext)>((cc, permissionCtx));
             }
@@ -143,14 +151,28 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             throw new YouverseSecurityException("Unhandled access registration type");
         }
 
-        public bool TryGetCachedContext(ClientAuthenticationToken token, out DotYouContext context)
-        {
-            return _cache.TryGetContext(token, out context);
-        }
+        //
 
-        public void CacheContext(ClientAuthenticationToken token, DotYouContext dotYouContext)
+        /// <summary>
+        /// Creates a YouAuth Client for an Identity that is not connected. (will show as authenticated)
+        /// </summary>
+        private bool TryCreateAuthenticatedYouAuthClient(string dotYouId, out ClientAccessToken clientAccessToken)
         {
-            _cache.CacheContext(token, dotYouContext);
+            YouAuthRegistration registration = _youAuthRegistrationStorage.LoadFromSubject(dotYouId);
+
+            var emptyKey = Guid.Empty.ToByteArray().ToSensitiveByteArray();
+            if (null == registration)
+            {
+                registration = new YouAuthRegistration(dotYouId, new Dictionary<string, CircleGrant>());
+                _youAuthRegistrationStorage.Save(registration);
+            }
+
+            var (accessRegistration, cat) = _exchangeGrantService.CreateClientAccessToken(emptyKey, ClientTokenType.YouAuth).GetAwaiter().GetResult();
+            var client = new YouAuthClient(accessRegistration.Id, (DotYouIdentity)dotYouId, accessRegistration);
+            _youAuthRegistrationStorage.SaveClient(client);
+
+            clientAccessToken = cat;
+            return true;
         }
         
         private PermissionContext CreateAuthenticatedYouAuthPermissionContext(ClientAuthenticationToken authToken, YouAuthClient client)

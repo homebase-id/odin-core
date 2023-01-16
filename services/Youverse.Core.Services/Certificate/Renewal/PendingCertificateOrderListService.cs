@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -12,9 +13,10 @@ namespace Youverse.Core.Services.Certificate.Renewal
     /// <summary>
     /// List of identities with an outstanding order to have an SSL certificate created 
     /// </summary>
-    public class PendingCertificateOrderListService
+    public class PendingCertificateOrderListService:IDisposable
     {
         private readonly TableOutbox _table;
+        private readonly KeyValueDatabase _db;
 
         public PendingCertificateOrderListService(string dataPath)
         {
@@ -27,9 +29,9 @@ namespace Youverse.Core.Services.Certificate.Renewal
             }
 
             var filePath = PathUtil.OsIfy($"{dataPath}\\cert.db");
-            var db = new KeyValueDatabase($"URI=file:{filePath}");
-            db.CreateDatabase(false);
-            _table = new TableOutbox(db);
+            _db = new KeyValueDatabase($"URI=file:{filePath}");
+            _db.CreateDatabase(false);
+            _table = new TableOutbox(_db);
         }
 
         public void Add(DotYouIdentity identity)
@@ -75,6 +77,11 @@ namespace Youverse.Core.Services.Certificate.Renewal
         public void MarkFailure(byte[] marker)
         {
             _table.PopCancel(marker);
+        }
+
+        public void Dispose()
+        {
+            _db?.Dispose();
         }
     }
 }

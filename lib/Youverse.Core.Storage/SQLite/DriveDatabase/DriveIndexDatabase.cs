@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Security;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Util;
 
 /*
@@ -55,6 +56,7 @@ namespace Youverse.Core.Storage.SQLite
 
     public class DriveIndexDatabase : IDisposable
     {
+        private const long _CommitFrequency = 5000; // ms
         private string _connectionString;
 
         private SQLiteConnection _connection = null;
@@ -68,6 +70,7 @@ namespace Youverse.Core.Storage.SQLite
 
         private Object _getConnectionLock = new Object();
         private Object _getTransactionLock = new Object();
+        private UnixTimeUtc _lastCommit;
 
         public DriveIndexDatabase(string connectionString, DatabaseIndexKind databaseKind)
         {
@@ -78,43 +81,38 @@ namespace Youverse.Core.Storage.SQLite
             TblAclIndex = new TableAclIndex(this);
             TblTagIndex = new TableTagIndex(this);
             TblCmdMsgQueue = new TableCommandMessageQueue(this);
+
+            RsaKeyManagement.noDBOpened++;
         }
 
         ~DriveIndexDatabase()
         {
-            if (_transaction != null)
-            {
-                throw new Exception("Transaction in progress not completed.");
-            }
-
-            if (_connection != null)
-            {
-                _connection.Dispose();
-                _connection = null;
-            }
+            _connection?.Dispose();
+            _connection = null;
 
             Dispose(false);
-        }
 
-        private void ReleaseUnmanagedResources()
-        {
-            // TODO release unmanaged resources here
+            RsaKeyManagement.noDBClosed++;
         }
+        
 
         private void Dispose(bool disposing)
         {
-            ReleaseUnmanagedResources();
             if (disposing)
             {
-                _connection?.Dispose();
-                _transaction?.Dispose();
+                Commit(); // Will dispose _transaction
+                // lock (_getConnectionLock)
+                {
+                    _connection?.Dispose();
+                    _connection = null;
+                }
             }
         }
 
         public void Dispose()
         {
             Dispose(true);
-            GC.SuppressFinalize(this);
+            // GC.SuppressFinalize(this);
         }
 
         public DatabaseIndexKind GetKind()
@@ -170,20 +168,25 @@ namespace Youverse.Core.Storage.SQLite
         }
 
         /// <summary>
-        /// You can only have one transaction per connection. Create a new database object
-        /// if you want a second transaction.
+        /// Call to start a transaction or to continue on the current transaction.
         /// </summary>
-        public void BeginTransaction()
+        private void BeginTransaction()
         {
             lock (_getTransactionLock)
             {
                 if (_transaction == null)
                 {
                     _transaction = GetConnection().BeginTransaction();
+                    _lastCommit = new UnixTimeUtc();
                 }
                 else
                 {
-                    throw new Exception("Transaction already in use");
+                    // We already had a transaction, let's check if we should commit
+                    if (UnixTimeUtc.Now().milliseconds - _lastCommit.milliseconds > _CommitFrequency)
+                    {
+                        Commit();
+                        BeginTransaction();
+                    }
                 }
             }
         }
@@ -195,7 +198,7 @@ namespace Youverse.Core.Storage.SQLite
                 if (_transaction != null)
                 {
                     _transaction.Commit();
-                    _transaction.Dispose(); // I believe these objects need to be disposed
+                    _transaction.Dispose();
                     _transaction = null;
                 }
             }
@@ -227,51 +230,25 @@ namespace Youverse.Core.Storage.SQLite
             List<Guid> accessControlList,
             List<Guid> tagIdList)
         {
-            bool isLocalTransaction = false;
+            BeginTransaction();
 
             lock (_getTransactionLock)
             {
-                if (_transaction == null)
-                {
-                    _transaction = GetConnection().BeginTransaction();
-                    isLocalTransaction = true;
-                }
-
                 TblMainIndex.InsertRow(fileId, globalTransitId, UnixTimeUtc.Now(), fileType, dataType, senderId, groupId, uniqueId, userDate, false, false, requiredSecurityGroup);
                 TblAclIndex.InsertRows(fileId, accessControlList);
                 TblTagIndex.InsertRows(fileId, tagIdList);
-
-                if (isLocalTransaction == true)
-                {
-                    _transaction.Commit();
-                    _transaction.Dispose(); // I believe these objects need to be disposed
-                    _transaction = null;
-                }
             }
         }
 
         public void DeleteEntry(Guid fileId)
         {
-            bool isLocalTransaction = false;
+            BeginTransaction();
 
             lock (_getTransactionLock)
             {
-                if (_transaction == null)
-                {
-                    _transaction = GetConnection().BeginTransaction();
-                    isLocalTransaction = true;
-                }
-
                 TblAclIndex.DeleteAllRows(fileId);
                 TblTagIndex.DeleteAllRows(fileId);
                 TblMainIndex.DeleteRow(fileId);
-
-                if (isLocalTransaction == true)
-                {
-                    _transaction.Commit();
-                    _transaction.Dispose(); // I believe these objects need to be disposed
-                    _transaction = null;
-                }
             }
         }
 
@@ -290,16 +267,10 @@ namespace Youverse.Core.Storage.SQLite
             List<Guid> addTagIdList = null,
             List<Guid> deleteTagIdList = null)
         {
-            bool isLocalTransaction = false;
+            BeginTransaction();
 
             lock (_getTransactionLock)
             {
-                if (_transaction == null)
-                {
-                    _transaction = GetConnection().BeginTransaction();
-                    isLocalTransaction = true;
-                }
-
                 TblMainIndex.UpdateRow(fileId, globalTransitId: globalTransitId, fileType: fileType, dataType: dataType, senderId: senderId,
                     groupId: groupId, uniqueId: uniqueId, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup);
 
@@ -310,12 +281,6 @@ namespace Youverse.Core.Storage.SQLite
 
                 // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
                 //
-                if (isLocalTransaction == true)
-                {
-                    _transaction.Commit();
-                    _transaction.Dispose(); // I believe these objects need to be disposed
-                    _transaction = null;
-                }
             }
         }
 
@@ -332,16 +297,10 @@ namespace Youverse.Core.Storage.SQLite
             List<Guid> accessControlList = null,
             List<Guid> tagIdList = null)
         {
-            bool isLocalTransaction = false;
+            BeginTransaction();
 
             lock (_getTransactionLock)
             {
-                if (_transaction == null)
-                {
-                    _transaction = GetConnection().BeginTransaction();
-                    isLocalTransaction = true;
-                }
-
                 TblMainIndex.UpdateRow(fileId, globalTransitId: globalTransitId, fileType: fileType, dataType: dataType, senderId: senderId,
                     groupId: groupId, uniqueId: uniqueId, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup);
 
@@ -352,12 +311,6 @@ namespace Youverse.Core.Storage.SQLite
 
                 // NEXT: figure out if we want "addACL, delACL" and "addTags", "delTags".
                 //
-                if (isLocalTransaction == true)
-                {
-                    _transaction.Commit();
-                    _transaction.Dispose(); // I believe these objects need to be disposed
-                    _transaction = null;
-                }
             }
         }
 
@@ -505,9 +458,11 @@ namespace Youverse.Core.Storage.SQLite
             }
 
             // Read 1 more than requested to see if we're at the end of the dataset
-            stm = $"SELECT fileid FROM mainindex " + strWhere + $"ORDER BY fileid DESC LIMIT {noOfItems+1}";
+            stm = $"SELECT fileid FROM mainindex " + strWhere + $"ORDER BY fileid DESC LIMIT {noOfItems + 1}";
 
             var cmd = new SQLiteCommand(stm, con);
+
+            // Commit();
             var rdr = cmd.ExecuteReader();
 
             var result = new List<Guid>();
@@ -525,7 +480,6 @@ namespace Youverse.Core.Storage.SQLite
 
             return (result, rdr.Read());
         }
-
 
 
         /// <summary>
@@ -557,7 +511,8 @@ namespace Youverse.Core.Storage.SQLite
             List<Guid> tagsAnyOf = null,
             List<Guid> tagsAllOf = null)
         {
-            var (result, moreRows) = QueryBatchRaw(noOfItems, ref cursor, requiredSecurityGroup, globalTransitIdAnyOf, filetypesAnyOf, datatypesAnyOf, senderidAnyOf, groupIdAnyOf, uniqueIdAnyOf, userdateSpan, aclAnyOf, tagsAnyOf, tagsAllOf);
+            var (result, moreRows) = QueryBatchRaw(noOfItems, ref cursor, requiredSecurityGroup, globalTransitIdAnyOf, filetypesAnyOf, datatypesAnyOf, senderidAnyOf, groupIdAnyOf, uniqueIdAnyOf,
+                userdateSpan, aclAnyOf, tagsAnyOf, tagsAllOf);
 
             if (result.Count > 0)
             {
@@ -593,16 +548,16 @@ namespace Youverse.Core.Storage.SQLite
                     // Do a recursive call to check there are no more items.
                     //
                     var r2 = QueryBatch(noOfItems - result.Count, ref cursor, requiredSecurityGroup,
-                                            globalTransitIdAnyOf,
-                                            filetypesAnyOf,
-                                            datatypesAnyOf,
-                                            senderidAnyOf,
-                                            groupIdAnyOf,
-                                            uniqueIdAnyOf,
-                                            userdateSpan,
-                                            aclAnyOf,
-                                            tagsAnyOf,
-                                            tagsAllOf);
+                        globalTransitIdAnyOf,
+                        filetypesAnyOf,
+                        datatypesAnyOf,
+                        senderidAnyOf,
+                        groupIdAnyOf,
+                        uniqueIdAnyOf,
+                        userdateSpan,
+                        aclAnyOf,
+                        tagsAnyOf,
+                        tagsAllOf);
 
                     // There was more data
                     if (r2.Count > 0)
@@ -620,7 +575,8 @@ namespace Youverse.Core.Storage.SQLite
                     cursor.currentBoundaryCursor = cursor.nextBoundaryCursor;
                     cursor.nextBoundaryCursor = null;
                     cursor.pagingCursor = null;
-                    return QueryBatch(noOfItems, ref cursor, requiredSecurityGroup, globalTransitIdAnyOf, filetypesAnyOf, datatypesAnyOf, senderidAnyOf, groupIdAnyOf, uniqueIdAnyOf, userdateSpan, aclAnyOf, tagsAnyOf, tagsAllOf);
+                    return QueryBatch(noOfItems, ref cursor, requiredSecurityGroup, globalTransitIdAnyOf, filetypesAnyOf, datatypesAnyOf, senderidAnyOf, groupIdAnyOf, uniqueIdAnyOf, userdateSpan,
+                        aclAnyOf, tagsAnyOf, tagsAllOf);
                 }
                 else
                 {
@@ -678,7 +634,7 @@ namespace Youverse.Core.Storage.SQLite
             }
 
             strWhere += $"AND (requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) ";
-            
+
             if (IsSet(filetypesAnyOf))
             {
                 strWhere += $"AND filetype IN ({IntList(filetypesAnyOf)}) ";
@@ -836,7 +792,7 @@ namespace Youverse.Core.Storage.SQLite
         {
             return list != null && list.Any();
         }
-        
+
         private string AndHexList(List<Guid> list)
         {
             int len = list.Count;
@@ -902,7 +858,7 @@ namespace Youverse.Core.Storage.SQLite
             if (_kind == DatabaseIndexKind.TimeSeries)
             {
                 UnixTimeUtc t = SequentialGuid.ToUnixTimeUtc(fileid);
-                var dt = DateTimeOffset.FromUnixTimeSeconds((long)t.milliseconds/1000).UtcDateTime;
+                var dt = DateTimeOffset.FromUnixTimeSeconds((long)t.milliseconds / 1000).UtcDateTime;
                 return dt.Year + "/" + dt.Month.ToString("2") + "/" + dt.Day.ToString("2");
             }
             else

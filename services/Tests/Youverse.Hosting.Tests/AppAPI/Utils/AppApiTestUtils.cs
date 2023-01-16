@@ -176,7 +176,18 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                     foreach (var recipient in instructionSet.TransitOptions?.Recipients)
                     {
                         Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
-                        Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.TransferKeyCreated, $"transfer key not created for {recipient}");
+                     
+                        if(instructionSet!.TransitOptions!.Schedule == ScheduleOptions.SendNowAwaitResponse)
+                        {
+                            Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.Delivered, $"file was not delivered to {recipient}");
+                        }
+
+                        if (instructionSet.TransitOptions.Schedule == ScheduleOptions.SendLater)
+                        {
+                            Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.TransferKeyCreated, $"transfer key not created for {recipient}");
+
+                        }
+
                     }
 
                     batchSize = instructionSet.TransitOptions?.Recipients?.Count ?? 1;

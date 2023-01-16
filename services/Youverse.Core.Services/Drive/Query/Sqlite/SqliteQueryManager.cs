@@ -11,7 +11,7 @@ using Youverse.Core.Storage.SQLite;
 
 namespace Youverse.Core.Services.Drive.Query.Sqlite;
 
-public class SqliteQueryManager : IDriveQueryManager
+public class SqliteQueryManager : IDriveQueryManager, IDisposable
 {
     private readonly ILogger<object> _logger;
 
@@ -220,6 +220,17 @@ public class SqliteQueryManager : IDriveQueryManager
     {
         _indexDb.TblCmdMsgQueue.DeleteRow(fileIds);
         return Task.CompletedTask;
+    }
+
+    public void EnsureIndexDataCommitted()
+    {
+        _indexDb.Commit();
+    }
+
+    public void Dispose()
+    {
+        _indexDb.Commit();
+        _indexDb.Dispose();
     }
 }
 

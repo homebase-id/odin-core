@@ -11,7 +11,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void InsertInvalidCircleTest()
         {
-            var db = new KeyValueDatabase("URI=file:.\\circle-insert-01.db");
+            using var db = new KeyValueDatabase("URI=file:.\\circle-insert-01.db");
             db.CreateDatabase();
 
             var c1 = Guid.NewGuid().ToByteArray();
