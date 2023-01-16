@@ -1,19 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.SQLite;
-using System.Security.Principal;
-using Youverse.Core.Storage.SQLite.KeyValue;
+
+//
+// ImFollowing - this class stores all the people that follow me.
+// I.e. the people I need to notify when I update some content.
+//
 
 namespace Youverse.Core.Storage.SQLite.KeyValue
 {
-    public class FollowerItem
+    public class ImFollowingItem
     {
         public string identity;
         public UnixTimeUtc timeStamp;
-        public Guid driveId;
+        public Guid driveId;  // I suppose this is the infamous 'driveAlias' :-) 
     }
 
-    public class TableFollower : TableKeyValueBase  // Make it IDisposable??
+    public class TableImFollowing : TableKeyValueBase
     {
         public const int GUID_SIZE = 16; // Precisely 16 bytes for the ID key
 
@@ -39,11 +42,11 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         private SQLiteParameter _s2param2 = null;
         private static object _select2Lock = new object();
 
-        public TableFollower(KeyValueDatabase db) : base(db)
+        public TableImFollowing(KeyValueDatabase db) : base(db)
         {
         }
 
-        ~TableFollower()
+        ~TableImFollowing()
         {
             if (_insertCommand != null)
             {
@@ -85,17 +88,17 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
             {
                 if (dropExisting)
                 {
-                    cmd.CommandText = "DROP TABLE IF EXISTS followers;";
+                    cmd.CommandText = "DROP TABLE IF EXISTS imfollowing;";
                     cmd.ExecuteNonQuery();
                 }
 
                 cmd.CommandText =
-                    @"CREATE TABLE IF NOT EXISTS followers(
+                    @"CREATE TABLE IF NOT EXISTS imfollowing(
                      identity STRING NOT NULL,
                      timestamp INT NOT NULL,
                      driveid BLOB NOT NULL,
                      UNIQUE(identity,driveid)); "
-                    + "CREATE INDEX if not exists followersidentityidx ON followers(identity);";
+                    + "CREATE INDEX if not exists imfollowingidentityidx ON imfollowing(identity);";
 
                 cmd.ExecuteNonQuery();
             }
@@ -105,9 +108,9 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         /// For the given identity, return all drives being followed (and possibly Guid.Empty for everything)
         /// </summary>
         /// <param name="identity">The identity following you</param>
-        /// <returns>List of driveIds (possibly includinig Guid.Empty)</returns>
+        /// <returns>List of driveIds (possibly includinig Guid.Empty for 'follow all')</returns>
         /// <exception cref="Exception"></exception>
-        public List<FollowerItem> Get(string identity)
+        public List<ImFollowingItem> Get(string identity)
         {
             if (identity == null || identity.Length < 1)
                 throw new Exception("identity cannot be NULL or empty.");
@@ -119,7 +122,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 {
                     _selectCommand = _keyValueDatabase.CreateCommand();
                     _selectCommand.CommandText =
-                        $"SELECT driveid, timestamp FROM followers WHERE identity=$identity";
+                        $"SELECT driveid, timestamp FROM imfollowing WHERE identity=$identity";
                     _sparam1 = _selectCommand.CreateParameter();
                     _sparam1.ParameterName = "$identity";
                     _selectCommand.Parameters.Add(_sparam1);
@@ -130,9 +133,9 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 using (SQLiteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.Default))
                 {
-                    var result = new List<FollowerItem>();
+                    var result = new List<ImFollowingItem>();
                     byte[] _tmpbuf = new byte[16];
-                    var fi = new FollowerItem();
+                    var fi = new ImFollowingItem();
 
                     while (rdr.Read())
                     {
@@ -140,7 +143,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                         if (n != GUID_SIZE)
                             throw new Exception("Not a GUID");
                         var d = rdr.GetInt64(1);
-                        var f = new FollowerItem();
+                        var f = new ImFollowingItem();
                         f.identity = identity;
                         f.timeStamp = new UnixTimeUtc((ulong) d);
                         f.driveId = new Guid(_tmpbuf);
@@ -176,7 +179,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 {
                     _select2Command = _keyValueDatabase.CreateCommand();
                     _select2Command.CommandText =
-                        $"SELECT DISTINCT identity FROM followers WHERE (driveid=$driveid OR driveid=x'{Convert.ToHexString(Guid.Empty.ToByteArray())}') AND identity > $cursor ORDER BY identity ASC LIMIT {count}";
+                        $"SELECT DISTINCT identity FROM imfollowing WHERE (driveid=$driveid OR driveid=x'{Convert.ToHexString(Guid.Empty.ToByteArray())}') AND identity > $cursor ORDER BY identity ASC LIMIT {count}";
                     _s2param1 = _select2Command.CreateParameter();
                     _s2param1.ParameterName = "$driveid";
                     _select2Command.Parameters.Add(_s2param1);
@@ -238,7 +241,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 if (_insertCommand == null)
                 {
                     _insertCommand = _keyValueDatabase.CreateCommand();
-                    _insertCommand.CommandText = @"INSERT INTO followers(identity, timestamp, driveid) " +
+                    _insertCommand.CommandText = @"INSERT INTO imfollowing(identity, timestamp, driveid) " +
                                                   "VALUES ($identity, $timestamp, $driveid)";
 
                     _iparam1 = _insertCommand.CreateParameter();
@@ -279,7 +282,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 if (_deleteCommand == null)
                 {
                     _deleteCommand = _keyValueDatabase.CreateCommand();
-                    _deleteCommand.CommandText = @"DELETE FROM followers WHERE identity=$identity;";
+                    _deleteCommand.CommandText = @"DELETE FROM imfollowing WHERE identity=$identity;";
                     _dparam1 = _deleteCommand.CreateParameter();
                     _deleteCommand.Parameters.Add(_dparam1);
                     _dparam1.ParameterName = "$identity";
@@ -311,7 +314,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 if (_deleteCommand2 == null)
                 {
                     _deleteCommand2 = _keyValueDatabase.CreateCommand();
-                    _deleteCommand2.CommandText = @"DELETE FROM followers WHERE identity=$identity AND driveid=$driveid;";
+                    _deleteCommand2.CommandText = @"DELETE FROM imfollowing WHERE identity=$identity AND driveid=$driveid;";
 
                     _dparam2_1 = _deleteCommand2.CreateParameter();
                     _deleteCommand2.Parameters.Add(_dparam2_1);

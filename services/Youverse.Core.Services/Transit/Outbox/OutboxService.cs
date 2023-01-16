@@ -46,6 +46,9 @@ namespace Youverse.Core.Services.Transit.Outbox
         /// <param name="item"></param>
         public Task Add(OutboxItem item)
         {
+            
+            //TODO: change to use batching inserts
+            
             //TODO: value should also include transfer attempts, etc.
             var state = DotYouSystemSerializer.Serialize(new OutboxItemState()
             {
@@ -53,7 +56,7 @@ namespace Youverse.Core.Services.Transit.Outbox
                 IsTransientFile = item.IsTransientFile,
                 Attempts = { }
             }).ToUtf8ByteArray();
-
+            
             _tenantSystemStorage.Outbox.InsertRow(
                 item.File.DriveId.ToByteArray(),
                 item.File.FileId.ToByteArray(),

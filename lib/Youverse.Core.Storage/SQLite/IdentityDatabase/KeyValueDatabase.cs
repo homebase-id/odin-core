@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Data.SQLite;
+using Youverse.Core.Cryptography.Crypto;
 
 
 /*
@@ -31,7 +32,8 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         public TableInbox tblInbox = null;
         public TableOutbox tblOutbox = null;
         public TableCircle tblCircle = null;
-        public TableFollower tblFollow = null;
+        public TableImFollowing tblImFollowing = null;
+        public TableFollowsMe tblFollowsMe = null;
         public TableCircleMember tblCircleMember = null;
 
         private Object _getConnectionLock = new Object();
@@ -49,7 +51,16 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
             tblOutbox = new TableOutbox(this);
             tblCircle = new TableCircle(this);
             tblCircleMember = new TableCircleMember(this);
-            tblFollow = new TableFollower(this);
+            tblFollowsMe = new TableFollowsMe(this);
+            tblImFollowing = new TableImFollowing(this);
+
+            RsaKeyManagement.noDBOpened++;
+        }
+
+
+        ~KeyValueDatabase()
+        {
+            RsaKeyManagement.noDBClosed++;
         }
 
         public SQLiteCommand CreateCommand()
@@ -101,7 +112,8 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
             tblOutbox.EnsureTableExists(dropExistingTables);
             tblCircle.EnsureTableExists(dropExistingTables);
             tblCircleMember.EnsureTableExists(dropExistingTables);
-            tblFollow.EnsureTableExists(dropExistingTables);
+            tblImFollowing.EnsureTableExists(dropExistingTables);
+            tblFollowsMe.EnsureTableExists(dropExistingTables);
             Vacuum();
         }
 

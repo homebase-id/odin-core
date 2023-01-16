@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Security;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Util;
 
 /*
@@ -80,6 +81,8 @@ namespace Youverse.Core.Storage.SQLite
             TblAclIndex = new TableAclIndex(this);
             TblTagIndex = new TableTagIndex(this);
             TblCmdMsgQueue = new TableCommandMessageQueue(this);
+
+            RsaKeyManagement.noDBOpened++;
         }
 
         ~DriveIndexDatabase()
@@ -87,16 +90,11 @@ namespace Youverse.Core.Storage.SQLite
             _connection?.Dispose();
             _connection = null;
 
-            // lock(_getConnectionLock)
-            // {
-            //     if (_connection != null)
-            //     {
-            //         _connection.Dispose();
-            //         _connection = null;
-            //     }
-            // }
-            // Dispose(false);
+            Dispose(false);
+
+            RsaKeyManagement.noDBClosed++;
         }
+        
 
         private void Dispose(bool disposing)
         {

@@ -244,9 +244,8 @@ namespace Youverse.Hosting
                     normalApp.UseResponseCompression();
                     normalApp.UseMiddleware<SharedSecretEncryptionMiddleware>();
                     normalApp.UseMiddleware<StaticFileCachingMiddleware>();
-
-
                     normalApp.UseHttpsRedirection();
+                    
                     // app.UseWebSockets();
                     // app.Map("/owner/api/live/notifications", appBuilder => appBuilder.UseMiddleware<NotificationWebSocketMiddleware>());
                     normalApp.UseEndpoints(endpoints =>
