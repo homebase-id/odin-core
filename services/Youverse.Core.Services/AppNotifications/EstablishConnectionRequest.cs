@@ -10,3 +10,10 @@ public class EstablishConnectionRequest
     /// </summary>
     public List<TargetDrive> Drives { get; set; }
 }
+
+public class SocketCommand
+{
+    public string Command { get; set; }
+
+    public string Data { get; set; }
+}

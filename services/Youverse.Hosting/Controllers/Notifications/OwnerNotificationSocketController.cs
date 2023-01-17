@@ -32,6 +32,7 @@ namespace Youverse.Hosting.Controllers.Notifications
             _currentTenant = tenantProvider.GetCurrentTenant()!.Name;
         }
 
+        /// <summary />
         [HttpGet("ws")]
         public async Task Connect()
         {

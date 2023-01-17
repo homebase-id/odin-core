@@ -45,18 +45,38 @@ namespace Youverse.Core.Services.AppNotifications
 
             var response = new EstablishConnectionResponse() { };
             await SendMessageAsync(deviceSocket, DotYouSystemSerializer.Serialize(response));
-            await ListenForDisconnect(deviceSocket);
+            await AwaitCommands(deviceSocket);
         }
 
-        private async Task ListenForDisconnect(DeviceSocket deviceSocket)
+        private async Task AwaitCommands(DeviceSocket deviceSocket)
         {
             var buffer = new byte[1024 * 4];
-            var receiveResult = await deviceSocket.Socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-            if (receiveResult.MessageType == WebSocketMessageType.Close)
+
+            while (true)
             {
-                await _deviceSocketCollection.RemoveSocket(deviceSocket.Key);
-                //TODO: need to send the right response but not quite sure what that is.
-                // await socket.CloseAsync(receiveResult.CloseStatus.Value, "", CancellationToken.None);
+                var receiveResult = await deviceSocket.Socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+
+                if (receiveResult.MessageType == WebSocketMessageType.Close)
+                {
+                    await _deviceSocketCollection.RemoveSocket(deviceSocket.Key);
+                    //TODO: need to send the right response but not quite sure what that is.
+                    // await socket.CloseAsync(receiveResult.CloseStatus.Value, "", CancellationToken.None);
+                    break;
+                }
+
+                if (receiveResult.MessageType == WebSocketMessageType.Text) //must be JSON
+                {
+                    Array.Resize(ref buffer, receiveResult.Count);
+                    var json = buffer.ToStringFromUtf8Bytes();
+                    
+                    //TODO: i need a method to keep the data fielda s a string so i can further deserialize it based on the command
+                    var command = await DotYouSystemSerializer.Deserialize<SocketCommand>(buffer.ToMemoryStream());
+
+                    if (null != command)
+                    {
+                        await ProcessCommand(command);
+                    }
+                }
             }
         }
 
@@ -79,20 +99,15 @@ namespace Youverse.Core.Services.AppNotifications
 
         public Task Handle(TransitFileReceivedNotification notification, CancellationToken cancellationToken)
         {
-            //calling this here is not working when picking up from the transit because it's running in the transit context (so the sender does not have access)
-            // _transitAppService.ProcessIncomingTransitInstructions(notification.TempFile.TargetDrive).GetAwaiter().GetResult();
-            
-            //Notify the client - a new file is here so it can call back to process
-            
             var data = DotYouSystemSerializer.Serialize(new
             {
-                TargetDrive = notification.TempFile.TargetDrive
+                ExternalFileIdentifier = notification.TempFile
             });
 
             SerializeSendToAllDevices(new TranslatedClientNotification(notification.NotificationType, data)).GetAwaiter().GetResult();
             return Task.CompletedTask;
         }
-        
+
         private async Task SerializeSendToAllDevices(IClientNotification notification)
         {
             var json = DotYouSystemSerializer.Serialize(new
@@ -129,6 +144,21 @@ namespace Youverse.Core.Services.AppNotifications
             {
                 //HACK: need to find out what is trying to write when the response is complete
                 Console.WriteLine(e);
+            }
+        }
+
+        public async Task ProcessCommand(SocketCommand command)
+        {
+            //process the command
+            switch (command.Command.ToLower())
+            {
+                case "processTransitInstructions":
+                    var d = DotYouSystemSerializer.Deserialize<ExternalFileIdentifier>(command.Data);
+                    await _transitAppService.ProcessIncomingTransitInstructions(d.TargetDrive);
+                    break;
+
+                default:
+                    throw new Exception("Invalid command");
             }
         }
     }
