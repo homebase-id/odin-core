@@ -89,11 +89,7 @@ namespace Youverse.Core.Services.AppNotifications
                 TargetDrive = notification.TempFile.TargetDrive
             });
 
-            SerializeSendToAllDevices(new TranslatedClientNotification(notification., data)).GetAwaiter().GetResult();
-            return Task.CompletedTask;
-            
-            // notification.TempFile.TargetDrive
-            notification.TempFile.FileId
+            SerializeSendToAllDevices(new TranslatedClientNotification(notification.NotificationType, data)).GetAwaiter().GetResult();
             return Task.CompletedTask;
         }
         
