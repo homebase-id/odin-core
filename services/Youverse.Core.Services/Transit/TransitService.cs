@@ -488,7 +488,7 @@ namespace Youverse.Core.Services.Transit
             Guard.Argument(options, nameof(options)).NotNull()
                 .Require(o => o.Recipients?.Any() ?? false)
                 .Require(o => o.Recipients.TrueForAll(r => r != _tenantContext.HostDotYouId));
-            
+
             var (transferStatus, outboxItems) = await CreateOutboxItems(internalFile, options, transferFileType);
             var sendResults = await this.SendBatchNow(outboxItems);
 

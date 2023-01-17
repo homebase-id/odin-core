@@ -68,8 +68,8 @@ namespace Youverse.Core.Services.AppNotifications
                 {
                     Array.Resize(ref buffer, receiveResult.Count);
                     var json = buffer.ToStringFromUtf8Bytes();
-                    
-                    //TODO: i need a method to keep the data fielda s a string so i can further deserialize it based on the command
+
+                    //TODO: i need a method to keep the data field as a string so i can further deserialize it based on the command
                     var command = await DotYouSystemSerializer.Deserialize<SocketCommand>(buffer.ToMemoryStream());
 
                     if (null != command)
@@ -150,9 +150,9 @@ namespace Youverse.Core.Services.AppNotifications
         public async Task ProcessCommand(SocketCommand command)
         {
             //process the command
-            switch (command.Command.ToLower())
+            switch (command.Command)
             {
-                case "processTransitInstructions":
+                case SocketCommandType.ProcessTransitInstructions:
                     var d = DotYouSystemSerializer.Deserialize<ExternalFileIdentifier>(command.Data);
                     await _transitAppService.ProcessIncomingTransitInstructions(d.TargetDrive);
                     break;

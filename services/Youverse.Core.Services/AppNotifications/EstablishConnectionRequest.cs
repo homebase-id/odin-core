@@ -13,7 +13,12 @@ public class EstablishConnectionRequest
 
 public class SocketCommand
 {
-    public string Command { get; set; }
+    public SocketCommandType Command { get; set; }
 
     public string Data { get; set; }
+}
+
+public enum SocketCommandType
+{
+    ProcessTransitInstructions = 111
 }
