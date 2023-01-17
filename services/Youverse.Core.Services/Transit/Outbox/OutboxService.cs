@@ -7,6 +7,7 @@ using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Transit.Outbox
@@ -18,6 +19,7 @@ namespace Youverse.Core.Services.Transit.Outbox
         public List<TransferAttempt> Attempts { get; }
 
         public bool IsTransientFile { get; set; }
+        public RsaEncryptedRecipientTransferInstructionSet TransferInstructionSet { get; set; }
     }
 
     /// <summary>
@@ -54,7 +56,8 @@ namespace Youverse.Core.Services.Transit.Outbox
             {
                 Recipient = item.Recipient,
                 IsTransientFile = item.IsTransientFile,
-                Attempts = { }
+                Attempts = { },
+                TransferInstructionSet = item.TransferInstructionSet
             }).ToUtf8ByteArray();
             
             _tenantSystemStorage.Outbox.InsertRow(
@@ -118,6 +121,7 @@ namespace Youverse.Core.Services.Transit.Outbox
                     IsTransientFile = state!.IsTransientFile,
                     Priority = (int)r.priority,
                     AddedTimestamp = r.timeStamp.seconds,
+                    TransferInstructionSet = state.TransferInstructionSet,
                     File = new InternalDriveFileId()
                     {
                         DriveId = new Guid(r.boxId),

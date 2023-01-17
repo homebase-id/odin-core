@@ -192,7 +192,7 @@ namespace Youverse.Core.Services.Drive
                     manager.EnsureIndexDataCommitted();
                 }
             }
-            
+
             return Task.CompletedTask;
         }
 
@@ -336,7 +336,7 @@ namespace Youverse.Core.Services.Drive
                 {
                     manager.Dispose();
                 }
-                catch 
+                catch
                 {
                 }
             }
