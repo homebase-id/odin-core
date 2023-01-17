@@ -77,6 +77,26 @@ namespace Youverse.Core.Services.AppNotifications
             return Task.CompletedTask;
         }
 
+        public Task Handle(TransitFileReceivedNotification notification, CancellationToken cancellationToken)
+        {
+            //calling this here is not working when picking up from the transit because it's running in the transit context (so the sender does not have access)
+            // _transitAppService.ProcessIncomingTransitInstructions(notification.TempFile.TargetDrive).GetAwaiter().GetResult();
+            
+            //Notify the client - a new file is here so it can call back to process
+            
+            var data = DotYouSystemSerializer.Serialize(new
+            {
+                TargetDrive = notification.TempFile.TargetDrive
+            });
+
+            SerializeSendToAllDevices(new TranslatedClientNotification(notification., data)).GetAwaiter().GetResult();
+            return Task.CompletedTask;
+            
+            // notification.TempFile.TargetDrive
+            notification.TempFile.FileId
+            return Task.CompletedTask;
+        }
+        
         private async Task SerializeSendToAllDevices(IClientNotification notification)
         {
             var json = DotYouSystemSerializer.Serialize(new
@@ -114,13 +134,6 @@ namespace Youverse.Core.Services.AppNotifications
                 //HACK: need to find out what is trying to write when the response is complete
                 Console.WriteLine(e);
             }
-        }
-
-        public Task Handle(TransitFileReceivedNotification notification, CancellationToken cancellationToken)
-        {
-            //calling this here is not working when picking up from the transit because it's running in the transit context (so the sender does not have access)
-            _transitAppService.ProcessIncomingTransitInstructions(notification.TempFile.TargetDrive).GetAwaiter().GetResult();
-            return Task.CompletedTask;
         }
     }
 }
