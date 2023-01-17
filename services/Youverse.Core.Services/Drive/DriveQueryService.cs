@@ -185,12 +185,12 @@ namespace Youverse.Core.Services.Drive
         {
             foreach (var driveId in driveIdList)
             {
-                if(this.TryGetOrLoadQueryManager(driveId, out var manager, false).GetAwaiter().GetResult())
+                if (this.TryGetOrLoadQueryManager(driveId, out var manager, false).GetAwaiter().GetResult())
                 {
                     manager.EnsureIndexDataCommitted();
                 }
             }
-            
+
             return Task.CompletedTask;
         }
 
@@ -317,7 +317,10 @@ namespace Youverse.Core.Services.Drive
         public Task Handle(DriveFileChangedNotification notification, CancellationToken cancellationToken)
         {
             this.TryGetOrLoadQueryManager(notification.File.DriveId, out var manager, false);
-            return manager.UpdateCurrentIndex(notification.FileHeader);
+            manager.UpdateCurrentIndex(notification.FileHeader);
+            manager.EnsureIndexDataCommitted();
+            // return manager.UpdateCurrentIndex(notification.FileHeader);
+            return Task.CompletedTask;
         }
 
         public Task Handle(DriveFileDeletedNotification notification, CancellationToken cancellationToken)
@@ -334,7 +337,7 @@ namespace Youverse.Core.Services.Drive
                 {
                     manager.Dispose();
                 }
-                catch 
+                catch
                 {
                 }
             }
