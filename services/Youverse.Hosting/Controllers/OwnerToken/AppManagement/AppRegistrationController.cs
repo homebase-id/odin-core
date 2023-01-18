@@ -55,7 +55,8 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
                 appId: appRegistration.AppId,
                 name: appRegistration.Name,
                 permissions: appRegistration.PermissionSet,
-                drives: appRegistration.Drives);
+                drives: appRegistration.Drives,
+                authorizedCircles: appRegistration.AuthorizedCircles);
             return reg;
         }
 

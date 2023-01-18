@@ -74,7 +74,10 @@ namespace Youverse.Hosting
             cb.RegisterType<DotYouHttpClientFactory>().As<IDotYouHttpClientFactory>().SingleInstance();
 
             cb.RegisterType<YouAuthService>().As<IYouAuthService>().SingleInstance();
-            cb.RegisterType<YouAuthRegistrationService>().As<IYouAuthRegistrationService>().SingleInstance();
+            cb.RegisterType<YouAuthRegistrationService>()
+                .As<IYouAuthRegistrationService>()
+                .As<INotificationHandler<IdentityConnectionRegistrationChangedNotification>>()
+                .SingleInstance();
             cb.RegisterType<YouAuthRegistrationStorage>().As<IYouAuthRegistrationStorage>().SingleInstance();
             cb.RegisterType<YouAuthAuthorizationCodeManager>().As<IYouAuthAuthorizationCodeManager>().SingleInstance();
 
@@ -107,10 +110,13 @@ namespace Youverse.Hosting
             cb.RegisterType<CircleNetworkRequestService>().As<ICircleNetworkRequestService>().SingleInstance();
 
             cb.RegisterType<OutboxService>().As<IOutboxService>().SingleInstance();
-            
+
             cb.RegisterType<TransitAppService>().As<ITransitAppService>().SingleInstance();
-            cb.RegisterType<TransitRegistrationService>().AsSelf().SingleInstance();
-            
+            cb.RegisterType<TransitRegistrationService>()
+                .As<INotificationHandler<IdentityConnectionRegistrationChangedNotification>>()
+                .AsSelf()
+                .SingleInstance();
+
             cb.RegisterType<TransferKeyEncryptionQueueService>().As<ITransferKeyEncryptionQueueService>().SingleInstance();
             cb.RegisterType<TransitBoxService>().As<ITransitBoxService>().SingleInstance();
             cb.RegisterType<TransitService>().As<ITransitService>().SingleInstance();
@@ -133,7 +139,6 @@ namespace Youverse.Hosting
             cb.RegisterType<StaticFileContentService>().AsSelf().SingleInstance();
 
             cb.RegisterType<LetsEncryptTenantCertificateRenewalService>().As<ITenantCertificateRenewalService>();
-
         }
 
         private static void RegisterMediator(ref ContainerBuilder cb)

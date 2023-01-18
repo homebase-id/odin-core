@@ -49,7 +49,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             _cache = new DotYouContextCache(config.Host.CacheSlidingExpirationSeconds);
         }
 
-        public async Task<RedactedAppRegistration> RegisterApp(GuidId appId, string name, PermissionSet permissions, IEnumerable<DriveGrantRequest> drives)
+        public async Task<RedactedAppRegistration> RegisterApp(GuidId appId, string name, PermissionSet permissions, IEnumerable<DriveGrantRequest> drives, List<Guid> authorizedCircles)
         {
             Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
             Guard.Argument(appId, nameof(appId)).Require(appId != Guid.Empty);
@@ -63,12 +63,65 @@ namespace Youverse.Core.Services.Authorization.Apps
             {
                 AppId = appId,
                 Name = name,
-                Grant = grant
+                Grant = grant,
+                AuthorizedCircles = authorizedCircles
             };
 
             _appRegistrationValueStorage.Upsert(appReg.AppId, GuidId.Empty, _appRegistrationDataType, appReg);
 
             return appReg.Redacted();
+        }
+
+        public async Task UpdateAppPermissions(GuidId appId, PermissionSet permissions, IEnumerable<DriveGrantRequest> drives)
+        {
+            var appReg = await this.GetAppRegistrationInternal(appId);
+            if (null == appReg)
+            {
+                throw new YouverseClientException("Invalid AppId", YouverseClientErrorCode.AppNotRegistered);
+            }
+            
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
+            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+            var grant = await _exchangeGrantService.CreateExchangeGrant(permissions, drives, masterKey);
+            appReg.Grant = grant;
+            
+            _appRegistrationValueStorage.Upsert(appId, GuidId.Empty, _appRegistrationDataType, appReg);
+
+            ResetPermissionContextCache();
+        }
+        
+        public async Task UpdateAppAuthorizedCircles(GuidId appId, List<Guid> authorizedCircles)
+        {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
+            /*
+                michael 2 months ago
+                @todd
+                the "on/off", when "on", it means "apply this app's security vector" to the circle in question. Over 
+                time we'll of course have more than one app. It means on the backend, with the app registration, you'll 
+                need to have saved the App's security vector for circles. And when you calculate the permission for a 
+                circle, as we discussed, you'll need to OR together all the security vectors for all the Apps for 
+                that circle. And then OR that vector together with other permissions for the circle.
+             */
+            
+            var appReg = await this.GetAppRegistrationInternal(appId);
+            if (null == appReg)
+            {
+                throw new YouverseClientException("Invalid AppId", YouverseClientErrorCode.AppNotRegistered);
+            }
+            
+            //TODO: examine if the circles changed - update exchange grants
+            bool circlesHaveChanged = false;
+
+            if (circlesHaveChanged)
+            {
+                //TODO: how to apply the permissions to all users with-in the circles
+            }
+            
+            appReg.AuthorizedCircles = authorizedCircles;
+            _appRegistrationValueStorage.Upsert(appId, GuidId.Empty, _appRegistrationDataType, appReg);
+            ResetPermissionContextCache();
         }
 
         public async Task<AppClientRegistrationResponse> RegisterClient(GuidId appId, byte[] clientPublicKey, string friendlyName)
@@ -97,7 +150,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             var data = ByteArrayUtil.Combine(tokenBytes, sharedSecret);
             var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(clientPublicKey);
             var encryptedData = publicKey.Encrypt(data);
-            
+
             data.WriteZeros();
 
             return new AppClientRegistrationResponse()

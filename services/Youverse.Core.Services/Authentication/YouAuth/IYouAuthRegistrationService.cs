@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using MediatR;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.AppNotifications.ClientNotifications;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 
@@ -10,7 +12,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
     /// <summary>
     /// Manages the registered <see cref="DotYouIdentity"/>'s  who are 'logged in' to this Identity
     /// </summary>
-    public interface IYouAuthRegistrationService
+    public interface IYouAuthRegistrationService : INotificationHandler<IdentityConnectionRegistrationChangedNotification>
     {
         /// <summary>
         /// Grants access to the <see cref="dotYouId"/>
@@ -22,7 +24,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         ValueTask DeleteFromSubject(string subject);
 
         Task<DotYouContext> GetDotYouContext(ClientAuthenticationToken token);
-        
+
         ValueTask<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContext(ClientAuthenticationToken authToken);
     }
 }

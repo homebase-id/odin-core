@@ -1,4 +1,5 @@
-﻿
+﻿using System;
+using System.Collections.Generic;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 
 namespace Youverse.Core.Services.Authorization.Apps
@@ -13,6 +14,14 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         public string Name { get; set; }
 
+        /// <summary>
+        /// List of circles defining whose members can work with your identity via this app
+        /// </summary>
+        public List<Guid> AuthorizedCircles { get; set; }
+
+        /// <summary>
+        /// Permissions and drives granted to this app
+        /// </summary>
         public ExchangeGrant Grant { get; set; }
 
         public RedactedAppRegistration Redacted()
@@ -24,6 +33,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 Name = this.Name,
                 IsRevoked = this.Grant.IsRevoked,
                 Created = this.Grant.Created,
+                AuthorizedCircles = this.AuthorizedCircles,
                 Modified = this.Grant.Modified,
                 Grant = this.Grant.Redacted()
             };

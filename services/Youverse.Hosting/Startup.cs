@@ -39,7 +39,6 @@ namespace Youverse.Hosting
 
         public Startup(IConfiguration configuration)
         {
-            Log.Information("startup ctor");
             Configuration = configuration;
         }
 

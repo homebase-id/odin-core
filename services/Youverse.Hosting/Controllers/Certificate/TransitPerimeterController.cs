@@ -39,49 +39,61 @@ namespace Youverse.Hosting.Controllers.Certificate
         [HttpPost("stream")]
         public async Task<HostTransitResponse> AcceptHostToHostTransfer()
         {
-            //Note: the app id is validated in the Transit Authentication handler (aka certificate auth handler)
-
-            if (!IsMultipartContentType(HttpContext.Request.ContentType))
+            try
             {
-                throw new HostToHostTransferException("Data is not multi-part content");
-            }
+                if (!IsMultipartContentType(HttpContext.Request.ContentType))
+                {
+                    throw new HostToHostTransferException("Data is not multi-part content");
+                }
 
-            var boundary = GetBoundary(HttpContext.Request.ContentType);
-            var reader = new MultipartReader(boundary, HttpContext.Request.Body);
-            var section = await reader.ReadNextSectionAsync();
+                var boundary = GetBoundary(HttpContext.Request.ContentType);
+                var reader = new MultipartReader(boundary, HttpContext.Request.Body);
+                var section = await reader.ReadNextSectionAsync();
 
-            this._stateItemId = await ProcessTransferKeyHeader(section);
+                this._stateItemId = await ProcessTransferKeyHeader(section);
 
-            //
+                //
 
-            await ProcessMetadataSection(await reader.ReadNextSectionAsync());
+                await ProcessMetadataSection(await reader.ReadNextSectionAsync());
 
-            //
+                //
 
-            await ProcessPayloadSection(await reader.ReadNextSectionAsync());
+                await ProcessPayloadSection(await reader.ReadNextSectionAsync());
 
-            //
+                //
 
-            section = await reader.ReadNextSectionAsync();
-            while (null != section)
-            {
-                await ProcessThumbnailSection(section);
                 section = await reader.ReadNextSectionAsync();
-            }
+                while (null != section)
+                {
+                    await ProcessThumbnailSection(section);
+                    section = await reader.ReadNextSectionAsync();
+                }
 
-            if (!await _perimeterService.IsFileValid(_stateItemId))
+                if (!await _perimeterService.IsFileValid(_stateItemId))
+                {
+                    throw new HostToHostTransferException("Transfer does not contain all required parts.");
+                }
+
+                var result = await _perimeterService.FinalizeTransfer(this._stateItemId);
+                if (result.Code == TransitResponseCode.Rejected)
+                {
+                    HttpContext.Abort(); //TODO:does this abort also kill the response?
+                    throw new HostToHostTransferException("Transmission Aborted");
+                }
+
+                return result;
+            }
+            catch (Exception e)
             {
-                throw new HostToHostTransferException("Transfer does not contain all required parts.");
+                //TODO: break down the actual errors so we can send to the
+                //caller information about why it was rejected w/o giving away
+                //sensitive stuff
+                return new HostTransitResponse()
+                {
+                    Code = TransitResponseCode.Rejected,
+                    Message = "Error"
+                };
             }
-
-            var result = await _perimeterService.FinalizeTransfer(this._stateItemId);
-            if (result.Code == TransitResponseCode.Rejected)
-            {
-                HttpContext.Abort(); //TODO:does this abort also kill the response?
-                throw new HostToHostTransferException("Transmission Aborted");
-            }
-
-            return result;
         }
 
         private async Task<Guid> ProcessTransferKeyHeader(MultipartSection section)

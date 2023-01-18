@@ -37,7 +37,7 @@ namespace Youverse.Hosting
         {
             Log.Logger = new LoggerConfiguration()
                 // .MinimumLevel.Debug()
-                .MinimumLevel.Error()
+                .MinimumLevel.Information()
                 .Enrich.WithHostname(new StickyHostnameGenerator())
                 .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
                 .WriteTo.Console(outputTemplate: LogOutputTemplate, theme: LogOutputTheme)
@@ -74,7 +74,7 @@ namespace Youverse.Hosting
             }
 
             var appSettingsFile = $"appsettings.{env.ToLower()}.json";
-            Log.Information($"xxCurrent Folder: {Environment.CurrentDirectory}");
+            Log.Information($"Current Folder: {Environment.CurrentDirectory}");
             if (!File.Exists(Path.Combine(Environment.CurrentDirectory, appSettingsFile)))
             {
                 Log.Information($"Missing {appSettingsFile}");
