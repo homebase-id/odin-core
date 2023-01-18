@@ -13,7 +13,6 @@ namespace Youverse.Core.Services.Base
         private readonly TenantContext _tenantContext;
 
         private readonly KeyValueDatabase _db;
-        private readonly object _hack = new object();
 
         public TenantSystemStorage(ILogger<TenantSystemStorage> logger, TenantContext tenantContext)
         {
@@ -36,12 +35,11 @@ namespace Youverse.Core.Services.Base
             SingleKeyValueStorage = new SingleKeyValueStorage(_db.tblKeyValue);
             ThreeKeyValueStorage = new ThreeKeyValueStorage(_db.TblKeyThreeValue);
 
-            Outbox = new TableOutbox(_db, _hack);
-            Inbox = new TableInbox(_db, _hack);
+            Outbox = _db.tblOutbox;
+            Inbox = _db.tblInbox;
 
             IcrClientStorage = new ThreeKeyValueStorage(_db.TblKeyThreeValue);
-            CircleMemberStorage = new TableCircleMember(_db, _hack);
-            CircleMemberStorage.EnsureTableExists(false);
+            CircleMemberStorage = _db.tblCircleMember;
         }
 
         /// <summary>

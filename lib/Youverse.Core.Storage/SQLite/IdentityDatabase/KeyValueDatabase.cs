@@ -26,15 +26,15 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         private SQLiteConnection _connection = null;
         private SQLiteTransaction _transaction = null;
 
-        public TableKeyValue tblKeyValue = null;
-        public TableKeyTwoValue tblKeyTwoValue = null;
-        public TableKeyThreeValue TblKeyThreeValue = null;
-        public TableInbox tblInbox = null;
-        public TableOutbox tblOutbox = null;
-        public TableCircle tblCircle = null;
-        public TableImFollowing tblImFollowing = null;
-        public TableFollowsMe tblFollowsMe = null;
-        public TableCircleMember tblCircleMember = null;
+        public readonly TableKeyValue tblKeyValue = null;
+        public readonly TableKeyTwoValue tblKeyTwoValue = null;
+        public readonly TableKeyThreeValue TblKeyThreeValue = null;
+        public readonly TableInbox tblInbox = null;
+        public readonly TableOutbox tblOutbox = null;
+        public readonly TableCircle tblCircle = null;
+        public readonly TableImFollowing tblImFollowing = null;
+        public readonly TableFollowsMe tblFollowsMe = null;
+        public readonly TableCircleMember tblCircleMember = null;
 
         private Object _getConnectionLock = new Object();
         private Object _getTransactionLock = new Object();
@@ -84,31 +84,14 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
             _transaction = null;
 
             tblKeyValue.Dispose();;
-            tblKeyValue = null;
-
             tblKeyTwoValue.Dispose();;
-            tblKeyTwoValue = null;
-
             TblKeyThreeValue.Dispose();;
-            TblKeyThreeValue = null;
-
             tblInbox.Dispose();;
-            tblInbox = null;
-
             tblOutbox.Dispose();;
-            tblOutbox = null;
-
             tblCircle.Dispose();;
-            tblCircle = null;
-
             tblImFollowing.Dispose();;
-            tblImFollowing = null;
-
             tblFollowsMe.Dispose();;
-            tblFollowsMe = null;
-
             tblCircleMember.Dispose();;
-            tblCircleMember = null;
 
             _getConnectionLock = null;
             _getTransactionLock = null;
