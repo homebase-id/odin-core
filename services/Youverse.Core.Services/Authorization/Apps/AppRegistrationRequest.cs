@@ -28,5 +28,16 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
         /// List of circles defining whose members can work with your identity via this app
         /// </summary>
         public List<Guid> AuthorizedCircles { get; set; }
+
+        /// <summary>
+        /// Permissions granted to members of the <see cref="AuthorizedCircles"/>
+        /// </summary>
+        public PermissionSet CircleMemberPermissionSet { get; set; }
+        
+        /// <summary>
+        /// Drives granted to members of the <see cref="AuthorizedCircles"/>
+        /// </summary>
+        public List<DriveGrantRequest> CircleMemberDrives { get; set; }
+
     }
 }

@@ -17,7 +17,9 @@ using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Configuration;
+using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Storage;
+using Youverse.Hosting.Controllers.OwnerToken.AppManagement;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
@@ -36,39 +38,49 @@ namespace Youverse.Core.Services.Authorization.Apps
         private readonly DotYouContextCache _cache;
         private readonly TenantContext _tenantContext;
 
+        private readonly CircleDefinitionService _circleDefinitionService;
+
+
         public AppRegistrationService(DotYouContextAccessor contextAccessor, ILogger<IAppRegistrationService> logger, ITenantSystemStorage tenantSystemStorage,
-            ExchangeGrantService exchangeGrantService, YouverseConfiguration config, TenantContext tenantContext)
+            ExchangeGrantService exchangeGrantService, YouverseConfiguration config, TenantContext tenantContext, CircleDefinitionService circleDefinitionService)
         {
             _contextAccessor = contextAccessor;
             _tenantSystemStorage = tenantSystemStorage;
             _exchangeGrantService = exchangeGrantService;
             _tenantContext = tenantContext;
+            _circleDefinitionService = circleDefinitionService;
 
             _appRegistrationValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
             _appClientValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
             _cache = new DotYouContextCache(config.Host.CacheSlidingExpirationSeconds);
         }
 
-        public async Task<RedactedAppRegistration> RegisterApp(GuidId appId, string name, PermissionSet permissions, IEnumerable<DriveGrantRequest> drives, List<Guid> authorizedCircles)
+        public async Task<RedactedAppRegistration> RegisterApp(AppRegistrationRequest request)
         {
-            Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
-            Guard.Argument(appId, nameof(appId)).Require(appId != Guid.Empty);
-
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-            var grant = await _exchangeGrantService.CreateExchangeGrant(permissions, drives, masterKey);
+            Guard.Argument(request.Name, nameof(request.Name)).NotNull().NotEmpty();
+            Guard.Argument(request.AppId, nameof(request.AppId)).Require(request.AppId != Guid.Empty);
 
+            if (request.AuthorizedCircles?.Any() ?? false)
+            {
+                Guard.Argument(request.AuthorizedCircles, nameof(request.AuthorizedCircles)).Require(circles => { return circles.All(cid => _circleDefinitionService.IsEnabled(cid)); });
+            }
+
+            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+            var grant = await _exchangeGrantService.CreateExchangeGrant(request.PermissionSet, request.Drives, masterKey);
+            var circleMemberGrant = await _exchangeGrantService.CreateExchangeGrant(request.CircleMemberPermissionSet, request.CircleMemberDrives, masterKey);
+            
             var appReg = new AppRegistration()
             {
-                AppId = appId,
-                Name = name,
+                AppId = request.AppId,
+                Name = request.Name,
                 Grant = grant,
-                AuthorizedCircles = authorizedCircles
+                CircleMemberGrant = circleMemberGrant,
+                AuthorizedCircles = request.AuthorizedCircles
             };
 
             _appRegistrationValueStorage.Upsert(appReg.AppId, GuidId.Empty, _appRegistrationDataType, appReg);
-
             return appReg.Redacted();
         }
 
@@ -79,19 +91,19 @@ namespace Youverse.Core.Services.Authorization.Apps
             {
                 throw new YouverseClientException("Invalid AppId", YouverseClientErrorCode.AppNotRegistered);
             }
-            
+
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var grant = await _exchangeGrantService.CreateExchangeGrant(permissions, drives, masterKey);
             appReg.Grant = grant;
-            
+
             _appRegistrationValueStorage.Upsert(appId, GuidId.Empty, _appRegistrationDataType, appReg);
 
             ResetPermissionContextCache();
         }
-        
-        public async Task UpdateAppAuthorizedCircles(GuidId appId, List<Guid> authorizedCircles)
+
+        public async Task UpdateAppAuthorizedCircles(GuidId appId, List<Guid> authorizedCircles, PermissionSet permissions, IEnumerable<DriveGrantRequest> drives)
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
@@ -100,17 +112,19 @@ namespace Youverse.Core.Services.Authorization.Apps
                 @todd
                 the "on/off", when "on", it means "apply this app's security vector" to the circle in question. Over 
                 time we'll of course have more than one app. It means on the backend, with the app registration, you'll 
-                need to have saved the App's security vector for circles. And when you calculate the permission for a 
-                circle, as we discussed, you'll need to OR together all the security vectors for all the Apps for 
-                that circle. And then OR that vector together with other permissions for the circle.
+                need to have saved the App's security vector for circles. 
+                
+                And when you calculate the permission for a circle
+                - you'll need to OR together all the security vectors for all the Apps for that circle.
+                - And then OR that vector together with other permissions for the circle.
              */
-            
+
             var appReg = await this.GetAppRegistrationInternal(appId);
             if (null == appReg)
             {
                 throw new YouverseClientException("Invalid AppId", YouverseClientErrorCode.AppNotRegistered);
             }
-            
+
             //TODO: examine if the circles changed - update exchange grants
             bool circlesHaveChanged = false;
 
@@ -118,7 +132,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             {
                 //TODO: how to apply the permissions to all users with-in the circles
             }
-            
+
             appReg.AuthorizedCircles = authorizedCircles;
             _appRegistrationValueStorage.Upsert(appId, GuidId.Empty, _appRegistrationDataType, appReg);
             ResetPermissionContextCache();

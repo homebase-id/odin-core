@@ -6,6 +6,7 @@ using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Drive;
+using Youverse.Hosting.Controllers.OwnerToken.AppManagement;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
@@ -14,7 +15,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <summary>
         /// Registers an application to be used with this host.  Returns the record Id of the newly registered app
         /// </summary>
-        Task<RedactedAppRegistration> RegisterApp(GuidId appId, string name, PermissionSet permissions, IEnumerable<DriveGrantRequest> drives, List<Guid> authorizedCircles);
+        Task<RedactedAppRegistration> RegisterApp(AppRegistrationRequest request);
 
         Task<RedactedAppRegistration> GetAppRegistration(GuidId appId);
 

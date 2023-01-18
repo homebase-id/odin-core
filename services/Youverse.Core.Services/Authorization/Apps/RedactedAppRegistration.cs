@@ -18,5 +18,6 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         public RedactedExchangeGrant Grant { get; set; }
         public List<Guid> AuthorizedCircles { get; set; }
+        public RedactedExchangeGrant CircleMemberGrant { get; set; }
     }
 }

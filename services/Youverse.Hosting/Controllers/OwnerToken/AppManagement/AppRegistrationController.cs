@@ -51,12 +51,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
         [HttpPost("register/app")]
         public async Task<RedactedAppRegistration> RegisterApp([FromBody] AppRegistrationRequest appRegistration)
         {
-            var reg = await _appRegistrationService.RegisterApp(
-                appId: appRegistration.AppId,
-                name: appRegistration.Name,
-                permissions: appRegistration.PermissionSet,
-                drives: appRegistration.Drives,
-                authorizedCircles: appRegistration.AuthorizedCircles);
+            var reg = await _appRegistrationService.RegisterApp(appRegistration);
             return reg;
         }
 
