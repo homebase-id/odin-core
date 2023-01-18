@@ -26,7 +26,7 @@ namespace Youverse.Core.Services.Transit.Outbox
                 Directory.CreateDirectory(finalPath!);
             }
             var filePath = PathUtil.OsIfy($"{dataPath}\\xfer.db");
-            var _db = new KeyValueDatabase($"URI=file:{filePath}");
+            _db = new KeyValueDatabase($"URI=file:{filePath}");
             _db.CreateDatabase(false);
         }
 
