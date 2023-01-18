@@ -20,11 +20,11 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 {
     public class KeyValueDatabase : IDisposable
     {
+        private ulong _CommitFrequency; // ms
         private string _connectionString;
 
         private SQLiteConnection _connection = null;
-
-        private SQLiteTransaction _Transaction = null;
+        private SQLiteTransaction _transaction = null;
 
         public TableKeyValue tblKeyValue = null;
         public TableKeyTwoValue tblKeyTwoValue = null;
@@ -38,21 +38,24 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
         private Object _getConnectionLock = new Object();
         private Object _getTransactionLock = new Object();
+        private UnixTimeUtc _lastCommit;
+        private bool _wasDisposed = false;
 
 
-        public KeyValueDatabase(string connectionString)
+        public KeyValueDatabase(string connectionString, ulong commitFrequencyMs = 5000)
         {
             _connectionString = connectionString;
+            _CommitFrequency = commitFrequencyMs;
 
-            tblKeyValue = new TableKeyValue(this);
-            tblKeyTwoValue = new TableKeyTwoValue(this);
-            TblKeyThreeValue = new TableKeyThreeValue(this);
-            tblInbox = new TableInbox(this);
-            tblOutbox = new TableOutbox(this);
-            tblCircle = new TableCircle(this);
-            tblCircleMember = new TableCircleMember(this);
-            tblFollowsMe = new TableFollowsMe(this);
-            tblImFollowing = new TableImFollowing(this);
+            tblKeyValue = new TableKeyValue(this, _getTransactionLock);
+            tblKeyTwoValue = new TableKeyTwoValue(this, _getTransactionLock);
+            TblKeyThreeValue = new TableKeyThreeValue(this, _getTransactionLock);
+            tblInbox = new TableInbox(this, _getTransactionLock);
+            tblOutbox = new TableOutbox(this, _getTransactionLock);
+            tblCircle = new TableCircle(this, _getTransactionLock);
+            tblCircleMember = new TableCircleMember(this, _getTransactionLock);
+            tblFollowsMe = new TableFollowsMe(this, _getTransactionLock);
+            tblImFollowing = new TableImFollowing(this, _getTransactionLock);
 
             RsaKeyManagement.noDBOpened++;
         }
@@ -61,7 +64,56 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         ~KeyValueDatabase()
         {
             RsaKeyManagement.noDBClosed++;
+
+            // I have a freaky one in the tests that I cannot find. Argh. Below commented out.
+
+            if (!_wasDisposed)
+               throw new Exception("Was not disposed: "+ _connectionString); // Oddly, I cannot call Dispose()
+            // We need to except because we may have missed a commit and we cannot call it now.
+            // One of the C# corners that are broken IMO
         }
+
+
+        public void Dispose()
+        {
+            Commit();
+            _connection?.Dispose();
+            _connection = null;
+
+            _transaction?.Dispose();
+            _transaction = null;
+
+            tblKeyValue.Dispose();;
+            tblKeyValue = null;
+
+            tblKeyTwoValue.Dispose();;
+            tblKeyTwoValue = null;
+
+            TblKeyThreeValue.Dispose();;
+            TblKeyThreeValue = null;
+
+            tblInbox.Dispose();;
+            tblInbox = null;
+
+            tblOutbox.Dispose();;
+            tblOutbox = null;
+
+            tblCircle.Dispose();;
+            tblCircle = null;
+
+            tblImFollowing.Dispose();;
+            tblImFollowing = null;
+
+            tblFollowsMe.Dispose();;
+            tblFollowsMe = null;
+
+            tblCircleMember.Dispose();;
+            tblCircleMember = null;
+
+            _getConnectionLock = null;
+            _getTransactionLock = null;
+            _wasDisposed = true;
+    }
 
         public SQLiteCommand CreateCommand()
         {
@@ -126,13 +178,19 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         {
             lock (_getTransactionLock)
             {
-                if (_Transaction == null)
+                if (_transaction == null)
                 {
-                    _Transaction = GetConnection().BeginTransaction();
+                    _transaction = GetConnection().BeginTransaction();
+                    _lastCommit = new UnixTimeUtc();
                 }
                 else
                 {
-                    throw new Exception("Transaction already in use");
+                    // We already had a transaction, let's check if we should commit
+                    if (UnixTimeUtc.Now().milliseconds - _lastCommit.milliseconds > _CommitFrequency)
+                    {
+                        Commit();
+                        BeginTransaction();
+                    }
                 }
             }
         }
@@ -141,20 +199,14 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         {
             lock (_getTransactionLock)
             {
-                if (_Transaction != null)
+                if (_transaction != null)
                 {
-                    _Transaction.Commit();
-                    _Transaction.Dispose(); // I believe these objects need to be disposed
-                    _Transaction = null;
+                    _transaction.Commit();
+                    _transaction.Dispose(); // I believe these objects need to be disposed
+                    _transaction = null;
                 }
             }
         }
 
-        public void Dispose()
-        {
-            Commit();
-            _connection?.Dispose();
-            _Transaction?.Dispose();
-        }
     }
 }

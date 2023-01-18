@@ -31,7 +31,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         private Object _deleteLock = new Object();
 
 
-        public TableKeyValue(KeyValueDatabase db) : base(db)
+        public TableKeyValue(KeyValueDatabase db, object lck) : base(db, lck)
         {
         }
 
@@ -158,7 +158,11 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 _iparam1.Value = key;
                 _iparam2.Value = value;
 
-                _insertCommand.ExecuteNonQuery();
+                lock (_getTransactionLock)
+                {
+                    _keyValueDatabase.BeginTransaction();
+                    _insertCommand.ExecuteNonQuery();
+                }
             }
         }
 
@@ -190,7 +194,11 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 _uparam1.Value = key;
                 _uparam2.Value = value;
 
-                _updateCommand.ExecuteNonQuery();
+                lock (_getTransactionLock)
+                {
+                    _keyValueDatabase.BeginTransaction();
+                    _updateCommand.ExecuteNonQuery();
+                }
             }
         }
 
@@ -221,7 +229,11 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 _zparam1.Value = key;
                 _zparam2.Value = value;
 
-                _upsertCommand.ExecuteNonQuery();
+                lock (_getTransactionLock)
+                {
+                    _keyValueDatabase.BeginTransaction();
+                    _upsertCommand.ExecuteNonQuery();
+                }
             }
         }
 
@@ -244,7 +256,11 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 _dparam1.Value = key;
 
-                _deleteCommand.ExecuteNonQuery();
+                lock (_getTransactionLock)
+                {
+                    _keyValueDatabase.BeginTransaction();
+                    _deleteCommand.ExecuteNonQuery();
+                }
             }
         }
     }

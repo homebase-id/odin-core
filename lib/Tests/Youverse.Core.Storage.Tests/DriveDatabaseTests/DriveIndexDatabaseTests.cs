@@ -21,7 +21,7 @@ namespace IndexerTests
         [Test]
         public void CursorsEmpty01Test()
         {
-            DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-cursor-01.db", DatabaseIndexKind.TimeSeries);
+            using DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-cursor-01.db", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             QueryBatchCursor cursor = null;
@@ -57,7 +57,7 @@ namespace IndexerTests
         [Test]
         public void CursorsBatch02Test()
         {
-            DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-cursor-02.db", DatabaseIndexKind.TimeSeries);
+            using DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-cursor-02.db", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid(); // Oldest chat item
@@ -109,7 +109,7 @@ namespace IndexerTests
         [Test]
         public void CursorsBatch03Test()
         {
-            DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-cursor-03.db", DatabaseIndexKind.TimeSeries);
+            using DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-cursor-03.db", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -164,7 +164,7 @@ namespace IndexerTests
         [Test]
         public void CursorsBatch04Test()
         {
-            DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-cursor-04.db", DatabaseIndexKind.TimeSeries);
+            using DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-cursor-04.db", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -228,7 +228,7 @@ namespace IndexerTests
         [Test]
         public void CursorsBatch05Test()
         {
-            DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-cursor-05.db", DatabaseIndexKind.TimeSeries);
+            using DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-cursor-05.db", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -302,7 +302,7 @@ namespace IndexerTests
         [Test]
         public void CursorsBatch06Test()
         {
-            DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-cursor-06.db", DatabaseIndexKind.TimeSeries);
+            using DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-cursor-06.db", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -364,7 +364,7 @@ namespace IndexerTests
         [Test]
         public void CursorsBatch07Test()
         {
-            DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-cursor-07.db", DatabaseIndexKind.TimeSeries);
+            using DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-cursor-07.db", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -461,7 +461,7 @@ namespace IndexerTests
         [Test]
         public void CursorsModified01Test()
         {
-            DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-modified-01.db", DatabaseIndexKind.TimeSeries);
+            using DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-modified-01.db", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -496,7 +496,7 @@ namespace IndexerTests
         [Test]
         public void CursorsModified02Test()
         {
-            DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-modified-06.db", DatabaseIndexKind.TimeSeries);
+            using DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-modified-06.db", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -535,7 +535,7 @@ namespace IndexerTests
         [Test]
         public void RequiredSecurityGroupBatch01Test()
         {
-            DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-rsg-01.db", DatabaseIndexKind.TimeSeries);
+            using DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-rsg-01.db", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
 
@@ -588,7 +588,7 @@ namespace IndexerTests
         [Test]
         public void RequiredSecurityGroupModified02Test()
         {
-            DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-rsg-02.db", DatabaseIndexKind.Random);
+            using DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-rsg-02.db", DatabaseIndexKind.Random);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -644,7 +644,7 @@ namespace IndexerTests
         [Test]
         public void SecurityGroupAndAclBatch01Test()
         {
-            DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-sgacl-01.db", DatabaseIndexKind.TimeSeries);
+            using DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-sgacl-01.db", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -710,7 +710,7 @@ namespace IndexerTests
         // Test we can add one and retrieve it
         public void GlobalTransitId01Test()
         {
-            DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-gtri-01.db", DatabaseIndexKind.TimeSeries);
+            using DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-gtri-01.db", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -733,7 +733,7 @@ namespace IndexerTests
         // Test we can add two and retrieve them
         public void GlobalTransitId02Test()
         {
-            DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-gtri-02.db", DatabaseIndexKind.TimeSeries);
+            using DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-gtri-02.db", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -763,7 +763,7 @@ namespace IndexerTests
         // Test that we cannot add a duplicate
         public void GlobalTransitId03Test()
         {
-            DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-gtri-03.db", DatabaseIndexKind.TimeSeries);
+            using DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-gtri-03.db", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -789,7 +789,7 @@ namespace IndexerTests
         // Test we can handle NULL
         public void GlobalTransitId04Test()
         {
-            DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-gtri-04.db", DatabaseIndexKind.TimeSeries);
+            using DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-gtri-04.db", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -812,7 +812,7 @@ namespace IndexerTests
         // Test we can add one and retrieve it searching for a specific GTID guid
         public void GlobalTransitId05Test()
         {
-            DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-gtri-05.db", DatabaseIndexKind.TimeSeries);
+            using DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-gtri-05.db", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -843,7 +843,7 @@ namespace IndexerTests
         // Test we can modify the global transit guid with both update versions
         public void GlobalTransitId06Test()
         {
-            DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-gtri-06.db", DatabaseIndexKind.TimeSeries);
+            using DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-gtri-06.db", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -873,7 +873,7 @@ namespace IndexerTests
         // Test we can add one and retrieve it
         public void UniqueId01Test()
         {
-            DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-uqid-01.db", DatabaseIndexKind.TimeSeries);
+            using DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-uqid-01.db", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -896,7 +896,7 @@ namespace IndexerTests
         // Test we can add two and retrieve them
         public void UniqueId02Test()
         {
-            DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-uqid-02.db", DatabaseIndexKind.TimeSeries);
+            using DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-uqid-02.db", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -926,7 +926,7 @@ namespace IndexerTests
         // Test that we cannot add a duplicate
         public void UniqueId03Test()
         {
-            DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-uqid-03.db", DatabaseIndexKind.TimeSeries);
+            using DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-uqid-03.db", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -952,7 +952,7 @@ namespace IndexerTests
         // Test we can handle NULL
         public void UniqueId04Test()
         {
-            DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-uqid-04.db", DatabaseIndexKind.TimeSeries);
+            using DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-uqid-04.db", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -975,7 +975,7 @@ namespace IndexerTests
         // Test we can add one and retrieve it searching for a specific GTID guid
         public void UniqueId05Test()
         {
-            DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-uqid-05.db", DatabaseIndexKind.TimeSeries);
+            using DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-uqid-05.db", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -1006,7 +1006,7 @@ namespace IndexerTests
         // Test we can modify the global transit guid with both update versions
         public void UniqueId06Test()
         {
-            DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-uqid-06.db", DatabaseIndexKind.TimeSeries);
+            using DriveIndexDatabase _testDatabase = new DriveIndexDatabase($"URI=file:.\\driveIndexDB-uqid-06.db", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -1074,13 +1074,14 @@ namespace IndexerTests
             taglistres = testDatabase.TblTagIndex.Get(fileId[0]);
             Debug.Assert(acllistres.Count == 4);
             Debug.Assert(taglistres.Count == 4);
+
+            testDatabase.Dispose();
         }
 
 
         [Test]
         public void AddEntryTest()
         {
-            
             var (testDatabase, fileId, conversationId, aclMembers, tags) = this.Init("add_entry_test.db");
 
             Stopwatch stopWatch = new Stopwatch();

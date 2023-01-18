@@ -42,7 +42,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         private SQLiteParameter _s2param2 = null;
         private static object _select2Lock = new object();
 
-        public TableImFollowing(KeyValueDatabase db) : base(db)
+        public TableImFollowing(KeyValueDatabase db, object lck) : base(db, lck)
         {
         }
 
@@ -261,7 +261,11 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 _iparam2.Value = UnixTimeUtc.Now().milliseconds;
                 _iparam3.Value = driveId;
 
-                _insertCommand.ExecuteNonQuery();
+                lock (_getTransactionLock)
+                {
+                    _keyValueDatabase.BeginTransaction();
+                    _insertCommand.ExecuteNonQuery();
+                }
             }
         }
 
@@ -292,7 +296,11 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 _dparam1.Value = identity;
 
-                _deleteCommand.ExecuteNonQuery();
+                lock (_getTransactionLock)
+                {
+                    _keyValueDatabase.BeginTransaction();
+                    _deleteCommand.ExecuteNonQuery();
+                }
             }
         }
 
@@ -330,7 +338,11 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 _dparam2_1.Value = identity;
                 _dparam2_2.Value = driveId;
 
-                _deleteCommand2.ExecuteNonQuery();
+                lock (_getTransactionLock)
+                {
+                    _keyValueDatabase.BeginTransaction();
+                    _deleteCommand2.ExecuteNonQuery();
+                }
             }
         }
     }

@@ -37,7 +37,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         private SQLiteParameter _sparamTwo1 = null;
         private  Object _selectTwoLock = new Object();
 
-        public TableKeyTwoValue(KeyValueDatabase db) : base(db)
+        public TableKeyTwoValue(KeyValueDatabase db, object lck) : base(db, lck)
         {
         }
 
@@ -226,7 +226,11 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 _iparam2.Value = key2;
                 _iparam3.Value = value;
 
-                _insertCommand.ExecuteNonQuery();
+                lock (_getTransactionLock)
+                {
+                    _keyValueDatabase.BeginTransaction();
+                    _insertCommand.ExecuteNonQuery();
+                }
             }
         }
 
@@ -258,7 +262,11 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 _uparam1.Value = key1;
                 _uparam2.Value = value;
 
-                _updateCommand.ExecuteNonQuery();
+                lock (_getTransactionLock)
+                {
+                    _keyValueDatabase.BeginTransaction();
+                    _updateCommand.ExecuteNonQuery();
+                }
             }
         }
 
@@ -294,7 +302,11 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 _zparam2.Value = key2;
                 _zparam3.Value = value;
 
-                _upsertCommand.ExecuteNonQuery();
+                lock (_getTransactionLock)
+                {
+                    _keyValueDatabase.BeginTransaction();
+                    _upsertCommand.ExecuteNonQuery();
+                }
             }
         }
 
@@ -317,7 +329,11 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 _dparam1.Value = key1;
 
-                int n = _deleteCommand.ExecuteNonQuery();
+                lock (_getTransactionLock)
+                {
+                    _keyValueDatabase.BeginTransaction();
+                    int n = _deleteCommand.ExecuteNonQuery();
+                }
             }
         }
     }

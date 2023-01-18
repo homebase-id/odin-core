@@ -24,29 +24,24 @@ namespace Youverse.Core.Storage.SQLite
         private Object _selectLock = new Object();
 
 
-        public TableCommandMessageQueue(DriveIndexDatabase db) : base(db)
+        public TableCommandMessageQueue(DriveIndexDatabase db, object lck) : base(db, lck)
         {
         }
 
         ~TableCommandMessageQueue()
         {
-            if (_insertCommand != null)
-            {
-                _insertCommand.Dispose();
-                _insertCommand = null;
-            }
+        }
 
-            if (_deleteCommand != null)
-            {
-                _deleteCommand.Dispose();
-                _deleteCommand = null;
-            }
+        public override void Dispose()
+        {
+            _insertCommand?.Dispose();
+            _insertCommand = null;
 
-            if (_selectCommand != null)
-            {
-                _selectCommand.Dispose();
-                _selectCommand = null;
-            }
+            _deleteCommand?.Dispose();
+            _deleteCommand = null;
+
+            _selectCommand?.Dispose();
+            _selectCommand = null;
         }
 
         public override void EnsureTableExists(bool dropExisting = false)
@@ -119,10 +114,14 @@ namespace Youverse.Core.Storage.SQLite
                     _insertCommand.Parameters.Add(_iparam1);
                 }
 
-                for (int i = 0; i < fileId.Count; i++)
+                lock (_getTransactionLock)
                 {
-                    _iparam1.Value = fileId[i];
-                    _insertCommand.ExecuteNonQuery();
+                    _driveIndexDatabase.BeginTransaction();
+                    for (int i = 0; i < fileId.Count; i++)
+                    {
+                        _iparam1.Value = fileId[i];
+                        _insertCommand.ExecuteNonQuery();
+                    }
                 }
             }
         }
@@ -145,10 +144,14 @@ namespace Youverse.Core.Storage.SQLite
                     _deleteCommand.Parameters.Add(_dparam1);
                 }
 
-                for (int i = 0; i < fileId.Count; i++)
+                lock (_getTransactionLock)
                 {
-                    _dparam1.Value = fileId[i];
-                    _deleteCommand.ExecuteNonQuery();
+                    _driveIndexDatabase.BeginTransaction();
+                    for (int i = 0; i < fileId.Count; i++)
+                    {
+                        _dparam1.Value = fileId[i];
+                        _deleteCommand.ExecuteNonQuery();
+                    }
                 }
             }
         }

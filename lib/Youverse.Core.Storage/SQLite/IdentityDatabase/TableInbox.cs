@@ -45,7 +45,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         private static Object _selectLock = new Object();
 
 
-        public TableInbox(KeyValueDatabase db) : base(db)
+        public TableInbox(KeyValueDatabase db, object lck) : base(db, lck)
         {
         }
 
@@ -226,7 +226,11 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 _iparam4.Value = value;
                 _iparam5.Value = boxId;
 
-                _insertCommand.ExecuteNonQuery();
+                lock (_getTransactionLock)
+                {
+                    _keyValueDatabase.BeginTransaction();
+                    _insertCommand.ExecuteNonQuery();
+                }
             }
         }
 
@@ -247,7 +251,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 if (_popCommand == null)
                 {
                     _popCommand = _keyValueDatabase.CreateCommand();
-                    _popCommand.CommandText = "UPDATE inbox SET popstamp=$popstamp WHERE boxid=$boxid AND popstamp IS NULL ORDER BY timestamp ASC LIMIT $count; "+
+                    _popCommand.CommandText = "UPDATE inbox SET popstamp=$popstamp WHERE boxid=$boxid AND popstamp IS NULL ORDER BY timestamp ASC LIMIT $count; " +
                                               "SELECT fileid, priority, timestamp, value from inbox WHERE popstamp=$popstamp";
 
                     _pparam1 = _popCommand.CreateParameter();
@@ -270,46 +274,50 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 _pparam2.Value = count;
                 _pparam3.Value = boxId;
 
-                List<InboxItem> result = new List<InboxItem>();
-                using (SQLiteDataReader rdr = _popCommand.ExecuteReader(System.Data.CommandBehavior.Default))
+                lock (_getTransactionLock)
                 {
-                    InboxItem item;
-
-                    while (rdr.Read())
+                    _keyValueDatabase.BeginTransaction();
+                    List<InboxItem> result = new List<InboxItem>();
+                    using (SQLiteDataReader rdr = _popCommand.ExecuteReader(System.Data.CommandBehavior.Default))
                     {
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Not possible");
+                        InboxItem item;
 
-                        item = new InboxItem();
-                        item.boxId = boxId;
-                        item.fileId = new byte[16];
-                        var n = rdr.GetBytes(0, 0, item.fileId, 0, 16);
-                        if (n != 16)
-                            throw new Exception("Invalid fileId");
-                        item.priority = (UInt32)rdr.GetInt32(1);
-                        item.timeStamp = new UnixTimeUtc((UInt64)rdr.GetInt64(2));
-
-                        if (rdr.IsDBNull(3))
+                        while (rdr.Read())
                         {
-                            item.value = null;
-                        }
-                        else
-                        {
-                            byte[] _tmpbuf = new byte[MAX_VALUE_LENGTH];
-                            n = rdr.GetBytes(3, 0, _tmpbuf, 0, MAX_VALUE_LENGTH);
-                            if (n >= MAX_VALUE_LENGTH)
-                                throw new Exception("Too much data...");
-                            if (n == 0)
-                                throw new Exception("Is that possible?");
+                            if (rdr.IsDBNull(0))
+                                throw new Exception("Not possible");
 
-                            item.value = new byte[n];
-                            Buffer.BlockCopy(_tmpbuf, 0, item.value, 0, (int)n);
+                            item = new InboxItem();
+                            item.boxId = boxId;
+                            item.fileId = new byte[16];
+                            var n = rdr.GetBytes(0, 0, item.fileId, 0, 16);
+                            if (n != 16)
+                                throw new Exception("Invalid fileId");
+                            item.priority = (UInt32)rdr.GetInt32(1);
+                            item.timeStamp = new UnixTimeUtc((UInt64)rdr.GetInt64(2));
+
+                            if (rdr.IsDBNull(3))
+                            {
+                                item.value = null;
+                            }
+                            else
+                            {
+                                byte[] _tmpbuf = new byte[MAX_VALUE_LENGTH];
+                                n = rdr.GetBytes(3, 0, _tmpbuf, 0, MAX_VALUE_LENGTH);
+                                if (n >= MAX_VALUE_LENGTH)
+                                    throw new Exception("Too much data...");
+                                if (n == 0)
+                                    throw new Exception("Is that possible?");
+
+                                item.value = new byte[n];
+                                Buffer.BlockCopy(_tmpbuf, 0, item.value, 0, (int)n);
+                            }
+                            result.Add(item);
                         }
-                        result.Add(item);
                     }
-                }
 
-                return result;
+                    return result;
+                }
             }
         }
 
@@ -336,7 +344,11 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 }
 
                 _pcancelparam1.Value = popstamp;
-                _popCancelCommand.ExecuteNonQuery();
+                lock (_getTransactionLock)
+                {
+                    _keyValueDatabase.BeginTransaction();
+                    _popCancelCommand.ExecuteNonQuery();
+                }
             }
         }
 
@@ -362,7 +374,11 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 }
 
                 _pcommitparam1.Value = popstamp;
-                _popCommitCommand.ExecuteNonQuery();
+                lock (_getTransactionLock)
+                {
+                    _keyValueDatabase.BeginTransaction();
+                    _popCommitCommand.ExecuteNonQuery();
+                }
             }
         }
 
@@ -390,7 +406,11 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 }
 
                 _pcrecoverparam1.Value = SequentialGuid.CreateGuid(new UnixTimeUtc(ut)).ToByteArray(); // UnixTimeMiliseconds
-                _popRecoverCommand.ExecuteNonQuery();
+                lock (_getTransactionLock)
+                {
+                    _keyValueDatabase.BeginTransaction();
+                    _popRecoverCommand.ExecuteNonQuery();
+                }
             }
         }
     }

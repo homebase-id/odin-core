@@ -70,8 +70,8 @@ namespace IndexerTests.KeyValue
 
         [Test]
         public void InsertCircleTest()
-        {
-            var db = new KeyValueDatabase("URI=file:.\\circle-insert-02.db");
+        {   
+            using var db = new KeyValueDatabase("URI=file:.\\circle-insert-02.db");
             db.CreateDatabase();
 
             var c1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -95,7 +95,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void DeleteInvalidCircleTest()
         {
-            var db = new KeyValueDatabase("URI=file:.\\circle-delete-01.db");
+            using var db = new KeyValueDatabase("URI=file:.\\circle-delete-01.db");
             db.CreateDatabase();
 
             bool ok = false;
@@ -125,7 +125,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void DeleteCircleTest()
         {
-            var db = new KeyValueDatabase("URI=file:.\\circle-delete-02.db");
+            using var db = new KeyValueDatabase("URI=file:.\\circle-delete-02.db");
             db.CreateDatabase();
 
             var c1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -148,7 +148,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void GetTest()
         {
-            var db = new KeyValueDatabase("URI=file:.\\circle-get-01.db");
+            using var db = new KeyValueDatabase("URI=file:.\\circle-get-01.db");
             db.CreateDatabase();
 
             var c1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -171,7 +171,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void GetInvalidTest()
         {
-            var db = new KeyValueDatabase("URI=file:.\\circle-get-02.db");
+            using var db = new KeyValueDatabase("URI=file:.\\circle-get-02.db");
             db.CreateDatabase();
 
             var c1 = Guid.NewGuid().ToByteArray();
@@ -206,7 +206,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void GetAllCirclesEmptyTest()
         {
-            var db = new KeyValueDatabase("URI=file:.\\circle-getall-01.db");
+            using var db = new KeyValueDatabase("URI=file:.\\circle-getall-01.db");
             db.CreateDatabase();
 
             var r = db.tblCircle.GetAllCircles();
@@ -217,7 +217,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void GetAllCirclesTest()
         {
-            var db = new KeyValueDatabase("URI=file:.\\circle-getall-02.db");
+            using var db = new KeyValueDatabase("URI=file:.\\circle-getall-02.db");
             db.CreateDatabase();
 
             var c1 = SequentialGuid.CreateGuid().ToByteArray();

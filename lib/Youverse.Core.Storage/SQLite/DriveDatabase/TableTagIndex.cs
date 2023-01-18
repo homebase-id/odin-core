@@ -24,42 +24,34 @@ namespace Youverse.Core.Storage.SQLite
         private SQLiteParameter _sparam1 = null;
         private Object _selectLock = new Object();
 
-        public TableTagIndex(DriveIndexDatabase db) : base(db)
+        public TableTagIndex(DriveIndexDatabase db, object lck) : base(db, lck)
         {
         }
 
         ~TableTagIndex()
         {
-            if (_insertCommand != null)
-            {
-                _insertCommand.Dispose();
-                _insertCommand = null;
-            }
+        }
 
-            if (_deleteCommand != null)
-            {
-                _deleteCommand.Dispose();
-                _deleteCommand = null;
-            }
+        public override void Dispose()
+        {
+            _insertCommand?.Dispose();
+            _insertCommand = null;
 
-            if (_deleteAllCommand != null)
-            {
-                _deleteAllCommand.Dispose();
-                _deleteAllCommand = null;
-            }
+            _deleteCommand?.Dispose();
+            _deleteCommand = null;
 
-            if (_selectCommand != null)
-            {
-                _selectCommand.Dispose();
-                _selectCommand = null;
-            }
+            _deleteAllCommand?.Dispose();
+            _deleteAllCommand = null;
+
+            _selectCommand?.Dispose();
+            _selectCommand = null;
         }
 
         public override void EnsureTableExists(bool dropExisting = false)
         {
             using (var cmd = _driveIndexDatabase.CreateCommand())
             {
-                if(dropExisting)
+                if (dropExisting)
                 {
                     cmd.CommandText = "DROP TABLE IF EXISTS tagindex;";
                     cmd.ExecuteNonQuery();
@@ -131,11 +123,15 @@ namespace Youverse.Core.Storage.SQLite
                     _insertCommand.Parameters.Add(_iparam2);
                 }
 
-                _iparam1.Value = FileId;
-                for (int i = 0; i < TagIdList.Count; i++)
+                lock (_getTransactionLock)
                 {
-                    _iparam2.Value = TagIdList[i];
-                    _insertCommand.ExecuteNonQuery();
+                    _driveIndexDatabase.BeginTransaction();
+                    _iparam1.Value = FileId;
+                    for (int i = 0; i < TagIdList.Count; i++)
+                    {
+                        _iparam2.Value = TagIdList[i];
+                        _insertCommand.ExecuteNonQuery();
+                    }
                 }
             }
         }
@@ -161,11 +157,15 @@ namespace Youverse.Core.Storage.SQLite
                     _deleteCommand.Parameters.Add(_dparam2);
                 }
 
-                for (int i = 0; i < TagIdList.Count; i++)
+                lock (_getTransactionLock)
                 {
-                    _dparam1.Value = FileId;
-                    _dparam2.Value = TagIdList[i];
-                    _deleteCommand.ExecuteNonQuery();
+                    _driveIndexDatabase.BeginTransaction();
+                    for (int i = 0; i < TagIdList.Count; i++)
+                    {
+                        _dparam1.Value = FileId;
+                        _dparam2.Value = TagIdList[i];
+                        _deleteCommand.ExecuteNonQuery();
+                    }
                 }
             }
         }
@@ -185,8 +185,12 @@ namespace Youverse.Core.Storage.SQLite
                     _deleteAllCommand.Parameters.Add(_dallparam1);
                 }
 
-                _dallparam1.Value = FileId;
-                _deleteAllCommand.ExecuteNonQuery();
+                lock (_getTransactionLock)
+                {
+                    _driveIndexDatabase.BeginTransaction();
+                    _dallparam1.Value = FileId;
+                    _deleteAllCommand.ExecuteNonQuery();
+                }
             }
         }
     }

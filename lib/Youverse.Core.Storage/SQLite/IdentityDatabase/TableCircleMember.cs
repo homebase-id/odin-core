@@ -33,7 +33,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         private SQLiteParameter _sparam1 = null;
         private static Object _selectLock = new Object();
 
-        public TableCircleMember(KeyValueDatabase db) : base(db)
+        public TableCircleMember(KeyValueDatabase db, object lck) : base(db, lck)
         {
         }
 
@@ -167,14 +167,18 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 _iparam1.Value = circleId;
 
-                // Possibly do a Commit() here. But I need to think about Commits, Semaphores and multiple threads.
-                for (int i=0; i < members.Count; i++)
+                lock (_getTransactionLock)
                 {
-                    if ((members[i] == null) || (members[i].Length > MAX_MEMBER_LENGTH))
-                        throw new Exception("circleID must be 16 bytes.");
+                    _keyValueDatabase.BeginTransaction();
+                    // Possibly do a Commit() here. But I need to think about Commits, Semaphores and multiple threads.
+                    for (int i = 0; i < members.Count; i++)
+                    {
+                        if ((members[i] == null) || (members[i].Length > MAX_MEMBER_LENGTH))
+                            throw new Exception("circleID must be 16 bytes.");
 
-                    _iparam2.Value = members[i];
-                    _insertCommand.ExecuteNonQuery();
+                        _iparam2.Value = members[i];
+                        _insertCommand.ExecuteNonQuery();
+                    }
                 }
             }
         }
@@ -209,10 +213,14 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 _remparam1.Value = circleId;
 
-                for (int i = 0; i < members.Count; i++)
+                lock (_getTransactionLock)
                 {
-                    _remparam2.Value = members[i];
-                    _removeCommand.ExecuteNonQuery();
+                    _keyValueDatabase.BeginTransaction();
+                    for (int i = 0; i < members.Count; i++)
+                    {
+                        _remparam2.Value = members[i];
+                        _removeCommand.ExecuteNonQuery();
+                    }
                 }
             }
         }
@@ -239,10 +247,14 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                     _deleteCommand.Prepare();
                 }
 
-                for (int i = 0; i < members.Count; i++)
+                lock (_getTransactionLock)
                 {
-                    _delparam1.Value = members[i];
-                    _deleteCommand.ExecuteNonQuery();
+                    _keyValueDatabase.BeginTransaction();
+                    for (int i = 0; i < members.Count; i++)
+                    {
+                        _delparam1.Value = members[i];
+                        _deleteCommand.ExecuteNonQuery();
+                    }
                 }
             }
         }
