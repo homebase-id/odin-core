@@ -9,7 +9,7 @@ namespace IndexerTests.KeyValue
         [TestCase()]
         public void InsertRowTest()
         {
-            var db = new KeyValueDatabase("URI=file:.\\inboxtest1.db");
+            using var db = new KeyValueDatabase("URI=file:.\\inboxtest1.db");
             db.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -48,7 +48,7 @@ namespace IndexerTests.KeyValue
         [TestCase()]
         public void PopTest()
         {
-            var db = new KeyValueDatabase("URI=file:.\\inboxtest2.db");
+            using var db = new KeyValueDatabase("URI=file:.\\inboxtest2.db");
             db.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -141,7 +141,7 @@ namespace IndexerTests.KeyValue
         [TestCase()]
         public void PopCancelTest()
         {
-            var db = new KeyValueDatabase("URI=file:.\\inboxtest3.db");
+            using var db = new KeyValueDatabase("URI=file:.\\inboxtest3.db");
             db.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -184,7 +184,7 @@ namespace IndexerTests.KeyValue
         [TestCase()]
         public void PopCommitTest()
         {
-            var db = new KeyValueDatabase("URI=file:.\\inboxtest4.db");
+            using var db = new KeyValueDatabase("URI=file:.\\inboxtest4.db");
             db.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -212,7 +212,7 @@ namespace IndexerTests.KeyValue
         [TestCase()]
         public void PopRecoverDeadTest()
         {
-            var db = new KeyValueDatabase("URI=file:.\\inboxtest5.db");
+            using var db = new KeyValueDatabase("URI=file:.\\inboxtest5.db");
             db.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -249,7 +249,7 @@ namespace IndexerTests.KeyValue
         [TestCase()]
         public void DualBoxTest()
         {
-            var db = new KeyValueDatabase("URI=file:.\\inboxtest6.db");
+            using var db = new KeyValueDatabase("URI=file:.\\inboxtest6.db");
             db.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -297,7 +297,7 @@ namespace IndexerTests.KeyValue
         [TestCase()]
         public void ExampleTest()
         {
-            var db = new KeyValueDatabase("URI=file:.\\inboxtest7.db");
+            using var db = new KeyValueDatabase("URI=file:.\\inboxtest7.db");
             db.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid().ToByteArray();

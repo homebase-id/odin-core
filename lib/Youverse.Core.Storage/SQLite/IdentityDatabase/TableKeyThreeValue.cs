@@ -48,7 +48,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         private SQLiteParameter _sparamTwoThree2 = null;
         private Object _selectTwoThreeLock = new Object();
 
-        public TableKeyThreeValue(KeyValueDatabase db) : base(db)
+        public TableKeyThreeValue(KeyValueDatabase db, object lck) : base(db, lck)
         {
         }
 
@@ -354,7 +354,11 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 _iparam3.Value = key3;
                 _iparam4.Value = value;
 
-                _insertCommand.ExecuteNonQuery();
+                lock (_getTransactionLock)
+                {
+                    _keyValueDatabase.BeginTransaction();
+                    _insertCommand.ExecuteNonQuery();
+                }
             }
         }
 
@@ -385,7 +389,11 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 _uparam1.Value = key1;
                 _uparam2.Value = value;
 
-                _updateCommand.ExecuteNonQuery();
+                lock (_getTransactionLock)
+                {
+                    _keyValueDatabase.BeginTransaction();
+                    _updateCommand.ExecuteNonQuery();
+                }
             }
         }
 
@@ -428,7 +436,11 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 _zparam3.Value = key3;
                 _zparam4.Value = value;
 
-                _upsertCommand.ExecuteNonQuery();
+                lock (_getTransactionLock)
+                {
+                    _keyValueDatabase.BeginTransaction();
+                    _upsertCommand.ExecuteNonQuery();
+                }
             }
         }
 
@@ -450,7 +462,11 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 _dparam1.Value = key1;
 
-                int n = _deleteCommand.ExecuteNonQuery();
+                lock (_getTransactionLock)
+                {
+                    _keyValueDatabase.BeginTransaction();
+                    int n = _deleteCommand.ExecuteNonQuery();
+                }
             }
         }
     }

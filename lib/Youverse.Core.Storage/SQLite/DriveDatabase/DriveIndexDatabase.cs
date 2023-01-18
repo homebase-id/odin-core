@@ -56,7 +56,7 @@ namespace Youverse.Core.Storage.SQLite
 
     public class DriveIndexDatabase : IDisposable
     {
-        private const long _CommitFrequency = 5000; // ms
+        private ulong _CommitFrequency; // ms
         private string _connectionString;
 
         private SQLiteConnection _connection = null;
@@ -71,48 +71,59 @@ namespace Youverse.Core.Storage.SQLite
         private Object _getConnectionLock = new Object();
         private Object _getTransactionLock = new Object();
         private UnixTimeUtc _lastCommit;
+        private bool _wasDisposed = false;
 
-        public DriveIndexDatabase(string connectionString, DatabaseIndexKind databaseKind)
+
+        public DriveIndexDatabase(string connectionString, DatabaseIndexKind databaseKind, ulong commitFrequencyMs = 5000)
         {
             _connectionString = connectionString;
             _kind = databaseKind;
+            _CommitFrequency = commitFrequencyMs;
 
-            TblMainIndex = new TableMainIndex(this);
-            TblAclIndex = new TableAclIndex(this);
-            TblTagIndex = new TableTagIndex(this);
-            TblCmdMsgQueue = new TableCommandMessageQueue(this);
+            TblMainIndex = new TableMainIndex(this, _getTransactionLock);
+            TblAclIndex = new TableAclIndex(this, _getTransactionLock);
+            TblTagIndex = new TableTagIndex(this, _getTransactionLock);
+            TblCmdMsgQueue = new TableCommandMessageQueue(this, _getTransactionLock);
 
             RsaKeyManagement.noDBOpened++;
         }
 
         ~DriveIndexDatabase()
         {
-            _connection?.Dispose();
-            _connection = null;
-
-            Dispose(false);
-
             RsaKeyManagement.noDBClosed++;
-        }
-        
 
-        private void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                Commit(); // Will dispose _transaction
-                // lock (_getConnectionLock)
-                {
-                    _connection?.Dispose();
-                    _connection = null;
-                }
-            }
+            if (!_wasDisposed)
+                throw new Exception("Was not disposed: "+ _connectionString); // Oddly, I cannot call Dispose()
+            // We need to except because we may have missed a commit and we cannot call it now.
+            // One of the C# corners that are broken IMO
         }
+
 
         public void Dispose()
         {
-            Dispose(true);
-            // GC.SuppressFinalize(this);
+            Commit();
+
+            _connection?.Dispose();
+            _connection = null;
+
+            _transaction?.Dispose();
+            _transaction = null;
+
+            TblMainIndex?.Dispose();
+            TblMainIndex = null;
+
+            TblAclIndex?.Dispose();
+            TblAclIndex = null;
+
+            TblTagIndex?.Dispose();
+            TblTagIndex = null;
+
+            TblCmdMsgQueue?.Dispose();
+            TblCmdMsgQueue = null;
+
+            _getConnectionLock = null;
+            _getTransactionLock = null;
+            _wasDisposed = true;
         }
 
         public DatabaseIndexKind GetKind()
@@ -170,7 +181,7 @@ namespace Youverse.Core.Storage.SQLite
         /// <summary>
         /// Call to start a transaction or to continue on the current transaction.
         /// </summary>
-        private void BeginTransaction()
+        public void BeginTransaction()
         {
             lock (_getTransactionLock)
             {

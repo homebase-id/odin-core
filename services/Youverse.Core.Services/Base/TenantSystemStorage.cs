@@ -30,14 +30,16 @@ namespace Youverse.Core.Services.Base
             _db = new KeyValueDatabase($"URI=file:{finalPath}");
             _db.CreateDatabase(false);
 
+            // TODO: NOT ALLOWED. THIS WILL MESS UP SOMEHOW. MS.
+
             SingleKeyValueStorage = new SingleKeyValueStorage(_db.tblKeyValue);
             ThreeKeyValueStorage = new ThreeKeyValueStorage(_db.TblKeyThreeValue);
-            Outbox = new TableOutbox(_db);
-            Inbox = new TableInbox(_db);
+
+            Outbox = _db.tblOutbox;
+            Inbox = _db.tblInbox;
 
             IcrClientStorage = new ThreeKeyValueStorage(_db.TblKeyThreeValue);
-            CircleMemberStorage = new TableCircleMember(_db);
-            CircleMemberStorage.EnsureTableExists(false);
+            CircleMemberStorage = _db.tblCircleMember;
         }
 
         /// <summary>

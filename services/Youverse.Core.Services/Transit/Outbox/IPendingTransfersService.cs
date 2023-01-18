@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Youverse.Core.Identity;
@@ -8,7 +9,7 @@ namespace Youverse.Core.Services.Transit.Outbox
     /// A global queue (singleton) list of senders who need
     /// their outboxes stoked (sounds kinky =)
     /// </summary>
-    public interface IPendingTransfersService
+    public interface IPendingTransfersService : IDisposable
     {
         /// <summary>
         /// Adds the <see cref="DotYouIdentity"/> to the pending transfer queue to be processed by the background job

@@ -15,7 +15,7 @@ namespace IndexerTests
         // Usage example
         public void ExampleUsageTest()
         {
-            var db = new DriveIndexDatabase("URI=file:.\\tblCmdMsg0.db", DatabaseIndexKind.Random);
+            using var db = new DriveIndexDatabase("URI=file:.\\tblCmdMsg0.db", DatabaseIndexKind.Random);
             db.CreateDatabase();
 
             var a1 = new List<Guid>();
@@ -71,7 +71,7 @@ namespace IndexerTests
         // Test we can insert and read a row
         public void InsertRowTest()
         {
-            var db = new DriveIndexDatabase("URI=file:.\\tblCmdMsg1.db", DatabaseIndexKind.Random);
+            using var db = new DriveIndexDatabase("URI=file:.\\tblCmdMsg1.db", DatabaseIndexKind.Random);
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();
@@ -101,7 +101,7 @@ namespace IndexerTests
         // Test we can insert and read two tagmembers
         public void InsertDoubleRowTest()
         {
-            var db = new DriveIndexDatabase("URI=file:.\\tblCmdMsg2.db", DatabaseIndexKind.Random);
+            using var db = new DriveIndexDatabase("URI=file:.\\tblCmdMsg2.db", DatabaseIndexKind.Random);
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();
@@ -139,7 +139,7 @@ namespace IndexerTests
         // Test we cannot insert the same tagmember key twice on the same key
         public void InsertDuplicatetagMemberTest()
         {
-            var db = new DriveIndexDatabase("URI=file:.\\tblCmdMsg3.db", DatabaseIndexKind.Random);
+            using var db = new DriveIndexDatabase("URI=file:.\\tblCmdMsg3.db", DatabaseIndexKind.Random);
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();
@@ -168,7 +168,7 @@ namespace IndexerTests
         // Test we cannot insert the same key twice
         public void InsertDoubleKeyTest()
         {
-            var db = new DriveIndexDatabase("URI=file:.\\tblCmdMsg5.db", DatabaseIndexKind.Random);
+            using var db = new DriveIndexDatabase("URI=file:.\\tblCmdMsg5.db", DatabaseIndexKind.Random);
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();
@@ -195,7 +195,7 @@ namespace IndexerTests
         [Test]
         public void DeleteRowTest()
         {
-            var db = new DriveIndexDatabase("URI=file:.\\tblCmdMsg6.db", DatabaseIndexKind.Random);
+            using var db = new DriveIndexDatabase("URI=file:.\\tblCmdMsg6.db", DatabaseIndexKind.Random);
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();

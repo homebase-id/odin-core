@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Storage.SQLite.KeyValue;
 using Youverse.Core.Util;
 
@@ -13,7 +14,7 @@ namespace Youverse.Core.Services.Transit.Outbox
 {
     public class PendingTransfersService : IPendingTransfersService
     {
-        private readonly TableOutbox _table;
+        private KeyValueDatabase _db;  // TODO: This looks incorrect, it should fetch the DB object from somewhere shouldn't it?
 
         public PendingTransfersService(string dataPath)
         {
@@ -25,9 +26,13 @@ namespace Youverse.Core.Services.Transit.Outbox
                 Directory.CreateDirectory(finalPath!);
             }
             var filePath = PathUtil.OsIfy($"{dataPath}\\xfer.db");
-            var db = new KeyValueDatabase($"URI=file:{filePath}");
-            db.CreateDatabase(false);
-            _table = new TableOutbox(db);
+            _db = new KeyValueDatabase($"URI=file:{filePath}");
+            _db.CreateDatabase(false);
+        }
+
+        public void Dispose()
+        {
+            _db?.Dispose();
         }
 
         public void EnsureIdentityIsPending(DotYouIdentity sender)
@@ -38,7 +43,7 @@ namespace Youverse.Core.Services.Transit.Outbox
             byte[] fileId = Guid.NewGuid().ToByteArray();
             try
             {
-                _table.InsertRow(sender.ToGuidIdentifier().ToByteArray(), fileId, 0, sender.Id.ToLower().ToUtf8ByteArray());
+                 _db.tblOutbox.InsertRow(sender.ToGuidIdentifier().ToByteArray(), fileId, 0, sender.Id.ToLower().ToUtf8ByteArray());
             }
             catch (System.Data.SQLite.SQLiteException ex)
             {
@@ -53,7 +58,7 @@ namespace Youverse.Core.Services.Transit.Outbox
 
         public async Task<(IEnumerable<DotYouIdentity>, byte[] marker)> GetIdentities()
         {
-            var records = _table.PopAll(out var marker);
+            var records = _db.tblOutbox.PopAll(out var marker);
 
             var senders = records.Select(item => new DotYouIdentity(item.value.ToStringFromUtf8Bytes())).ToList();
 
@@ -62,12 +67,12 @@ namespace Youverse.Core.Services.Transit.Outbox
 
         public void MarkComplete(byte[] marker)
         {
-            _table.PopCommit(marker);
+            _db.tblOutbox.PopCommit(marker);
         }
 
         public void MarkFailure(byte[] marker)
         {
-            _table.PopCancel(marker);
+            _db.tblOutbox.PopCancel(marker);
         }
     }
 }

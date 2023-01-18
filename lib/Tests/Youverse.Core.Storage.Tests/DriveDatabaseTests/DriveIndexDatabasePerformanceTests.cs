@@ -34,7 +34,7 @@ namespace IndexerTests.KeyValue
         {
             var stopWatch = new Stopwatch();
             var myRnd = new Random();
-            var _testDatabase = new DriveIndexDatabase($"URI=file:.\\performance-01", DatabaseIndexKind.TimeSeries);
+            using var _testDatabase = new DriveIndexDatabase($"URI=file:.\\performance-01", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var tmpacllist = new List<Guid>();
@@ -60,6 +60,8 @@ namespace IndexerTests.KeyValue
             Utils.StopWatchStatus($"Added {_performanceIterations} rows in mainindex, ACL, Tags", stopWatch);
             Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000) / ms} rows / second");
             Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
         }
 
         /// <summary>
@@ -72,7 +74,7 @@ namespace IndexerTests.KeyValue
         {
             var stopWatch = new Stopwatch();
             var myRnd = new Random();
-            var _testDatabase = new DriveIndexDatabase($"URI=file:.\\performance-02", DatabaseIndexKind.TimeSeries);
+            using var _testDatabase = new DriveIndexDatabase($"URI=file:.\\performance-02", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var tmpacllist = new List<Guid>();
@@ -105,6 +107,8 @@ namespace IndexerTests.KeyValue
             Utils.StopWatchStatus($"Added {_performanceIterations} rows in mainindex, ACL, Tags", stopWatch);
             Console.WriteLine($"Bandwidth: {(_performanceIterations * 1000) / ms} rows / second");
             Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
         }
 
         /// <summary>
@@ -118,7 +122,7 @@ namespace IndexerTests.KeyValue
         public void PerformanceTest03() // Just making sure multi-threaded doesn't give worse performance
         {
             Task[] tasks = new Task[MAXTHREADS];
-            var _testDatabase = new DriveIndexDatabase($"URI=file:.\\performance-03", DatabaseIndexKind.TimeSeries);
+            using var _testDatabase = new DriveIndexDatabase($"URI=file:.\\performance-03", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
             var stopWatch = new Stopwatch();
 
@@ -134,7 +138,7 @@ namespace IndexerTests.KeyValue
             {
                 tasks[i] = Task.Run(async () =>
                 {
-                    await WriteRows(i, MAXITERATIONS, _testDatabase);
+                    var _ = await WriteRows(i, MAXITERATIONS, _testDatabase);
                 });
             }
 
@@ -161,6 +165,8 @@ namespace IndexerTests.KeyValue
             Console.WriteLine($"Bandwidth: {(MAXTHREADS * MAXITERATIONS * 1000) / ms} rows / second");
             Utils.StopWatchStatus($"Added {MAXTHREADS*MAXITERATIONS} rows in mainindex, ACL, Tags", sw);
             Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
         }
 
         public async Task<long[]> WriteRows(int threadno, int iterations, DriveIndexDatabase db)

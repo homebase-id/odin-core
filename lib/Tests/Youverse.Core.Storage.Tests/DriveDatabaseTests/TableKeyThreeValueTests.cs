@@ -12,7 +12,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void InsertTest()
         {
-            var db = new KeyValueDatabase("URI=file:.\\kv3tbltest1.db");
+            using var db = new KeyValueDatabase("URI=file:.\\kv3tbltest1.db");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid().ToByteArray();
@@ -48,7 +48,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void InsertDuplicateTest()
         {
-            var db = new KeyValueDatabase("URI=file:.\\kv3tbltest2.db");
+            using var db = new KeyValueDatabase("URI=file:.\\kv3tbltest2.db");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid().ToByteArray();
@@ -85,7 +85,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void UpdateTest()
         {
-            var db = new KeyValueDatabase("URI=file:.\\kv3tbltest3.db");
+            using var db = new KeyValueDatabase("URI=file:.\\kv3tbltest3.db");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid().ToByteArray();
@@ -110,7 +110,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void Update2Test()
         {
-            var db = new KeyValueDatabase("URI=file:.\\kv3tbltest4.db");
+            using var db = new KeyValueDatabase("URI=file:.\\kv3tbltest4.db");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid().ToByteArray();
@@ -145,7 +145,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void DeleteTest()
         {
-            var db = new KeyValueDatabase("URI=file:.\\kv3tbltest5.db");
+            using var db = new KeyValueDatabase("URI=file:.\\kv3tbltest5.db");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid().ToByteArray();
@@ -176,7 +176,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void UpsertTest()
         {
-            var db = new KeyValueDatabase("URI=file:.\\kv3tbltest6.db");
+            using var db = new KeyValueDatabase("URI=file:.\\kv3tbltest6.db");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid().ToByteArray();
@@ -215,7 +215,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void TableKeyThreeValueTest()
         {
-            var db = new KeyValueDatabase("URI=file:.\\ctest31.db");
+            using var db = new KeyValueDatabase("URI=file:.\\ctest31.db");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid().ToByteArray();

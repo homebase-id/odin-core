@@ -63,30 +63,34 @@ namespace Youverse.Core.Storage.SQLite
         private SQLiteParameter _sparam1 = null;
         private Object _selectLock = new Object();
 
-        public TableMainIndex(DriveIndexDatabase db) : base(db)
+        public TableMainIndex(DriveIndexDatabase db, object lck) : base(db, lck)
         {
         }
+
 
         ~TableMainIndex()
         {
-            if (_insertCommand != null)
-            {
-                _insertCommand.Dispose();
-                _insertCommand = null;
-            }
-
-            if (_updateCommand != null)
-            {
-                _updateCommand.Dispose();
-                _updateCommand = null;
-            }
-
-            if (_selectCommand != null)
-            {
-                _selectCommand.Dispose();
-                _selectCommand = null;
-            }
         }
+
+
+        public override void Dispose()
+        {
+            _insertCommand?.Dispose();
+            _insertCommand = null;
+
+            _deleteCommand?.Dispose();
+            _deleteCommand = null;
+
+            _updateCommand?.Dispose();
+            _updateCommand = null;
+
+            _touchCommand?.Dispose();
+            _touchCommand = null;
+
+            _selectCommand?.Dispose();
+            _selectCommand = null;
+        }
+
 
         public override void EnsureTableExists(bool dropExisting = false)
         {
@@ -317,7 +321,11 @@ namespace Youverse.Core.Storage.SQLite
                 _param12.Value = userZeroSeconds;
                 _param13.Value = requiredSecurityGroup;
 
-                _insertCommand.ExecuteNonQuery();
+                lock (_getTransactionLock)
+                {
+                    _driveIndexDatabase.BeginTransaction();
+                    _insertCommand.ExecuteNonQuery();
+                }
             }
         }
 
@@ -337,7 +345,11 @@ namespace Youverse.Core.Storage.SQLite
                 }
 
                 _dparam1.Value = fileId;
-                _deleteCommand.ExecuteNonQuery();
+                lock (_getTransactionLock)
+                {
+                    _driveIndexDatabase.BeginTransaction();
+                    _deleteCommand.ExecuteNonQuery();
+                }
             }
         }
 
@@ -370,7 +382,11 @@ namespace Youverse.Core.Storage.SQLite
                 _tparam1.Value = fileId;
                 _tparam2.Value = UnixTimeUtcUniqueGenerator.Generator().uniqueTime;
 
-                _touchCommand.ExecuteNonQuery();
+                lock (_getTransactionLock)
+                {
+                    _driveIndexDatabase.BeginTransaction();
+                    _touchCommand.ExecuteNonQuery();
+                }
             }
         }
 
@@ -471,7 +487,11 @@ namespace Youverse.Core.Storage.SQLite
                 _uparam8.Value = requiredSecurityGroup;
                 _uparam9.Value = globalTransitId;
 
-                _updateCommand.ExecuteNonQuery();
+                lock (_getTransactionLock)
+                {
+                    _driveIndexDatabase.BeginTransaction();
+                    _updateCommand.ExecuteNonQuery();
+                }
             }
         }
     }

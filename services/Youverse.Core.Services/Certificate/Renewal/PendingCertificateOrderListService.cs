@@ -15,7 +15,6 @@ namespace Youverse.Core.Services.Certificate.Renewal
     /// </summary>
     public class PendingCertificateOrderListService:IDisposable
     {
-        private readonly TableOutbox _table;
         private readonly KeyValueDatabase _db;
 
         public PendingCertificateOrderListService(string dataPath)
@@ -31,7 +30,6 @@ namespace Youverse.Core.Services.Certificate.Renewal
             var filePath = PathUtil.OsIfy($"{dataPath}\\cert.db");
             _db = new KeyValueDatabase($"URI=file:{filePath}");
             _db.CreateDatabase(false);
-            _table = new TableOutbox(_db);
         }
 
         public void Add(DotYouIdentity identity)
@@ -44,7 +42,7 @@ namespace Youverse.Core.Services.Certificate.Renewal
             byte[] fileId = identity.ToGuidIdentifier().ToByteArray();
             try
             {
-                _table.InsertRow(boxId, fileId, 0, identity.Id.ToLower().ToUtf8ByteArray());
+                _db.tblOutbox.InsertRow(boxId, fileId, 0, identity.Id.ToLower().ToUtf8ByteArray());
             }
             catch (System.Data.SQLite.SQLiteException ex)
             {
@@ -62,7 +60,7 @@ namespace Youverse.Core.Services.Certificate.Renewal
         /// </summary>
         public async Task<(IEnumerable<DotYouIdentity>, byte[] marker)> GetIdentities()
         {
-            var records = _table.PopAll(out var marker);
+            var records = _db.tblOutbox.PopAll(out var marker);
             
             //see Add method.  fileId = dotYouId
             var senders = records.Select(item => new DotYouIdentity(item.value.ToStringFromUtf8Bytes())).ToList();
@@ -71,12 +69,12 @@ namespace Youverse.Core.Services.Certificate.Renewal
 
         public void MarkComplete(byte[] marker)
         {
-            _table.PopCommit(marker);
+            _db.tblOutbox.PopCommit(marker);
         }
 
         public void MarkFailure(byte[] marker)
         {
-            _table.PopCancel(marker);
+            _db.tblOutbox.PopCancel(marker);
         }
 
         public void Dispose()
