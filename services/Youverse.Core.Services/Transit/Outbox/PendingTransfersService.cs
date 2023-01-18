@@ -14,6 +14,7 @@ namespace Youverse.Core.Services.Transit.Outbox
     public class PendingTransfersService : IPendingTransfersService
     {
         private readonly TableOutbox _table;
+        private object _hack = new object();
 
         public PendingTransfersService(string dataPath)
         {
@@ -27,7 +28,8 @@ namespace Youverse.Core.Services.Transit.Outbox
             var filePath = PathUtil.OsIfy($"{dataPath}\\xfer.db");
             var db = new KeyValueDatabase($"URI=file:{filePath}");
             db.CreateDatabase(false);
-            _table = new TableOutbox(db);
+            // TODO: NOT  ALLOWED, THIS WILL MESS UP SOMEHOW
+            _table = new TableOutbox(db, _hack);
         }
 
         public void EnsureIdentityIsPending(DotYouIdentity sender)

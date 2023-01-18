@@ -17,6 +17,7 @@ namespace Youverse.Core.Services.Certificate.Renewal
     {
         private readonly TableOutbox _table;
         private readonly KeyValueDatabase _db;
+        private object _hack = new object();
 
         public PendingCertificateOrderListService(string dataPath)
         {
@@ -31,7 +32,9 @@ namespace Youverse.Core.Services.Certificate.Renewal
             var filePath = PathUtil.OsIfy($"{dataPath}\\cert.db");
             _db = new KeyValueDatabase($"URI=file:{filePath}");
             _db.CreateDatabase(false);
-            _table = new TableOutbox(_db);
+
+            // TODO: NOT ALLOWED. THIS WILL MESS UP SOMEHOW.
+            _table = new TableOutbox(_db, _hack);
         }
 
         public void Add(DotYouIdentity identity)
