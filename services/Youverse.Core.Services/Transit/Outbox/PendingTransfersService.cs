@@ -30,6 +30,11 @@ namespace Youverse.Core.Services.Transit.Outbox
             _db.CreateDatabase(false);
         }
 
+        public void Dispose()
+        {
+            _db?.Dispose();
+        }
+
         public void EnsureIdentityIsPending(DotYouIdentity sender)
         {
             //Note: I use sender here because boxId has a unique constraint; and we only a sender in this table once.
