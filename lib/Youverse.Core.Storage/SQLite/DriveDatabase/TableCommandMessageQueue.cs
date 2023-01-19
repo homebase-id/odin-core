@@ -46,7 +46,7 @@ namespace Youverse.Core.Storage.SQLite
 
         public override void EnsureTableExists(bool dropExisting = false)
         {
-            using (var cmd = _driveIndexDatabase.CreateCommand())
+            using (var cmd = _database.CreateCommand())
             {
                 if (dropExisting)
                 {
@@ -67,7 +67,7 @@ namespace Youverse.Core.Storage.SQLite
         {
             lock (_selectLock)
             {
-                using (_selectCommand = _driveIndexDatabase.CreateCommand())
+                using (_selectCommand = _database.CreateCommand())
                 {
                     _selectCommand.CommandText = $"SELECT fileid,timestamp FROM commandmessages ORDER BY fileid ASC LIMIT {count}";
 
@@ -107,7 +107,7 @@ namespace Youverse.Core.Storage.SQLite
                 // rather then class members
                 if (_insertCommand == null)
                 {
-                    _insertCommand = _driveIndexDatabase.CreateCommand();
+                    _insertCommand = _database.CreateCommand();
                     _insertCommand.CommandText = @"INSERT INTO commandmessages(fileid, timestamp) VALUES($fileid, 0)";
                     _iparam1 = _insertCommand.CreateParameter();
                     _iparam1.ParameterName = "$fileid";
@@ -116,7 +116,7 @@ namespace Youverse.Core.Storage.SQLite
 
                 lock (_getTransactionLock)
                 {
-                    _driveIndexDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     for (int i = 0; i < fileId.Count; i++)
                     {
                         _iparam1.Value = fileId[i];
@@ -137,7 +137,7 @@ namespace Youverse.Core.Storage.SQLite
                 // rather then class members
                 if (_deleteCommand == null)
                 {
-                    _deleteCommand = _driveIndexDatabase.CreateCommand();
+                    _deleteCommand = _database.CreateCommand();
                     _deleteCommand.CommandText = @"DELETE FROM commandmessages WHERE fileid=$fileid";
                     _dparam1 = _deleteCommand.CreateParameter();
                     _dparam1.ParameterName = "$fileid";
@@ -146,7 +146,7 @@ namespace Youverse.Core.Storage.SQLite
 
                 lock (_getTransactionLock)
                 {
-                    _driveIndexDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     for (int i = 0; i < fileId.Count; i++)
                     {
                         _dparam1.Value = fileId[i];

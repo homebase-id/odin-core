@@ -16,7 +16,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         public Guid driveId;
     }
 
-    public class TableFollowsMe : TableKeyValueBase
+    public class TableFollowsMe : TableBase
     {
         public const int GUID_SIZE = 16; // Precisely 16 bytes for the ID key
 
@@ -48,35 +48,24 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
         ~TableFollowsMe()
         {
-            if (_insertCommand != null)
-            {
-                _insertCommand.Dispose();
-                _insertCommand = null;
-            }
+        }
 
-            if (_deleteCommand != null)
-            {
-                _deleteCommand.Dispose();
-                _deleteCommand = null;
-            }
+        public override void Dispose()
+        {
+            _insertCommand?.Dispose();
+            _insertCommand = null;
 
-            if (_deleteCommand2 != null)
-            {
-                _deleteCommand2.Dispose();
-                _deleteCommand2 = null;
-            }
+            _deleteCommand?.Dispose();
+            _deleteCommand = null;
 
-            if (_selectCommand != null)
-            {
-                _selectCommand.Dispose();
-                _selectCommand = null;
-            }
+            _deleteCommand2?.Dispose();
+            _deleteCommand2 = null;
 
-            if (_select2Command != null)
-            {
-                _select2Command.Dispose();
-                _select2Command = null;
-            }
+            _selectCommand?.Dispose();
+            _selectCommand = null;
+
+            _select2Command?.Dispose();
+            _select2Command = null;
         }
 
         /// <summary>
@@ -84,7 +73,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         /// </summary>
         public override void EnsureTableExists(bool dropExisting = false)
         {
-            using (var cmd = _keyValueDatabase.CreateCommand())
+            using (var cmd = _database.CreateCommand())
             {
                 if (dropExisting)
                 {
@@ -120,7 +109,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_selectCommand == null)
                 {
-                    _selectCommand = _keyValueDatabase.CreateCommand();
+                    _selectCommand = _database.CreateCommand();
                     _selectCommand.CommandText =
                         $"SELECT driveid, timestamp FROM followers WHERE identity=$identity";
                     _sparam1 = _selectCommand.CreateParameter();
@@ -177,7 +166,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_select2Command == null)
                 {
-                    _select2Command = _keyValueDatabase.CreateCommand();
+                    _select2Command = _database.CreateCommand();
                     _select2Command.CommandText =
                         $"SELECT DISTINCT identity FROM followers WHERE (driveid=$driveid OR driveid=x'{Convert.ToHexString(Guid.Empty.ToByteArray())}') AND identity > $cursor ORDER BY identity ASC LIMIT {count}";
                     _s2param1 = _select2Command.CreateParameter();
@@ -240,7 +229,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_insertCommand == null)
                 {
-                    _insertCommand = _keyValueDatabase.CreateCommand();
+                    _insertCommand = _database.CreateCommand();
                     _insertCommand.CommandText = @"INSERT INTO followers(identity, timestamp, driveid) " +
                                                   "VALUES ($identity, $timestamp, $driveid)";
 
@@ -263,7 +252,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 lock (_getTransactionLock)
                 {
-                    _keyValueDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     _insertCommand.ExecuteNonQuery();
                 }
             }
@@ -285,7 +274,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_deleteCommand == null)
                 {
-                    _deleteCommand = _keyValueDatabase.CreateCommand();
+                    _deleteCommand = _database.CreateCommand();
                     _deleteCommand.CommandText = @"DELETE FROM followers WHERE identity=$identity;";
                     _dparam1 = _deleteCommand.CreateParameter();
                     _deleteCommand.Parameters.Add(_dparam1);
@@ -298,7 +287,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 lock (_getTransactionLock)
                 {
-                    _keyValueDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     _deleteCommand.ExecuteNonQuery();
                 }
             }
@@ -321,7 +310,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_deleteCommand2 == null)
                 {
-                    _deleteCommand2 = _keyValueDatabase.CreateCommand();
+                    _deleteCommand2 = _database.CreateCommand();
                     _deleteCommand2.CommandText = @"DELETE FROM followers WHERE identity=$identity AND driveid=$driveid;";
 
                     _dparam2_1 = _deleteCommand2.CreateParameter();
@@ -340,7 +329,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 lock (_getTransactionLock)
                 {
-                    _keyValueDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     _deleteCommand2.ExecuteNonQuery();
                 }
             }

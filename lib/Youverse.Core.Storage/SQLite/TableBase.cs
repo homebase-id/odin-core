@@ -4,12 +4,12 @@ namespace Youverse.Core.Storage.SQLite
 {
     public class TableBase : IDisposable
     {
-        protected DriveIndexDatabase _driveIndexDatabase = null;
-        protected Object _getTransactionLock = new Object();
+        protected readonly DatabaseBase _database = null;
+        protected readonly Object _getTransactionLock = null;
 
-        public TableBase(DriveIndexDatabase db, object lck)
+        public TableBase(DatabaseBase db, object lck)
         {
-            _driveIndexDatabase = db;
+            _database = db;
             _getTransactionLock = lck;
         }
 
@@ -19,11 +19,12 @@ namespace Youverse.Core.Storage.SQLite
 
         public virtual void Dispose()
         {
+            throw new NotImplementedException();
         }
 
         public virtual void EnsureTableExists(bool dropExisting = false)
         {
-            throw new Exception("You must implement the CreateTable class");
+            throw new NotImplementedException();
         }
     }
 } 

@@ -3,7 +3,7 @@ using System.Data.SQLite;
 
 namespace Youverse.Core.Storage.SQLite.KeyValue
 {
-    public class TableKeyValue : TableKeyValueBase // Make it IDisposable??
+    public class TableKeyValue : TableBase
     {
         const int MAX_VALUE_LENGTH = 1024*1024; // Stored value cannot be longer than this
 
@@ -37,41 +37,30 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
         ~TableKeyValue()
         {
-            if (_insertCommand != null)
-            {
-                _insertCommand.Dispose();
-                _insertCommand = null;
-            }
+        }
 
-            if (_updateCommand != null)
-            {
-                _updateCommand.Dispose();
-                _updateCommand = null;
-            }
+        public override void Dispose()
+        {
+            _insertCommand?.Dispose();
+            _insertCommand = null;
 
-            if (_upsertCommand != null)
-            {
-                _upsertCommand.Dispose();
-                _upsertCommand = null;
-            }
+            _updateCommand?.Dispose();
+            _updateCommand = null;
 
-            if (_deleteCommand != null)
-            {
-                _deleteCommand.Dispose();
-                _deleteCommand = null;
-            }
+            _upsertCommand?.Dispose();
+            _upsertCommand = null;
 
-            if (_selectCommand != null)
-            {
-                _selectCommand.Dispose();
-                _selectCommand = null;
-            }
+            _deleteCommand?.Dispose();
+            _deleteCommand = null;
+
+            _selectCommand?.Dispose();
+            _selectCommand = null;
         }
 
 
         public override void EnsureTableExists(bool dropExisting = false)
         {
-            using (var cmd = _keyValueDatabase.CreateCommand())
+            using (var cmd = _database.CreateCommand())
             {
                 if(dropExisting)
                 {
@@ -96,7 +85,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_selectCommand == null)
                 {
-                    _selectCommand = _keyValueDatabase.CreateCommand();
+                    _selectCommand = _database.CreateCommand();
                     _selectCommand.CommandText =
                         $"SELECT value FROM keyvalue WHERE key=$key";
                     _sparam1 = _selectCommand.CreateParameter();
@@ -142,7 +131,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_insertCommand == null)
                 {
-                    _insertCommand = _keyValueDatabase.CreateCommand();
+                    _insertCommand = _database.CreateCommand();
                     _insertCommand.CommandText = @"INSERT INTO keyvalue(key, value) VALUES ($key, $value)";
 
                     _iparam1 = _insertCommand.CreateParameter();
@@ -160,7 +149,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 lock (_getTransactionLock)
                 {
-                    _keyValueDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     _insertCommand.ExecuteNonQuery();
                 }
             }
@@ -177,7 +166,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_updateCommand == null)
                 {
-                    _updateCommand = _keyValueDatabase.CreateCommand();
+                    _updateCommand = _database.CreateCommand();
                     _updateCommand.CommandText = @"UPDATE keyvalue SET value=$value WHERE key=$key";
 
                     _uparam1 = _updateCommand.CreateParameter();
@@ -196,7 +185,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 lock (_getTransactionLock)
                 {
-                    _keyValueDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     _updateCommand.ExecuteNonQuery();
                 }
             }
@@ -213,7 +202,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_upsertCommand == null)
                 {
-                    _upsertCommand = _keyValueDatabase.CreateCommand();
+                    _upsertCommand = _database.CreateCommand();
                     _upsertCommand.CommandText = @"INSERT INTO keyvalue(key, value) VALUES ($key, $value) ON CONFLICT (key) DO UPDATE SET value=$value";
 
                     _zparam1 = _upsertCommand.CreateParameter();
@@ -231,7 +220,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 lock (_getTransactionLock)
                 {
-                    _keyValueDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     _upsertCommand.ExecuteNonQuery();
                 }
             }
@@ -245,7 +234,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_deleteCommand == null)
                 {
-                    _deleteCommand = _keyValueDatabase.CreateCommand();
+                    _deleteCommand = _database.CreateCommand();
                     _deleteCommand.CommandText = @"DELETE FROM keyvalue WHERE key=$key";
 
                     _dparam1 = _deleteCommand.CreateParameter();
@@ -258,7 +247,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 lock (_getTransactionLock)
                 {
-                    _keyValueDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     _deleteCommand.ExecuteNonQuery();
                 }
             }
