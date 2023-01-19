@@ -52,7 +52,7 @@ namespace Youverse.Core.Storage.SQLite
 
         public override void EnsureTableExists(bool dropExisting = false)
         {
-            using (var cmd = _driveIndexDatabase.CreateCommand())
+            using (var cmd = _database.CreateCommand())
             {
                 if(dropExisting)
                 {
@@ -74,7 +74,7 @@ namespace Youverse.Core.Storage.SQLite
                 // Make sure we only prep once 
                 if (_selectCommand == null)
                 {
-                    _selectCommand = _driveIndexDatabase.CreateCommand();
+                    _selectCommand = _database.CreateCommand();
                     _selectCommand.CommandText = @"SELECT aclmember FROM aclindex WHERE fileid=$fileid";
                     _sparam1 = _selectCommand.CreateParameter();
                     _sparam1.ParameterName = "$fileid";
@@ -116,7 +116,7 @@ namespace Youverse.Core.Storage.SQLite
                 // rather then class members
                 if (_insertCommand == null)
                 {
-                    _insertCommand = _driveIndexDatabase.CreateCommand();
+                    _insertCommand = _database.CreateCommand();
                     _insertCommand.CommandText = @"INSERT INTO aclindex(fileid, aclmember) VALUES($fileid, $aclmember)";
                     _iparam1 = _insertCommand.CreateParameter();
                     _iparam1.ParameterName = "$fileid";
@@ -128,7 +128,7 @@ namespace Youverse.Core.Storage.SQLite
 
                 lock (_getTransactionLock)
                 {
-                    _driveIndexDatabase.BeginTransaction();
+                    _database.BeginTransaction();
 
                     for (int i = 0; i < AccessControlList.Count; i++)
                     {
@@ -151,7 +151,7 @@ namespace Youverse.Core.Storage.SQLite
                 // rather then class members
                 if (_deleteCommand == null)
                 {
-                    _deleteCommand = _driveIndexDatabase.CreateCommand();
+                    _deleteCommand = _database.CreateCommand();
                     _deleteCommand.CommandText = @"DELETE FROM aclindex WHERE fileid=$fileid AND aclmember=$aclmember";
                     _dparam1 = _deleteCommand.CreateParameter();
                     _dparam1.ParameterName = "$fileid";
@@ -163,7 +163,7 @@ namespace Youverse.Core.Storage.SQLite
 
                 lock (_getTransactionLock)
                 {
-                    _driveIndexDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     _dparam1.Value = FileId;
                     for (int i = 0; i < AccessControlList.Count; i++)
                     {
@@ -183,7 +183,7 @@ namespace Youverse.Core.Storage.SQLite
                 // rather then class members
                 if (_deleteAllCommand == null)
                 {
-                    _deleteAllCommand = _driveIndexDatabase.CreateCommand();
+                    _deleteAllCommand = _database.CreateCommand();
                     _deleteAllCommand.CommandText = @"DELETE FROM aclindex WHERE fileid=$fileid";
                     _dallparam1 = _deleteAllCommand.CreateParameter();
                     _dallparam1.ParameterName = "$fileid";
@@ -194,7 +194,7 @@ namespace Youverse.Core.Storage.SQLite
 
                 lock (_getTransactionLock)
                 {
-                    _driveIndexDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     _deleteAllCommand.ExecuteNonQuery();
                 }
             }

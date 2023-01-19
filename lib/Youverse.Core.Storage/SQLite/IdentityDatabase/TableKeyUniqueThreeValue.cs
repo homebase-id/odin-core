@@ -4,7 +4,7 @@ using System.Data.SQLite;
 
 namespace Youverse.Core.Storage.SQLite.KeyValue
 {
-    public class TableKeyUniqueThreeValue : TableKeyValueBase // Make it IDisposable??
+    public class TableKeyUniqueThreeValue : TableBase
     {
         const int MAX_VALUE_LENGTH = 65535; // Stored value cannot be longer than this
 
@@ -54,59 +54,38 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
         ~TableKeyUniqueThreeValue()
         {
-            if (_insertCommand != null)
-            {
-                _insertCommand.Dispose();
-                _insertCommand = null;
-            }
-
-            if (_upsertCommand != null)
-            {
-                _upsertCommand.Dispose();
-                _upsertCommand = null;
-            }
-
-            if (_updateCommand != null)
-            {
-                _updateCommand.Dispose();
-                _updateCommand = null;
-            }
-
-            if (_deleteCommand != null)
-            {
-                _deleteCommand.Dispose();
-                _deleteCommand = null;
-            }
-
-            if (_selectCommand != null)
-            {
-                _selectCommand.Dispose();
-                _selectCommand = null;
-            }
-
-            if (_selectTwoCommand != null)
-            {
-                _selectTwoCommand.Dispose();
-                _selectTwoCommand = null;
-            }
-
-            if (_selectThreeCommand != null)
-            {
-                _selectThreeCommand.Dispose();
-                _selectThreeCommand = null;
-            }
-
-            if (_selectTwoThreeCommand != null)
-            {
-                _selectTwoThreeCommand.Dispose();
-                _selectTwoThreeCommand = null;
-            }
         }
 
+        public override void Dispose()
+        {
+            _insertCommand?.Dispose();
+            _insertCommand = null;
+
+            _upsertCommand?.Dispose();
+            _upsertCommand = null;
+
+            _updateCommand?.Dispose();
+            _updateCommand = null;
+
+            _deleteCommand?.Dispose();
+            _deleteCommand = null;
+
+            _selectCommand?.Dispose();
+            _selectCommand = null;
+
+            _selectTwoCommand?.Dispose();
+            _selectTwoCommand = null;
+
+            _selectThreeCommand?.Dispose();
+            _selectThreeCommand = null;
+
+            _selectTwoThreeCommand?.Dispose();
+            _selectTwoThreeCommand = null;
+        }
 
         public override void EnsureTableExists(bool dropExisting = false)
         {
-            using (var cmd = _keyValueDatabase.CreateCommand())
+            using (var cmd = _database.CreateCommand())
             {
                 if(dropExisting)
                 {
@@ -137,7 +116,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_selectCommand == null)
                 {
-                    _selectCommand = _keyValueDatabase.CreateCommand();
+                    _selectCommand = _database.CreateCommand();
                     _selectCommand.CommandText =
                         $"SELECT value FROM keyuniquethreevalue WHERE key1=$key1";
                     _sparam1 = _selectCommand.CreateParameter();
@@ -180,7 +159,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_selectTwoCommand == null)
                 {
-                    _selectTwoCommand = _keyValueDatabase.CreateCommand();
+                    _selectTwoCommand = _database.CreateCommand();
                     _selectTwoCommand.CommandText =
                         $"SELECT value FROM keyuniquethreevalue WHERE key2=$key2";
 
@@ -227,7 +206,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_selectThreeCommand == null)
                 {
-                    _selectThreeCommand = _keyValueDatabase.CreateCommand();
+                    _selectThreeCommand = _database.CreateCommand();
                     _selectThreeCommand.CommandText =
                         $"SELECT value FROM keyuniquethreevalue WHERE key3=$key3";
 
@@ -274,7 +253,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_selectTwoThreeCommand == null)
                 {
-                    _selectTwoThreeCommand = _keyValueDatabase.CreateCommand();
+                    _selectTwoThreeCommand = _database.CreateCommand();
                     _selectTwoThreeCommand.CommandText =
                         $"SELECT value FROM keyuniquethreevalue WHERE key2=$key2 AND key3=$key3";
 
@@ -327,7 +306,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_insertCommand == null)
                 {
-                    _insertCommand = _keyValueDatabase.CreateCommand();
+                    _insertCommand = _database.CreateCommand();
                     _insertCommand.CommandText = @"INSERT INTO keyuniquethreevalue(key1, key2, key3, value) VALUES ($key1, $key2, $key3, $value)";
 
                     _iparam1 = _insertCommand.CreateParameter();
@@ -356,7 +335,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 lock (_getTransactionLock)
                 {
-                    _keyValueDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     _insertCommand.ExecuteNonQuery();
                 }
             }
@@ -372,7 +351,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_updateCommand == null)
                 {
-                    _updateCommand = _keyValueDatabase.CreateCommand();
+                    _updateCommand = _database.CreateCommand();
                     _updateCommand.CommandText = @"UPDATE keyuniquethreevalue SET value=$value WHERE key1=$key1";
 
                     _uparam1 = _updateCommand.CreateParameter();
@@ -391,7 +370,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 lock (_getTransactionLock)
                 {
-                    _keyValueDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     _updateCommand.ExecuteNonQuery();
                 }
             }
@@ -408,7 +387,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once  xxxx
                 if (_upsertCommand == null)
                 {
-                    _upsertCommand = _keyValueDatabase.CreateCommand();
+                    _upsertCommand = _database.CreateCommand();
                     _upsertCommand.CommandText =
                         @"INSERT INTO keyuniquethreevalue(key1, key2, key3, value) VALUES ($key1, $key2, $key3, $value) ON CONFLICT (key1) DO UPDATE SET key2=$key2, key3=$key3, value=$value";
 
@@ -438,7 +417,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 lock (_getTransactionLock)
                 {
-                    _keyValueDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     _upsertCommand.ExecuteNonQuery();
                 }
             }
@@ -451,7 +430,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_deleteCommand == null)
                 {
-                    _deleteCommand = _keyValueDatabase.CreateCommand();
+                    _deleteCommand = _database.CreateCommand();
                     _deleteCommand.CommandText = @"DELETE FROM keyuniquethreevalue WHERE key1=$key1";
 
                     _dparam1 = _deleteCommand.CreateParameter();
@@ -464,7 +443,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 lock (_getTransactionLock)
                 {
-                    _keyValueDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     int n = _deleteCommand.ExecuteNonQuery();
                 }
             }

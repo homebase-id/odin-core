@@ -37,7 +37,7 @@ namespace Youverse.Hosting.Tests.Performance
         private const int FileType = 844;
 
         // For the performance test
-        private static readonly int MAXTHREADS = Environment.ProcessorCount * 2; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
+        private static readonly int MAXTHREADS = 16; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
         private const int MAXITERATIONS = 10; // A number high enough to get warmed up and reliable
 
         private WebScaffold _scaffold;
