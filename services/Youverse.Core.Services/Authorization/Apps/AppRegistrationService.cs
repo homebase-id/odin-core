@@ -177,7 +177,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             return result?.Redacted();
         }
 
-        public async Task<DotYouContext> GetPermissionContext(ClientAuthenticationToken token)
+        public async Task<DotYouContext> GetAppPermissionContext(ClientAuthenticationToken token)
         {
             var creator = new Func<Task<DotYouContext>>(async delegate
             {
