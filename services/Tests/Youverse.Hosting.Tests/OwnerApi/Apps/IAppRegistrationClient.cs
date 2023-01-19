@@ -29,5 +29,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
         [Post(RootPath + "/register/client")]
         Task<ApiResponse<AppClientRegistrationResponse>> RegisterAppOnClient([Body] AppClientRegistrationRequest appClientRegistration);
+
+        [Post(RootPath + "/register/updateauthorizedcircles")]
+        Task UpdateAuthorizedCircles([Body] UpdateAuthorizedCirclesRequest request);
+        
+        [Post(RootPath + "/register/updateapppermissions")]
+        Task UpdateAppPermissions([Body] UpdateAppPermissionsRequest request);
+
+
     }
 }

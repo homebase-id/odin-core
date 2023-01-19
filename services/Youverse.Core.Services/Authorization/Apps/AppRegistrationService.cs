@@ -3,15 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
-using LazyCache;
-using LazyCache.Providers;
-using MediatR;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
-using Org.BouncyCastle.Asn1.Ocsp;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
-using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
@@ -19,7 +13,6 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Storage;
-using Youverse.Hosting.Controllers.OwnerToken.AppManagement;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
@@ -70,23 +63,30 @@ namespace Youverse.Core.Services.Authorization.Apps
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var grant = await _exchangeGrantService.CreateExchangeGrant(request.PermissionSet, request.Drives, masterKey);
             var circleMemberGrant = await _exchangeGrantService.CreateExchangeGrant(request.CircleMemberPermissionSet, request.CircleMemberDrives, masterKey);
-            
+
             var appReg = new AppRegistration()
             {
                 AppId = request.AppId,
                 Name = request.Name,
                 Grant = grant,
+
                 CircleMemberGrant = circleMemberGrant,
                 AuthorizedCircles = request.AuthorizedCircles
             };
 
             _appRegistrationValueStorage.Upsert(appReg.AppId, GuidId.Empty, _appRegistrationDataType, appReg);
+
+            // foreach (var circleId in appReg?.AuthorizedCircles ?? new List<Guid>()) 
+            // {
+            //     
+            // }
+
             return appReg.Redacted();
         }
 
-        public async Task UpdateAppPermissions(GuidId appId, PermissionSet permissions, IEnumerable<DriveGrantRequest> drives)
+        public async Task UpdateAppPermissions(UpdateAppPermissionsRequest request)
         {
-            var appReg = await this.GetAppRegistrationInternal(appId);
+            var appReg = await this.GetAppRegistrationInternal(request.AppId);
             if (null == appReg)
             {
                 throw new YouverseClientException("Invalid AppId", YouverseClientErrorCode.AppNotRegistered);
@@ -95,46 +95,37 @@ namespace Youverse.Core.Services.Authorization.Apps
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-            var grant = await _exchangeGrantService.CreateExchangeGrant(permissions, drives, masterKey);
+            var grant = await _exchangeGrantService.CreateExchangeGrant(request.PermissionSet, request.Drives, masterKey);
             appReg.Grant = grant;
 
-            _appRegistrationValueStorage.Upsert(appId, GuidId.Empty, _appRegistrationDataType, appReg);
+            _appRegistrationValueStorage.Upsert(request.AppId, GuidId.Empty, _appRegistrationDataType, appReg);
 
             ResetPermissionContextCache();
         }
 
-        public async Task UpdateAppAuthorizedCircles(GuidId appId, List<Guid> authorizedCircles, PermissionSet permissions, IEnumerable<DriveGrantRequest> drives)
+        public async Task UpdateAuthorizedCircles(UpdateAuthorizedCirclesRequest request)
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-            /*
-                michael 2 months ago
-                @todd
-                the "on/off", when "on", it means "apply this app's security vector" to the circle in question. Over 
-                time we'll of course have more than one app. It means on the backend, with the app registration, you'll 
-                need to have saved the App's security vector for circles. 
-                
-                And when you calculate the permission for a circle
-                - you'll need to OR together all the security vectors for all the Apps for that circle.
-                - And then OR that vector together with other permissions for the circle.
-             */
-
-            var appReg = await this.GetAppRegistrationInternal(appId);
+            var appReg = await this.GetAppRegistrationInternal(request.AppId);
             if (null == appReg)
             {
                 throw new YouverseClientException("Invalid AppId", YouverseClientErrorCode.AppNotRegistered);
             }
 
             //TODO: examine if the circles changed - update exchange grants
-            bool circlesHaveChanged = false;
+            // bool circlesHaveChanged = false;
+            // if (circlesHaveChanged)
+            // {
+            //     //TODO: how to apply the permissions to all users with-in the circles
+            // }
 
-            if (circlesHaveChanged)
-            {
-                //TODO: how to apply the permissions to all users with-in the circles
-            }
+            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+            var circleMemberGrant = await _exchangeGrantService.CreateExchangeGrant(request.CircleMemberPermissionSet, request.CircleMemberDrives, masterKey);
+            appReg.AuthorizedCircles = request.AuthorizedCircles;
+            appReg.CircleMemberGrant = circleMemberGrant;
 
-            appReg.AuthorizedCircles = authorizedCircles;
-            _appRegistrationValueStorage.Upsert(appId, GuidId.Empty, _appRegistrationDataType, appReg);
+            _appRegistrationValueStorage.Upsert(request.AppId, GuidId.Empty, _appRegistrationDataType, appReg);
             ResetPermissionContextCache();
         }
 

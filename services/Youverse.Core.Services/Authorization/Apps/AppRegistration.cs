@@ -6,10 +6,6 @@ namespace Youverse.Core.Services.Authorization.Apps
 {
     public class AppRegistration
     {
-        public AppRegistration()
-        {
-        }
-
         public GuidId AppId { get; set; }
 
         public string Name { get; set; }
@@ -18,7 +14,6 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// List of circles defining whose members can work with your identity via this app
         /// </summary>
         public List<Guid> AuthorizedCircles { get; set; }
-
         
         /// <summary>
         /// Permissions granted to members of the <see cref="AuthorizedCircles"/>

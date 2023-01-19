@@ -56,6 +56,25 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
         }
 
         /// <summary>
+        /// Updates the app's permissions
+        /// </summary>
+        /// <returns></returns>
+        [HttpPost("register/updateapppermissions")]
+        public async Task UpdateAppPermissions([FromBody] UpdateAppPermissionsRequest request)
+        {
+            await _appRegistrationService.UpdateAppPermissions(request);
+        }
+
+        /// <summary>
+        /// Updates the authorized circles and their permissions
+        /// </summary>
+        [HttpPost("register/updateauthorizedcircles")]
+        public async Task UpdateAuthorizedCircles([FromBody] UpdateAuthorizedCirclesRequest request)
+        {
+            await _appRegistrationService.UpdateAuthorizedCircles(request);
+        }
+
+        /// <summary>
         /// Revokes an app; this include all clients using the app and future client registrations until the revocation is removed
         /// </summary>
         /// <param name="request"></param>

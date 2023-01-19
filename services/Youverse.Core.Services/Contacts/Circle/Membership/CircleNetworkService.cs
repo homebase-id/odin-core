@@ -97,7 +97,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             }
 
             var (permissionContext, enabledCircles) = await CreatePermissionContextInternal(icr.AccessGrant!.CircleGrants, icr.AccessGrant.AccessRegistration, authToken);
-
+            
             return (permissionContext, enabledCircles);
         }
 
@@ -631,7 +631,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             };
         }
 
-        private async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreatePermissionContextInternal(Dictionary<string, CircleGrant> circleGrants,
+        private async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreatePermissionContextInternal(
+            Dictionary<string, CircleGrant> circleGrants,
             AccessRegistration accessReg,
             ClientAuthenticationToken authToken)
         {

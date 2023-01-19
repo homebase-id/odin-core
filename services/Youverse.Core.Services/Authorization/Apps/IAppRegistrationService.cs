@@ -6,7 +6,6 @@ using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Drive;
-using Youverse.Hosting.Controllers.OwnerToken.AppManagement;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
@@ -21,6 +20,17 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         Task<DotYouContext> GetPermissionContext(ClientAuthenticationToken token);
 
+        /// <summary>
+        /// Updates the permissions granted to the app
+        /// </summary>
+        Task UpdateAppPermissions(UpdateAppPermissionsRequest request);
+
+        /// <summary>
+        /// Updates the authorized circles and the permissions granted to them
+        /// </summary>
+        /// <returns></returns>
+        Task UpdateAuthorizedCircles(UpdateAuthorizedCirclesRequest request);
+        
         Task<(bool isValid, AccessRegistration? accessReg, AppRegistration? appRegistration)> ValidateClientAuthToken(ClientAuthenticationToken authToken);
 
         /// <summary>
@@ -28,7 +38,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// </summary>
         /// <returns></returns>
         Task<List<RedactedAppRegistration>> GetRegisteredApps();
-        
+
         /// <summary>
         /// Removes access for a given application across all devices
         /// </summary>
@@ -54,6 +64,5 @@ namespace Youverse.Core.Services.Authorization.Apps
         Task<AppClientRegistrationResponse> RegisterClient(GuidId appId, byte[] clientPublicKey, string friendlyName);
 
         Task<List<RegisteredAppClientResponse>> GetRegisteredClients();
-        
     }
 }
