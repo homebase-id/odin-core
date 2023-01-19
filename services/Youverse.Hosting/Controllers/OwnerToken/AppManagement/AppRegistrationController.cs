@@ -1,12 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using System.Web;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Services.Authorization.Apps;
-using Youverse.Core.Services.Drive;
-using System.Web;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
 {
@@ -98,6 +95,18 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
             return new NoResultResponse(true);
         }
 
+        /// <summary>
+        /// Removes the revocation for a given app.
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
+        [HttpPost("deleteApp")]
+        public async Task<NoResultResponse> DeleteApp([FromBody] GetAppRequest request)
+        {
+            await _appRegistrationService.DeleteApp(request.AppId);
+            return new NoResultResponse(true);
+        }
+
 
         /// <summary>
         /// Gets a list of registered clients
@@ -114,9 +123,27 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
         /// Revokes the client by it's access registration Id
         /// </summary>
         [HttpPost("revokeClient")]
-        public async Task RevokeClient(GuidId accessRegistrationId)
+        public async Task RevokeClient(GetAppClientRequest request)
         {
-            await _appRegistrationService.RevokeClient(accessRegistrationId);
+            await _appRegistrationService.RevokeClient(request.AccessRegistrationId);
+        }
+
+        /// <summary>
+        /// Re-enables the client by it's access registration Id
+        /// </summary>
+        [HttpPost("allowClient")]
+        public async Task EnableClient(GetAppClientRequest request)
+        {
+            await _appRegistrationService.AllowClient(request.AccessRegistrationId);
+        }
+
+        /// <summary>
+        /// Deletes the client by it's access registration Id
+        /// </summary>
+        [HttpPost("deleteClient")]
+        public async Task DeleteClient(GetAppClientRequest request)
+        {
+            await _appRegistrationService.DeleteClient(request.AccessRegistrationId);
         }
 
         /// <summary>

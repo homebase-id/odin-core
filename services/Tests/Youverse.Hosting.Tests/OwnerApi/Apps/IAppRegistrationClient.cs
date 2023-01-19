@@ -26,11 +26,21 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
         [Post(RootPath + "/revoke")]
         Task<ApiResponse<NoResultResponse>> RevokeApp([Body] GetAppRequest request);
 
+
+        [Post(RootPath + "/deleteapp")]
+        Task<ApiResponse<NoResultResponse>> DeleteApp([Body] GetAppRequest request);
+
         [Post(RootPath + "/allow")]
         Task<ApiResponse<NoResultResponse>> RemoveAppRevocation([Body] GetAppRequest request);
 
         [Post(RootPath + "/revokeClient")]
-        Task<ApiResponse<HttpContent>> RevokeClient([Body] GuidId accessRegistrationId);
+        Task<ApiResponse<HttpContent>> RevokeClient([Body] GetAppClientRequest accessRegistrationId);
+
+        [Post(RootPath + "/deleteClient")]
+        Task<ApiResponse<HttpContent>> DeleteClient([Body] GetAppClientRequest accessRegistrationId);
+
+        [Post(RootPath + "/allowClient")]
+        Task<ApiResponse<HttpContent>> AllowClient([Body] GetAppClientRequest accessRegistrationId);
 
         [Get(RootPath + "/clients")]
         Task<ApiResponse<List<RegisteredAppClientResponse>>> GetRegisteredClients();

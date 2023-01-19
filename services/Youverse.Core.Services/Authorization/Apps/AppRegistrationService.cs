@@ -304,6 +304,42 @@ namespace Youverse.Core.Services.Authorization.Apps
             SaveClient(client);
         }
 
+        public async Task AllowClient(GuidId accessRegistrationId)
+        {
+            var client = _appClientValueStorage.Get<AppClient>(accessRegistrationId);
+
+            if (null == client)
+            {
+                throw new YouverseClientException("Invalid access reg id", YouverseClientErrorCode.InvalidAccessRegistrationId);
+            }
+
+            client.AccessRegistration.IsRevoked = false;
+            SaveClient(client);
+        }
+
+        public async Task DeleteApp(GuidId appId)
+        {
+            var app = await GetAppRegistrationInternal(appId);
+
+            if (null == app)
+            {
+                throw new YouverseClientException("Invalid App Id", YouverseClientErrorCode.AppNotRegistered);
+            }
+
+            _appRegistrationValueStorage.Delete(appId);
+        }
+
+        public async Task DeleteClient(GuidId accessRegistrationId)
+        {
+            var client = _appClientValueStorage.Get<AppClient>(accessRegistrationId);
+
+            if (null == client)
+            {
+                throw new YouverseClientException("Invalid access reg id", YouverseClientErrorCode.InvalidAccessRegistrationId);
+            }
+
+            _appClientValueStorage.Delete(accessRegistrationId);
+        }
 
         public Task<List<RedactedAppRegistration>> GetRegisteredApps()
         {

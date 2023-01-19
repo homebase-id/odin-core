@@ -63,11 +63,18 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <returns></returns>
         Task<AppClientRegistrationResponse> RegisterClient(GuidId appId, byte[] clientPublicKey, string friendlyName);
 
+        
+        Task<List<RegisteredAppClientResponse>> GetRegisteredClients();
+        
         /// <summary>
         /// Revokes a client from using the app
         /// </summary>
         Task RevokeClient(GuidId accessRegistrationId);
+
+        Task DeleteClient(GuidId accessRegistrationId);
         
-        Task<List<RegisteredAppClientResponse>> GetRegisteredClients();
+        Task AllowClient(GuidId accessRegistrationId);
+
+        Task DeleteApp(GuidId appId);
     }
 }

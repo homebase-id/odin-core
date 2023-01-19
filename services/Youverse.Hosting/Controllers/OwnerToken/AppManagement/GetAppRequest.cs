@@ -7,3 +7,8 @@ public class GetAppRequest
 {
     public GuidId AppId { get; set; }
 }
+
+public class GetAppClientRequest
+{
+    public GuidId AccessRegistrationId { get; set; }
+}
