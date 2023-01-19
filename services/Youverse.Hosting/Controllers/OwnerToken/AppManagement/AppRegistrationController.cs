@@ -111,6 +111,15 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
         }
 
         /// <summary>
+        /// Revokes the client by it's access registration Id
+        /// </summary>
+        [HttpPost("revokeClient")]
+        public async Task RevokeClient(GuidId accessRegistrationId)
+        {
+            await _appRegistrationService.RevokeClient(accessRegistrationId);
+        }
+
+        /// <summary>
         /// Registers a new client for using a specific app (a browser, app running on a phone, etc)
         /// </summary>
         /// <remarks>

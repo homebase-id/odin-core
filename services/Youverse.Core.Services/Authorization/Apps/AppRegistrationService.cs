@@ -146,7 +146,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             var (accessRegistration, cat) = await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, _contextAccessor.GetCurrent().Caller.GetMasterKey(), ClientTokenType.Other);
 
             var appClient = new AppClient(appId, friendlyName, accessRegistration);
-            _appClientValueStorage.Upsert(accessRegistration.Id, appReg.AppId, _appClientDataType, appClient);
+            this.SaveClient(appClient);
 
             //RSA encrypt using the public key and send to client
             var tokenBytes = cat.ToAuthenticationToken().ToPortableBytes();
@@ -164,6 +164,11 @@ namespace Youverse.Core.Services.Authorization.Apps
                 Token = cat.Id,
                 Data = encryptedData
             };
+        }
+
+        private void SaveClient(AppClient appClient)
+        {
+            _appClientValueStorage.Upsert(appClient.AccessRegistration.Id, appClient.AppId, _appClientDataType, appClient);
         }
 
         public async Task<RedactedAppRegistration> GetAppRegistration(GuidId appId)
@@ -276,6 +281,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             var resp = list.Select(appClient => new RegisteredAppClientResponse()
             {
                 AppId = appClient.AppId,
+                AccessRegistrationId = appClient.AccessRegistration.Id,
                 FriendlyName = appClient.FriendlyName,
                 IsRevoked = appClient.AccessRegistration.IsRevoked,
                 Created = appClient.AccessRegistration.Created,
@@ -284,6 +290,20 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             return resp;
         }
+
+        public async Task RevokeClient(GuidId accessRegistrationId)
+        {
+            var client = _appClientValueStorage.Get<AppClient>(accessRegistrationId);
+
+            if (null == client)
+            {
+                throw new YouverseClientException("Invalid access reg id", YouverseClientErrorCode.InvalidAccessRegistrationId);
+            }
+
+            client.AccessRegistration.IsRevoked = true;
+            SaveClient(client);
+        }
+
 
         public Task<List<RedactedAppRegistration>> GetRegisteredApps()
         {

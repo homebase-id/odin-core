@@ -7,6 +7,8 @@ public class RegisteredAppClientResponse
 {
     public GuidId AppId { get; set; }
 
+    public GuidId AccessRegistrationId { get; set; }
+
     public string FriendlyName { get; set; }
 
     public AccessRegistrationClientType AccessRegistrationClientType { get; set; }

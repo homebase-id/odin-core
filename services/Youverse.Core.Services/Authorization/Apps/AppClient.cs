@@ -18,5 +18,6 @@ public sealed class AppClient
     public GuidId AppId { get; init; }
 
     public AccessRegistration AccessRegistration { get; init; }
+    
     public string FriendlyName { get; init; }
 }
