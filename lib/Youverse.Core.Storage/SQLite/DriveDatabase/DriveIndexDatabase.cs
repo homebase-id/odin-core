@@ -3,10 +3,6 @@ using System.Collections.Generic;
 using System.Data.SQLite;
 using System.Diagnostics;
 using System.Linq;
-using System.Security;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Cryptography.Crypto;
-using Youverse.Core.Util;
 
 /*
 =====
@@ -54,76 +50,42 @@ namespace Youverse.Core.Storage.SQLite
         }
     }
 
-    public class DriveIndexDatabase : IDisposable
+    public class DriveIndexDatabase : DatabaseBase
     {
-        private ulong _CommitFrequency; // ms
-        private string _connectionString;
-
-        private SQLiteConnection _connection = null;
-        private SQLiteTransaction _transaction = null;
         private DatabaseIndexKind _kind;
 
-        public TableMainIndex TblMainIndex = null;
-        public TableAclIndex TblAclIndex = null;
-        public TableTagIndex TblTagIndex = null;
-        public TableCommandMessageQueue TblCmdMsgQueue = null;
-
-        private Object _getConnectionLock = new Object();
-        private Object _getTransactionLock = new Object();
-        private UnixTimeUtc _lastCommit;
-        private bool _wasDisposed = false;
+        public readonly TableMainIndex TblMainIndex = null;
+        public readonly TableAclIndex TblAclIndex = null;
+        public readonly TableTagIndex TblTagIndex = null;
+        public readonly TableCommandMessageQueue TblCmdMsgQueue = null;
 
 
-        public DriveIndexDatabase(string connectionString, DatabaseIndexKind databaseKind, ulong commitFrequencyMs = 5000)
+
+        public DriveIndexDatabase(string connectionString, DatabaseIndexKind databaseKind, ulong commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
         {
-            _connectionString = connectionString;
             _kind = databaseKind;
-            _CommitFrequency = commitFrequencyMs;
-
+ 
             TblMainIndex = new TableMainIndex(this, _getTransactionLock);
             TblAclIndex = new TableAclIndex(this, _getTransactionLock);
             TblTagIndex = new TableTagIndex(this, _getTransactionLock);
             TblCmdMsgQueue = new TableCommandMessageQueue(this, _getTransactionLock);
-
-            RsaKeyManagement.noDBOpened++;
         }
 
         ~DriveIndexDatabase()
         {
-            RsaKeyManagement.noDBClosed++;
-
-            if (!_wasDisposed)
-                throw new Exception("Was not disposed: "+ _connectionString); // Oddly, I cannot call Dispose()
-            // We need to except because we may have missed a commit and we cannot call it now.
-            // One of the C# corners that are broken IMO
         }
 
 
-        public void Dispose()
+        public override void Dispose()
         {
             Commit();
 
-            _connection?.Dispose();
-            _connection = null;
-
-            _transaction?.Dispose();
-            _transaction = null;
-
             TblMainIndex?.Dispose();
-            TblMainIndex = null;
-
             TblAclIndex?.Dispose();
-            TblAclIndex = null;
-
             TblTagIndex?.Dispose();
-            TblTagIndex = null;
-
             TblCmdMsgQueue?.Dispose();
-            TblCmdMsgQueue = null;
 
-            _getConnectionLock = null;
-            _getTransactionLock = null;
-            _wasDisposed = true;
+            base.Dispose();
         }
 
         public DatabaseIndexKind GetKind()
@@ -132,87 +94,13 @@ namespace Youverse.Core.Storage.SQLite
         }
 
 
-        public SQLiteCommand CreateCommand()
-        {
-            return new SQLiteCommand(GetConnection());
-        }
-
-        public void Vacuum()
-        {
-            using (var cmd = CreateCommand())
-            {
-                cmd.CommandText = "VACUUM;";
-                cmd.ExecuteNonQuery();
-                cmd.Dispose();
-            }
-        }
-
-        /// <summary>
-        /// Create and return the database connection if it's not already created.
-        /// Otherwise simply return the already created connection (one object needed per
-        /// thread). 
-        /// There's ONE connection per database object.
-        /// </summary>
-        /// <returns></returns>
-        public SQLiteConnection GetConnection()
-        {
-            lock (_getConnectionLock)
-            {
-                if (_connection == null)
-                {
-                    _connection = new SQLiteConnection(_connectionString);
-                    _connection.Open();
-                }
-
-                return _connection;
-            }
-        }
-
-
-        public void CreateDatabase(bool dropExistingTables = true)
+        public override void CreateDatabase(bool dropExistingTables = true)
         {
             TblMainIndex.EnsureTableExists(dropExistingTables);
             TblAclIndex.EnsureTableExists(dropExistingTables);
             TblTagIndex.EnsureTableExists(dropExistingTables);
             TblCmdMsgQueue.EnsureTableExists(dropExistingTables);
             Vacuum();
-        }
-
-        /// <summary>
-        /// Call to start a transaction or to continue on the current transaction.
-        /// </summary>
-        public void BeginTransaction()
-        {
-            lock (_getTransactionLock)
-            {
-                if (_transaction == null)
-                {
-                    _transaction = GetConnection().BeginTransaction();
-                    _lastCommit = new UnixTimeUtc();
-                }
-                else
-                {
-                    // We already had a transaction, let's check if we should commit
-                    if (UnixTimeUtc.Now().milliseconds - _lastCommit.milliseconds > _CommitFrequency)
-                    {
-                        Commit();
-                        BeginTransaction();
-                    }
-                }
-            }
-        }
-
-        public void Commit()
-        {
-            lock (_getTransactionLock)
-            {
-                if (_transaction != null)
-                {
-                    _transaction.Commit();
-                    _transaction.Dispose();
-                    _transaction = null;
-                }
-            }
         }
 
 
@@ -230,16 +118,16 @@ namespace Youverse.Core.Storage.SQLite
         /// <param name="accessControlList">The list of Id's of the circles or identities which can access this file</param>
         /// <param name="tagIdList">The tags</param>
         public void AddEntry(Guid fileId,
-            Guid? globalTransitId,
-            Int32 fileType,
-            Int32 dataType,
-            byte[] senderId,
-            Guid? groupId,
-            Guid? uniqueId,
-            UInt64 userDate,
-            Int32 requiredSecurityGroup,
-            List<Guid> accessControlList,
-            List<Guid> tagIdList)
+                Guid? globalTransitId,
+                Int32 fileType,
+                Int32 dataType,
+                byte[] senderId,
+                Guid? groupId,
+                Guid? uniqueId,
+                UInt64 userDate,
+                Int32 requiredSecurityGroup,
+                List<Guid> accessControlList,
+                List<Guid> tagIdList)
         {
             BeginTransaction();
 

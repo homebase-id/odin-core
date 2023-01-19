@@ -10,7 +10,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         public byte[] member;
     }
 
-    public class TableCircleMember : TableKeyValueBase  // Make it IDisposable??
+    public class TableCircleMember : TableBase
     {
         const int ID_EQUAL = 16; // Precisely 16 bytes for the ID key
         public const int MAX_MEMBER_LENGTH = 257;  // Maximum 512 bytes for the member value (domain 256)
@@ -39,34 +39,26 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
         ~TableCircleMember()
         {
-            if (_insertCommand != null)
-            {
-                _insertCommand.Dispose();
-                _insertCommand = null;
-            }
+        }
 
-            if (_removeCommand != null)
-            {
-                _removeCommand.Dispose();
-                _removeCommand = null;
-            }
+        public override void Dispose()
+        {
+            _insertCommand?.Dispose();
+            _insertCommand = null;
 
-            if (_deleteCommand != null)
-            {
-                _deleteCommand.Dispose();
-                _deleteCommand = null;
-            }
+            _removeCommand?.Dispose();
+            _removeCommand = null;
 
-            if (_selectCommand != null)
-            {
-                _selectCommand.Dispose();
-                _selectCommand = null;
-            }
+            _deleteCommand?.Dispose();
+            _deleteCommand = null;
+
+            _selectCommand?.Dispose();
+            _selectCommand = null;
         }
 
         public override void EnsureTableExists(bool dropExisting = false)
         {
-            using (var cmd = _keyValueDatabase.CreateCommand())
+            using (var cmd = _database.CreateCommand())
             {
                 if (dropExisting)
                 {
@@ -101,7 +93,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
             {
                 if (_selectCommand == null)
                 {
-                    _selectCommand = _keyValueDatabase.CreateCommand();
+                    _selectCommand = _database.CreateCommand();
                     _selectCommand.CommandText =
                         $"SELECT member FROM circlemember WHERE circleid=$circleid";
 
@@ -150,7 +142,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_insertCommand == null)
                 {
-                    _insertCommand = _keyValueDatabase.CreateCommand();
+                    _insertCommand = _database.CreateCommand();
                     _insertCommand.CommandText = @"INSERT INTO circlemember (circleid, member) "+
                                                   "VALUES ($circleid, $member)";
 
@@ -169,7 +161,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 lock (_getTransactionLock)
                 {
-                    _keyValueDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     // Possibly do a Commit() here. But I need to think about Commits, Semaphores and multiple threads.
                     for (int i = 0; i < members.Count; i++)
                     {
@@ -197,7 +189,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_removeCommand == null)
                 {
-                    _removeCommand = _keyValueDatabase.CreateCommand();
+                    _removeCommand = _database.CreateCommand();
                     _removeCommand.CommandText = "DELETE FROM circlemember WHERE circleid=$circleid AND member=$member;";
 
                     _remparam1 = _removeCommand.CreateParameter();
@@ -215,7 +207,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 lock (_getTransactionLock)
                 {
-                    _keyValueDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     for (int i = 0; i < members.Count; i++)
                     {
                         _remparam2.Value = members[i];
@@ -237,7 +229,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_deleteCommand == null)
                 {
-                    _deleteCommand = _keyValueDatabase.CreateCommand();
+                    _deleteCommand = _database.CreateCommand();
                     _deleteCommand.CommandText = "DELETE FROM circlemember WHERE member=$member;";
 
                     _delparam1 = _deleteCommand.CreateParameter();
@@ -249,7 +241,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 lock (_getTransactionLock)
                 {
-                    _keyValueDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     for (int i = 0; i < members.Count; i++)
                     {
                         _delparam1.Value = members[i];

@@ -10,7 +10,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         public byte[] data;
     }
 
-    public class TableCircle : TableKeyValueBase  // Make it IDisposable??
+    public class TableCircle : TableBase
     {
         public const int ID_EQUAL = 16; // Precisely 16 bytes for the ID key
         public const int MAX_DATA_LENGTH = 65000;  // Some max value for the data
@@ -37,29 +37,18 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
         ~TableCircle()
         {
-            if (_insertCommand != null)
-            {
-                _insertCommand.Dispose();
-                _insertCommand = null;
-            }
+        }
 
-            if (_deleteCommand != null)
-            {
-                _deleteCommand.Dispose();
-                _deleteCommand = null;
-            }
-
-            if (_selectCommand != null)
-            {
-                _selectCommand.Dispose();
-                _selectCommand = null;
-            }
-
-            if (_select2Command != null)
-            {
-                _select2Command.Dispose();
-                _select2Command = null;
-            }
+        public override void Dispose()
+        {
+            _insertCommand?.Dispose();
+            _insertCommand = null;
+            _deleteCommand?.Dispose();
+            _deleteCommand = null;
+            _selectCommand?.Dispose();
+            _select2Command = null;
+            _select2Command?.Dispose();
+            _select2Command = null;
         }
 
         /// <summary>
@@ -74,7 +63,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         /// </summary>
         public override void EnsureTableExists(bool dropExisting = false)
         {
-            using (var cmd = _keyValueDatabase.CreateCommand())
+            using (var cmd = _database.CreateCommand())
             {
                 if (dropExisting)
                 {
@@ -106,7 +95,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_selectCommand == null)
                 {
-                    _selectCommand = _keyValueDatabase.CreateCommand();
+                    _selectCommand = _database.CreateCommand();
                     _selectCommand.CommandText =
                         $"SELECT data FROM circle WHERE circleid=$circleid";
                     _sparam1 = _selectCommand.CreateParameter();
@@ -150,7 +139,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_select2Command == null)
                 {
-                    _select2Command = _keyValueDatabase.CreateCommand();
+                    _select2Command = _database.CreateCommand();
                     _select2Command.CommandText = $"SELECT circleid,data FROM circle ORDER BY circleid";
                     _select2Command.Prepare();
                 }
@@ -200,7 +189,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_insertCommand == null)
                 {
-                    _insertCommand = _keyValueDatabase.CreateCommand();
+                    _insertCommand = _database.CreateCommand();
                     _insertCommand.CommandText = @"INSERT INTO circle(circleid, data) "+
                                                   "VALUES ($circleid, $data)";
 
@@ -219,7 +208,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 lock (_getTransactionLock)
                 {
-                    _keyValueDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     _insertCommand.ExecuteNonQuery();
                 }
 
@@ -237,7 +226,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_deleteCommand == null)
                 {
-                    _deleteCommand = _keyValueDatabase.CreateCommand();
+                    _deleteCommand = _database.CreateCommand();
                     _deleteCommand.CommandText = @"DELETE FROM circlemember WHERE circleid=$circleid;"+
                                                   "DELETE FROM circle WHERE circleid=$circleid;";
 
@@ -252,7 +241,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 lock (_getTransactionLock)
                 {
-                    _keyValueDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     _deleteCommand.ExecuteNonQuery();
                 }
             }

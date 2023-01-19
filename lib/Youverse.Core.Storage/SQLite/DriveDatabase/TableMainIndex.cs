@@ -94,7 +94,7 @@ namespace Youverse.Core.Storage.SQLite
 
         public override void EnsureTableExists(bool dropExisting = false)
         {
-            using (var cmd = _driveIndexDatabase.CreateCommand())
+            using (var cmd = _database.CreateCommand())
             {
                 if(dropExisting)
                 {
@@ -133,7 +133,7 @@ namespace Youverse.Core.Storage.SQLite
                 // Make sure we only prep once 
                 if (_selectCommand == null)
                 {
-                    _selectCommand = _driveIndexDatabase.CreateCommand();
+                    _selectCommand = _database.CreateCommand();
                     _selectCommand.CommandText =
                         $"SELECT createdtimestamp, updatedtimestamp, filetype, datatype, senderid, groupId, userdate, isArchived, isHistory, requiredSecurityGroup, globaltransitid, uniqueid FROM mainindex WHERE fileid=$fileid";
                     _sparam1 = _selectCommand.CreateParameter();
@@ -244,7 +244,7 @@ namespace Youverse.Core.Storage.SQLite
                 // Make sure we only prep once 
                 if (_insertCommand == null)
                 {
-                    _insertCommand = _driveIndexDatabase.CreateCommand();
+                    _insertCommand = _database.CreateCommand();
                     _insertCommand.CommandText =
                         @"INSERT INTO mainindex(
                             fileid, 
@@ -323,7 +323,7 @@ namespace Youverse.Core.Storage.SQLite
 
                 lock (_getTransactionLock)
                 {
-                    _driveIndexDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     _insertCommand.ExecuteNonQuery();
                 }
             }
@@ -336,7 +336,7 @@ namespace Youverse.Core.Storage.SQLite
                 // Make sure we only prep once 
                 if (_deleteCommand == null)
                 {
-                    _deleteCommand = _driveIndexDatabase.CreateCommand();
+                    _deleteCommand = _database.CreateCommand();
                     _deleteCommand.CommandText = @"DELETE FROM mainindex WHERE fileid=$fileid";
 
                     _dparam1 = _deleteCommand.CreateParameter();
@@ -347,7 +347,7 @@ namespace Youverse.Core.Storage.SQLite
                 _dparam1.Value = fileId;
                 lock (_getTransactionLock)
                 {
-                    _driveIndexDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     _deleteCommand.ExecuteNonQuery();
                 }
             }
@@ -365,7 +365,7 @@ namespace Youverse.Core.Storage.SQLite
                 // Make sure we only prep once 
                 if (_touchCommand == null)
                 {
-                    _touchCommand = _driveIndexDatabase.CreateCommand();
+                    _touchCommand = _database.CreateCommand();
 
                     _touchCommand.CommandText =
                         $"UPDATE mainindex SET updatedtimestamp=$updatedtimestamp WHERE fileid = $fileid;";
@@ -384,7 +384,7 @@ namespace Youverse.Core.Storage.SQLite
 
                 lock (_getTransactionLock)
                 {
-                    _driveIndexDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     _touchCommand.ExecuteNonQuery();
                 }
             }
@@ -406,7 +406,7 @@ namespace Youverse.Core.Storage.SQLite
                 // Make sure we only prep once 
                 if (_updateCommand == null)
                 {
-                    _updateCommand = _driveIndexDatabase.CreateCommand();
+                    _updateCommand = _database.CreateCommand();
                     _uparam1 = _updateCommand.CreateParameter();
                     _uparam2 = _updateCommand.CreateParameter();
                     _uparam3 = _updateCommand.CreateParameter();
@@ -489,7 +489,7 @@ namespace Youverse.Core.Storage.SQLite
 
                 lock (_getTransactionLock)
                 {
-                    _driveIndexDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     _updateCommand.ExecuteNonQuery();
                 }
             }

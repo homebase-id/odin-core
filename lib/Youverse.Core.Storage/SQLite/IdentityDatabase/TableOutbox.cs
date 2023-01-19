@@ -13,7 +13,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         public byte[] value;
     }
 
-    public class TableOutbox: TableKeyValueBase  // Make it IDisposable??
+    public class TableOutbox: TableBase
     {
         const int MAX_VALUE_LENGTH = 65535;  // Stored value cannot be longer than this
 
@@ -65,42 +65,29 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
         ~TableOutbox()
         {
-            if (_insertCommand != null)
-            {
-                _insertCommand.Dispose();
-                _insertCommand = null;
-            }
-
-            if (_popCommand != null)
-            {
-                _popCommand.Dispose();
-                _popCommand = null;
-            }
-
-            if (_popCancelCommand != null)
-            {
-                _popCancelCommand.Dispose();
-                _popCancelCommand = null;
-            }
-
-            if (_popCommitCommand!= null)
-            {
-                _popCommitCommand.Dispose();
-                _popCommitCommand = null;
-            }
-
-            if (_popRecoverCommand != null)
-            {
-                _popRecoverCommand.Dispose();
-                _popRecoverCommand = null;
-            }
-
-            if (_selectCommand != null)
-            {
-                _selectCommand.Dispose();
-                _selectCommand = null;
-            }
         }
+
+        public override void Dispose()
+        {
+            _insertCommand?.Dispose();
+            _insertCommand = null;
+
+            _popCommand?.Dispose();
+            _popCommand = null;
+
+            _popCancelCommand?.Dispose();
+            _popCancelCommand = null;
+
+            _popCommitCommand?.Dispose();
+            _popCommitCommand = null;
+
+            _popRecoverCommand?.Dispose();
+            _popRecoverCommand = null;
+
+            _selectCommand?.Dispose();
+            _selectCommand = null;
+        }
+
 
         /// <summary>
         /// Table description:
@@ -114,7 +101,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         /// </summary>
         public override void EnsureTableExists(bool dropExisting = false)
         {
-            using (var cmd = _keyValueDatabase.CreateCommand())
+            using (var cmd = _database.CreateCommand())
             {
                 if (dropExisting)
                 {
@@ -149,7 +136,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_selectCommand == null)
                 {
-                    _selectCommand = _keyValueDatabase.CreateCommand();
+                    _selectCommand = _database.CreateCommand();
                     _selectCommand.CommandText =
                         $"SELECT priority, timestamp, value FROM outbox WHERE fileid=$fileid";
                     _sparam1 = _selectCommand.CreateParameter();
@@ -211,7 +198,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_insertCommand == null)
                 {
-                    _insertCommand = _keyValueDatabase.CreateCommand();
+                    _insertCommand = _database.CreateCommand();
                     _insertCommand.CommandText = @"INSERT INTO outbox(boxid, fileid, priority, timestamp, popstamp, value) "+
                                                   "VALUES ($boxid, $fileid, $priority, $timestamp, NULL, $value)";
 
@@ -242,7 +229,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 lock (_getTransactionLock)
                 {
-                    _keyValueDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     _insertCommand.ExecuteNonQuery();
                 }
             }
@@ -264,7 +251,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_popCommand == null)
                 {
-                    _popCommand = _keyValueDatabase.CreateCommand();
+                    _popCommand = _database.CreateCommand();
                     _popCommand.CommandText = "UPDATE outbox SET popstamp=$popstamp WHERE boxid=$boxid AND popstamp IS NULL ORDER BY timestamp ASC LIMIT $count; " +
                                               "SELECT fileid, priority, timestamp, value from outbox WHERE popstamp=$popstamp";
 
@@ -292,7 +279,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 lock (_getTransactionLock)
                 {
-                    _keyValueDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     using (SQLiteDataReader rdr = _popCommand.ExecuteReader(System.Data.CommandBehavior.Default))
                     {
                         OutboxItem item;
@@ -343,7 +330,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_popAllCommand == null)
                 {
-                    _popAllCommand = _keyValueDatabase.CreateCommand();
+                    _popAllCommand = _database.CreateCommand();
                     _popAllCommand.CommandText = "UPDATE outbox SET popstamp=$popstamp WHERE popstamp is NULL and fileId IN (SELECT fileid FROM outbox WHERE popstamp is NULL GROUP BY boxid ORDER BY timestamp ASC); " +
                                               "SELECT fileid, priority, timestamp, value, boxid from outbox WHERE popstamp=$popstamp";
 
@@ -360,7 +347,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 List<OutboxItem> result = new List<OutboxItem>();
                 lock (_getTransactionLock)
                 {
-                    _keyValueDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     using (SQLiteDataReader rdr = _popAllCommand.ExecuteReader(System.Data.CommandBehavior.Default))
                     {
                         OutboxItem item;
@@ -422,7 +409,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_popCancelCommand == null)
                 {
-                    _popCancelCommand = _keyValueDatabase.CreateCommand();
+                    _popCancelCommand = _database.CreateCommand();
                     _popCancelCommand.CommandText = "UPDATE outbox SET popstamp=NULL WHERE popstamp=$popstamp";
 
                     _pcancelparam1 = _popCancelCommand.CreateParameter();
@@ -436,7 +423,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 _pcancelparam1.Value = popstamp;
                 lock (_getTransactionLock)
                 {
-                    _keyValueDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     _popCancelCommand.ExecuteNonQuery();
                 }
             }
@@ -449,7 +436,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_popCancelListCommand == null)
                 {
-                    _popCancelListCommand = _keyValueDatabase.CreateCommand();
+                    _popCancelListCommand = _database.CreateCommand();
                     _popCancelListCommand.CommandText = "UPDATE outbox SET popstamp=NULL WHERE fileid=$fileid AND popstamp=$popstamp";
 
                     _pcancellistparam1 = _popCancelListCommand.CreateParameter();
@@ -467,7 +454,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 lock (_getTransactionLock)
                 {
-                    _keyValueDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     // I'd rather not do a TEXT statement, this seems safer but slower.
                     for (int i = 0; i < listFileId.Count; i++)
                     {
@@ -490,7 +477,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_popCommitCommand == null)
                 {
-                    _popCommitCommand = _keyValueDatabase.CreateCommand();
+                    _popCommitCommand = _database.CreateCommand();
                     _popCommitCommand.CommandText = "DELETE FROM outbox WHERE popstamp=$popstamp";
 
                     _pcommitparam1 = _popCommitCommand.CreateParameter();
@@ -503,7 +490,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 _pcommitparam1.Value = popstamp;
                 lock (_getTransactionLock)
                 {
-                    _keyValueDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     _popCommitCommand.ExecuteNonQuery();
                 }
             }
@@ -521,7 +508,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 // Make sure we only prep once 
                 if (_popCommitListCommand == null)
                 {
-                    _popCommitListCommand = _keyValueDatabase.CreateCommand();
+                    _popCommitListCommand = _database.CreateCommand();
                     _popCommitListCommand.CommandText = "DELETE FROM outbox WHERE fileid=$fileid AND popstamp=$popstamp";
 
                     _pcommitlistparam1 = _popCommitListCommand.CreateParameter();
@@ -539,7 +526,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 lock (_getTransactionLock)
                 {
-                    _keyValueDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     // I'd rather not do a TEXT statement, this seems safer but slower.
                     for (int i = 0; i < listFileId.Count; i++)
                     {
@@ -562,7 +549,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
             {
                 if (_popRecoverCommand == null)
                 {
-                    _popRecoverCommand = _keyValueDatabase.CreateCommand();
+                    _popRecoverCommand = _database.CreateCommand();
                     _popRecoverCommand.CommandText = "UPDATE outbox SET popstamp=NULL WHERE popstamp < $popstamp";
 
                     _pcrecoverparam1 = _popRecoverCommand.CreateParameter();
@@ -577,7 +564,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 lock (_getTransactionLock)
                 {
-                    _keyValueDatabase.BeginTransaction();
+                    _database.BeginTransaction();
                     _popRecoverCommand.ExecuteNonQuery();
                 }
             }
