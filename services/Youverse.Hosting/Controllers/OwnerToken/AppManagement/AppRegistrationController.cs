@@ -98,6 +98,18 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
             return new NoResultResponse(true);
         }
 
+
+        /// <summary>
+        /// Gets a list of registered clients
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet("clients")]
+        public async Task<List<RegisteredAppClientResponse>> GetRegisteredClients()
+        {
+            var result = await _appRegistrationService.GetRegisteredClients();
+            return result;
+        }
+
         /// <summary>
         /// Registers a new client for using a specific app (a browser, app running on a phone, etc)
         /// </summary>

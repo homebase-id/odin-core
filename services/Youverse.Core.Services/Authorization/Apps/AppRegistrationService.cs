@@ -145,7 +145,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             var (accessRegistration, cat) = await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, _contextAccessor.GetCurrent().Caller.GetMasterKey(), ClientTokenType.Other);
 
-            var appClient = new AppClient(appId, accessRegistration);
+            var appClient = new AppClient(appId, friendlyName, accessRegistration);
             _appClientValueStorage.Upsert(accessRegistration.Id, appReg.AppId, _appClientDataType, appClient);
 
             //RSA encrypt using the public key and send to client
@@ -272,12 +272,14 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         public async Task<List<RegisteredAppClientResponse>> GetRegisteredClients()
         {
-            var list = _tenantSystemStorage.ThreeKeyValueStorage.GetByKey3<AccessRegistration>(_appClientDataType);
-            var resp = list.Select(accessReg => new RegisteredAppClientResponse()
+            var list = _appClientValueStorage.GetByKey3<AppClient>(_appClientDataType);
+            var resp = list.Select(appClient => new RegisteredAppClientResponse()
             {
-                IsRevoked = accessReg.IsRevoked,
-                Created = accessReg.Created,
-                AccessRegistrationClientType = accessReg.AccessRegistrationClientType
+                AppId = appClient.AppId,
+                FriendlyName = appClient.FriendlyName,
+                IsRevoked = appClient.AccessRegistration.IsRevoked,
+                Created = appClient.AccessRegistration.Created,
+                AccessRegistrationClientType = appClient.AccessRegistration.AccessRegistrationClientType
             }).ToList();
 
             return resp;
