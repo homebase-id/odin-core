@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
+using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
@@ -26,15 +27,11 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// </summary>
         public List<Guid> AuthorizedCircles { get; set; }
 
-        /// <summary>
-        /// Permissions granted to members of the <see cref="AuthorizedCircles"/>
-        /// </summary>
-        public PermissionSet CircleMemberPermissionSet { get; set; }
         
         /// <summary>
-        /// Drives granted to members of the <see cref="AuthorizedCircles"/>
+        /// Permissions being granted to allmembers of the <see cref="AuthorizedCircles"/>
         /// </summary>
-        public List<DriveGrantRequest> CircleMemberDrives { get; set; }
+        public PermissionSetGrantRequest CircleMemberGrantRequest { get; set; }
 
     }
     

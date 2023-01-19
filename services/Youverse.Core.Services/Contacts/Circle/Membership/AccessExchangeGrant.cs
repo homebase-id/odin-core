@@ -15,12 +15,21 @@ public class AccessExchangeGrant
     public AccessExchangeGrant()
     {
         this.CircleGrants = new Dictionary<string, CircleGrant>(StringComparer.Ordinal);
+        this.AppGrants = new Dictionary<string, CircleGrant>(StringComparer.Ordinal);
     }
 
     public SymmetricKeyEncryptedAes MasterKeyEncryptedKeyStoreKey { get; set; }
 
+    /// <summary>
+    /// The permissions granted from a given circle.  The key is the circle Id.
+    /// </summary>
     public Dictionary<string, CircleGrant> CircleGrants { get; set; }
 
+    /// <summary>
+    /// The permissions granted from being with-in a circle that has been authorized by an App.  The Key is the AppId
+    /// </summary>
+    public Dictionary<string, CircleGrant> AppGrants { get; set; }
+    
     public AccessRegistration AccessRegistration { get; set; }
 
     /// <summary>

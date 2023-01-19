@@ -467,7 +467,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                     //who is not connected but let's capture it
                     // invalidMembers.Add(dotYouId);
                 }
-
+                
                 this.SaveIcr(icr);
             }
 

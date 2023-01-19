@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
@@ -18,7 +19,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <summary>
         /// Permissions granted to members of the <see cref="AuthorizedCircles"/>
         /// </summary>
-        public ExchangeGrant CircleMemberGrant { get; set; }
+        public PermissionSetGrantRequest CircleMemberPermissionSetGrantRequest { get; set; }
         
         /// <summary>
         /// Permissions and drives granted to this app and only this app as used by the Identity Owner
@@ -35,7 +36,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 IsRevoked = this.Grant.IsRevoked,
                 Created = this.Grant.Created,
                 AuthorizedCircles = this.AuthorizedCircles,
-                CircleMemberGrant = this.CircleMemberGrant.Redacted(),
+                CircleMemberPermissionSetGrantRequest = this.CircleMemberPermissionSetGrantRequest,
                 Modified = this.Grant.Modified,
                 Grant = this.Grant.Redacted()
             };
