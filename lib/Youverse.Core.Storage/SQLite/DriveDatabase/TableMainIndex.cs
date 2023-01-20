@@ -63,7 +63,7 @@ namespace Youverse.Core.Storage.SQLite
         private SQLiteParameter _sparam1 = null;
         private Object _selectLock = new Object();
 
-        public TableMainIndex(DriveIndexDatabase db, object lck) : base(db, lck)
+        public TableMainIndex(DriveIndexDatabase db) : base(db)
         {
         }
 
@@ -321,11 +321,8 @@ namespace Youverse.Core.Storage.SQLite
                 _param12.Value = userZeroSeconds;
                 _param13.Value = requiredSecurityGroup;
 
-                lock (_getTransactionLock)
-                {
-                    _database.BeginTransaction();
-                    _insertCommand.ExecuteNonQuery();
-                }
+                _database.BeginTransaction();
+                _insertCommand.ExecuteNonQuery();
             }
         }
 
@@ -345,11 +342,9 @@ namespace Youverse.Core.Storage.SQLite
                 }
 
                 _dparam1.Value = fileId;
-                lock (_getTransactionLock)
-                {
-                    _database.BeginTransaction();
-                    _deleteCommand.ExecuteNonQuery();
-                }
+
+                _database.BeginTransaction();
+                _deleteCommand.ExecuteNonQuery();
             }
         }
 
@@ -382,11 +377,8 @@ namespace Youverse.Core.Storage.SQLite
                 _tparam1.Value = fileId;
                 _tparam2.Value = UnixTimeUtcUniqueGenerator.Generator().uniqueTime;
 
-                lock (_getTransactionLock)
-                {
-                    _database.BeginTransaction();
-                    _touchCommand.ExecuteNonQuery();
-                }
+                _database.BeginTransaction();
+                _touchCommand.ExecuteNonQuery();
             }
         }
 
@@ -487,11 +479,8 @@ namespace Youverse.Core.Storage.SQLite
                 _uparam8.Value = requiredSecurityGroup;
                 _uparam9.Value = globalTransitId;
 
-                lock (_getTransactionLock)
-                {
-                    _database.BeginTransaction();
-                    _updateCommand.ExecuteNonQuery();
-                }
+                _database.BeginTransaction();
+                _updateCommand.ExecuteNonQuery();
             }
         }
     }

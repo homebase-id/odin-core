@@ -32,15 +32,15 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
         public KeyValueDatabase(string connectionString, ulong commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
         {
-            tblKeyValue = new TableKeyValue(this, _getTransactionLock);
-            tblKeyTwoValue = new TableKeyTwoValue(this, _getTransactionLock);
-            TblKeyThreeValue = new TableKeyThreeValue(this, _getTransactionLock);
-            tblInbox = new TableInbox(this, _getTransactionLock);
-            tblOutbox = new TableOutbox(this, _getTransactionLock);
-            tblCircle = new TableCircle(this, _getTransactionLock);
-            tblCircleMember = new TableCircleMember(this, _getTransactionLock);
-            tblFollowsMe = new TableFollowsMe(this, _getTransactionLock);
-            tblImFollowing = new TableImFollowing(this, _getTransactionLock);
+            tblKeyValue = new TableKeyValue(this);
+            tblKeyTwoValue = new TableKeyTwoValue(this);
+            TblKeyThreeValue = new TableKeyThreeValue(this);
+            tblInbox = new TableInbox(this);
+            tblOutbox = new TableOutbox(this);
+            tblCircle = new TableCircle(this);
+            tblCircleMember = new TableCircleMember(this);
+            tblFollowsMe = new TableFollowsMe(this);
+            tblImFollowing = new TableImFollowing(this);
         }
 
 

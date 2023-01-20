@@ -45,7 +45,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         private static Object _selectLock = new Object();
 
 
-        public TableInbox(KeyValueDatabase db, object lck) : base(db, lck)
+        public TableInbox(KeyValueDatabase db) : base(db)
         {
         }
 
@@ -212,11 +212,8 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 _iparam4.Value = value;
                 _iparam5.Value = boxId;
 
-                lock (_getTransactionLock)
-                {
-                    _database.BeginTransaction();
-                    _insertCommand.ExecuteNonQuery();
-                }
+                _database.BeginTransaction();
+                _insertCommand.ExecuteNonQuery();
             }
         }
 
@@ -260,9 +257,10 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 _pparam2.Value = count;
                 _pparam3.Value = boxId;
 
-                lock (_getTransactionLock)
+                _database.BeginTransaction();
+
+                using (_database.CreateLogicCommitUnit())
                 {
-                    _database.BeginTransaction();
                     List<InboxItem> result = new List<InboxItem>();
                     using (SQLiteDataReader rdr = _popCommand.ExecuteReader(System.Data.CommandBehavior.Default))
                     {
@@ -330,11 +328,8 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 }
 
                 _pcancelparam1.Value = popstamp;
-                lock (_getTransactionLock)
-                {
-                    _database.BeginTransaction();
-                    _popCancelCommand.ExecuteNonQuery();
-                }
+                _database.BeginTransaction();
+                _popCancelCommand.ExecuteNonQuery();
             }
         }
 
@@ -360,11 +355,8 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 }
 
                 _pcommitparam1.Value = popstamp;
-                lock (_getTransactionLock)
-                {
-                    _database.BeginTransaction();
-                    _popCommitCommand.ExecuteNonQuery();
-                }
+                _database.BeginTransaction();
+                _popCommitCommand.ExecuteNonQuery();
             }
         }
 
@@ -392,11 +384,9 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 }
 
                 _pcrecoverparam1.Value = SequentialGuid.CreateGuid(new UnixTimeUtc(ut)).ToByteArray(); // UnixTimeMiliseconds
-                lock (_getTransactionLock)
-                {
-                    _database.BeginTransaction();
-                    _popRecoverCommand.ExecuteNonQuery();
-                }
+
+                _database.BeginTransaction();
+                _popRecoverCommand.ExecuteNonQuery();
             }
         }
     }

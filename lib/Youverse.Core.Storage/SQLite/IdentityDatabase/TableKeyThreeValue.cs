@@ -48,7 +48,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         private SQLiteParameter _sparamTwoThree2 = null;
         private Object _selectTwoThreeLock = new Object();
 
-        public TableKeyThreeValue(KeyValueDatabase db, object lck) : base(db, lck)
+        public TableKeyThreeValue(KeyValueDatabase db) : base(db)
         {
         }
 
@@ -334,11 +334,8 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 _iparam3.Value = key3;
                 _iparam4.Value = value;
 
-                lock (_getTransactionLock)
-                {
-                    _database.BeginTransaction();
-                    _insertCommand.ExecuteNonQuery();
-                }
+                _database.BeginTransaction();
+                _insertCommand.ExecuteNonQuery();
             }
         }
 
@@ -369,11 +366,8 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 _uparam1.Value = key1;
                 _uparam2.Value = value;
 
-                lock (_getTransactionLock)
-                {
-                    _database.BeginTransaction();
-                    _updateCommand.ExecuteNonQuery();
-                }
+                _database.BeginTransaction();
+                _updateCommand.ExecuteNonQuery();
             }
         }
 
@@ -416,11 +410,8 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 _zparam3.Value = key3;
                 _zparam4.Value = value;
 
-                lock (_getTransactionLock)
-                {
-                    _database.BeginTransaction();
-                    _upsertCommand.ExecuteNonQuery();
-                }
+                _database.BeginTransaction();
+                _upsertCommand.ExecuteNonQuery();
             }
         }
 
@@ -442,11 +433,8 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 _dparam1.Value = key1;
 
-                lock (_getTransactionLock)
-                {
-                    _database.BeginTransaction();
-                    int n = _deleteCommand.ExecuteNonQuery();
-                }
+                _database.BeginTransaction();
+                int n = _deleteCommand.ExecuteNonQuery();
             }
         }
     }
