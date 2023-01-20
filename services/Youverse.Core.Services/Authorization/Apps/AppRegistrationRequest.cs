@@ -47,13 +47,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <summary>
         /// Permissions granted to members of the <see cref="AuthorizedCircles"/>
         /// </summary>
-        public PermissionSet CircleMemberPermissionSet { get; set; }
-        
-        /// <summary>
-        /// Drives granted to members of the <see cref="AuthorizedCircles"/>
-        /// </summary>
-        public List<DriveGrantRequest> CircleMemberDrives { get; set; }
-
+        public PermissionSetGrantRequest CircleMemberPermissionGrant { get; set; }
     }
     
     public class UpdateAppPermissionsRequest

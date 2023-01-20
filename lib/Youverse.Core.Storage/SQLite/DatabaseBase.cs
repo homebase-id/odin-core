@@ -2,6 +2,7 @@
 using System.Data.SQLite;
 using Youverse.Core.Cryptography.Crypto;
 using System.Timers;
+using Serilog;
 
 
 /*
@@ -59,8 +60,13 @@ namespace Youverse.Core.Storage.SQLite
         {
             RsaKeyManagement.noDBClosed++;
 
+#if DEBUG
             if (!_wasDisposed)
-               throw new Exception("Was not disposed: "+ _connectionString);
+                throw new Exception("Was not disposed: " + _connectionString);
+#else
+            if (!_wasDisposed)
+               Log.Error("Was not disposed: " + _connectionString);
+#endif
         }
 
 
@@ -148,6 +154,7 @@ namespace Youverse.Core.Storage.SQLite
                         BeginTransaction();
                     }
                 }
+
                 _commitTimer.Start();
             }
         }
@@ -167,7 +174,7 @@ namespace Youverse.Core.Storage.SQLite
         }
 
         public int TimerCount()
-        { 
+        {
             return _timerCount;
         }
 
@@ -182,6 +189,5 @@ namespace Youverse.Core.Storage.SQLite
             _timerCommitCount++;
             Commit();
         }
-
     }
 }

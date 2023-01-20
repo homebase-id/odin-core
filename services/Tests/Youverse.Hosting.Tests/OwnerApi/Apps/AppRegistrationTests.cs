@@ -110,7 +110,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 CollectionAssert.AreEquivalent(savedApp.Grant.DriveGrants.Select(d => d.PermissionedDrive).ToList(), request.Drives.Select(p => p.PermissionedDrive));
                 Assert.IsTrue(savedApp.Grant.PermissionSet == request.PermissionSet);
 
-                CollectionAssert.AreEquivalent(savedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(), request.CircleMemberGrantRequest.Drives.Select(p => p.PermissionedDrive).ToList());
+                CollectionAssert.AreEquivalent(savedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
+                    request.CircleMemberGrantRequest.Drives.Select(p => p.PermissionedDrive).ToList());
                 Assert.IsTrue(savedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == request.CircleMemberGrantRequest.PermissionSet);
             }
         }
@@ -174,7 +175,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 CollectionAssert.AreEquivalent(savedApp.Grant.DriveGrants.Select(d => d.PermissionedDrive).ToList(), request.Drives.Select(p => p.PermissionedDrive));
                 Assert.IsTrue(savedApp.Grant.PermissionSet == request.PermissionSet);
 
-                CollectionAssert.AreEquivalent(savedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(), request.CircleMemberGrantRequest.Drives.Select(p => p.PermissionedDrive).ToList());
+                CollectionAssert.AreEquivalent(savedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
+                    request.CircleMemberGrantRequest.Drives.Select(p => p.PermissionedDrive).ToList());
                 Assert.IsTrue(savedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == request.CircleMemberGrantRequest.PermissionSet);
             }
 
@@ -327,7 +329,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 CollectionAssert.AreEquivalent(savedApp.Grant.DriveGrants.Select(d => d.PermissionedDrive).ToList(), request.Drives.Select(p => p.PermissionedDrive));
                 Assert.IsTrue(savedApp.Grant.PermissionSet == request.PermissionSet);
 
-                CollectionAssert.AreEquivalent(savedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(), request.CircleMemberGrantRequest.Drives.Select(p => p.PermissionedDrive).ToList());
+                CollectionAssert.AreEquivalent(savedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
+                    request.CircleMemberGrantRequest.Drives.Select(p => p.PermissionedDrive).ToList());
                 Assert.IsTrue(savedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == request.CircleMemberGrantRequest.PermissionSet);
 
                 var updateRequest = new UpdateAppPermissionsRequest()
@@ -428,15 +431,19 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 CollectionAssert.AreEquivalent(savedApp.Grant.DriveGrants.Select(d => d.PermissionedDrive).ToList(), request.Drives.Select(p => p.PermissionedDrive));
                 Assert.IsTrue(savedApp.Grant.PermissionSet == request.PermissionSet);
 
-                CollectionAssert.AreEquivalent(savedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(), request.CircleMemberGrantRequest.Drives.Select(p => p.PermissionedDrive).ToList());
+                CollectionAssert.AreEquivalent(savedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
+                    request.CircleMemberGrantRequest.Drives.Select(p => p.PermissionedDrive).ToList());
                 Assert.IsTrue(savedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == request.CircleMemberGrantRequest.PermissionSet);
 
                 var updateRequest = new UpdateAuthorizedCirclesRequest()
                 {
                     AppId = applicationId,
                     AuthorizedCircles = new List<Guid>() { circle2Definition.Id },
-                    CircleMemberPermissionSet = new PermissionSet(new List<int>() { PermissionKeys.ReadConnectionRequests }),
-                    CircleMemberDrives = new List<DriveGrantRequest>() { dgr3 }
+                    CircleMemberPermissionGrant = new PermissionSetGrantRequest()
+                    {
+                        PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.ReadConnectionRequests }),
+                        Drives = new List<DriveGrantRequest>() { dgr3 }
+                    }
                 };
 
                 await svc.UpdateAuthorizedCircles(updateRequest);
@@ -445,10 +452,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 // be sure the permissions are updated 
                 CollectionAssert.AreEquivalent(updatedApp.AuthorizedCircles, updateRequest.AuthorizedCircles);
                 CollectionAssert.AreEquivalent(updatedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
-                    updateRequest.CircleMemberDrives.Select(p => p.PermissionedDrive).ToList());
-                Assert.IsTrue(updatedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == updateRequest.CircleMemberPermissionSet);
+                    updateRequest.CircleMemberPermissionGrant.Drives.Select(p => p.PermissionedDrive).ToList());
+                Assert.IsTrue(updatedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == updateRequest.CircleMemberPermissionGrant.PermissionSet);
                 // be sure the other fields did not change
- 
+
                 CollectionAssert.AreEquivalent(updatedApp.Grant.DriveGrants.Select(d => d.PermissionedDrive).ToList(), request.Drives.Select(p => p.PermissionedDrive));
                 Assert.IsTrue(updatedApp.Grant.PermissionSet == request.PermissionSet);
             }
