@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using MediatR;
+using MediatR.Pipeline;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
@@ -109,8 +110,12 @@ namespace Youverse.Core.Services.Authorization.Apps
             }
 
             appReg.AuthorizedCircles = request.AuthorizedCircles;
+            appReg.CircleMemberPermissionGrant = request.CircleMemberPermissionGrant;
+            
             _appRegistrationValueStorage.Upsert(request.AppId, GuidId.Empty, _appRegistrationDataType, appReg);
 
+            //TODO: consider optimize by checking if anything actuallychanged before calling notifyappchanged
+            
             await NotifyAppChanged(appReg);
             ResetAppPermissionContextCache();
         }
