@@ -33,7 +33,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         private SQLiteParameter _sparam1 = null;
         private static Object _selectLock = new Object();
 
-        public TableCircleMember(KeyValueDatabase db, object lck) : base(db, lck)
+        public TableCircleMember(KeyValueDatabase db) : base(db)
         {
         }
 
@@ -159,9 +159,10 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 _iparam1.Value = circleId;
 
-                lock (_getTransactionLock)
+                _database.BeginTransaction();
+
+                using (_database.CreateLogicCommitUnit())
                 {
-                    _database.BeginTransaction();
                     // Possibly do a Commit() here. But I need to think about Commits, Semaphores and multiple threads.
                     for (int i = 0; i < members.Count; i++)
                     {
@@ -205,9 +206,10 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 _remparam1.Value = circleId;
 
-                lock (_getTransactionLock)
+                _database.BeginTransaction();
+
+                using (_database.CreateLogicCommitUnit())
                 {
-                    _database.BeginTransaction();
                     for (int i = 0; i < members.Count; i++)
                     {
                         _remparam2.Value = members[i];
@@ -239,9 +241,10 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                     _deleteCommand.Prepare();
                 }
 
-                lock (_getTransactionLock)
+                _database.BeginTransaction();
+
+                using (_database.CreateLogicCommitUnit())
                 {
-                    _database.BeginTransaction();
                     for (int i = 0; i < members.Count; i++)
                     {
                         _delparam1.Value = members[i];

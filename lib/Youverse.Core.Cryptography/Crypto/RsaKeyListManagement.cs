@@ -18,7 +18,6 @@ namespace Youverse.Core.Cryptography.Crypto
     {
         public static readonly byte[] zero16 = new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
         public static SensitiveByteArray zeroSensitiveKey = new SensitiveByteArray(zero16);
-        private static object myLock;
 
         const int DefaultKeyHours = 24;
 

@@ -22,7 +22,48 @@ namespace Youverse.Core.Storage.SQLite
 {
     public class DatabaseBase : IDisposable
     {
-        public readonly Object _getTransactionLock = new Object();
+        private readonly Object _getTransactionLock = new Object();
+
+        public class IntCounter // Since I can't store a ref to an int, I make this hack.
+        {
+            public int _counter = 0;
+
+            public bool ReadyToCommit()
+            {
+                return (_counter == 0);
+            }
+        }
+
+        public readonly IntCounter _counter = new IntCounter();
+
+        public class LogicCommitUnit : IDisposable
+        {
+            private bool _wasDisposed = false;
+            private IntCounter _counterObject = null;
+
+            public LogicCommitUnit(IntCounter counter)
+            {
+                _counterObject = counter;
+                _counterObject._counter++;
+            }
+
+            ~LogicCommitUnit()
+            {
+                if (!_wasDisposed)
+                    throw new Exception("aiai boom, a LogicCommitUnit was not disposed, catastrophe, data wont get written");
+            }
+
+            public void Dispose()
+            {
+                _counterObject._counter--;
+                _wasDisposed = true;
+            }
+
+            public bool ReadyToCommit()
+            {
+                return (_counterObject._counter == 0);
+            }
+        }
 
         private ulong _commitFrequency; // ms
         private string _connectionString;
@@ -36,8 +77,10 @@ namespace Youverse.Core.Storage.SQLite
         private bool _wasDisposed = false;
         private Timer _commitTimer = new Timer();
 
-        private int _timerCount = 0;
-        private int _timerCommitCount = 0;
+        private int _timerTriggerCount = 0;
+        private int _timerCommitTriggerCount = 0;
+        private int _commitCallCount = 0;
+        private int _commitFlushCount = 0;
 
 
         public DatabaseBase(string connectionString, ulong commitFrequencyMs = 5000)
@@ -72,15 +115,14 @@ namespace Youverse.Core.Storage.SQLite
 
         public virtual void Dispose()
         {
-            Commit();
-
             _commitTimer.Dispose();
+
+            _transaction?.Commit(); // Flush any pending data
+            _transaction?.Dispose();
+            _transaction = null;
 
             _connection?.Dispose();
             _connection = null;
-
-            _transaction?.Dispose();
-            _transaction = null;
 
             _getConnectionLock = null;
 
@@ -131,6 +173,26 @@ namespace Youverse.Core.Storage.SQLite
             throw new Exception("Not implemented");
         }
 
+        /// <summary>
+        /// This is a wrapper to logically group (same) database transactions what you want to 
+        /// be sure are either committed together, or not at all. Preferably used like this
+        /// using (db.CreateLogicCommitUnit())
+        /// {
+        ///     write one row
+        ///     write another row
+        /// }
+        /// If you want to ensure that the data is subsequently flushed to the DB (will slow it down)
+        /// and you don't want to wait for the timer, then use the:
+        /// db.Commit()
+        /// Calling db.Commit() will be futile while one or more logic commit units are in progress.
+        /// If you forget to Dispose a LogicCommitUnit you're totally screwed. Use with thought.
+        /// </summary>
+        /// <returns>LogicCommitUnit disposable object</returns>
+        public LogicCommitUnit CreateLogicCommitUnit()
+        {
+            return new LogicCommitUnit(_counter);
+        }
+
 
         /// <summary>
         /// You can only have one transaction per connection. Create a new database object
@@ -159,34 +221,58 @@ namespace Youverse.Core.Storage.SQLite
             }
         }
 
+
         public void Commit()
         {
             lock (_getTransactionLock)
             {
+                _commitCallCount++;
+
+                if (!_counter.ReadyToCommit())
+                    return;
+
                 _commitTimer.Stop();
                 if (_transaction != null)
                 {
-                    _transaction.Commit();
+                    _commitFlushCount++;
+                    _transaction.Commit(); // Flush the data
                     _transaction.Dispose(); // I believe these objects need to be disposed
                     _transaction = null;
                 }
             }
         }
 
+
         public int TimerCount()
         {
-            return _timerCount;
+            return _timerTriggerCount;
         }
 
         public int TimerCommitCount()
         {
-            return _timerCommitCount;
+            return _timerCommitTriggerCount;
+        }
+
+        public int CommitFlushCount()
+        {
+            return _commitFlushCount;
+        }
+
+        public int CommitCallCount()
+        {
+            return _commitCallCount;
         }
 
         private void OnCommitTimerEvent(Object source, ElapsedEventArgs e)
         {
-            _timerCount++;
-            _timerCommitCount++;
+            _timerTriggerCount++;
+            if (!_counter.ReadyToCommit())
+            {
+                _commitTimer.Start(); // It doesn't auto-restart, kick it back to action
+                return;
+            }
+
+            _timerCommitTriggerCount++;
             Commit();
         }
     }

@@ -24,7 +24,7 @@ namespace Youverse.Core.Storage.SQLite
         private SQLiteParameter _sparam1 = null;
         private Object _selectLock = new Object();
 
-        public TableTagIndex(DriveIndexDatabase db, object lck) : base(db, lck)
+        public TableTagIndex(DriveIndexDatabase db) : base(db)
         {
         }
 
@@ -123,9 +123,10 @@ namespace Youverse.Core.Storage.SQLite
                     _insertCommand.Parameters.Add(_iparam2);
                 }
 
-                lock (_getTransactionLock)
+                _database.BeginTransaction();
+
+                using (_database.CreateLogicCommitUnit())
                 {
-                    _database.BeginTransaction();
                     _iparam1.Value = FileId;
                     for (int i = 0; i < TagIdList.Count; i++)
                     {
@@ -157,9 +158,10 @@ namespace Youverse.Core.Storage.SQLite
                     _deleteCommand.Parameters.Add(_dparam2);
                 }
 
-                lock (_getTransactionLock)
+                _database.BeginTransaction();
+
+                using (_database.CreateLogicCommitUnit())
                 {
-                    _database.BeginTransaction();
                     for (int i = 0; i < TagIdList.Count; i++)
                     {
                         _dparam1.Value = FileId;
@@ -185,12 +187,9 @@ namespace Youverse.Core.Storage.SQLite
                     _deleteAllCommand.Parameters.Add(_dallparam1);
                 }
 
-                lock (_getTransactionLock)
-                {
-                    _database.BeginTransaction();
-                    _dallparam1.Value = FileId;
-                    _deleteAllCommand.ExecuteNonQuery();
-                }
+                _database.BeginTransaction();
+                _dallparam1.Value = FileId;
+                _deleteAllCommand.ExecuteNonQuery();
             }
         }
     }

@@ -59,7 +59,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         private static Object _selectLock = new Object();
 
 
-        public TableOutbox(KeyValueDatabase db, object lck) : base(db, lck)
+        public TableOutbox(KeyValueDatabase db) : base(db)
         {
         }
 
@@ -227,11 +227,8 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 _iparam4.Value = value;
                 _iparam5.Value = boxId;
 
-                lock (_getTransactionLock)
-                {
-                    _database.BeginTransaction();
-                    _insertCommand.ExecuteNonQuery();
-                }
+                _database.BeginTransaction();
+                _insertCommand.ExecuteNonQuery();
             }
         }
 
@@ -277,9 +274,10 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 List<OutboxItem> result = new List<OutboxItem>();
 
-                lock (_getTransactionLock)
+                _database.BeginTransaction();
+
+                using (_database.CreateLogicCommitUnit())
                 {
-                    _database.BeginTransaction();
                     using (SQLiteDataReader rdr = _popCommand.ExecuteReader(System.Data.CommandBehavior.Default))
                     {
                         OutboxItem item;
@@ -345,9 +343,11 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 _paparam1.Value = popStamp;
 
                 List<OutboxItem> result = new List<OutboxItem>();
-                lock (_getTransactionLock)
+
+                _database.BeginTransaction();
+
+                using (_database.CreateLogicCommitUnit())
                 {
-                    _database.BeginTransaction();
                     using (SQLiteDataReader rdr = _popAllCommand.ExecuteReader(System.Data.CommandBehavior.Default))
                     {
                         OutboxItem item;
@@ -421,11 +421,9 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 }
 
                 _pcancelparam1.Value = popstamp;
-                lock (_getTransactionLock)
-                {
-                    _database.BeginTransaction();
-                    _popCancelCommand.ExecuteNonQuery();
-                }
+
+                _database.BeginTransaction();
+                _popCancelCommand.ExecuteNonQuery();
             }
         }
 
@@ -452,9 +450,10 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 _pcancellistparam1.Value = popstamp;
 
-                lock (_getTransactionLock)
+                _database.BeginTransaction();
+
+                using (_database.CreateLogicCommitUnit())
                 {
-                    _database.BeginTransaction();
                     // I'd rather not do a TEXT statement, this seems safer but slower.
                     for (int i = 0; i < listFileId.Count; i++)
                     {
@@ -488,11 +487,8 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 }
 
                 _pcommitparam1.Value = popstamp;
-                lock (_getTransactionLock)
-                {
-                    _database.BeginTransaction();
-                    _popCommitCommand.ExecuteNonQuery();
-                }
+                _database.BeginTransaction();
+                _popCommitCommand.ExecuteNonQuery();
             }
         }
 
@@ -524,9 +520,10 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 _pcommitlistparam1.Value = popstamp;
 
-                lock (_getTransactionLock)
+                _database.BeginTransaction();
+
+                using (_database.CreateLogicCommitUnit())
                 {
-                    _database.BeginTransaction();
                     // I'd rather not do a TEXT statement, this seems safer but slower.
                     for (int i = 0; i < listFileId.Count; i++)
                     {
@@ -562,11 +559,8 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 _pcrecoverparam1.Value = SequentialGuid.CreateGuid(UnixTimeSeconds).ToByteArray(); // UnixTimeMiliseconds
 
-                lock (_getTransactionLock)
-                {
-                    _database.BeginTransaction();
-                    _popRecoverCommand.ExecuteNonQuery();
-                }
+                _database.BeginTransaction();
+                _popRecoverCommand.ExecuteNonQuery();
             }
         }
     }
