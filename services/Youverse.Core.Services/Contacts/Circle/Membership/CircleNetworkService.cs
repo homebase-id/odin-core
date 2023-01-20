@@ -382,7 +382,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             // ensure the new member gets the permissions given by the app
             //
             var allApps = await _appRegistrationService.GetRegisteredApps();
-            var appsThatGrantThisCircle = allApps.Where(reg => reg.AuthorizedCircles.Any(c => c == circleId));
+            var appsThatGrantThisCircle = allApps.Where(reg => reg?.AuthorizedCircles?.Any(c => c == circleId) ?? false);
 
             foreach (var app in appsThatGrantThisCircle)
             {
@@ -398,13 +398,13 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 appCircleGrantsDictionary[circleId.Value.ToString()] = appCg;
                 icr.AccessGrant.AppGrants[appKey] = appCircleGrantsDictionary;
             }
-            
+
             keyStoreKey.Wipe();
 
             _circleMemberStorage.AddMembers(circleId, new List<byte[]>() { dotYouId.ToByteArray() });
             this.SaveIcr(icr);
         }
-        
+
         public async Task RevokeCircleAccess(GuidId circleId, DotYouIdentity dotYouId)
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
@@ -430,7 +430,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 appCircleGrants.Remove(circleId.Value.ToString());
             }
 
-            
+
             _circleMemberStorage.RemoveMembers(circleId, new List<byte[]>() { dotYouId.ToByteArray() });
             this.SaveIcr(icr);
         }
@@ -615,7 +615,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         }
 
         //
-        
+
         private async Task<AppCircleGrant> CreateAppCircleGrant(RedactedAppRegistration appReg, GuidId circleId, SensitiveByteArray keyStoreKey, SensitiveByteArray masterKey)
         {
             //map the exchange grant to a structure that matches ICR
