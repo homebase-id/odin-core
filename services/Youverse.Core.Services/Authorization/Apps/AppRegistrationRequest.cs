@@ -30,7 +30,6 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// List of circles defining whose members can work with your identity via this app
         /// </summary>
         public List<Guid> AuthorizedCircles { get; set; }
-
         
         /// <summary>
         /// Permissions being granted to allmembers of the <see cref="AuthorizedCircles"/>

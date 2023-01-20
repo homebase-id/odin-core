@@ -21,6 +21,7 @@ using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Membership;
@@ -232,14 +233,15 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             return client;
         }
 
-        public async Task<RedactedAppRegistration> AddAppWithAllDrivePermissions(
-            DotYouIdentity identity, 
+        public async Task<RedactedAppRegistration> AddAppWithAllDrivePermissions(DotYouIdentity identity,
             Guid appId,
-            TargetDrive targetDrive, 
+            TargetDrive targetDrive,
             bool createDrive = false,
             bool canReadConnections = false,
             bool driveAllowAnonymousReads = false,
-            bool ownerOnlyDrive = false)
+            bool ownerOnlyDrive = false, 
+            List<Guid> authorizedCircles = null,
+            PermissionSetGrantRequest circleMemberGrantRequest = null)
         {
             PermissionSet permissionSet;
 
@@ -293,8 +295,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                     AppId = appId,
                     PermissionSet = permissionSet,
                     Drives = drives,
-                    AuthorizedCircles = default,
-                    CircleMemberGrantRequest = default
+                    AuthorizedCircles = authorizedCircles,
+                    CircleMemberGrantRequest = circleMemberGrantRequest
                 };
 
                 var response = await svc.RegisterApp(request);
@@ -370,19 +372,16 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
         /// Creates an app, device, and logs in returning an contextual information needed to run unit tests.
         /// </summary>
         /// <returns></returns>
-        public async Task<TestAppContext> SetupTestSampleApp(TestIdentity identity, bool ownerOnlyDrive = false)
-        {
-            Guid appId = Guid.NewGuid();
-            TargetDrive targetDrive = new TargetDrive()
-            {
-                Alias = Guid.NewGuid(),
-                Type = Guid.NewGuid()
-            };
-            return await this.SetupTestSampleApp(appId, identity, false, targetDrive, ownerOnlyDrive: ownerOnlyDrive);
-        }
 
-        public async Task<TestAppContext> SetupTestSampleApp(Guid appId, TestIdentity identity, bool canReadConnections = false, TargetDrive targetDrive = null,
-            bool driveAllowAnonymousReads = false, bool ownerOnlyDrive = false)
+        public async Task<TestAppContext> SetupTestSampleApp(
+            Guid appId, 
+            TestIdentity identity,
+            bool canReadConnections = false, 
+            TargetDrive targetDrive = null,
+            bool driveAllowAnonymousReads = false, 
+            bool ownerOnlyDrive = false,
+            List<Guid> authorizedCircles = null,
+            PermissionSetGrantRequest circleMemberGrantRequest = null)
         {
             if (null == targetDrive)
             {
@@ -393,7 +392,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 };
             }
 
-            this.AddAppWithAllDrivePermissions(identity.DotYouId, appId, targetDrive, true, canReadConnections, driveAllowAnonymousReads, ownerOnlyDrive).GetAwaiter().GetResult();
+            this.AddAppWithAllDrivePermissions(identity.DotYouId, appId, targetDrive, true, canReadConnections, driveAllowAnonymousReads, ownerOnlyDrive, authorizedCircles,circleMemberGrantRequest).GetAwaiter().GetResult();
 
             var (authResult, sharedSecret) = this.AddAppClient(identity.DotYouId, appId).GetAwaiter().GetResult();
             return new TestAppContext()
@@ -478,6 +477,21 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 Assert.IsTrue(getIsIdentityConfiguredResponse.IsSuccessStatusCode);
                 Assert.IsTrue(getIsIdentityConfiguredResponse.Content);
             }
+        }
+        
+        public async Task<TestAppContext> SetupTestSampleApp(TestIdentity identity, bool ownerOnlyDrive = false)
+        {
+            Guid appId = Guid.NewGuid();
+            TargetDrive targetDrive = new TargetDrive()
+            {
+                Alias = Guid.NewGuid(),
+                Type = Guid.NewGuid()
+            };
+            return await this.SetupTestSampleApp(appId, identity, false, targetDrive, ownerOnlyDrive: ownerOnlyDrive);
+        }
+        public async Task SetupTestSampleApp(TestIdentity identity, InitialSetupRequest setupConfig)
+        {
+         
         }
 
         public async Task DisconnectIdentities(DotYouIdentity dotYouId1, DotYouIdentity dotYouId2)

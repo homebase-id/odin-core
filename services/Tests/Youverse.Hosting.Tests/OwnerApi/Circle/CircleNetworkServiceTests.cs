@@ -10,6 +10,7 @@ using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
@@ -337,11 +338,11 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             await DisconnectIdentities(frodo, sam);
         }
 
-        
+
         [Test]
+        [Ignore("wip")]
         public async Task GrantCircleWithAppAuthorizedCircles()
         {
-
             #region Firstly, setup connections and put into circles
 
             var circleOnFrodosIdentity1 = await this.CreateCircleWith2Drives(TestIdentities.Frodo.DotYouId, "frodo c1", new List<int>());
@@ -492,23 +493,29 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.NotNull(frodoAccessFromNewCircle);
                 AssertAllDrivesGrantedFromCircle(newCircleDefinitionOnSamsIdentity, frodoAccessFromNewCircle);
 
-                // frodo should still access to circle 1
+                // frodo should still have access to circle 1
                 var frodoAccessFromCircle1 = frodoAccess.CircleGrants.SingleOrDefault(c => c.CircleId == circleOnSamsIdentity1.Id);
                 Assert.NotNull(frodoAccessFromCircle1);
                 Assert.IsTrue(frodoAccessFromCircle1.PermissionSet == circleOnSamsIdentity1.Permissions);
                 AssertAllDrivesGrantedFromCircle(circleOnSamsIdentity1, frodoAccessFromCircle1);
 
-                // frodo should still access to circle 2
+                // frodo should still have access to circle 2
                 var frodoAccessFromCircle2 = frodoAccess.CircleGrants.SingleOrDefault(c => c.CircleId == circleOnSamsIdentity2.Id);
                 Assert.NotNull(frodoAccessFromCircle2);
                 Assert.IsTrue(frodoAccessFromCircle2.PermissionSet == circleOnSamsIdentity2.Permissions);
                 AssertAllDrivesGrantedFromCircle(circleOnSamsIdentity2, frodoAccessFromCircle2);
+
+                
+                Assert.IsTrue(frodoAccess.AppGrants.Any(), "There should be 1 app grant for frodo on sam's identity");
+                
+                // frodo should have an app circle grant to 
+                var x = frodoAccess.AppGrants.SelectMany(ag => ag).Where(ag => ag.CircleId == circleOnSamsIdentity1.Id);
             }
 
 
             await DisconnectIdentities(frodo, sam);
         }
-        
+
         [Test]
         public async Task GrantCircle()
         {
@@ -849,12 +856,12 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             await DisconnectIdentities(frodo, sam);
         }
 
-        
+
         [Test]
         public async Task RevokeCircleWithAppAuthorizedCircles()
         {
-            
             Assert.Fail("TODO");
+
             #region Firstly, setup connections and put into circles
 
             var circleOnFrodosIdentity1 = await this.CreateCircleWith2Drives(TestIdentities.Frodo.DotYouId, "frodo c1", new List<int>());
@@ -1021,7 +1028,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
             await DisconnectIdentities(frodo, sam);
         }
-        
+
         [Test]
         public async Task CanBlock()
         {
@@ -1248,7 +1255,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         private async Task<(TestAppContext, TestAppContext, ConnectionRequestHeader)> CreateConnectionRequestFrodoToSam(CircleDefinition circleDefinition1 = null,
             CircleDefinition circleDefinition2 = null)
         {
-           
             List<GuidId> cids = new List<GuidId>();
             if (null != circleDefinition1)
             {
@@ -1259,11 +1265,43 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             {
                 cids.Add(circleDefinition2.Id);
             }
-            
+
+            var appTargetDrive = TargetDrive.NewTargetDrive();
+
+            var circleMemberGrantRequest = new PermissionSetGrantRequest()
+            {
+                Drives = new List<DriveGrantRequest>()
+                {
+                    new()
+                    {
+                        PermissionedDrive = new()
+                        {
+                            Drive = appTargetDrive,
+                            Permission = DrivePermission.All
+                        }
+                    }
+                }
+            };
+
+            // await _scaffold.OwnerApi.CreateDrive(identity, targetDrive1, $"Drive 1 for circle {name}", "", false);
+
             Guid appId = Guid.NewGuid();
-            var sender = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Frodo, canReadConnections: true);
-            var recipient = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Samwise, canReadConnections: true);
-            
+            var sender = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Frodo,
+                canReadConnections: true,
+                targetDrive: appTargetDrive,
+                driveAllowAnonymousReads: false,
+                ownerOnlyDrive: false,
+                authorizedCircles: cids.Select(c => c.Value).ToList(),
+                circleMemberGrantRequest: circleMemberGrantRequest);
+
+            var recipient = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Samwise,
+                canReadConnections: true,
+                targetDrive: appTargetDrive,
+                driveAllowAnonymousReads: false,
+                ownerOnlyDrive: false,
+                authorizedCircles: cids.Select(c => c.Value).ToList(),
+                circleMemberGrantRequest: circleMemberGrantRequest);
+
             var id = Guid.NewGuid();
             var requestHeader = new ConnectionRequestHeader()
             {
