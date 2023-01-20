@@ -15,7 +15,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void InsertTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\kvtbltest1.db");
+            using var db = new IdentityDatabase("URI=file:.\\kvtbltest1.db");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid().ToByteArray();
@@ -39,7 +39,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void InsertDuplicateTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\kvtbltest2.db");
+            using var db = new IdentityDatabase("URI=file:.\\kvtbltest2.db");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid().ToByteArray();
@@ -74,7 +74,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void UpdateTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\kvtbltest3.db");
+            using var db = new IdentityDatabase("URI=file:.\\kvtbltest3.db");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid().ToByteArray();
@@ -98,7 +98,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void Update2Test()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\kvtbltest4.db");
+            using var db = new IdentityDatabase("URI=file:.\\kvtbltest4.db");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid().ToByteArray();
@@ -131,7 +131,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void DeleteTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\kvtbltest5.db");
+            using var db = new IdentityDatabase("URI=file:.\\kvtbltest5.db");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid().ToByteArray();
@@ -158,7 +158,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void UpsertTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\kvtbltest6.db");
+            using var db = new IdentityDatabase("URI=file:.\\kvtbltest6.db");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid().ToByteArray();
@@ -195,19 +195,19 @@ namespace IndexerTests.KeyValue
         {
             List<byte[]> Rows = new List<byte[]>();
 
-            void writeDB(KeyValueDatabase db)
+            void writeDB(IdentityDatabase db)
             {
                 for (int i = 0; i < 100; i++)
                     db.tblKeyValue.UpdateRow(Rows[i], Guid.NewGuid().ToByteArray());
             }
 
-            void readDB(KeyValueDatabase db)
+            void readDB(IdentityDatabase db)
             {
                 for (int i = 0; i < 100; i++)
                     db.tblKeyValue.Get(Rows[i]);
             }
 
-            using var db = new KeyValueDatabase("URI=file:.\\kvtbltest10.db");
+            using var db = new IdentityDatabase("URI=file:.\\kvtbltest10.db");
             db.CreateDatabase();
 
             for (int i = 0; i < 100; i++)
@@ -229,7 +229,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void CreateTableTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\kvtbltest15.db");
+            using var db = new IdentityDatabase("URI=file:.\\kvtbltest15.db");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid().ToByteArray();
@@ -277,7 +277,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void CommitTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\kvtbltest22.db");
+            using var db = new IdentityDatabase("URI=file:.\\kvtbltest22.db");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid().ToByteArray();

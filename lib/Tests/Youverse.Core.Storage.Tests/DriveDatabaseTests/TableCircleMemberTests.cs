@@ -13,7 +13,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void InsertInvalidIdTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\circlemember-00.db");
+            using var db = new IdentityDatabase("URI=file:.\\circlemember-00.db");
             db.CreateDatabase();
 
             var c1 = Guid.NewGuid().ToByteArray();
@@ -47,7 +47,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void InsertInvalidMemberTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\circlemember-000.db");
+            using var db = new IdentityDatabase("URI=file:.\\circlemember-000.db");
             db.CreateDatabase();
 
             var c1 = Guid.NewGuid().ToByteArray();
@@ -85,7 +85,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void InsertTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\circlemember-01.db");
+            using var db = new IdentityDatabase("URI=file:.\\circlemember-01.db");
             db.CreateDatabase();
 
             var c1 = Guid.NewGuid().ToByteArray();
@@ -105,7 +105,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void InsertDuplicateTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\circlemember-02.db");
+            using var db = new IdentityDatabase("URI=file:.\\circlemember-02.db");
             db.CreateDatabase();
 
             var c1 = Guid.NewGuid().ToByteArray();
@@ -130,7 +130,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void InsertEmptyTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\circlemember-03.db");
+            using var db = new IdentityDatabase("URI=file:.\\circlemember-03.db");
             db.CreateDatabase();
 
             var c1 = Guid.NewGuid().ToByteArray();
@@ -164,7 +164,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void InsertMultipleMembersTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\circlemember-04.db");
+            using var db = new IdentityDatabase("URI=file:.\\circlemember-04.db");
             db.CreateDatabase();
 
             var c1 = Guid.NewGuid().ToByteArray();
@@ -183,7 +183,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void InsertMultipleCirclesTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\circlemember-05.db");
+            using var db = new IdentityDatabase("URI=file:.\\circlemember-05.db");
             db.CreateDatabase();
 
             var c1 = Guid.NewGuid().ToByteArray();
@@ -206,7 +206,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void RemoveMembersEmptyTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\circlemember-10.db");
+            using var db = new IdentityDatabase("URI=file:.\\circlemember-10.db");
             db.CreateDatabase();
 
             var c1 = Guid.NewGuid().ToByteArray();
@@ -244,7 +244,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void RemoveMembersTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\circlemember-11.db");
+            using var db = new IdentityDatabase("URI=file:.\\circlemember-11.db");
             db.CreateDatabase();
 
             var c1 = Guid.NewGuid().ToByteArray();
@@ -272,7 +272,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void DeleteMembersEmptyTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\circlemember-20.db");
+            using var db = new IdentityDatabase("URI=file:.\\circlemember-20.db");
             db.CreateDatabase();
 
             bool ok = false;
@@ -304,7 +304,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void DeleteMembersTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\circlemember-21.db");
+            using var db = new IdentityDatabase("URI=file:.\\circlemember-21.db");
             db.CreateDatabase();
 
             var c1 = Guid.NewGuid().ToByteArray();

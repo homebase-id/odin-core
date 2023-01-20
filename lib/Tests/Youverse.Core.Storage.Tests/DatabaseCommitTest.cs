@@ -12,7 +12,7 @@ namespace IndexerTests.KeyValue
         public void CommitTimerDoesntFireTest()
         {
             // Create database with 250ms commit timer trigger
-            using var db = new KeyValueDatabase("URI=file:.\\commit-timer-01.db", 250);
+            using var db = new IdentityDatabase("URI=file:.\\commit-timer-01.db", 250);
             db.CreateDatabase();
 
             // Pass time
@@ -26,7 +26,7 @@ namespace IndexerTests.KeyValue
         public void CommitTimerFireOnceTest()
         {
             // Create database with 250ms commit timer trigger
-            using var db = new KeyValueDatabase("URI=file:.\\commit-timer-02.db", 250);
+            using var db = new IdentityDatabase("URI=file:.\\commit-timer-02.db", 250);
             db.CreateDatabase();
 
             // Add some data
@@ -47,7 +47,7 @@ namespace IndexerTests.KeyValue
         public void CommitTimerFireTwiceTest()
         {
             // Create database with 250ms commit timer trigger
-            using var db = new KeyValueDatabase("URI=file:.\\commit-timer-01.db", 250);
+            using var db = new IdentityDatabase("URI=file:.\\commit-timer-01.db", 250);
             db.CreateDatabase();
 
             // Add some data
@@ -74,16 +74,16 @@ namespace IndexerTests.KeyValue
         public void LogicCommitUnit1Test()
         {
             // Create database with 250ms commit timer trigger
-            using var db = new KeyValueDatabase("URI=file:.\\commit-logic-01.db", 250);
+            using var db = new IdentityDatabase("URI=file:.\\commit-logic-01.db", 250);
             db.CreateDatabase();
 
             Debug.Assert(db._counter.ReadyToCommit() == true);
 
-            using (db.CreateLogicCommitUnit())
+            using (db.CreateCommitUnitOfWork())
             {
                 Debug.Assert(db._counter.ReadyToCommit() == false);
 
-                using (db.CreateLogicCommitUnit())
+                using (db.CreateCommitUnitOfWork())
                 {
                     Debug.Assert(db._counter.ReadyToCommit() == false);
                 }
@@ -98,10 +98,10 @@ namespace IndexerTests.KeyValue
         public void Test3()
         {
             // Create database with 250ms commit timer trigger
-            using var db = new KeyValueDatabase("URI=file:.\\commit-logic-02.db", 250);
+            using var db = new IdentityDatabase("URI=file:.\\commit-logic-02.db", 250);
             db.CreateDatabase();
 
-            using (db.CreateLogicCommitUnit())
+            using (db.CreateCommitUnitOfWork())
             {
                 // Add some data
                 db.tblFollowsMe.InsertFollower("odin.valhalla.com", Guid.NewGuid());
@@ -133,10 +133,10 @@ namespace IndexerTests.KeyValue
         public void Test4()
         {
             // Create database with 250ms commit timer trigger
-            using var db = new KeyValueDatabase("URI=file:.\\commit-logic-03.db", 5000);
+            using var db = new IdentityDatabase("URI=file:.\\commit-logic-03.db", 5000);
             db.CreateDatabase();
 
-            using (db.CreateLogicCommitUnit())
+            using (db.CreateCommitUnitOfWork())
             {
                 // Add some data
                 db.tblFollowsMe.InsertFollower("odin.valhalla.com", Guid.NewGuid());
@@ -156,10 +156,10 @@ namespace IndexerTests.KeyValue
         public void Test5()
         {
             // Create database with 250ms commit timer trigger
-            using var db = new KeyValueDatabase("URI=file:.\\commit-logic-04.db", 250);
+            using var db = new IdentityDatabase("URI=file:.\\commit-logic-04.db", 250);
             db.CreateDatabase();
 
-            using (db.CreateLogicCommitUnit())
+            using (db.CreateCommitUnitOfWork())
             {
                 // Add some data
                 db.tblFollowsMe.InsertFollower("odin.valhalla.com", Guid.NewGuid());

@@ -34,7 +34,7 @@ namespace IndexerTests.KeyValue
         {
             var stopWatch = new Stopwatch();
             var myRnd = new Random();
-            using var _testDatabase = new DriveIndexDatabase($"URI=file:.\\performance-01", DatabaseIndexKind.TimeSeries);
+            using var _testDatabase = new DriveDatabase($"URI=file:.\\performance-01", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var tmpacllist = new List<Guid>();
@@ -74,7 +74,7 @@ namespace IndexerTests.KeyValue
         {
             var stopWatch = new Stopwatch();
             var myRnd = new Random();
-            using var _testDatabase = new DriveIndexDatabase($"URI=file:.\\performance-02", DatabaseIndexKind.TimeSeries);
+            using var _testDatabase = new DriveDatabase($"URI=file:.\\performance-02", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var tmpacllist = new List<Guid>();
@@ -122,7 +122,7 @@ namespace IndexerTests.KeyValue
         public void PerformanceTest03() // Just making sure multi-threaded doesn't give worse performance
         {
             Task[] tasks = new Task[MAXTHREADS];
-            using var _testDatabase = new DriveIndexDatabase($"URI=file:.\\performance-03", DatabaseIndexKind.TimeSeries);
+            using var _testDatabase = new DriveDatabase($"URI=file:.\\performance-03", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
             var stopWatch = new Stopwatch();
 
@@ -172,7 +172,7 @@ namespace IndexerTests.KeyValue
             GC.WaitForPendingFinalizers();
         }
 
-        public async Task<long[]> WriteRows(int threadno, int iterations, DriveIndexDatabase db)
+        public async Task<long[]> WriteRows(int threadno, int iterations, DriveDatabase db)
         {
             long[] timers = new long[iterations];
             Debug.Assert(timers.Length == iterations);

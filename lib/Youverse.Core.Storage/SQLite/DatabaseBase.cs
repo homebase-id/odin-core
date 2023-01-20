@@ -188,7 +188,7 @@ namespace Youverse.Core.Storage.SQLite
         /// If you forget to Dispose a LogicCommitUnit you're totally screwed. Use with thought.
         /// </summary>
         /// <returns>LogicCommitUnit disposable object</returns>
-        public LogicCommitUnit CreateLogicCommitUnit()
+        public LogicCommitUnit CreateCommitUnitOfWork()
         {
             return new LogicCommitUnit(_counter);
         }

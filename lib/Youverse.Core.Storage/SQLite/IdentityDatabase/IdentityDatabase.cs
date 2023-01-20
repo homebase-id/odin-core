@@ -18,7 +18,7 @@ https://www.sqlitetutorial.net/sqlite-index/
 
 namespace Youverse.Core.Storage.SQLite.KeyValue
 {
-    public class KeyValueDatabase : DatabaseBase
+    public class IdentityDatabase : DatabaseBase
     {
         public readonly TableKeyValue tblKeyValue = null;
         public readonly TableKeyTwoValue tblKeyTwoValue = null;
@@ -30,7 +30,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         public readonly TableFollowsMe tblFollowsMe = null;
         public readonly TableCircleMember tblCircleMember = null;
 
-        public KeyValueDatabase(string connectionString, ulong commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
+        public IdentityDatabase(string connectionString, ulong commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
         {
             tblKeyValue = new TableKeyValue(this);
             tblKeyTwoValue = new TableKeyTwoValue(this);
@@ -44,7 +44,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         }
 
 
-        ~KeyValueDatabase()
+        ~IdentityDatabase()
         {
         }
 

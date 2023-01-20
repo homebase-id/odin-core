@@ -48,7 +48,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         private SQLiteParameter _sparamTwoThree2 = null;
         private Object _selectTwoThreeLock = new Object();
 
-        public TableKeyThreeValue(KeyValueDatabase db) : base(db)
+        public TableKeyThreeValue(IdentityDatabase db) : base(db)
         {
         }
 

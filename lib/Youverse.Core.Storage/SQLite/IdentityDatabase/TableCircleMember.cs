@@ -33,7 +33,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         private SQLiteParameter _sparam1 = null;
         private static Object _selectLock = new Object();
 
-        public TableCircleMember(KeyValueDatabase db) : base(db)
+        public TableCircleMember(IdentityDatabase db) : base(db)
         {
         }
 
@@ -161,7 +161,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 _database.BeginTransaction();
 
-                using (_database.CreateLogicCommitUnit())
+                using (_database.CreateCommitUnitOfWork())
                 {
                     // Possibly do a Commit() here. But I need to think about Commits, Semaphores and multiple threads.
                     for (int i = 0; i < members.Count; i++)
@@ -208,7 +208,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 _database.BeginTransaction();
 
-                using (_database.CreateLogicCommitUnit())
+                using (_database.CreateCommitUnitOfWork())
                 {
                     for (int i = 0; i < members.Count; i++)
                     {
@@ -243,7 +243,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 _database.BeginTransaction();
 
-                using (_database.CreateLogicCommitUnit())
+                using (_database.CreateCommitUnitOfWork())
                 {
                     for (int i = 0; i < members.Count; i++)
                     {

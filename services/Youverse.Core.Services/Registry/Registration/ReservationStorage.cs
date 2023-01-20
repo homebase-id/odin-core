@@ -9,7 +9,7 @@ namespace Youverse.Core.Services.Registry.Registration;
 
 public class ReservationStorage
 {
-    private readonly KeyValueDatabase _db;
+    private readonly IdentityDatabase _db;
     // private readonly SingleKeyValueStorage _storage;
 
     private readonly TwoKeyStorage _storage;
@@ -23,7 +23,7 @@ public class ReservationStorage
         }
 
         string finalPath = PathUtil.Combine(dbPath, $"{dbName}");
-        _db = new KeyValueDatabase($"URI=file:{finalPath}");
+        _db = new IdentityDatabase($"URI=file:{finalPath}");
         _db.CreateDatabase(false);
 
         // _storage = new SingleKeyValueStorage(_db.tblKeyValue);

@@ -15,7 +15,7 @@ public class SqliteQueryManager : IDriveQueryManager, IDisposable
 {
     private readonly ILogger<object> _logger;
 
-    private readonly DriveIndexDatabase _indexDb;
+    private readonly DriveDatabase _db;
     // private readonly DriveIndexDatabase _secondaryIndexDb;
 
     public SqliteQueryManager(StorageDrive drive, ILogger<object> logger)
@@ -24,7 +24,7 @@ public class SqliteQueryManager : IDriveQueryManager, IDisposable
         _logger = logger;
 
         var connectionString = $"URI=file:{drive.GetIndexPath()}\\index.db";
-        _indexDb = new DriveIndexDatabase(connectionString, DatabaseIndexKind.TimeSeries);
+        _db = new DriveDatabase(connectionString, DatabaseIndexKind.TimeSeries);
     }
 
     public StorageDrive Drive { get; init; }
@@ -39,7 +39,7 @@ public class SqliteQueryManager : IDriveQueryManager, IDisposable
         var aclList = GetAcl(callerContext);
         var cursor = new UnixTimeUtcUnique(options.Cursor);
         
-        var results = _indexDb.QueryModified(
+        var results = _db.QueryModified(
             noOfItems: options.MaxRecords,
             cursor: ref cursor,
             stopAtModifiedUnixTimeSeconds: new UnixTimeUtcUnique(options.MaxDate),
@@ -67,7 +67,7 @@ public class SqliteQueryManager : IDriveQueryManager, IDisposable
         var aclList = GetAcl(callerContext);
 
         var cursor = options.Cursor;
-        var results = _indexDb.QueryBatch(
+        var results = _db.QueryBatch(
             noOfItems: options.MaxRecords,
             cursor: ref cursor,
             requiredSecurityGroup: securityRange,
@@ -112,13 +112,13 @@ public class SqliteQueryManager : IDriveQueryManager, IDisposable
         var metadata = header.FileMetadata;
 
         int securityGroup = (int)header.ServerMetadata.AccessControlList.RequiredSecurityGroup;
-        var exists = _indexDb.TblMainIndex.Get(metadata.File.FileId) != null;
+        var exists = _db.TblMainIndex.Get(metadata.File.FileId) != null;
 
         if (header.ServerMetadata.DoNotIndex)
         {
             if (exists) // clean up if the flag was changed after it was indexed
             {
-                _indexDb.TblMainIndex.DeleteRow(metadata.File.FileId);
+                _db.TblMainIndex.DeleteRow(metadata.File.FileId);
             }
 
             return Task.CompletedTask;
@@ -137,7 +137,7 @@ public class SqliteQueryManager : IDriveQueryManager, IDisposable
 
         if (exists)
         {
-            _indexDb.UpdateEntryZapZap(
+            _db.UpdateEntryZapZap(
                 fileId: metadata.File.FileId,
                 fileType: metadata.AppData.FileType,
                 dataType: metadata.AppData.DataType,
@@ -151,7 +151,7 @@ public class SqliteQueryManager : IDriveQueryManager, IDisposable
         }
         else
         {
-            _indexDb.AddEntry(
+            _db.AddEntry(
                 fileId: metadata.File.FileId,
                 globalTransitId: metadata.GlobalTransitId,
                 fileType: metadata.AppData.FileType,
@@ -170,7 +170,7 @@ public class SqliteQueryManager : IDriveQueryManager, IDisposable
 
     public Task RemoveFromCurrentIndex(InternalDriveFileId file)
     {
-        _indexDb.DeleteEntry(file.FileId);
+        _db.DeleteEntry(file.FileId);
         return Task.CompletedTask;
     }
 
@@ -191,21 +191,21 @@ public class SqliteQueryManager : IDriveQueryManager, IDisposable
 
     public Task LoadLatestIndex()
     {
-        _indexDb.CreateDatabase(false);
+        _db.CreateDatabase(false);
         this.IndexReadyState = IndexReadyState.Ready;
         return Task.CompletedTask;
     }
 
     public Task AddCommandMessage(List<Guid> fileIds)
     {
-        _indexDb.TblCmdMsgQueue.InsertRows(fileIds);
+        _db.TblCmdMsgQueue.InsertRows(fileIds);
         return Task.CompletedTask;
     }
 
     public Task<List<UnprocessedCommandMessage>> GetUnprocessedCommands(int count)
     {
         Guard.Argument(count, nameof(count)).Require(c => c > 0);
-        var list = _indexDb.TblCmdMsgQueue.Get(count) ?? new List<CommandMessage>();
+        var list = _db.TblCmdMsgQueue.Get(count) ?? new List<CommandMessage>();
 
         var result = list.Select(x => new UnprocessedCommandMessage()
         {
@@ -218,19 +218,19 @@ public class SqliteQueryManager : IDriveQueryManager, IDisposable
 
     public Task MarkCommandsCompleted(List<Guid> fileIds)
     {
-        _indexDb.TblCmdMsgQueue.DeleteRow(fileIds);
+        _db.TblCmdMsgQueue.DeleteRow(fileIds);
         return Task.CompletedTask;
     }
 
     public void EnsureIndexDataCommitted()
     {
-        _indexDb.Commit();
+        _db.Commit();
     }
 
     public void Dispose()
     {
-        _indexDb.Commit();
-        _indexDb.Dispose();
+        _db.Commit();
+        _db.Dispose();
     }
 }
 

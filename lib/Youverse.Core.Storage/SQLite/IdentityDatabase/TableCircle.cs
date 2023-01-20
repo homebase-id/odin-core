@@ -31,7 +31,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         private SQLiteCommand _select2Command = null;
         private static Object _select2Lock = new Object();
 
-        public TableCircle(KeyValueDatabase db) : base(db)
+        public TableCircle(IdentityDatabase db) : base(db)
         {
         }
 

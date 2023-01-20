@@ -45,7 +45,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         private static Object _selectLock = new Object();
 
 
-        public TableInbox(KeyValueDatabase db) : base(db)
+        public TableInbox(IdentityDatabase db) : base(db)
         {
         }
 
@@ -259,7 +259,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 _database.BeginTransaction();
 
-                using (_database.CreateLogicCommitUnit())
+                using (_database.CreateCommitUnitOfWork())
                 {
                     List<InboxItem> result = new List<InboxItem>();
                     using (SQLiteDataReader rdr = _popCommand.ExecuteReader(System.Data.CommandBehavior.Default))

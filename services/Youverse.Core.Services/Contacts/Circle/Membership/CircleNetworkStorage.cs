@@ -11,7 +11,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership;
 
 public class CircleNetworkStorage : IDisposable
 {
-    private readonly KeyValueDatabase _db;
+    private readonly IdentityDatabase _db;
     private readonly SingleKeyValueStorage _storage;
     private readonly GuidId _key = GuidId.FromString("circle_network_storage");
     private readonly object _sync = new object();
@@ -25,7 +25,7 @@ public class CircleNetworkStorage : IDisposable
         }
 
         string finalPath = PathUtil.Combine(dbPath, $"{dbName}.db");
-        _db = new KeyValueDatabase($"URI=file:{finalPath}");
+        _db = new IdentityDatabase($"URI=file:{finalPath}");
         _db.CreateDatabase(false);
 
         _storage = new SingleKeyValueStorage(_db.tblKeyValue);

@@ -11,7 +11,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void ExampleTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\imfollowing-example-01.db");
+            using var db = new IdentityDatabase("URI=file:.\\imfollowing-example-01.db");
             db.CreateDatabase();
 
             // Let's say that we're Frodo and we're followed by these 5 asir
@@ -66,7 +66,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void InsertValidFollowerTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\imfollowing-insert-01.db");
+            using var db = new IdentityDatabase("URI=file:.\\imfollowing-insert-01.db");
             db.CreateDatabase();
 
             var i1 = "odin.valhalla.com";
@@ -97,7 +97,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void InsertInvalidFollowerTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\imfollowing-insert-02.db");
+            using var db = new IdentityDatabase("URI=file:.\\imfollowing-insert-02.db");
             db.CreateDatabase();
 
             var i1 = "odin.valhalla.com";
@@ -171,7 +171,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void DeleteFollowerInvalidTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\imfollowing-delete-01.db");
+            using var db = new IdentityDatabase("URI=file:.\\imfollowing-delete-01.db");
             db.CreateDatabase();
 
             bool ok = false;
@@ -201,7 +201,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void DeleteFollowerTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\imfollowing-delete-02.db");
+            using var db = new IdentityDatabase("URI=file:.\\imfollowing-delete-02.db");
             db.CreateDatabase();
 
             var i1 = "odin.valhalla.com";
@@ -229,7 +229,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void DeleteFollowerDriveTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\imfollowing-delete-03.db");
+            using var db = new IdentityDatabase("URI=file:.\\imfollowing-delete-03.db");
             db.CreateDatabase();
 
             var i1 = "odin.valhalla.com";
@@ -268,7 +268,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void GetFollowersInvalidTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\imfollowing-delete-04.db");
+            using var db = new IdentityDatabase("URI=file:.\\imfollowing-delete-04.db");
             db.CreateDatabase();
 
             var d1 = Guid.NewGuid();
@@ -289,7 +289,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void GetFollowersTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\imfollowing-delete-05.db");
+            using var db = new IdentityDatabase("URI=file:.\\imfollowing-delete-05.db");
             db.CreateDatabase();
 
             var i1 = "odin.valhalla.com";
@@ -318,7 +318,7 @@ namespace IndexerTests.KeyValue
         [Test]
         public void GetFollowersPagedTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\imfollowing-delete-06.db");
+            using var db = new IdentityDatabase("URI=file:.\\imfollowing-delete-06.db");
             db.CreateDatabase();
 
             var i1 = "odin.valhalla.com";

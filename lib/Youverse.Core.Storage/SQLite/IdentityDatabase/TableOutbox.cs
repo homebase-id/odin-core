@@ -59,7 +59,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         private static Object _selectLock = new Object();
 
 
-        public TableOutbox(KeyValueDatabase db) : base(db)
+        public TableOutbox(IdentityDatabase db) : base(db)
         {
         }
 
@@ -276,7 +276,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 _database.BeginTransaction();
 
-                using (_database.CreateLogicCommitUnit())
+                using (_database.CreateCommitUnitOfWork())
                 {
                     using (SQLiteDataReader rdr = _popCommand.ExecuteReader(System.Data.CommandBehavior.Default))
                     {
@@ -346,7 +346,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 _database.BeginTransaction();
 
-                using (_database.CreateLogicCommitUnit())
+                using (_database.CreateCommitUnitOfWork())
                 {
                     using (SQLiteDataReader rdr = _popAllCommand.ExecuteReader(System.Data.CommandBehavior.Default))
                     {
@@ -452,7 +452,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 _database.BeginTransaction();
 
-                using (_database.CreateLogicCommitUnit())
+                using (_database.CreateCommitUnitOfWork())
                 {
                     // I'd rather not do a TEXT statement, this seems safer but slower.
                     for (int i = 0; i < listFileId.Count; i++)
@@ -522,7 +522,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 _database.BeginTransaction();
 
-                using (_database.CreateLogicCommitUnit())
+                using (_database.CreateCommitUnitOfWork())
                 {
                     // I'd rather not do a TEXT statement, this seems safer but slower.
                     for (int i = 0; i < listFileId.Count; i++)

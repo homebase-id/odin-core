@@ -42,7 +42,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         private SQLiteParameter _s2param2 = null;
         private static object _select2Lock = new object();
 
-        public TableFollowsMe(KeyValueDatabase db) : base(db)
+        public TableFollowsMe(IdentityDatabase db) : base(db)
         {
         }
 
