@@ -1,7 +1,4 @@
-using System;
-using Dawn;
-
-namespace Youverse.Core.Storage;
+namespace Youverse.Core.Storage.SQLite.IdentityDatabase;
 
 public abstract class KeyValueStorageBase
 {

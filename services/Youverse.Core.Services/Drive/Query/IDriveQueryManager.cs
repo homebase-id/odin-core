@@ -6,6 +6,7 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Query.Sqlite;
 using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Storage.SQLite;
+using Youverse.Core.Storage.SQLite.DriveDatabase;
 
 namespace Youverse.Core.Services.Drive.Query
 {

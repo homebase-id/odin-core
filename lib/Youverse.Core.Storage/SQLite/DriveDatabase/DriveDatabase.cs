@@ -17,7 +17,7 @@ https://www.sqlitetutorial.net/sqlite-index/
 */
 
 
-namespace Youverse.Core.Storage.SQLite
+namespace Youverse.Core.Storage.SQLite.DriveDatabase
 {
     /// <summary>
     /// Database types:

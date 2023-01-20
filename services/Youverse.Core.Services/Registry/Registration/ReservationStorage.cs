@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using Youverse.Core.Storage;
-using Youverse.Core.Storage.SQLite.KeyValue;
+using Youverse.Core.Storage.SQLite.IdentityDatabase;
 using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Registry.Registration;
