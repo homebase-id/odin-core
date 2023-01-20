@@ -62,7 +62,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
             // Based on the custom logic it is possible to decide whether the client considers certificate valid or not
             Console.WriteLine($"Errors: {sslErrors}");
-            
+
             if (chain == null)
             {
                 Console.WriteLine("No chain...");
@@ -80,11 +80,11 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                     }
                 }
             }
-            
+
             return true;
         }
-        
-        
+
+
         public async Task ForceNewPassword(string identity, string password)
         {
             var handler = new HttpClientHandler();
@@ -232,8 +232,14 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             return client;
         }
 
-        public async Task<RedactedAppRegistration> AddAppWithAllDrivePermissions(DotYouIdentity identity, Guid appId, TargetDrive targetDrive, bool createDrive = false, bool canReadConnections = false,
-            bool driveAllowAnonymousReads = false, bool ownerOnlyDrive = false)
+        public async Task<RedactedAppRegistration> AddAppWithAllDrivePermissions(
+            DotYouIdentity identity, 
+            Guid appId,
+            TargetDrive targetDrive, 
+            bool createDrive = false,
+            bool canReadConnections = false,
+            bool driveAllowAnonymousReads = false,
+            bool ownerOnlyDrive = false)
         {
             PermissionSet permissionSet;
 
@@ -286,7 +292,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                     Name = $"Test_{appId}",
                     AppId = appId,
                     PermissionSet = permissionSet,
-                    Drives = drives
+                    Drives = drives,
+                    AuthorizedCircles = default,
+                    CircleMemberGrantRequest = default
                 };
 
                 var response = await svc.RegisterApp(request);
@@ -722,13 +730,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             }
 
             var targetDrive = instructionSet.StorageOptions.Drive;
-            
+
             //Feature added much later in schedule but it means we don't have to thread sleep in our unit tests
             if (options.ProcessOutbox && instructionSet.TransitOptions != null)
             {
                 instructionSet.TransitOptions.Schedule = ScheduleOptions.SendNowAwaitResponse;
             }
-            
+
             await this.EnsureDriveExists(sender, targetDrive, options.DriveAllowAnonymousReads);
 
             //Setup the drives on all recipient DIs

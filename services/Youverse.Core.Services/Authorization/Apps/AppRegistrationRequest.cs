@@ -8,6 +8,10 @@ namespace Youverse.Core.Services.Authorization.Apps
 {
     public class AppRegistrationRequest
     {
+        public AppRegistrationRequest()
+        {
+            
+        }
         public GuidId AppId { get; set; }
 
         public string Name { get; set; }

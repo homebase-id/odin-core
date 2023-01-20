@@ -1248,10 +1248,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         private async Task<(TestAppContext, TestAppContext, ConnectionRequestHeader)> CreateConnectionRequestFrodoToSam(CircleDefinition circleDefinition1 = null,
             CircleDefinition circleDefinition2 = null)
         {
-            Guid appId = Guid.NewGuid();
-            var sender = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Frodo, canReadConnections: true);
-            var recipient = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Samwise, canReadConnections: true);
-
+           
             List<GuidId> cids = new List<GuidId>();
             if (null != circleDefinition1)
             {
@@ -1262,7 +1259,11 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             {
                 cids.Add(circleDefinition2.Id);
             }
-
+            
+            Guid appId = Guid.NewGuid();
+            var sender = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Frodo, canReadConnections: true);
+            var recipient = await _scaffold.OwnerApi.SetupTestSampleApp(appId, TestIdentities.Samwise, canReadConnections: true);
+            
             var id = Guid.NewGuid();
             var requestHeader = new ConnectionRequestHeader()
             {
