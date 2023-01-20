@@ -31,7 +31,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         private SQLiteCommand _select2Command = null;
         private static Object _select2Lock = new Object();
 
-        public TableCircle(KeyValueDatabase db, object lck) : base(db, lck)
+        public TableCircle(KeyValueDatabase db) : base(db)
         {
         }
 
@@ -206,12 +206,8 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 _iparam1.Value = circleId;
                 _iparam2.Value = data;
 
-                lock (_getTransactionLock)
-                {
-                    _database.BeginTransaction();
-                    _insertCommand.ExecuteNonQuery();
-                }
-
+                _database.BeginTransaction();
+                _insertCommand.ExecuteNonQuery();
             }
         }
 
@@ -239,11 +235,8 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 _dparam1.Value = circleId;
 
-                lock (_getTransactionLock)
-                {
-                    _database.BeginTransaction();
-                    _deleteCommand.ExecuteNonQuery();
-                }
+                _database.BeginTransaction();
+                _deleteCommand.ExecuteNonQuery();
             }
         }
     }

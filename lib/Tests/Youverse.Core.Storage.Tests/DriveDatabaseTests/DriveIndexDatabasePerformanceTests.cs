@@ -165,6 +165,9 @@ namespace IndexerTests.KeyValue
             Console.WriteLine($"Bandwidth: {(MAXTHREADS * MAXITERATIONS * 1000) / ms} rows / second");
             Utils.StopWatchStatus($"Added {MAXTHREADS*MAXITERATIONS} rows in mainindex, ACL, Tags", sw);
             Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
+
+            _testDatabase.Dispose();
+
             GC.Collect();
             GC.WaitForPendingFinalizers();
         }

@@ -31,7 +31,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         private Object _deleteLock = new Object();
 
 
-        public TableKeyValue(KeyValueDatabase db, object lck) : base(db, lck)
+        public TableKeyValue(KeyValueDatabase db) : base(db)
         {
         }
 
@@ -147,11 +147,8 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 _iparam1.Value = key;
                 _iparam2.Value = value;
 
-                lock (_getTransactionLock)
-                {
-                    _database.BeginTransaction();
-                    _insertCommand.ExecuteNonQuery();
-                }
+                _database.BeginTransaction();
+                _insertCommand.ExecuteNonQuery();
             }
         }
 
@@ -183,11 +180,8 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 _uparam1.Value = key;
                 _uparam2.Value = value;
 
-                lock (_getTransactionLock)
-                {
-                    _database.BeginTransaction();
-                    _updateCommand.ExecuteNonQuery();
-                }
+                _database.BeginTransaction();
+                _updateCommand.ExecuteNonQuery();
             }
         }
 
@@ -218,11 +212,8 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
                 _zparam1.Value = key;
                 _zparam2.Value = value;
 
-                lock (_getTransactionLock)
-                {
-                    _database.BeginTransaction();
-                    _upsertCommand.ExecuteNonQuery();
-                }
+                _database.BeginTransaction();
+                _upsertCommand.ExecuteNonQuery();
             }
         }
 
@@ -245,11 +236,8 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
 
                 _dparam1.Value = key;
 
-                lock (_getTransactionLock)
-                {
-                    _database.BeginTransaction();
-                    _deleteCommand.ExecuteNonQuery();
-                }
+                _database.BeginTransaction();
+                _deleteCommand.ExecuteNonQuery();
             }
         }
     }

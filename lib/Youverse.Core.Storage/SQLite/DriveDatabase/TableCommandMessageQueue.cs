@@ -24,7 +24,7 @@ namespace Youverse.Core.Storage.SQLite
         private Object _selectLock = new Object();
 
 
-        public TableCommandMessageQueue(DriveIndexDatabase db, object lck) : base(db, lck)
+        public TableCommandMessageQueue(DriveIndexDatabase db) : base(db)
         {
         }
 
@@ -114,9 +114,11 @@ namespace Youverse.Core.Storage.SQLite
                     _insertCommand.Parameters.Add(_iparam1);
                 }
 
-                lock (_getTransactionLock)
+                _database.BeginTransaction();
+
+                // Since we are writing multiple rows we do a logic unit here
+                using (_database.CreateLogicCommitUnit())
                 {
-                    _database.BeginTransaction();
                     for (int i = 0; i < fileId.Count; i++)
                     {
                         _iparam1.Value = fileId[i];
@@ -144,9 +146,11 @@ namespace Youverse.Core.Storage.SQLite
                     _deleteCommand.Parameters.Add(_dparam1);
                 }
 
-                lock (_getTransactionLock)
+                _database.BeginTransaction();
+
+                // Since we are deletign multiple rows we do a logic unit here
+                using (_database.CreateLogicCommitUnit())
                 {
-                    _database.BeginTransaction();
                     for (int i = 0; i < fileId.Count; i++)
                     {
                         _dparam1.Value = fileId[i];

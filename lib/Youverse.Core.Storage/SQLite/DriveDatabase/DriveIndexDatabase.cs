@@ -65,10 +65,10 @@ namespace Youverse.Core.Storage.SQLite
         {
             _kind = databaseKind;
  
-            TblMainIndex = new TableMainIndex(this, _getTransactionLock);
-            TblAclIndex = new TableAclIndex(this, _getTransactionLock);
-            TblTagIndex = new TableTagIndex(this, _getTransactionLock);
-            TblCmdMsgQueue = new TableCommandMessageQueue(this, _getTransactionLock);
+            TblMainIndex = new TableMainIndex(this);
+            TblAclIndex = new TableAclIndex(this);
+            TblTagIndex = new TableTagIndex(this);
+            TblCmdMsgQueue = new TableCommandMessageQueue(this);
         }
 
         ~DriveIndexDatabase()
@@ -131,7 +131,7 @@ namespace Youverse.Core.Storage.SQLite
         {
             BeginTransaction();
 
-            lock (_getTransactionLock)
+            using (CreateLogicCommitUnit())
             {
                 TblMainIndex.InsertRow(fileId, globalTransitId, UnixTimeUtc.Now(), fileType, dataType, senderId, groupId, uniqueId, userDate, false, false, requiredSecurityGroup);
                 TblAclIndex.InsertRows(fileId, accessControlList);
@@ -143,7 +143,7 @@ namespace Youverse.Core.Storage.SQLite
         {
             BeginTransaction();
 
-            lock (_getTransactionLock)
+            using (CreateLogicCommitUnit())
             {
                 TblAclIndex.DeleteAllRows(fileId);
                 TblTagIndex.DeleteAllRows(fileId);
@@ -168,7 +168,7 @@ namespace Youverse.Core.Storage.SQLite
         {
             BeginTransaction();
 
-            lock (_getTransactionLock)
+            using (CreateLogicCommitUnit())
             {
                 TblMainIndex.UpdateRow(fileId, globalTransitId: globalTransitId, fileType: fileType, dataType: dataType, senderId: senderId,
                     groupId: groupId, uniqueId: uniqueId, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup);
@@ -198,7 +198,7 @@ namespace Youverse.Core.Storage.SQLite
         {
             BeginTransaction();
 
-            lock (_getTransactionLock)
+            using (CreateLogicCommitUnit())
             {
                 TblMainIndex.UpdateRow(fileId, globalTransitId: globalTransitId, fileType: fileType, dataType: dataType, senderId: senderId,
                     groupId: groupId, uniqueId: uniqueId, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup);
