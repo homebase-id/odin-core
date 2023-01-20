@@ -7,7 +7,7 @@ using System.Data.SQLite;
 // I.e. the people I need to notify when I update some content.
 //
 
-namespace Youverse.Core.Storage.SQLite.KeyValue
+namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 {
     public class FollowsMeItem
     {

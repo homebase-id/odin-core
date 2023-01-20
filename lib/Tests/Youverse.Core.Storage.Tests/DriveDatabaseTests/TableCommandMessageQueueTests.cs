@@ -5,6 +5,7 @@ using NUnit.Framework;
 using Youverse.Core;
 using Youverse.Core.Storage;
 using Youverse.Core.Storage.SQLite;
+using Youverse.Core.Storage.SQLite.DriveDatabase;
 
 namespace IndexerTests
 {

@@ -1,6 +1,4 @@
-﻿using System;
-using System.Data.SQLite;
-using Youverse.Core.Cryptography.Crypto;
+﻿
 
 
 /*
@@ -16,7 +14,7 @@ https://www.sqlitetutorial.net/sqlite-index/
 */
 
 
-namespace Youverse.Core.Storage.SQLite.KeyValue
+namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 {
     public class IdentityDatabase : DatabaseBase
     {
