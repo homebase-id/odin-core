@@ -14,12 +14,23 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <summary>
         /// Registers an application to be used with this host.  Returns the record Id of the newly registered app
         /// </summary>
-        Task<RedactedAppRegistration> RegisterApp(GuidId appId, string name, PermissionSet permissions, IEnumerable<DriveGrantRequest> drives);
+        Task<RedactedAppRegistration> RegisterApp(AppRegistrationRequest request);
 
         Task<RedactedAppRegistration> GetAppRegistration(GuidId appId);
 
         Task<DotYouContext> GetPermissionContext(ClientAuthenticationToken token);
 
+        /// <summary>
+        /// Updates the permissions granted to the app
+        /// </summary>
+        Task UpdateAppPermissions(UpdateAppPermissionsRequest request);
+
+        /// <summary>
+        /// Updates the authorized circles and the permissions granted to them
+        /// </summary>
+        /// <returns></returns>
+        Task UpdateAuthorizedCircles(UpdateAuthorizedCirclesRequest request);
+        
         Task<(bool isValid, AccessRegistration? accessReg, AppRegistration? appRegistration)> ValidateClientAuthToken(ClientAuthenticationToken authToken);
 
         /// <summary>
@@ -27,7 +38,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// </summary>
         /// <returns></returns>
         Task<List<RedactedAppRegistration>> GetRegisteredApps();
-        
+
         /// <summary>
         /// Removes access for a given application across all devices
         /// </summary>
@@ -52,7 +63,18 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <returns></returns>
         Task<AppClientRegistrationResponse> RegisterClient(GuidId appId, byte[] clientPublicKey, string friendlyName);
 
+        
         Task<List<RegisteredAppClientResponse>> GetRegisteredClients();
         
+        /// <summary>
+        /// Revokes a client from using the app
+        /// </summary>
+        Task RevokeClient(GuidId accessRegistrationId);
+
+        Task DeleteClient(GuidId accessRegistrationId);
+        
+        Task AllowClient(GuidId accessRegistrationId);
+
+        Task DeleteApp(GuidId appId);
     }
 }

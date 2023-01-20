@@ -3,20 +3,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
-using LazyCache;
-using LazyCache.Providers;
-using MediatR;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
-using Org.BouncyCastle.Asn1.Ocsp;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
-using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Configuration;
+using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Authorization.Apps
@@ -36,39 +31,102 @@ namespace Youverse.Core.Services.Authorization.Apps
         private readonly DotYouContextCache _cache;
         private readonly TenantContext _tenantContext;
 
+        private readonly CircleDefinitionService _circleDefinitionService;
+
+
         public AppRegistrationService(DotYouContextAccessor contextAccessor, ILogger<IAppRegistrationService> logger, ITenantSystemStorage tenantSystemStorage,
-            ExchangeGrantService exchangeGrantService, YouverseConfiguration config, TenantContext tenantContext)
+            ExchangeGrantService exchangeGrantService, YouverseConfiguration config, TenantContext tenantContext, CircleDefinitionService circleDefinitionService)
         {
             _contextAccessor = contextAccessor;
             _tenantSystemStorage = tenantSystemStorage;
             _exchangeGrantService = exchangeGrantService;
             _tenantContext = tenantContext;
+            _circleDefinitionService = circleDefinitionService;
 
             _appRegistrationValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
             _appClientValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
             _cache = new DotYouContextCache(config.Host.CacheSlidingExpirationSeconds);
         }
 
-        public async Task<RedactedAppRegistration> RegisterApp(GuidId appId, string name, PermissionSet permissions, IEnumerable<DriveGrantRequest> drives)
+        public async Task<RedactedAppRegistration> RegisterApp(AppRegistrationRequest request)
         {
-            Guard.Argument(name, nameof(name)).NotNull().NotEmpty();
-            Guard.Argument(appId, nameof(appId)).Require(appId != Guid.Empty);
-
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
+            Guard.Argument(request.Name, nameof(request.Name)).NotNull().NotEmpty();
+            Guard.Argument(request.AppId, nameof(request.AppId)).Require(request.AppId != Guid.Empty);
+
+            if (request.AuthorizedCircles?.Any() ?? false)
+            {
+                Guard.Argument(request.AuthorizedCircles, nameof(request.AuthorizedCircles)).Require(circles => { return circles.All(cid => _circleDefinitionService.IsEnabled(cid)); });
+            }
+
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-            var grant = await _exchangeGrantService.CreateExchangeGrant(permissions, drives, masterKey);
+            var grant = await _exchangeGrantService.CreateExchangeGrant(request.PermissionSet, request.Drives, masterKey);
+            var circleMemberGrant = await _exchangeGrantService.CreateExchangeGrant(request.CircleMemberPermissionSet, request.CircleMemberDrives, masterKey);
 
             var appReg = new AppRegistration()
             {
-                AppId = appId,
-                Name = name,
-                Grant = grant
+                AppId = request.AppId,
+                Name = request.Name,
+                Grant = grant,
+
+                CircleMemberGrant = circleMemberGrant,
+                AuthorizedCircles = request.AuthorizedCircles
             };
 
             _appRegistrationValueStorage.Upsert(appReg.AppId, GuidId.Empty, _appRegistrationDataType, appReg);
 
+            // foreach (var circleId in appReg?.AuthorizedCircles ?? new List<Guid>()) 
+            // {
+            //     
+            // }
+
             return appReg.Redacted();
+        }
+
+        public async Task UpdateAppPermissions(UpdateAppPermissionsRequest request)
+        {
+            var appReg = await this.GetAppRegistrationInternal(request.AppId);
+            if (null == appReg)
+            {
+                throw new YouverseClientException("Invalid AppId", YouverseClientErrorCode.AppNotRegistered);
+            }
+
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
+            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+            var grant = await _exchangeGrantService.CreateExchangeGrant(request.PermissionSet, request.Drives, masterKey);
+            appReg.Grant = grant;
+
+            _appRegistrationValueStorage.Upsert(request.AppId, GuidId.Empty, _appRegistrationDataType, appReg);
+
+            ResetPermissionContextCache();
+        }
+
+        public async Task UpdateAuthorizedCircles(UpdateAuthorizedCirclesRequest request)
+        {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
+            var appReg = await this.GetAppRegistrationInternal(request.AppId);
+            if (null == appReg)
+            {
+                throw new YouverseClientException("Invalid AppId", YouverseClientErrorCode.AppNotRegistered);
+            }
+
+            //TODO: examine if the circles changed - update exchange grants
+            // bool circlesHaveChanged = false;
+            // if (circlesHaveChanged)
+            // {
+            //     //TODO: how to apply the permissions to all users with-in the circles
+            // }
+
+            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+            var circleMemberGrant = await _exchangeGrantService.CreateExchangeGrant(request.CircleMemberPermissionSet, request.CircleMemberDrives, masterKey);
+            appReg.AuthorizedCircles = request.AuthorizedCircles;
+            appReg.CircleMemberGrant = circleMemberGrant;
+
+            _appRegistrationValueStorage.Upsert(request.AppId, GuidId.Empty, _appRegistrationDataType, appReg);
+            ResetPermissionContextCache();
         }
 
         public async Task<AppClientRegistrationResponse> RegisterClient(GuidId appId, byte[] clientPublicKey, string friendlyName)
@@ -87,8 +145,8 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             var (accessRegistration, cat) = await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, _contextAccessor.GetCurrent().Caller.GetMasterKey(), ClientTokenType.Other);
 
-            var appClient = new AppClient(appId, accessRegistration);
-            _appClientValueStorage.Upsert(accessRegistration.Id, appReg.AppId, _appClientDataType, appClient);
+            var appClient = new AppClient(appId, friendlyName, accessRegistration);
+            this.SaveClient(appClient);
 
             //RSA encrypt using the public key and send to client
             var tokenBytes = cat.ToAuthenticationToken().ToPortableBytes();
@@ -97,7 +155,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             var data = ByteArrayUtil.Combine(tokenBytes, sharedSecret);
             var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(clientPublicKey);
             var encryptedData = publicKey.Encrypt(data);
-            
+
             data.WriteZeros();
 
             return new AppClientRegistrationResponse()
@@ -106,6 +164,11 @@ namespace Youverse.Core.Services.Authorization.Apps
                 Token = cat.Id,
                 Data = encryptedData
             };
+        }
+
+        private void SaveClient(AppClient appClient)
+        {
+            _appClientValueStorage.Upsert(appClient.AccessRegistration.Id, appClient.AppId, _appClientDataType, appClient);
         }
 
         public async Task<RedactedAppRegistration> GetAppRegistration(GuidId appId)
@@ -214,15 +277,68 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         public async Task<List<RegisteredAppClientResponse>> GetRegisteredClients()
         {
-            var list = _tenantSystemStorage.ThreeKeyValueStorage.GetByKey3<AccessRegistration>(_appClientDataType);
-            var resp = list.Select(accessReg => new RegisteredAppClientResponse()
+            var list = _appClientValueStorage.GetByKey3<AppClient>(_appClientDataType);
+            var resp = list.Select(appClient => new RegisteredAppClientResponse()
             {
-                IsRevoked = accessReg.IsRevoked,
-                Created = accessReg.Created,
-                AccessRegistrationClientType = accessReg.AccessRegistrationClientType
+                AppId = appClient.AppId,
+                AccessRegistrationId = appClient.AccessRegistration.Id,
+                FriendlyName = appClient.FriendlyName,
+                IsRevoked = appClient.AccessRegistration.IsRevoked,
+                Created = appClient.AccessRegistration.Created,
+                AccessRegistrationClientType = appClient.AccessRegistration.AccessRegistrationClientType
             }).ToList();
 
             return resp;
+        }
+
+        public async Task RevokeClient(GuidId accessRegistrationId)
+        {
+            var client = _appClientValueStorage.Get<AppClient>(accessRegistrationId);
+
+            if (null == client)
+            {
+                throw new YouverseClientException("Invalid access reg id", YouverseClientErrorCode.InvalidAccessRegistrationId);
+            }
+
+            client.AccessRegistration.IsRevoked = true;
+            SaveClient(client);
+        }
+
+        public async Task AllowClient(GuidId accessRegistrationId)
+        {
+            var client = _appClientValueStorage.Get<AppClient>(accessRegistrationId);
+
+            if (null == client)
+            {
+                throw new YouverseClientException("Invalid access reg id", YouverseClientErrorCode.InvalidAccessRegistrationId);
+            }
+
+            client.AccessRegistration.IsRevoked = false;
+            SaveClient(client);
+        }
+
+        public async Task DeleteApp(GuidId appId)
+        {
+            var app = await GetAppRegistrationInternal(appId);
+
+            if (null == app)
+            {
+                throw new YouverseClientException("Invalid App Id", YouverseClientErrorCode.AppNotRegistered);
+            }
+
+            _appRegistrationValueStorage.Delete(appId);
+        }
+
+        public async Task DeleteClient(GuidId accessRegistrationId)
+        {
+            var client = _appClientValueStorage.Get<AppClient>(accessRegistrationId);
+
+            if (null == client)
+            {
+                throw new YouverseClientException("Invalid access reg id", YouverseClientErrorCode.InvalidAccessRegistrationId);
+            }
+
+            _appClientValueStorage.Delete(accessRegistrationId);
         }
 
         public Task<List<RedactedAppRegistration>> GetRegisteredApps()

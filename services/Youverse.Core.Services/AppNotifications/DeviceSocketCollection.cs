@@ -11,7 +11,7 @@ namespace Youverse.Core.Services.AppNotifications
     /// </summary>
     public class DeviceSocketCollection
     {
-        private ConcurrentDictionary<Guid, DeviceSocket> _sockets = new();
+        private readonly ConcurrentDictionary<Guid, DeviceSocket> _sockets = new();
 
         public ConcurrentDictionary<Guid, DeviceSocket> GetAll()
         {
@@ -30,9 +30,9 @@ namespace Youverse.Core.Services.AppNotifications
 
             try
             {
-                await deviceSocket.Socket.CloseAsync(closeStatus: WebSocketCloseStatus.NormalClosure,
+                await deviceSocket?.Socket?.CloseAsync(closeStatus: WebSocketCloseStatus.NormalClosure,
                     statusDescription: "Closed by the server",
-                    cancellationToken: CancellationToken.None);
+                    cancellationToken: CancellationToken.None)!;
             }
             catch (Exception e)
             {

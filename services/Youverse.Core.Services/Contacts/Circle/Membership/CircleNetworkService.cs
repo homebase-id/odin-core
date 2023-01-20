@@ -9,6 +9,7 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.AppNotifications.ClientNotifications;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
@@ -35,18 +36,20 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         private readonly CircleDefinitionService _circleDefinitionService;
         private readonly TableCircleMember _circleMemberStorage;
         private readonly TenantContext _tenantContext;
+        private readonly IMediator _mediator;
 
         private readonly GuidId _icrClientDataType = GuidId.FromString("__icr_client_reg");
         private readonly ThreeKeyValueStorage _icrClientValueStorage;
 
         public CircleNetworkService(DotYouContextAccessor contextAccessor, ILogger<ICircleNetworkService> logger, ITenantSystemStorage tenantSystemStorage,
-            IDotYouHttpClientFactory dotYouHttpClientFactory, ExchangeGrantService exchangeGrantService, TenantContext tenantContext, CircleDefinitionService circleDefinitionService)
+            IDotYouHttpClientFactory dotYouHttpClientFactory, ExchangeGrantService exchangeGrantService, TenantContext tenantContext, CircleDefinitionService circleDefinitionService, IMediator mediator)
         {
             _contextAccessor = contextAccessor;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
             _exchangeGrantService = exchangeGrantService;
             _tenantContext = tenantContext;
             _circleDefinitionService = circleDefinitionService;
+            _mediator = mediator;
 
             _storage = new CircleNetworkStorage(tenantContext.StorageConfig.DataStoragePath);
 
@@ -94,7 +97,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             }
 
             var (permissionContext, enabledCircles) = await CreatePermissionContextInternal(icr.AccessGrant!.CircleGrants, icr.AccessGrant.AccessRegistration, authToken);
-
+            
             return (permissionContext, enabledCircles);
         }
 
@@ -443,7 +446,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             var members = await GetCircleMembers(circleDef.Id);
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
 
-            List<DotYouIdentity> invalidMembers = new List<DotYouIdentity>();
+            // List<DotYouIdentity> invalidMembers = new List<DotYouIdentity>();
             foreach (var dotYouId in members)
             {
                 var icr = await this.GetIdentityConnectionRegistrationInternal(dotYouId);
@@ -453,6 +456,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
                 if (icr.IsConnected() && hasCg)
                 {
+                    //rebuild the circle grant
                     var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
                     icr.AccessGrant.CircleGrants[circleKey] = await this.CreateCircleGrant(circleDef, keyStoreKey, masterKey);
                     keyStoreKey.Wipe();
@@ -461,7 +465,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 {
                     //It should not occur that a circle has a member
                     //who is not connected but let's capture it
-                    invalidMembers.Add(dotYouId);
+                    // invalidMembers.Add(dotYouId);
                 }
 
                 this.SaveIcr(icr);
@@ -627,7 +631,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             };
         }
 
-        private async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreatePermissionContextInternal(Dictionary<string, CircleGrant> circleGrants,
+        private async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreatePermissionContextInternal(
+            Dictionary<string, CircleGrant> circleGrants,
             AccessRegistration accessReg,
             ClientAuthenticationToken authToken)
         {
@@ -698,6 +703,12 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             //TODO: this is a critical change; need to audit this
             _storage.Upsert(icr);
+
+            //notify anyone caching data for this identity, we need to reset the cache
+            // _mediator.Publish(new IdentityConnectionRegistrationChangedNotification()
+            // {
+            //     DotYouId = icr.DotYouId
+            // });
         }
 
         public void Dispose()
@@ -705,4 +716,5 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             _storage.Dispose();
         }
     }
+    
 }

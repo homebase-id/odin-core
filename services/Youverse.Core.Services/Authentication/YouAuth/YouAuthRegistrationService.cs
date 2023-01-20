@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.AppNotifications.ClientNotifications;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
@@ -77,14 +79,14 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                 }
 
                 dotYouContext.Caller = callerContext;
-                dotYouContext.SetPermissionContext(permissionContext); 
-                
+                dotYouContext.SetPermissionContext(permissionContext);
+
                 return dotYouContext;
             });
 
             return await _cache.GetOrAddContext(token, creator);
         }
-        
+
         public ValueTask<YouAuthRegistration?> LoadFromSubject(string subject)
         {
             var session = _youAuthRegistrationStorage.LoadFromSubject(subject);
@@ -174,7 +176,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             clientAccessToken = cat;
             return true;
         }
-        
+
         private PermissionContext CreateAuthenticatedYouAuthPermissionContext(ClientAuthenticationToken authToken, YouAuthClient client)
         {
             List<int> permissionKeys = new List<int>() { };
@@ -219,6 +221,12 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             }
 
             return true;
+        }
+
+        public Task Handle(IdentityConnectionRegistrationChangedNotification notification, CancellationToken cancellationToken)
+        {
+            _cache.EnqueueIdentityForReset(notification.DotYouId);
+            return Task.CompletedTask;
         }
     }
 }

@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using LazyCache;
 using LazyCache.Providers;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Primitives;
+using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 
 namespace Youverse.Core.Services.Base;
@@ -13,11 +16,13 @@ namespace Youverse.Core.Services.Base;
 public class DotYouContextCache
 {
     private readonly int _ttlSeconds;
-    private IAppCache _dotYouContextCache;
-    private CancellationTokenSource _expiryTokenSource = new ();
+    private readonly IAppCache _dotYouContextCache;
+    private readonly CancellationTokenSource _expiryTokenSource = new();
+    private readonly List<DotYouIdentity> _identitiesRequiringReset;
 
     public DotYouContextCache(int ttlSeconds = 60)
     {
+        _identitiesRequiringReset = new List<DotYouIdentity>();
         this._ttlSeconds = ttlSeconds;
         _dotYouContextCache = new CachingService();
     }
@@ -29,9 +34,20 @@ public class DotYouContextCache
         {
             SlidingExpiration = TimeSpan.FromSeconds(_ttlSeconds)
         };
-        
+
         policy.AddExpirationToken(new CancellationChangeToken(_expiryTokenSource.Token));
         var result = await _dotYouContextCache.GetOrAddAsync<DotYouContext>(key, dotYouContextFactory, policy);
+
+        //TODO: Need some locking on _identitiesRequiringReset
+        // var rebuildContext = _identitiesRequiringReset.Contains(result.Caller.DotYouId);
+        // if (rebuildContext)
+        // {
+        //     _dotYouContextCache.Remove(key);
+        //     result = await _dotYouContextCache.GetOrAddAsync<DotYouContext>(key, dotYouContextFactory, policy);
+        //     _identitiesRequiringReset.Remove(result.Caller.DotYouId);
+        //     
+        // }
+
         return result;
     }
 
@@ -42,5 +58,15 @@ public class DotYouContextCache
     {
         //from: https://github.com/alastairtree/LazyCache/wiki/API-documentation-(v-2.x)#empty-the-entire-cache
         _expiryTokenSource.Cancel();
+    }
+
+    public void EnqueueIdentityForReset(DotYouIdentity identity)
+    {
+        throw new NotImplementedException();
+        //todo: locking
+        // if (!_identitiesRequiringReset.Contains(identity))
+        // {
+        //     _identitiesRequiringReset.Add(identity);
+        // }
     }
 }

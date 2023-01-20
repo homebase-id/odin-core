@@ -1,12 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using System.Web;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Services.Authorization.Apps;
-using Youverse.Core.Services.Drive;
-using System.Web;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
 {
@@ -51,12 +48,27 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
         [HttpPost("register/app")]
         public async Task<RedactedAppRegistration> RegisterApp([FromBody] AppRegistrationRequest appRegistration)
         {
-            var reg = await _appRegistrationService.RegisterApp(
-                appId: appRegistration.AppId,
-                name: appRegistration.Name,
-                permissions: appRegistration.PermissionSet,
-                drives: appRegistration.Drives);
+            var reg = await _appRegistrationService.RegisterApp(appRegistration);
             return reg;
+        }
+
+        /// <summary>
+        /// Updates the app's permissions
+        /// </summary>
+        /// <returns></returns>
+        [HttpPost("register/updateapppermissions")]
+        public async Task UpdateAppPermissions([FromBody] UpdateAppPermissionsRequest request)
+        {
+            await _appRegistrationService.UpdateAppPermissions(request);
+        }
+
+        /// <summary>
+        /// Updates the authorized circles and their permissions
+        /// </summary>
+        [HttpPost("register/updateauthorizedcircles")]
+        public async Task UpdateAuthorizedCircles([FromBody] UpdateAuthorizedCirclesRequest request)
+        {
+            await _appRegistrationService.UpdateAuthorizedCircles(request);
         }
 
         /// <summary>
@@ -81,6 +93,57 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
         {
             await _appRegistrationService.RemoveAppRevocation(request.AppId);
             return new NoResultResponse(true);
+        }
+
+        /// <summary>
+        /// Removes the revocation for a given app.
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
+        [HttpPost("deleteApp")]
+        public async Task<NoResultResponse> DeleteApp([FromBody] GetAppRequest request)
+        {
+            await _appRegistrationService.DeleteApp(request.AppId);
+            return new NoResultResponse(true);
+        }
+
+
+        /// <summary>
+        /// Gets a list of registered clients
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet("clients")]
+        public async Task<List<RegisteredAppClientResponse>> GetRegisteredClients()
+        {
+            var result = await _appRegistrationService.GetRegisteredClients();
+            return result;
+        }
+
+        /// <summary>
+        /// Revokes the client by it's access registration Id
+        /// </summary>
+        [HttpPost("revokeClient")]
+        public async Task RevokeClient(GetAppClientRequest request)
+        {
+            await _appRegistrationService.RevokeClient(request.AccessRegistrationId);
+        }
+
+        /// <summary>
+        /// Re-enables the client by it's access registration Id
+        /// </summary>
+        [HttpPost("allowClient")]
+        public async Task EnableClient(GetAppClientRequest request)
+        {
+            await _appRegistrationService.AllowClient(request.AccessRegistrationId);
+        }
+
+        /// <summary>
+        /// Deletes the client by it's access registration Id
+        /// </summary>
+        [HttpPost("deleteClient")]
+        public async Task DeleteClient(GetAppClientRequest request)
+        {
+            await _appRegistrationService.DeleteClient(request.AccessRegistrationId);
         }
 
         /// <summary>

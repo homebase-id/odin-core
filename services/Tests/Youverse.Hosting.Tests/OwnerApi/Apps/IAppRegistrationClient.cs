@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Refit;
 using Youverse.Core;
@@ -24,10 +26,32 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
         [Post(RootPath + "/revoke")]
         Task<ApiResponse<NoResultResponse>> RevokeApp([Body] GetAppRequest request);
 
+
+        [Post(RootPath + "/deleteapp")]
+        Task<ApiResponse<NoResultResponse>> DeleteApp([Body] GetAppRequest request);
+
         [Post(RootPath + "/allow")]
         Task<ApiResponse<NoResultResponse>> RemoveAppRevocation([Body] GetAppRequest request);
 
+        [Post(RootPath + "/revokeClient")]
+        Task<ApiResponse<HttpContent>> RevokeClient([Body] GetAppClientRequest accessRegistrationId);
+
+        [Post(RootPath + "/deleteClient")]
+        Task<ApiResponse<HttpContent>> DeleteClient([Body] GetAppClientRequest accessRegistrationId);
+
+        [Post(RootPath + "/allowClient")]
+        Task<ApiResponse<HttpContent>> AllowClient([Body] GetAppClientRequest accessRegistrationId);
+
+        [Get(RootPath + "/clients")]
+        Task<ApiResponse<List<RegisteredAppClientResponse>>> GetRegisteredClients();
+
         [Post(RootPath + "/register/client")]
         Task<ApiResponse<AppClientRegistrationResponse>> RegisterAppOnClient([Body] AppClientRegistrationRequest appClientRegistration);
+
+        [Post(RootPath + "/register/updateauthorizedcircles")]
+        Task UpdateAuthorizedCircles([Body] UpdateAuthorizedCirclesRequest request);
+
+        [Post(RootPath + "/register/updateapppermissions")]
+        Task UpdateAppPermissions([Body] UpdateAppPermissionsRequest request);
     }
 }

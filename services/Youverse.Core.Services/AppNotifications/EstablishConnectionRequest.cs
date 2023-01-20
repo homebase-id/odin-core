@@ -10,3 +10,15 @@ public class EstablishConnectionRequest
     /// </summary>
     public List<TargetDrive> Drives { get; set; }
 }
+
+public class SocketCommand
+{
+    public SocketCommandType Command { get; set; }
+
+    public string Data { get; set; }
+}
+
+public enum SocketCommandType
+{
+    ProcessTransitInstructions = 111
+}

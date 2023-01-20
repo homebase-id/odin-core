@@ -55,6 +55,7 @@ public enum YouverseClientErrorCode
     // App Errors 60xx
     AppNotRegistered = 6001,
     AppHasNoAuthorizedCircles = 6700,
+    InvalidAccessRegistrationId = 6800,
 
     //Transit errors
     RemoteServerReturnedForbidden = 7403,
