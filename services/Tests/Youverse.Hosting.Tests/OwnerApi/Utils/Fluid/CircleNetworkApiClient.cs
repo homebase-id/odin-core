@@ -61,7 +61,8 @@ public class CircleNetworkApiClient
                 Assert.IsNotNull(circle.DriveGrants.SingleOrDefault(d => d == dgr));
             }
 
-            foreach (var k in request.Permissions.Keys)
+            // Ensure Circle has the keys matching the request.  so it's ok if the request was null
+            foreach (var k in request.Permissions?.Keys ?? new List<int>())
             {
                 Assert.IsTrue(circle.Permissions.HasKey(k));
             }
@@ -155,7 +156,7 @@ public class CircleNetworkApiClient
             var connectionsService = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
             var apiResponse = await connectionsService.GetConnectionInfo(new DotYouIdRequest() { DotYouId = recipient.DotYouId });
 
-            Assert.IsTrue(apiResponse.IsSuccessStatusCode,$"Failed to get status for {recipient.DotYouId}.  Status code was {apiResponse.StatusCode}");
+            Assert.IsTrue(apiResponse.IsSuccessStatusCode, $"Failed to get status for {recipient.DotYouId}.  Status code was {apiResponse.StatusCode}");
             Assert.IsNotNull(apiResponse.Content, $"No status for {recipient.DotYouId} found");
             return apiResponse.Content;
         }

@@ -49,7 +49,7 @@ public class AccessExchangeGrant
         {
             IsRevoked = this.IsRevoked,
             CircleGrants = this.CircleGrants.Values.Select(cg => cg.Redacted()).ToList(),
-            AppGrants = this.AppGrants.Values.Select(app => app.Values.Select(appCg => appCg.Redacted()).ToList()).ToList()
+            AppGrants = this.AppGrants.ToDictionary(k => k.Key, pair => pair.Value.Values.Select(v => v.Redacted()))
         };
     }
 }
@@ -58,5 +58,5 @@ public class RedactedAccessExchangeGrant
 {
     public bool IsRevoked { get; set; }
     public List<RedactedCircleGrant> CircleGrants { get; set; }
-    public List<List<RedactedAppCircleGrant>> AppGrants { get; set; }
+    public Dictionary<string, IEnumerable<RedactedAppCircleGrant>> AppGrants { get; set; }
 }
