@@ -15,6 +15,7 @@ using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Hosting.Controllers;
+using Youverse.Hosting.Controllers.OwnerToken.Circles;
 using Youverse.Hosting.Tests.OwnerApi.Circle;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Utils.Fluid;
@@ -147,6 +148,49 @@ public class CircleNetworkApiClient
         }
 
         return false;
+    }
+
+    public async Task GrantCircle(Guid circleId, TestIdentity recipient)
+    {
+        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        {
+            var svc = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+            var apiResponse = await svc.AddCircle(new AddCircleMembershipRequest()
+            {
+                CircleId = circleId,
+                DotYouId = recipient.DotYouId
+            });
+
+            Assert.IsTrue(apiResponse.IsSuccessStatusCode, $"Actual status code {apiResponse.StatusCode}");
+        }
+    }
+
+    public async Task RevokeCircle(Guid circleId, TestIdentity recipient)
+    {
+        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        {
+            var svc = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+            var apiResponse = await svc.RevokeCircle(new RevokeCircleMembershipRequest()
+            {
+                CircleId = circleId,
+                DotYouId = recipient.DotYouId
+            });
+
+            Assert.IsTrue(apiResponse.IsSuccessStatusCode, $"Actual status code {apiResponse.StatusCode}");
+        }
+    }
+
+    public async Task<object> GetCircleMembers(Guid circleId)
+    {
+        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        {
+            var svc = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
+            var apiResponse = await svc.GetCircleMembers(new GetCircleMembersRequest() { CircleId = circleId });
+            Assert.IsTrue(apiResponse.IsSuccessStatusCode, $"Actual status code {apiResponse.StatusCode}");
+            var members = apiResponse.Content;
+            Assert.NotNull(members);
+            return members;
+        }
     }
 
     public async Task<RedactedIdentityConnectionRegistration> GetConnectionInfo(TestIdentity recipient)

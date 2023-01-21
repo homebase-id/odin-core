@@ -75,7 +75,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             _appRegistrationValueStorage.Upsert(appReg.AppId, GuidId.Empty, _appRegistrationDataType, appReg);
 
-            await NotifyAppChanged(appReg);
+            await NotifyAppChanged(null, appReg);
             return appReg.Redacted();
         }
 
@@ -103,20 +103,27 @@ namespace Youverse.Core.Services.Authorization.Apps
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-            var appReg = await this.GetAppRegistrationInternal(request.AppId);
-            if (null == appReg)
+            var oldRegistration = await this.GetAppRegistrationInternal(request.AppId);
+            if (null == oldRegistration)
             {
                 throw new YouverseClientException("Invalid AppId", YouverseClientErrorCode.AppNotRegistered);
             }
 
-            appReg.AuthorizedCircles = request.AuthorizedCircles;
-            appReg.CircleMemberPermissionGrant = request.CircleMemberPermissionGrant;
-            
-            _appRegistrationValueStorage.Upsert(request.AppId, GuidId.Empty, _appRegistrationDataType, appReg);
+            var updatedAppReg = new AppRegistration()
+            {
+                AppId = oldRegistration.AppId,
+                Name = oldRegistration.Name,
+                Grant = oldRegistration.Grant,
 
-            //TODO: consider optimize by checking if anything actuallychanged before calling notifyappchanged
-            
-            await NotifyAppChanged(appReg);
+                CircleMemberPermissionGrant = request.CircleMemberPermissionGrant,
+                AuthorizedCircles = request.AuthorizedCircles
+            };
+
+            _appRegistrationValueStorage.Upsert(request.AppId, GuidId.Empty, _appRegistrationDataType, updatedAppReg);
+
+            //TODO: consider optimize by checking if anything actually changed before calling notify app changed
+
+            await NotifyAppChanged(oldRegistration, updatedAppReg);
             ResetAppPermissionContextCache();
         }
 
@@ -337,11 +344,12 @@ namespace Youverse.Core.Services.Authorization.Apps
             return appReg;
         }
 
-        private async Task NotifyAppChanged(AppRegistration appReg)
+        private async Task NotifyAppChanged(AppRegistration oldAppRegistration, AppRegistration newAppRegistration)
         {
             await _mediator.Publish(new AppRegistrationChangedNotification()
             {
-                AppRegistration = appReg
+                OldAppRegistration = oldAppRegistration,
+                NewAppRegistration = newAppRegistration
             });
         }
 

@@ -24,7 +24,7 @@ public class AppsApiClient
         _ownerApi = ownerApi;
         _identity = identity;
     }
-        
+
     public async Task<(ClientAuthenticationToken clientAuthToken, byte[] sharedSecret)> RegisterAppClient(Guid appId)
     {
         var rsa = new RsaFullKeyData(ref RsaKeyListManagement.zeroSensitiveKey, 1); // TODO
@@ -144,6 +144,18 @@ public class AppsApiClient
             Assert.That(updatedAppResponse.Content, Is.Not.Null);
 
             return updatedAppResponse.Content;
+        }
+    }
+
+    public async Task<RedactedAppRegistration> GetAppRegistration(Guid appId)
+    {
+        using (var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        {
+            var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+            var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = appId });
+            Assert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {appId}");
+            Assert.IsNotNull(appResponse.Content, $"Could not retrieve the app {appId}");
+            return appResponse.Content;
         }
     }
 }

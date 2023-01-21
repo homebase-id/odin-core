@@ -107,7 +107,7 @@ namespace Youverse.Hosting.Tests
 
         public OwnerApiTestUtils OldOwnerApi => this._oldOwnerApi ?? throw new NullReferenceException("Check if the owner app was initialized in method RunBeforeAnyTests");
         
-        public OwnerApiClient CreateOwnerApi(TestIdentity identity)
+        public OwnerApiClient CreateOwnerApiClient(TestIdentity identity)
         {
             return new OwnerApiClient(this._oldOwnerApi, identity);
         }

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
@@ -140,6 +141,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
         Task<Dictionary<string, CircleGrant>> CreateCircleGrantList(List<GuidId> circleIds, SensitiveByteArray keyStoreKey);
 
+        //TODO: need to create a dedicated type for appgrants
+        Task<Dictionary<string, Dictionary<string, AppCircleGrant>>> CreateAppCircleGrantList(List<GuidId> circleIds, SensitiveByteArray keyStoreKey);
         /// <summary>
         /// Creates a circle definition
         /// </summary>

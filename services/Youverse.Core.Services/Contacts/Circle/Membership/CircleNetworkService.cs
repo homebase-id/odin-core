@@ -388,14 +388,14 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             {
                 var appKey = app.AppId.Value.ToString();
                 //ensure the circle is granted to the identity
-                var appCg = await this.CreateAppCircleGrant(app, circleId, keyStoreKey, masterKey);
+                var appCircleGrant = await this.CreateAppCircleGrant(app, circleId, keyStoreKey, masterKey);
 
                 if (!icr.AccessGrant.AppGrants.Remove(appKey, out var appCircleGrantsDictionary))
                 {
-                    appCircleGrantsDictionary = new Dictionary<string, AppCircleGrant>();
+                    appCircleGrantsDictionary = new();
                 }
 
-                appCircleGrantsDictionary[circleId.Value.ToString()] = appCg;
+                appCircleGrantsDictionary[circleId.Value.ToString()] = appCircleGrant;
                 icr.AccessGrant.AppGrants[appKey] = appCircleGrantsDictionary;
             }
 
@@ -454,6 +454,33 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             }
 
             return circleGrants;
+        }
+
+        public async Task<Dictionary<string, Dictionary<string, AppCircleGrant>>> CreateAppCircleGrantList(List<GuidId> circleIds, SensitiveByteArray keyStoreKey)
+        {
+            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+
+            var allApps = await _appRegistrationService.GetRegisteredApps();
+            var appGrants = new Dictionary<string, Dictionary<string, AppCircleGrant>>(StringComparer.Ordinal);
+
+            foreach (var circleId in circleIds)
+            {
+                var appsThatGrantThisCircle = allApps.Where(reg => reg?.AuthorizedCircles?.Any(c => c == circleId) ?? false);
+
+                foreach (var app in appsThatGrantThisCircle)
+                {
+                    var appKey = app.AppId.Value.ToString();
+                    var appCircleGrant = await this.CreateAppCircleGrant(app, circleId, keyStoreKey, masterKey);
+
+                    var appCircleGrantsDictionary = new Dictionary<string, AppCircleGrant>
+                    {
+                        [circleId.Value.ToString()] = appCircleGrant
+                    };
+                    appGrants[appKey] = appCircleGrantsDictionary;
+                }
+            }
+
+            return appGrants;
         }
 
         public CircleDefinition GetCircleDefinition(GuidId circleId)
@@ -611,7 +638,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
         public async Task Handle(AppRegistrationChangedNotification notification, CancellationToken cancellationToken)
         {
-            await this.ReconcileAuthorizedCircles(notification.AppRegistration);
+            await this.ReconcileAuthorizedCircles(notification.OldAppRegistration, notification.NewAppRegistration);
         }
 
         //
@@ -807,10 +834,34 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             // });
         }
 
-        private async Task ReconcileAuthorizedCircles(AppRegistration appReg)
+        private async Task ReconcileAuthorizedCircles(AppRegistration oldAppRegistration, AppRegistration newAppRegistration)
         {
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-            foreach (var circleId in appReg.AuthorizedCircles ?? new List<Guid>())
+            var appKey = newAppRegistration.AppId.Value.ToString();
+
+            //TODO: use _db.CreateCommitUnitOfWork()
+            if (null != oldAppRegistration)
+            {
+                var circlesToRevoke = oldAppRegistration.AuthorizedCircles.Except(newAppRegistration.AuthorizedCircles);
+                //TODO: spin thru circles to revoke an update members
+
+                foreach (var circleId in circlesToRevoke)
+                {
+                    //get all circle members and update their grants
+                    var members = await this.GetCircleMembers(circleId);
+
+                    foreach (var dotYouId in members)
+                    {
+                        var icr = await this.GetIdentityConnectionRegistrationInternal(dotYouId);
+                        var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
+                        icr.AccessGrant.AppGrants[appKey]?.Remove(circleId.ToString());
+                        keyStoreKey.Wipe();
+                        this.SaveIcr(icr);
+                    }
+                }
+            }
+
+            foreach (var circleId in newAppRegistration.AuthorizedCircles ?? new List<Guid>())
             {
                 //get all circle members and update their grants
                 var members = await this.GetCircleMembers(circleId);
@@ -818,22 +869,26 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 foreach (var dotYouId in members)
                 {
                     var icr = await this.GetIdentityConnectionRegistrationInternal(dotYouId);
-                    var appIdKey = appReg.AppId.Value.ToString();
                     var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
 
-                    var appCircleGrant = await this.CreateAppCircleGrant(appReg.Redacted(), circleId, keyStoreKey, masterKey);
+                    var appCircleGrant = await this.CreateAppCircleGrant(newAppRegistration.Redacted(), circleId, keyStoreKey, masterKey);
 
-                    if (!icr.AccessGrant.AppGrants.TryGetValue(appIdKey, out var appCircleGrantDictionary))
+                    if (!icr.AccessGrant.AppGrants.TryGetValue(appKey, out var appCircleGrantDictionary))
                     {
-                        appCircleGrantDictionary = new();
+                        appCircleGrantDictionary = new Dictionary<string, AppCircleGrant>();
                     }
 
                     appCircleGrantDictionary[appCircleGrant.CircleId.ToString()] = appCircleGrant;
-                    icr.AccessGrant.AppGrants[appIdKey] = appCircleGrantDictionary;
+                    icr.AccessGrant.AppGrants[appKey] = appCircleGrantDictionary;
 
                     keyStoreKey.Wipe();
+
+                    this.SaveIcr(icr);
                 }
             }
+            
+
+            //
         }
     }
 }

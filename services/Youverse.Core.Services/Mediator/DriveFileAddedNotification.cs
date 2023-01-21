@@ -21,5 +21,6 @@ public class DriveFileAddedNotification : EventArgs, INotification, IDriveClient
 
 public class AppRegistrationChangedNotification : EventArgs, INotification
 {
-    public AppRegistration AppRegistration { get; set; }
+    public AppRegistration NewAppRegistration { get; set; }
+    public AppRegistration OldAppRegistration { get; set; }
 }
