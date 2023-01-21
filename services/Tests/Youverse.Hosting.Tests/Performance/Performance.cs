@@ -80,7 +80,7 @@ namespace Youverse.Hosting.Tests.Performance
             // Some initialization to prepare for the test
             //
             var identity = TestIdentities.Frodo;
-            var testContext = await _scaffold.OwnerApi.SetupTestSampleApp(identity);
+            var testContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(identity);
 
             var thumbnail1 = new ImageDataContent()
             {
@@ -151,7 +151,7 @@ namespace Youverse.Hosting.Tests.Performance
                 additionalThumbs: new List<ImageDataContent>() { thumbnail2 });
 
             using var client =
-                   _scaffold.OwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret);
+                   _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret);
             var staticFileSvc =
                 RefitCreator.RestServiceFor<IStaticFileTestHttpClientForOwner>(client, ownerSharedSecret);
 
@@ -356,7 +356,7 @@ namespace Youverse.Hosting.Tests.Performance
             List<ImageDataContent> additionalThumbs)
         {
             using (var client =
-                   _scaffold.OwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret))
+                   _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret))
             {
                 var transferIv = ByteArrayUtil.GetRndByteArray(16);
                 var keyHeader = KeyHeader.NewRandom16();

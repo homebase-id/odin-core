@@ -65,7 +65,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <summary>
         /// The list of drives of which this app should receive access
         /// </summary>
-        public List<DriveGrantRequest> Drives { get; set; }
+        public IEnumerable<DriveGrantRequest> Drives { get; set; }
 
     }
 }

@@ -68,9 +68,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 DisconnectIdentitiesAfterTransfer = true
             };
 
-            var uploadContext = await _scaffold.OwnerApi.Upload(identity.DotYouId, uploadFileMetadata, options);
+            var uploadContext = await _scaffold.OldOwnerApi.Upload(identity.DotYouId, uploadFileMetadata, options);
 
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
                 var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
 
@@ -129,7 +129,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 DisconnectIdentitiesAfterTransfer = true
             };
 
-            var uploadContext = await _scaffold.OwnerApi.Upload(identity.DotYouId, uploadFileMetadata, options);
+            var uploadContext = await _scaffold.OldOwnerApi.Upload(identity.DotYouId, uploadFileMetadata, options);
 
 
             //
@@ -140,12 +140,12 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
             instructionSet.StorageOptions.OverwriteFileId = uploadContext.UploadedFile.FileId;
 
             uploadFileMetadata.AppData.DataType = 10844;
-            var _ = await _scaffold.OwnerApi.UploadFile(identity.DotYouId, instructionSet, uploadFileMetadata, "a new payload", true);
+            var _ = await _scaffold.OldOwnerApi.UploadFile(identity.DotYouId, instructionSet, uploadFileMetadata, "a new payload", true);
 
             //
             // query the data to see the changes
             //
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
                 var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
 
@@ -219,9 +219,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 DisconnectIdentitiesAfterTransfer = true
             };
 
-            var uploadContext = await _scaffold.OwnerApi.Upload(identity.DotYouId, uploadFileMetadata, options);
+            var uploadContext = await _scaffold.OldOwnerApi.Upload(identity.DotYouId, uploadFileMetadata, options);
 
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
                 var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
 
@@ -283,7 +283,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 }
             };
 
-            await _scaffold.OwnerApi.UploadFile(identity.DotYouId, file1InstructionSet, file1Metadata, "file one payload");
+            await _scaffold.OldOwnerApi.UploadFile(identity.DotYouId, file1InstructionSet, file1Metadata, "file one payload");
 
             //
             // Add another drive and file
@@ -315,12 +315,12 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 }
             };
 
-            await _scaffold.OwnerApi.UploadFile(identity.DotYouId, file2InstructionSet, file2Metadata, "file two payload");
+            await _scaffold.OldOwnerApi.UploadFile(identity.DotYouId, file2InstructionSet, file2Metadata, "file two payload");
 
             //
             // perform the batch search
             //
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
                 var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
 

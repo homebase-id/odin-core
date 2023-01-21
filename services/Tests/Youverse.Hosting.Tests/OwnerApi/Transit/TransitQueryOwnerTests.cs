@@ -55,13 +55,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
 
             Guid appId = Guid.NewGuid();
             var targetDrive = TargetDrive.NewTargetDrive();
-            var senderContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, sender, canReadConnections: true, targetDrive, driveAllowAnonymousReads: true);
-            var recipientContext = await _scaffold.OwnerApi.SetupTestSampleApp(senderContext.AppId, recipient, canReadConnections: true, targetDrive);
+            var senderContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(appId, sender, canReadConnections: true, targetDrive, driveAllowAnonymousReads: true);
+            var recipientContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(senderContext.AppId, recipient, canReadConnections: true, targetDrive);
 
             Guid fileTag = Guid.NewGuid();
 
             var senderCircleDef =
-                await _scaffold.OwnerApi.CreateCircleWithDrive(sender.DotYouId, "Sender Circle",
+                await _scaffold.OldOwnerApi.CreateCircleWithDrive(sender.DotYouId, "Sender Circle",
                     permissionKeys: new List<int>() { },
                     drive: new PermissionedDrive()
                     {
@@ -70,7 +70,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                     });
 
             var recipientCircleDef =
-                await _scaffold.OwnerApi.CreateCircleWithDrive(recipient.DotYouId, "Recipient Circle",
+                await _scaffold.OldOwnerApi.CreateCircleWithDrive(recipient.DotYouId, "Recipient Circle",
                     permissionKeys: new List<int>() { },
                     drive: new PermissionedDrive()
                     {
@@ -78,7 +78,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                         Permission = DrivePermission.ReadWrite
                     });
 
-            await _scaffold.OwnerApi.CreateConnection(sender.DotYouId, recipient.DotYouId,
+            await _scaffold.OldOwnerApi.CreateConnection(sender.DotYouId, recipient.DotYouId,
                 createConnectionOptions: new CreateConnectionOptions()
                 {
                     CircleIdsGrantedToRecipient = new List<GuidId>() { senderCircleDef.Id },
@@ -155,7 +155,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                 }
             }
 
-            await _scaffold.OwnerApi.ProcessOutbox(sender.DotYouId);
+            await _scaffold.OldOwnerApi.ProcessOutbox(sender.DotYouId);
 
             ExternalFileIdentifier uploadedFile;
             var fileTagQueryParams = new FileQueryParams()
@@ -262,13 +262,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
 
             instructionSet.TransitOptions = null;
 
-            await _scaffold.OwnerApi.UploadFile(recipient.DotYouId, instructionSet, descriptor.FileMetadata, payloadData, true);
+            await _scaffold.OldOwnerApi.UploadFile(recipient.DotYouId, instructionSet, descriptor.FileMetadata, payloadData, true);
 
 
             //
             //  The final test - use transit query batch for the sender to get the file on the recipients identity over transit
             //
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sender, out var sharedSecret))
+            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sender, out var sharedSecret))
             {
                 var svc = RefitCreator.RestServiceFor<ITransitQueryHttpClientForOwner>(client, sharedSecret);
 
@@ -290,7 +290,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
             keyHeader.AesKey.Wipe();
             key.Wipe();
 
-            await _scaffold.OwnerApi.DisconnectIdentities(sender.DotYouId, recipientContext.Identity);
+            await _scaffold.OldOwnerApi.DisconnectIdentities(sender.DotYouId, recipientContext.Identity);
         }
 
         [Test]
@@ -301,13 +301,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
 
             Guid appId = Guid.NewGuid();
             var targetDrive = TargetDrive.NewTargetDrive();
-            var senderContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, sender, canReadConnections: true, targetDrive, driveAllowAnonymousReads: true);
-            var recipientContext = await _scaffold.OwnerApi.SetupTestSampleApp(senderContext.AppId, recipient, canReadConnections: true, targetDrive);
+            var senderContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(appId, sender, canReadConnections: true, targetDrive, driveAllowAnonymousReads: true);
+            var recipientContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(senderContext.AppId, recipient, canReadConnections: true, targetDrive);
 
             Guid fileTag = Guid.NewGuid();
 
             var senderCircleDef =
-                await _scaffold.OwnerApi.CreateCircleWithDrive(sender.DotYouId, "Sender Circle",
+                await _scaffold.OldOwnerApi.CreateCircleWithDrive(sender.DotYouId, "Sender Circle",
                     permissionKeys: new List<int>() { },
                     drive: new PermissionedDrive()
                     {
@@ -316,7 +316,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                     });
 
             var recipientCircleDef =
-                await _scaffold.OwnerApi.CreateCircleWithDrive(recipient.DotYouId, "Recipient Circle",
+                await _scaffold.OldOwnerApi.CreateCircleWithDrive(recipient.DotYouId, "Recipient Circle",
                     permissionKeys: new List<int>() { },
                     drive: new PermissionedDrive()
                     {
@@ -324,7 +324,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                         Permission = DrivePermission.ReadWrite
                     });
 
-            await _scaffold.OwnerApi.CreateConnection(sender.DotYouId, recipient.DotYouId,
+            await _scaffold.OldOwnerApi.CreateConnection(sender.DotYouId, recipient.DotYouId,
                 createConnectionOptions: new CreateConnectionOptions()
                 {
                     CircleIdsGrantedToRecipient = new List<GuidId>() { senderCircleDef.Id },
@@ -415,7 +415,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                 }
             }
 
-            await _scaffold.OwnerApi.ProcessOutbox(sender.DotYouId);
+            await _scaffold.OldOwnerApi.ProcessOutbox(sender.DotYouId);
 
             ExternalFileIdentifier uploadedFile;
             var fileTagQueryParams = new FileQueryParams()
@@ -532,7 +532,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
 
             instructionSet.TransitOptions = null;
 
-            var reuploadedContext = await _scaffold.OwnerApi.UploadFile(recipient.DotYouId, instructionSet, descriptor.FileMetadata, originalPayloadData, true, new ImageDataContent()
+            var reuploadedContext = await _scaffold.OldOwnerApi.UploadFile(recipient.DotYouId, instructionSet, descriptor.FileMetadata, originalPayloadData, true, new ImageDataContent()
             {
                 ContentType = thumbnail1.ContentType,
                 PixelHeight = thumbnail1.PixelHeight,
@@ -543,7 +543,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
             //
             //  The final test - use transit query batch for the sender to get the file on the recipients identity over transit
             //
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sender, out var ownerSharedSecret))
+            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sender, out var ownerSharedSecret))
             {
                 var transitQueryService = RefitCreator.RestServiceFor<ITransitQueryHttpClientForOwner>(client, ownerSharedSecret);
 
@@ -645,7 +645,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
             keyHeader.AesKey.Wipe();
             key.Wipe();
 
-            await _scaffold.OwnerApi.DisconnectIdentities(sender.DotYouId, recipientContext.Identity);
+            await _scaffold.OldOwnerApi.DisconnectIdentities(sender.DotYouId, recipientContext.Identity);
         }
 
         [Test]
@@ -675,15 +675,15 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                 Type = expectedDriveType
             };
 
-            var senderContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, sender, false, targetDriveReadOnly);
-            var recipientContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, recipient, false, targetDriveReadOnly);
+            var senderContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(appId, sender, false, targetDriveReadOnly);
+            var recipientContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(appId, recipient, false, targetDriveReadOnly);
 
             //give add additional to recipient
-            await _scaffold.OwnerApi.CreateDrive(recipient.DotYouId, targetDriveReadWrite, "ReadWrite Drive", "", false);
-            await _scaffold.OwnerApi.CreateDrive(recipient.DotYouId, targetDriveWriteOnly, "Write Only Drive", "", false);
+            await _scaffold.OldOwnerApi.CreateDrive(recipient.DotYouId, targetDriveReadWrite, "ReadWrite Drive", "", false);
+            await _scaffold.OldOwnerApi.CreateDrive(recipient.DotYouId, targetDriveWriteOnly, "Write Only Drive", "", false);
 
             var senderCircleDef =
-                await _scaffold.OwnerApi.CreateCircleWithDrive(sender.DotYouId, "Sender Circle",
+                await _scaffold.OldOwnerApi.CreateCircleWithDrive(sender.DotYouId, "Sender Circle",
                     permissionKeys: new List<int>() { },
                     drive: new PermissionedDrive()
                     {
@@ -693,7 +693,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
 
             //grant sender access to the drives
             var recipientCircleDef =
-                await _scaffold.OwnerApi.CreateCircleWithDrive(recipient.DotYouId, "Recipient Circle",
+                await _scaffold.OldOwnerApi.CreateCircleWithDrive(recipient.DotYouId, "Recipient Circle",
                     permissionKeys: new List<int>() { },
                     drives: new List<PermissionedDrive>()
                     {
@@ -714,7 +714,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                         }
                     });
 
-            await _scaffold.OwnerApi.CreateConnection(sender.DotYouId, recipient.DotYouId,
+            await _scaffold.OldOwnerApi.CreateConnection(sender.DotYouId, recipient.DotYouId,
                 createConnectionOptions: new CreateConnectionOptions()
                 {
                     CircleIdsGrantedToRecipient = new List<GuidId>() { senderCircleDef.Id },
@@ -722,7 +722,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                 });
 
             //
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(sender, out var ownerSharedSecret))
+            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sender, out var ownerSharedSecret))
             {
                 var transitQueryService = RefitCreator.RestServiceFor<ITransitQueryHttpClientForOwner>(client, ownerSharedSecret);
 
@@ -744,7 +744,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                 Assert.IsNull(drivesOnRecipientIdentityAccessibleToSender.SingleOrDefault(d => d.TargetDrive == targetDriveWriteOnly), "should not have access to write only drive");
             }
 
-            await _scaffold.OwnerApi.DisconnectIdentities(sender.DotYouId, recipientContext.Identity);
+            await _scaffold.OldOwnerApi.DisconnectIdentities(sender.DotYouId, recipientContext.Identity);
         }
     }
 }

@@ -49,7 +49,7 @@ public class NotificationsTest
         // Create an app
         //
         Guid appId = Guid.NewGuid();
-        var testAppContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, identity,
+        var testAppContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(appId, identity,
             canReadConnections: true,
             targetDrive: appDrive,
             driveAllowAnonymousReads: false);
@@ -58,7 +58,7 @@ public class NotificationsTest
         // Create a device use the app
         //
         var (deviceClientAuthToken, deviceSharedSecret) =
-            await _scaffold.OwnerApi.AddAppClient(identity.DotYouId, appId);
+            await _scaffold.OldOwnerApi.AddAppClient(identity.DotYouId, appId);
 
         // Connect the drive to websockets
         // use the client auth token
@@ -117,7 +117,7 @@ public class NotificationsTest
         // Create an app
         //
         Guid appId = Guid.NewGuid();
-        var testAppContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, identity,
+        var testAppContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(appId, identity,
             canReadConnections: true,
             targetDrive: appDrive,
             driveAllowAnonymousReads: false);
@@ -126,7 +126,7 @@ public class NotificationsTest
         // Create a device use the app
         //
         var (deviceClientAuthToken, deviceSharedSecret) =
-            await _scaffold.OwnerApi.AddAppClient(identity.DotYouId, appId);
+            await _scaffold.OldOwnerApi.AddAppClient(identity.DotYouId, appId);
 
         // Connect the drive to websockets
         // use the client auth token

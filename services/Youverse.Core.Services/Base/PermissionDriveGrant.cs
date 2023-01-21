@@ -12,7 +12,7 @@ namespace Youverse.Core.Services.Base
     /// </summary>
     public class PermissionSetGrantRequest
     {
-        public List<DriveGrantRequest> Drives { get; set; }
+        public IEnumerable<DriveGrantRequest> Drives { get; set; }
         public PermissionSet PermissionSet { get; set; }
     }
 }

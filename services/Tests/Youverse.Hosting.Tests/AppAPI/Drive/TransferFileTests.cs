@@ -211,7 +211,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             Assert.IsNotNull(payloadResponse.Content);
             //TODO decrypt paylaod and test that contents are updated
 
-            await _scaffold.OwnerApi.DisconnectIdentities(senderAppContext.Identity, recipientAppContext.Identity);
+            await _scaffold.OldOwnerApi.DisconnectIdentities(senderAppContext.Identity, recipientAppContext.Identity);
         }
 
         [Test]
@@ -293,7 +293,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             var recipientQbDeleteFileEntry = recipientQbResponse.Content.SearchResults.SingleOrDefault();
             DotYouTestAssertions.FileHeaderIsMarkedDeleted(recipientQbDeleteFileEntry, shouldHaveGlobalTransitId: true);
 
-            await _scaffold.OwnerApi.DisconnectIdentities(senderAppContext.Identity, recipientAppContext.Identity);
+            await _scaffold.OldOwnerApi.DisconnectIdentities(senderAppContext.Identity, recipientAppContext.Identity);
         }
 
 
@@ -322,13 +322,13 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
             Guid appId = Guid.NewGuid();
             var targetDrive = TargetDrive.NewTargetDrive();
-            var senderContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, sender, canReadConnections: true, targetDrive, driveAllowAnonymousReads: true);
-            var recipientContext = await _scaffold.OwnerApi.SetupTestSampleApp(senderContext.AppId, recipient, canReadConnections: true, targetDrive);
+            var senderContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(appId, sender, canReadConnections: true, targetDrive, driveAllowAnonymousReads: true);
+            var recipientContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(senderContext.AppId, recipient, canReadConnections: true, targetDrive);
 
             Guid fileTag = Guid.NewGuid();
 
             var senderCircleDef =
-                await _scaffold.OwnerApi.CreateCircleWithDrive(sender.DotYouId, "Sender Circle",
+                await _scaffold.OldOwnerApi.CreateCircleWithDrive(sender.DotYouId, "Sender Circle",
                     permissionKeys: new List<int>() { },
                     drive: new PermissionedDrive()
                     {
@@ -337,7 +337,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     });
 
             var recipientCircleDef =
-                await _scaffold.OwnerApi.CreateCircleWithDrive(recipient.DotYouId, "Recipient Circle",
+                await _scaffold.OldOwnerApi.CreateCircleWithDrive(recipient.DotYouId, "Recipient Circle",
                     permissionKeys: new List<int>() { },
                     drive: new PermissionedDrive()
                     {
@@ -345,7 +345,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                         Permission = DrivePermission.ReadWrite
                     });
 
-            await _scaffold.OwnerApi.CreateConnection(sender.DotYouId, recipient.DotYouId,
+            await _scaffold.OldOwnerApi.CreateConnection(sender.DotYouId, recipient.DotYouId,
                 createConnectionOptions: new CreateConnectionOptions()
                 {
                     CircleIdsGrantedToRecipient = new List<GuidId>() { senderCircleDef.Id },
@@ -588,7 +588,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             keyHeader.AesKey.Wipe();
             key.Wipe();
 
-            await _scaffold.OwnerApi.DisconnectIdentities(sender.DotYouId, recipientContext.Identity);
+            await _scaffold.OldOwnerApi.DisconnectIdentities(sender.DotYouId, recipientContext.Identity);
         }
 
         [Test(Description = "")]
@@ -599,13 +599,13 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
             Guid appId = Guid.NewGuid();
             var targetDrive = TargetDrive.NewTargetDrive();
-            var senderContext = await _scaffold.OwnerApi.SetupTestSampleApp(appId, sender, canReadConnections: true, targetDrive, driveAllowAnonymousReads: true);
-            var recipientContext = await _scaffold.OwnerApi.SetupTestSampleApp(senderContext.AppId, recipient, canReadConnections: true, targetDrive);
+            var senderContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(appId, sender, canReadConnections: true, targetDrive, driveAllowAnonymousReads: true);
+            var recipientContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(senderContext.AppId, recipient, canReadConnections: true, targetDrive);
 
             Guid fileTag = Guid.NewGuid();
 
             var senderCircleDef =
-                await _scaffold.OwnerApi.CreateCircleWithDrive(sender.DotYouId, "Sender Circle",
+                await _scaffold.OldOwnerApi.CreateCircleWithDrive(sender.DotYouId, "Sender Circle",
                     permissionKeys: new List<int>() { },
                     drive: new PermissionedDrive()
                     {
@@ -614,7 +614,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     });
 
             var recipientCircleDef =
-                await _scaffold.OwnerApi.CreateCircleWithDrive(recipient.DotYouId, "Recipient Circle",
+                await _scaffold.OldOwnerApi.CreateCircleWithDrive(recipient.DotYouId, "Recipient Circle",
                     permissionKeys: new List<int>() { },
                     drive: new PermissionedDrive()
                     {
@@ -622,7 +622,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                         Permission = DrivePermission.ReadWrite
                     });
 
-            await _scaffold.OwnerApi.CreateConnection(sender.DotYouId, recipient.DotYouId,
+            await _scaffold.OldOwnerApi.CreateConnection(sender.DotYouId, recipient.DotYouId,
                 createConnectionOptions: new CreateConnectionOptions()
                 {
                     CircleIdsGrantedToRecipient = new List<GuidId>() { senderCircleDef.Id },
@@ -722,7 +722,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 }
             }
 
-            await _scaffold.OwnerApi.ProcessOutbox(sender.DotYouId);
+            await _scaffold.OldOwnerApi.ProcessOutbox(sender.DotYouId);
 
             using (var client = _scaffold.AppApi.CreateAppApiHttpClient(recipientContext))
             {
@@ -867,7 +867,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             keyHeader.AesKey.Wipe();
             key.Wipe();
 
-            await _scaffold.OwnerApi.DisconnectIdentities(sender.DotYouId, recipientContext.Identity);
+            await _scaffold.OldOwnerApi.DisconnectIdentities(sender.DotYouId, recipientContext.Identity);
         }
 
         // [Test(Description = "Updates a thumbnail")]

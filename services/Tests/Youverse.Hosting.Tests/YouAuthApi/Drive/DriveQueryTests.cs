@@ -42,7 +42,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
             Guid tag = Guid.NewGuid();
 
             var targetDrive = TargetDrive.NewTargetDrive();
-            await _scaffold.OwnerApi.CreateDrive(identity.DotYouId, targetDrive, "test drive", "", true); //note: must allow anonymous so youauth can read it
+            await _scaffold.OldOwnerApi.CreateDrive(identity.DotYouId, targetDrive, "test drive", "", true); //note: must allow anonymous so youauth can read it
             var securedFileUploadContext = await this.UploadFile2(identity.DotYouId, targetDrive, null, tag, SecurityGroupType.Connected, "payload");
             var anonymousFileUploadContext = await this.UploadFile2(identity.DotYouId, targetDrive, null, tag, SecurityGroupType.Anonymous, "another payload");
 
@@ -87,7 +87,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
             Guid tag = Guid.NewGuid();
 
             var targetDrive = TargetDrive.NewTargetDrive();
-            await _scaffold.OwnerApi.CreateDrive(identity.DotYouId, targetDrive, "test drive", "", true); //note: must allow anonymous so youauth can read it
+            await _scaffold.OldOwnerApi.CreateDrive(identity.DotYouId, targetDrive, "test drive", "", true); //note: must allow anonymous so youauth can read it
             var securedFileUploadContext = await this.UploadFile2(identity.DotYouId, targetDrive, null, tag, SecurityGroupType.Connected, "payload");
             var anonymousFileUploadContext = await this.UploadFile2(identity.DotYouId, targetDrive, null, tag, SecurityGroupType.Anonymous, "another payload");
 
@@ -293,7 +293,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 DriveAllowAnonymousReads = true
             };
 
-            return await _scaffold.OwnerApi.Upload(identity, uploadFileMetadata, options);
+            return await _scaffold.OldOwnerApi.Upload(identity, uploadFileMetadata, options);
         }
 
         private async Task<UploadTestUtilsContext> UploadFile2(DotYouIdentity identity, TargetDrive drive, Guid? overwriteFileId, Guid tag, SecurityGroupType requiredSecurityGroup, string payload)
@@ -328,7 +328,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 }
             };
 
-            return await _scaffold.OwnerApi.UploadFile(identity, instructionSet, uploadFileMetadata, payload, false);
+            return await _scaffold.OldOwnerApi.UploadFile(identity, instructionSet, uploadFileMetadata, payload, false);
         }
     }
 }

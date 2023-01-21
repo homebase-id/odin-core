@@ -110,7 +110,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 DriveAllowAnonymousReads = true
             };
 
-            return await _scaffold.OwnerApi.Upload(identity, uploadFileMetadata, options);
+            return await _scaffold.OldOwnerApi.Upload(identity, uploadFileMetadata, options);
         }
     }
 }

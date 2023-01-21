@@ -239,7 +239,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             bool createDrive = false,
             bool canReadConnections = false,
             bool driveAllowAnonymousReads = false,
-            bool ownerOnlyDrive = false, 
+            bool ownerOnlyDrive = false,
             List<Guid> authorizedCircles = null,
             PermissionSetGrantRequest circleMemberGrantRequest = null)
         {
@@ -367,18 +367,46 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             }
         }
 
+        public async Task UpdateAppAuthorizedCircles(DotYouIdentity identity, Guid appId, List<Guid> authorizedCircles, PermissionSetGrantRequest grant)
+        {
+            using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            {
+                var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+
+                await svc.UpdateAuthorizedCircles(new UpdateAuthorizedCirclesRequest()
+                {
+                    AppId = appId,
+                    AuthorizedCircles = authorizedCircles,
+                    CircleMemberPermissionGrant = grant
+                });
+            }
+        }
+
+        public async Task UpdateAppPermissions(DotYouIdentity identity, Guid appId, PermissionSetGrantRequest grant)
+        {
+            using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            {
+                var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+
+                await svc.UpdateAppPermissions(new UpdateAppPermissionsRequest()
+                {
+                    AppId = appId,
+                    Drives = grant.Drives,
+                    PermissionSet = grant.PermissionSet
+                });
+            }
+        }
 
         /// <summary>
         /// Creates an app, device, and logs in returning an contextual information needed to run unit tests.
         /// </summary>
         /// <returns></returns>
-
         public async Task<TestAppContext> SetupTestSampleApp(
-            Guid appId, 
+            Guid appId,
             TestIdentity identity,
-            bool canReadConnections = false, 
+            bool canReadConnections = false,
             TargetDrive targetDrive = null,
-            bool driveAllowAnonymousReads = false, 
+            bool driveAllowAnonymousReads = false,
             bool ownerOnlyDrive = false,
             List<Guid> authorizedCircles = null,
             PermissionSetGrantRequest circleMemberGrantRequest = null)
@@ -392,7 +420,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 };
             }
 
-            this.AddAppWithAllDrivePermissions(identity.DotYouId, appId, targetDrive, true, canReadConnections, driveAllowAnonymousReads, ownerOnlyDrive, authorizedCircles,circleMemberGrantRequest).GetAwaiter().GetResult();
+            this.AddAppWithAllDrivePermissions(identity.DotYouId, appId, targetDrive, true, canReadConnections, driveAllowAnonymousReads, ownerOnlyDrive, authorizedCircles, circleMemberGrantRequest)
+                .GetAwaiter().GetResult();
 
             var (authResult, sharedSecret) = this.AddAppClient(identity.DotYouId, appId).GetAwaiter().GetResult();
             return new TestAppContext()
@@ -478,7 +507,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 Assert.IsTrue(getIsIdentityConfiguredResponse.Content);
             }
         }
-        
+
         public async Task<TestAppContext> SetupTestSampleApp(TestIdentity identity, bool ownerOnlyDrive = false)
         {
             Guid appId = Guid.NewGuid();
@@ -489,9 +518,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             };
             return await this.SetupTestSampleApp(appId, identity, false, targetDrive, ownerOnlyDrive: ownerOnlyDrive);
         }
+
         public async Task SetupTestSampleApp(TestIdentity identity, InitialSetupRequest setupConfig)
         {
-         
         }
 
         public async Task DisconnectIdentities(DotYouIdentity dotYouId1, DotYouIdentity dotYouId2)
