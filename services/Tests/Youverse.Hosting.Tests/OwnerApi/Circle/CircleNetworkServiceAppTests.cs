@@ -115,7 +115,6 @@ public class CircleNetworkServiceAppTests
         };
 
         var appRegistration = await frodoOwnerClient.Apps.RegisterApp(appId, appPermissionsGrant, authorizedCircles, circleMemberGrant);
-        // var (clientAuthToken, sharedSecret) = await frodoOwnerApi.RegisterAppClient(appRegistration.AppId);
 
         #endregion
 
@@ -276,8 +275,7 @@ public class CircleNetworkServiceAppTests
         await frodoOwnerClient.Network.DisconnectFrom(samOwnerClient.Identity);
         await samOwnerClient.Network.DisconnectFrom(frodoOwnerClient.Identity);
     }
-
-
+    
     [Test]
     public async Task UpdateAuthorizedCircles_ByAddingOne_AndRemovingExisting()
     {
@@ -464,6 +462,14 @@ public class CircleNetworkServiceAppTests
         await samOwnerClient.Network.DisconnectFrom(frodoOwnerClient.Identity);
     }
 
+    [Test]
+    public async Task AcceptedConnectionRequest_GrantsAppCircle()
+    {
+        //TODO: here we need to ensure that when I accept a connection request the original sender gets the app grants from 
+        // the circles granted
+        
+        Assert.Inconclusive("TODO");
+    }
     private void AssertAllDrivesGrantedFromCircle(CircleDefinition circleDefinition, RedactedCircleGrant actual)
     {
         foreach (var circleDriveGrant in circleDefinition.DriveGrants)
