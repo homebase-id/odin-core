@@ -675,7 +675,7 @@ public class CircleNetworkServiceAppTests
     }
 
     [Test]
-    public async Task RevokeCircleWithAppAuthorizedCircles()
+    public async Task RevokeCircleFromAppAuthorizedCircles()
     {
         var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
         var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
@@ -856,27 +856,5 @@ public class CircleNetworkServiceAppTests
         await frodoOwnerClient.Network.DisconnectFrom(samOwnerClient.Identity);
         await samOwnerClient.Network.DisconnectFrom(frodoOwnerClient.Identity);
     }
-
-
-    private void AssertAllDrivesGrantedFromCircle(CircleDefinition circleDefinition, RedactedCircleGrant actual)
-    {
-        foreach (var circleDriveGrant in circleDefinition.DriveGrants)
-        {
-            //be sure it's in the list of granted drives; use Single to be sure it's only in there once
-            var result = actual.DriveGrants.SingleOrDefault(x =>
-                x.PermissionedDrive.Drive == circleDriveGrant.PermissionedDrive.Drive && x.PermissionedDrive.Permission == circleDriveGrant.PermissionedDrive.Permission);
-            Assert.NotNull(result);
-        }
-    }
-
-    private async Task AssertIdentityIsInCircle(HttpClient client, SensitiveByteArray ownerSharedSecret, GuidId circleId, DotYouIdentity expectedIdentity)
-    {
-        var circleMemberSvc = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
-        var getCircleMemberResponse = await circleMemberSvc.GetCircleMembers(new GetCircleMembersRequest() { CircleId = circleId });
-        Assert.IsTrue(getCircleMemberResponse.IsSuccessStatusCode, $"Actual status code {getCircleMemberResponse.StatusCode}");
-        var members = getCircleMemberResponse.Content;
-        Assert.NotNull(members);
-        Assert.IsTrue(members.Any());
-        Assert.IsFalse(members.SingleOrDefault(m => m == expectedIdentity).Id == null);
-    }
+    
 }
