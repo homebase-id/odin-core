@@ -472,10 +472,12 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                     var appKey = app.AppId.Value.ToString();
                     var appCircleGrant = await this.CreateAppCircleGrant(app, circleId, keyStoreKey, masterKey);
 
-                    var appCircleGrantsDictionary = new Dictionary<string, AppCircleGrant>
+                    if (!appGrants.TryGetValue(appKey, out var appCircleGrantsDictionary))
                     {
-                        [circleId.Value.ToString()] = appCircleGrant
-                    };
+                        appCircleGrantsDictionary = new Dictionary<string, AppCircleGrant>(StringComparer.Ordinal);
+                    }
+
+                    appCircleGrantsDictionary[circleId.Value.ToString()] = appCircleGrant;
                     appGrants[appKey] = appCircleGrantsDictionary;
                 }
             }
