@@ -51,10 +51,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
             var identity = TestIdentities.Frodo;
             var utils = new ConfigurationTestUtilities(_scaffold);
 
-            await _scaffold.OwnerApi.InitializeIdentity(identity, new InitialSetupRequest());
+            await _scaffold.OldOwnerApi.InitializeIdentity(identity, new InitialSetupRequest());
             
             await utils.UpdateSystemConfigFlag(identity, TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections.ToString(), bool.TrueString);
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ss))
+            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ss))
             {
                 var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ss);
 
@@ -71,7 +71,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
             await utils.UpdateSystemConfigFlag(identity, TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections.ToString(), bool.FalseString);
           
             // system circle should not have permissions
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ss))
+            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ss))
             {
                 var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ss);
 

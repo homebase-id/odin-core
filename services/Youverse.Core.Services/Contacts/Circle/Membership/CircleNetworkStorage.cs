@@ -4,14 +4,14 @@ using System.IO;
 using System.Linq;
 using Youverse.Core.Identity;
 using Youverse.Core.Storage;
-using Youverse.Core.Storage.SQLite.KeyValue;
+using Youverse.Core.Storage.SQLite.IdentityDatabase;
 using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Contacts.Circle.Membership;
 
 public class CircleNetworkStorage : IDisposable
 {
-    private readonly KeyValueDatabase _db;
+    private readonly IdentityDatabase _db;
     private readonly SingleKeyValueStorage _storage;
     private readonly GuidId _key = GuidId.FromString("circle_network_storage");
     private readonly object _sync = new object();
@@ -23,9 +23,9 @@ public class CircleNetworkStorage : IDisposable
         {
             Directory.CreateDirectory(dbPath!);
         }
-
+        
         string finalPath = PathUtil.Combine(dbPath, $"{dbName}.db");
-        _db = new KeyValueDatabase($"URI=file:{finalPath}");
+        _db = new IdentityDatabase($"URI=file:{finalPath}");
         _db.CreateDatabase(false);
 
         _storage = new SingleKeyValueStorage(_db.tblKeyValue);

@@ -18,7 +18,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         Task<RedactedAppRegistration> GetAppRegistration(GuidId appId);
 
-        Task<DotYouContext> GetPermissionContext(ClientAuthenticationToken token);
+        Task<DotYouContext> GetAppPermissionContext(ClientAuthenticationToken token);
 
         /// <summary>
         /// Updates the permissions granted to the app

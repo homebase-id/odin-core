@@ -7,7 +7,7 @@ using System.Data.SQLite;
 // I.e. the people I need to notify when I update some content.
 //
 
-namespace Youverse.Core.Storage.SQLite.KeyValue
+namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 {
     public class FollowsMeItem
     {
@@ -42,7 +42,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         private SQLiteParameter _s2param2 = null;
         private static object _select2Lock = new object();
 
-        public TableFollowsMe(KeyValueDatabase db) : base(db)
+        public TableFollowsMe(IdentityDatabase db) : base(db)
         {
         }
 

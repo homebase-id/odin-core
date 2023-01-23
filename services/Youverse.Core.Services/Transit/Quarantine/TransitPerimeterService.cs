@@ -258,7 +258,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             //TODO: will need to come from a configuration list
             var filters = new List<ITransitStreamFilter>()
             {
-                new MustBeConnectedContactFilter()
+                new MustBeConnectedContactFilter(_contextAccessor)
             };
 
             var context = new FilterContext()

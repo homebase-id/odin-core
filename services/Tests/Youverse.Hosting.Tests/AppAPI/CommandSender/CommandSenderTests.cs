@@ -126,7 +126,7 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
                 Assert.That(commandResult.RecipientStatus, Is.Not.Null);
                 Assert.IsTrue(commandResult.RecipientStatus.Count == 3);
 
-                await _scaffold.OwnerApi.ProcessOutbox(senderTestContext.Identity, batchSize: commandResult.RecipientStatus.Count + 100);
+                await _scaffold.OldOwnerApi.ProcessOutbox(senderTestContext.Identity, batchSize: commandResult.RecipientStatus.Count + 100);
             }
 
             await AssertCommandReceived(recipientContexts[TestIdentities.Samwise.DotYouId], command, originalFileSendResult, senderTestContext.Identity);
@@ -137,14 +137,14 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
             // validate frodo no longer as the file associated w/ the command
             // 
 
-            await _scaffold.OwnerApi.DisconnectIdentities(TestIdentities.Frodo.DotYouId, TestIdentities.Samwise.DotYouId);
-            await _scaffold.OwnerApi.DisconnectIdentities(TestIdentities.Frodo.DotYouId, TestIdentities.Merry.DotYouId);
-            await _scaffold.OwnerApi.DisconnectIdentities(TestIdentities.Frodo.DotYouId, TestIdentities.Pippin.DotYouId);
+            await _scaffold.OldOwnerApi.DisconnectIdentities(TestIdentities.Frodo.DotYouId, TestIdentities.Samwise.DotYouId);
+            await _scaffold.OldOwnerApi.DisconnectIdentities(TestIdentities.Frodo.DotYouId, TestIdentities.Merry.DotYouId);
+            await _scaffold.OldOwnerApi.DisconnectIdentities(TestIdentities.Frodo.DotYouId, TestIdentities.Pippin.DotYouId);
 
-            await _scaffold.OwnerApi.DisconnectIdentities(TestIdentities.Samwise.DotYouId, TestIdentities.Merry.DotYouId);
-            await _scaffold.OwnerApi.DisconnectIdentities(TestIdentities.Samwise.DotYouId, TestIdentities.Pippin.DotYouId);
+            await _scaffold.OldOwnerApi.DisconnectIdentities(TestIdentities.Samwise.DotYouId, TestIdentities.Merry.DotYouId);
+            await _scaffold.OldOwnerApi.DisconnectIdentities(TestIdentities.Samwise.DotYouId, TestIdentities.Pippin.DotYouId);
 
-            await _scaffold.OwnerApi.DisconnectIdentities(TestIdentities.Pippin.DotYouId, TestIdentities.Merry.DotYouId);
+            await _scaffold.OldOwnerApi.DisconnectIdentities(TestIdentities.Pippin.DotYouId, TestIdentities.Merry.DotYouId);
         }
 
         private async Task AssertCommandReceived(TestAppContext recipientAppContext, CommandMessage command, AppTransitTestUtilsContext originalFileSendResult, DotYouIdentity sender)

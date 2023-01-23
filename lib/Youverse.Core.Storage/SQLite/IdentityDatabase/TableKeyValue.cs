@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Data.SQLite;
 
-namespace Youverse.Core.Storage.SQLite.KeyValue
+namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 {
     public class TableKeyValue : TableBase
     {
@@ -31,7 +31,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         private Object _deleteLock = new Object();
 
 
-        public TableKeyValue(KeyValueDatabase db) : base(db)
+        public TableKeyValue(IdentityDatabase db) : base(db)
         {
         }
 

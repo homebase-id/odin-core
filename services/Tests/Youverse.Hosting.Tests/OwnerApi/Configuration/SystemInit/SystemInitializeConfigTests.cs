@@ -46,7 +46,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
         {
 
             //success = system drives created, other drives created
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise, out var ownerSharedSecret))
+            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise, out var ownerSharedSecret))
             {
                 var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
 
@@ -108,7 +108,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
         [Test]
         public async Task CanCreateSystemDrives_With_AdditionalDrivesAndCircles()
         {
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
+            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
             {
                 var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
                 

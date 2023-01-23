@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Data.SQLite;
 
-namespace Youverse.Core.Storage.SQLite
+namespace Youverse.Core.Storage.SQLite.DriveDatabase
 {
     public class TableAclIndex : TableBase
     {
@@ -25,7 +25,7 @@ namespace Youverse.Core.Storage.SQLite
         private SQLiteParameter _sparam1 = null;
         private  Object _selectLock = new Object();
 
-        public TableAclIndex(DriveIndexDatabase db) : base(db)
+        public TableAclIndex(DriveDatabase db) : base(db)
         {
         }
 
@@ -129,7 +129,7 @@ namespace Youverse.Core.Storage.SQLite
                 _database.BeginTransaction();
 
                 // Since we are writing multiple rows we do a logic unit here
-                using (_database.CreateLogicCommitUnit())
+                using (_database.CreateCommitUnitOfWork())
                 {
                     for (int i = 0; i < AccessControlList.Count; i++)
                     {
@@ -165,7 +165,7 @@ namespace Youverse.Core.Storage.SQLite
                 _database.BeginTransaction();
 
                 // Since we are deleting multiple rows we do a logic unit here
-                using (_database.CreateLogicCommitUnit())
+                using (_database.CreateCommitUnitOfWork())
                 {
                     _dparam1.Value = FileId;
                     for (int i = 0; i < AccessControlList.Count; i++)

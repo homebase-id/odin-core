@@ -146,7 +146,7 @@ public class ChatServerContext
 
     public async Task ProcessOutbox(int batchSize)
     {
-        await Scaffold.OwnerApi.ProcessOutbox(_appContext.Identity, batchSize);
+        await Scaffold.OldOwnerApi.ProcessOutbox(_appContext.Identity, batchSize);
     }
 
     public async Task<UploadResult> SendFile(UploadFileMetadata fileMetadata, UploadInstructionSet instructionSet)
@@ -247,7 +247,7 @@ public class ChatServerContext
             Assert.That(commandResult.RecipientStatus, Is.Not.Null);
             Assert.IsTrue(commandResult.RecipientStatus.Count == cmd.Recipients.Count());
 
-            await Scaffold.OwnerApi.ProcessOutbox(_appContext.Identity, batchSize: commandResult.RecipientStatus.Count + 100);
+            await Scaffold.OldOwnerApi.ProcessOutbox(_appContext.Identity, batchSize: commandResult.RecipientStatus.Count + 100);
 
             return commandResult;
         }

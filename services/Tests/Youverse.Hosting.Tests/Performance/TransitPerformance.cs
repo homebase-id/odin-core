@@ -466,7 +466,7 @@ namespace Youverse.Hosting.Tests.Performance
             List<string> recipients, string message, string payload)
         {
             using (var client =
-                   _scaffold.OwnerApi.CreateOwnerApiHttpClient(senderAppContext.Identity, out var ownerSharedSecret))
+                   _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(senderAppContext.Identity, out var ownerSharedSecret))
             {
                 var transferIv = ByteArrayUtil.GetRndByteArray(16);
                 var keyHeader = KeyHeader.NewRandom16();

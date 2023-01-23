@@ -2,6 +2,7 @@
 using System.Data.SQLite;
 using Youverse.Core.Cryptography.Crypto;
 using System.Timers;
+using Serilog;
 
 
 /*
@@ -48,7 +49,6 @@ namespace Youverse.Core.Storage.SQLite
 
             ~LogicCommitUnit()
             {
-
                 if (!_wasDisposed)
                     throw new Exception("aiai boom, a LogicCommitUnit was not disposed, catastrophe, data wont get written");
             }
@@ -103,8 +103,13 @@ namespace Youverse.Core.Storage.SQLite
         {
             RsaKeyManagement.noDBClosed++;
 
+#if DEBUG
             if (!_wasDisposed)
                 throw new Exception("Was not disposed: " + _connectionString);
+#else
+            if (!_wasDisposed)
+               Log.Error("Was not disposed: " + _connectionString);
+#endif
         }
 
 
@@ -112,8 +117,8 @@ namespace Youverse.Core.Storage.SQLite
         {
             _commitTimer.Dispose();
 
-            _transaction?.Commit();  // Flush any pending data
-            _transaction?.Dispose(); 
+            _transaction?.Commit(); // Flush any pending data
+            _transaction?.Dispose();
             _transaction = null;
 
             _connection?.Dispose();
@@ -183,7 +188,7 @@ namespace Youverse.Core.Storage.SQLite
         /// If you forget to Dispose a LogicCommitUnit you're totally screwed. Use with thought.
         /// </summary>
         /// <returns>LogicCommitUnit disposable object</returns>
-        public LogicCommitUnit CreateLogicCommitUnit()
+        public LogicCommitUnit CreateCommitUnitOfWork()
         {
             return new LogicCommitUnit(_counter);
         }
@@ -211,6 +216,7 @@ namespace Youverse.Core.Storage.SQLite
                         BeginTransaction();
                     }
                 }
+
                 _commitTimer.Start();
             }
         }
@@ -229,7 +235,7 @@ namespace Youverse.Core.Storage.SQLite
                 if (_transaction != null)
                 {
                     _commitFlushCount++;
-                    _transaction.Commit();  // Flush the data
+                    _transaction.Commit(); // Flush the data
                     _transaction.Dispose(); // I believe these objects need to be disposed
                     _transaction = null;
                 }
@@ -262,12 +268,12 @@ namespace Youverse.Core.Storage.SQLite
             _timerTriggerCount++;
             if (!_counter.ReadyToCommit())
             {
-                _commitTimer.Start();  // It doesn't auto-restart, kick it back to action
+                _commitTimer.Start(); // It doesn't auto-restart, kick it back to action
                 return;
             }
+
             _timerCommitTriggerCount++;
             Commit();
         }
-
     }
 }

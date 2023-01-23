@@ -11,6 +11,7 @@ using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Hosting.Controllers.OwnerToken.AppManagement;
 
@@ -53,7 +54,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             var name = "API TestApp";
 
             var targetDrive1 = TargetDrive.NewTargetDrive();
-            await _scaffold.OwnerApi.CreateDrive(_identity.DotYouId, targetDrive1, "Drive 1 for Circle Test", "", false);
+            await _scaffold.OldOwnerApi.CreateDrive(_identity.DotYouId, targetDrive1, "Drive 1 for Circle Test", "", false);
 
             var dgr1 = new DriveGrantRequest()
             {
@@ -75,9 +76,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
             var circle1PermissionKeys = new List<int>() { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections };
             var circle1Drives = new List<PermissionedDrive>() { new() { Drive = targetDrive1, Permission = DrivePermission.Read } };
-            var circle1Definition = await _scaffold.OwnerApi.CreateCircleWithDrive(_identity.DotYouId, "Circle 1", circle1PermissionKeys, circle1Drives);
+            var circle1Definition = await _scaffold.OldOwnerApi.CreateCircleWithDrive(_identity.DotYouId, "Circle 1", circle1PermissionKeys, circle1Drives);
 
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(_identity.DotYouId, out var ownerSharedSecret))
+            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.DotYouId, out var ownerSharedSecret))
             {
                 var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
                 var request = new AppRegistrationRequest
@@ -87,8 +88,11 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                     Drives = new List<DriveGrantRequest>() { dgr1, dgr2 },
                     PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections }),
                     AuthorizedCircles = new List<Guid>() { circle1Definition.Id },
-                    CircleMemberDrives = new List<DriveGrantRequest>() { dgr2 },
-                    CircleMemberPermissionSet = new PermissionSet(new List<int>() { PermissionKeys.ReadConnections })
+                    CircleMemberPermissionGrant = new PermissionSetGrantRequest()
+                    {
+                        Drives = new List<DriveGrantRequest>() { dgr2 },
+                        PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.ReadConnections })
+                    }
                 };
 
                 var response = await svc.RegisterApp(request);
@@ -106,8 +110,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 CollectionAssert.AreEquivalent(savedApp.Grant.DriveGrants.Select(d => d.PermissionedDrive).ToList(), request.Drives.Select(p => p.PermissionedDrive));
                 Assert.IsTrue(savedApp.Grant.PermissionSet == request.PermissionSet);
 
-                CollectionAssert.AreEquivalent(savedApp.CircleMemberGrant.DriveGrants.Select(d => d.PermissionedDrive).ToList(), request.CircleMemberDrives.Select(p => p.PermissionedDrive).ToList());
-                Assert.IsTrue(savedApp.CircleMemberGrant.PermissionSet == request.CircleMemberPermissionSet);
+                CollectionAssert.AreEquivalent(savedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
+                    request.CircleMemberPermissionGrant.Drives.Select(p => p.PermissionedDrive).ToList());
+                Assert.IsTrue(savedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == request.CircleMemberPermissionGrant.PermissionSet);
             }
         }
 
@@ -118,7 +123,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             var name = "API TestApp";
 
             var targetDrive1 = TargetDrive.NewTargetDrive();
-            await _scaffold.OwnerApi.CreateDrive(_identity.DotYouId, targetDrive1, "Drive 1 for Circle Test", "", false);
+            await _scaffold.OldOwnerApi.CreateDrive(_identity.DotYouId, targetDrive1, "Drive 1 for Circle Test", "", false);
 
             var dgr1 = new DriveGrantRequest()
             {
@@ -138,7 +143,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 }
             };
 
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(_identity.DotYouId, out var ownerSharedSecret))
+            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.DotYouId, out var ownerSharedSecret))
             {
                 var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
                 var request = new AppRegistrationRequest
@@ -148,8 +153,11 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                     Drives = new List<DriveGrantRequest>() { dgr1, dgr2 },
                     PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections }),
                     AuthorizedCircles = new List<Guid>(),
-                    CircleMemberDrives = new List<DriveGrantRequest>() { dgr2 },
-                    CircleMemberPermissionSet = new PermissionSet(new List<int>() { PermissionKeys.ReadConnections })
+                    CircleMemberPermissionGrant = new PermissionSetGrantRequest()
+                    {
+                        Drives = new List<DriveGrantRequest>() { dgr2 },
+                        PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.ReadConnections })
+                    }
                 };
 
                 var response = await svc.RegisterApp(request);
@@ -167,8 +175,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 CollectionAssert.AreEquivalent(savedApp.Grant.DriveGrants.Select(d => d.PermissionedDrive).ToList(), request.Drives.Select(p => p.PermissionedDrive));
                 Assert.IsTrue(savedApp.Grant.PermissionSet == request.PermissionSet);
 
-                CollectionAssert.AreEquivalent(savedApp.CircleMemberGrant.DriveGrants.Select(d => d.PermissionedDrive).ToList(), request.CircleMemberDrives.Select(p => p.PermissionedDrive).ToList());
-                Assert.IsTrue(savedApp.CircleMemberGrant.PermissionSet == request.CircleMemberPermissionSet);
+                CollectionAssert.AreEquivalent(savedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
+                    request.CircleMemberPermissionGrant.Drives.Select(p => p.PermissionedDrive).ToList());
+                Assert.IsTrue(savedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == request.CircleMemberPermissionGrant.PermissionSet);
             }
 
             //
@@ -187,7 +196,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
             var newId = await AddSampleAppNoDrive(appId, name);
 
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
             {
                 var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
                 var revokeResponse = await svc.RevokeApp(new GetAppRequest() { AppId = appId });
@@ -210,7 +219,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
             await AddSampleAppNoDrive(appId, name);
 
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(_identity.DotYouId, out var ownerSharedSecret))
+            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.DotYouId, out var ownerSharedSecret))
             {
                 var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
 
@@ -255,7 +264,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             var name = "API TestApp";
 
             var targetDrive1 = TargetDrive.NewTargetDrive();
-            await _scaffold.OwnerApi.CreateDrive(_identity.DotYouId, targetDrive1, "Drive 1 for Circle Test", "", false);
+            await _scaffold.OldOwnerApi.CreateDrive(_identity.DotYouId, targetDrive1, "Drive 1 for Circle Test", "", false);
 
             var dgr1 = new DriveGrantRequest()
             {
@@ -286,9 +295,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
             var circle1PermissionKeys = new List<int>() { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections };
             var circle1Drives = new List<PermissionedDrive>() { new() { Drive = targetDrive1, Permission = DrivePermission.Read } };
-            var circle1Definition = await _scaffold.OwnerApi.CreateCircleWithDrive(_identity.DotYouId, "Circle 1", circle1PermissionKeys, circle1Drives);
+            var circle1Definition = await _scaffold.OldOwnerApi.CreateCircleWithDrive(_identity.DotYouId, "Circle 1", circle1PermissionKeys, circle1Drives);
 
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(_identity.DotYouId, out var ownerSharedSecret))
+            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.DotYouId, out var ownerSharedSecret))
             {
                 var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
                 var request = new AppRegistrationRequest
@@ -298,8 +307,11 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                     Drives = new List<DriveGrantRequest>() { dgr1, dgr2 },
                     PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections }),
                     AuthorizedCircles = new List<Guid>() { circle1Definition.Id },
-                    CircleMemberDrives = new List<DriveGrantRequest>() { dgr2 },
-                    CircleMemberPermissionSet = new PermissionSet(new List<int>() { PermissionKeys.ReadConnections })
+                    CircleMemberPermissionGrant = new PermissionSetGrantRequest()
+                    {
+                        Drives = new List<DriveGrantRequest>() { dgr2 },
+                        PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.ReadConnections })
+                    },
                 };
 
                 var response = await svc.RegisterApp(request);
@@ -317,8 +329,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 CollectionAssert.AreEquivalent(savedApp.Grant.DriveGrants.Select(d => d.PermissionedDrive).ToList(), request.Drives.Select(p => p.PermissionedDrive));
                 Assert.IsTrue(savedApp.Grant.PermissionSet == request.PermissionSet);
 
-                CollectionAssert.AreEquivalent(savedApp.CircleMemberGrant.DriveGrants.Select(d => d.PermissionedDrive).ToList(), request.CircleMemberDrives.Select(p => p.PermissionedDrive).ToList());
-                Assert.IsTrue(savedApp.CircleMemberGrant.PermissionSet == request.CircleMemberPermissionSet);
+                CollectionAssert.AreEquivalent(savedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
+                    request.CircleMemberPermissionGrant.Drives.Select(p => p.PermissionedDrive).ToList());
+                Assert.IsTrue(savedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == request.CircleMemberPermissionGrant.PermissionSet);
 
                 var updateRequest = new UpdateAppPermissionsRequest()
                 {
@@ -336,9 +349,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
                 // be sure the other fields did not change
                 CollectionAssert.AreEquivalent(updatedApp.AuthorizedCircles, request.AuthorizedCircles);
-                CollectionAssert.AreEquivalent(updatedApp.CircleMemberGrant.DriveGrants.Select(d => d.PermissionedDrive).ToList(),
-                    request.CircleMemberDrives.Select(p => p.PermissionedDrive).ToList());
-                Assert.IsTrue(updatedApp.CircleMemberGrant.PermissionSet == request.CircleMemberPermissionSet);
+                CollectionAssert.AreEquivalent(updatedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
+                    request.CircleMemberPermissionGrant.Drives.Select(p => p.PermissionedDrive).ToList());
+                Assert.IsTrue(updatedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == request.CircleMemberPermissionGrant.PermissionSet);
             }
         }
 
@@ -349,7 +362,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             var name = "API TestApp";
 
             var targetDrive1 = TargetDrive.NewTargetDrive();
-            await _scaffold.OwnerApi.CreateDrive(_identity.DotYouId, targetDrive1, "Drive 1 for Circle Test", "", false);
+            await _scaffold.OldOwnerApi.CreateDrive(_identity.DotYouId, targetDrive1, "Drive 1 for Circle Test", "", false);
 
             var dgr1 = new DriveGrantRequest()
             {
@@ -380,13 +393,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
             var circle1PermissionKeys = new List<int>() { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections };
             var circle1Drives = new List<PermissionedDrive>() { new() { Drive = targetDrive1, Permission = DrivePermission.Read } };
-            var circle1Definition = await _scaffold.OwnerApi.CreateCircleWithDrive(_identity.DotYouId, "Circle 1", circle1PermissionKeys, circle1Drives);
+            var circle1Definition = await _scaffold.OldOwnerApi.CreateCircleWithDrive(_identity.DotYouId, "Circle 1", circle1PermissionKeys, circle1Drives);
 
             var circle2PermissionKeys = new List<int>() { PermissionKeys.ReadConnections };
             var circle2Drives = new List<PermissionedDrive>() { new() { Drive = targetDrive1, Permission = DrivePermission.Write } };
-            var circle2Definition = await _scaffold.OwnerApi.CreateCircleWithDrive(_identity.DotYouId, "Circle 2", circle2PermissionKeys, circle2Drives);
+            var circle2Definition = await _scaffold.OldOwnerApi.CreateCircleWithDrive(_identity.DotYouId, "Circle 2", circle2PermissionKeys, circle2Drives);
 
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(_identity.DotYouId, out var ownerSharedSecret))
+            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.DotYouId, out var ownerSharedSecret))
             {
                 var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
                 var request = new AppRegistrationRequest
@@ -396,8 +409,11 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                     Drives = new List<DriveGrantRequest>() { dgr1, dgr2 },
                     PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections }),
                     AuthorizedCircles = new List<Guid>() { circle1Definition.Id },
-                    CircleMemberDrives = new List<DriveGrantRequest>() { dgr2 },
-                    CircleMemberPermissionSet = new PermissionSet(new List<int>() { PermissionKeys.ReadConnections })
+                    CircleMemberPermissionGrant = new PermissionSetGrantRequest()
+                    {
+                        Drives = new List<DriveGrantRequest>() { dgr2 },
+                        PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.ReadConnections })
+                    }
                 };
 
                 var response = await svc.RegisterApp(request);
@@ -415,15 +431,19 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 CollectionAssert.AreEquivalent(savedApp.Grant.DriveGrants.Select(d => d.PermissionedDrive).ToList(), request.Drives.Select(p => p.PermissionedDrive));
                 Assert.IsTrue(savedApp.Grant.PermissionSet == request.PermissionSet);
 
-                CollectionAssert.AreEquivalent(savedApp.CircleMemberGrant.DriveGrants.Select(d => d.PermissionedDrive).ToList(), request.CircleMemberDrives.Select(p => p.PermissionedDrive).ToList());
-                Assert.IsTrue(savedApp.CircleMemberGrant.PermissionSet == request.CircleMemberPermissionSet);
+                CollectionAssert.AreEquivalent(savedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
+                    request.CircleMemberPermissionGrant.Drives.Select(p => p.PermissionedDrive).ToList());
+                Assert.IsTrue(savedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == request.CircleMemberPermissionGrant.PermissionSet);
 
                 var updateRequest = new UpdateAuthorizedCirclesRequest()
                 {
                     AppId = applicationId,
                     AuthorizedCircles = new List<Guid>() { circle2Definition.Id },
-                    CircleMemberPermissionSet = new PermissionSet(new List<int>() { PermissionKeys.ReadConnectionRequests }),
-                    CircleMemberDrives = new List<DriveGrantRequest>() { dgr3 }
+                    CircleMemberPermissionGrant = new PermissionSetGrantRequest()
+                    {
+                        PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.ReadConnectionRequests }),
+                        Drives = new List<DriveGrantRequest>() { dgr3 }
+                    }
                 };
 
                 await svc.UpdateAuthorizedCircles(updateRequest);
@@ -431,11 +451,12 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 var updatedApp = await GetSampleApp(applicationId);
                 // be sure the permissions are updated 
                 CollectionAssert.AreEquivalent(updatedApp.AuthorizedCircles, updateRequest.AuthorizedCircles);
-                CollectionAssert.AreEquivalent(updatedApp.CircleMemberGrant.DriveGrants.Select(d => d.PermissionedDrive).ToList(),
-                    updateRequest.CircleMemberDrives.Select(p => p.PermissionedDrive).ToList());
-                Assert.IsTrue(updatedApp.CircleMemberGrant.PermissionSet == updateRequest.CircleMemberPermissionSet);
+                CollectionAssert.AreEquivalent(updatedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
+                    updateRequest.CircleMemberPermissionGrant.Drives.Select(p => p.PermissionedDrive).ToList());
+                
+                Assert.IsTrue(updatedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == updateRequest.CircleMemberPermissionGrant.PermissionSet);
                 // be sure the other fields did not change
- 
+
                 CollectionAssert.AreEquivalent(updatedApp.Grant.DriveGrants.Select(d => d.PermissionedDrive).ToList(), request.Drives.Select(p => p.PermissionedDrive));
                 Assert.IsTrue(updatedApp.Grant.PermissionSet == request.PermissionSet);
             }
@@ -443,7 +464,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
         private async Task<RedactedAppRegistration> AddSampleAppNoDrive(Guid applicationId, string name)
         {
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
             {
                 var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
                 var request = new AppRegistrationRequest
@@ -470,7 +491,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
         private async Task<RedactedAppRegistration> GetSampleApp(Guid appId)
         {
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
             {
                 var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
                 var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = appId });

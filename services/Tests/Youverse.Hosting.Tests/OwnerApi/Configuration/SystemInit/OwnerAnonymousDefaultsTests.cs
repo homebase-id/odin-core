@@ -32,7 +32,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
         {
             var utils = new ConfigurationTestUtilities(_scaffold);
 
-            await _scaffold.OwnerApi.InitializeIdentity(TestIdentities.Frodo, new InitialSetupRequest()
+            await _scaffold.OldOwnerApi.InitializeIdentity(TestIdentities.Frodo, new InitialSetupRequest()
             {
                 Drives = null,
                 Circles = null
@@ -40,7 +40,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
 
 
             var identity = TestIdentities.Samwise;
-            await _scaffold.OwnerApi.InitializeIdentity(identity, new InitialSetupRequest()
+            await _scaffold.OldOwnerApi.InitializeIdentity(identity, new InitialSetupRequest()
             {
                 Drives = null,
                 Circles = null
@@ -76,7 +76,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
         public async Task SystemDefault_AnonymousAnonymousVisitorsCannotViewConnections()
         {
             var utils = new ConfigurationTestUtilities(_scaffold);
-            await _scaffold.OwnerApi.InitializeIdentity(TestIdentities.Frodo, new InitialSetupRequest()
+            await _scaffold.OldOwnerApi.InitializeIdentity(TestIdentities.Frodo, new InitialSetupRequest()
             {
                 Drives = null,
                 Circles = null

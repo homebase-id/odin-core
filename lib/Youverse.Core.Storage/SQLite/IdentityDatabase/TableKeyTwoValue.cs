@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Data.SQLite;
 
-namespace Youverse.Core.Storage.SQLite.KeyValue
+namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 {
     public class TableKeyTwoValue : TableBase
     {
@@ -37,7 +37,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         private SQLiteParameter _sparamTwo1 = null;
         private  Object _selectTwoLock = new Object();
 
-        public TableKeyTwoValue(KeyValueDatabase db) : base(db)
+        public TableKeyTwoValue(IdentityDatabase db) : base(db)
         {
         }
 

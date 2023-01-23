@@ -17,7 +17,7 @@ https://www.sqlitetutorial.net/sqlite-index/
 */
 
 
-namespace Youverse.Core.Storage.SQLite
+namespace Youverse.Core.Storage.SQLite.DriveDatabase
 {
     /// <summary>
     /// Database types:
@@ -50,7 +50,7 @@ namespace Youverse.Core.Storage.SQLite
         }
     }
 
-    public class DriveIndexDatabase : DatabaseBase
+    public class DriveDatabase : DatabaseBase
     {
         private DatabaseIndexKind _kind;
 
@@ -61,7 +61,7 @@ namespace Youverse.Core.Storage.SQLite
 
 
 
-        public DriveIndexDatabase(string connectionString, DatabaseIndexKind databaseKind, ulong commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
+        public DriveDatabase(string connectionString, DatabaseIndexKind databaseKind, ulong commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
         {
             _kind = databaseKind;
  
@@ -71,7 +71,7 @@ namespace Youverse.Core.Storage.SQLite
             TblCmdMsgQueue = new TableCommandMessageQueue(this);
         }
 
-        ~DriveIndexDatabase()
+        ~DriveDatabase()
         {
         }
 
@@ -131,7 +131,7 @@ namespace Youverse.Core.Storage.SQLite
         {
             BeginTransaction();
 
-            using (CreateLogicCommitUnit())
+            using (CreateCommitUnitOfWork())
             {
                 TblMainIndex.InsertRow(fileId, globalTransitId, UnixTimeUtc.Now(), fileType, dataType, senderId, groupId, uniqueId, userDate, false, false, requiredSecurityGroup);
                 TblAclIndex.InsertRows(fileId, accessControlList);
@@ -143,7 +143,7 @@ namespace Youverse.Core.Storage.SQLite
         {
             BeginTransaction();
 
-            using (CreateLogicCommitUnit())
+            using (CreateCommitUnitOfWork())
             {
                 TblAclIndex.DeleteAllRows(fileId);
                 TblTagIndex.DeleteAllRows(fileId);
@@ -168,7 +168,7 @@ namespace Youverse.Core.Storage.SQLite
         {
             BeginTransaction();
 
-            using (CreateLogicCommitUnit())
+            using (CreateCommitUnitOfWork())
             {
                 TblMainIndex.UpdateRow(fileId, globalTransitId: globalTransitId, fileType: fileType, dataType: dataType, senderId: senderId,
                     groupId: groupId, uniqueId: uniqueId, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup);
@@ -198,7 +198,7 @@ namespace Youverse.Core.Storage.SQLite
         {
             BeginTransaction();
 
-            using (CreateLogicCommitUnit())
+            using (CreateCommitUnitOfWork())
             {
                 TblMainIndex.UpdateRow(fileId, globalTransitId: globalTransitId, fileType: fileType, dataType: dataType, senderId: senderId,
                     groupId: groupId, uniqueId: uniqueId, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup);

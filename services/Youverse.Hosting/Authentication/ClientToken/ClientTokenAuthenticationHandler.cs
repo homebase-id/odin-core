@@ -70,7 +70,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
             var appRegService = Context.RequestServices.GetRequiredService<IAppRegistrationService>();
             dotYouContext.AuthContext = ClientTokenConstants.AppSchemeName;
             
-            var ctx = await appRegService.GetPermissionContext(authToken);
+            var ctx = await appRegService.GetAppPermissionContext(authToken);
 
             if (null == ctx)
             {

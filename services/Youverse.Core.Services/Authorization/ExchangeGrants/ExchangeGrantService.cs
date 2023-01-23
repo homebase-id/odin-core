@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
+using MediatR.Pipeline;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
@@ -30,15 +31,18 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         }
 
         /// <summary>
+        /// Creates an <see cref="ExchangeGrant"/> using the specified key store key and request
+        /// </summary>
+        public async Task<ExchangeGrant> CreateExchangeGrant(SensitiveByteArray grantKeyStoreKey, PermissionSetGrantRequest request, SensitiveByteArray masterKey)
+        {
+            return await this.CreateExchangeGrant(grantKeyStoreKey, permissionSet: request.PermissionSet, driveGrantRequests: request.Drives, masterKey);
+        }
+
+        /// <summary>
         /// Creates an <see cref="ExchangeGrant"/> using the specified key store key
         /// </summary>
-        /// <param name="grantKeyStoreKey"></param>
-        /// <param name="permissionSet"></param>
-        /// <param name="driveGrantRequests"></param>
-        /// <param name="masterKey"></param>
-        /// <returns></returns>
         public async Task<ExchangeGrant> CreateExchangeGrant(SensitiveByteArray grantKeyStoreKey, PermissionSet permissionSet, IEnumerable<DriveGrantRequest> driveGrantRequests,
-            SensitiveByteArray? masterKey)
+            SensitiveByteArray masterKey)
         {
             var driveGrants = new List<DriveGrant>();
 

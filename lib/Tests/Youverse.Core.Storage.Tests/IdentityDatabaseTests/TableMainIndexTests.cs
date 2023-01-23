@@ -3,6 +3,7 @@ using NUnit.Framework;
 using Youverse.Core;
 using Youverse.Core.Storage;
 using Youverse.Core.Storage.SQLite;
+using Youverse.Core.Storage.SQLite.DriveDatabase;
 
 namespace IndexerTests
 {
@@ -11,7 +12,7 @@ namespace IndexerTests
         [Test]
         public void InsertRowTest()
         {
-            using var db = new DriveIndexDatabase("URI=file:.\\tblmainindex1.db", DatabaseIndexKind.Random);
+            using var db = new DriveDatabase("URI=file:.\\tblmainindex1.db", DatabaseIndexKind.Random);
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();
@@ -65,7 +66,7 @@ namespace IndexerTests
         [Test]
         public void InsertRowDuplicateTest()
         {
-            using var db = new DriveIndexDatabase("URI=file:.\\tblmainindex2.db", DatabaseIndexKind.Random);
+            using var db = new DriveDatabase("URI=file:.\\tblmainindex2.db", DatabaseIndexKind.Random);
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();
@@ -89,7 +90,7 @@ namespace IndexerTests
         [Test]
         public void UpdateRowTest()
         {
-            using var db = new DriveIndexDatabase("URI=file:.\\tblmainindex3.db", DatabaseIndexKind.Random);
+            using var db = new DriveDatabase("URI=file:.\\tblmainindex3.db", DatabaseIndexKind.Random);
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();

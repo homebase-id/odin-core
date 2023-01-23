@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using NUnit.Framework;
 using Youverse.Core;
-using Youverse.Core.Storage.SQLite.KeyValue;
+using Youverse.Core.Storage.SQLite.IdentityDatabase;
 
 namespace IndexerTests.KeyValue
 {
@@ -10,7 +10,7 @@ namespace IndexerTests.KeyValue
         [TestCase()]
         public void InsertRowTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\Outboxtest1.db");
+            using var db = new IdentityDatabase("URI=file:.\\Outboxtest1.db");
             db.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -49,7 +49,7 @@ namespace IndexerTests.KeyValue
         [TestCase()]
         public void PopTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\Outboxtest2.db");
+            using var db = new IdentityDatabase("URI=file:.\\Outboxtest2.db");
             db.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -142,7 +142,7 @@ namespace IndexerTests.KeyValue
         [TestCase()]
         public void PopCancelTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\Outboxtest3.db");
+            using var db = new IdentityDatabase("URI=file:.\\Outboxtest3.db");
             db.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -185,7 +185,7 @@ namespace IndexerTests.KeyValue
         [TestCase()]
         public void PopCommitTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\Outboxtest4.db");
+            using var db = new IdentityDatabase("URI=file:.\\Outboxtest4.db");
             db.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -213,7 +213,7 @@ namespace IndexerTests.KeyValue
         [TestCase()]
         public void PopRecoverDeadTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\Outboxtest5.db");
+            using var db = new IdentityDatabase("URI=file:.\\Outboxtest5.db");
             db.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -250,7 +250,7 @@ namespace IndexerTests.KeyValue
         [TestCase()]
         public void DualBoxTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\Outboxtest6.db");
+            using var db = new IdentityDatabase("URI=file:.\\Outboxtest6.db");
             db.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -298,7 +298,7 @@ namespace IndexerTests.KeyValue
         [TestCase()]
         public void ExampleTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\Outboxtest7.db");
+            using var db = new IdentityDatabase("URI=file:.\\Outboxtest7.db");
             db.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -359,7 +359,7 @@ namespace IndexerTests.KeyValue
         [TestCase()]
         public void PopCancelListTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\Outboxtest8.db");
+            using var db = new IdentityDatabase("URI=file:.\\Outboxtest8.db");
             db.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -400,7 +400,7 @@ namespace IndexerTests.KeyValue
         [TestCase()]
         public void PopCommitListTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\Outboxtest9.db");
+            using var db = new IdentityDatabase("URI=file:.\\Outboxtest9.db");
             db.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid().ToByteArray();
@@ -449,7 +449,7 @@ namespace IndexerTests.KeyValue
         [TestCase()]
         public void PopAllTest()
         {
-            using var db = new KeyValueDatabase("URI=file:.\\Outboxtest42.db");
+            using var db = new IdentityDatabase("URI=file:.\\Outboxtest42.db");
             db.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid().ToByteArray();

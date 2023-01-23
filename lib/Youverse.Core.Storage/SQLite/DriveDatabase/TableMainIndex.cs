@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Data.SQLite;
 
-namespace Youverse.Core.Storage.SQLite
+namespace Youverse.Core.Storage.SQLite.DriveDatabase
 {
     public class TableMainIndexData
     {
@@ -63,7 +63,7 @@ namespace Youverse.Core.Storage.SQLite
         private SQLiteParameter _sparam1 = null;
         private Object _selectLock = new Object();
 
-        public TableMainIndex(DriveIndexDatabase db) : base(db)
+        public TableMainIndex(DriveDatabase db) : base(db)
         {
         }
 

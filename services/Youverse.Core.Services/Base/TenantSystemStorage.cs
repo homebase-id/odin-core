@@ -2,7 +2,7 @@
 using System.IO;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Storage;
-using Youverse.Core.Storage.SQLite.KeyValue;
+using Youverse.Core.Storage.SQLite.IdentityDatabase;
 using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Base
@@ -12,7 +12,7 @@ namespace Youverse.Core.Services.Base
         private readonly ILogger<TenantSystemStorage> _logger;
         private readonly TenantContext _tenantContext;
 
-        private readonly KeyValueDatabase _db;
+        private readonly IdentityDatabase _db;
 
         public TenantSystemStorage(ILogger<TenantSystemStorage> logger, TenantContext tenantContext)
         {
@@ -27,7 +27,7 @@ namespace Youverse.Core.Services.Base
             }
 
             string finalPath = PathUtil.Combine(dbPath, $"{dbName}");
-            _db = new KeyValueDatabase($"URI=file:{finalPath}");
+            _db = new IdentityDatabase($"URI=file:{finalPath}");
             _db.CreateDatabase(false);
 
             // TODO: NOT ALLOWED. THIS WILL MESS UP SOMEHOW. MS.

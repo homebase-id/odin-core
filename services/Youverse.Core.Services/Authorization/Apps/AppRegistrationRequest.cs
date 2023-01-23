@@ -2,11 +2,16 @@ using System;
 using System.Collections.Generic;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
+using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
     public class AppRegistrationRequest
     {
+        public AppRegistrationRequest()
+        {
+            
+        }
         public GuidId AppId { get; set; }
 
         public string Name { get; set; }
@@ -25,16 +30,11 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// List of circles defining whose members can work with your identity via this app
         /// </summary>
         public List<Guid> AuthorizedCircles { get; set; }
-
-        /// <summary>
-        /// Permissions granted to members of the <see cref="AuthorizedCircles"/>
-        /// </summary>
-        public PermissionSet CircleMemberPermissionSet { get; set; }
         
         /// <summary>
-        /// Drives granted to members of the <see cref="AuthorizedCircles"/>
+        /// Permissions being granted to allmembers of the <see cref="AuthorizedCircles"/>
         /// </summary>
-        public List<DriveGrantRequest> CircleMemberDrives { get; set; }
+        public PermissionSetGrantRequest CircleMemberPermissionGrant { get; set; }
 
     }
     
@@ -50,13 +50,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <summary>
         /// Permissions granted to members of the <see cref="AuthorizedCircles"/>
         /// </summary>
-        public PermissionSet CircleMemberPermissionSet { get; set; }
-        
-        /// <summary>
-        /// Drives granted to members of the <see cref="AuthorizedCircles"/>
-        /// </summary>
-        public List<DriveGrantRequest> CircleMemberDrives { get; set; }
-
+        public PermissionSetGrantRequest CircleMemberPermissionGrant { get; set; }
     }
     
     public class UpdateAppPermissionsRequest
@@ -71,7 +65,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <summary>
         /// The list of drives of which this app should receive access
         /// </summary>
-        public List<DriveGrantRequest> Drives { get; set; }
+        public IEnumerable<DriveGrantRequest> Drives { get; set; }
 
     }
 }

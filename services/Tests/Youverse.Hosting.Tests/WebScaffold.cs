@@ -12,6 +12,7 @@ using Youverse.Core.Util;
 using Youverse.Hosting._dev;
 using Youverse.Hosting.Tests.AppAPI.Utils;
 using Youverse.Hosting.Tests.OwnerApi.Utils;
+using Youverse.Hosting.Tests.OwnerApi.Utils.Fluid;
 
 namespace Youverse.Hosting.Tests
 {
@@ -20,7 +21,8 @@ namespace Youverse.Hosting.Tests
         private readonly string _folder;
         private readonly string _password = "EnSøienØ";
         private IHost _webserver;
-        private readonly OwnerApiTestUtils _ownerApi;
+        private readonly OwnerApiTestUtils _oldOwnerApi;
+        private readonly OwnerApiClient _ownerApiClient;
         private AppApiTestUtils _appApi;
         private ScenarioBootstrapper _scenarios;
         private IIdentityRegistry _registry;
@@ -28,7 +30,7 @@ namespace Youverse.Hosting.Tests
         public WebScaffold(string folder)
         {
             this._folder = folder;
-            _ownerApi = new OwnerApiTestUtils();
+            _oldOwnerApi = new OwnerApiTestUtils();
         }
 
         [OneTimeSetUp]
@@ -39,27 +41,27 @@ namespace Youverse.Hosting.Tests
 
             Environment.SetEnvironmentVariable("Development__SslSourcePath", "./https/");
             Environment.SetEnvironmentVariable("Development__PreconfiguredDomains", "[\"frodo.digital\",\"samwise.digital\", \"merry.onekin.io\",\"pippin.onekin.io\"]");
-            
+
             Environment.SetEnvironmentVariable("Registry__ProvisioningDomain", "provisioning-dev.onekin.io");
             Environment.SetEnvironmentVariable("Registry__ManagedDomains", "[\"dev.dominion.id\"]");
             Environment.SetEnvironmentVariable("Registry__DnsTargetRecordType", "[\"dev.dominion.id\"]");
             Environment.SetEnvironmentVariable("Registry__DnsTargetAddress", "[\"dev.dominion.id\"]");
-            
+
             Environment.SetEnvironmentVariable("Host__TenantDataRootPath", TestDataPath);
             Environment.SetEnvironmentVariable("Host__SystemDataRootPath", TestDataPath);
             Environment.SetEnvironmentVariable("Host__IPAddressListenList", "[{ \"Ip\": \"*\",\"HttpsPort\": 443,\"HttpPort\": 80 }]");
-            
-            
+
+
             Environment.SetEnvironmentVariable("Logging__LogFilePath", TempDataPath);
             Environment.SetEnvironmentVariable("Logging__Level", "ErrorsOnly"); //Verbose
-            
-            
+
+
             Environment.SetEnvironmentVariable("Quartz__EnableQuartzBackgroundService", "false");
             Environment.SetEnvironmentVariable("Quartz__BackgroundJobStartDelaySeconds", "10");
             Environment.SetEnvironmentVariable("Quartz__ProcessOutboxIntervalSeconds", "5");
             Environment.SetEnvironmentVariable("Quartz__EnsureCertificateProcessorIntervalSeconds", "1000");
             Environment.SetEnvironmentVariable("Quartz__ProcessPendingCertificateOrderIntervalInSeconds", "1000");
-            
+
 
             Environment.SetEnvironmentVariable("CertificateRenewal__NumberOfCertificateValidationTries", "3");
             Environment.SetEnvironmentVariable("CertificateRenewal__UseCertificateAuthorityProductionServers", "false");
@@ -72,11 +74,11 @@ namespace Youverse.Hosting.Tests
 
             this.DeleteData();
             this.DeleteLogs();
-            
-            
+
+
             _registry = new FileSystemIdentityRegistry(TestDataPath, null);
             _registry.Initialize();
-            
+
             var (config, _) = Program.LoadConfig();
             DevEnvironmentSetup.RegisterPreconfiguredDomains(config, _registry);
 
@@ -85,11 +87,11 @@ namespace Youverse.Hosting.Tests
 
             foreach (var dotYouId in TestIdentities.All.Keys)
             {
-                _ownerApi.SetupOwnerAccount((DotYouIdentity)dotYouId, initializeIdentity).GetAwaiter().GetResult();
+                _oldOwnerApi.SetupOwnerAccount((DotYouIdentity)dotYouId, initializeIdentity).GetAwaiter().GetResult();
             }
 
-            _appApi = new AppApiTestUtils(_ownerApi);
-            _scenarios = new ScenarioBootstrapper(_ownerApi, _appApi);
+            _appApi = new AppApiTestUtils(_oldOwnerApi);
+            _scenarios = new ScenarioBootstrapper(_oldOwnerApi, _appApi);
         }
 
         [OneTimeTearDown]
@@ -103,8 +105,13 @@ namespace Youverse.Hosting.Tests
             }
         }
 
-        public OwnerApiTestUtils OwnerApi => this._ownerApi ?? throw new NullReferenceException("Check if the owner app was initialized in method RunBeforeAnyTests");
-
+        public OwnerApiTestUtils OldOwnerApi => this._oldOwnerApi ?? throw new NullReferenceException("Check if the owner app was initialized in method RunBeforeAnyTests");
+        
+        public OwnerApiClient CreateOwnerApiClient(TestIdentity identity)
+        {
+            return new OwnerApiClient(this._oldOwnerApi, identity);
+        }
+        
         public AppApiTestUtils AppApi => this._appApi ?? throw new NullReferenceException("Check if the owner app was initialized in method RunBeforeAnyTests");
 
         public ScenarioBootstrapper Scenarios => this._scenarios ?? throw new NullReferenceException("");
