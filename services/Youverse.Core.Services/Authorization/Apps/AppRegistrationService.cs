@@ -3,15 +3,17 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
+using MediatR;
+using MediatR.Pipeline;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Configuration;
-using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
+using Youverse.Core.Services.Contacts.Circle.Membership;
+using Youverse.Core.Services.Mediator;
 using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Authorization.Apps
@@ -31,17 +33,17 @@ namespace Youverse.Core.Services.Authorization.Apps
         private readonly DotYouContextCache _cache;
         private readonly TenantContext _tenantContext;
 
-        private readonly CircleDefinitionService _circleDefinitionService;
+        private readonly IMediator _mediator;
 
 
         public AppRegistrationService(DotYouContextAccessor contextAccessor, ILogger<IAppRegistrationService> logger, ITenantSystemStorage tenantSystemStorage,
-            ExchangeGrantService exchangeGrantService, YouverseConfiguration config, TenantContext tenantContext, CircleDefinitionService circleDefinitionService)
+            ExchangeGrantService exchangeGrantService, YouverseConfiguration config, TenantContext tenantContext, IMediator mediator)
         {
             _contextAccessor = contextAccessor;
             _tenantSystemStorage = tenantSystemStorage;
             _exchangeGrantService = exchangeGrantService;
             _tenantContext = tenantContext;
-            _circleDefinitionService = circleDefinitionService;
+            _mediator = mediator;
 
             _appRegistrationValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
             _appClientValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
@@ -55,32 +57,25 @@ namespace Youverse.Core.Services.Authorization.Apps
             Guard.Argument(request.Name, nameof(request.Name)).NotNull().NotEmpty();
             Guard.Argument(request.AppId, nameof(request.AppId)).Require(request.AppId != Guid.Empty);
 
-            if (request.AuthorizedCircles?.Any() ?? false)
-            {
-                Guard.Argument(request.AuthorizedCircles, nameof(request.AuthorizedCircles)).Require(circles => { return circles.All(cid => _circleDefinitionService.IsEnabled(cid)); });
-            }
-
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-            var grant = await _exchangeGrantService.CreateExchangeGrant(request.PermissionSet, request.Drives, masterKey);
-            var circleMemberGrant = await _exchangeGrantService.CreateExchangeGrant(request.CircleMemberPermissionSet, request.CircleMemberDrives, masterKey);
+            var appGrant = await _exchangeGrantService.CreateExchangeGrant(request.PermissionSet, request.Drives, masterKey);
+
+            //TODO: add check to ensure app name is unique
+            //TODO: add check if app is already registered
 
             var appReg = new AppRegistration()
             {
                 AppId = request.AppId,
                 Name = request.Name,
-                Grant = grant,
+                Grant = appGrant,
 
-                CircleMemberGrant = circleMemberGrant,
+                CircleMemberPermissionGrant = request.CircleMemberPermissionGrant,
                 AuthorizedCircles = request.AuthorizedCircles
             };
 
             _appRegistrationValueStorage.Upsert(appReg.AppId, GuidId.Empty, _appRegistrationDataType, appReg);
 
-            // foreach (var circleId in appReg?.AuthorizedCircles ?? new List<Guid>()) 
-            // {
-            //     
-            // }
-
+            await NotifyAppChanged(null, appReg);
             return appReg.Redacted();
         }
 
@@ -95,38 +90,41 @@ namespace Youverse.Core.Services.Authorization.Apps
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-            var grant = await _exchangeGrantService.CreateExchangeGrant(request.PermissionSet, request.Drives, masterKey);
-            appReg.Grant = grant;
+            var keyStoreKey = appReg.Grant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
+            //TODO: Should we regen the key store key?  
+            appReg.Grant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, request.PermissionSet, request.Drives, masterKey);
 
             _appRegistrationValueStorage.Upsert(request.AppId, GuidId.Empty, _appRegistrationDataType, appReg);
 
-            ResetPermissionContextCache();
+            ResetAppPermissionContextCache();
         }
 
         public async Task UpdateAuthorizedCircles(UpdateAuthorizedCirclesRequest request)
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-            var appReg = await this.GetAppRegistrationInternal(request.AppId);
-            if (null == appReg)
+            var oldRegistration = await this.GetAppRegistrationInternal(request.AppId);
+            if (null == oldRegistration)
             {
                 throw new YouverseClientException("Invalid AppId", YouverseClientErrorCode.AppNotRegistered);
             }
 
-            //TODO: examine if the circles changed - update exchange grants
-            // bool circlesHaveChanged = false;
-            // if (circlesHaveChanged)
-            // {
-            //     //TODO: how to apply the permissions to all users with-in the circles
-            // }
+            var updatedAppReg = new AppRegistration()
+            {
+                AppId = oldRegistration.AppId,
+                Name = oldRegistration.Name,
+                Grant = oldRegistration.Grant,
 
-            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-            var circleMemberGrant = await _exchangeGrantService.CreateExchangeGrant(request.CircleMemberPermissionSet, request.CircleMemberDrives, masterKey);
-            appReg.AuthorizedCircles = request.AuthorizedCircles;
-            appReg.CircleMemberGrant = circleMemberGrant;
+                CircleMemberPermissionGrant = request.CircleMemberPermissionGrant,
+                AuthorizedCircles = request.AuthorizedCircles
+            };
 
-            _appRegistrationValueStorage.Upsert(request.AppId, GuidId.Empty, _appRegistrationDataType, appReg);
-            ResetPermissionContextCache();
+            _appRegistrationValueStorage.Upsert(request.AppId, GuidId.Empty, _appRegistrationDataType, updatedAppReg);
+
+            //TODO: consider optimize by checking if anything actually changed before calling notify app changed
+
+            await NotifyAppChanged(oldRegistration, updatedAppReg);
+            ResetAppPermissionContextCache();
         }
 
         public async Task<AppClientRegistrationResponse> RegisterClient(GuidId appId, byte[] clientPublicKey, string friendlyName)
@@ -177,7 +175,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             return result?.Redacted();
         }
 
-        public async Task<DotYouContext> GetPermissionContext(ClientAuthenticationToken token)
+        public async Task<DotYouContext> GetAppPermissionContext(ClientAuthenticationToken token)
         {
             var creator = new Func<Task<DotYouContext>>(async delegate
             {
@@ -215,7 +213,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             return result;
         }
 
-        public async Task<(bool isValid, AccessRegistration? accessReg, AppRegistration? appRegistration)> ValidateClientAuthToken(ClientAuthenticationToken authToken)
+        public async Task<(bool isValid, AccessRegistration accessReg, AppRegistration appRegistration)> ValidateClientAuthToken(ClientAuthenticationToken authToken)
         {
             var appClient = _appClientValueStorage.Get<AppClient>(authToken.Id);
             if (null == appClient)
@@ -250,15 +248,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             //TODO: revoke all clients? or is the one flag enough?
             _appRegistrationValueStorage.Upsert(appId, GuidId.Empty, _appRegistrationDataType, appReg);
 
-            ResetPermissionContextCache();
-        }
-
-        /// <summary>
-        /// Empties the cache and creates a new instance that can be built
-        /// </summary>
-        private void ResetPermissionContextCache()
-        {
-            _cache.Reset();
+            ResetAppPermissionContextCache();
         }
 
         public async Task RemoveAppRevocation(GuidId appId)
@@ -272,7 +262,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             _appRegistrationValueStorage.Upsert(appId, GuidId.Empty, _appRegistrationDataType, appReg);
 
-            ResetPermissionContextCache();
+            ResetAppPermissionContextCache();
         }
 
         public async Task<List<RegisteredAppClientResponse>> GetRegisteredClients()
@@ -352,6 +342,23 @@ namespace Youverse.Core.Services.Authorization.Apps
         {
             var appReg = _appRegistrationValueStorage.Get<AppRegistration>(appId);
             return appReg;
+        }
+
+        private async Task NotifyAppChanged(AppRegistration oldAppRegistration, AppRegistration newAppRegistration)
+        {
+            await _mediator.Publish(new AppRegistrationChangedNotification()
+            {
+                OldAppRegistration = oldAppRegistration,
+                NewAppRegistration = newAppRegistration
+            });
+        }
+
+        /// <summary>
+        /// Empties the cache and creates a new instance that can be built
+        /// </summary>
+        private void ResetAppPermissionContextCache()
+        {
+            _cache.Reset();
         }
     }
 }

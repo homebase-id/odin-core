@@ -128,20 +128,6 @@ namespace Youverse.Core.Services.Transit
             };
         }
 
-        // private void StoreEncryptedRecipientTransferInstructionSet(byte[] recipientPublicKeyDer,
-        //     KeyHeader keyHeaderToBeEncrypted,
-        //     ClientAuthenticationToken clientAuthenticationToken, InternalDriveFileId internalFile,
-        //     DotYouIdentity recipient, TargetDrive targetDrive, TransferFileType transferFileType)
-        // {
-        //     var instructionSet = CreateTransferInstructionSet(recipientPublicKeyDer, keyHeaderToBeEncrypted,
-        //         clientAuthenticationToken,
-        //         internalFile, recipient,
-        //         targetDrive, transferFileType
-        //     );
-        //     _tenantSystemStorage.SingleKeyValueStorage.Upsert(CreateInstructionSetStorageKey(recipient, internalFile),
-        //         instructionSet);
-        // }
-
         private void AddToTransferKeyEncryptionQueue(DotYouIdentity recipient, InternalDriveFileId file)
         {
             var now = UnixTimeUtc.Now().milliseconds;
@@ -346,32 +332,29 @@ namespace Youverse.Core.Services.Transit
                     ClientAuthenticationToken.Parse(decryptedClientAuthTokenBytes.ToStringFromUtf8Bytes());
                 decryptedClientAuthTokenBytes.WriteZeros();
 
-                var client =
-                    _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(recipient,
-                        clientAuthToken);
-                var response = client
-                    .SendHostToHost(transferKeyHeaderStream, metaDataStream, payload, thumbnails.ToArray())
+                var client = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(recipient, clientAuthToken);
+                var response = client.SendHostToHost(transferKeyHeaderStream, metaDataStream, payload, thumbnails.ToArray())
                     .ConfigureAwait(false).GetAwaiter().GetResult();
-                success = response.IsSuccessStatusCode;
 
-                // var result = response.Content;
-                //
-                // switch (result.Code)
-                // {
-                //     case TransitResponseCode.Accepted:
-                //         break;
-                //     case TransitResponseCode.QuarantinedPayload:
-                //         break;
-                //     case TransitResponseCode.QuarantinedSenderNotConnected:
-                //         break;
-                //     case TransitResponseCode.Rejected:
-                //         break;
-                //     default:
-                //         throw new ArgumentOutOfRangeException();
-                // }
-                //
-                //TODO: add more resolution to these errors (i.e. checking for invalid recipient public key, etc.)
-                if (!success)
+                if (response.IsSuccessStatusCode)
+                {
+                    var transitResponse = response.Content;
+
+                    switch (transitResponse.Code)
+                    {
+                        case TransitResponseCode.Accepted:
+                            success = true;
+                            break;
+                        case TransitResponseCode.QuarantinedPayload:
+                        case TransitResponseCode.QuarantinedSenderNotConnected:
+                        case TransitResponseCode.Rejected:
+                            tfr = TransferFailureReason.RecipientServerRejected;
+                            break;
+                        default:
+                            throw new ArgumentOutOfRangeException();
+                    }
+                }
+                else
                 {
                     tfr = TransferFailureReason.RecipientServerError;
                 }
@@ -382,11 +365,6 @@ namespace Youverse.Core.Services.Transit
                 //TODO: logging
                 throw;
             }
-            // catch (Exception)
-            // {
-            //     tfr = TransferFailureReason.UnknownError;
-            //     //TODO: logging
-            // }
 
             return new SendResult()
             {
@@ -398,15 +376,6 @@ namespace Youverse.Core.Services.Transit
                 OutboxItem = outboxItem
             };
         }
-
-        // private Task<RsaEncryptedRecipientTransferInstructionSet> GetTransferInstructionSetFromCache(string recipient,
-        //     InternalDriveFileId file)
-        // {
-        //     var instructionSet =
-        //         _tenantSystemStorage.SingleKeyValueStorage.Get<RsaEncryptedRecipientTransferInstructionSet>(
-        //             CreateInstructionSetStorageKey((DotYouIdentity)recipient, file));
-        //     return Task.FromResult(instructionSet);
-        // }
 
         private GuidId CreateInstructionSetStorageKey(DotYouIdentity recipient, InternalDriveFileId file)
         {
@@ -500,9 +469,25 @@ namespace Youverse.Core.Services.Transit
                 }
                 else
                 {
-                    //enqueue the failures into the outbox
-                    await _outboxService.Add(result.OutboxItem);
-                    transferStatus[result.Recipient.Id] = TransferStatus.PendingRetry;
+                    switch (result.FailureReason)
+                    {
+                        case TransferFailureReason.TransitPublicKeyInvalid:
+                        case TransferFailureReason.RecipientPublicKeyInvalid:
+                        case TransferFailureReason.CouldNotEncrypt:
+                        case TransferFailureReason.EncryptedTransferInstructionSetNotAvailable:
+                            //enqueue the failures into the outbox
+                            await _outboxService.Add(result.OutboxItem);
+                            transferStatus[result.Recipient.Id] = TransferStatus.PendingRetry;
+                            break;
+
+                        case TransferFailureReason.RecipientServerError:
+                        case TransferFailureReason.UnknownError:
+                        case TransferFailureReason.RecipientServerRejected:
+                            transferStatus[result.Recipient.Id] = TransferStatus.TotalRejectionClientShouldRetry;
+                            break;
+                        default:
+                            throw new ArgumentOutOfRangeException();
+                    }
                 }
             }
 

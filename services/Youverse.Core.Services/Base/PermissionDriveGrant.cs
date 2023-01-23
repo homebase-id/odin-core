@@ -1,21 +1,22 @@
-using System;
-using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Services.Drive;
+using System.Collections.Generic;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Youverse.Core.Services.Authorization.Permissions;
 
 namespace Youverse.Core.Services.Base
 {
-    
-    //TODO: this is now a duplicate of DriveGrant.  need to remove this when we refactor everything into the ExchangeDriveGrant
-    public class PermissionDriveGrant
+    /// <summary>
+    /// Indicates a set of permissions being requested
+    /// </summary>
+    public class PermissionSetGrantRequest
     {
-        public Guid DriveId { get; set; }
-        
-        public SymmetricKeyEncryptedAes KeyStoreKeyEncryptedStorageKey { get; set; }
-        
         /// <summary>
-        /// The type of access allowed for this drive grant
+        /// The drives being requested
         /// </summary>
-        public DrivePermission Permission { get; set; }
-        
+        public IEnumerable<DriveGrantRequest> Drives { get; set; }
+     
+        /// <summary>
+        /// The permissions being requested
+        /// </summary>
+        public PermissionSet PermissionSet { get; set; }
     }
 }

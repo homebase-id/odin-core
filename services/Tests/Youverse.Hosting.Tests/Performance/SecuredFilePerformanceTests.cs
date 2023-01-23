@@ -92,7 +92,7 @@ namespace Youverse.Hosting.Tests.Performance
             //
             // Prepare environment by uploading secured files
             //
-            var frodoAppContext = await _scaffold.OwnerApi.SetupTestSampleApp(TestIdentities.Frodo);
+            var frodoAppContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(TestIdentities.Frodo);
             var randomHeaderContent = string.Join("", Enumerable.Range(10, 10).Select(i => Guid.NewGuid().ToString("N")));  // 32 * 10 = 320 bytes
             var randomPayloadContent = string.Join("", Enumerable.Range(2468, 2468).Select(i => Guid.NewGuid().ToString("N"))); // 32 * 2468 = 78,976 bytes, almost same size as public test
             var uploadedFile1 = await UploadFileWithPayloadAndTwoThumbnails(frodoAppContext, randomHeaderContent, randomPayloadContent, AccessControlList.Authenticated);
@@ -198,7 +198,7 @@ namespace Youverse.Hosting.Tests.Performance
             var payload1Response2 = await frodoDriveService.GetPayload(uploadedFile1.FileId, uploadedFile1.TargetDrive.Alias, uploadedFile1.TargetDrive.Type);
             Assert.IsTrue(payload1Response2.IsSuccessStatusCode);
             Assert.IsNotNull(payload1Response2.Content);
-            System.Threading.Thread.Sleep(2000);
+            // System.Threading.Thread.Sleep(2000);
             
             //
             // I presume here we retrieve the file and download it
@@ -214,6 +214,7 @@ namespace Youverse.Hosting.Tests.Performance
                 var encryptedPayloadBytes = await payload1Response.Content.ReadAsByteArrayAsync();
                 fileByteLength += encryptedPayloadBytes.Length;
 
+                
                 // Finished doing all the work
                 timers[count] = sw.ElapsedMilliseconds;
 
@@ -230,7 +231,7 @@ namespace Youverse.Hosting.Tests.Performance
         {
             var identity = TestIdentities.Frodo;
 
-            using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
                 var transferIv = ByteArrayUtil.GetRndByteArray(16);
                 var keyHeader = KeyHeader.NewRandom16();

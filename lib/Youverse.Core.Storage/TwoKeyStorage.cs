@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Youverse.Core.Serialization;
-using Youverse.Core.Storage.SQLite.KeyValue;
+using Youverse.Core.Storage.SQLite.IdentityDatabase;
 
 namespace Youverse.Core.Storage;
 

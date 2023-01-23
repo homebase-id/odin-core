@@ -159,7 +159,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
                 //TODO: encrypting the key store key here is wierd.  this should be done in the exchange grant service
                 MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey),
                 IsRevoked = false,
-                CircleGrants = await _cns.CreateCircleGrantList(header.CircleIds, keyStoreKey),
+                CircleGrants = await _cns.CreateCircleGrantList(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey),
+                AppGrants = await _cns.CreateAppCircleGrantList(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey),
                 AccessRegistration = accessRegistration
             };
             keyStoreKey.Wipe();
@@ -271,6 +272,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
                 MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey),
                 IsRevoked = false,
                 CircleGrants = await _cns.CreateCircleGrantList(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey),
+                AppGrants = await _cns.CreateAppCircleGrantList(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey),
                 AccessRegistration = accessRegistration
             };
             keyStoreKey.Wipe();

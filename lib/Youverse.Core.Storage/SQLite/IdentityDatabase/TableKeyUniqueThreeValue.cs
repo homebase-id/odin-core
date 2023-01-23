@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Data.SQLite;
 
-namespace Youverse.Core.Storage.SQLite.KeyValue
+namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 {
     public class TableKeyUniqueThreeValue : TableBase
     {
@@ -48,7 +48,7 @@ namespace Youverse.Core.Storage.SQLite.KeyValue
         private SQLiteParameter _sparamTwoThree2 = null;
         private  Object _selectTwoThreeLock = new Object();
 
-        public TableKeyUniqueThreeValue(KeyValueDatabase db) : base(db)
+        public TableKeyUniqueThreeValue(IdentityDatabase db) : base(db)
         {
         }
 

@@ -3,7 +3,7 @@ using System.IO;
 
 // Needs to move to the solution.
 
-namespace Youverse.Core.Storage.SQLite
+namespace Youverse.Core.Storage.SQLite.DriveDatabase
 {
     public class ReindexDrive
     {

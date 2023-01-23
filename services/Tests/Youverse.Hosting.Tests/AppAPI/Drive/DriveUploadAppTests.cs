@@ -37,7 +37,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         {
             var identity = TestIdentities.Frodo;
 
-            var testContext = await _scaffold.OwnerApi.SetupTestSampleApp(identity);
+            var testContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(identity);
 
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = KeyHeader.NewRandom16();
@@ -162,7 +162,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         {
             var identity = TestIdentities.Frodo;
 
-            var testContext = await _scaffold.OwnerApi.SetupTestSampleApp(identity);
+            var testContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(identity);
 
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = KeyHeader.NewRandom16();

@@ -4,6 +4,7 @@ using NUnit.Framework;
 using Youverse.Core;
 using Youverse.Core.Storage;
 using Youverse.Core.Storage.SQLite;
+using Youverse.Core.Storage.SQLite.DriveDatabase;
 
 namespace IndexerTests
 {
@@ -14,7 +15,7 @@ namespace IndexerTests
         // Test we can insert and read a row
         public void InsertRowTest()
         {
-            using var db = new DriveIndexDatabase("URI=file:.\\tblTagIndex1.db", DatabaseIndexKind.Random);
+            using var db = new DriveDatabase("URI=file:.\\tblTagIndex1.db", DatabaseIndexKind.Random);
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();
@@ -44,7 +45,7 @@ namespace IndexerTests
         // Test we can insert and read two tagmembers
         public void InsertDoubleRowTest()
         {
-            using var db = new DriveIndexDatabase("URI=file:.\\tblTagIndex2.db", DatabaseIndexKind.Random);
+            using var db = new DriveDatabase("URI=file:.\\tblTagIndex2.db", DatabaseIndexKind.Random);
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();
@@ -82,7 +83,7 @@ namespace IndexerTests
         // Test we cannot insert the same tagmember key twice on the same key
         public void InsertDuplicatetagMemberTest()
         {
-            using var db = new DriveIndexDatabase("URI=file:.\\tblTagIndex3.db", DatabaseIndexKind.Random);
+            using var db = new DriveDatabase("URI=file:.\\tblTagIndex3.db", DatabaseIndexKind.Random);
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();
@@ -110,7 +111,7 @@ namespace IndexerTests
         // Test we can insert the same tagmember on two different keys
         public void InsertDoubletagMemberTest()
         {
-            using var db = new DriveIndexDatabase("URI=file:.\\tblTagIndex4.db", DatabaseIndexKind.Random);
+            using var db = new DriveDatabase("URI=file:.\\tblTagIndex4.db", DatabaseIndexKind.Random);
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();
@@ -134,7 +135,7 @@ namespace IndexerTests
         // Test we cannot insert the same key twice
         public void InsertDoubleKeyTest()
         {
-            using var db = new DriveIndexDatabase("URI=file:.\\tblTagIndex5.db", DatabaseIndexKind.Random);
+            using var db = new DriveDatabase("URI=file:.\\tblTagIndex5.db", DatabaseIndexKind.Random);
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();
@@ -161,7 +162,7 @@ namespace IndexerTests
         [Test]
         public void DeleteRowTest()
         {
-            using var db = new DriveIndexDatabase("URI=file:.\\tblTagIndex6.db", DatabaseIndexKind.Random);
+            using var db = new DriveDatabase("URI=file:.\\tblTagIndex6.db", DatabaseIndexKind.Random);
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();

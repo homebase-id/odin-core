@@ -149,7 +149,7 @@ namespace Youverse.Hosting
                         .UseStartup<Startup>();
                 });
 
-            // if (youverseConfig.Logging.Level == LoggingLevel.ErrorsOnly)
+            if (youverseConfig.Logging.Level == LoggingLevel.ErrorsOnly)
             {
                 builder.UseSerilog((context, services, configuration) => configuration
                     .ReadFrom.Services(services)

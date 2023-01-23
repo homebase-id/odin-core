@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
@@ -18,6 +19,6 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         public RedactedExchangeGrant Grant { get; set; }
         public List<Guid> AuthorizedCircles { get; set; }
-        public RedactedExchangeGrant CircleMemberGrant { get; set; }
+        public PermissionSetGrantRequest CircleMemberPermissionSetGrantRequest { get; set; }
     }
 }

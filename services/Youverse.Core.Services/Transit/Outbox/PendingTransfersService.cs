@@ -7,14 +7,14 @@ using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Drive.Storage;
-using Youverse.Core.Storage.SQLite.KeyValue;
+using Youverse.Core.Storage.SQLite.IdentityDatabase;
 using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Transit.Outbox
 {
     public class PendingTransfersService : IPendingTransfersService
     {
-        private KeyValueDatabase _db;  // TODO: This looks incorrect, it should fetch the DB object from somewhere shouldn't it?
+        private IdentityDatabase _db;  // TODO: This looks incorrect, it should fetch the DB object from somewhere shouldn't it?
 
         public PendingTransfersService(string dataPath)
         {
@@ -26,7 +26,7 @@ namespace Youverse.Core.Services.Transit.Outbox
                 Directory.CreateDirectory(finalPath!);
             }
             var filePath = PathUtil.OsIfy($"{dataPath}\\xfer.db");
-            _db = new KeyValueDatabase($"URI=file:{filePath}");
+            _db = new IdentityDatabase($"URI=file:{filePath}");
             _db.CreateDatabase(false);
         }
 

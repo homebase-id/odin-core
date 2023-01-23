@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 
 namespace Youverse.Core.Services.Contacts.Circle.Membership;
@@ -14,12 +15,21 @@ public class AccessExchangeGrant
     //TODO: this is a horrible name.  fix. 
     public AccessExchangeGrant()
     {
-        this.CircleGrants = new Dictionary<string, CircleGrant>(StringComparer.Ordinal);
+        this.CircleGrants = new(StringComparer.Ordinal);
+        this.AppGrants = new(StringComparer.Ordinal);
     }
 
     public SymmetricKeyEncryptedAes MasterKeyEncryptedKeyStoreKey { get; set; }
 
+    /// <summary>
+    /// The permissions granted from a given circle.  The key is the circle Id.
+    /// </summary>
     public Dictionary<string, CircleGrant> CircleGrants { get; set; }
+
+    /// <summary>
+    /// The permissions granted from being with-in a circle that has been authorized by an App.  The main key is the AppId
+    /// </summary>
+    public Dictionary<string, Dictionary<string, AppCircleGrant>> AppGrants { get; set; }
 
     public AccessRegistration AccessRegistration { get; set; }
 
@@ -38,7 +48,8 @@ public class AccessExchangeGrant
         return new RedactedAccessExchangeGrant()
         {
             IsRevoked = this.IsRevoked,
-            CircleGrants = this.CircleGrants.Values.Select(cg => cg.Redacted()).ToList()
+            CircleGrants = this.CircleGrants.Values.Select(cg => cg.Redacted()).ToList(),
+            AppGrants = this.AppGrants.ToDictionary(k => k.Key, pair => pair.Value.Values.Select(v => v.Redacted()))
         };
     }
 }
@@ -47,4 +58,5 @@ public class RedactedAccessExchangeGrant
 {
     public bool IsRevoked { get; set; }
     public List<RedactedCircleGrant> CircleGrants { get; set; }
+    public Dictionary<string, IEnumerable<RedactedAppCircleGrant>> AppGrants { get; set; }
 }

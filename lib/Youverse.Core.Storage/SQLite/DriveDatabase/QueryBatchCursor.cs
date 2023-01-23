@@ -1,7 +1,6 @@
 ﻿using System;
 
-
-namespace Youverse.Core.Storage.SQLite
+namespace Youverse.Core.Storage.SQLite.DriveDatabase
 {
     public class QueryBatchCursor
     {

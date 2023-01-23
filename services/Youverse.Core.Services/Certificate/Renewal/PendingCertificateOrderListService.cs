@@ -5,7 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using Youverse.Core.Identity;
-using Youverse.Core.Storage.SQLite.KeyValue;
+using Youverse.Core.Storage.SQLite.IdentityDatabase;
 using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Certificate.Renewal
@@ -15,7 +15,7 @@ namespace Youverse.Core.Services.Certificate.Renewal
     /// </summary>
     public class PendingCertificateOrderListService:IDisposable
     {
-        private readonly KeyValueDatabase _db;
+        private readonly IdentityDatabase _db;
 
         public PendingCertificateOrderListService(string dataPath)
         {
@@ -28,7 +28,7 @@ namespace Youverse.Core.Services.Certificate.Renewal
             }
 
             var filePath = PathUtil.OsIfy($"{dataPath}\\cert.db");
-            _db = new KeyValueDatabase($"URI=file:{filePath}");
+            _db = new IdentityDatabase($"URI=file:{filePath}");
             _db.CreateDatabase(false);
         }
 

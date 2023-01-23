@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Data.SQLite;
 
-namespace Youverse.Core.Storage.SQLite
+namespace Youverse.Core.Storage.SQLite.DriveDatabase
 {
     public class CommandMessage
     {
@@ -24,7 +24,7 @@ namespace Youverse.Core.Storage.SQLite
         private Object _selectLock = new Object();
 
 
-        public TableCommandMessageQueue(DriveIndexDatabase db) : base(db)
+        public TableCommandMessageQueue(DriveDatabase db) : base(db)
         {
         }
 
@@ -117,7 +117,7 @@ namespace Youverse.Core.Storage.SQLite
                 _database.BeginTransaction();
 
                 // Since we are writing multiple rows we do a logic unit here
-                using (_database.CreateLogicCommitUnit())
+                using (_database.CreateCommitUnitOfWork())
                 {
                     for (int i = 0; i < fileId.Count; i++)
                     {
@@ -149,7 +149,7 @@ namespace Youverse.Core.Storage.SQLite
                 _database.BeginTransaction();
 
                 // Since we are deletign multiple rows we do a logic unit here
-                using (_database.CreateLogicCommitUnit())
+                using (_database.CreateCommitUnitOfWork())
                 {
                     for (int i = 0; i < fileId.Count; i++)
                     {

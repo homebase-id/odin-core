@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Youverse.Core.Storage.SQLite.KeyValue;
+using Youverse.Core.Storage.SQLite.IdentityDatabase;
 
 namespace Youverse.Core.Storage
 {

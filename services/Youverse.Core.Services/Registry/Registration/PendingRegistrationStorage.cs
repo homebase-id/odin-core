@@ -1,14 +1,14 @@
 using System;
 using System.IO;
 using Youverse.Core.Storage;
-using Youverse.Core.Storage.SQLite.KeyValue;
+using Youverse.Core.Storage.SQLite.IdentityDatabase;
 using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Registry.Registration;
 
 public class PendingRegistrationStorage
 {
-    private readonly KeyValueDatabase _db;
+    private readonly IdentityDatabase _db;
     private readonly TwoKeyStorage _storage;
 
     public PendingRegistrationStorage(string dbPath)
@@ -20,7 +20,7 @@ public class PendingRegistrationStorage
         }
 
         string finalPath = PathUtil.Combine(dbPath, $"{dbName}");
-        _db = new KeyValueDatabase($"URI=file:{finalPath}");
+        _db = new IdentityDatabase($"URI=file:{finalPath}");
         _db.CreateDatabase(false);
 
         _storage = new TwoKeyStorage(_db.tblKeyTwoValue);
