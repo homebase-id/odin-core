@@ -1,7 +1,9 @@
 ﻿using Dawn;
 using System;
 using System.Diagnostics;
+using System.Linq;
 using Youverse.Core.Cryptography.Crypto;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Util;
 
 namespace Youverse.Core.Cryptography.Data
@@ -45,9 +47,13 @@ namespace Youverse.Core.Cryptography.Data
 
         private byte[] CalcKeyHash(ref SensitiveByteArray key)
         {
-            KeyHash = HashUtil.ReduceSHA256Hash(key.GetKey());
-            KeyHash = ByteArrayUtil.EquiByteArrayXor(KeyHash, KeyIV);
-            return KeyHash;
+            // KeyHash = HashUtil.ReduceSHA256Hash(key.GetKey());
+            // KeyHash = ByteArrayUtil.EquiByteArrayXor(KeyHash, KeyIV);
+            // return KeyHash;
+            
+            var k = HashUtil.ReduceSHA256Hash(key.GetKey());
+            k = ByteArrayUtil.EquiByteArrayXor(k, KeyIV);
+            return k;
         }
 
         private void EncryptKey(ref SensitiveByteArray secret, ref SensitiveByteArray keyToProtect)
@@ -66,7 +72,9 @@ namespace Youverse.Core.Cryptography.Data
         public SensitiveByteArray DecryptKeyClone(ref SensitiveByteArray secret)
         {
             if (!ByteArrayUtil.EquiByteArrayCompare(KeyHash, CalcKeyHash(ref secret)))
-                throw new Exception();
+            {
+                throw new YouverseSecurityException("Key hash did not match");
+            }
 
             var key = new SensitiveByteArray(AesCbc.Decrypt(KeyEncrypted, ref secret, KeyIV));
 

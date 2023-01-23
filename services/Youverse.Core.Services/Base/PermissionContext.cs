@@ -124,20 +124,6 @@ namespace Youverse.Core.Services.Base
         /// <returns></returns>
         public SensitiveByteArray GetDriveStorageKey(Guid driveId)
         {
-            // var hack = _permissionGroups.Keys.Where(k => k != "anonymous_drives");
-            //
-            // //TODO: Update the search pattern to prioritize drives with keys over the anonmyous drive grants
-            // foreach (var key in hack)
-            // {
-            //     var group = _permissionGroups[key];
-            //     var storageKey = group.GetDriveStorageKey(driveId);
-            //     if (storageKey != null)
-            //     {
-            //         //TODO: log key as source of permission.
-            //         return storageKey;
-            //     }
-            // }
-
             foreach (var key in _permissionGroups.Keys)
             {
                 var group = _permissionGroups[key];
