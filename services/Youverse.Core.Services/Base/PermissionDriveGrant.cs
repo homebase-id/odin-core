@@ -1,9 +1,6 @@
-using System;
 using System.Collections.Generic;
-using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Base
 {
@@ -12,7 +9,14 @@ namespace Youverse.Core.Services.Base
     /// </summary>
     public class PermissionSetGrantRequest
     {
+        /// <summary>
+        /// The drives being requested
+        /// </summary>
         public IEnumerable<DriveGrantRequest> Drives { get; set; }
+     
+        /// <summary>
+        /// The permissions being requested
+        /// </summary>
         public PermissionSet PermissionSet { get; set; }
     }
 }

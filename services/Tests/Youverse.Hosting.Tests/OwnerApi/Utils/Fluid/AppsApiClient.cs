@@ -130,7 +130,7 @@ public class AppsApiClient
                 PermissionSet = appPermissions.PermissionSet,
                 Drives = appPermissions.Drives.ToList(),
                 AuthorizedCircles = authorizedCircles,
-                CircleMemberGrantRequest = circleMemberGrantRequest
+                CircleMemberPermissionGrant = circleMemberGrantRequest
             };
 
             var response = await svc.RegisterApp(request);

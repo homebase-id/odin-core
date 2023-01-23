@@ -34,7 +34,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <summary>
         /// Permissions being granted to allmembers of the <see cref="AuthorizedCircles"/>
         /// </summary>
-        public PermissionSetGrantRequest CircleMemberGrantRequest { get; set; }
+        public PermissionSetGrantRequest CircleMemberPermissionGrant { get; set; }
 
     }
     

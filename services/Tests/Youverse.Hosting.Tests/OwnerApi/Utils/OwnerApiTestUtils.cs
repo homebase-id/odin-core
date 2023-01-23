@@ -296,7 +296,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                     PermissionSet = permissionSet,
                     Drives = drives,
                     AuthorizedCircles = authorizedCircles,
-                    CircleMemberGrantRequest = circleMemberGrantRequest
+                    CircleMemberPermissionGrant = circleMemberGrantRequest
                 };
 
                 var response = await svc.RegisterApp(request);

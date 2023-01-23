@@ -13,9 +13,7 @@ namespace Youverse.Core.Services.Transit
         /// 
         /// </summary>
         TransferKeyCreated = 3,
-        
-        
-        
+
         /// <summary>
         /// Indicates the transfer was successfully delivered.
         /// </summary>
@@ -24,6 +22,11 @@ namespace Youverse.Core.Services.Transit
         /// <summary>
         /// Specifies there was a failure to send the transfer and it will be retried.
         /// </summary>
-        PendingRetry = 8
+        PendingRetry = 8,
+        
+        /// <summary>
+        /// Recipient server rejected the transfer, client should retry 
+        /// </summary>
+        TotalRejectionClientShouldRetry = 9
     }
 }

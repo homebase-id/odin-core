@@ -69,7 +69,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 Name = request.Name,
                 Grant = appGrant,
 
-                CircleMemberPermissionGrant = request.CircleMemberGrantRequest,
+                CircleMemberPermissionGrant = request.CircleMemberPermissionGrant,
                 AuthorizedCircles = request.AuthorizedCircles
             };
 
