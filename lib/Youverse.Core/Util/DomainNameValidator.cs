@@ -15,11 +15,15 @@ namespace Youverse.Core.Util
     //
     public class DomainNameValidator
     {
+        public const int MAX_DNS_LABEL  =  63;  // as per DNS RFC
+        public const int MAX_DNS_DOMAIN = 253;  // as per DNS RFC, max 254 characters in total
+
+
         // Validate if a DNS *label* is OK
         // false not OK. true OK.
         public static bool ValidLabel(string label)
         {
-            if (label.Length < 1 || label.Length > 63)
+            if (label.Length < 1 || label.Length > MAX_DNS_LABEL)
                 return false; // Too short or long
 
             // The first and last character cannot be the hyphen
@@ -41,7 +45,7 @@ namespace Youverse.Core.Util
         // Check the whole domain name. Throw an exception if it is invalid.
         public static void ValidateDomain(string domain)
         {
-            if (domain.Length > 253)
+            if (domain.Length > MAX_DNS_DOMAIN)
                 throw new DomainTooLongException(); // Too long
 
             if (domain.Length < 3)

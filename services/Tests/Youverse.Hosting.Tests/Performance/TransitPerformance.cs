@@ -5,30 +5,26 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
-using System.Security.Policy;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
-using SQLitePCL;
 using Youverse.Core;
+using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Drive.Storage;
-using Youverse.Core.Services.Optimization.Cdn;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
-using Youverse.Hosting.Controllers.OwnerToken.Cdn;
 using Youverse.Hosting.Tests.AppAPI;
 using Youverse.Hosting.Tests.AppAPI.Drive;
 using Youverse.Hosting.Tests.AppAPI.Transit;
 using Youverse.Hosting.Tests.OwnerApi.Drive;
-using Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn;
+
 
 namespace Youverse.Hosting.Tests.Performance
 {
@@ -37,8 +33,8 @@ namespace Youverse.Hosting.Tests.Performance
         private const int FileType = 844;
 
         // For the performance test
-        private static readonly int MAXTHREADS = 16; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
-        private const int MAXITERATIONS = 10; // A number high enough to get warmed up and reliable
+        private static readonly int MAXTHREADS = 24; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
+        private const int MAXITERATIONS = 300; // A number high enough to get warmed up and reliable
 
         private WebScaffold _scaffold;
 
@@ -62,7 +58,6 @@ namespace Youverse.Hosting.Tests.Performance
             Task[] tasks = new Task[MAXTHREADS];
             List<long[]> timers = new List<long[]>();
             long fileByteLength = 0;
-
 
             TargetDrive targetDrive = TargetDrive.NewTargetDrive();
 
@@ -130,6 +125,10 @@ namespace Youverse.Hosting.Tests.Performance
                 $"Capacity  : {(1000 * MAXITERATIONS * MAXTHREADS) / Math.Max(1, sw.ElapsedMilliseconds)} / second");
             Console.WriteLine(
                 $"Bandwidth : {1000 * (fileByteLength / Math.Max(1, sw.ElapsedMilliseconds))} bytes / second");
+
+            Console.WriteLine($"RSA Encryptions {RsaKeyManagement.noEncryptions}, Decryptions {RsaKeyManagement.noDecryptions}");
+            Console.WriteLine($"RSA Keys Created {RsaKeyManagement.noKeysCreated}, Keys Expired {RsaKeyManagement.noKeysExpired}");
+            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
         }
 
 
@@ -148,7 +147,6 @@ namespace Youverse.Hosting.Tests.Performance
 
             var recipients = new List<string>()
             {
-                // samAppContext.Identity.ToString()
                 "samwise.digital"
             };
 
@@ -160,8 +158,7 @@ namespace Youverse.Hosting.Tests.Performance
                 using (var client = _scaffold.AppApi.CreateAppApiHttpClient(ctx))
                 // using (var client = CreateClient(ctx.Identity, ctx.ClientAuthenticationToken, ctx.SharedSecret))
                 {
-                    var sendMessageResult = await SendMessage(client, ctx, recipients, randomHeaderContent,
-                        randomPayloadContent);
+                    var sendMessageResult = await SendMessage(client, ctx, recipients, randomHeaderContent, randomPayloadContent);
                 }
                 /* var samMessageHeaders = await GetMessages(samAppContext);
 
