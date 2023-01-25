@@ -12,6 +12,48 @@ namespace IndexerTests.KeyValue
     public class TableCronTests
     {
         [Test]
+        public void ExampleCronTest()
+        {
+            using var db = new ServerDatabase("URI=file:.\\cron-example.db");
+            db.CreateDatabase();
+
+            var frodo = Guid.NewGuid();
+            var sam = Guid.NewGuid();
+            var d1 = Guid.NewGuid().ToByteArray();
+
+            // Add a few rows to the database
+            // 1 might be outbox, so they've each got a job pending
+            // The jobs are set to run immediately. Frodo will get returned
+            // first
+            //
+            db.tblCron.UpsertRow(frodo, 1, d1);
+            db.tblCron.UpsertRow(sam, 1, d1);
+
+            // If you upsert frodo with a new outbox item then it will 'cancel' any pop stamp
+            // and reset all counters
+            //
+            db.tblCron.UpsertRow(frodo, 1, d1);
+
+
+            // Pop 10 records from the stack. 
+            var il1 = db.tblCron.Pop(10, out var _);
+            Assert.True(il1.Count == 2);
+
+            // Let's say that you finished everything for Frodo correctly:
+            db.tblCron.PopCommitList(new List<Guid>() { il1[0].identityGuid });
+
+            // Let's say Sam's job failed and needs to run again later
+            db.tblCron.PopCancelList(new List<Guid>() { il1[1].identityGuid });
+
+            // Maybe the server died, and some stuff in progress never got finished
+            // RecoverDead:
+            var t = UnixTimeUtc.Now().AddSeconds(-60 * 60);  // Anything popped longer than an hour ago
+            db.tblCron.PopRecoverDead(t);
+        }
+
+
+
+        [Test]
         public void InsertCron01Test()
         {
             using var db = new ServerDatabase("URI=file:.\\cron-upsert-01.db");

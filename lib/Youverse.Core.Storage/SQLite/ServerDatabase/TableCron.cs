@@ -211,7 +211,7 @@ namespace Youverse.Core.Storage.SQLite.ServerDatabase
                     _insertCommand.CommandText = 
                        @"INSERT INTO cron(identityid, type, data, runcount, nextrun, lastrun, popstamp) "+
                         "VALUES ($identityid, $type, $data, 0, $nextrun, 0, NULL) "+
-                        "ON CONFLICT (identityid, type) DO UPDATE SET data=$data, runcount=0, nextrun=$nextrun";
+                        "ON CONFLICT (identityid, type) DO UPDATE SET data=$data, popstamp=NULL, runcount=0, nextrun=$nextrun";
 
                     _iparam1 = _insertCommand.CreateParameter();
                     _iparam1.ParameterName = "$identityid";
