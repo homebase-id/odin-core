@@ -58,11 +58,41 @@ namespace Youverse.Hosting.Tests.Performance
             Median    : 23ms
             Capacity  : 769 / second
             Bandwidth : 60817000 bytes / second
+    2023-01-23
+
+        /// TaskPerformanceTest_SecuredFiles
+        ///   Duration: 7.3 sec
+        ///
+        ///  Standard Output: 
+        ///    Threads   : 10
+        ///    Iterations: 2000
+        ///    Time      : 6668ms
+        ///    Minimum   : 1ms
+        ///    Maximum   : 33ms    Average   : 2ms
+        ///    Median    : 2ms
+        ///    Capacity  : 2999 / second
+        ///    Bandwidth : 236,949,000 bytes / second
+        ///    DB Opened 15, Closed 0
+    
+    TaskPerformanceTest_SecuredFiles
+       Duration: 15.8 sec
+
+      Standard Output: 
+        Threads   : 20
+        Iterations: 2000
+        Time      : 14790ms
+        Minimum   : 1ms
+        Maximum   : 40ms
+        Average   : 6ms
+        Median    : 7ms
+        Capacity  : 2704 / second
+        Bandwidth : 213655000 bytes / second
+        DB Opened 15, Closed 0
      */
     public class SecuredFilePerformanceTests
     {
         // For the performance test
-        private const int MAXTHREADS = 10; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
+        private const int MAXTHREADS = 20; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
         const int MAXITERATIONS = 2000; // A number high enough to get warmed up and reliable
 
         private WebScaffold _scaffold;

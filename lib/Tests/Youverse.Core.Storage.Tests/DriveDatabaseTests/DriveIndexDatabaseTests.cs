@@ -3,10 +3,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using NUnit.Framework;
 using Youverse.Core;
-using Youverse.Core.Storage.SQLite;
 using Youverse.Core.Storage.SQLite.DriveDatabase;
 using Youverse.Core.Util;
-using UnixTime = Youverse.Core.UnixTimeUtcUniqueGenerator;
 
 namespace IndexerTests
 {

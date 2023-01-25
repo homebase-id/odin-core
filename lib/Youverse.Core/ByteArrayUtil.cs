@@ -214,6 +214,12 @@ namespace Youverse.Core
             return 0;
         }
 
+        /// <summary>
+        /// memcmp for two Guids.
+        /// </summary>
+        /// <param name="b1"></param>
+        /// <param name="b2"></param>
+        /// <returns>+1 : b1 > b2; 0 equal; -1 : b1 < b2</returns>
         public static int muidcmp(Guid? b1, Guid? b2)
         {
             return muidcmp(b1?.ToByteArray(), b2?.ToByteArray());

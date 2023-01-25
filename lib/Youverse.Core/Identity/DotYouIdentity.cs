@@ -13,13 +13,14 @@ namespace Youverse.Core.Identity
     {
         private readonly string _identifier;
         private readonly Guid _id;
-
         public DotYouIdentity(string identifier)
         {
             _identifier = identifier?.ToLower().Trim();
             if (string.IsNullOrEmpty(_identifier) == false)
             {
-                _id = new Guid(HashUtil.ReduceSHA256Hash(_identifier.ToUtf8ByteArray()));
+                // TODO: Activate this code, but check with Stef & Bishwa what happens when they use international URLs
+                // DomainNameValidator.ValidateDomain(identifier);  // Important. Validates domain is valid RFC. No funky chars.
+                _id = new Guid(HashUtil.ReduceSHA256Hash(_identifier.ToUtf8ByteArray())); // Hm, the chars are guaranteed to be ASCII < 128
             }
             else
             {
