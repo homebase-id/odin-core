@@ -11,10 +11,14 @@ namespace Youverse.Core.Services.Authorization.Permissions
         public static readonly int ReadConnectionRequests = 30;
 
         public static readonly int ReadCircleMembership = 50;
+
+        public static readonly int ReadWhoIFollow = 80;
         
+        public static readonly int ReadMyFollowers = 130;
+
         public static readonly List<int> All = new List<int>()
         {
-            ReadConnections, ReadConnectionRequests, ReadCircleMembership
+            ReadConnections, ReadConnectionRequests, ReadCircleMembership, ReadWhoIFollow, ReadMyFollowers
         };
     }
 
@@ -29,13 +33,15 @@ namespace Youverse.Core.Services.Authorization.Permissions
             {
                 PermissionKeys.ReadConnections,
                 PermissionKeys.ReadCircleMembership,
-                PermissionKeys.ReadConnectionRequests
+                PermissionKeys.ReadConnectionRequests,
+                PermissionKeys.ReadWhoIFollow
             });
 
             Circles = new ReadOnlyCollection<int>(new List<int>()
             {
                 PermissionKeys.ReadConnections,
-                PermissionKeys.ReadCircleMembership
+                PermissionKeys.ReadCircleMembership,
+                PermissionKeys.ReadWhoIFollow
             });
         }
 

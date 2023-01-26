@@ -32,11 +32,14 @@ namespace Youverse.Hosting.Authentication.Owner
     /// </summary>
     public class OwnerAuthenticationHandler : AuthenticationHandler<OwnerAuthenticationSchemeOptions>, IAuthenticationSignInHandler
     {
+        /// <summary/>
         public OwnerAuthenticationHandler(IOptionsMonitor<OwnerAuthenticationSchemeOptions> options, ILoggerFactory logger,
             UrlEncoder encoder, ISystemClock clock)
             : base(options, logger, encoder, clock)
         {
         }
+
+        /// <summary/>
 
         protected override Task HandleChallengeAsync(AuthenticationProperties properties)
         {
@@ -44,6 +47,7 @@ namespace Youverse.Hosting.Authentication.Owner
             return Task.CompletedTask;
         }
 
+        /// <summary/>
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
             if (GetToken(out var authResult))

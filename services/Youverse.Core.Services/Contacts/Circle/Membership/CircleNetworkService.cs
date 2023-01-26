@@ -148,6 +148,11 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                     permissionKeys.Add(PermissionKeys.ReadConnections);
                 }
 
+                if (_tenantContext.Settings.AuthenticatedIdentitiesCanViewWhoIFollow)
+                {
+                    permissionKeys.Add(PermissionKeys.ReadWhoIFollow);
+                }
+
                 //create permission context with anonymous drives only
                 var anonPermissionContext = await _exchangeGrantService.CreatePermissionContext(
                     authToken: authToken,
@@ -790,6 +795,11 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 permissionKeys.Add(PermissionKeys.ReadConnections);
             }
 
+            if (_tenantContext.Settings?.AllConnectedIdentitiesCanViewWhoIFollow ?? false)
+            {
+                permissionKeys.Add(PermissionKeys.ReadWhoIFollow);
+            }
+
             var permissionCtx = await _exchangeGrantService.CreatePermissionContext(authToken, grants, connectionRegistration.AccessGrant.AccessRegistration, additionalPermissionKeys: permissionKeys);
             return (permissionCtx, enabledCircles);
         }
@@ -888,7 +898,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                     this.SaveIcr(icr);
                 }
             }
-            
+
 
             //
         }

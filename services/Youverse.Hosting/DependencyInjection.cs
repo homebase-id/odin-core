@@ -27,6 +27,7 @@ using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Contacts.Circle.Notification;
 using Youverse.Core.Services.Contacts.Circle.Requests;
+using Youverse.Core.Services.Contacts.Follower;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Mediator;
@@ -111,6 +112,9 @@ namespace Youverse.Hosting
                 .SingleInstance();
             
             cb.RegisterType<CircleNetworkRequestService>().As<ICircleNetworkRequestService>().SingleInstance();
+
+            cb.RegisterType<FollowerService>().SingleInstance();
+            cb.RegisterType<FollowerPerimeterService>().SingleInstance();
 
             cb.RegisterType<OutboxService>().As<IOutboxService>().SingleInstance();
 

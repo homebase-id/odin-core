@@ -1,13 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.Serialization.Json;
 using System.Threading.Tasks;
 using Dawn;
-using MediatR.Pipeline;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
+using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.EncryptionKeyService;
@@ -15,13 +14,6 @@ using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Contacts.Follower
 {
-    public class FollowRequest
-    {
-        public string DotYouId { get; set; }
-        public FollowerNotificationType NotificationType { get; set; }
-        public IEnumerable<TargetDrive> Channels { get; set; }
-    }
-
     /// <summary/>
     public class FollowerService
     {
@@ -46,31 +38,33 @@ namespace Youverse.Core.Services.Contacts.Follower
         /// <summary>
         /// Establishes a follower connection with the recipient
         /// </summary>
-        public async Task Follow(string recipient, FollowerNotificationType notificationType, List<TargetDrive> channels)
+        public async Task Follow(FollowRequest request)
         {
-            if (notificationType == FollowerNotificationType.SelectedChannels)
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
+            if (request.NotificationType == FollowerNotificationType.SelectedChannels)
             {
-                Guard.Argument(channels, nameof(channels)).NotNull().NotEmpty().Require(list => list.All(c => c.Type == SystemDriveConstants.ChannelDriveType));
+                Guard.Argument(request.Channels, nameof(request.Channels)).NotNull().NotEmpty().Require(list => list.All(c => c.Type == SystemDriveConstants.ChannelDriveType));
             }
 
             var followRequest = new FollowRequest()
             {
                 DotYouId = _tenantContext.HostDotYouId,
-                NotificationType = notificationType,
-                Channels = channels
+                NotificationType = request.NotificationType,
+                Channels = request.Channels
             };
 
             var payloadBytes = DotYouSystemSerializer.Serialize(followRequest).ToUtf8ByteArray();
-            var rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(recipient, payloadBytes);
-            var client = CreateClient((DotYouIdentity)recipient);
+            var rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(request.DotYouId, payloadBytes);
+            var client = CreateClient((DotYouIdentity)request.DotYouId);
             var response = await client.Follow(rsaEncryptedPayload);
 
             if (response.IsSuccessStatusCode == false)
             {
                 //public key might be invalid, destroy the cache item
-                await _rsaPublicKeyService.InvalidatePublicKey((DotYouIdentity)recipient);
+                await _rsaPublicKeyService.InvalidatePublicKey((DotYouIdentity)request.DotYouId);
 
-                rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(recipient, payloadBytes);
+                rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(request.DotYouId, payloadBytes);
                 response = await client.Follow(rsaEncryptedPayload);
 
                 //round 2, fail all together
@@ -80,18 +74,18 @@ namespace Youverse.Core.Services.Contacts.Follower
                 }
             }
 
-            _tenantStorage.FollowedIdentities.DeleteFollower(recipient);
-            if (notificationType == FollowerNotificationType.AllNotifications)
+            _tenantStorage.WhoIFollow.DeleteFollower(request.DotYouId);
+            if (request.NotificationType == FollowerNotificationType.AllNotifications)
             {
-                _tenantStorage.FollowedIdentities.InsertFollower(recipient, null);
+                _tenantStorage.WhoIFollow.InsertFollower(request.DotYouId, null);
             }
             else
             {
-                foreach (var channel in channels)
+                foreach (var channel in request.Channels)
                 {
                     //TODO: im using alias here beacuse driveid on the follower's identity does make sense
                     //this works because all drives must be of type :channel
-                    _tenantStorage.FollowedIdentities.InsertFollower(recipient, channel.Alias);
+                    _tenantStorage.WhoIFollow.InsertFollower(request.DotYouId, channel.Alias);
                 }
             }
         }
@@ -102,6 +96,8 @@ namespace Youverse.Core.Services.Contacts.Follower
         /// </summary>
         public async Task Unfollow(string recipient)
         {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
             var client = CreateClient((DotYouIdentity)recipient);
             var response = await client.Unfollow();
 
@@ -109,63 +105,52 @@ namespace Youverse.Core.Services.Contacts.Follower
             {
                 throw new YouverseRemoteIdentityException("Failed to unfollow");
             }
-            
-            _tenantStorage.FollowedIdentities.DeleteFollower(recipient);
+
+            _tenantStorage.WhoIFollow.DeleteFollower(recipient);
         }
-        /// <summary>
-        /// Accepts the new or exiting follower by upserting a record to ensure
-        /// the follower is notified of content changes.
-        /// </summary>
-        public Task AcceptFollower(FollowRequest request)
+
+        public async Task<CursoredResult<string>> GetFollowers(string cursor)
         {
-            Guard.Argument(request, nameof(request)).NotNull();
-            Guard.Argument(request.DotYouId, nameof(request.DotYouId)).NotNull().NotEmpty();
-            DotYouIdentity.Validate(request.DotYouId);
-
-            if (request.NotificationType == FollowerNotificationType.SelectedChannels)
+            if (!string.IsNullOrEmpty(cursor))
             {
-                Guard.Argument(request.Channels, nameof(request.Channels)).NotNull().NotEmpty().Require(channels => channels.All(c => c.Type == SystemDriveConstants.ChannelDriveType));
-
-                var driveIdList = request.Channels.Select(chan => _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(chan));
-
-                _tenantStorage.Followers.DeleteFollower(request.DotYouId);
-                foreach (var driveId in driveIdList)
-                {
-                    _tenantStorage.Followers.InsertFollower(request.DotYouId, driveId);
-                }
-
-                return Task.CompletedTask;
+                throw new NotImplementedException("cursor not yet supported");
             }
 
-            if (request.NotificationType == FollowerNotificationType.AllNotifications)
+            _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadMyFollowers);
+
+            //get all channel drives
+            var channelDriveResult = await _driveService.GetDrives(SystemDriveConstants.ChannelDriveType, PageOptions.All);
+            var readableChannelDrives = channelDriveResult.Results.Where(drive => _contextAccessor.GetCurrent().PermissionsContext.HasDrivePermission(drive.Id, DrivePermission.Read));
+
+            var count = 10000;
+            var buffer = new List<string>();
+            foreach (var drive in readableChannelDrives)
             {
-                _tenantStorage.Followers.DeleteFollower(request.DotYouId);
-                _tenantStorage.Followers.InsertFollower(request.DotYouId, null);
+                var list = await this.GetFollowers(drive.Id, cursor: string.Empty);
+                buffer.AddRange(list.Results.Except(buffer)); //exclude followers we already have
             }
 
-            return Task.CompletedTask;
+            return new CursoredResult<string>()
+            {
+                Cursor = "",
+                Results = buffer
+            };
         }
-
-        public Task AcceptUnfollowRequest()
-        {
-            var follower = _contextAccessor.GetCurrent().Caller.DotYouId;
-            _tenantStorage.Followers.DeleteFollower(follower);
-            return Task.CompletedTask;
-        }
-
 
         /// <summary>
         /// Gets a list of identities that follow me
         /// </summary>
         public async Task<CursoredResult<string>> GetFollowers(Guid driveId, string cursor)
         {
-            var drive = await _driveService.GetDrive(driveId, false);
+            _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadMyFollowers);
+
+            var drive = await _driveService.GetDrive(driveId, true);
             if (drive.TargetDriveInfo.Type != SystemDriveConstants.ChannelDriveType)
             {
                 throw new YouverseClientException("Invalid Drive Type", YouverseClientErrorCode.InvalidTargetDrive);
             }
 
-            var count = 10;
+            var count = 10000;
             var dbResults = _tenantStorage.Followers.GetFollowers(count, driveId, cursor);
             var result = new CursoredResult<string>()
             {
@@ -179,24 +164,53 @@ namespace Youverse.Core.Services.Contacts.Follower
         /// <summary>
         /// Gets a list of identities I follow
         /// </summary>
-        public Task<CursoredResult<FollowerDefinition>> GetIdentitiesIFollow(string cursor)
+        public async Task<CursoredResult<string>> GetIdentitiesIFollow(string cursor)
         {
-            return null;
-            // var drive = await _driveService.GetDrive(driveId, false);
-            // if (drive.TargetDriveInfo.Type != SystemDriveConstants.ChannelDriveType)
-            // {
-            //     throw new YouverseClientException("Invalid Drive Type", YouverseClientErrorCode.InvalidTargetDrive);
-            // }
-            //
-            // var count = 10;
-            // var dbResults = _tenantStorage.FollowedIdentities.GetFollowers(count, driveId, cursor);
-            // var result = new CursoredResult<string>()
-            // {
-            //     Cursor = dbResults.Last(),
-            //     Results = dbResults
-            // };
-            //
-            // return result;
+            if (!string.IsNullOrEmpty(cursor))
+            {
+                throw new NotImplementedException("cursor not yet supported");
+            }
+
+            _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadWhoIFollow);
+
+            //get all channel drives
+            var channelDriveResult = await _driveService.GetDrives(SystemDriveConstants.ChannelDriveType, PageOptions.All);
+            var readableChannelDrives = channelDriveResult.Results.Where(drive => _contextAccessor.GetCurrent().PermissionsContext.HasDrivePermission(drive.Id, DrivePermission.Read));
+
+            var count = 10000;
+            var buffer = new List<string>();
+            foreach (var drive in readableChannelDrives)
+            {
+                var list = await this.GetIdentitiesIFollow(drive.Id, cursor: string.Empty);
+                buffer.AddRange(list.Results.Except(buffer)); //exclude followers we already have
+            }
+
+            return new CursoredResult<string>()
+            {
+                Cursor = "",
+                Results = buffer
+            };
+        }
+
+        public async Task<CursoredResult<string>> GetIdentitiesIFollow(Guid driveId, string cursor)
+        {
+            _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadWhoIFollow);
+
+            var drive = await _driveService.GetDrive(driveId, true);
+            if (drive.TargetDriveInfo.Type != SystemDriveConstants.ChannelDriveType)
+            {
+                throw new YouverseClientException("Invalid Drive Type", YouverseClientErrorCode.InvalidTargetDrive);
+            }
+
+            var count = 10000;
+            var dbResults = _tenantStorage.WhoIFollow.GetFollowers(count, driveId, cursor);
+            var result = new CursoredResult<string>()
+            {
+                Cursor = dbResults.Last(),
+                Results = dbResults
+            };
+
+            return result;
         }
 
         ///
@@ -205,6 +219,5 @@ namespace Youverse.Core.Services.Contacts.Follower
             var httpClient = _httpClientFactory.CreateClient<IFollowerHttpClient>((DotYouIdentity)dotYouId);
             return httpClient;
         }
-
     }
 }

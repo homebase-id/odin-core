@@ -17,7 +17,7 @@ namespace Youverse.Core.Storage
 
         TableInbox Inbox { get; }
 
-        TableImFollowing FollowedIdentities { get; }
+        TableImFollowing WhoIFollow { get; }
 
         TableFollowsMe Followers { get; }
 

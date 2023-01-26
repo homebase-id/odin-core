@@ -8,8 +8,19 @@ public class TenantSettings
     {
         AnonymousVisitorsCanViewConnections = false,
         AuthenticatedIdentitiesCanViewConnections = false,
-        AllConnectedIdentitiesCanViewConnections = false
+        AllConnectedIdentitiesCanViewConnections = false,
+        AnonymousVisitorsCanViewWhoIFollow = false,
+        AuthenticatedIdentitiesCanViewWhoIFollow = false,
+        AllConnectedIdentitiesCanViewWhoIFollow = false
     };
+
+    /// <summary/>
+    public bool AnonymousVisitorsCanViewWhoIFollow { get; set; }
+
+    public bool AuthenticatedIdentitiesCanViewWhoIFollow { get; set; }
+
+    /// <summary/>
+    public bool AllConnectedIdentitiesCanViewWhoIFollow { get; set; }
     
     /// <summary/>
     public bool AnonymousVisitorsCanViewConnections { get; set; }
@@ -19,5 +30,4 @@ public class TenantSettings
 
     /// <summary/>
     public bool AllConnectedIdentitiesCanViewConnections { get; set; }
-    
 }

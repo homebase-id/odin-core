@@ -16,14 +16,14 @@ namespace Youverse.Hosting.Controllers.Certificate
     [Authorize(Policy = CertificatePerimeterPolicies.IsInYouverseNetwork, AuthenticationSchemes = PerimeterAuthConstants.PublicTransitAuthScheme)]
     public class FollowPerimeterController : ControllerBase
     {
-        private readonly FollowerService _followerService;
+        private readonly FollowerPerimeterService _followerPerimeterService;
         private readonly IPublicKeyService _rsaPublicKeyService;
         
         /// <summary />
-        public FollowPerimeterController(IPublicKeyService rsaPublicKeyService, FollowerService followerService)
+        public FollowPerimeterController(IPublicKeyService rsaPublicKeyService, FollowerPerimeterService followerPerimeterService)
         {
             _rsaPublicKeyService = rsaPublicKeyService;
-            _followerService = followerService;
+            _followerPerimeterService = followerPerimeterService;
         }
 
         /// <summary />
@@ -38,7 +38,7 @@ namespace Youverse.Hosting.Controllers.Certificate
             }
 
             var request = DotYouSystemSerializer.Deserialize<FollowRequest>(payloadBytes.ToStringFromUtf8Bytes());
-            await _followerService.AcceptFollower(request);
+            await _followerPerimeterService.AcceptFollower(request);
 
             return Ok();
         }
@@ -47,7 +47,7 @@ namespace Youverse.Hosting.Controllers.Certificate
         [HttpPost("unfollow")]
         public async Task<IActionResult> ReceiveUnfollowRequest()
         {
-            await _followerService.AcceptUnfollowRequest();
+            await _followerPerimeterService.AcceptUnfollowRequest();
             return Ok();
         }
     }

@@ -30,8 +30,6 @@ namespace Youverse.Core.Services.Base
             _db = new IdentityDatabase($"URI=file:{finalPath}");
             _db.CreateDatabase(false);
             
-            // TODO: NOT ALLOWED. THIS WILL MESS UP SOMEHOW. MS.
-
             SingleKeyValueStorage = new SingleKeyValueStorage(_db.tblKeyValue);
             ThreeKeyValueStorage = new ThreeKeyValueStorage(_db.TblKeyThreeValue);
 
@@ -40,7 +38,7 @@ namespace Youverse.Core.Services.Base
             
             Outbox = _db.tblOutbox;
             Inbox = _db.tblInbox;
-            FollowedIdentities = _db.tblImFollowing;
+            WhoIFollow = _db.tblImFollowing;
             Followers = _db.tblFollowsMe;
         }
 
@@ -58,7 +56,7 @@ namespace Youverse.Core.Services.Base
 
         public TableInbox Inbox { get; }
         
-        public TableImFollowing FollowedIdentities { get; }
+        public TableImFollowing WhoIFollow { get; }
 
         public TableFollowsMe Followers { get; }
         

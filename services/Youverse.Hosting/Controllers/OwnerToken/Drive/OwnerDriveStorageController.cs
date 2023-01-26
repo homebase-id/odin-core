@@ -14,6 +14,7 @@ using Youverse.Core.Services.Transit;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 {
+    /// <summary />
     [ApiController]
     [Route(OwnerApiPathConstants.DriveStorageV1)]
     [AuthorizeValidOwnerToken]
@@ -24,6 +25,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly ITransitService _transitService;
 
+        /// <summary />
         public OwnerDriveStorageController(DotYouContextAccessor contextAccessor, IDriveService driveService, IAppService appService, ITransitService transitService)
         {
             _contextAccessor = contextAccessor;
@@ -55,6 +57,9 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             return new JsonResult(result);
         }
 
+        /// <summary>
+        /// Retrieves a file's header and metadata
+        /// </summary>
         [HttpGet("header")]
         public async Task<IActionResult> GetFileHeaderAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type)
         {
@@ -71,7 +76,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         }
 
         /// <summary>
-        /// Retrieves a file's encrypted payload
+        /// Retrieves a file's payload
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("payload")]
@@ -98,6 +103,10 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             return new FileStreamResult(payload, header.FileMetadata.PayloadIsEncrypted ? "application/octet-stream" : header.FileMetadata.ContentType);
         }
 
+
+        /// <summary>
+        /// Retrieves a file's payload
+        /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpGet("payload")]
         public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type)
@@ -114,11 +123,10 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         }
 
         /// <summary>
-        /// Retrieves an encrypted thumbnail.  The available thumbnails are defined on the AppFileMeta.
+        /// Retrieves a thumbnail.  The available thumbnails are defined on the AppFileMeta.
         ///
         /// See GET files/header
         /// </summary>
-        /// <param name="request"></param>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("thumb")]
         public async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
@@ -145,6 +153,11 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             return new FileStreamResult(payload, header.FileMetadata.PayloadIsEncrypted ? "application/octet-stream" : header.FileMetadata.ContentType);
         }
 
+        /// <summary>
+        /// Retrieves a thumbnail.  The available thumbnails are defined on the AppFileMeta.
+        ///
+        /// See GET files/header
+        /// </summary>
         [HttpGet("thumb")]
         public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] int width, [FromQuery] int height)
         {
