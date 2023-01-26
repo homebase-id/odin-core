@@ -1,3 +1,5 @@
+using System;
+
 namespace Youverse.Core.Services.Drive;
 
 /// <summary>
@@ -5,6 +7,8 @@ namespace Youverse.Core.Services.Drive;
 /// </summary>
 public static class SystemDriveConstants
 {
+    public static readonly GuidId ChannelDriveType = GuidId.FromString("channel");
+    
     public static readonly TargetDrive ContactDrive = new()
     {
         Alias = GuidId.FromString("built_in_contacts_drive"),

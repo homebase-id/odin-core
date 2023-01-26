@@ -29,17 +29,19 @@ namespace Youverse.Core.Services.Base
             string finalPath = PathUtil.Combine(dbPath, $"{dbName}");
             _db = new IdentityDatabase($"URI=file:{finalPath}");
             _db.CreateDatabase(false);
-
+            
             // TODO: NOT ALLOWED. THIS WILL MESS UP SOMEHOW. MS.
 
             SingleKeyValueStorage = new SingleKeyValueStorage(_db.tblKeyValue);
             ThreeKeyValueStorage = new ThreeKeyValueStorage(_db.TblKeyThreeValue);
 
-            Outbox = _db.tblOutbox;
-            Inbox = _db.tblInbox;
-
             IcrClientStorage = new ThreeKeyValueStorage(_db.TblKeyThreeValue);
             CircleMemberStorage = _db.tblCircleMember;
+            
+            Outbox = _db.tblOutbox;
+            Inbox = _db.tblInbox;
+            FollowedIdentities = _db.tblImFollowing;
+            Followers = _db.tblFollowsMe;
         }
 
         /// <summary>
@@ -55,7 +57,11 @@ namespace Youverse.Core.Services.Base
         public TableOutbox Outbox { get; }
 
         public TableInbox Inbox { get; }
+        
+        public TableImFollowing FollowedIdentities { get; }
 
+        public TableFollowsMe Followers { get; }
+        
         public ThreeKeyValueStorage IcrClientStorage { get; }
 
         public TableCircleMember CircleMemberStorage { get; }

@@ -61,6 +61,7 @@ namespace Youverse.Hosting
                 .As<INotificationHandler<DriveFileChangedNotification>>()
                 .As<INotificationHandler<DriveFileDeletedNotification>>()
                 .As<INotificationHandler<TransitFileReceivedNotification>>()
+                .As<INotificationHandler<NewFollowerNotification>>()
                 .AsSelf()
                 .SingleInstance();
 

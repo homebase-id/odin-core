@@ -13,6 +13,7 @@ namespace Youverse.Core.Identity
     {
         private readonly string _identifier;
         private readonly Guid _id;
+
         public DotYouIdentity(string identifier)
         {
             _identifier = identifier?.ToLower().Trim();
@@ -87,6 +88,10 @@ namespace Youverse.Core.Identity
         {
             return new DotYouIdentity(id.ToStringFromUtf8Bytes());
         }
-        
+
+        public static void Validate(string dotYouId)
+        {
+            DomainNameValidator.ValidateDomain(dotYouId);
+        }
     }
 }

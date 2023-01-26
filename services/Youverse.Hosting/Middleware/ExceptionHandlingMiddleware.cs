@@ -36,6 +36,7 @@ namespace Youverse.Hosting.Middleware
 
         //
 
+        /// <summary/>
         public async Task Invoke(HttpContext context)
         {
             try
@@ -45,6 +46,10 @@ namespace Youverse.Hosting.Middleware
             catch (YouverseClientException eee)
             {
                 await HandleApplicationAccessException(context, eee);
+            }
+            catch (YouverseRemoteIdentityException rie)
+            {
+                await HandleRemoteServerException(context, rie);
             }
             catch (DriveSecurityException dex)
             {
@@ -120,6 +125,42 @@ namespace Youverse.Hosting.Middleware
 
         //
 
+        private Task HandleRemoteServerException(HttpContext context, YouverseRemoteIdentityException appException)
+        {
+            const int status = (int)HttpStatusCode.ServiceUnavailable;
+            const string title = "Remote Identity Server failed";
+
+            _logger.LogError(appException, "{ErrorText}", appException.Message);
+
+            string internalErrorMessage = "";
+            string stackTrace = "";
+
+            var b = int.TryParse(Environment.GetEnvironmentVariable("DOTYOUCORE_EX_INFO"), out var env);
+            if (b && env == 1)
+            {
+                internalErrorMessage = appException.Message;
+                stackTrace = appException.StackTrace ?? "";
+            }
+
+            var problemDetails = new ProblemDetails
+            {
+                Status = status,
+                Title = title,
+                Extensions =
+                {
+                    ["errorCode"] = appException.ErrorCode,
+                    ["correlationId"] = _correlationContext.Id,
+                    ["internalErrorMessage"] = internalErrorMessage,
+                    ["stackTrace"] = stackTrace
+                }
+            };
+
+            var result = JsonSerializer.Serialize(problemDetails);
+            context.Response.ContentType = "application/problem+json";
+            context.Response.StatusCode = status;
+
+            return context.Response.WriteAsync(result);
+        }
         private Task HandleApplicationAccessException(HttpContext context, YouverseClientException appException)
         {
             const int status = (int)HttpStatusCode.BadRequest;
