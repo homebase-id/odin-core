@@ -2,13 +2,14 @@
 using Microsoft.AspNetCore.Mvc;
 using Refit;
 using Youverse.Core;
+using Youverse.Core.Identity;
 using Youverse.Core.Services.Contacts.Follower;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Follow
 {
     /// <summary />
     [ApiController]
-    [Route(OwnerApiPathConstants.CirclesV1 + "/followers")]
+    [Route(OwnerApiPathConstants.FollowersV1)]
     [AuthorizeValidOwnerToken]
     public class OwnerFollowerController : ControllerBase
     {
@@ -37,10 +38,16 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Follow
         /// </summary>
         /// <returns></returns>
         [HttpGet("followingme")]
-        public async Task<CursoredResult<string>> GetFollowingMe(string cursor)
+        public async Task<CursoredResult<string>> GetIdentitiesFollowingMe(string cursor)
         {
             var result = await _followerService.GetFollowers(cursor);
             return result;
+        }
+
+        [HttpGet("follower")]
+        public async Task<FollowerDefinition> GetFollower(string dotYouId)
+        {
+            return await _followerService.GetFollower(new DotYouIdentity(dotYouId));
         }
 
         /// <summary>
@@ -60,7 +67,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Follow
         [HttpPost("unfollow")]
         public async Task<IActionResult> Unfollow([Body] UnfollowRequest request)
         {
-            await _followerService.Unfollow(request.DotYouId);
+            await _followerService.Unfollow(new DotYouIdentity(request.DotYouId));
             return Ok();
         }
     }

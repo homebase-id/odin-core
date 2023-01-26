@@ -39,6 +39,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils.Fluid
         private readonly CircleNetworkApiClient _circleNetworkApiClient;
         private readonly TransitApiClient _transitApiClient;
         private readonly DriveApiClient _driveApiClient;
+        private readonly FollowerApiClient _followerApiClient;
 
         public OwnerApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity)
         {
@@ -49,16 +50,18 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils.Fluid
             _circleNetworkApiClient = new CircleNetworkApiClient(ownerApi, identity);
             _transitApiClient = new TransitApiClient(ownerApi, identity);
             _driveApiClient = new DriveApiClient(ownerApi, identity);
+            _followerApiClient = new FollowerApiClient(ownerApi, identity);
         }
 
         public TestIdentity Identity => _identity;
 
         public AppsApiClient Apps => _appsApiClient;
 
+        public FollowerApiClient Follower => _followerApiClient;
         public CircleNetworkApiClient Network => _circleNetworkApiClient;
 
         public TransitApiClient Transit => _transitApiClient;
-        
+
         public DriveApiClient Drive => _driveApiClient;
 
         public async Task InitializeIdentity(InitialSetupRequest setupConfig)

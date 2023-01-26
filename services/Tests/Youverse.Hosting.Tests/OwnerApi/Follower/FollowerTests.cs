@@ -1,21 +1,12 @@
-using System;
-using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
-using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Youverse.Core;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Contacts.Circle.Membership;
-using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
-using Youverse.Core.Services.Drive;
-using Youverse.Hosting.Controllers.OwnerToken.Circles;
+using Youverse.Core.Services.Contacts.Follower;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Circle;
+namespace Youverse.Hosting.Tests.OwnerApi.Follower;
 
 public class FollowerTests
 {
@@ -41,12 +32,29 @@ public class FollowerTests
         var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
         var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
 
+        await frodoOwnerClient.Follower.FollowIdentity(samOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
 
+        // Frodo should have sam
+        var frodoFollows = await frodoOwnerClient.Follower.GetIdentitiesIFollow(string.Empty);
+        Assert.IsTrue(frodoFollows.Results.Count() == 1, "frodo should only follow sam");
+        Assert.IsTrue(new DotYouIdentity(frodoFollows.Results.Single()) == samOwnerClient.Identity.DotYouId);
+
+        var followingFrodo = await frodoOwnerClient.Follower.GetIdentitiesFollowingMe(string.Empty);
+        Assert.IsTrue(!followingFrodo.Results.Any());
+
+        //sam should have frodo
+        var followingSam = await samOwnerClient.Follower.GetIdentitiesFollowingMe(string.Empty);
+        Assert.IsTrue(followingSam.Results.Count() ==1, "Sam should have one follower; frodo");
+        Assert.IsTrue(new DotYouIdentity(followingSam.Results.Single()) == frodoOwnerClient.Identity.DotYouId);
+
+        var samFollows = await samOwnerClient.Follower.GetIdentitiesFollowingMe(string.Empty);
+        Assert.IsTrue(!samFollows.Results.Any(), "Sam should not be following anyone");
+        
         // All done
         await frodoOwnerClient.Network.DisconnectFrom(samOwnerClient.Identity);
         await samOwnerClient.Network.DisconnectFrom(frodoOwnerClient.Identity);
     }
-    
+
     [Test]
     public async Task CanUnfollowIdentity()
     {
@@ -70,7 +78,7 @@ public class FollowerTests
         await frodoOwnerClient.Network.DisconnectFrom(samOwnerClient.Identity);
         await samOwnerClient.Network.DisconnectFrom(frodoOwnerClient.Identity);
     }
-    
+
     [Test]
     public async Task GetFollowers()
     {
@@ -82,7 +90,7 @@ public class FollowerTests
         await frodoOwnerClient.Network.DisconnectFrom(samOwnerClient.Identity);
         await samOwnerClient.Network.DisconnectFrom(frodoOwnerClient.Identity);
     }
-    
+
     [Test]
     public async Task FailToFollowNonChannelDrive()
     {

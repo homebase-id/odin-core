@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using Dawn;
 using Youverse.Core.Exceptions;
@@ -94,11 +95,11 @@ namespace Youverse.Core.Services.Contacts.Follower
         /// Notifies the recipient you are no longer following them.  This means they
         /// should no longer send you updates/notifications
         /// </summary>
-        public async Task Unfollow(string recipient)
+        public async Task Unfollow(DotYouIdentity recipient)
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-            var client = CreateClient((DotYouIdentity)recipient);
+            var client = CreateClient(recipient);
             var response = await client.Unfollow();
 
             if (!response.IsSuccessStatusCode)
@@ -107,6 +108,39 @@ namespace Youverse.Core.Services.Contacts.Follower
             }
 
             _tenantStorage.WhoIFollow.DeleteFollower(recipient);
+        }
+
+        public async Task<FollowerDefinition> GetFollower(DotYouIdentity dotYouId)
+        {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
+            Guard.Argument(dotYouId, nameof(dotYouId)).Require(d => d.HasValue());
+
+            var dbRecords = _tenantStorage.Followers.Get(dotYouId);
+            if (dbRecords?.Any() ?? false)
+            {
+                return null;
+            }
+
+            if (dbRecords!.Any(f => dotYouId != (DotYouIdentity)f.identity))
+            {
+                throw new YouverseSystemException($"Follower data for [{dotYouId}] is corrupt");
+            }
+
+            //convert to target drives
+            var channels = new List<TargetDrive>();
+            foreach (var record in dbRecords)
+            {
+                var td = _contextAccessor.GetCurrent().PermissionsContext.GetTargetDrive(record.driveId);
+                channels.Add(td);
+            }
+
+            return new FollowerDefinition()
+            {
+                DotYouId = dotYouId,
+                NotificationType = dbRecords.Count > 1 ? FollowerNotificationType.SelectedChannels : FollowerNotificationType.AllNotifications,
+                Channels = channels
+            };
         }
 
         public async Task<CursoredResult<string>> GetFollowers(string cursor)
