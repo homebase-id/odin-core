@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using Dawn;
+using MediatR.Pipeline;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
@@ -43,8 +44,14 @@ namespace Youverse.Core.Services.Contacts.Follower
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
+            if (_contextAccessor.GetCurrent().Caller.DotYouId == (DotYouIdentity)request.DotYouId)
+            {
+                throw new YouverseClientException("Cannot follow yourself", YouverseClientErrorCode.InvalidRecipient);
+            }
+            
             if (request.NotificationType == FollowerNotificationType.SelectedChannels)
             {
+                throw new NotImplementedException("Selected Channels not yet supported");
                 Guard.Argument(request.Channels, nameof(request.Channels)).NotNull().NotEmpty().Require(list => list.All(c => c.Type == SystemDriveConstants.ChannelDriveType));
             }
 
@@ -80,15 +87,16 @@ namespace Youverse.Core.Services.Contacts.Follower
             {
                 _tenantStorage.WhoIFollow.InsertFollower(request.DotYouId, null);
             }
-            else
-            {
-                foreach (var channel in request.Channels)
-                {
-                    //TODO: im using alias here beacuse driveid on the follower's identity does make sense
-                    //this works because all drives must be of type :channel
-                    _tenantStorage.WhoIFollow.InsertFollower(request.DotYouId, channel.Alias);
-                }
-            }
+            //TODO: need to better undersand the followers table
+            // else
+            // {
+            //     foreach (var channel in request.Channels)
+            //     {
+            //         //TODO: im using alias here beacuse driveid on the follower's identity does make sense
+            //         //this works because all drives must be of type :channel
+            //         _tenantStorage.WhoIFollow.InsertFollower(request.DotYouId, channel.Alias);
+            //     }
+            // }
         }
 
         /// <summary>
@@ -117,7 +125,7 @@ namespace Youverse.Core.Services.Contacts.Follower
             Guard.Argument(dotYouId, nameof(dotYouId)).Require(d => d.HasValue());
 
             var dbRecords = _tenantStorage.Followers.Get(dotYouId);
-            if (dbRecords?.Any() ?? false)
+            if (!dbRecords?.Any() ?? false)
             {
                 return null;
             }
@@ -152,23 +160,33 @@ namespace Youverse.Core.Services.Contacts.Follower
 
             _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadMyFollowers);
 
-            //get all channel drives
-            var channelDriveResult = await _driveService.GetDrives(SystemDriveConstants.ChannelDriveType, PageOptions.All);
-            var readableChannelDrives = channelDriveResult.Results.Where(drive => _contextAccessor.GetCurrent().PermissionsContext.HasDrivePermission(drive.Id, DrivePermission.Read));
-
             var count = 10000;
-            var buffer = new List<string>();
-            foreach (var drive in readableChannelDrives)
-            {
-                var list = await this.GetFollowers(drive.Id, cursor: string.Empty);
-                buffer.AddRange(list.Results.Except(buffer)); //exclude followers we already have
-            }
-
+            var dbResults = _tenantStorage.Followers.GetFollowers(count, Guid.Empty, cursor);
             return new CursoredResult<string>()
             {
-                Cursor = "",
-                Results = buffer
+                Cursor = dbResults.LastOrDefault(),
+                Results = dbResults
             };
+
+
+            //TODO: need to update after talking with Michael about the followers table
+            //get all channel drives
+            // var channelDriveResult = await _driveService.GetDrives(SystemDriveConstants.ChannelDriveType, PageOptions.All);
+            // var readableChannelDrives = channelDriveResult.Results.Where(drive => _contextAccessor.GetCurrent().PermissionsContext.HasDrivePermission(drive.Id, DrivePermission.Read));
+            //
+            // var count = 10000;
+            // var buffer = new List<string>();
+            // foreach (var drive in readableChannelDrives)
+            // {
+            //     var list = await this.GetFollowers(drive.Id, cursor: string.Empty);
+            //     buffer.AddRange(list.Results.Except(buffer)); //exclude followers we already have
+            // }
+            //
+            // return new CursoredResult<string>()
+            // {
+            //     Cursor = "",
+            //     Results = buffer
+            // };
         }
 
         /// <summary>
@@ -188,7 +206,7 @@ namespace Youverse.Core.Services.Contacts.Follower
             var dbResults = _tenantStorage.Followers.GetFollowers(count, driveId, cursor);
             var result = new CursoredResult<string>()
             {
-                Cursor = dbResults.Last(),
+                Cursor = dbResults.LastOrDefault(),
                 Results = dbResults
             };
 
@@ -200,6 +218,8 @@ namespace Youverse.Core.Services.Contacts.Follower
         /// </summary>
         public async Task<CursoredResult<string>> GetIdentitiesIFollow(string cursor)
         {
+            var count = 10000;
+
             if (!string.IsNullOrEmpty(cursor))
             {
                 throw new NotImplementedException("cursor not yet supported");
@@ -207,23 +227,35 @@ namespace Youverse.Core.Services.Contacts.Follower
 
             _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadWhoIFollow);
 
-            //get all channel drives
-            var channelDriveResult = await _driveService.GetDrives(SystemDriveConstants.ChannelDriveType, PageOptions.All);
-            var readableChannelDrives = channelDriveResult.Results.Where(drive => _contextAccessor.GetCurrent().PermissionsContext.HasDrivePermission(drive.Id, DrivePermission.Read));
-
-            var count = 10000;
-            var buffer = new List<string>();
-            foreach (var drive in readableChannelDrives)
-            {
-                var list = await this.GetIdentitiesIFollow(drive.Id, cursor: string.Empty);
-                buffer.AddRange(list.Results.Except(buffer)); //exclude followers we already have
-            }
-
+            var dbResults = _tenantStorage.WhoIFollow.GetFollowers(count, Guid.Empty, cursor);
             return new CursoredResult<string>()
             {
-                Cursor = "",
-                Results = buffer
+                Cursor = dbResults.LastOrDefault(),
+                Results = dbResults
             };
+
+
+            // var buffer = new List<string>();
+            // //first get all identities where I follow all of their content
+            // var identitiesFromWhomIFollowAllContent = _tenantStorage.WhoIFollow.GetFollowers(count, Guid.Empty, cursor);
+            // buffer.AddRange(identitiesFromWhomIFollowAllContent);
+
+            //TODO: need changes in data structure
+            // //get all channel drives
+            // var channelDriveResult = await _driveService.GetDrives(SystemDriveConstants.ChannelDriveType, PageOptions.All);
+            // var readableChannelDrives = channelDriveResult.Results.Where(drive => _contextAccessor.GetCurrent().PermissionsContext.HasDrivePermission(drive.Id, DrivePermission.Read));
+            //
+            // foreach (var drive in readableChannelDrives)
+            // {
+            //     var list = await this.GetIdentitiesIFollow(drive.Id, cursor: string.Empty);
+            //     buffer.AddRange(list.Results.Except(buffer)); //exclude followers we already have
+            // }
+            //
+            // return new CursoredResult<string>()
+            // {
+            //     Cursor = "",
+            //     Results = buffer
+            // };
         }
 
         public async Task<CursoredResult<string>> GetIdentitiesIFollow(Guid driveId, string cursor)
@@ -240,7 +272,7 @@ namespace Youverse.Core.Services.Contacts.Follower
             var dbResults = _tenantStorage.WhoIFollow.GetFollowers(count, driveId, cursor);
             var result = new CursoredResult<string>()
             {
-                Cursor = dbResults.Last(),
+                Cursor = dbResults.LastOrDefault(),
                 Results = dbResults
             };
 

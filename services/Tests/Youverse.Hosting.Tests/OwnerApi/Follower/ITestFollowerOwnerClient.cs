@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Net.Http;
+using System.Threading.Tasks;
 using Refit;
 using Youverse.Core;
 using Youverse.Core.Services.Contacts.Follower;
@@ -20,9 +21,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Follower
         Task<ApiResponse<FollowerDefinition>> GetFollower(string dotYouId);
         
         [Post(RootPath + "/follow")]
-        Task<ApiResponse<CursoredResult<string>>> Follow([Body] FollowRequest request);
+        Task<ApiResponse<HttpContent>> Follow([Body] FollowRequest request);
 
         [Post(RootPath + "/unfollow")]
-        Task<ApiResponse<CursoredResult<string>>> Unfollow([Body] UnfollowRequest request);
+        Task<ApiResponse<HttpContent>> Unfollow([Body] UnfollowRequest request);
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
@@ -22,7 +23,7 @@ public class FollowerApiClient
         _identity = identity;
     }
 
-    public async Task FollowIdentity(TestIdentity identity, FollowerNotificationType notificationType, List<TargetDrive> channels)
+    public async Task<ApiResponse<HttpContent>> FollowIdentity(TestIdentity identity, FollowerNotificationType notificationType, List<TargetDrive> channels, bool assertSuccessStatus = true)
     {
         using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
         {
@@ -36,7 +37,12 @@ public class FollowerApiClient
             };
 
             var apiResponse = await svc.Follow(request);
-            Assert.IsTrue(apiResponse.IsSuccessStatusCode, $"Failed to follow identity: [{identity.DotYouId}]");
+            if (assertSuccessStatus)
+            {
+                Assert.IsTrue(apiResponse.IsSuccessStatusCode, $"Failed to follow identity: [{identity.DotYouId}]");
+            }
+
+            return apiResponse;
         }
     }
 
@@ -65,7 +71,7 @@ public class FollowerApiClient
 
             Assert.IsTrue(apiResponse.IsSuccessStatusCode);
             Assert.IsNotNull(apiResponse.Content);
-            
+
             return apiResponse.Content;
         }
     }
@@ -76,7 +82,7 @@ public class FollowerApiClient
         {
             var svc = RefitCreator.RestServiceFor<ITestFollowerOwnerClient>(client, ownerSharedSecret);
             var apiResponse = await svc.GetIdentitiesFollowingMe(cursor);
-            
+
             Assert.IsTrue(apiResponse.IsSuccessStatusCode);
             Assert.IsNotNull(apiResponse.Content);
 
@@ -90,10 +96,8 @@ public class FollowerApiClient
         {
             var svc = RefitCreator.RestServiceFor<ITestFollowerOwnerClient>(client, ownerSharedSecret);
             var apiResponse = await svc.GetFollower(dotYouId);
-            
-            Assert.IsTrue(apiResponse.IsSuccessStatusCode, $"Failed to unfollow identity: [{dotYouId}]");
-            Assert.IsNotNull(apiResponse.Content);
 
+            Assert.IsTrue(apiResponse.IsSuccessStatusCode, $"Failed to unfollow identity: [{dotYouId}]");
             return apiResponse.Content;
         }
     }
