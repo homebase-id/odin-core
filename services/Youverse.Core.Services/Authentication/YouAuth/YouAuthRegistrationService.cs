@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -183,6 +184,11 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             if (_tenantContext.Settings.AuthenticatedIdentitiesCanViewConnections)
             {
                 permissionKeys.Add(PermissionKeys.ReadConnections);
+            }
+
+            if (_tenantContext.Settings.AuthenticatedIdentitiesCanViewWhoIFollow)
+            {
+                permissionKeys.Add(PermissionKeys.ReadWhoIFollow);
             }
 
             var token = authToken.AccessTokenHalfKey;

@@ -15,4 +15,19 @@ namespace Youverse.Core.Exceptions
         {
         }
     }
+
+    public class YouverseRemoteIdentityException : Exception
+    {
+        public YouverseClientErrorCode ErrorCode { get; set; }
+
+        public YouverseRemoteIdentityException(string message, YouverseClientErrorCode code = YouverseClientErrorCode.Todo) : base(message)
+        {
+            this.ErrorCode = code;
+        }
+
+        public YouverseRemoteIdentityException(string message, Exception inner) : base(message, inner)
+        {
+        }
+        
+    }
 }

@@ -5,7 +5,7 @@ using Youverse.Core.Services.EncryptionKeyService;
 namespace Youverse.Core.Services.Contacts.Circle.Requests
 {
     /// <summary>
-    /// Sends outgoing invitations, email messages, and chat messages to other Digital Identities
+    /// Sends connection requests and acceptances to other Digital Identities
     /// </summary>
     public interface ICircleNetworkRequestHttpClient
     {

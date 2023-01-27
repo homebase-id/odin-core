@@ -69,7 +69,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
 
             var appRegService = Context.RequestServices.GetRequiredService<IAppRegistrationService>();
             dotYouContext.AuthContext = ClientTokenConstants.AppSchemeName;
-            
+
             var ctx = await appRegService.GetAppPermissionContext(authToken);
 
             if (null == ctx)
@@ -151,13 +151,21 @@ namespace Youverse.Hosting.Authentication.ClientToken
             }).ToList();
 
             var tenantContext = this.Context.RequestServices.GetRequiredService<TenantContext>();
-            var permissionSet = tenantContext.Settings.AnonymousVisitorsCanViewConnections
-                ? new PermissionSet(new List<int>() { PermissionKeys.ReadConnections })
-                : new PermissionSet();
+            var anonPerms = new List<int>();
 
+            if (tenantContext.Settings.AnonymousVisitorsCanViewConnections)
+            {
+                anonPerms.Add(PermissionKeys.ReadConnections);
+            }
+            
+            if (tenantContext.Settings.AnonymousVisitorsCanViewWhoIFollow)
+            {
+                anonPerms.Add(PermissionKeys.ReadWhoIFollow);
+            }
+            
             var permissionGroupMap = new Dictionary<string, PermissionGroup>
             {
-                { "anonymous_drives", new PermissionGroup(permissionSet, anonDriveGrants, null) },
+                { "anonymous_drives", new PermissionGroup(new PermissionSet(anonPerms), anonDriveGrants, null) },
             };
 
             dotYouContext.Caller = new CallerContext(

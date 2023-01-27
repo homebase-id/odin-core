@@ -13,5 +13,6 @@ public enum ClientNotificationType
     DeviceConnected = 606,
     DeviceDisconnected = 707,
     ConnectionRequestAccepted = 808,
-    TransitFileReceived = 909
+    TransitFileReceived = 909,
+    NewFollower = 1001
 }

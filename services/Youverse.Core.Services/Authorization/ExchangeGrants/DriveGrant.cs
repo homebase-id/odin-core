@@ -10,7 +10,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         /// The internal drive id being granted access
         /// </summary>
         public Guid DriveId { get; set; }
-
+        
         public PermissionedDrive PermissionedDrive { get; set; }
         
         public SymmetricKeyEncryptedAes KeyStoreKeyEncryptedStorageKey { get; set; }

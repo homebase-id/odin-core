@@ -13,13 +13,14 @@ namespace Youverse.Core.Identity
     {
         private readonly string _identifier;
         private readonly Guid _id;
+
         public DotYouIdentity(string identifier)
         {
             _identifier = identifier?.ToLower().Trim();
             if (string.IsNullOrEmpty(_identifier) == false)
             {
                 // TODO: Activate this code, but check with Stef & Bishwa what happens when they use international URLs
-                // DomainNameValidator.ValidateDomain(identifier);  // Important. Validates domain is valid RFC. No funky chars.
+                // Validate(identifier);  // Important. Validates domain is valid RFC. No funky chars.
                 _id = new Guid(HashUtil.ReduceSHA256Hash(_identifier.ToUtf8ByteArray())); // Hm, the chars are guaranteed to be ASCII < 128
             }
             else
@@ -30,6 +31,10 @@ namespace Youverse.Core.Identity
 
         [JsonIgnore] public string Id => _identifier;
 
+        public bool HasValue()
+        {
+            return this._id != Guid.Empty;
+        }
         public static bool operator ==(DotYouIdentity d1, DotYouIdentity d2)
         {
             return d1.ToGuidIdentifier() == d2.ToGuidIdentifier();
@@ -87,6 +92,10 @@ namespace Youverse.Core.Identity
         {
             return new DotYouIdentity(id.ToStringFromUtf8Bytes());
         }
-        
+
+        public static void Validate(string dotYouId)
+        {
+            DomainNameValidator.ValidateDomain(dotYouId);
+        }
     }
 }
