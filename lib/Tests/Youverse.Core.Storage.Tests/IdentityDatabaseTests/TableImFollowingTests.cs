@@ -353,5 +353,44 @@ namespace IndexerTests.KeyValue
             r = db.tblImFollowing.GetFollowers(2, d1, r[0]);
             Debug.Assert(r.Count == 0);
         }
+
+        [Test]
+        public void GetAllFollowersPagedTest()
+        {
+            using var db = new IdentityDatabase("URI=file:.\\imfollowing-all-07.db");
+            db.CreateDatabase();
+
+            var i1 = "odin.valhalla.com";
+            var i2 = "thor.valhalla.com";
+            var i3 = "freja.valhalla.com";
+            var i4 = "heimdal.valhalla.com";
+            var i5 = "loke.valhalla.com";
+            var d1 = Guid.NewGuid();
+            var d2 = Guid.NewGuid();
+            var d3 = Guid.NewGuid();
+
+            db.tblImFollowing.InsertFollower(i1, d1);
+            db.tblImFollowing.InsertFollower(i2, d2);
+            db.tblImFollowing.InsertFollower(i3, d3);
+            db.tblImFollowing.InsertFollower(i4, d1);
+            db.tblImFollowing.InsertFollower(i5, null);
+
+            var r = db.tblImFollowing.GetAllFollowers(2, null);
+            Debug.Assert(r.Count == 2);
+            Debug.Assert(r[0] == i3);
+            Debug.Assert(r[1] == i4);
+
+            r = db.tblImFollowing.GetAllFollowers(2, r[1]);
+            Debug.Assert(r.Count == 2);
+            Debug.Assert(r[0] == i5);
+            Debug.Assert(r[1] == i1);
+
+            r = db.tblImFollowing.GetAllFollowers(2, r[1]);
+            Debug.Assert(r.Count == 1);
+            Debug.Assert(r[0] == i2);
+
+            r = db.tblImFollowing.GetAllFollowers(2, r[0]);
+            Debug.Assert(r.Count == 0);
+        }
     }
 }

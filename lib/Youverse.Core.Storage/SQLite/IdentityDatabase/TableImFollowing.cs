@@ -42,6 +42,10 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteParameter _s2param2 = null;
         private static object _select2Lock = new object();
 
+        private SQLiteCommand _select3Command = null;
+        private SQLiteParameter _s3param1 = null;
+        private static object _select3Lock = new object();
+
         public TableImFollowing(IdentityDatabase db) : base(db)
         {
         }
@@ -66,6 +70,9 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
             _select2Command?.Dispose();
             _select2Command = null;
+
+            _select3Command?.Dispose();
+            _select3Command = null;
         }
 
         /// <summary>
@@ -143,6 +150,60 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 }
             }
         }
+
+        /// <summary>
+        /// Return all followers, paged.
+        /// </summary>
+        /// <param name="count">Maximum number of identities per page</param>
+        /// <param name="cursor">If supplied then pick the next page after the supplied identity.</param>
+        /// <returns>A sorted list of identities. If list size is smaller than count then you're finished</returns>
+        /// <exception cref="Exception"></exception>
+        public List<string> GetAllFollowers(int count, string cursor)
+        {
+            if (count < 1)
+                throw new Exception("Count must be at least 1.");
+
+            if (cursor == null)
+                cursor = "";
+
+            lock (_select3Lock)
+            {
+                // Make sure we only prep once 
+                if (_select3Command == null)
+                {
+                    _select3Command = _database.CreateCommand();
+                    _select3Command.CommandText =
+                        $"SELECT DISTINCT identity FROM imfollowing WHERE identity > $cursor ORDER BY identity ASC LIMIT {count}";
+                    _s3param1 = _select3Command.CreateParameter();
+                    _s3param1.ParameterName = "$cursor";
+                    _select3Command.Parameters.Add(_s3param1);
+
+                    _select3Command.Prepare();
+                }
+
+                _s3param1.Value = cursor;
+
+                using (SQLiteDataReader rdr = _select3Command.ExecuteReader(System.Data.CommandBehavior.Default))
+                {
+                    var result = new List<string>();
+
+                    int n = 0;
+
+                    while (rdr.Read() && n < count)
+                    {
+                        n++;
+                        var s = rdr.GetString(0);
+                        if (s.Length < 1)
+                            throw new Exception("Empty string");
+                        result.Add(s);
+                    }
+
+                    return result;
+                }
+            }
+        }
+
+
 
         /// <summary>
         /// Return pages of identities, following driveId, up to count size.

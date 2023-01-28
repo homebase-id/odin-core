@@ -5,7 +5,7 @@ using Youverse.Core.Serialization;
 
 namespace Youverse.Core.Tests
 {
-    public class UnixTimeTests
+    public class UnixTimeUtcTests
     {
         [Test]
         public void UnitTimeXCreateTest01()
