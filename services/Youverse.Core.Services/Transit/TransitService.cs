@@ -388,6 +388,12 @@ namespace Youverse.Core.Services.Transit
             CreateOutboxItems(InternalDriveFileId internalFile,
                 TransitOptions options, TransferFileType transferFileType)
         {
+
+            if (options.SendContents != SendContents.All)
+            {
+                throw new NotImplementedException("TODO: feed drive WIP");
+            }
+            
             var drive = await _driveService.GetDrive(internalFile.DriveId, failIfInvalid: true);
 
             var transferStatus = new Dictionary<string, TransferStatus>();

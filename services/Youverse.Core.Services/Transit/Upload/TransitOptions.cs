@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace Youverse.Core.Services.Transit.Upload
 {
@@ -23,22 +24,31 @@ namespace Youverse.Core.Services.Transit.Upload
         public List<string> Recipients { get; set; }
 
         public ScheduleOptions Schedule { get; set; } = ScheduleOptions.SendLater;
+
+        public SendContents SendContents { get; set; }
     }
-    
+
+    [Flags]
+    public enum SendContents
+    {
+        Header = 1,
+        Thumbnails = 2,
+        Payload = 4,
+        All = Header | Thumbnails | Payload
+    }
+
     public enum ScheduleOptions
     {
         /// <summary>
         /// Sends file now; blocks the return of the thread until a response is received from the all recipients.
         /// </summary>
         SendNowAwaitResponse = 1,
-        
+
         /// <summary>
         /// Sends immediately from the same thread as the caller but spawns a new thread so the caller's request
         /// instantly returns.  For each failed recipient, the file is moved to ScheduleOptions.SendLater 
         /// </summary>
         //SendNowFireAndForget
-        
-        
         SendLater = 2
     }
 }

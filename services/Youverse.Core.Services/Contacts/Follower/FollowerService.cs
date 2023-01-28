@@ -190,6 +190,27 @@ namespace Youverse.Core.Services.Contacts.Follower
         }
 
         /// <summary>
+        /// Gets followers who want notifications for all channels
+        /// </summary>
+        public async Task<CursoredResult<string>> GetFollowersOfAllNotifications(string cursor)
+        {
+            if (!string.IsNullOrEmpty(cursor))
+            {
+                throw new NotImplementedException("cursor not yet supported");
+            }
+
+            _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadMyFollowers);
+
+            var count = 10000;
+            var dbResults = _tenantStorage.Followers.GetFollowers(count, Guid.Empty, cursor);
+            return new CursoredResult<string>()
+            {
+                Cursor = dbResults.LastOrDefault(),
+                Results = dbResults
+            };
+        }
+
+        /// <summary>
         /// Gets a list of identities that follow me
         /// </summary>
         public async Task<CursoredResult<string>> GetFollowers(Guid driveId, string cursor)

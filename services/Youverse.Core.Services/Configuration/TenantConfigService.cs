@@ -68,8 +68,8 @@ public class TenantConfigService
         await CreateDriveIfNotExists(SystemDriveConstants.CreateContactDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateProfileDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateWalletDriveRequest);
-
-
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateFeedDriveRequest);
+        
         foreach (var rd in request.Drives ?? new List<CreateDriveRequest>())
         {
             await CreateDriveIfNotExists(rd);

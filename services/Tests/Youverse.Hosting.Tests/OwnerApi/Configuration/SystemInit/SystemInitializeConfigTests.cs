@@ -44,7 +44,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
         [Test]
         public async Task CanInitializeSystem_WithNoAdditionalDrives_and_NoAdditionalCircles()
         {
-
             //success = system drives created, other drives created
             using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise, out var ownerSharedSecret))
             {
@@ -75,12 +74,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 Assert.IsNotNull(createdDrivesResponse.Content);
 
                 var createdDrives = createdDrivesResponse.Content;
-                Assert.IsTrue(createdDrives.Results.Count == 4);
+                Assert.IsTrue(createdDrives.Results.Count == 5);
 
                 Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.ContactDrive), $"expected drive [{SystemDriveConstants.ContactDrive}] not found");
                 Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.ProfileDrive), $"expected drive [{SystemDriveConstants.ProfileDrive}] not found");
                 Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.WalletDrive), $"expected drive [{SystemDriveConstants.WalletDrive}] not found");
                 Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.ChatDrive), $"expected drive [{SystemDriveConstants.ChatDrive}] not found");
+                Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.FeedDrive), $"expected drive [{SystemDriveConstants.FeedDrive}] not found");
 
                 var circleDefinitionService = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
 
@@ -88,6 +88,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 Assert.IsTrue(getCircleDefinitionsResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(getCircleDefinitionsResponse.Content);
                 var circleDefs = getCircleDefinitionsResponse.Content;
+                Assert.IsNotNull(circleDefs);
 
                 Assert.IsTrue(circleDefs.Count() == 1, "Only the system circle should exist");
 
@@ -96,11 +97,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 Assert.IsTrue(systemCircle.Name == "System Circle");
                 Assert.IsTrue(systemCircle.Description == "All Connected Identities");
                 Assert.IsTrue(systemCircle.DriveGrants.Count() == 2, "By default, there should be two drive grants (standard profile and chat drive)");
-                
-                Assert.IsNotNull(systemCircle.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive ==  SystemDriveConstants.ProfileDrive && dg.PermissionedDrive.Permission == DrivePermission.Read));
-            
+
+                Assert.IsNotNull(systemCircle.DriveGrants.SingleOrDefault(dg =>
+                    dg.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive && dg.PermissionedDrive.Permission == DrivePermission.Read));
+
                 //note: the permission for chat drive is write
-                Assert.IsNotNull(systemCircle.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive ==  SystemDriveConstants.ChatDrive && dg.PermissionedDrive.Permission == DrivePermission.Write));
+                Assert.IsNotNull(systemCircle.DriveGrants.SingleOrDefault(
+                    dg => dg.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive && dg.PermissionedDrive.Permission == DrivePermission.Write));
                 Assert.IsTrue(!systemCircle.Permissions.Keys.Any(), "By default, the system circle should have no permissions");
             }
         }
@@ -111,10 +114,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
             using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
             {
                 var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
-                
+
                 var contactDrive = SystemDriveConstants.ContactDrive;
                 var standardProfileDrive = SystemDriveConstants.ProfileDrive;
-                    
+
                 var newDrive = new CreateDriveRequest()
                 {
                     Name = "test",
@@ -201,7 +204,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
                     systemCircle.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive && dg.PermissionedDrive.Permission == DrivePermission.Write);
                 Assert.IsNotNull(chatDriveGrant, "the chat drive grant should exist in system circle");
 
-                
+
                 //
                 // additional circle exists
                 //

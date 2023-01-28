@@ -33,6 +33,21 @@ public static class SystemDriveConstants
         Type = GuidId.FromString("chat_drive")
     };
 
+    public static readonly TargetDrive FeedDrive = new()
+    {
+        Alias = GuidId.FromString("builtin_feed_drive"),
+        Type = GuidId.FromString("feed_drive")
+    };
+    
+    public static readonly CreateDriveRequest CreateFeedDriveRequest = new()
+    {
+        Name = "Feed",
+        AllowAnonymousReads = false,
+        Metadata = "",
+        TargetDrive = FeedDrive,
+        OwnerOnly = true
+    };
+    
     public static readonly CreateDriveRequest CreateContactDriveRequest = new()
     {
         Name = "Contacts",
