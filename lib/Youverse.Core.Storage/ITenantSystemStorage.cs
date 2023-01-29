@@ -17,6 +17,10 @@ namespace Youverse.Core.Storage
 
         TableInbox Inbox { get; }
 
+        TableImFollowing WhoIFollow { get; }
+
+        TableFollowsMe Followers { get; }
+
         public ThreeKeyValueStorage IcrClientStorage { get; }
 
         public TableCircleMember CircleMemberStorage { get; }

@@ -120,6 +120,22 @@ namespace Youverse.Core.Services.Base
 
             throw new YouverseSecurityException($"No access permitted to drive alias {drive.Alias} and drive type {drive.Type}");
         }
+        
+        public TargetDrive GetTargetDrive(Guid driveId)
+        {
+            foreach (var key in _permissionGroups.Keys)
+            {
+                var group = _permissionGroups[key];
+                var td = group.GetTargetDrive(driveId);
+                if (null != td)
+                {
+                    //TODO: log key as source of permission.
+                    return td;
+                }
+            }
+
+            throw new YouverseSecurityException($"No access permitted to drive {driveId}");
+        }
 
         /// <summary>
         /// Returns the encryption key specific to this app.  This is only available

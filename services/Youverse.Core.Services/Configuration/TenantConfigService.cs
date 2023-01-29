@@ -102,6 +102,19 @@ public class TenantConfigService
 
         switch (flag)
         {
+            case TenantConfigFlagNames.AnonymousVisitorsCanViewWhoIFollow:
+                cfg.AnonymousVisitorsCanViewWhoIFollow = bool.Parse(request.Value);
+                break;
+
+            case TenantConfigFlagNames.AuthenticatedIdentitiesCanViewWhoIFollow:
+                cfg.AuthenticatedIdentitiesCanViewWhoIFollow = bool.Parse(request.Value);
+                break;
+
+            case TenantConfigFlagNames.ConnectedIdentitiesCanViewWhoIFollow:
+                cfg.AllConnectedIdentitiesCanViewWhoIFollow = bool.Parse(request.Value);
+                this.UpdateSystemCirclePermission(PermissionKeys.ReadWhoIFollow, cfg.AllConnectedIdentitiesCanViewWhoIFollow);
+                break;
+
             case TenantConfigFlagNames.AnonymousVisitorsCanViewConnections:
                 cfg.AnonymousVisitorsCanViewConnections = bool.Parse(request.Value);
                 break;
@@ -112,7 +125,7 @@ public class TenantConfigService
 
             case TenantConfigFlagNames.ConnectedIdentitiesCanViewConnections:
                 cfg.AllConnectedIdentitiesCanViewConnections = bool.Parse(request.Value);
-                this.UpdateSystemCircle(cfg.AllConnectedIdentitiesCanViewConnections);
+                this.UpdateSystemCirclePermission(PermissionKeys.ReadConnections, cfg.AllConnectedIdentitiesCanViewConnections);
                 break;
 
             default:
@@ -125,23 +138,24 @@ public class TenantConfigService
         //TODO: eww, use mediator instead
         _tenantContext.UpdateSystemConfig(cfg);
     }
-
-    private void UpdateSystemCircle(bool canReadConnections)
+    
+    private void UpdateSystemCirclePermission(int key, bool shouldGrantKey)
     {
         var systemCircle = _cns.GetCircleDefinition(CircleConstants.SystemCircleId);
 
-        if (canReadConnections)
+
+        if (shouldGrantKey)
         {
-            if (!systemCircle.Permissions.Keys.Contains(PermissionKeys.ReadConnections))
+            if (!systemCircle.Permissions.Keys.Contains(key))
             {
-                systemCircle.Permissions.Keys.Add(PermissionKeys.ReadConnections);
+                systemCircle.Permissions.Keys.Add(key);
             }
         }
         else
         {
-            if (systemCircle.Permissions.Keys.Contains(PermissionKeys.ReadConnections))
+            if (systemCircle.Permissions.Keys.Contains(key))
             {
-                systemCircle.Permissions.Keys.Remove(PermissionKeys.ReadConnections);
+                systemCircle.Permissions.Keys.Remove(key);
             }
         }
 

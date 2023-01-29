@@ -70,4 +70,10 @@ public class PermissionGroup
         var storageKey = grant.KeyStoreKeyEncryptedStorageKey.DecryptKeyClone(ref key);
         return storageKey;
     }
+
+    public TargetDrive? GetTargetDrive(Guid driveId)
+    {
+        var grant = _driveGrants?.SingleOrDefault(g => g.DriveId == driveId);
+        return grant?.PermissionedDrive.Drive;
+    }
 }
