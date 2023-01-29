@@ -101,5 +101,23 @@ namespace Youverse.Hosting.Controllers.Registration
             var status = await _regService.GetRegistrationStatus(firstRunToken);
             return new JsonResult(status);
         }
+        
+        // /// <summary>
+        // /// Marks registration for an identity complete
+        // /// </summary>
+        // /// <returns></returns>
+        // [HttpGet("finalize")]
+        // public async Task<IActionResult> Finalize(Guid frid)
+        // {
+        //     try
+        //     {
+        //         await _regService.FinalizeRegistration(frid);
+        //     }
+        //     catch (Exception e)
+        //     {
+        //     }
+        //
+        //     return Ok();
+        // }
     }
 }

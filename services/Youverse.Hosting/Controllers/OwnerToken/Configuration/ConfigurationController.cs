@@ -113,4 +113,15 @@ public class ConfigurationController : Controller
         return settings;
     }
     
+    /// <summary>
+    /// Marks registration for an identity complete
+    /// </summary>
+    /// <returns></returns>
+    [HttpGet("registration/finalize")]
+    public async Task<IActionResult> Finalize(Guid frid)
+    {
+        //TODO: how do i finalize from here with teh first run token?
+        return Ok();
+    }
+    
 }
