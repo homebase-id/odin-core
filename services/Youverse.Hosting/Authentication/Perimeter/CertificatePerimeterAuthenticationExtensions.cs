@@ -66,7 +66,7 @@ namespace Youverse.Hosting.Authentication.Perimeter
             // start hack
 #if DEBUG
 //temp hack to continue until I build the letsencrypt cert system
-            if (domain == "*.onekin.io")
+            if (domain == "*.youfoundation.id")
             {
                 domain = context.Request.Headers["dns_hack"].FirstOrDefault();
             }

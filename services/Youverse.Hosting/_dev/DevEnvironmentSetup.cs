@@ -24,18 +24,6 @@ namespace Youverse.Hosting._dev
                 }
             }
 
-            //demo server
-            // certificates.Add(HashUtil.ReduceSHA256Hash("frodobaggins-me"), "frodobaggins.me");
-            // certificates.Add(HashUtil.ReduceSHA256Hash("samwisegamgee-me"), "samwisegamgee.me");
-            //
-
-            //local development
-            // certificates.Add(HashUtil.ReduceSHA256Hash("frodo-digital"), "frodo.digital");
-            // certificates.Add(HashUtil.ReduceSHA256Hash("samwise-digital"), "samwise.digital");
-            // certificates.Add(HashUtil.ReduceSHA256Hash("merry-onekin-io"), "merry.onekin.io");
-            // certificates.Add(HashUtil.ReduceSHA256Hash("pippin-onekin-io"), "pippin.onekin.io");
-            //
-
             foreach (var (id, domain) in certificates)
             {
                 if (identityRegistry.Get(domain).GetAwaiter().GetResult() != null)

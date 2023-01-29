@@ -36,7 +36,7 @@ namespace Youverse.Hosting.Tests
 
         public static readonly TestIdentity Merry = new()
         {
-            DotYouId = (DotYouIdentity)"merry.onekin.io",
+            DotYouId = (DotYouIdentity)"merry.youfoundation.id",
             ContactData = new ContactRequestData()
             {
                 Name = "Merry Brandybuck"
@@ -45,7 +45,7 @@ namespace Youverse.Hosting.Tests
 
         public static readonly TestIdentity Pippin = new()
         {
-            DotYouId = (DotYouIdentity)"pippin.onekin.io",
+            DotYouId = (DotYouIdentity)"pippin.youfoundation.id",
             ContactData = new ContactRequestData()
             {
                 Name = "Pippin Took"
