@@ -78,7 +78,7 @@ namespace Youverse.Core.Services.Base
 
 // start hack
 #if DEBUG
-            if (cert.Subject.Contains("*.onekin.io"))
+            if (cert.Subject.Contains("*.youfoundation.id"))
             {
                 client.DefaultRequestHeaders.Add("dns_hack", _tenantContext.HostDotYouId);
             }

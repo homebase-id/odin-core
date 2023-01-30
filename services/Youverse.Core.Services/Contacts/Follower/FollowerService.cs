@@ -151,6 +151,42 @@ namespace Youverse.Core.Services.Contacts.Follower
             };
         }
 
+        /// <summary>
+        /// Gets the details (channels, etc.) of an identity that you follow.
+        /// </summary>
+        public async Task<FollowerDefinition> GetIdentityIFollow(DotYouIdentity dotYouId)
+        {
+            throw new NotImplementedException("");
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
+            Guard.Argument(dotYouId, nameof(dotYouId)).Require(d => d.HasValue());
+
+            var dbRecords = _tenantStorage.WhoIFollow.Get(dotYouId);
+            if (!dbRecords?.Any() ?? false)
+            {
+                return null;
+            }
+
+            if (dbRecords!.Any(f => dotYouId != (DotYouIdentity)f.identity))
+            {
+                throw new YouverseSystemException($"Follower data for [{dotYouId}] is corrupt");
+            }
+
+            //convert to target drives
+            var channels = new List<TargetDrive>();
+            foreach (var record in dbRecords)
+            {
+                var td = _contextAccessor.GetCurrent().PermissionsContext.GetTargetDrive(record.driveId);
+                channels.Add(td);
+            }
+
+            return new FollowerDefinition()
+            {
+                DotYouId = dotYouId,
+                NotificationType = dbRecords.Count > 1 ? FollowerNotificationType.SelectedChannels : FollowerNotificationType.AllNotifications,
+                Channels = channels
+            };
+        }
         public async Task<CursoredResult<string>> GetFollowers(string cursor)
         {
             if (!string.IsNullOrEmpty(cursor))

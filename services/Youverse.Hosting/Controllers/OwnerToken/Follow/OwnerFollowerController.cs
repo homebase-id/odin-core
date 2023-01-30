@@ -49,6 +49,12 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Follow
         {
             return await _followerService.GetFollower(new DotYouIdentity(dotYouId));
         }
+        
+        [HttpGet("IdentityIFollow")]
+        public async Task<FollowerDefinition> GetIdentityIFollow(string dotYouId)
+        {
+            return await _followerService.GetIdentityIFollow(new DotYouIdentity(dotYouId));
+        }
 
         /// <summary>
         /// Follows an identity.  Can also be used to update the follower

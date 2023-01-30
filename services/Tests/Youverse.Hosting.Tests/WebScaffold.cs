@@ -40,9 +40,9 @@ namespace Youverse.Hosting.Tests
             Environment.SetEnvironmentVariable("DOTYOU_ENVIRONMENT", "Development");
 
             Environment.SetEnvironmentVariable("Development__SslSourcePath", "./https/");
-            Environment.SetEnvironmentVariable("Development__PreconfiguredDomains", "[\"frodo.digital\",\"samwise.digital\", \"merry.onekin.io\",\"pippin.onekin.io\"]");
+            Environment.SetEnvironmentVariable("Development__PreconfiguredDomains", "[\"frodo.digital\",\"samwise.digital\", \"merry.youfoundation.id\",\"pippin.youfoundation.id\"]");
 
-            Environment.SetEnvironmentVariable("Registry__ProvisioningDomain", "provisioning-dev.onekin.io");
+            Environment.SetEnvironmentVariable("Registry__ProvisioningDomain", "provisioning-dev.youfoundation.id");
             Environment.SetEnvironmentVariable("Registry__ManagedDomains", "[\"dev.dominion.id\"]");
             Environment.SetEnvironmentVariable("Registry__DnsTargetRecordType", "[\"dev.dominion.id\"]");
             Environment.SetEnvironmentVariable("Registry__DnsTargetAddress", "[\"dev.dominion.id\"]");
