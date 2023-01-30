@@ -90,14 +90,26 @@ public class FollowerApiClient
         }
     }
 
-    public async Task<FollowerDefinition> GetFollower(DotYouIdentity dotYouId)
+    public async Task<FollowerDefinition> GetFollower(TestIdentity identity)
     {
         using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
         {
             var svc = RefitCreator.RestServiceFor<ITestFollowerOwnerClient>(client, ownerSharedSecret);
-            var apiResponse = await svc.GetFollower(dotYouId);
+            var apiResponse = await svc.GetFollower(identity.DotYouId);
 
-            Assert.IsTrue(apiResponse.IsSuccessStatusCode, $"Failed to unfollow identity: [{dotYouId}]");
+            Assert.IsTrue(apiResponse.IsSuccessStatusCode);
+            return apiResponse.Content;
+        }
+    }
+    
+    public async Task<FollowerDefinition> GetIdentityIFollow(TestIdentity identity)
+    {
+        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        {
+            var svc = RefitCreator.RestServiceFor<ITestFollowerOwnerClient>(client, ownerSharedSecret);
+            var apiResponse = await svc.GetIdentityIFollow(identity.DotYouId);
+
+            Assert.IsTrue(apiResponse.IsSuccessStatusCode);
             return apiResponse.Content;
         }
     }

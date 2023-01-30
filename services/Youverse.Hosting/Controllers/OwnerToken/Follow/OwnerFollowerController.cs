@@ -44,12 +44,20 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Follow
             return result;
         }
 
+        /// <summary>
+        /// Returns the details of an identity that follows you
+        /// </summary>
+        /// <param name="dotYouId"></param>
+        /// <returns></returns>
         [HttpGet("follower")]
         public async Task<FollowerDefinition> GetFollower(string dotYouId)
         {
             return await _followerService.GetFollower(new DotYouIdentity(dotYouId));
         }
         
+        /// <summary>
+        /// Returns the details of an identity you're following
+        /// </summary>
         [HttpGet("IdentityIFollow")]
         public async Task<FollowerDefinition> GetIdentityIFollow(string dotYouId)
         {

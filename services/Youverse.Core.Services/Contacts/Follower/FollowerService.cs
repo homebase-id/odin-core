@@ -154,9 +154,8 @@ namespace Youverse.Core.Services.Contacts.Follower
         /// <summary>
         /// Gets the details (channels, etc.) of an identity that you follow.
         /// </summary>
-        public async Task<FollowerDefinition> GetIdentityIFollow(DotYouIdentity dotYouId)
+        public Task<FollowerDefinition> GetIdentityIFollow(DotYouIdentity dotYouId)
         {
-            throw new NotImplementedException("");
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
             Guard.Argument(dotYouId, nameof(dotYouId)).Require(d => d.HasValue());
@@ -180,12 +179,12 @@ namespace Youverse.Core.Services.Contacts.Follower
                 channels.Add(td);
             }
 
-            return new FollowerDefinition()
+            return Task.FromResult(new FollowerDefinition()
             {
                 DotYouId = dotYouId,
                 NotificationType = dbRecords.Count > 1 ? FollowerNotificationType.SelectedChannels : FollowerNotificationType.AllNotifications,
                 Channels = channels
-            };
+            });
         }
         public async Task<CursoredResult<string>> GetFollowers(string cursor)
         {

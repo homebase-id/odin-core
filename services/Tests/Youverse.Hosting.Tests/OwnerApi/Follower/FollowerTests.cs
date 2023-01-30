@@ -147,6 +147,10 @@ public class FollowerTests
         var frodoFollows = await frodoOwnerClient.Follower.GetIdentitiesIFollow(string.Empty);
         Assert.IsNotNull(frodoFollows.Results.SingleOrDefault(ident => ((DotYouIdentity)ident) == pippinOwnerClient.Identity.DotYouId), "Frodo should follow Pippin");
 
+        var frodoFollowsPippin = await frodoOwnerClient.Follower.GetIdentityIFollow(pippinOwnerClient.Identity);
+        Assert.IsNotNull(frodoFollowsPippin);
+        Assert.IsTrue(frodoFollowsPippin.DotYouId == pippinOwnerClient.Identity.DotYouId);
+
         var samFollows = await frodoOwnerClient.Follower.GetIdentitiesIFollow(string.Empty);
         Assert.IsNotNull(samFollows.Results.SingleOrDefault(ident => ((DotYouIdentity)ident) == pippinOwnerClient.Identity.DotYouId), "Sam should follow Pippin");
 
@@ -163,7 +167,7 @@ public class FollowerTests
         var apiResponse = await pippinOwnerClient.Follower.FollowIdentity(pippinOwnerClient.Identity, FollowerNotificationType.AllNotifications, null, assertSuccessStatus: false);
         Assert.IsTrue(apiResponse.StatusCode == HttpStatusCode.BadRequest);
 
-        var pippinAsFollower = await pippinOwnerClient.Follower.GetFollower(pippinOwnerClient.Identity.DotYouId);
+        var pippinAsFollower = await pippinOwnerClient.Follower.GetFollower(pippinOwnerClient.Identity);
         Assert.IsNull(pippinAsFollower, "Pippin cannot follow himself");
     }
 

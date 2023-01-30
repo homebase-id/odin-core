@@ -20,6 +20,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Follower
         [Get(RootPath + "/follower")]
         Task<ApiResponse<FollowerDefinition>> GetFollower(string dotYouId);
         
+        [Get(RootPath + "/IdentityIFollow")]
+        Task<ApiResponse<FollowerDefinition>> GetIdentityIFollow(string dotYouId);
+        
         [Post(RootPath + "/follow")]
         Task<ApiResponse<HttpContent>> Follow([Body] FollowRequest request);
 
