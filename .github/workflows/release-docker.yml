@@ -1,8 +1,8 @@
 name: Full Docker Release
 
-on: [workflow_dispatch]
-#  push:
-#    branches: [ main ]
+on:
+ push:
+   branches: [ release_docker ]
 #  pull_request:
 #    branches: [ main ]
 
