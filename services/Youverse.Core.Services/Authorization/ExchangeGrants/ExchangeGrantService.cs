@@ -119,27 +119,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             var (accessReg, clientAccessToken) = await this.CreateClientAccessTokenInternal(grantKeyStoreKey, tokenType);
             return (accessReg, clientAccessToken);
         }
-
-        public DriveGrant CreateDriveGrant(StorageDrive drive, DrivePermission permission, SensitiveByteArray grantKeyStoreKey, SensitiveByteArray masterKey)
-        {
-            var storageKey = masterKey == null ? null : drive.MasterKeyEncryptedStorageKey.DecryptKeyClone(ref masterKey);
-
-            var dk = new DriveGrant()
-            {
-                DriveId = drive.Id,
-                KeyStoreKeyEncryptedStorageKey = (storageKey == null || grantKeyStoreKey == null) ? null : new SymmetricKeyEncryptedAes(ref grantKeyStoreKey, ref storageKey),
-                PermissionedDrive = new PermissionedDrive()
-                {
-                    Drive = drive.TargetDriveInfo,
-                    Permission = permission
-                }
-            };
-
-            storageKey?.Wipe();
-
-            return dk;
-        }
-
+        
         public async Task<PermissionContext> CreatePermissionContext(ClientAuthenticationToken authToken, Dictionary<string, ExchangeGrant> grants, AccessRegistration accessReg,
             List<int>? additionalPermissionKeys = null, bool includeAnonymousDrives = false)
         {
@@ -195,7 +175,28 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             var anonDriveGrants = anonymousDrives.Results.Select(drive => this.CreateDriveGrant(drive, DrivePermission.Read, null, null));
             return new PermissionGroup(new PermissionSet(), anonDriveGrants, null);
         }
+        
         //
+        
+        private DriveGrant CreateDriveGrant(StorageDrive drive, DrivePermission permission, SensitiveByteArray grantKeyStoreKey, SensitiveByteArray masterKey)
+        {
+            var storageKey = masterKey == null ? null : drive.MasterKeyEncryptedStorageKey.DecryptKeyClone(ref masterKey);
+
+            var dk = new DriveGrant()
+            {
+                DriveId = drive.Id,
+                KeyStoreKeyEncryptedStorageKey = (storageKey == null || grantKeyStoreKey == null) ? null : new SymmetricKeyEncryptedAes(ref grantKeyStoreKey, ref storageKey),
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = drive.TargetDriveInfo,
+                    Permission = permission
+                }
+            };
+
+            storageKey?.Wipe();
+
+            return dk;
+        }
 
         private Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessTokenInternal(SensitiveByteArray grantKeyStoreKey, ClientTokenType tokenType,
             AccessRegistrationClientType clientType = AccessRegistrationClientType.Other)

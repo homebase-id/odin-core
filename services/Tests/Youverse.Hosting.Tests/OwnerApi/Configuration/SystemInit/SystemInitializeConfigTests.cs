@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Youverse.Core;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Contacts.Circle;
@@ -20,6 +21,7 @@ using Youverse.Hosting.Controllers.OwnerToken.Circles;
 using Youverse.Hosting.Controllers.OwnerToken.Drive;
 using Youverse.Hosting.Tests.OwnerApi.Circle;
 using Youverse.Hosting.Tests.OwnerApi.Drive;
+using Youverse.Hosting.Tests.OwnerApi.Utils.Fluid;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
 {
@@ -44,8 +46,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
         [Test]
         public async Task CanInitializeSystem_WithNoAdditionalDrives_and_NoAdditionalCircles()
         {
+            var identity = TestIdentities.Samwise;
             //success = system drives created, other drives created
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise, out var ownerSharedSecret))
+            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
                 var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
 
@@ -67,7 +70,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 Assert.IsTrue(getIsIdentityConfiguredResponse.Content);
 
                 //
-                // system drives should be created (neither allow anonymous)
+                // system drives should be created
                 // 
                 var driveSvc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
                 var createdDrivesResponse = await driveSvc.GetDrives(new GetDrivesRequest() { PageNumber = 1, PageSize = 100 });
@@ -106,6 +109,21 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
                     dg => dg.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive && dg.PermissionedDrive.Permission == DrivePermission.Write));
                 Assert.IsTrue(!systemCircle.Permissions.Keys.Any(), "By default, the system circle should have no permissions");
             }
+
+
+            //
+            // System apps should be in place
+            //
+            var samOwnerClient = _scaffold.CreateOwnerApiClient(identity);
+            var feedAppReg = await samOwnerClient.Apps.GetAppRegistration(SystemAppConstants.FeedAppId);
+            Assert.IsNotNull(feedAppReg, "feed app was not found");
+            Assert.IsFalse(feedAppReg.AuthorizedCircles.Any(), "Feed app should have no authorized circles");
+            Assert.IsTrue(feedAppReg.AppId == SystemAppConstants.FeedAppId.Value);
+            Assert.IsFalse(feedAppReg.Grant.PermissionSet.Keys?.Any() ?? false, "feed app should have no permissions");
+            Assert.IsTrue(feedAppReg.Grant.DriveGrants.All(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.FeedDrive));
+            Assert.IsTrue(feedAppReg.Grant.DriveGrants.All(dg => dg.PermissionedDrive.Permission == DrivePermission.Write), "feed app should be able to write to feed drive");
+            Assert.IsFalse(feedAppReg.Grant.DriveGrants.All(dg => dg.PermissionedDrive.Permission == DrivePermission.Read), "feed app should not be able to read feed drive");
+            Assert.IsFalse(feedAppReg.Grant.DriveGrants.All(dg => dg.PermissionedDrive.Permission == DrivePermission.All), "feed app should not not have all permission to feed drive");
         }
 
         [Test]
@@ -160,6 +178,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
                     contactDrive,
                     SystemDriveConstants.WalletDrive,
                     SystemDriveConstants.ChatDrive,
+                    SystemDriveConstants.FeedDrive,
                     newDrive.TargetDrive
                 };
 

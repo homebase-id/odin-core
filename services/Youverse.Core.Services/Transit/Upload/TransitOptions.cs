@@ -25,7 +25,7 @@ namespace Youverse.Core.Services.Transit.Upload
 
         public ScheduleOptions Schedule { get; set; } = ScheduleOptions.SendLater;
 
-        public SendContents SendContents { get; set; }
+        public SendContents SendContents { get; set; } = SendContents.All;
     }
 
     [Flags]

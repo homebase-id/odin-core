@@ -1,13 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
 using System.Threading.Tasks;
 using Dawn;
-using MediatR.Pipeline;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
+using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
@@ -25,9 +24,10 @@ namespace Youverse.Core.Services.Contacts.Follower
         private readonly IPublicKeyService _rsaPublicKeyService;
         private readonly TenantContext _tenantContext;
         private readonly DotYouContextAccessor _contextAccessor;
+        private readonly IAppRegistrationService _appRegistrationService;
 
         public FollowerService(ITenantSystemStorage tenantStorage, IDriveService driveService, IDotYouHttpClientFactory httpClientFactory, IPublicKeyService rsaPublicKeyService,
-            TenantContext tenantContext, DotYouContextAccessor contextAccessor)
+            TenantContext tenantContext, DotYouContextAccessor contextAccessor, IAppRegistrationService appRegistrationService)
         {
             _tenantStorage = tenantStorage;
             _driveService = driveService;
@@ -35,7 +35,9 @@ namespace Youverse.Core.Services.Contacts.Follower
             _rsaPublicKeyService = rsaPublicKeyService;
             _tenantContext = tenantContext;
             _contextAccessor = contextAccessor;
+            _appRegistrationService = appRegistrationService;
         }
+
 
         /// <summary>
         /// Establishes a follower connection with the recipient
@@ -46,24 +48,29 @@ namespace Youverse.Core.Services.Contacts.Follower
 
             if (_contextAccessor.GetCurrent().Caller.DotYouId == (DotYouIdentity)request.DotYouId)
             {
-                throw new YouverseClientException("Cannot follow yourself", YouverseClientErrorCode.InvalidRecipient);
+                throw new YouverseClientException("Cannot follow yourself; at least not in this dimension because that would be like chasing your own tail", YouverseClientErrorCode.InvalidRecipient);
             }
-            
+
             if (request.NotificationType == FollowerNotificationType.SelectedChannels)
             {
                 throw new NotImplementedException("Selected Channels not yet supported");
                 Guard.Argument(request.Channels, nameof(request.Channels)).NotNull().NotEmpty().Require(list => list.All(c => c.Type == SystemDriveConstants.ChannelDriveType));
             }
 
-            var followRequest = new FollowRequest()
+            //create app client for feed app
+            var accessToken = await _appRegistrationService.RegisterClientRaw(SystemAppConstants.FeedAppId, $"Feed App Client for {request.DotYouId}");
+
+            var followRequest = new TransitFollowRequest()
             {
                 DotYouId = _tenantContext.HostDotYouId,
                 NotificationType = request.NotificationType,
-                Channels = request.Channels
+                Channels = request.Channels,
+                PortableClientAuthToken = accessToken.ToPortableBytes()
             };
 
-            var payloadBytes = DotYouSystemSerializer.Serialize(followRequest).ToUtf8ByteArray();
-            var rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(request.DotYouId, payloadBytes);
+            // var payloadBytes = DotYouSystemSerializer.Serialize(followRequest).ToUtf8ByteArray();
+            var json = DotYouSystemSerializer.Serialize(followRequest);
+            var rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(request.DotYouId, json.ToUtf8ByteArray());
             var client = CreateClient((DotYouIdentity)request.DotYouId);
             var response = await client.Follow(rsaEncryptedPayload);
 
@@ -72,7 +79,7 @@ namespace Youverse.Core.Services.Contacts.Follower
                 //public key might be invalid, destroy the cache item
                 await _rsaPublicKeyService.InvalidatePublicKey((DotYouIdentity)request.DotYouId);
 
-                rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(request.DotYouId, payloadBytes);
+                rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(request.DotYouId, json.ToUtf8ByteArray());
                 response = await client.Follow(rsaEncryptedPayload);
 
                 //round 2, fail all together
@@ -171,6 +178,16 @@ namespace Youverse.Core.Services.Contacts.Follower
                 throw new YouverseSystemException($"Follower data for [{dotYouId}] is corrupt");
             }
 
+            // See if it's only a record for all channels
+            if (dbRecords.All(r => r.driveId == Guid.Empty))
+            {
+                return Task.FromResult(new FollowerDefinition()
+                {
+                    DotYouId = dotYouId,
+                    NotificationType = FollowerNotificationType.AllNotifications
+                });
+            }
+
             //convert to target drives
             var channels = new List<TargetDrive>();
             foreach (var record in dbRecords)
@@ -186,6 +203,7 @@ namespace Youverse.Core.Services.Contacts.Follower
                 Channels = channels
             });
         }
+
         public async Task<CursoredResult<string>> GetFollowers(string cursor)
         {
             if (!string.IsNullOrEmpty(cursor))

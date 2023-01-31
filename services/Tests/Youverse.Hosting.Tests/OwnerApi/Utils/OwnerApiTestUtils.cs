@@ -340,20 +340,15 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 Assert.That(reply.Token, Is.Not.EqualTo(Guid.Empty));
                 Assert.That(decryptedData, Is.Not.Null);
                 Assert.That(decryptedData.Length, Is.EqualTo(49));
-
-                var (tokenPortableBytes, sharedSecret) = ByteArrayUtil.Split(decryptedData, 33, 16);
-
-                ClientAuthenticationToken authenticationResult = ClientAuthenticationToken.FromPortableBytes(tokenPortableBytes);
-
-                Assert.False(authenticationResult.Id == Guid.Empty);
-                Assert.IsNotNull(authenticationResult.AccessTokenHalfKey);
-                Assert.That(authenticationResult.AccessTokenHalfKey.GetKey().Length, Is.EqualTo(16));
-                Assert.IsTrue(authenticationResult.AccessTokenHalfKey.IsSet());
-
-                Assert.IsNotNull(sharedSecret);
-                Assert.That(sharedSecret.Length, Is.EqualTo(16));
-
-                return (authenticationResult, sharedSecret);
+                
+                var cat = ClientAccessToken.FromPortableBytes(decryptedData);
+                Assert.IsFalse(cat.Id == Guid.Empty);
+                Assert.IsNotNull(cat.AccessTokenHalfKey);
+                Assert.That(cat.AccessTokenHalfKey.GetKey().Length, Is.EqualTo(16));
+                Assert.IsTrue(cat.AccessTokenHalfKey.IsSet());
+                Assert.IsTrue(cat.IsValid());
+                
+                return (cat.ToAuthenticationToken(), cat.SharedSecret.GetKey());
             }
         }
 
