@@ -20,6 +20,9 @@ jobs:
         with:
           dotnet-version: 6.0.x
 
+      - name: Authenticate to Github packages
+        run: echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > ~/.npmrc
+
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
