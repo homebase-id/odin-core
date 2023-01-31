@@ -2,7 +2,7 @@ name: Full Docker Release
 
 on:
  push:
-   branches: [ release_docker ]
+   branches: [ release-docker ]
 #  pull_request:
 #    branches: [ main ]
 
