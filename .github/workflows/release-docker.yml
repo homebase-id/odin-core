@@ -1,4 +1,4 @@
-name: Windows DotYouCore
+name: Full Docker Release
 
 on: [workflow_dispatch]
 #  push:
