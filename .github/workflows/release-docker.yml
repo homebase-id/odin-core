@@ -37,21 +37,24 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: YouFoundation/owner-app
-          token: ${{ secrets.GH_PAT }} # `GH_PAT` is a secret that contains your PAT
+          #token: ${{ secrets.GH_PAT }} # `GH_PAT` is a secret that contains your PAT
+          token: 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
           path: client/owner-app
 
       - name: Checkout public-app
         uses: actions/checkout@v3
         with:
           repository: YouFoundation/public-app
-          token: ${{ secrets.GH_PAT }} # `GH_PAT` is a secret that contains your PAT
+          #token: ${{ secrets.GH_PAT }} # `GH_PAT` is a secret that contains your PAT
+          token: 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
           path: client/public-app
 
       - name: Checkout provisioning-app
         uses: actions/checkout@v3
         with:
           repository: YouFoundation/provisioning-app
-          token: ${{ secrets.GH_PAT }} # `GH_PAT` is a secret that contains your PAT
+          #token: ${{ secrets.GH_PAT }} # `GH_PAT` is a secret that contains your PAT
+          token: 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
           path: client/provisioning-app
 
       - name: Build owner-app
