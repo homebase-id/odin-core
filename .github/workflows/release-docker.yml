@@ -39,7 +39,6 @@ jobs:
         with:
           repository: YouFoundation/owner-app
           token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }} # `GH_PAT` is a secret that contains your PAT
-          #token: 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 #TEMP key that is allowed to checkout
           path: client/owner-app
 
       - name: Checkout public-app
@@ -47,7 +46,6 @@ jobs:
         with:
           repository: YouFoundation/public-app
           token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }} # `GH_PAT` is a secret that contains your PAT
-          #token: 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 #TEMP key that is allowed to checkout
           path: client/public-app
 
       - name: Checkout provisioning-app
@@ -55,7 +53,6 @@ jobs:
         with:
           repository: YouFoundation/provisioning-app
           token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }} # `GH_PAT` is a secret that contains your PAT
-          #token: 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 #TEMP key that is allowed to checkout
           path: client/provisioning-app
 
       - name: Authenticate to Github packages
