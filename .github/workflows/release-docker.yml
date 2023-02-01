@@ -69,6 +69,7 @@ jobs:
         run: |
           npm ci
           npm run build
+          rm -rf ../../dotyoucore/services/Youverse.Hosting/client/owner-app
           mv build ../../dotyoucore/services/Youverse.Hosting/client/owner-app
 
       - name: Build public-app
@@ -76,6 +77,7 @@ jobs:
         run: |
           npm ci
           npm run build
+          rm -rf ../../dotyoucore/services/Youverse.Hosting/client/public-app
           mv build ../../dotyoucore/services/Youverse.Hosting/client/public-app
 
       - name: Build provisioning-app
@@ -83,6 +85,7 @@ jobs:
         run: |
           npm ci
           npm run build
+          rm -rf ../../dotyoucore/services/Youverse.Hosting/client/provisioning-app
           mv build ../../dotyoucore/services/Youverse.Hosting/client/provisioning-app
 
       - name: Log in to the Container registry
