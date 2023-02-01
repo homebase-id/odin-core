@@ -69,7 +69,7 @@ jobs:
         run: |
           npm ci
           touch .env
-          echo REACT_APP_VERSION=sha-$(date +%s) >> .env
+          echo REACT_APP_VERSION=$(date +%s) >> .env
           npm run build
           rm -rf ../../dotyoucore/services/Youverse.Hosting/client/owner-app
           mv build ../../dotyoucore/services/Youverse.Hosting/client/owner-app
@@ -79,7 +79,7 @@ jobs:
         run: |
           npm ci
           touch .env
-          echo REACT_APP_VERSION=sha-$(date +%s) >> .env
+          echo REACT_APP_VERSION=$(date +%s) >> .env
           npm run build
           rm -rf ../../dotyoucore/services/Youverse.Hosting/client/public-app
           mv build ../../dotyoucore/services/Youverse.Hosting/client/public-app
@@ -89,7 +89,7 @@ jobs:
         run: |
           npm ci
           touch .env
-          echo REACT_APP_VERSION=sha-$(date +%s) >> .env
+          echo REACT_APP_VERSION=$(date +%s) >> .env
           npm run build
           rm -rf ../../dotyoucore/services/Youverse.Hosting/client/provisioning-app
           mv build ../../dotyoucore/services/Youverse.Hosting/client/provisioning-app
