@@ -1,8 +1,7 @@
 using System.Collections.Generic;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Drive;
 
-namespace Youverse.Core.Services.Contacts.Follower;
+namespace Youverse.Core.Services.DataSubscription.Follower;
 
 public class FollowRequest
 {
@@ -26,7 +25,7 @@ public class FollowRequest
     public IEnumerable<TargetDrive> Channels { get; set; }
 }
 
-public class TransitFollowRequest : FollowRequest
+public class PerimterFollowRequest : FollowRequest
 {
     /// <summary>
     /// Token used to write to the subscribers feed drive

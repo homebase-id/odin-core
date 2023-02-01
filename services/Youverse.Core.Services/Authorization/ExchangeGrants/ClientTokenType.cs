@@ -4,5 +4,6 @@ public enum ClientTokenType
 {
     YouAuth = 1,
     IdentityConnectionRegistration = 2,
-    Other = 3
+    Other = 3,
+    Follower = 7
 }

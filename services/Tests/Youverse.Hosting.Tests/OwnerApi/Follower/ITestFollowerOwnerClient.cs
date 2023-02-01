@@ -2,7 +2,7 @@
 using System.Threading.Tasks;
 using Refit;
 using Youverse.Core;
-using Youverse.Core.Services.Contacts.Follower;
+using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Hosting.Controllers.OwnerToken;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Follower

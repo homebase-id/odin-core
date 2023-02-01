@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Refit;
 using Youverse.Core;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Contacts.Follower;
+using Youverse.Core.Services.DataSubscription.Follower;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Follow
 {

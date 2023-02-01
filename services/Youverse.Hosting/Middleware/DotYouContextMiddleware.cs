@@ -1,11 +1,13 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authentication.Transit;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.DataSubscription;
 using Youverse.Core.Services.Tenant;
 using Youverse.Hosting.Authentication.Perimeter;
 
@@ -43,6 +45,15 @@ namespace Youverse.Hosting.Middleware
                 return;
             }
 
+            if (authType == PerimeterAuthConstants.DataSubscriptionCertificateAuthScheme)
+            {
+                await LoadFeedDriveContext(httpContext, dotYouContext);
+                dotYouContext.AuthContext = PerimeterAuthConstants.DataSubscriptionCertificateAuthScheme;
+
+                await _next(httpContext);
+                return;
+            }
+
             if (authType == PerimeterAuthConstants.PublicTransitAuthScheme)
             {
                 await LoadPublicTransitContext(httpContext, dotYouContext);
@@ -52,15 +63,21 @@ namespace Youverse.Hosting.Middleware
                 return;
             }
 
-
             await _next(httpContext);
         }
 
         private async Task LoadTransitContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
-            if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[DotYouHeaderNames.ClientAuthToken],
-                    out var clientAuthToken))
+            if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[DotYouHeaderNames.ClientAuthToken], out var clientAuthToken))
             {
+                //HACK - for alpha, wen want to support data subscriptions for the feed but only building it partially
+                //therefore use the transit subsystem but load permissions only for the fee drive
+                if (clientAuthToken.ClientTokenType == ClientTokenType.Follower)
+                {
+                    await LoadFeedDriveContext(httpContext, dotYouContext);
+                    return;
+                }
+                
                 var user = httpContext.User;
                 var transitRegService = httpContext.RequestServices.GetRequiredService<TransitRegistrationService>();
                 var callerDotYouId = (DotYouIdentity)user.Identity!.Name;
@@ -75,6 +92,27 @@ namespace Youverse.Hosting.Middleware
             }
 
             await LoadPublicTransitContext(httpContext, dotYouContext);
+        }
+
+        private async Task LoadFeedDriveContext(HttpContext httpContext, DotYouContext dotYouContext)
+        {
+            //No token for now
+            if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[DotYouHeaderNames.ClientAuthToken], out var clientAuthToken))
+            {
+                var user = httpContext.User;
+                var authService = httpContext.RequestServices.GetRequiredService<DataSubscriptionAuthenticationService>();
+                var callerDotYouId = (DotYouIdentity)user.Identity!.Name;
+                var ctx = await authService.GetDotYouContext(callerDotYouId, clientAuthToken);
+
+                if (ctx != null)
+                {
+                    dotYouContext.Caller = ctx.Caller;
+                    dotYouContext.SetPermissionContext(ctx.PermissionsContext);
+                    return;
+                }
+            }
+
+            throw new YouverseSecurityException("Cannot load context");
         }
 
         private Task LoadPublicTransitContext(HttpContext httpContext, DotYouContext dotYouContext)

@@ -7,13 +7,14 @@ using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Apps;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Storage;
 
-namespace Youverse.Core.Services.Contacts.Follower
+namespace Youverse.Core.Services.DataSubscription.Follower
 {
     /// <summary/>
     public class FollowerService
@@ -57,10 +58,8 @@ namespace Youverse.Core.Services.Contacts.Follower
                 Guard.Argument(request.Channels, nameof(request.Channels)).NotNull().NotEmpty().Require(list => list.All(c => c.Type == SystemDriveConstants.ChannelDriveType));
             }
 
-            //create app client for feed app
             var accessToken = await _appRegistrationService.RegisterClientRaw(SystemAppConstants.FeedAppId, $"Feed App Client for {request.DotYouId}");
-
-            var followRequest = new TransitFollowRequest()
+            var followRequest = new PerimterFollowRequest()
             {
                 DotYouId = _tenantContext.HostDotYouId,
                 NotificationType = request.NotificationType,
@@ -127,7 +126,7 @@ namespace Youverse.Core.Services.Contacts.Follower
 
         public async Task<FollowerDefinition> GetFollower(DotYouIdentity dotYouId)
         {
-            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+            _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadWhoIFollow);
 
             Guard.Argument(dotYouId, nameof(dotYouId)).Require(d => d.HasValue());
 
@@ -164,44 +163,7 @@ namespace Youverse.Core.Services.Contacts.Follower
         public Task<FollowerDefinition> GetIdentityIFollow(DotYouIdentity dotYouId)
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-
-            Guard.Argument(dotYouId, nameof(dotYouId)).Require(d => d.HasValue());
-
-            var dbRecords = _tenantStorage.WhoIFollow.Get(dotYouId);
-            if (!dbRecords?.Any() ?? false)
-            {
-                return null;
-            }
-
-            if (dbRecords!.Any(f => dotYouId != (DotYouIdentity)f.identity))
-            {
-                throw new YouverseSystemException($"Follower data for [{dotYouId}] is corrupt");
-            }
-
-            // See if it's only a record for all channels
-            if (dbRecords.All(r => r.driveId == Guid.Empty))
-            {
-                return Task.FromResult(new FollowerDefinition()
-                {
-                    DotYouId = dotYouId,
-                    NotificationType = FollowerNotificationType.AllNotifications
-                });
-            }
-
-            //convert to target drives
-            var channels = new List<TargetDrive>();
-            foreach (var record in dbRecords)
-            {
-                var td = _contextAccessor.GetCurrent().PermissionsContext.GetTargetDrive(record.driveId);
-                channels.Add(td);
-            }
-
-            return Task.FromResult(new FollowerDefinition()
-            {
-                DotYouId = dotYouId,
-                NotificationType = dbRecords.Count > 1 ? FollowerNotificationType.SelectedChannels : FollowerNotificationType.AllNotifications,
-                Channels = channels
-            });
+            return  GetIdentityIFollowInternal(dotYouId);
         }
 
         public async Task<CursoredResult<string>> GetFollowers(string cursor)
@@ -353,11 +315,90 @@ namespace Youverse.Core.Services.Contacts.Follower
             return result;
         }
 
+        public async Task<PermissionContext> CreatePermissionContext(DotYouIdentity dotYouId, ClientAuthenticationToken token)
+        {
+            //Note: this check here is basically a replacement for the token
+            // meaning - it is required to be an owner to follow an identity
+            // so they will only be in the list if the owner added them
+            var definition = await GetIdentityIFollowInternal(dotYouId);
+            if (null == definition)
+            {
+                throw new YouverseSecurityException($"Not following {dotYouId}");
+            }
+            
+            var targetDrive = SystemDriveConstants.FeedDrive;
+            var permissionSet = new PermissionSet(); //no permissions
+            var sharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray();
+
+            var driveGrants = new List<DriveGrant>()
+            {
+                new DriveGrant()
+                {
+                    DriveId = (await _driveService.GetDriveIdByAlias(targetDrive, true)).GetValueOrDefault(),
+                    KeyStoreKeyEncryptedStorageKey = null,
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = targetDrive,
+                        Permission = DrivePermission.Write
+                    }
+                }
+            };
+
+            var groups = new Dictionary<string, PermissionGroup>()
+            {
+                { "data_subscriber", new PermissionGroup(permissionSet, driveGrants, sharedSecret) }
+            };
+
+            return new PermissionContext(groups, null);
+        }
+
         ///
         private IFollowerHttpClient CreateClient(DotYouIdentity dotYouId)
         {
             var httpClient = _httpClientFactory.CreateClient<IFollowerHttpClient>((DotYouIdentity)dotYouId);
             return httpClient;
         }
+
+        private Task<FollowerDefinition> GetIdentityIFollowInternal(DotYouIdentity dotYouId)
+        {
+            Guard.Argument(dotYouId, nameof(dotYouId)).Require(d => d.HasValue());
+
+            var dbRecords = _tenantStorage.WhoIFollow.Get(dotYouId);
+            if (!dbRecords?.Any() ?? false)
+            {
+                return null;
+            }
+
+            if (dbRecords!.Any(f => dotYouId != (DotYouIdentity)f.identity))
+            {
+                throw new YouverseSystemException($"Follower data for [{dotYouId}] is corrupt");
+            }
+
+            // See if it's only a record for all channels
+            if (dbRecords.All(r => r.driveId == Guid.Empty))
+            {
+                return Task.FromResult(new FollowerDefinition()
+                {
+                    DotYouId = dotYouId,
+                    NotificationType = FollowerNotificationType.AllNotifications
+                });
+            }
+
+            //convert to target drives
+            var channels = new List<TargetDrive>();
+            foreach (var record in dbRecords)
+            {
+                var td = _contextAccessor.GetCurrent().PermissionsContext.GetTargetDrive(record.driveId);
+                channels.Add(td);
+            }
+
+            return Task.FromResult(new FollowerDefinition()
+            {
+                DotYouId = dotYouId,
+                NotificationType = dbRecords.Count > 1 ? FollowerNotificationType.SelectedChannels : FollowerNotificationType.AllNotifications,
+                Channels = channels
+            });
+        }
+
     }
 }

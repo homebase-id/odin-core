@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.Contacts.Follower;
+namespace Youverse.Core.Services.DataSubscription.Follower;
 
 public enum FollowerNotificationType
 {

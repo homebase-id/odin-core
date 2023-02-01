@@ -1,19 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
-using MediatR.Pipeline;
-using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
-using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Storage;
 
-namespace Youverse.Core.Services.Contacts.Follower
+namespace Youverse.Core.Services.DataSubscription.Follower
 {
     /// <summary/>
     public class FollowerPerimeterService
@@ -31,7 +25,7 @@ namespace Youverse.Core.Services.Contacts.Follower
         /// Accepts the new or exiting follower by upserting a record to ensure
         /// the follower is notified of content changes.
         /// </summary>
-        public Task AcceptFollower(TransitFollowRequest request)
+        public Task AcceptFollower(PerimterFollowRequest request)
         {
             Guard.Argument(request, nameof(request)).NotNull();
             Guard.Argument(request.DotYouId, nameof(request.DotYouId)).NotNull().NotEmpty();
@@ -42,8 +36,10 @@ namespace Youverse.Core.Services.Contacts.Follower
 
             Guard.Argument(clientAccessToken, nameof(clientAccessToken)).NotNull().Require(cat => cat.IsValid());
             
+            //
             //TODO: where to store the request.ClientAuthToken ??
-
+            // 
+            
             if (request.NotificationType == FollowerNotificationType.SelectedChannels)
             {
                 Guard.Argument(request.Channels, nameof(request.Channels)).NotNull().NotEmpty().Require(channels => channels.All(c => c.Type == SystemDriveConstants.ChannelDriveType));

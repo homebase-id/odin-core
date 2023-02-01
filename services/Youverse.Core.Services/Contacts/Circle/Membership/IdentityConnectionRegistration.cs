@@ -69,6 +69,17 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             return clientAuthToken;
         }
+        
+        public ClientAccessToken CreateClientAccessToken()
+        {
+            return new ClientAccessToken()
+            {
+                Id = this.ClientAccessTokenId,
+                AccessTokenHalfKey = this.ClientAccessTokenHalfKey.ToSensitiveByteArray(),
+                ClientTokenType = ClientTokenType.IdentityConnectionRegistration,
+                SharedSecret = this.ClientAccessTokenSharedSecret.ToSensitiveByteArray()
+            };
+        }
 
         /// <summary>
         /// Returns the minimal info needed for external systems using this data.

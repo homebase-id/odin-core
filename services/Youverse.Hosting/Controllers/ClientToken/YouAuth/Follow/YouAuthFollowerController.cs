@@ -1,7 +1,7 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
-using Youverse.Core.Services.Contacts.Follower;
+using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Hosting.Controllers.Anonymous;
 
 namespace Youverse.Hosting.Controllers.ClientToken.YouAuth.Follow

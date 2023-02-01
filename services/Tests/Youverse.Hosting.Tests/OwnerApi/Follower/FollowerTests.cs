@@ -6,7 +6,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Contacts.Follower;
+using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Hosting.Tests.OwnerApi.Drive;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Follower;

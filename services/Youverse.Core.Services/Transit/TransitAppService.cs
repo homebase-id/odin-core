@@ -54,13 +54,11 @@ namespace Youverse.Core.Services.Transit
                     }
                     else if (item.InstructionType == TransferInstructionType.None)
                     {
-                        throw new YouverseClientException("Transfer type not specified",
-                            YouverseClientErrorCode.TransferTypeNotSpecified);
+                        throw new YouverseClientException("Transfer type not specified", YouverseClientErrorCode.TransferTypeNotSpecified);
                     }
                     else
                     {
-                        throw new YouverseClientException("Invalid transfer type",
-                            YouverseClientErrorCode.InvalidTransferType);
+                        throw new YouverseClientException("Invalid transfer type", YouverseClientErrorCode.InvalidTransferType);
                     }
 
                     await _transitBoxService.MarkComplete(item.DriveId, item.Marker);
@@ -232,7 +230,6 @@ namespace Youverse.Core.Services.Transit
 
 
             await _driveService.CommitTempFileToNewLongTermFile(tempFile, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
-
         }
 
         private async Task<ClientFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId)

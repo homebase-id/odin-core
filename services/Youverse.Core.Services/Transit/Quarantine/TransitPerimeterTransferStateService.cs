@@ -29,9 +29,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
         public async Task<Guid> CreateTransferStateItem(RsaEncryptedRecipientTransferInstructionSet transferInstructionSet)
         {
-            //caller must have write permission to the drive in which they are transferring the file
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(transferInstructionSet.TargetDrive);
-            // _contextAccessor.GetCurrent().PermissionsContext.HasDrivePermission(driveId, DrivePermission.Write);
 
             //notice here: we always create a new file Id when receiving a new file.
             Guid id = Guid.NewGuid();

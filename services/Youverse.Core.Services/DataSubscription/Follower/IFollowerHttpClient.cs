@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Refit;
 using Youverse.Core.Services.EncryptionKeyService;
 
-namespace Youverse.Core.Services.Contacts.Follower
+namespace Youverse.Core.Services.DataSubscription.Follower
 {
     /// <summary>
     /// Sends follow/unfollow/updates to other Digital Identities

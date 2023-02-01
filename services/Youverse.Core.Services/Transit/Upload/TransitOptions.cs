@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 
 namespace Youverse.Core.Services.Transit.Upload
 {
@@ -23,11 +24,18 @@ namespace Youverse.Core.Services.Transit.Upload
         /// </summary>
         public List<string> Recipients { get; set; }
 
+        /// <summary>
+        /// Options for when to send the file(s)
+        /// </summary>
         public ScheduleOptions Schedule { get; set; } = ScheduleOptions.SendLater;
 
+        /// <summary>
+        /// Specifies which parts of the file to send
+        /// </summary>
         public SendContents SendContents { get; set; } = SendContents.All;
     }
 
+    
     [Flags]
     public enum SendContents
     {

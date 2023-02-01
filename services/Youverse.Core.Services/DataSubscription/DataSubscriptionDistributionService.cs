@@ -5,20 +5,16 @@ using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Core.Storage;
 
-namespace Youverse.Core.Services.Contacts.Follower.Feed
+namespace Youverse.Core.Services.DataSubscription
 {
-    // Note: drive storage using the ThreeKey KeyValueDatabase
-    // key1 = drive id
-    // key2 = drive type  + drive alias (see TargetDrive.ToKey() method)
-    // key3 = type of data identifier (the fact this is a drive; note: we should put datatype on the KV database)
-
-    public class FeedDistributionService : INotificationHandler<DriveFileAddedNotification>
+    public class DataSubscriptionDistributionService : INotificationHandler<DriveFileAddedNotification>
     {
         private readonly FollowerService _followerService;
         private readonly DotYouContextAccessor _contextAccessor;
@@ -27,7 +23,8 @@ namespace Youverse.Core.Services.Contacts.Follower.Feed
         private readonly IDriveService _driveService;
         private readonly ITransitService _transitService;
 
-        public FeedDistributionService(DotYouContextAccessor contextAccessor, ITenantSystemStorage tenantSystemStorage, ILoggerFactory loggerFactory, IMediator mediator, TenantContext tenantContext,
+        public DataSubscriptionDistributionService(DotYouContextAccessor contextAccessor, ITenantSystemStorage tenantSystemStorage, ILoggerFactory loggerFactory, IMediator mediator,
+            TenantContext tenantContext,
             FollowerService followerService, IDriveService driveService, ITransitService transitService)
         {
             _contextAccessor = contextAccessor;
@@ -40,13 +37,13 @@ namespace Youverse.Core.Services.Contacts.Follower.Feed
 
         public async Task Handle(DriveFileAddedNotification notification, CancellationToken cancellationToken)
         {
-            //TODO: move this to a back ground thread or use ScheduleOptions.SendLater so the original call can finish
+            //TODO: move this to a background thread or use ScheduleOptions.SendLater so the original call can finish
 
             //TODO: first store on this identities feed drive.
             //then send from their feed drive
-            
-            var driveFollowers = await _followerService.GetFollowers(notification.File.DriveId, "");
-            var allDriveFollowers = await _followerService.GetFollowersOfAllNotifications("");
+
+            var driveFollowers = await _followerService.GetFollowers(notification.File.DriveId, cursor: "");
+            var allDriveFollowers = await _followerService.GetFollowersOfAllNotifications(cursor: "");
 
             var recipients = new List<string>();
             recipients!.AddRange(driveFollowers.Results);
@@ -65,9 +62,7 @@ namespace Youverse.Core.Services.Contacts.Follower.Feed
             //TODO: in order to send over transit like this, the sender needs access to the feed drive
             // this means we need to grant write access to the feed drive when I follow you.
             // this just got super complex because we only grant write access to connections -_-
-            await _transitService.SendFile(notification.File, options, TransferFileType.Normal);
-            
-            
+            await _transitService.SendFile(notification.File, options, TransferFileType.Normal, ClientAccessTokenSource.Follower);
         }
     }
 }
