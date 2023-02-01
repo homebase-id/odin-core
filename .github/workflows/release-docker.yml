@@ -38,24 +38,24 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: YouFoundation/owner-app
-          #token: ${{ secrets.GH_PAT }} # `GH_PAT` is a secret that contains your PAT
-          token: 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 #TEMP key that is allowed to checkout
+          token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }} # `GH_PAT` is a secret that contains your PAT
+          #token: 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 #TEMP key that is allowed to checkout
           path: client/owner-app
 
       - name: Checkout public-app
         uses: actions/checkout@v3
         with:
           repository: YouFoundation/public-app
-          #token: ${{ secrets.GH_PAT }} # `GH_PAT` is a secret that contains your PAT
-          token: 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 #TEMP key that is allowed to checkout
+          token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }} # `GH_PAT` is a secret that contains your PAT
+          #token: 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 #TEMP key that is allowed to checkout
           path: client/public-app
 
       - name: Checkout provisioning-app
         uses: actions/checkout@v3
         with:
           repository: YouFoundation/provisioning-app
-          #token: ${{ secrets.GH_PAT }} # `GH_PAT` is a secret that contains your PAT
-          token: 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 #TEMP key that is allowed to checkout
+          token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }} # `GH_PAT` is a secret that contains your PAT
+          #token: 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 #TEMP key that is allowed to checkout
           path: client/provisioning-app
 
       - name: Authenticate to Github packages
