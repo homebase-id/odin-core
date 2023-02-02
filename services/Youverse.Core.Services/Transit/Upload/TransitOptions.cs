@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Transit.Upload
 {
@@ -33,6 +34,11 @@ namespace Youverse.Core.Services.Transit.Upload
         /// Specifies which parts of the file to send
         /// </summary>
         public SendContents SendContents { get; set; } = SendContents.All;
+        
+        /// <summary>
+        /// If set, the target drive will be this one instead of that from the file
+        /// </summary>
+        public TargetDrive OverrideTargetDrive { get; set; }
     }
 
     

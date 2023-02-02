@@ -11,12 +11,12 @@ using Youverse.Core.Services.DataSubscription.Follower;
 
 namespace Youverse.Core.Services.DataSubscription;
 
-public class DataSubscriptionAuthenticationService
+public class DataProviderAuthenticationService
 {
     private readonly DotYouContextCache _cache;
     private readonly FollowerService _followerService;
 
-    public DataSubscriptionAuthenticationService( YouverseConfiguration config, FollowerService followerService)
+    public DataProviderAuthenticationService( YouverseConfiguration config, FollowerService followerService)
     {
         _followerService = followerService;
         _cache = new DotYouContextCache(config.Host.CacheSlidingExpirationSeconds);
@@ -37,7 +37,7 @@ public class DataSubscriptionAuthenticationService
         {
             Id = guidId,
             AccessTokenHalfKey = guidId.ToByteArray().ToSensitiveByteArray(),
-            ClientTokenType = ClientTokenType.Other
+            ClientTokenType = ClientTokenType.DataProvider
         };
 
         var creator = new Func<Task<DotYouContext>>(async delegate
@@ -66,7 +66,8 @@ public class DataSubscriptionAuthenticationService
             dotYouId: callerDotYouId,
             masterKey: null,
             securityLevel: SecurityGroupType.Authenticated,
-            circleIds: null);
+            circleIds: null,
+            tokenType: ClientTokenType.DataProvider);
 
         return (cc, permissionContext);
     }

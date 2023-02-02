@@ -382,8 +382,8 @@ namespace Youverse.Core.Services.Transit
             {
                 throw new NotImplementedException("TODO: implement partial sends for feed drive support");
             }
-
-            var drive = await _driveService.GetDrive(internalFile.DriveId, failIfInvalid: true);
+            
+            TargetDrive targetDrive = options.OverrideTargetDrive ?? (await _driveService.GetDrive(internalFile.DriveId, failIfInvalid: true)).TargetDriveInfo;
 
             var transferStatus = new Dictionary<string, TransferStatus>();
             var outboxItems = new List<OutboxItem>();
@@ -417,7 +417,7 @@ namespace Youverse.Core.Services.Transit
                         File = internalFile,
                         Recipient = (DotYouIdentity)r,
                         TransferInstructionSet = this.CreateTransferInstructionSet(pk.publicKey, keyHeader,
-                            clientAuthToken.ToAuthenticationToken(), internalFile, recipient, drive.TargetDriveInfo, transferFileType)
+                            clientAuthToken.ToAuthenticationToken(), internalFile, recipient, targetDrive, transferFileType)
                     });
                 }
                 catch (Exception ex)
@@ -443,9 +443,8 @@ namespace Youverse.Core.Services.Transit
                 var def = await _followerService.GetFollower(recipient);
                 return def.CreateClientAccessToken();
             }
-            
-            throw new ArgumentException("Invalid ClientAccessTokenSource");
 
+            throw new ArgumentException("Invalid ClientAccessTokenSource");
         }
 
         private async Task<Dictionary<string, TransferStatus>> SendFileLater(InternalDriveFileId internalFile,

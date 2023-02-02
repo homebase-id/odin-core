@@ -5,11 +5,6 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Youverse.Core;
-using Youverse.Core.Cryptography.Crypto;
-using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Authorization.Apps;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
@@ -17,8 +12,9 @@ using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Controllers.OwnerToken.Circles;
 using Youverse.Hosting.Tests.OwnerApi.Circle;
+using Youverse.Hosting.Tests.OwnerApi.Utils;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Utils.Fluid;
+namespace Youverse.Hosting.Tests.OwnerApi.ApiClient;
 
 public class CircleNetworkApiClient
 {

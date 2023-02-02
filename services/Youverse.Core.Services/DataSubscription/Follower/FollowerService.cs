@@ -93,7 +93,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             {
                 _tenantStorage.WhoIFollow.InsertFollower(request.DotYouId, null);
             }
-            //TODO: need to better undersand the followers table
+            //TODO: need to better understand the followers table
             // else
             // {
             //     foreach (var channel in request.Channels)
@@ -141,6 +141,20 @@ namespace Youverse.Core.Services.DataSubscription.Follower
                 throw new YouverseSystemException($"Follower data for [{dotYouId}] is corrupt");
             }
 
+            if (dbRecords.Any(r => r.driveId == Guid.Empty) && dbRecords.Count > 1)
+            {
+                throw new YouverseSystemException($"Follower data for [{dotYouId}] is corrupt");
+            }
+            
+            if (dbRecords.All(r => r.driveId == Guid.Empty))
+            {
+                return new FollowerDefinition()
+                {
+                    DotYouId = dotYouId,
+                    NotificationType = FollowerNotificationType.AllNotifications
+                };
+            }
+            
             //convert to target drives
             var channels = new List<TargetDrive>();
             foreach (var record in dbRecords)
@@ -163,7 +177,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
         public Task<FollowerDefinition> GetIdentityIFollow(DotYouIdentity dotYouId)
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-            return  GetIdentityIFollowInternal(dotYouId);
+            return GetIdentityIFollowInternal(dotYouId);
         }
 
         public async Task<CursoredResult<string>> GetFollowers(string cursor)
@@ -325,7 +339,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             {
                 throw new YouverseSecurityException($"Not following {dotYouId}");
             }
-            
+
             var targetDrive = SystemDriveConstants.FeedDrive;
             var permissionSet = new PermissionSet(); //no permissions
             var sharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray();
@@ -374,7 +388,11 @@ namespace Youverse.Core.Services.DataSubscription.Follower
                 throw new YouverseSystemException($"Follower data for [{dotYouId}] is corrupt");
             }
 
-            // See if it's only a record for all channels
+            if (dbRecords.Any(r => r.driveId == Guid.Empty) && dbRecords.Count > 1)
+            {
+                throw new YouverseSystemException($"Follower data for [{dotYouId}] is corrupt");
+            }
+            
             if (dbRecords.All(r => r.driveId == Guid.Empty))
             {
                 return Task.FromResult(new FollowerDefinition()
@@ -399,6 +417,5 @@ namespace Youverse.Core.Services.DataSubscription.Follower
                 Channels = channels
             });
         }
-
     }
 }

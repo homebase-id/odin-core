@@ -11,8 +11,8 @@ using Youverse.Core.Services.Registry;
 using Youverse.Core.Util;
 using Youverse.Hosting._dev;
 using Youverse.Hosting.Tests.AppAPI.Utils;
+using Youverse.Hosting.Tests.OwnerApi.ApiClient;
 using Youverse.Hosting.Tests.OwnerApi.Utils;
-using Youverse.Hosting.Tests.OwnerApi.Utils.Fluid;
 
 namespace Youverse.Hosting.Tests
 {

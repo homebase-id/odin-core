@@ -125,7 +125,7 @@ namespace Youverse.Hosting
                 .AsSelf()
                 .SingleInstance();
 
-            cb.RegisterType<DataSubscriptionAuthenticationService>().AsSelf().SingleInstance();
+            cb.RegisterType<DataProviderAuthenticationService>().AsSelf().SingleInstance();
             cb.RegisterType<DataSubscriptionDistributionService>()
                 .As<INotificationHandler<DriveFileAddedNotification>>()
                 .AsSelf()

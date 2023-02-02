@@ -47,7 +47,7 @@ namespace Youverse.Hosting.Middleware
 
             if (authType == PerimeterAuthConstants.DataSubscriptionCertificateAuthScheme)
             {
-                await LoadFeedDriveContext(httpContext, dotYouContext);
+                await LoadDataProviderContext(httpContext, dotYouContext);
                 dotYouContext.AuthContext = PerimeterAuthConstants.DataSubscriptionCertificateAuthScheme;
 
                 await _next(httpContext);
@@ -72,9 +72,9 @@ namespace Youverse.Hosting.Middleware
             {
                 //HACK - for alpha, wen want to support data subscriptions for the feed but only building it partially
                 //therefore use the transit subsystem but load permissions only for the fee drive
-                if (clientAuthToken.ClientTokenType == ClientTokenType.Follower)
+                if (clientAuthToken.ClientTokenType == ClientTokenType.DataProvider)
                 {
-                    await LoadFeedDriveContext(httpContext, dotYouContext);
+                    await LoadDataProviderContext(httpContext, dotYouContext);
                     return;
                 }
                 
@@ -94,20 +94,21 @@ namespace Youverse.Hosting.Middleware
             await LoadPublicTransitContext(httpContext, dotYouContext);
         }
 
-        private async Task LoadFeedDriveContext(HttpContext httpContext, DotYouContext dotYouContext)
+        private async Task LoadDataProviderContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
             //No token for now
             if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[DotYouHeaderNames.ClientAuthToken], out var clientAuthToken))
             {
                 var user = httpContext.User;
-                var authService = httpContext.RequestServices.GetRequiredService<DataSubscriptionAuthenticationService>();
+                var authService = httpContext.RequestServices.GetRequiredService<DataProviderAuthenticationService>();
                 var callerDotYouId = (DotYouIdentity)user.Identity!.Name;
                 var ctx = await authService.GetDotYouContext(callerDotYouId, clientAuthToken);
-
                 if (ctx != null)
                 {
                     dotYouContext.Caller = ctx.Caller;
                     dotYouContext.SetPermissionContext(ctx.PermissionsContext);
+                    ctx.AuthContext = PerimeterAuthConstants.DataSubscriptionCertificateAuthScheme;
+
                     return;
                 }
             }

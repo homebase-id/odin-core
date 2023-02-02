@@ -22,7 +22,7 @@ public class FollowerDefinition
         {
             Id = guidId,
             AccessTokenHalfKey = guidId.ToByteArray().ToSensitiveByteArray(),
-            ClientTokenType = ClientTokenType.Follower,
+            ClientTokenType = ClientTokenType.DataProvider,
             SharedSecret =  Guid.Empty.ToByteArray().ToSensitiveByteArray()
         };
     }

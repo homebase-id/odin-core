@@ -1,5 +1,3 @@
-using System;
-using System.Configuration;
 using System.Linq;
 using System.Net;
 using System.Reflection;
@@ -7,9 +5,8 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.DataSubscription.Follower;
-using Youverse.Hosting.Tests.OwnerApi.Drive;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Follower;
+namespace Youverse.Hosting.Tests.OwnerApi.DataSubscription;
 
 public class FollowerTests
 {

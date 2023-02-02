@@ -1,17 +1,19 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using Youverse.Core.Services.Authorization.Acl;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Drive.Storage;
 
 namespace Youverse.Core.Services.Transit.Quarantine.Filter
 {
-    public class MustBeConnectedContactFilter : ITransitStreamFilter
+    public class MustBeConnectedOrDataProviderFilter : ITransitStreamFilter
     {
         private readonly DotYouContextAccessor _contextAccessor;
 
-        public MustBeConnectedContactFilter(DotYouContextAccessor contextAccessor)
+        public MustBeConnectedOrDataProviderFilter(DotYouContextAccessor contextAccessor)
         {
             _contextAccessor = contextAccessor;
         }
@@ -20,19 +22,20 @@ namespace Youverse.Core.Services.Transit.Quarantine.Filter
 
         public Task<FilterResult> Apply(IFilterContext context, MultipartHostTransferParts part, Stream data)
         {
-            if (!_contextAccessor.GetCurrent().Caller.IsConnected)
+            var dotYouContext = _contextAccessor.GetCurrent();
+            if (dotYouContext.Caller.IsConnected || dotYouContext.Caller.ClientTokenType == ClientTokenType.DataProvider)
             {
                 return Task.FromResult(new FilterResult()
                 {
                     FilterId = this.Id,
-                    Recommendation = FilterAction.Reject
+                    Recommendation = FilterAction.Accept
                 });
             }
 
             return Task.FromResult(new FilterResult()
             {
                 FilterId = this.Id,
-                Recommendation = FilterAction.Accept
+                Recommendation = FilterAction.Reject
             });
         }
     }
