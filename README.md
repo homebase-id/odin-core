@@ -11,6 +11,7 @@ Notes:
 * For UI work, you should pull the repos for the react-client-apps and run ```npm install && npm start``` in each.  The web Youverse.Hosting project uses a proxy server to serve these in the dev env.
   * https://github.com/YouFoundation/owner-app
   * https://github.com/YouFoundation/public-app
+  * https://github.com/YouFoundation/provisioning-app
 * !!! Serialization
   * Use the DotYouSystemSerializer for all serialization.  
     * This contains the global serializer settings needed across the solution
