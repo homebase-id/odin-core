@@ -345,59 +345,43 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
         private string EncryptReplyExchangeCredentials(ClientAccessToken clientAccessToken, SensitiveByteArray encryptionKey)
         {
-            var combinedBytes = ByteArrayUtil.Combine(clientAccessToken.Id.ToByteArray(), clientAccessToken.AccessTokenHalfKey.GetKey(), clientAccessToken.SharedSecret.GetKey());
+            var portableBytes = clientAccessToken.ToPortableBytes();
 
             //TODO: encrypt using encryptionKey
 
-            var data = Convert.ToBase64String(combinedBytes);
-
-            combinedBytes.ToSensitiveByteArray().Wipe();
+            var data = Convert.ToBase64String(portableBytes);
+            portableBytes.ToSensitiveByteArray().Wipe();
 
             return data;
         }
 
         private ClientAccessToken DecryptReplyExchangeCredentials(string replyData, SymmetricKeyEncryptedAes encryptionKey)
         {
-            var combinedBytes = Convert.FromBase64String(replyData);
+            var portableBytes = Convert.FromBase64String(replyData);
 
             //TODO: AES decrypt
-            var (remoteAccessRegistrationId, remoteGrantKey, sharedSecret) = ByteArrayUtil.Split(combinedBytes, 16, 16, 16);
 
-            return new ClientAccessToken()
-            {
-                Id = new Guid(remoteAccessRegistrationId),
-                AccessTokenHalfKey = remoteGrantKey.ToSensitiveByteArray(),
-                SharedSecret = sharedSecret.ToSensitiveByteArray(),
-                ClientTokenType = ClientTokenType.Other
-            };
+            return ClientAccessToken.FromPortableBytes(portableBytes);
         }
 
         private string EncryptRequestExchangeCredentials(DotYouIdentity recipient, ClientAccessToken clientAccessToken)
         {
-            var combinedBytes = ByteArrayUtil.Combine(clientAccessToken.Id.ToByteArray(), clientAccessToken.AccessTokenHalfKey.GetKey(), clientAccessToken.SharedSecret.GetKey());
-
+            var combinedBytes = clientAccessToken.ToPortableBytes();
             //TODO: Now RSA Encrypt
 
-            var data = Convert.ToBase64String(combinedBytes);
+            var data = Convert.ToBase64String(clientAccessToken.ToPortableBytes());
             combinedBytes.ToSensitiveByteArray().Wipe();
-
             return data;
         }
 
         private ClientAccessToken DecryptRequestExchangeCredentials(string rsaEncryptedCredentials)
         {
             //TODO look up private key from ??
-            var combinedBytes = Convert.FromBase64String(rsaEncryptedCredentials);
+            var portableBytes = Convert.FromBase64String(rsaEncryptedCredentials);
 
-            //TODO: rsa decrypt
-            var (remoteAccessRegistrationIdBytes, remoteGrantKey, sharedSecret) = ByteArrayUtil.Split(combinedBytes, 16, 16, 16);
-            return new ClientAccessToken()
-            {
-                Id = new Guid(remoteAccessRegistrationIdBytes),
-                AccessTokenHalfKey = remoteGrantKey.ToSensitiveByteArray(),
-                SharedSecret = sharedSecret.ToSensitiveByteArray(),
-                ClientTokenType = ClientTokenType.Other
-            };
+            //TODO: rsa decrypt portableBytes
+
+            return ClientAccessToken.FromPortableBytes(portableBytes);
         }
     }
 }

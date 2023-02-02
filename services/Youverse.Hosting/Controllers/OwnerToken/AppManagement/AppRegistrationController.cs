@@ -167,7 +167,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
             // var b64 = HttpUtility.UrlDecode(request.ClientPublicKey64);
             // var clientPublicKey = Convert.FromBase64String(b64);
             var clientPublicKey = Convert.FromBase64String(request.ClientPublicKey64);
-            var reg = await _appRegistrationService.RegisterClient(request.AppId, clientPublicKey, request.ClientFriendlyName);
+            var reg = await _appRegistrationService.RegisterClientSecure(request.AppId, clientPublicKey, request.ClientFriendlyName);
             return reg;
         }
     }

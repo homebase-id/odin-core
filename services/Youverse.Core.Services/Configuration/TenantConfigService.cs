@@ -4,6 +4,7 @@ using System.Configuration;
 using System.Threading.Tasks;
 using Dawn;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
@@ -27,16 +28,18 @@ public class TenantConfigService
     private readonly TenantContext _tenantContext;
     private readonly SingleKeyValueStorage _configStorage;
     private readonly IIdentityRegistry _registry;
+    private readonly IAppRegistrationService _appRegistrationService;
 
     public TenantConfigService(ICircleNetworkService cns, DotYouContextAccessor contextAccessor,
         IDriveService driveService, ITenantSystemStorage storage, TenantContext tenantContext,
-        IIdentityRegistry registry)
+        IIdentityRegistry registry, IAppRegistrationService appRegistrationService)
     {
         _cns = cns;
         _contextAccessor = contextAccessor;
         _driveService = driveService;
         _tenantContext = tenantContext;
         _registry = registry;
+        _appRegistrationService = appRegistrationService;
         _configStorage = storage.SingleKeyValueStorage;
         _tenantContext.UpdateSystemConfig(this.GetTenantSettings());
     }
@@ -68,7 +71,7 @@ public class TenantConfigService
         await CreateDriveIfNotExists(SystemDriveConstants.CreateContactDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateProfileDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateWalletDriveRequest);
-
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateFeedDriveRequest);
 
         foreach (var rd in request.Drives ?? new List<CreateDriveRequest>())
         {
@@ -80,6 +83,8 @@ public class TenantConfigService
         {
             await CreateCircleIfNotExists(rc);
         }
+
+        await this.CreateSystemApps();
 
         _configStorage.Upsert(TenantSettings.ConfigKey, TenantSettings.Default);
 
@@ -138,7 +143,7 @@ public class TenantConfigService
         //TODO: eww, use mediator instead
         _tenantContext.UpdateSystemConfig(cfg);
     }
-    
+
     private void UpdateSystemCirclePermission(int key, bool shouldGrantKey)
     {
         var systemCircle = _cns.GetCircleDefinition(CircleConstants.SystemCircleId);
@@ -180,6 +185,32 @@ public class TenantConfigService
         Guard.Argument(newSettings, nameof(newSettings)).NotNull();
         Guard.Argument(newSettings.Settings, nameof(newSettings.Settings)).NotNull();
         _configStorage.Upsert(OwnerAppSettings.ConfigKey, newSettings);
+    }
+
+    public async Task CreateSystemApps()
+    {
+        //Feed app
+        var request = new AppRegistrationRequest()
+        {
+            AppId = SystemAppConstants.FeedAppId,
+            Name = "System Feed Writer",
+            AuthorizedCircles = new List<Guid>(), //no circles
+            CircleMemberPermissionGrant = null,
+            Drives = new List<DriveGrantRequest>()
+            {
+                new DriveGrantRequest()
+                {
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = SystemDriveConstants.FeedDrive,
+                        Permission = DrivePermission.Write
+                    }
+                }
+            },
+            PermissionSet = new PermissionSet() //no permissions for this app
+        };
+
+        await _appRegistrationService.RegisterApp(request);
     }
 
     //

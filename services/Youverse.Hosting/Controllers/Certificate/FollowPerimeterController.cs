@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Serialization;
-using Youverse.Core.Services.Contacts.Follower;
+using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Hosting.Authentication.Perimeter;
 
@@ -37,7 +37,7 @@ namespace Youverse.Hosting.Controllers.Certificate
                 return BadRequest("Invalid Public Key");
             }
 
-            var request = DotYouSystemSerializer.Deserialize<FollowRequest>(payloadBytes.ToStringFromUtf8Bytes());
+            var request = DotYouSystemSerializer.Deserialize<PerimterFollowRequest>(payloadBytes.ToStringFromUtf8Bytes());
             await _followerPerimeterService.AcceptFollower(request);
 
             return Ok();

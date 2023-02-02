@@ -8,6 +8,7 @@ using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Controllers.ClientToken.Drive;
+using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Controllers.OwnerToken;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Drive
@@ -48,5 +49,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
         
         [Post(OwnerApiPathConstants.TransitV1 + "/outbox/processor/process")]
         Task<ApiResponse<bool>> ProcessOutbox(int batchSize);
+        
+        [Post(OwnerApiPathConstants.TransitV1 + "/inbox/processor/process")]
+        Task<ApiResponse<bool>> ProcessIncomingInstructions([Body] ProcessTransitInstructionRequest request);
     }
 }

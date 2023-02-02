@@ -27,7 +27,8 @@ using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Contacts.Circle.Notification;
 using Youverse.Core.Services.Contacts.Circle.Requests;
-using Youverse.Core.Services.Contacts.Follower;
+using Youverse.Core.Services.DataSubscription;
+using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Mediator;
@@ -124,6 +125,12 @@ namespace Youverse.Hosting
                 .AsSelf()
                 .SingleInstance();
 
+            cb.RegisterType<DataProviderAuthenticationService>().AsSelf().SingleInstance();
+            cb.RegisterType<DataSubscriptionDistributionService>()
+                .As<INotificationHandler<DriveFileAddedNotification>>()
+                .AsSelf()
+                .SingleInstance();
+            
             cb.RegisterType<TransferKeyEncryptionQueueService>().As<ITransferKeyEncryptionQueueService>().SingleInstance();
             cb.RegisterType<TransitBoxService>().As<ITransitBoxService>().SingleInstance();
             cb.RegisterType<TransitService>().As<ITransitService>().SingleInstance();

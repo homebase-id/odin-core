@@ -449,6 +449,8 @@ public class CircleNetworkServiceAppTests
 
         // Test
         var updatedApp = await frodoOwnerClient.Apps.GetAppRegistration(appRegistration.AppId);
+        Assert.IsNotNull(updatedApp, $"Could not retrieve the app {appId}");
+
         CollectionAssert.AreEquivalent(updatedApp.AuthorizedCircles, newAuthorizedCircles, "Updated authorized circles are incorrect");
         Assert.IsTrue(updatedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet,
             "updated app cirlce grant permission set did not match");
@@ -635,6 +637,7 @@ public class CircleNetworkServiceAppTests
 
         // Test
         var updatedApp = await frodoOwnerClient.Apps.GetAppRegistration(appRegistration.AppId);
+        Assert.IsNotNull(updatedApp, $"Could not retrieve the app {appId}");
         CollectionAssert.AreEquivalent(updatedApp.AuthorizedCircles, newAuthorizedCircles, "Updated authorized circles are incorrect");
         Assert.IsTrue(updatedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == appRegistration.CircleMemberPermissionSetGrantRequest.PermissionSet,
             "updated app cirlce grant permission set did not match");

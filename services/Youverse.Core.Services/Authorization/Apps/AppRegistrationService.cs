@@ -10,9 +10,11 @@ using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Contacts.Circle.Membership;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Storage;
 
@@ -127,10 +129,9 @@ namespace Youverse.Core.Services.Authorization.Apps
             ResetAppPermissionContextCache();
         }
 
-        public async Task<AppClientRegistrationResponse> RegisterClient(GuidId appId, byte[] clientPublicKey, string friendlyName)
+        public async Task<ClientAccessToken> RegisterClientRaw(GuidId appId, string friendlyName)
         {
             Guard.Argument(appId, nameof(appId)).Require(x => x != Guid.Empty);
-            Guard.Argument(clientPublicKey, nameof(clientPublicKey)).NotNull().Require(x => x.Length > 200);
             Guard.Argument(friendlyName, nameof(friendlyName)).NotNull().NotEmpty();
 
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
@@ -145,12 +146,16 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             var appClient = new AppClient(appId, friendlyName, accessRegistration);
             this.SaveClient(appClient);
+            return cat;
+        }
+        
+        public async Task<AppClientRegistrationResponse> RegisterClientSecure(GuidId appId, byte[] clientPublicKey, string friendlyName)
+        {
 
+            var cat = await this.RegisterClientRaw(appId, friendlyName);
+            
             //RSA encrypt using the public key and send to client
-            var tokenBytes = cat.ToAuthenticationToken().ToPortableBytes();
-            var sharedSecret = cat.SharedSecret.GetKey();
-
-            var data = ByteArrayUtil.Combine(tokenBytes, sharedSecret);
+            var data = cat.ToPortableBytes();
             var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(clientPublicKey);
             var encryptedData = publicKey.Encrypt(data);
 

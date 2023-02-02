@@ -23,6 +23,7 @@ namespace Youverse.Hosting.Controllers.Certificate
     /// </summary>
     [ApiController]
     [Route("/api/perimeter/transit/host")]
+    // [Route("/api/perimeter/subscriptions/feed")] //HACK: route to handle incoming data for the feed; lets us distinguish during LoadTransitContext
     [Authorize(Policy = CertificatePerimeterPolicies.IsInYouverseNetwork, AuthenticationSchemes = PerimeterAuthConstants.TransitCertificateAuthScheme)]
     public class TransitPerimeterController : ControllerBase
     {

@@ -11,3 +11,10 @@ public class TransitFileReceivedNotification : EventArgs, INotification
 
     public ExternalFileIdentifier TempFile { get; set; }
 }
+
+// public class FeedItemReceivedNotification : EventArgs, INotification
+// {
+//     public ClientNotificationType NotificationType { get; } = ClientNotificationType.TransitFileReceived;
+//
+//     public ExternalFileIdentifier TempFile { get; set; }
+// }

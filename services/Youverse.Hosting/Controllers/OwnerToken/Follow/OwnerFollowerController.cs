@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Refit;
 using Youverse.Core;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Contacts.Follower;
+using Youverse.Core.Services.DataSubscription.Follower;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Follow
 {
@@ -44,10 +44,24 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Follow
             return result;
         }
 
+        /// <summary>
+        /// Returns the details of an identity that follows you
+        /// </summary>
+        /// <param name="dotYouId"></param>
+        /// <returns></returns>
         [HttpGet("follower")]
         public async Task<FollowerDefinition> GetFollower(string dotYouId)
         {
             return await _followerService.GetFollower(new DotYouIdentity(dotYouId));
+        }
+        
+        /// <summary>
+        /// Returns the details of an identity you're following
+        /// </summary>
+        [HttpGet("IdentityIFollow")]
+        public async Task<FollowerDefinition> GetIdentityIFollow(string dotYouId)
+        {
+            return await _followerService.GetIdentityIFollow(new DotYouIdentity(dotYouId));
         }
 
         /// <summary>

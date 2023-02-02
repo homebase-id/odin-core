@@ -4,6 +4,7 @@ using Youverse.Core.Cryptography;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.Acl;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 
 namespace Youverse.Core.Services.Base
 {
@@ -14,12 +15,13 @@ namespace Youverse.Core.Services.Base
     {
         private readonly SensitiveByteArray _masterKey;
 
-        public CallerContext(DotYouIdentity dotYouId, SensitiveByteArray masterKey, SecurityGroupType securityLevel, List<GuidId> circleIds = null)
+        public CallerContext(DotYouIdentity dotYouId, SensitiveByteArray masterKey, SecurityGroupType securityLevel, List<GuidId> circleIds = null, ClientTokenType tokenType = ClientTokenType.Other)
         {
             this.DotYouId = dotYouId;
             this._masterKey = masterKey;
             this.SecurityLevel = securityLevel;
             this.Circles = circleIds ?? new List<GuidId>();
+            this.ClientTokenType = tokenType;
         }
 
         /// <summary>
@@ -27,6 +29,7 @@ namespace Youverse.Core.Services.Base
         /// </summary>
         public SecurityGroupType SecurityLevel { get; set; }
 
+        public ClientTokenType ClientTokenType { get; set; } = ClientTokenType.Other;
 
         public IEnumerable<GuidId> Circles { get; set; }
 
