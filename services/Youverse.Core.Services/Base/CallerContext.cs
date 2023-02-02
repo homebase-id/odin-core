@@ -21,6 +21,7 @@ namespace Youverse.Core.Services.Base
             this._masterKey = masterKey;
             this.SecurityLevel = securityLevel;
             this.Circles = circleIds ?? new List<GuidId>();
+            this.ClientTokenType = tokenType;
         }
 
         /// <summary>

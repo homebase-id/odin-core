@@ -99,8 +99,7 @@ namespace Youverse.Core.Services.Transit
             decryptedAesKeyHeaderBytes.WriteZeros();
 
             //TODO: this deserialization would be better in the drive service under the name GetTempMetadata or something
-            var metadataStream =
-                await _driveService.GetTempStream(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower());
+            var metadataStream = await _driveService.GetTempStream(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower());
             var json = await new StreamReader(metadataStream).ReadToEndAsync();
             metadataStream.Close();
 
@@ -166,8 +165,7 @@ namespace Youverse.Core.Services.Transit
         /// <summary>
         /// Stores an incoming command message and updates the queue
         /// </summary>
-        private async Task StoreCommandMessage(InternalDriveFileId tempFile, KeyHeader keyHeader, FileMetadata metadata,
-            ServerMetadata serverMetadata)
+        private async Task StoreCommandMessage(InternalDriveFileId tempFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
         {
             serverMetadata.DoNotIndex = true;
             await _driveService.CommitTempFileToNewLongTermFile(tempFile, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());

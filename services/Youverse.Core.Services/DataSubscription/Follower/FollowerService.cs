@@ -58,13 +58,15 @@ namespace Youverse.Core.Services.DataSubscription.Follower
                 Guard.Argument(request.Channels, nameof(request.Channels)).NotNull().NotEmpty().Require(list => list.All(c => c.Type == SystemDriveConstants.ChannelDriveType));
             }
 
-            var accessToken = await _appRegistrationService.RegisterClientRaw(SystemAppConstants.FeedAppId, $"Feed App Client for {request.DotYouId}");
+            //TODO: use the exchange grant service to create the access reg and CAT 
+            // var accessToken = await _appRegistrationService.RegisterClientRaw(SystemAppConstants.FeedAppId, $"Feed App Client for {request.DotYouId}");
+            
             var followRequest = new PerimterFollowRequest()
             {
                 DotYouId = _tenantContext.HostDotYouId,
                 NotificationType = request.NotificationType,
                 Channels = request.Channels,
-                PortableClientAuthToken = accessToken.ToPortableBytes()
+                // PortableClientAuthToken = accessToken.ToPortableBytes()
             };
 
             // var payloadBytes = DotYouSystemSerializer.Serialize(followRequest).ToUtf8ByteArray();

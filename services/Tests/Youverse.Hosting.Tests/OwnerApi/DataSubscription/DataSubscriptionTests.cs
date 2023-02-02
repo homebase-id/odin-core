@@ -64,11 +64,15 @@ public class DataSubscriptionTests
         {
             TargetDrive = SystemDriveConstants.FeedDrive,
         };
+        
+        await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
+        
         var batch = await samOwnerClient.Drive.QueryBatch(qp);
         Assert.IsTrue(batch.SearchResults.Count() == 1);
         var theFile = batch.SearchResults.First();
         Assert.IsTrue(theFile.FileState == FileState.Active);
         Assert.IsTrue(theFile.FileMetadata.AppData.JsonContent == uploadedContent);
+        Assert.IsTrue(theFile.FileMetadata.GlobalTransitId == uploadResult.GlobalTransitId);
         
         //All done
         await samOwnerClient.Follower.UnfollowIdentity(frodoOwnerClient.Identity);
