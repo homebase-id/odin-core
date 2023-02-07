@@ -144,22 +144,25 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
+
         /// <summary>
         /// Return pages of identities, following driveId, up to count size.
         /// Optionally supply a cursor to indicate the last identity processed (sorted ascending)
         /// </summary>
         /// <param name="count">Maximum number of identities per page</param>
         /// <param name="driveId">The drive they're following that you want to get a list for</param>
-        /// <param name="cursor">If supplied then pick the next page after the supplied identity.</param>
+        /// <param name="inCursor">If supplied then pick the next page after the supplied identity.</param>
         /// <returns>A sorted list of identities. If list size is smaller than count then you're finished</returns>
         /// <exception cref="Exception"></exception>
-        public List<string> GetFollowers(int count, Guid driveId, string cursor)
+        public List<string> GetFollowers(int count, Guid driveId, string inCursor, out string nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
 
-            if (cursor == null)
-                cursor = "";
+            if (inCursor == null)
+                inCursor = "";
+
+            nextCursor = null;
 
             lock (_select2Lock)
             {
@@ -168,7 +171,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 {
                     _select2Command = _database.CreateCommand();
                     _select2Command.CommandText =
-                        $"SELECT DISTINCT identity FROM followers WHERE (driveid=$driveid OR driveid=x'{Convert.ToHexString(Guid.Empty.ToByteArray())}') AND identity > $cursor ORDER BY identity ASC LIMIT {count}";
+                        $"SELECT DISTINCT identity FROM followers WHERE (driveid=$driveid OR driveid=x'{Convert.ToHexString(Guid.Empty.ToByteArray())}') AND identity > $cursor ORDER BY identity ASC LIMIT {count+1}";
+                    // Added +1 to detect EOD
                     _s2param1 = _select2Command.CreateParameter();
                     _s2param1.ParameterName = "$driveid";
                     _select2Command.Parameters.Add(_s2param1);
@@ -181,7 +185,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 }
 
                 _s2param1.Value = driveId;
-                _s2param2.Value = cursor;
+                _s2param2.Value = inCursor;
 
                 using (SQLiteDataReader rdr = _select2Command.ExecuteReader(System.Data.CommandBehavior.Default))
                 {
@@ -189,13 +193,18 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
                     int n = 0;
 
-                    while (rdr.Read() && n < count)
+                    while ((n < count) && rdr.Read())
                     {
                         n++;
                         var s = rdr.GetString(0);
                         if (s.Length < 1)
                             throw new Exception("Empty string");
                         result.Add(s);
+                    }
+
+                    if ((n > 0) && rdr.HasRows)
+                    {
+                        nextCursor = result[n-1];
                     }
 
                     return result;

@@ -155,16 +155,18 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         /// Return all followers, paged.
         /// </summary>
         /// <param name="count">Maximum number of identities per page</param>
-        /// <param name="cursor">If supplied then pick the next page after the supplied identity.</param>
+        /// <param name="inCursor">If supplied then pick the next page after the supplied identity.</param>
         /// <returns>A sorted list of identities. If list size is smaller than count then you're finished</returns>
         /// <exception cref="Exception"></exception>
-        public List<string> GetAllFollowers(int count, string cursor)
+        public List<string> GetAllFollowers(int count, string inCursor, out string nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
 
-            if (cursor == null)
-                cursor = "";
+            if (inCursor == null)
+                inCursor = "";
+
+            nextCursor = null;
 
             lock (_select3Lock)
             {
@@ -173,7 +175,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 {
                     _select3Command = _database.CreateCommand();
                     _select3Command.CommandText =
-                        $"SELECT DISTINCT identity FROM imfollowing WHERE identity > $cursor ORDER BY identity ASC LIMIT {count}";
+                        $"SELECT DISTINCT identity FROM imfollowing WHERE identity > $cursor ORDER BY identity ASC LIMIT {count+1}";
+                    // +1 because we want to see if there are more records to set the nextCursor correctly
                     _s3param1 = _select3Command.CreateParameter();
                     _s3param1.ParameterName = "$cursor";
                     _select3Command.Parameters.Add(_s3param1);
@@ -181,7 +184,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _select3Command.Prepare();
                 }
 
-                _s3param1.Value = cursor;
+                _s3param1.Value = inCursor;
 
                 using (SQLiteDataReader rdr = _select3Command.ExecuteReader(System.Data.CommandBehavior.Default))
                 {
@@ -189,13 +192,18 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
                     int n = 0;
 
-                    while (rdr.Read() && n < count)
+                    while ((n < count) && rdr.Read())
                     {
                         n++;
                         var s = rdr.GetString(0);
                         if (s.Length < 1)
                             throw new Exception("Empty string");
                         result.Add(s);
+                    }
+
+                    if ((n > 0) && rdr.HasRows)
+                    {
+                        nextCursor = result[n - 1];
                     }
 
                     return result;
@@ -211,16 +219,18 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         /// </summary>
         /// <param name="count">Maximum number of identities per page</param>
         /// <param name="driveId">The drive they're following that you want to get a list for</param>
-        /// <param name="cursor">If supplied then pick the next page after the supplied identity.</param>
+        /// <param name="inCursor">If supplied then pick the next page after the supplied identity.</param>
         /// <returns>A sorted list of identities. If list size is smaller than count then you're finished</returns>
         /// <exception cref="Exception"></exception>
-        public List<string> GetFollowers(int count, Guid driveId, string cursor)
+        public List<string> GetFollowers(int count, Guid driveId, string inCursor, out string nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
 
-            if (cursor == null)
-                cursor = "";
+            if (inCursor == null)
+                inCursor = "";
+
+            nextCursor = null;
 
             lock (_select2Lock)
             {
@@ -229,7 +239,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 {
                     _select2Command = _database.CreateCommand();
                     _select2Command.CommandText =
-                        $"SELECT DISTINCT identity FROM imfollowing WHERE (driveid=$driveid OR driveid=x'{Convert.ToHexString(Guid.Empty.ToByteArray())}') AND identity > $cursor ORDER BY identity ASC LIMIT {count}";
+                        $"SELECT DISTINCT identity FROM imfollowing WHERE (driveid=$driveid OR driveid=x'{Convert.ToHexString(Guid.Empty.ToByteArray())}') AND identity > $cursor ORDER BY identity ASC LIMIT {count+1}";
+                    // +1 to check for EOD on nextCursor
                     _s2param1 = _select2Command.CreateParameter();
                     _s2param1.ParameterName = "$driveid";
                     _select2Command.Parameters.Add(_s2param1);
@@ -242,7 +253,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 }
 
                 _s2param1.Value = driveId;
-                _s2param2.Value = cursor;
+                _s2param2.Value = inCursor;
 
                 using (SQLiteDataReader rdr = _select2Command.ExecuteReader(System.Data.CommandBehavior.Default))
                 {
@@ -250,13 +261,18 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
                     int n = 0;
 
-                    while (rdr.Read() && n < count)
+                    while ((n < count) && rdr.Read())
                     {
                         n++;
                         var s = rdr.GetString(0);
                         if (s.Length < 1)
                             throw new Exception("Empty string");
                         result.Add(s);
+                    }
+
+                    if ((n > 0) && rdr.HasRows)
+                    {
+                        nextCursor = result[n - 1];
                     }
 
                     return result;

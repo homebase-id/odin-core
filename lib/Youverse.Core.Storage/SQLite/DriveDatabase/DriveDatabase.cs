@@ -358,6 +358,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
             // Read 1 more than requested to see if we're at the end of the dataset
             stm = $"SELECT fileid FROM mainindex " + strWhere + $"ORDER BY fileid DESC LIMIT {noOfItems + 1}";
+            // +1 to detect EOD
 
             var cmd = new SQLiteCommand(stm, con);
 
@@ -377,7 +378,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     break;
             }
 
-            return (result, rdr.Read());
+            return (result, rdr.HasRows);
         }
 
 
