@@ -28,13 +28,33 @@ using Youverse.Hosting.Tests.OwnerApi.Drive;
 
 namespace Youverse.Hosting.Tests.Performance
 {
+    /*
+     * TaskPerformanceTest_Transit
+     *   Duration: 23.7 sec
+     *
+     *  Standard Output: 
+     *    Threads   : 12
+     *    Iterations: 300
+     *    Time      : 20,649ms
+     *    Minimum   : 18ms
+     *    Maximum   : 396ms
+     *    Average   : 66ms
+     *    Median    : 60ms
+     *    Capacity  : 174 / second
+     *    Bandwidth : 132,000 bytes / second
+     *    RSA Encryptions 3616, Decryptions 24
+     *    RSA Keys Created 12, Keys Expired 0
+     *    DB Opened 22, Closed 0
+     *
+     */
+
     public class TransitPerformanceTests
     {
         private const int FileType = 844;
 
         // For the performance test
         private static readonly int MAXTHREADS = 12; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
-        private const int MAXITERATIONS = 30; // A number high enough to get warmed up and reliable
+        private const int MAXITERATIONS = 300; // A number high enough to get warmed up and reliable
 
         private WebScaffold _scaffold;
 
