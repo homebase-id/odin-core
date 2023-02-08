@@ -182,7 +182,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             return GetIdentityIFollowInternal(dotYouId);
         }
 
-        public async Task<CursoredResult<string>> GetFollowers(string cursor)
+        public async Task<(CursoredResult<string>, string)> GetFollowers(string cursor)
         {
             if (!string.IsNullOrEmpty(cursor))
             {
@@ -192,12 +192,12 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadMyFollowers);
 
             var count = 10000;
-            var dbResults = _tenantStorage.Followers.GetFollowers(count, Guid.Empty, cursor);
-            return new CursoredResult<string>()
+            var dbResults = _tenantStorage.Followers.GetFollowers(count, Guid.Empty, cursor, out var nextCursor);
+            return (new CursoredResult<string>()
             {
                 Cursor = dbResults.LastOrDefault(),
                 Results = dbResults
-            };
+            }, nextCursor);
 
 
             //TODO: need to update after talking with Michael about the followers table
@@ -223,7 +223,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
         /// <summary>
         /// Gets followers who want notifications for all channels
         /// </summary>
-        public async Task<CursoredResult<string>> GetFollowersOfAllNotifications(string cursor)
+        public async Task<(CursoredResult<string>, string)> GetFollowersOfAllNotifications(string cursor)
         {
             if (!string.IsNullOrEmpty(cursor))
             {
@@ -233,18 +233,18 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadMyFollowers);
 
             var count = 10000;
-            var dbResults = _tenantStorage.Followers.GetFollowers(count, Guid.Empty, cursor);
-            return new CursoredResult<string>()
+            var dbResults = _tenantStorage.Followers.GetFollowers(count, Guid.Empty, cursor, out var nextCursor);
+            return (new CursoredResult<string>()
             {
                 Cursor = dbResults.LastOrDefault(),
                 Results = dbResults
-            };
+            }, nextCursor);
         }
 
         /// <summary>
         /// Gets a list of identities that follow me
         /// </summary>
-        public async Task<CursoredResult<string>> GetFollowers(Guid driveId, string cursor)
+        public async Task<(CursoredResult<string>, string)> GetFollowers(Guid driveId, string cursor)
         {
             _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadMyFollowers);
 
@@ -255,20 +255,20 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             }
 
             var count = 10000;
-            var dbResults = _tenantStorage.Followers.GetFollowers(count, driveId, cursor);
+            var dbResults = _tenantStorage.Followers.GetFollowers(count, driveId, cursor, out var nextCursor);
             var result = new CursoredResult<string>()
             {
                 Cursor = dbResults.LastOrDefault(),
                 Results = dbResults
             };
 
-            return result;
+            return (result, nextCursor);
         }
 
         /// <summary>
         /// Gets a list of identities I follow
         /// </summary>
-        public async Task<CursoredResult<string>> GetIdentitiesIFollow(string cursor)
+        public async Task<(CursoredResult<string>, string)> GetIdentitiesIFollow(string cursor)
         {
             var count = 10000;
 
@@ -279,12 +279,12 @@ namespace Youverse.Core.Services.DataSubscription.Follower
 
             _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadWhoIFollow);
 
-            var dbResults = _tenantStorage.WhoIFollow.GetFollowers(count, Guid.Empty, cursor);
-            return new CursoredResult<string>()
+            var dbResults = _tenantStorage.WhoIFollow.GetFollowers(count, Guid.Empty, cursor, out var nextCursor);
+            return (new CursoredResult<string>()
             {
                 Cursor = dbResults.LastOrDefault(),
                 Results = dbResults
-            };
+            }, nextCursor);
 
 
             // var buffer = new List<string>();
@@ -310,7 +310,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             // };
         }
 
-        public async Task<CursoredResult<string>> GetIdentitiesIFollow(Guid driveId, string cursor)
+        public async Task<(CursoredResult<string>, string)> GetIdentitiesIFollow(Guid driveId, string cursor)
         {
             _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadWhoIFollow);
 
@@ -321,14 +321,14 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             }
 
             var count = 10000;
-            var dbResults = _tenantStorage.WhoIFollow.GetFollowers(count, driveId, cursor);
+            var dbResults = _tenantStorage.WhoIFollow.GetFollowers(count, driveId, cursor, out var nextCursor);
             var result = new CursoredResult<string>()
             {
                 Cursor = dbResults.LastOrDefault(),
                 Results = dbResults
             };
 
-            return result;
+            return (result, nextCursor);
         }
 
         public async Task<PermissionContext> CreatePermissionContext(DotYouIdentity dotYouId, ClientAuthenticationToken token)

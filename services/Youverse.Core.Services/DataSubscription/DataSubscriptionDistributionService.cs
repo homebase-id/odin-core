@@ -47,8 +47,10 @@ namespace Youverse.Core.Services.DataSubscription
             //TODO: first store on this identities feed drive.
             //then send from their feed drive
             
-            var driveFollowers = await _followerService.GetFollowers(notification.File.DriveId, cursor: "");
-            var allDriveFollowers = await _followerService.GetFollowersOfAllNotifications(cursor: "");
+            var (driveFollowers, nextCursor1) = await _followerService.GetFollowers(notification.File.DriveId, cursor: "");
+            var (allDriveFollowers, nextCursor2) = await _followerService.GetFollowersOfAllNotifications(cursor: "");
+
+            // TODO: You need to do something with the two cursors here, don't you?
 
             var recipients = new List<string>();
             recipients!.AddRange(driveFollowers.Results);
