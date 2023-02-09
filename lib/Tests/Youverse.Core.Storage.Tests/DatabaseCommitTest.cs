@@ -4,7 +4,7 @@ using System.Threading;
 using NUnit.Framework;
 using Youverse.Core.Storage.SQLite.IdentityDatabase;
 
-namespace IndexerTests.KeyValue
+namespace DriveDatabaseTests.KeyValue
 {
     public class DatabaseCommitTest
     {

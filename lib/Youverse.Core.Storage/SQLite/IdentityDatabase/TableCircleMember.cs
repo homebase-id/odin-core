@@ -13,7 +13,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
     public class TableCircleMember : TableBase
     {
         const int ID_EQUAL = 16; // Precisely 16 bytes for the ID key
-        public const int MAX_MEMBER_LENGTH = 257;  // Maximum 512 bytes for the member value (domain 256)
+        public const int MAX_MEMBER_LENGTH = 257;  // Maximum 257 bytes for the member value (domain 256)
 
         private SQLiteCommand _insertCommand = null;
         private SQLiteParameter _iparam1 = null;

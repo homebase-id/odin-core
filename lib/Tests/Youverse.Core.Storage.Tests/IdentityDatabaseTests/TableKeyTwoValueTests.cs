@@ -4,7 +4,7 @@ using NUnit.Framework;
 using Youverse.Core;
 using Youverse.Core.Storage.SQLite.IdentityDatabase;
 
-namespace IndexerTests.KeyValue
+namespace IdentityDatabaseTests
 {
 
     public class TableKeyTwoValueTests

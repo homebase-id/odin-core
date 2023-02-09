@@ -7,7 +7,7 @@ using NUnit.Framework;
 using Youverse.Core;
 using Youverse.Core.Storage.SQLite.ServerDatabase;
 
-namespace IndexerTests.KeyValue
+namespace ServerDatabaseTests
 {
     public class TableCronTests
     {

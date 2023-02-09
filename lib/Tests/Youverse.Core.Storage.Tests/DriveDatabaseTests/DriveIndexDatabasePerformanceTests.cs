@@ -7,7 +7,7 @@ using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Util;
 using Youverse.Core.Storage.SQLite.DriveDatabase;
 
-namespace IndexerTests.KeyValue
+namespace DriveDatabaseTests
 {
     public class DriveIndexDatabasePerformanceTests
     {

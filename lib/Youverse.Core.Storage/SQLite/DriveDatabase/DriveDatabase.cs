@@ -57,6 +57,8 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
         public readonly TableMainIndex TblMainIndex = null;
         public readonly TableAclIndex TblAclIndex = null;
         public readonly TableTagIndex TblTagIndex = null;
+
+        public readonly TableReactions TblReactions = null;
         public readonly TableCommandMessageQueue TblCmdMsgQueue = null;
 
 
@@ -69,6 +71,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             TblAclIndex = new TableAclIndex(this);
             TblTagIndex = new TableTagIndex(this);
             TblCmdMsgQueue = new TableCommandMessageQueue(this);
+            TblReactions = new TableReactions(this);
         }
 
         ~DriveDatabase()
@@ -84,6 +87,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             TblAclIndex?.Dispose();
             TblTagIndex?.Dispose();
             TblCmdMsgQueue?.Dispose();
+            TblReactions?.Dispose();
 
             base.Dispose();
         }
@@ -100,6 +104,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             TblAclIndex.EnsureTableExists(dropExistingTables);
             TblTagIndex.EnsureTableExists(dropExistingTables);
             TblCmdMsgQueue.EnsureTableExists(dropExistingTables);
+            TblReactions.EnsureTableExists(dropExistingTables);
             Vacuum();
         }
 
