@@ -4,14 +4,19 @@ using System.Data.SQLite;
 
 namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 {
-    public class CircleItem
+    public class ConnectionItem
     {
-        public string circleName;
-        public Guid circleId;
+        public string identity;
+        public Guid identityId;
+        public string displayName;
+        public UnixTimeUtc created;
+        public UnixTimeUtc lastModified;
+        public Int32 status;
+        public bool accessIsRevoked;
         public byte[] data;
     }
 
-    public class TableCircle : TableBase
+    public class TableConnections : TableBase
     {
         public const int MAX_DATA_LENGTH = 65000;  // Some max value for the data
 
@@ -31,11 +36,11 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteCommand _select2Command = null;
         private static Object _select2Lock = new Object();
 
-        public TableCircle(IdentityDatabase db) : base(db)
+        public TableConnections(IdentityDatabase db) : base(db)
         {
         }
 
-        ~TableCircle()
+        ~TableConnections()
         {
         }
 
@@ -43,10 +48,10 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         {
             _insertCommand?.Dispose();
             _insertCommand = null;
-            
+
             _deleteCommand?.Dispose();
             _deleteCommand = null;
-            
+
             _selectCommand?.Dispose();
             _selectCommand = null;
 
@@ -70,16 +75,21 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             {
                 if (dropExisting)
                 {
-                    cmd.CommandText = "DROP TABLE IF EXISTS circle;";
+                    cmd.CommandText = "DROP TABLE IF EXISTS connections;";
                     cmd.ExecuteNonQuery();
                 }
-
                 cmd.CommandText =
-                    @"CREATE TABLE IF NOT EXISTS circle(
-                     circleid BLOB UNIQUE NOT NULL, 
-                     data BLOB,
-                     UNIQUE(circleid)); "
-                    + "CREATE INDEX if not exists circleididx ON circle(circleid);";
+                    @"CREATE TABLE IF NOT EXISTS connections(
+                     identity BLOB UNIQUE NOT NULL,
+                     identityid BLOB UNIQUE NOT NULL, 
+                     displayname BLOB NOT NULL,
+                     created INT NOT NULL,
+                     lastmodified INT NOT NULL,
+                     status INT NOT NULL,
+                     accessisrevoked INT NOT NULL,
+                     data BLOB
+                     ); "
+                    + "CREATE INDEX if not exists connectionsidentityidx ON connections(identityid);";
 
                 cmd.ExecuteNonQuery();
             }
@@ -88,7 +98,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         /// <summary>
         /// Only used for testing? Returns data
         /// </summary>
-        public CircleItem Get(Guid circleId)
+        public ConnectionItem Get(Guid circleId)
         {
             lock (_selectLock)
             {
@@ -114,9 +124,9 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     if (rdr.IsDBNull(0))
                         return null;
 
-                    var item = new CircleItem();
+                    var item = new ConnectionItem();
 
-                    item.circleId = circleId; // Should I duplicate it? :-/ Hm...
+                    item.identityId = circleId; // Should I duplicate it? :-/ Hm...
 
                     byte[] _tmpbuf = new byte[MAX_DATA_LENGTH+1];
                     long n = rdr.GetBytes(0, 0, _tmpbuf, 0, MAX_DATA_LENGTH+1);
@@ -132,7 +142,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-        public List<CircleItem> GetAllCircles()
+        public List<ConnectionItem> GetAllCircles()
         {
             lock (_select2Lock)
             {
@@ -144,7 +154,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _select2Command.Prepare();
                 }
 
-                var result = new List<CircleItem>();
+                var result = new List<ConnectionItem>();
 
                 using (SQLiteDataReader rdr = _select2Command.ExecuteReader(System.Data.CommandBehavior.Default))
                 {
@@ -152,13 +162,13 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
                     while (rdr.Read())
                     {
-                        var item = new CircleItem();
+                        var item = new ConnectionItem();
 
                         // Get circleId
                         long n = rdr.GetBytes(0, 0, _tmpbuf, 0, 16);
                         if (n != 16)
                             throw new Exception("circleId invalid data size");
-                        item.circleId = new Guid(_tmpbuf);
+                        item.identityId = new Guid(_tmpbuf);
 
                         // Get data
                         n = rdr.GetBytes(1, 0, _tmpbuf, 0, MAX_DATA_LENGTH+1);

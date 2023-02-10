@@ -94,7 +94,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         /// <param name="circleId"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public List<Guid> GetCircleMembers(Guid circleId)
+        public List<CircleMemberItem> GetCircleMembers(Guid circleId)
         {
             lock (_selectLock)
             {
@@ -102,7 +102,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 {
                     _selectCommand = _database.CreateCommand();
                     _selectCommand.CommandText =
-                        $"SELECT memberid FROM circlemember WHERE circleid=$circleid";
+                        $"SELECT memberid, data FROM circlemember WHERE circleid=$circleid";
 
                     _sparam1 = _selectCommand.CreateParameter();
                     _sparam1.ParameterName = "$circleid";
@@ -115,15 +115,33 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
                 using (SQLiteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.Default))
                 {
-                    var result = new List<Guid>();
+                    var result = new List<CircleMemberItem>();
+
+                    byte[] _tmpbuf = new byte[MAX_DATA_LENGTH];
+                    byte[] g = new byte[16];
 
                     while (rdr.Read())
                     {
-                        byte[] _tmpbuf = new byte[16];
-                        long n = rdr.GetBytes(0, 0, _tmpbuf, 0, 16);
-                        if (n > 16)
-                            throw new Exception("Too much data...");
-                        result.Add(new Guid(_tmpbuf));
+                        var item = new CircleMemberItem();
+
+                        item.circleId = circleId;
+                        long n = rdr.GetBytes(0, 0, g, 0, 16);
+                        if (n != 16)
+                            throw new Exception("Not a GUID");
+                        item.memberId = new Guid(g);
+
+                        n = rdr.GetBytes(1, 0, _tmpbuf, 0, MAX_DATA_LENGTH);
+                        if (n > 0)
+                        {
+                            item.data = new byte[n];
+                            Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int)n);
+                        }
+                        else
+                        {
+                            item.data = null;
+                        }
+
+                        result.Add(item);
                     }
 
                     return result;

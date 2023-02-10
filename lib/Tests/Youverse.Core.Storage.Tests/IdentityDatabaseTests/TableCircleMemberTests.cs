@@ -25,7 +25,7 @@ namespace IdentityDatabaseTests
             var r = db.tblCircleMember.GetCircleMembers(c1);
 
             Debug.Assert(r.Count == 1);
-            Debug.Assert(ByteArrayUtil.muidcmp(r[0], m1) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(r[0].memberId, m1) == 0);
         }
 
 
@@ -178,7 +178,9 @@ namespace IdentityDatabaseTests
 
             var r = db.tblCircleMember.GetCircleMembers(c1);
             Debug.Assert(r.Count == 1);
-            Debug.Assert(ByteArrayUtil.muidcmp(r[0], m3) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(r[0].memberId, m3) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(r[0].circleId, c1) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(r[0].data, d1) == 0);
 
             db.tblCircleMember.RemoveCircleMembers(c2, new List<Guid>() { m3, m4 });
             r = db.tblCircleMember.GetCircleMembers(c2);
@@ -240,7 +242,7 @@ namespace IdentityDatabaseTests
 
             var r = db.tblCircleMember.GetCircleMembers(c1);
             Debug.Assert(r.Count == 1);
-            Debug.Assert(ByteArrayUtil.muidcmp(r[0], m3) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(r[0].memberId, m3) == 0);
 
             r = db.tblCircleMember.GetCircleMembers(c2);
             Debug.Assert(r.Count == 3);
