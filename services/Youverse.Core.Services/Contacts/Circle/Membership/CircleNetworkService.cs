@@ -9,6 +9,7 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
@@ -292,7 +293,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             //Note: this list is a cache of members for a circle.  the source of truth is the IdentityConnectionRegistration.AccessExchangeGrant.CircleGrants property for each DotYouIdentity
             var memberBytesList = _circleMemberStorage.GetCircleMembers(circleId);
-            return memberBytesList.Select(idBytes => DotYouIdentity.FromByteArray(idBytes));
+            return memberBytesList.Select(item => DotYouIdentity.FromByteArray(DeserializeCircleMemberItemStorage(item).DotYouName));
         }
 
         public async Task AssertConnectionIsNoneOrValid(DotYouIdentity dotYouId)
@@ -345,19 +346,13 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             foreach (var kvp in newConnection.AccessGrant.CircleGrants)
             {
                 var circleId = kvp.Value.CircleId;
-                var dotYouIdBytes = dotYouId.ToByteArray();
                 var circleMembers = _circleMemberStorage.GetCircleMembers(circleId);
-                var isMember = circleMembers.Any(id => id == dotYouId.ToGuidIdentifier());
+                var isMember = circleMembers.Any(item => item.memberId == dotYouId.ToGuidIdentifier());
                 if (!isMember)
                 {
                     _circleMemberStorage.AddCircleMembers(new List<CircleMemberItem>()
                     {
-                        new ()
-                        {
-                            circleId = circleId,
-                            memberId = dotYouId.ToGuidIdentifier(),
-                            data = null
-                        }
+                        CreateCircleMemberItemStorage(circleId, dotYouId)
                     });
                 }
             }
@@ -416,13 +411,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             _circleMemberStorage.AddCircleMembers(new List<CircleMemberItem>()
             {
-                new CircleMemberItem()
-                {
-                    circleId = circleId,
-                    memberId = dotYouId.ToGuidIdentifier(),
-                    data = null
-                }
+                CreateCircleMemberItemStorage(circleId, dotYouId)
             });
+
             this.SaveIcr(icr);
         }
 
@@ -917,6 +908,29 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
 
             //
+        }
+
+        private CircleMemberItem CreateCircleMemberItemStorage(GuidId circleId, DotYouIdentity dotYouId)
+        {
+            return new()
+            {
+                circleId = circleId,
+                memberId = dotYouId.ToGuidIdentifier(),
+                data = DotYouSystemSerializer.Serialize(new CircleMemberStorageData
+                {
+                    DotYouName = dotYouId.ToByteArray()
+                }).ToUtf8ByteArray()
+            };
+        }
+        
+        private CircleMemberStorageData DeserializeCircleMemberItemStorage(CircleMemberItem item)
+        {
+            if (item.data?.Length > 0)
+            {
+                return DotYouSystemSerializer.Deserialize<CircleMemberStorageData>(item.data.ToStringFromUtf8Bytes());
+            }
+
+            throw new YouverseSystemException($"Circle member {item.circleId} data is corrupt");
         }
     }
 }
