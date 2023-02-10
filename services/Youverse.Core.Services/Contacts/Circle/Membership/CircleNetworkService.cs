@@ -291,7 +291,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);
 
             //Note: this list is a cache of members for a circle.  the source of truth is the IdentityConnectionRegistration.AccessExchangeGrant.CircleGrants property for each DotYouIdentity
-            var memberBytesList = _circleMemberStorage.GetMembers(circleId);
+            var memberBytesList = _circleMemberStorage.GetCircleMembers(circleId);
             return memberBytesList.Select(idBytes => DotYouIdentity.FromByteArray(idBytes));
         }
 
@@ -346,11 +346,19 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             {
                 var circleId = kvp.Value.CircleId;
                 var dotYouIdBytes = dotYouId.ToByteArray();
-                var circleMembers = _circleMemberStorage.GetMembers(circleId);
-                var isMember = circleMembers.Any(id => id.SequenceEqual(dotYouIdBytes));
+                var circleMembers = _circleMemberStorage.GetCircleMembers(circleId);
+                var isMember = circleMembers.Any(id => id == dotYouId.ToGuidIdentifier());
                 if (!isMember)
                 {
-                    _circleMemberStorage.AddMembers(circleId, new List<byte[]>() { dotYouIdBytes });
+                    _circleMemberStorage.AddCircleMembers(new List<CircleMemberItem>()
+                    {
+                        new ()
+                        {
+                            circleId = circleId,
+                            memberId = dotYouId.ToGuidIdentifier(),
+                            data = null
+                        }
+                    });
                 }
             }
         }
@@ -406,7 +414,15 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             keyStoreKey.Wipe();
 
-            _circleMemberStorage.AddMembers(circleId, new List<byte[]>() { dotYouId.ToByteArray() });
+            _circleMemberStorage.AddCircleMembers(new List<CircleMemberItem>()
+            {
+                new CircleMemberItem()
+                {
+                    circleId = circleId,
+                    memberId = dotYouId.ToGuidIdentifier(),
+                    data = null
+                }
+            });
             this.SaveIcr(icr);
         }
 
@@ -436,7 +452,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             }
 
 
-            _circleMemberStorage.RemoveMembers(circleId, new List<byte[]>() { dotYouId.ToByteArray() });
+            _circleMemberStorage.RemoveCircleMembers(circleId, new List<Guid>() { dotYouId.ToGuidIdentifier() });
             this.SaveIcr(icr);
         }
 
@@ -833,7 +849,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         {
             if (icr.Status == ConnectionStatus.None)
             {
-                _circleMemberStorage.DeleteMembers(new List<byte[]>() { icr.DotYouId.ToByteArray() });
+                _circleMemberStorage.DeleteMembersFromAllCircles(new List<Guid>() { icr.DotYouId.ToGuidIdentifier() });
             }
 
             //TODO: this is a critical change; need to audit this
