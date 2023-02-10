@@ -4,7 +4,7 @@ using NUnit.Framework;
 using Youverse.Core;
 using Youverse.Core.Storage.SQLite.DriveDatabase;
 
-namespace IndexerTests
+namespace DriveDatabaseTests
 {
 
     public class TableAclIndexTests

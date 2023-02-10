@@ -6,7 +6,7 @@ using Youverse.Core;
 using Youverse.Core.Storage.SQLite.DriveDatabase;
 using Youverse.Core.Util;
 
-namespace IndexerTests
+namespace DriveDatabaseTests
 {
     public class DriveIndexDatabaseTests
     {

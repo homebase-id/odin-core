@@ -28,6 +28,26 @@ using Youverse.Hosting.Tests.OwnerApi.Drive;
 
 namespace Youverse.Hosting.Tests.Performance
 {
+    /*
+     * TaskPerformanceTest_Transit
+     *   Duration: 23.7 sec
+     *
+     *  Standard Output: 
+     *    Threads   : 12
+     *    Iterations: 300
+     *    Time      : 20,649ms
+     *    Minimum   : 18ms
+     *    Maximum   : 396ms
+     *    Average   : 66ms
+     *    Median    : 60ms
+     *    Capacity  : 174 / second
+     *    Bandwidth : 132,000 bytes / second
+     *    RSA Encryptions 3616, Decryptions 24
+     *    RSA Keys Created 12, Keys Expired 0
+     *    DB Opened 22, Closed 0
+     *
+     */
+
     public class TransitPerformanceTests
     {
         private const int FileType = 844;

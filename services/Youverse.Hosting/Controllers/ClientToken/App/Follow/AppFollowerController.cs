@@ -23,7 +23,8 @@ namespace Youverse.Hosting.Controllers.ClientToken.App.Follow
         [HttpGet("IdentitiesIFollow")]
         public async Task<CursoredResult<string>> GetIdentitiesIFollow(string cursor)
         {
-            var result = await _followerService.GetIdentitiesIFollow(cursor);
+            var (result, nextCursor) = await _followerService.GetIdentitiesIFollow(cursor);
+            // TODO You need to do something with the cursor here.
             return result;
         }
     }

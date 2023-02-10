@@ -4,7 +4,7 @@ using NUnit.Framework;
 using Youverse.Core;
 using Youverse.Core.Storage.SQLite.IdentityDatabase;
 
-namespace IndexerTests.KeyValue
+namespace IdentityDatabaseTests
 {
     public class TableImFollowingTests
     {
@@ -45,21 +45,26 @@ namespace IndexerTests.KeyValue
             // Now Frodo makes a new post to d1, which means we shouold get
             // everyone except Heimdal. Let's do a page size of 3
             //
-            var r = db.tblImFollowing.GetFollowers(3, d1, null);
+            var r = db.tblImFollowing.GetFollowers(3, d1, null, out var nextCursor);
             Debug.Assert(r.Count == 3);
+            Debug.Assert(nextCursor == r[2]);
 
             // Get the second page. Always use the last result as the cursor
-            r = db.tblImFollowing.GetFollowers(3, d1, r[2]);
+            r = db.tblImFollowing.GetFollowers(3, d1, nextCursor, out nextCursor);
             Debug.Assert(r.Count == 1);  // We know this is the last page because 1 < 3
                                          // but if we call again anyway, we get 0 back.
+            Debug.Assert(nextCursor == null);
 
 
             // Now Frodo does a post to d2 which means Freja, Heimdal, Loke gets it
             //
-            r = db.tblImFollowing.GetFollowers(3, d2, null);
+            r = db.tblImFollowing.GetFollowers(3, d2, null, out nextCursor);
             Debug.Assert(r.Count == 3);
-            r = db.tblImFollowing.GetFollowers(3, d2, r[2]);
+            Debug.Assert(nextCursor == r[2]);
+
+            r = db.tblImFollowing.GetFollowers(3, d2, nextCursor, out nextCursor);
             Debug.Assert(r.Count == 0);
+            Debug.Assert(nextCursor == null);
         }
 
 
@@ -276,7 +281,7 @@ namespace IndexerTests.KeyValue
             bool ok = false;
             try
             {
-                db.tblImFollowing.GetFollowers(0, d1, null);
+                db.tblImFollowing.GetFollowers(0, d1, null, out var nextCursor);
             }
             catch
             {
@@ -303,16 +308,19 @@ namespace IndexerTests.KeyValue
             db.tblImFollowing.InsertFollower(i2, d1);
             db.tblImFollowing.InsertFollower(i2, d2);
 
-            var r = db.tblImFollowing.GetFollowers(100, d3, null);
+            var r = db.tblImFollowing.GetFollowers(100, d3, null, out var nextCursor);
             Debug.Assert(r.Count == 1);
             Debug.Assert(r[0] == i2);
+            Debug.Assert(nextCursor == null);
 
-            r = db.tblImFollowing.GetFollowers(100, d1, "");
+            r = db.tblImFollowing.GetFollowers(100, d1, "", out nextCursor);
             Debug.Assert(r.Count == 2);
+            Debug.Assert(nextCursor == null);
 
-            r = db.tblImFollowing.GetFollowers(100, d2, "");
+            r = db.tblImFollowing.GetFollowers(100, d2, "", out nextCursor);
             Debug.Assert(r.Count == 1);
             Debug.Assert(r[0] == i2);
+            Debug.Assert(nextCursor == null);
         }
 
         [Test]
@@ -336,23 +344,30 @@ namespace IndexerTests.KeyValue
             db.tblImFollowing.InsertFollower(i4, d1);
             db.tblImFollowing.InsertFollower(i5, null);
 
-            var r = db.tblImFollowing.GetFollowers(2, d1, null);
+            var r = db.tblImFollowing.GetFollowers(2, d1, null, out var nextCursor);
             Debug.Assert(r.Count == 2);
             Debug.Assert(r[0] == i3);
             Debug.Assert(r[1] == i4);
+            Debug.Assert(nextCursor == r[1]);
 
-            r = db.tblImFollowing.GetFollowers(2, d1, r[1]);
+            r = db.tblImFollowing.GetFollowers(2, d1, nextCursor, out nextCursor);
             Debug.Assert(r.Count == 2);
             Debug.Assert(r[0] == i5);
             Debug.Assert(r[1] == i1);
+            Debug.Assert(nextCursor == r[1]);
 
-            r = db.tblImFollowing.GetFollowers(2, d1, r[1]);
+            r = db.tblImFollowing.GetFollowers(2, d1, nextCursor, out nextCursor);
             Debug.Assert(r.Count == 1);
             Debug.Assert(r[0] == i2);
+            Debug.Assert(nextCursor == null);
 
-            r = db.tblImFollowing.GetFollowers(2, d1, r[0]);
+            nextCursor = r[0];
+
+            r = db.tblImFollowing.GetFollowers(2, d1, r[0], out nextCursor);
             Debug.Assert(r.Count == 0);
+            Debug.Assert(nextCursor == null);
         }
+
 
         [Test]
         public void GetAllFollowersPagedTest()
@@ -375,22 +390,26 @@ namespace IndexerTests.KeyValue
             db.tblImFollowing.InsertFollower(i4, d1);
             db.tblImFollowing.InsertFollower(i5, null);
 
-            var r = db.tblImFollowing.GetAllFollowers(2, null);
+            var r = db.tblImFollowing.GetAllFollowers(2, null, out var nextCursor);
             Debug.Assert(r.Count == 2);
             Debug.Assert(r[0] == i3);
             Debug.Assert(r[1] == i4);
+            Debug.Assert(nextCursor == r[1]);
 
-            r = db.tblImFollowing.GetAllFollowers(2, r[1]);
+            r = db.tblImFollowing.GetAllFollowers(2, nextCursor, out nextCursor);
             Debug.Assert(r.Count == 2);
             Debug.Assert(r[0] == i5);
             Debug.Assert(r[1] == i1);
+            Debug.Assert(nextCursor == r[1]);
 
-            r = db.tblImFollowing.GetAllFollowers(2, r[1]);
+            r = db.tblImFollowing.GetAllFollowers(2, nextCursor, out nextCursor);
             Debug.Assert(r.Count == 1);
             Debug.Assert(r[0] == i2);
+            Debug.Assert(nextCursor == null);
 
-            r = db.tblImFollowing.GetAllFollowers(2, r[0]);
+            r = db.tblImFollowing.GetAllFollowers(2, r[0], out nextCursor);
             Debug.Assert(r.Count == 0);
+            Debug.Assert(nextCursor == null);
         }
     }
 }

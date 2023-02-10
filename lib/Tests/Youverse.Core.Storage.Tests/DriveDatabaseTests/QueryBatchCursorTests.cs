@@ -2,7 +2,7 @@
 using System;
 using Youverse.Core.Storage.SQLite.DriveDatabase;
 
-namespace Youverse.Core.Storage.SQLite.Tests
+namespace DriveDatabaseTests
 {
     public class QueryBatchCursorTests
     {

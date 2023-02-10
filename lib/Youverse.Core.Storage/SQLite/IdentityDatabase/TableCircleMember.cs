@@ -6,18 +6,19 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 {
     public class CircleMemberItem
     {
-        public byte[] circleId;
-        public byte[] member;
+        public Guid circleId;
+        public Guid memberId;
+        public byte[] data;
     }
 
     public class TableCircleMember : TableBase
     {
-        const int ID_EQUAL = 16; // Precisely 16 bytes for the ID key
-        public const int MAX_MEMBER_LENGTH = 257;  // Maximum 512 bytes for the member value (domain 256)
+        public const int MAX_DATA_LENGTH = 65000;  // Some max value for the data
 
         private SQLiteCommand _insertCommand = null;
         private SQLiteParameter _iparam1 = null;
         private SQLiteParameter _iparam2 = null;
+        private SQLiteParameter _iparam3 = null;
         private static Object _insertLock = new Object();
 
         private SQLiteCommand _removeCommand = null;
@@ -32,6 +33,10 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteCommand _selectCommand = null;
         private SQLiteParameter _sparam1 = null;
         private static Object _selectLock = new Object();
+
+        private SQLiteCommand _select2Command = null;
+        private SQLiteParameter _s2param1 = null;
+        private static Object _select2Lock = new Object();
 
         public TableCircleMember(IdentityDatabase db) : base(db)
         {
@@ -54,6 +59,9 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
             _selectCommand?.Dispose();
             _selectCommand = null;
+
+            _select2Command?.Dispose();
+            _select2Command = null;
         }
 
         public override void EnsureTableExists(bool dropExisting = false)
@@ -69,9 +77,11 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 cmd.CommandText =
                     @"CREATE TABLE IF NOT EXISTS circlemember(
                      circleid BLOB NOT NULL, 
-                     member BLOB NOT NULL,
-                     UNIQUE(circleid, member)); "
-                    + "CREATE INDEX if not exists circlenameidx ON circlemember(member, circleid);";
+                     memberid BLOB NOT NULL,
+                     data BLOB,
+                     UNIQUE(circleid, memberid)); "
+                    + "CREATE INDEX if not exists circleididx ON circlemember(circleid);"
+                    + "CREATE INDEX if not exists memberididx ON circlemember(memberid);";
 
                 cmd.ExecuteNonQuery();
             }
@@ -79,23 +89,20 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
 
         /// <summary>
-        /// Returns all members of the given circle
+        /// Returns all members of the given circle (the data, aka exchange grants not returned)
         /// </summary>
         /// <param name="circleId"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public List<byte[]> GetMembers(byte[] circleId)
+        public List<CircleMemberItem> GetCircleMembers(Guid circleId)
         {
-            if ((circleId == null) || (circleId.Length != ID_EQUAL))
-                throw new Exception("circleID must be 16 bytes.");
-
             lock (_selectLock)
             {
                 if (_selectCommand == null)
                 {
                     _selectCommand = _database.CreateCommand();
                     _selectCommand.CommandText =
-                        $"SELECT member FROM circlemember WHERE circleid=$circleid";
+                        $"SELECT memberid, data FROM circlemember WHERE circleid=$circleid";
 
                     _sparam1 = _selectCommand.CreateParameter();
                     _sparam1.ParameterName = "$circleid";
@@ -108,18 +115,33 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
                 using (SQLiteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.Default))
                 {
-                    var result = new List<byte[]>();
+                    var result = new List<CircleMemberItem>();
+
+                    byte[] _tmpbuf = new byte[MAX_DATA_LENGTH];
+                    byte[] g = new byte[16];
 
                     while (rdr.Read())
                     {
-                        byte[] _tmpbuf = new byte[MAX_MEMBER_LENGTH];
-                        long n = rdr.GetBytes(0, 0, _tmpbuf, 0, MAX_MEMBER_LENGTH);
-                        if (n >= MAX_MEMBER_LENGTH)
-                            throw new Exception("Too much data...");
+                        var item = new CircleMemberItem();
 
-                        var ba = new byte[n];
-                        Buffer.BlockCopy(_tmpbuf, 0, ba, 0, (int)n);
-                        result.Add(ba);
+                        item.circleId = circleId;
+                        long n = rdr.GetBytes(0, 0, g, 0, 16);
+                        if (n != 16)
+                            throw new Exception("Not a GUID");
+                        item.memberId = new Guid(g);
+
+                        n = rdr.GetBytes(1, 0, _tmpbuf, 0, MAX_DATA_LENGTH);
+                        if (n > 0)
+                        {
+                            item.data = new byte[n];
+                            Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int)n);
+                        }
+                        else
+                        {
+                            item.data = null;
+                        }
+
+                        result.Add(item);
                     }
 
                     return result;
@@ -128,13 +150,76 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-
-        public void AddMembers(byte[] circleId, List<byte[]> members)
+        /// <summary>
+        /// Returns all members of the given circle (the data, aka exchange grants not returned)
+        /// </summary>
+        /// <param name="circleId"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
+        public List<CircleMemberItem> GetMemberCirclesAndData(Guid memberId)
         {
-            if ((circleId == null) || (circleId.Length != ID_EQUAL))
-                throw new Exception("circleID must be 16 bytes.");
+            lock (_select2Lock)
+            {
+                if (_select2Command == null)
+                {
+                    _select2Command = _database.CreateCommand();
+                    _select2Command.CommandText =
+                        $"SELECT circleid, data FROM circlemember WHERE memberid=$memberid";
 
-            if ((members == null) || (members.Count < 1))
+                    _s2param1 = _select2Command.CreateParameter();
+                    _s2param1.ParameterName = "$memberid";
+                    _select2Command.Parameters.Add(_s2param1);
+
+                    _select2Command.Prepare();
+                }
+
+                _s2param1.Value = memberId;
+
+                using (SQLiteDataReader rdr = _select2Command.ExecuteReader(System.Data.CommandBehavior.Default))
+                {
+                    var result = new List<CircleMemberItem>();
+
+                    byte[] _tmpbuf = new byte[MAX_DATA_LENGTH];
+                    byte[] g = new byte[16];
+
+                    while (rdr.Read())
+                    {
+                        var item = new CircleMemberItem();
+                        item.memberId = memberId;
+
+                        long n = rdr.GetBytes(0, 0, g, 0, 16);
+                        if (n != 16)
+                            throw new Exception("Not a GUID");
+                        item.circleId = new Guid(g);
+
+                        n = rdr.GetBytes(1, 0, _tmpbuf, 0, MAX_DATA_LENGTH);
+                        if (n > 0)
+                        {
+                            item.data = new byte[n];
+                            Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int)n);
+                        }
+                        else
+                        {
+                            item.data = null;
+                        }
+
+                        result.Add(item);
+                    }
+
+                    return result;
+                }
+            }
+        }
+
+
+        /// <summary>
+        /// Adds each CircleMemberItem in the supplied list.
+        /// </summary>
+        /// <param name="circleMemberItemList"></param>
+        /// <exception cref="Exception"></exception>
+        public void AddCircleMembers(List<CircleMemberItem> circleMemberItemList)
+        {
+            if ((circleMemberItemList == null) || (circleMemberItemList.Count < 1))
                 throw new Exception("No members supplied (null or empty)");
 
             lock (_insertLock)
@@ -143,33 +228,35 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (_insertCommand == null)
                 {
                     _insertCommand = _database.CreateCommand();
-                    _insertCommand.CommandText = @"INSERT INTO circlemember (circleid, member) "+
-                                                  "VALUES ($circleid, $member)";
+                    _insertCommand.CommandText = @"INSERT INTO circlemember (circleid, memberid, data) "+
+                                                  "VALUES ($circleid, $memberid, $data)";
 
                     _iparam1 = _insertCommand.CreateParameter();
-                    _iparam1.ParameterName = "$circleid";
-                    _insertCommand.Parameters.Add(_iparam1);
-
                     _iparam2 = _insertCommand.CreateParameter();
-                    _iparam2.ParameterName = "$member";
+                    _iparam3 = _insertCommand.CreateParameter();
+
+                    _iparam1.ParameterName = "$circleid";
+                    _iparam2.ParameterName = "$memberid";
+                    _iparam3.ParameterName = "$data";
+
+                    _insertCommand.Parameters.Add(_iparam1);
                     _insertCommand.Parameters.Add(_iparam2);
+                    _insertCommand.Parameters.Add(_iparam3);
 
                     _insertCommand.Prepare();
                 }
-
-                _iparam1.Value = circleId;
 
                 _database.BeginTransaction();
 
                 using (_database.CreateCommitUnitOfWork())
                 {
                     // Possibly do a Commit() here. But I need to think about Commits, Semaphores and multiple threads.
-                    for (int i = 0; i < members.Count; i++)
+                    for (int i = 0; i < circleMemberItemList.Count; i++)
                     {
-                        if ((members[i] == null) || (members[i].Length > MAX_MEMBER_LENGTH))
-                            throw new Exception("circleID must be 16 bytes.");
+                        _iparam1.Value = circleMemberItemList[i].circleId;
+                        _iparam2.Value = circleMemberItemList[i].memberId;
+                        _iparam3.Value = circleMemberItemList[i].data;
 
-                        _iparam2.Value = members[i];
                         _insertCommand.ExecuteNonQuery();
                     }
                 }
@@ -177,11 +264,14 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-        public void RemoveMembers(byte[] circleId, List<byte[]> members)
+        /// <summary>
+        /// Removes the list of members from the given circle.
+        /// </summary>
+        /// <param name="circleId"></param>
+        /// <param name="members"></param>
+        /// <exception cref="Exception"></exception>
+        public void RemoveCircleMembers(Guid circleId, List<Guid> members)
         {
-            if ((circleId == null) || (circleId.Length != ID_EQUAL))
-                throw new Exception("circleID must be 16 bytes.");
-
             if ((members == null) || (members.Count < 1))
                 throw new Exception("No members supplied (null or empty)");
 
@@ -191,14 +281,14 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (_removeCommand == null)
                 {
                     _removeCommand = _database.CreateCommand();
-                    _removeCommand.CommandText = "DELETE FROM circlemember WHERE circleid=$circleid AND member=$member;";
+                    _removeCommand.CommandText = "DELETE FROM circlemember WHERE circleid=$circleid AND memberid=$memberid;";
 
                     _remparam1 = _removeCommand.CreateParameter();
                     _remparam1.ParameterName = "$circleid";
                     _removeCommand.Parameters.Add(_remparam1);
 
                     _remparam2 = _removeCommand.CreateParameter();
-                    _remparam2.ParameterName = "$member";
+                    _remparam2.ParameterName = "$memberid";
                     _removeCommand.Parameters.Add(_remparam2);
 
                     _removeCommand.Prepare();
@@ -212,7 +302,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 {
                     for (int i = 0; i < members.Count; i++)
                     {
-                        _remparam2.Value = members[i];
+                        _remparam2.Value = members[i].ToByteArray();
                         _removeCommand.ExecuteNonQuery();
                     }
                 }
@@ -220,8 +310,12 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-
-        public void DeleteMembers(List<byte[]> members)
+        /// <summary>
+        /// Removes the supplied list of members from all circles.
+        /// </summary>
+        /// <param name="members"></param>
+        /// <exception cref="Exception"></exception>
+        public void DeleteMembersFromAllCircles(List<Guid> members)
         {
             if ((members == null) || (members.Count < 1))
                 throw new Exception("No members supplied (null or empty)");
@@ -232,10 +326,10 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (_deleteCommand == null)
                 {
                     _deleteCommand = _database.CreateCommand();
-                    _deleteCommand.CommandText = "DELETE FROM circlemember WHERE member=$member;";
+                    _deleteCommand.CommandText = "DELETE FROM circlemember WHERE memberid=$memberid;";
 
                     _delparam1 = _deleteCommand.CreateParameter();
-                    _delparam1.ParameterName = "$member";
+                    _delparam1.ParameterName = "$memberid";
                     _deleteCommand.Parameters.Add(_delparam1);
 
                     _deleteCommand.Prepare();
@@ -247,7 +341,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 {
                     for (int i = 0; i < members.Count; i++)
                     {
-                        _delparam1.Value = members[i];
+                        _delparam1.Value = members[i].ToByteArray();
                         _deleteCommand.ExecuteNonQuery();
                     }
                 }

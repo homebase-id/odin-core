@@ -23,10 +23,11 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         public readonly TableKeyThreeValue TblKeyThreeValue = null;
         public readonly TableInbox tblInbox = null;
         public readonly TableOutbox tblOutbox = null;
-        public readonly TableCircle tblCircle = null;
         public readonly TableImFollowing tblImFollowing = null;
         public readonly TableFollowsMe tblFollowsMe = null;
+        public readonly TableCircle tblCircle = null;
         public readonly TableCircleMember tblCircleMember = null;
+        public readonly TableConnections tblConnections = null;
 
         public IdentityDatabase(string connectionString, ulong commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
         {
@@ -39,6 +40,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             tblCircleMember = new TableCircleMember(this);
             tblFollowsMe = new TableFollowsMe(this);
             tblImFollowing = new TableImFollowing(this);
+            tblConnections = new TableConnections(this);
         }
 
 
@@ -59,7 +61,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             tblCircle.Dispose();;
             tblImFollowing.Dispose();;
             tblFollowsMe.Dispose();;
-            tblCircleMember.Dispose();;
+            tblCircleMember.Dispose();
+            tblConnections.Dispose();
 
             base.Dispose();
         }
@@ -80,6 +83,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             tblCircleMember.EnsureTableExists(dropExistingTables);
             tblImFollowing.EnsureTableExists(dropExistingTables);
             tblFollowsMe.EnsureTableExists(dropExistingTables);
+            tblConnections.EnsureTableExists(dropExistingTables);
 
             Vacuum();
         }
