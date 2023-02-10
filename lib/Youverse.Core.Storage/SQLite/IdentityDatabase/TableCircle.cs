@@ -6,13 +6,12 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 {
     public class CircleItem
     {
-        public byte[] circleId;
+        public Guid circleId;
         public byte[] data;
     }
 
     public class TableCircle : TableBase
     {
-        public const int ID_EQUAL = 16; // Precisely 16 bytes for the ID key
         public const int MAX_DATA_LENGTH = 65000;  // Some max value for the data
 
         private SQLiteCommand _insertCommand = null;
@@ -74,8 +73,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 cmd.CommandText =
                     @"CREATE TABLE IF NOT EXISTS circle(
                      circleid BLOB UNIQUE NOT NULL, 
-                     data BLOB UNIQUE NOT NULL,
-                     UNIQUE(circleid,data)); "
+                     data BLOB,
+                     UNIQUE(circleid)); "
                     + "CREATE INDEX if not exists circleididx ON circle(circleid);";
 
                 cmd.ExecuteNonQuery();
@@ -85,11 +84,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         /// <summary>
         /// Only used for testing? Returns data
         /// </summary>
-        public CircleItem Get(byte[] circleId)
+        public CircleItem Get(Guid circleId)
         {
-            if ((circleId == null) || (circleId.Length != ID_EQUAL))
-                throw new Exception("circleID must be 16 bytes.");
-
             lock (_selectLock)
             {
                 // Make sure we only prep once 
@@ -148,18 +144,17 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
                 using (SQLiteDataReader rdr = _select2Command.ExecuteReader(System.Data.CommandBehavior.Default))
                 {
-                    byte[] _tmpbuf = new byte[MAX_DATA_LENGTH];
+                    byte[] _tmpbuf = new byte[16];
 
                     while (rdr.Read())
                     {
                         var item = new CircleItem();
 
                         // Get circleId
-                        long n = rdr.GetBytes(0, 0, _tmpbuf, 0, ID_EQUAL);
-                        if (n != ID_EQUAL)
-                            throw new Exception("ID invalid");
-                        item.circleId = new byte[n];
-                        Buffer.BlockCopy(_tmpbuf, 0, item.circleId, 0, (int)n);
+                        long n = rdr.GetBytes(0, 0, _tmpbuf, 0, 16);
+                        if (n != 16)
+                            throw new Exception("circleId invalid data size");
+                        item.circleId = new Guid(_tmpbuf);
 
                         // Get data
                         n = rdr.GetBytes(1, 0, _tmpbuf, 0, MAX_DATA_LENGTH+1);
@@ -176,13 +171,10 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public void InsertCircle(byte[] circleId, byte[] data)
+        public void InsertCircle(Guid circleId, byte[] data)
         {
-            if ((circleId == null) || (circleId.Length != ID_EQUAL))
-                throw new Exception("circleID must be 16 bytes.");
-
-            if ((data == null) || (data.Length > MAX_DATA_LENGTH))
-                throw new Exception("data null or too large.");
+            if (data?.Length > MAX_DATA_LENGTH)
+                throw new Exception("data too large.");
 
             lock (_insertLock)
             {
@@ -203,7 +195,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _insertCommand.Prepare();
                 }
 
-                _iparam1.Value = circleId;
+                _iparam1.Value = circleId.ToByteArray();
                 _iparam2.Value = data;
 
                 _database.BeginTransaction();
@@ -212,11 +204,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         }
 
 
-        public void DeleteCircle(byte[] circleId)
+        public void DeleteCircle(Guid circleId)
         {
-            if ((circleId == null) || (circleId.Length != ID_EQUAL))
-                throw new Exception("circleID must be 16 bytes.");
-
             lock (_deleteLock)
             {
                 // Make sure we only prep once 
@@ -233,7 +222,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _deleteCommand.Prepare();
                 }
 
-                _dparam1.Value = circleId;
+                _dparam1.Value = circleId.ToByteArray();
 
                 _database.BeginTransaction();
                 _deleteCommand.ExecuteNonQuery();
