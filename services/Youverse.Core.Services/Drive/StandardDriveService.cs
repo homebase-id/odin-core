@@ -28,19 +28,17 @@ namespace Youverse.Core.Services.Drive
     // key2 = drive type  + drive alias (see TargetDrive.ToKey() method)
     // key3 = type of data identifier (the fact this is a drive; note: we should put datatype on the KV database)
 
-    public class DriveService : IDriveService
+    public class DriveService : DriveServiceBase
     {
         private readonly DriveManager _driveManager;
         private readonly IDriveAclAuthorizationService _driveAclAuthorizationService;
         private readonly IMediator _mediator;
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly TenantContext _tenantContext;
-        // private readonly ConcurrentDictionary<Guid, ILongTermStorageManager> _longTermStorageManagers;
-        // private readonly ConcurrentDictionary<Guid, ITempStorageManager> _tempStorageManagers;
         private readonly ILoggerFactory _loggerFactory;
 
         public DriveService(DotYouContextAccessor contextAccessor, ITenantSystemStorage tenantSystemStorage, ILoggerFactory loggerFactory, IMediator mediator,
-            IDriveAclAuthorizationService driveAclAuthorizationService, TenantContext tenantContext)
+            IDriveAclAuthorizationService driveAclAuthorizationService, TenantContext tenantContext) : base()
         {
             _contextAccessor = contextAccessor;
 
@@ -452,16 +450,7 @@ namespace Youverse.Core.Services.Drive
                 ServerFileHeader = serverHeader
             });
         }
-
-        // private async Task InitializeStorageDrives()
-        // {
-        //     var drives = await _driveManager.GetDrivesInternal(false, PageOptions.All);
-        //     foreach (var drive in drives.Results)
-        //     {
-        //         LoadLongTermStorage(drive, out var _);
-        //     }
-        // }
-
+        
         private ILongTermStorageManager GetLongTermStorageManager(Guid driveId)
         {
             var logger = _loggerFactory.CreateLogger<ILongTermStorageManager>();
@@ -503,20 +492,6 @@ namespace Youverse.Core.Services.Drive
             //
             // return manager;
         }
-
-        // private bool LoadLongTermStorage(StorageDrive drive, out ILongTermStorageManager manager)
-        // {
-        //     var logger = _loggerFactory.CreateLogger<ILongTermStorageManager>();
-        //     manager = new FileBasedLongTermStorageManager(drive, logger);
-        //     return _longTermStorageManagers.TryAdd(drive.Id, manager);
-        // }
-        //
-        // private bool LoadTempStorage(StorageDrive drive, out ITempStorageManager manager)
-        // {
-        //     var logger = _loggerFactory.CreateLogger<ITempStorageManager>();
-        //     manager = new FileBasedTempStorageManager(drive, logger);
-        //     return _tempStorageManagers.TryAdd(drive.Id, manager);
-        // }
 
         private async Task WriteFileHeaderInternal(ServerFileHeader header)
         {
