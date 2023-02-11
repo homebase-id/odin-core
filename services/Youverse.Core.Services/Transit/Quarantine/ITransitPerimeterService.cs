@@ -4,7 +4,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Query;
+using Youverse.Core.Services.Drive.Core.Query;
 using Youverse.Core.Services.Transit.Encryption;
 
 namespace Youverse.Core.Services.Transit.Quarantine

@@ -3,7 +3,7 @@ using System.IO;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Drive.Storage;
+using Youverse.Core.Services.Drive.Core.Storage;
 
 namespace Youverse.Core.Services.Drive
 {

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Youverse.Core.Services.Drive.Storage
+namespace Youverse.Core.Services.Drive.Core.Storage
 {
     public interface IAppFileMetaData
     {

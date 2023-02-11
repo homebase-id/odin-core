@@ -4,7 +4,7 @@ using Youverse.Core.Serialization;
 using Youverse.Core.Services.AppNotifications;
 using Youverse.Core.Services.AppNotifications.ClientNotifications;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Storage;
+using Youverse.Core.Services.Drive.Core.Storage;
 
 namespace Youverse.Core.Services.Mediator
 {

@@ -107,6 +107,11 @@ namespace Youverse.Core.Services.Base
         /// <returns></returns>
         public Guid GetDriveId(TargetDrive drive)
         {
+            if (null == drive)
+            {
+                throw new YouverseClientException("target drive not specified", YouverseClientErrorCode.InvalidTargetDrive);
+            }
+            
             foreach (var key in _permissionGroups.Keys)
             {
                 var group = _permissionGroups[key];

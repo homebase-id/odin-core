@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drive.Reaction;
 using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers.ClientToken.Drive;
 
@@ -16,13 +17,15 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
     {
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly IDriveQueryService _driveQueryService;
+        private readonly ReactionDriveQueryService _reactionDriveQueryService;
         private readonly IDriveService _driveService;
 
-        public OwnerDriveQueryController(IDriveQueryService driveQueryService, DotYouContextAccessor contextAccessor, IDriveService driveService)
+        public OwnerDriveQueryController(IDriveQueryService driveQueryService, DotYouContextAccessor contextAccessor, IDriveService driveService, ReactionDriveQueryService reactionDriveQueryService)
         {
             _driveQueryService = driveQueryService;
             _contextAccessor = contextAccessor;
             _driveService = driveService;
+            _reactionDriveQueryService = reactionDriveQueryService;
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
@@ -39,11 +42,20 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         public async Task<QueryBatchResponse> QueryBatch([FromBody] QueryBatchRequest request)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
-            var batch = await _driveQueryService.GetBatch(driveId, request.QueryParams, request.ResultOptionsRequest.ToQueryBatchResultOptions());
+
+            QueryBatchResult batch = null;
+            if (request.QueryParams.UseReactionDriveHack)
+            {
+                batch = await _reactionDriveQueryService.GetBatch(driveId, request.QueryParams, request.ResultOptionsRequest.ToQueryBatchResultOptions());
+            }
+            else
+            {
+                batch = await _driveQueryService.GetBatch(driveId, request.QueryParams, request.ResultOptionsRequest.ToQueryBatchResultOptions());
+            }
 
             return QueryBatchResponse.FromResult(batch);
         }
-        
+
         /// <summary>
         /// Returns multiple <see cref="QueryBatchResponse"/>s
         /// </summary>

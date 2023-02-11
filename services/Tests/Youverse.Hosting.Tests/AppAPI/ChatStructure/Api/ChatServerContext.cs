@@ -9,7 +9,7 @@ using Youverse.Core;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Apps.CommandMessaging;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Query;
+using Youverse.Core.Services.Drive.Core.Query;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;

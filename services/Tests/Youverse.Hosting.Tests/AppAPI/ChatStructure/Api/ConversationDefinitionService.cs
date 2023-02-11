@@ -8,7 +8,7 @@ using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Drive.Query;
+using Youverse.Core.Services.Drive.Core.Query;
 using Youverse.Core.Services.Transit.Upload;
 
 namespace Youverse.Hosting.Tests.AppAPI.ChatStructure.Api;

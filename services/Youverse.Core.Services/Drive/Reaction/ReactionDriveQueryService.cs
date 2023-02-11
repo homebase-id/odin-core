@@ -1,22 +1,19 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
-using MediatR;
 using Microsoft.Extensions.Logging;
+using Serilog;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Apps.CommandMessaging;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Core;
 using Youverse.Core.Services.Drive.Core.Query;
-using Youverse.Core.Services.Mediator;
 
-namespace Youverse.Core.Services.Drive
+namespace Youverse.Core.Services.Drive.Reaction
 {
-    public class DriveQueryService : IDriveQueryService
+    public class ReactionDriveQueryService : IDriveQueryService
     {
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly IDriveService _driveService;
@@ -25,7 +22,7 @@ namespace Youverse.Core.Services.Drive
 
         private readonly DriveDatabaseHost _driveDatabaseHost;
 
-        public DriveQueryService(IDriveService driveService, ILoggerFactory loggerFactory, DotYouContextAccessor contextAccessor, IAppService appService, DriveDatabaseHost driveDatabaseHost)
+        public ReactionDriveQueryService(IDriveService driveService, ILoggerFactory loggerFactory, DotYouContextAccessor contextAccessor, IAppService appService, DriveDatabaseHost driveDatabaseHost)
         {
             _driveService = driveService;
             _loggerFactory = loggerFactory;
@@ -33,8 +30,7 @@ namespace Youverse.Core.Services.Drive
             _appService = appService;
             _driveDatabaseHost = driveDatabaseHost;
         }
-
-
+        
         public async Task<QueryModifiedResult> GetModified(Guid driveId, FileQueryParams qp, QueryModifiedResultOptions options)
         {
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
@@ -56,6 +52,7 @@ namespace Youverse.Core.Services.Drive
 
         public async Task<QueryBatchResult> GetBatch(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options)
         {
+            Log.Logger.Debug("reaction drive was called");
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
                 var (cursor, fileIdList) = await queryManager.GetBatch(_contextAccessor.GetCurrent().Caller, qp, options);

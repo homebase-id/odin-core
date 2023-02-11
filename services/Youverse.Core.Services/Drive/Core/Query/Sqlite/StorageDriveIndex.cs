@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 
-namespace Youverse.Core.Services.Drive.Query.Sqlite
+namespace Youverse.Core.Services.Drive.Core.Query.Sqlite
 {
     [DebuggerDisplay("Tier={Tier}, Path={IndexRootPath}")]
     public sealed class StorageDriveIndex

@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using Refit;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Query;
 using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Controllers.ClientToken.Drive;

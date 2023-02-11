@@ -9,7 +9,7 @@ using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Storage;
+using Youverse.Core.Services.Drive.Core.Storage;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Incoming;

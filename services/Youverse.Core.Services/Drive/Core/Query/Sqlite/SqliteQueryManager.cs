@@ -6,11 +6,10 @@ using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drive.Storage;
-using Youverse.Core.Storage.SQLite;
+using Youverse.Core.Services.Drive.Core.Storage;
 using Youverse.Core.Storage.SQLite.DriveDatabase;
 
-namespace Youverse.Core.Services.Drive.Query.Sqlite;
+namespace Youverse.Core.Services.Drive.Core.Query.Sqlite;
 
 public class SqliteQueryManager : IDriveQueryManager, IDisposable
 {

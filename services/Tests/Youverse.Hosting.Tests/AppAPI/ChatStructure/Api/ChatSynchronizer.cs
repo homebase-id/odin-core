@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Youverse.Core;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Apps.CommandMessaging;
-using Youverse.Core.Services.Drive.Query;
 
 namespace Youverse.Hosting.Tests.AppAPI.ChatStructure.Api;
 

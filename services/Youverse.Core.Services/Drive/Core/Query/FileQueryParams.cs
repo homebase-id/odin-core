@@ -2,10 +2,11 @@ using System;
 using System.Collections.Generic;
 using Dawn;
 
-namespace Youverse.Core.Services.Drive.Query;
+namespace Youverse.Core.Services.Drive.Core.Query;
 
 public class FileQueryParams
 {
+    public bool UseReactionDriveHack { get; set; }
     public TargetDrive TargetDrive { get; set; }
     public IEnumerable<int> FileType { get; set; } = null;
     public IEnumerable<int> DataType { get; set; } = null;

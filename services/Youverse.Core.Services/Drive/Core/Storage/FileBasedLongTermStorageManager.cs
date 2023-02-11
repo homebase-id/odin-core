@@ -1,15 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Cryptography;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
 
-namespace Youverse.Core.Services.Drive.Storage
+namespace Youverse.Core.Services.Drive.Core.Storage
 {
     public class FileBasedLongTermStorageManager : ILongTermStorageManager
     {

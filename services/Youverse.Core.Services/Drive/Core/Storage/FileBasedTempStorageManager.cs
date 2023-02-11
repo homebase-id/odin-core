@@ -1,12 +1,10 @@
 using System;
 using System.IO;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Cryptography;
 
-namespace Youverse.Core.Services.Drive.Storage
+namespace Youverse.Core.Services.Drive.Core.Storage
 {
     public class FileBasedTempStorageManager : ITempStorageManager
     {

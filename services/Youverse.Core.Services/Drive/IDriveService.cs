@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Drive.Storage;
+using Youverse.Core.Services.Drive.Core.Storage;
 using Youverse.Core.Services.Transit.Encryption;
 
 namespace Youverse.Core.Services.Drive

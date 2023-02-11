@@ -1,3 +1,4 @@
+using Youverse.Core.Services.Drive.Core.Query;
 using Youverse.Core.Storage.SQLite;
 using Youverse.Core.Storage.SQLite.DriveDatabase;
 
@@ -20,9 +21,9 @@ public class QueryBatchResultOptionsRequest
     /// </summary>
     public bool IncludeMetadataHeader { get; set; }
 
-    public Core.Services.Drive.Query.QueryBatchResultOptions ToQueryBatchResultOptions()
+    public QueryBatchResultOptions ToQueryBatchResultOptions()
     {
-        return new Core.Services.Drive.Query.QueryBatchResultOptions()
+        return new QueryBatchResultOptions()
         {
             Cursor = string.IsNullOrEmpty(this.CursorState) ? new QueryBatchCursor() : new QueryBatchCursor(this.CursorState),
             MaxRecords = this.MaxRecords,

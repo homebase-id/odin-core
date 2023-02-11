@@ -1,9 +1,8 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using Youverse.Core.Services.Transit.Encryption;
 
-namespace Youverse.Core.Services.Drive.Storage
+namespace Youverse.Core.Services.Drive.Core.Storage
 {
     /// <summary>
     /// Temporary storage for a given driven.  Used to stage incoming file parts from uploads and transfers.

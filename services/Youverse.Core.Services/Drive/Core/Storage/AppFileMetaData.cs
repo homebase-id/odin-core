@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Youverse.Core.Services.Drive.Storage
+namespace Youverse.Core.Services.Drive.Core.Storage
 {
     /// <summary>
     /// Metadata provided by the app to describe the file

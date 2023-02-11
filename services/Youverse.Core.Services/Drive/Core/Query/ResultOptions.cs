@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.Drive.Query;
+namespace Youverse.Core.Services.Drive.Core.Query;
 
 public class ResultOptions
 {

@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.Drive.Storage
+namespace Youverse.Core.Services.Drive.Core.Storage
 {
     public enum StorageDisposition
     {

@@ -1,5 +1,5 @@
 using System;
-using Youverse.Core.Services.Drive.Storage;
+using Youverse.Core.Services.Drive.Core.Storage;
 using Youverse.Core.Services.Transit.Encryption;
 
 namespace Youverse.Core.Services.Apps

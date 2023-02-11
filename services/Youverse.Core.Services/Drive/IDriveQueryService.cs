@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Apps.CommandMessaging;
-using Youverse.Core.Services.Drive.Query;
+using Youverse.Core.Services.Drive.Core.Query;
 
 namespace Youverse.Core.Services.Drive
 {
@@ -21,10 +21,6 @@ namespace Youverse.Core.Services.Drive
         /// Returns a batch of files matching the params
         /// </summary>
         Task<QueryBatchResult> GetBatch(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options);
-
-        Task RebuildBackupIndex(Guid driveId);
-
-        Task RebuildAllIndices();
 
         Task<ClientFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId);
 

@@ -1,14 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Youverse.Core.Storage;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drive.Query.Sqlite;
-using Youverse.Core.Services.Drive.Storage;
-using Youverse.Core.Storage.SQLite;
+using Youverse.Core.Services.Drive.Core.Query.Sqlite;
+using Youverse.Core.Services.Drive.Core.Storage;
 using Youverse.Core.Storage.SQLite.DriveDatabase;
 
-namespace Youverse.Core.Services.Drive.Query
+namespace Youverse.Core.Services.Drive.Core.Query
 {
     /// <summary>
     /// Offers query and indexing features for a specific <see cref="StorageDrive"/>

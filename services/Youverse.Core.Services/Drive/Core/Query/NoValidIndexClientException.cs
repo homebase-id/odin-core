@@ -1,7 +1,7 @@
 using System;
 using Youverse.Core.Exceptions;
 
-namespace Youverse.Core.Services.Drive.Query
+namespace Youverse.Core.Services.Drive.Core.Query
 {
     internal class NoValidIndexClientException : YouverseSystemException
     {

@@ -30,6 +30,9 @@ using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.DataSubscription;
 using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drive.Core;
+using Youverse.Core.Services.Drive.Core.Query;
+using Youverse.Core.Services.Drive.Reaction;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Optimization.Cdn;
@@ -95,12 +98,21 @@ namespace Youverse.Hosting
             cb.RegisterType<DriveAclAuthorizationService>().As<IDriveAclAuthorizationService>().SingleInstance();
 
             cb.RegisterType<DriveService>().As<IDriveService>().SingleInstance();
-            cb.RegisterType<DriveQueryService>()
-                .As<IDriveQueryService>()
+            
+            cb.RegisterType<DriveDatabaseHost>()
                 .As<INotificationHandler<DriveFileAddedNotification>>()
                 .As<INotificationHandler<DriveFileChangedNotification>>()
                 .As<INotificationHandler<DriveFileDeletedNotification>>()
+                .AsSelf().SingleInstance();
+            
+            cb.RegisterType<DriveQueryService>()
+                .As<IDriveQueryService>()
                 .SingleInstance();
+
+            cb.RegisterType<ReactionDriveQueryService>()
+                .AsSelf()
+                .SingleInstance();
+           
 
             cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>().SingleInstance();
 

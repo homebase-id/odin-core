@@ -1,0 +1,97 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Threading.Tasks;
+using NUnit.Framework;
+using Youverse.Core;
+using Youverse.Core.Serialization;
+using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drive.Core.Query;
+using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Transit.Upload;
+using Youverse.Hosting.Controllers;
+
+namespace Youverse.Hosting.Tests.OwnerApi.Drive
+{
+    public class MultipleQueryConsumersTest
+    {
+        private WebScaffold _scaffold;
+
+        [OneTimeSetUp]
+        public void OneTimeSetUp()
+        {
+            string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+            _scaffold = new WebScaffold(folder);
+            _scaffold.RunBeforeAnyTests();
+        }
+
+        [OneTimeTearDown]
+        public void OneTimeTearDown()
+        {
+            _scaffold.RunAfterAnyTests();
+        }
+
+        [Test]
+        public async Task WillDisposeWithBothReactionAndStandardFilesAreUsed()
+        {
+            var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
+
+            var targetDrive = TargetDrive.NewTargetDrive();
+            await frodoOwnerClient.Drive.CreateDrive(targetDrive, "Some drive", "", false, true);
+
+            var standardFile = new UploadFileMetadata()
+            {
+                ContentType = "application/json",
+                PayloadIsEncrypted = false,
+                AppData = new()
+                {
+                    ContentIsComplete = true,
+                    JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    FileType = 101,
+                    DataType = 202,
+                    UserDate = 0,
+                    Tags = default
+                }
+            };
+
+            var standardFileUploadResult = await frodoOwnerClient.Drive.UploadMetadataFile(targetDrive, standardFile);
+
+            var commentFile = new UploadFileMetadata()
+            {
+                ContentType = "application/json",
+                PayloadIsEncrypted = false,
+                AppData = new()
+                {
+                    ContentIsComplete = true,
+                    JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    FileType = 909,
+                    DataType = 202,
+                    UserDate = 0,
+                    Tags = default
+                }
+            };
+
+            var commentFileUploadResult = await frodoOwnerClient.Drive.UploadMetadataFile(targetDrive, commentFile);
+
+            var standardFileQuery = new FileQueryParams()
+            {
+                TargetDrive = targetDrive,
+                FileType = new[] { standardFile.AppData.FileType }
+            };
+            var standardFileResults = await frodoOwnerClient.Drive.QueryBatch(standardFileQuery);
+            Assert.IsNotNull(standardFileResults.SearchResults.SingleOrDefault(f => f.FileId == standardFileUploadResult.File.FileId));
+
+            var commentFileQuery = new FileQueryParams()
+            {
+                UseReactionDriveHack = true,
+                TargetDrive = targetDrive,
+                FileType = new[] { commentFile.AppData.FileType }
+            };
+
+            var commentFileResults = await frodoOwnerClient.Drive.QueryBatch(commentFileQuery);
+            Assert.IsNotNull(commentFileResults.SearchResults.SingleOrDefault(f => f.FileId == commentFileUploadResult.File.FileId));
+        }
+
+    }
+}

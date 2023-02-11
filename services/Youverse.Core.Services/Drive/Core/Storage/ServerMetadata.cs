@@ -1,7 +1,6 @@
-﻿using System.Collections.Generic;
-using Youverse.Core.Services.Authorization.Acl;
+﻿using Youverse.Core.Services.Authorization.Acl;
 
-namespace Youverse.Core.Services.Drive.Storage
+namespace Youverse.Core.Services.Drive.Core.Storage
 {
     public class ServerMetadata
     {

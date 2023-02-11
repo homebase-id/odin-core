@@ -1,6 +1,6 @@
 ﻿using Youverse.Core.Services.Transit.Encryption;
 
-namespace Youverse.Core.Services.Drive.Storage
+namespace Youverse.Core.Services.Drive.Core.Storage
 {
     public class ServerFileHeader
     {
