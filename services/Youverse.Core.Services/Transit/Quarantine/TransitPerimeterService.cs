@@ -25,7 +25,8 @@ namespace Youverse.Core.Services.Transit.Quarantine
         private readonly ITransitPerimeterTransferStateService _transitPerimeterTransferStateService;
         private readonly IPublicKeyService _publicKeyService;
         private readonly IDriveQueryService _driveQueryService;
-        private readonly IDriveService _driveService;
+        private readonly StandardFileDriveService _driveService;
+        private readonly DriveManager _driveManager;
         private readonly IAppService _appService;
 
         public TransitPerimeterService(
@@ -34,7 +35,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             ITransitService transitService,
             ITransitPerimeterTransferStateService transitPerimeterTransferStateService,
             IPublicKeyService publicKeyService,
-            IDriveQueryService driveQueryService, IDriveService driveService, IAppService appService) : base()
+            IDriveQueryService driveQueryService, StandardFileDriveService driveService, IAppService appService, DriveManager driveManager) : base()
         {
             _contextAccessor = contextAccessor;
             _transitService = transitService;
@@ -43,6 +44,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             _driveQueryService = driveQueryService;
             _driveService = driveService;
             _appService = appService;
+            _driveManager = driveManager;
         }
 
         public async Task<Guid> InitializeIncomingTransfer(RsaEncryptedRecipientTransferInstructionSet transferInstructionSet)
@@ -239,7 +241,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         public async Task<IEnumerable<PerimeterDriveData>> GetDrives(Guid driveType)
         {
             //filter drives by only returning those the caller can see
-            var allDrives = await _driveService.GetDrives(driveType, PageOptions.All);
+            var allDrives = await _driveManager.GetDrives(driveType, PageOptions.All);
             var perms = _contextAccessor.GetCurrent().PermissionsContext;
             var readableDrives = allDrives.Results.Where(drive => perms.HasDrivePermission(drive.Id, DrivePermission.Read));
             return readableDrives.Select(drive => new PerimeterDriveData()

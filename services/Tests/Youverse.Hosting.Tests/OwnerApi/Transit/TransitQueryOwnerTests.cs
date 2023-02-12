@@ -50,8 +50,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
         [Test]
         public async Task CanSendTransferAndRecipientCanQueryFilesByTag()
         {
-            var sender = TestIdentities.Frodo;
-            var recipient = TestIdentities.Samwise;
+            var sender = TestIdentities.Samwise;
+            var recipient = TestIdentities.Pippin;
 
             Guid appId = Guid.NewGuid();
             var targetDrive = TargetDrive.NewTargetDrive();

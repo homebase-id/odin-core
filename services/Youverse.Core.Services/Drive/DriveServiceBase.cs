@@ -33,7 +33,7 @@ namespace Youverse.Core.Services.Drive
         private readonly ILoggerFactory _loggerFactory;
 
         protected DriveServiceBase(DotYouContextAccessor contextAccessor, ITenantSystemStorage tenantSystemStorage, ILoggerFactory loggerFactory, IMediator mediator,
-            IDriveAclAuthorizationService driveAclAuthorizationService, TenantContext tenantContext)
+            IDriveAclAuthorizationService driveAclAuthorizationService, TenantContext tenantContext, DriveManager driveManager)
         {
             _contextAccessor = contextAccessor;
 
@@ -41,7 +41,8 @@ namespace Youverse.Core.Services.Drive
             _mediator = mediator;
             _driveAclAuthorizationService = driveAclAuthorizationService;
             _tenantContext = tenantContext;
-            _driveManager = new DriveManager(contextAccessor, tenantSystemStorage, mediator, tenantContext);
+            _driveManager = driveManager;
+            // _driveManager = new DriveManager(contextAccessor, tenantSystemStorage, mediator, tenantContext);
         }
 
         protected DotYouContextAccessor ContextAccessor => _contextAccessor;

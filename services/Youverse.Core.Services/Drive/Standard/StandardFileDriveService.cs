@@ -10,8 +10,8 @@ namespace Youverse.Core.Services.Drive
     public class StandardFileDriveService : DriveServiceBase
     {
         public StandardFileDriveService(DotYouContextAccessor contextAccessor, ITenantSystemStorage tenantSystemStorage, ILoggerFactory loggerFactory, IMediator mediator,
-            IDriveAclAuthorizationService driveAclAuthorizationService, TenantContext tenantContext) :
-            base(contextAccessor, tenantSystemStorage, loggerFactory, mediator, driveAclAuthorizationService, tenantContext)
+            IDriveAclAuthorizationService driveAclAuthorizationService, TenantContext tenantContext, DriveManager driveManager) :
+            base(contextAccessor, tenantSystemStorage, loggerFactory, mediator, driveAclAuthorizationService, tenantContext, driveManager)
         {
         }
 
