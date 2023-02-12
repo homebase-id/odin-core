@@ -22,5 +22,6 @@ namespace Youverse.Core.Services.Transit.Upload
         public AccessControlList AccessControlList { get; set; }
 
         public UploadAppFileMetaData AppData { get; set; }
+        public bool UseCommentDriveHack { get; set; }
     }
 }

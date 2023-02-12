@@ -32,5 +32,6 @@ namespace Youverse.Core.Services.Transit.Upload
         public bool IsUpdateOperation { get; init; }
         
         public bool HasPayload { get; set; }
+        public bool UseCommentHack { get; set; }
     }
 }

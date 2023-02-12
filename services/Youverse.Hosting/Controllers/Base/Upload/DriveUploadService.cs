@@ -5,16 +5,19 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
+using MediatR;
+using Microsoft.Extensions.Logging;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
-using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drive.Comment;
 using Youverse.Core.Services.Drive.Core.Storage;
 using Youverse.Core.Services.Transit.Encryption;
+using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Transit.Upload;
 
@@ -23,7 +26,12 @@ namespace Youverse.Core.Services.Transit.Upload;
 /// </summary>
 public class DriveUploadService
 {
-    private readonly IDriveService _driveService;
+    private readonly IDriveAclAuthorizationService _driveAclAuthorizationService;
+    private readonly IMediator _mediator;
+    private readonly ILoggerFactory _loggerFactory;
+    private ITenantSystemStorage _tenantSystemStorage;
+
+    // private readonly IDriveService _driveService;
     private readonly TenantContext _tenantContext;
     private readonly DotYouContextAccessor _contextAccessor;
     private readonly ITransitService _transitService;
@@ -31,13 +39,18 @@ public class DriveUploadService
     private readonly ConcurrentDictionary<Guid, UploadPackage> _packages;
     private readonly IDriveQueryService _driveQueryService;
 
-    public DriveUploadService(IDriveService driveService, TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITransitService transitService, IDriveQueryService driveQueryService)
+    public DriveUploadService(IDriveService driveService, TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITransitService transitService, IDriveQueryService driveQueryService, 
+        IDriveAclAuthorizationService driveAclAuthorizationService, IMediator mediator, ILoggerFactory loggerFactory, ITenantSystemStorage tenantSystemStorage)
     {
-        _driveService = driveService;
+        // _driveService = driveService;
         _tenantContext = tenantContext;
         _contextAccessor = contextAccessor;
         _transitService = transitService;
         _driveQueryService = driveQueryService;
+        _driveAclAuthorizationService = driveAclAuthorizationService;
+        _mediator = mediator;
+        _loggerFactory = loggerFactory;
+        this._tenantSystemStorage = tenantSystemStorage;
 
         _packages = new ConcurrentDictionary<Guid, UploadPackage>();
     }
@@ -65,7 +78,7 @@ public class DriveUploadService
         return await ProcessUpload(package);
     }
 
-    public async Task<Guid> CreatePackage(Stream data)
+    public async Task<Guid> CreatePackage(Stream data, bool useCommentHack = false)
     {
         //TODO: need to partially encrypt upload instruction set
         string json = await new StreamReader(data).ReadToEndAsync();
@@ -79,6 +92,7 @@ public class DriveUploadService
             throw new YouverseClientException("Cannot transfer to yourself; what's the point?", YouverseClientErrorCode.InvalidRecipient);
         }
 
+        IDriveService _driveService = GetDriveService(useCommentHack);
         InternalDriveFileId file;
         var driveId = _driveService.GetDriveIdByAlias(instructionSet!.StorageOptions!.Drive, true).Result.GetValueOrDefault();
         var overwriteFileId = instructionSet?.StorageOptions?.OverwriteFileId.GetValueOrDefault() ?? Guid.Empty;
@@ -103,12 +117,20 @@ public class DriveUploadService
 
         var pkgId = Guid.NewGuid();
         var package = new UploadPackage(pkgId, file, instructionSet!, isUpdateOperation);
+        package.UseCommentHack = useCommentHack;
         if (!_packages.TryAdd(pkgId, package))
         {
             throw new YouverseSystemException("Failed to add the upload package");
         }
 
         return pkgId;
+    }
+
+    private IDriveService GetDriveService(bool useCommentHack)
+    {
+        return useCommentHack
+            ? new CommentFileDriveService(_contextAccessor, _tenantSystemStorage, _loggerFactory, _mediator, _driveAclAuthorizationService, _tenantContext)
+            : new StandardDriveService(_contextAccessor, _tenantSystemStorage, _loggerFactory, _mediator, _driveAclAuthorizationService, _tenantContext);
     }
 
     public async Task AddMetadata(Guid packageId, Stream data)
@@ -118,7 +140,7 @@ public class DriveUploadService
             throw new YouverseSystemException("Invalid package Id");
         }
 
-        await _driveService.WriteTempStream(pkg.InternalFile, MultipartUploadParts.Metadata.ToString(), data);
+        await GetDriveService(pkg.UseCommentHack).WriteTempStream(pkg.InternalFile, MultipartUploadParts.Metadata.ToString(), data);
     }
 
     public async Task AddPayload(Guid packageId, Stream data)
@@ -128,7 +150,7 @@ public class DriveUploadService
             throw new YouverseSystemException("Invalid package Id");
         }
 
-        var bytesWritten = await _driveService.WriteTempStream(pkg.InternalFile, MultipartUploadParts.Payload.ToString(), data);
+        var bytesWritten = await GetDriveService(pkg.UseCommentHack).WriteTempStream(pkg.InternalFile, MultipartUploadParts.Payload.ToString(), data);
         var package = await this.GetPackage(packageId);
         package.HasPayload = bytesWritten > 0;
     }
@@ -142,6 +164,7 @@ public class DriveUploadService
 
         //TODO: How to store the content type for later usage?  is it even needed?
 
+        var _driveService = GetDriveService(pkg.UseCommentHack);
         //TODO: should i validate width and height are > 0?
         string extenstion = _driveService.GetThumbnailFileExtension(width, height);
         await _driveService.WriteTempStream(pkg.InternalFile, extenstion, data);
@@ -159,6 +182,7 @@ public class DriveUploadService
 
     private async Task<UploadResult> ProcessUpload(UploadPackage package)
     {
+        var _driveService = GetDriveService(package.UseCommentHack);
         var (keyHeader, metadata, serverMetadata) = await UnpackMetadata(package);
         if (null == serverMetadata.AccessControlList)
         {
@@ -243,7 +267,7 @@ public class DriveUploadService
                     throw new YouverseClientException($"File already exists with ClientUniqueId: [{incomingClientUniqueId}]", YouverseClientErrorCode.ExistingFileWithUniqueId);
                 }
             }
-            
+
             await _driveService.CommitTempFileToNewLongTermFile(package.InternalFile, keyHeader, metadata, serverMetadata, MultipartUploadParts.Payload.ToString());
         }
 
@@ -276,6 +300,7 @@ public class DriveUploadService
 
     private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadata(UploadPackage package)
     {
+        var _driveService = GetDriveService(package.UseCommentHack);
         var metadataStream = await _driveService.GetTempStream(package.InternalFile, MultipartUploadParts.Metadata.ToString());
 
         var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
@@ -296,6 +321,7 @@ public class DriveUploadService
         KeyHeader keyHeader = uploadDescriptor.FileMetadata.PayloadIsEncrypted ? transferEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret) : KeyHeader.Empty();
         var metadata = new FileMetadata(package.InternalFile)
         {
+            UseCommentDriveHack = uploadDescriptor.FileMetadata.UseCommentDriveHack,
             GlobalTransitId = (package.InstructionSet.TransitOptions?.UseGlobalTransitId ?? false) ? Guid.NewGuid() : null,
             ContentType = uploadDescriptor.FileMetadata.ContentType,
 
