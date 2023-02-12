@@ -37,16 +37,16 @@ public enum CrossOriginBehavior
 public class StaticFileContentService
 {
     private readonly DriveManager _driveManager;
-    private readonly IDriveService _driveService;
+    private readonly IDriveStorageService _driveStorageService;
     private readonly IDriveQueryService _driveQueryService;
     private readonly TenantContext _tenantContext;
     private readonly DotYouContextAccessor _contextAccessor;
     private readonly ITenantSystemStorage _tenantSystemStorage;
 
-    public StaticFileContentService(IDriveService driveService, IDriveQueryService driveQueryService,
+    public StaticFileContentService(IDriveStorageService driveStorageService, IDriveQueryService driveQueryService,
         TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITenantSystemStorage tenantSystemStorage, DriveManager driveManager)
     {
-        _driveService = driveService;
+        _driveStorageService = driveStorageService;
         _driveQueryService = driveQueryService;
         _tenantContext = tenantContext;
         _contextAccessor = contextAccessor;
@@ -121,7 +121,7 @@ public class StaticFileContentService
                     foreach (var thumbHeader in fileHeader.FileMetadata.AppData?.AdditionalThumbnails ??
                                                 new List<ImageDataHeader>())
                     {
-                        var thumbnailStream = await _driveService.GetThumbnailPayloadStream(
+                        var thumbnailStream = await _driveStorageService.GetThumbnailPayloadStream(
                             internalFileId, thumbHeader.PixelWidth, thumbHeader.PixelHeight);
 
                         thumbnails.Add(new ImageDataContent()
@@ -136,7 +136,7 @@ public class StaticFileContentService
 
                 if (section.ResultOptions.IncludePayload)
                 {
-                    var payloadStream = await _driveService.GetPayloadStream(internalFileId);
+                    var payloadStream = await _driveStorageService.GetPayloadStream(internalFileId);
                     payload = payloadStream.ToByteArray();
                 }
 

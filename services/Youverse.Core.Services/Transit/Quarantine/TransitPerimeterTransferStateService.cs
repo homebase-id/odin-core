@@ -17,13 +17,13 @@ namespace Youverse.Core.Services.Transit.Quarantine
     public class TransitPerimeterTransferStateService : ITransitPerimeterTransferStateService
     {
         private readonly ITenantSystemStorage _tenantSystemStorage;
-        private readonly IDriveService _driveService;
+        private readonly IDriveStorageService _driveStorageService;
         private readonly DotYouContextAccessor _contextAccessor;
 
-        public TransitPerimeterTransferStateService(ITenantSystemStorage tenantSystemStorage, IDriveService driveService, DotYouContextAccessor contextAccessor)
+        public TransitPerimeterTransferStateService(ITenantSystemStorage tenantSystemStorage, IDriveStorageService driveStorageService, DotYouContextAccessor contextAccessor)
         {
             _tenantSystemStorage = tenantSystemStorage;
-            _driveService = driveService;
+            _driveStorageService = driveStorageService;
             _contextAccessor = contextAccessor;
         }
 
@@ -33,12 +33,12 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
             //notice here: we always create a new file Id when receiving a new file.
             Guid id = Guid.NewGuid();
-            var file = _driveService.CreateInternalFileId(driveId);
+            var file = _driveStorageService.CreateInternalFileId(driveId);
             var item = new IncomingTransferStateItem(id, file);
             
             //write the instruction set to disk
             await using var stream = new MemoryStream(DotYouSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray());
-            await _driveService.WriteTempStream(file, MultipartHostTransferParts.TransferKeyHeader.ToString().ToLower(), stream);
+            await _driveStorageService.WriteTempStream(file, MultipartHostTransferParts.TransferKeyHeader.ToString().ToLower(), stream);
 
             item.SetFilterState(MultipartHostTransferParts.TransferKeyHeader, FilterAction.Accept);
 
@@ -63,7 +63,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             var item = await this.GetStateItem(transferStateItemId);
             item.SetFilterState(part, FilterAction.Accept);
 
-            await _driveService.WriteTempStream(item.TempFile, fileExtension, data);
+            await _driveStorageService.WriteTempStream(item.TempFile, fileExtension, data);
             this.Save(item);
         }
 
@@ -71,7 +71,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         {
             var item = await this.GetStateItem(transferStateItemId);
             item.SetFilterState(part, FilterAction.Quarantine);
-            await _driveService.WriteTempStream(item.TempFile, fileExtension, data);
+            await _driveStorageService.WriteTempStream(item.TempFile, fileExtension, data);
             this.Save(item);
         }
 
@@ -81,7 +81,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             item.SetFilterState(part, FilterAction.Reject);
 
             //Note: we remove all temp files if a single part is rejected
-            await _driveService.DeleteTempFiles(item.TempFile);
+            await _driveStorageService.DeleteTempFiles(item.TempFile);
 
             this.Save(item);
         }

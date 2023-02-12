@@ -13,12 +13,12 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
     [AuthorizeValidOwnerToken]
     public class OwnerDriveManagementController : ControllerBase
     {
-        private readonly IDriveService _driveService;
+        private readonly IDriveStorageService _driveStorageService;
         private readonly DriveManager _driveManager;
 
-        public OwnerDriveManagementController(IDriveService driveService, DriveManager driveManager)
+        public OwnerDriveManagementController(IDriveStorageService driveStorageService, DriveManager driveManager)
         {
-            _driveService = driveService;
+            _driveStorageService = driveStorageService;
             _driveManager = driveManager;
         }
 

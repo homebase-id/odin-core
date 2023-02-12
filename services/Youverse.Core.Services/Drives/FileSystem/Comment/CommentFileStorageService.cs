@@ -3,15 +3,16 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Storage;
+using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives.Base;
 
-namespace Youverse.Core.Services.Drive.Comment;
+namespace Youverse.Core.Services.Drives.FileSystem.Comment;
 
-public class CommentFileStorageService : DriveServiceBase
+public class CommentFileStorageService : DriveStorageServiceBase
 {
-    public CommentFileStorageService(DotYouContextAccessor contextAccessor, ITenantSystemStorage tenantSystemStorage, ILoggerFactory loggerFactory, IMediator mediator,
-        IDriveAclAuthorizationService driveAclAuthorizationService, TenantContext tenantContext,DriveManager driveManager) :
-        base(contextAccessor, tenantSystemStorage, loggerFactory, mediator, driveAclAuthorizationService, tenantContext,driveManager)
+    public CommentFileStorageService(DotYouContextAccessor contextAccessor, ILoggerFactory loggerFactory, IMediator mediator,
+        IDriveAclAuthorizationService driveAclAuthorizationService,DriveManager driveManager) :
+        base(contextAccessor, loggerFactory, mediator, driveAclAuthorizationService,driveManager)
     {
     }
 

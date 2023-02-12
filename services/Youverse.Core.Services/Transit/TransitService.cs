@@ -26,7 +26,7 @@ namespace Youverse.Core.Services.Transit
 {
     public class TransitService : TransitServiceBase<ITransitService>, ITransitService
     {
-        private readonly IDriveService _driveService;
+        private readonly IDriveStorageService _driveStorageService;
         private readonly DriveManager _driveManager;
         private readonly IOutboxService _outboxService;
         private readonly ITransitBoxService _transitBoxService;
@@ -44,7 +44,7 @@ namespace Youverse.Core.Services.Transit
         public TransitService(DotYouContextAccessor contextAccessor,
             ILogger<TransitService> logger,
             IOutboxService outboxService,
-            IDriveService driveService,
+            IDriveStorageService driveStorageService,
             ITransferKeyEncryptionQueueService transferKeyEncryptionQueueService,
             ITransitBoxService transitBoxService,
             ITenantSystemStorage tenantSystemStorage,
@@ -57,7 +57,7 @@ namespace Youverse.Core.Services.Transit
         {
             _contextAccessor = contextAccessor;
             _outboxService = outboxService;
-            _driveService = driveService;
+            _driveStorageService = driveStorageService;
             _transferKeyEncryptionQueueService = transferKeyEncryptionQueueService;
             _transitBoxService = transitBoxService;
             _tenantSystemStorage = tenantSystemStorage;
@@ -187,7 +187,7 @@ namespace Youverse.Core.Services.Transit
             foreach (var fileId in filesForDeletion)
             {
                 //TODO: add logging?
-                await _driveService.HardDeleteLongTermFile(fileId);
+                await _driveStorageService.HardDeleteLongTermFile(fileId);
             }
 
             return results;
@@ -302,7 +302,7 @@ namespace Youverse.Core.Services.Transit
                     "transferKeyHeader.encrypted", "application/json",
                     Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
 
-                var header = await _driveService.GetServerFileHeader(file);
+                var header = await _driveStorageService.GetServerFileHeader(file);
                 var metadata = header.FileMetadata;
 
                 //redact the info by explicitly stating what we will keep
@@ -327,13 +327,13 @@ namespace Youverse.Core.Services.Transit
 
                 var payloadStream = metadata.AppData.ContentIsComplete
                     ? Stream.Null
-                    : await _driveService.GetPayloadStream(file);
+                    : await _driveStorageService.GetPayloadStream(file);
                 var payload = new StreamPart(payloadStream, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartHostTransferParts.Payload));
 
                 var thumbnails = new List<StreamPart>();
                 foreach (var thumb in redactedMetadata.AppData?.AdditionalThumbnails ?? new List<ImageDataHeader>())
                 {
-                    var thumbStream = await _driveService.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight);
+                    var thumbStream = await _driveStorageService.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight);
                     thumbnails.Add(new StreamPart(thumbStream, thumb.GetFilename(), thumb.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
                 }
 
@@ -394,7 +394,7 @@ namespace Youverse.Core.Services.Transit
             var transferStatus = new Dictionary<string, TransferStatus>();
             var outboxItems = new List<OutboxItem>();
 
-            var header = await _driveService.GetServerFileHeader(internalFile);
+            var header = await _driveStorageService.GetServerFileHeader(internalFile);
             var storageKey = _contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(internalFile.DriveId);
             var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
             storageKey.Wipe();

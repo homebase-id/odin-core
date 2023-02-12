@@ -5,9 +5,9 @@ using System.Threading.Tasks;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Comment;
 using Youverse.Core.Services.Drive.Core;
 using Youverse.Core.Services.Drive.Core.Storage;
+using Youverse.Core.Services.Drives.FileSystem.Comment;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
@@ -15,15 +15,15 @@ using Youverse.Core.Services.Transit.Upload;
 namespace Youverse.Hosting.Controllers.Base.Upload.Comment;
 
 /// <summary />
-public class CommentFileUploadService : DriveUploadServiceBase<CommentDriveService>
+public class CommentFileUploadService : DriveUploadServiceBase<CommentFileSystem>
 {
     private readonly DotYouContextAccessor _contextAccessor;
     private readonly ITransitService _transitService;
 
     /// <summary />
-    public CommentFileUploadService(CommentDriveService driveService, TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITransitService transitService,
+    public CommentFileUploadService(CommentFileSystem fileSystem, TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITransitService transitService,
         DriveManager driveManager)
-        : base(driveService, tenantContext, contextAccessor, driveManager)
+        : base(fileSystem, tenantContext, contextAccessor, driveManager)
     {
         _contextAccessor = contextAccessor;
         _transitService = transitService;
@@ -59,7 +59,7 @@ public class CommentFileUploadService : DriveUploadServiceBase<CommentDriveServi
             FileId = metadata.ReferencedFile.FileId
         };
 
-        if (!DriveService.Storage.FileExists(referenceFileInternal) || metadata.File.DriveId != referenceFileDriveId)
+        if (!FileSystem.Storage.FileExists(referenceFileInternal) || metadata.File.DriveId != referenceFileDriveId)
         {
             throw new YouverseClientException("The referenced file must exist and be on the same drive as this file", YouverseClientErrorCode.InvalidReferenceFile);
         }
@@ -74,7 +74,7 @@ public class CommentFileUploadService : DriveUploadServiceBase<CommentDriveServi
         // this point, we have validated the ReferenceToFile already exists
         //
 
-        await DriveService.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, "payload");
+        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, "payload");
     }
 
     protected override async Task ProcessExistingFileUpload(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
@@ -85,7 +85,7 @@ public class CommentFileUploadService : DriveUploadServiceBase<CommentDriveServi
         //target is same file because it's set earlier in the upload process
         //using overwrite here so we can ensure the right event is called
         var targetFile = package.InternalFile;
-        await DriveService.Storage.OverwriteFile(tempFile: package.InternalFile,
+        await FileSystem.Storage.OverwriteFile(tempFile: package.InternalFile,
             targetFile: targetFile,
             keyHeader: keyHeader,
             metadata: metadata,

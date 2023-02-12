@@ -20,14 +20,14 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
     public class ExchangeGrantService
     {
         private readonly ILogger<ExchangeGrantService> _logger;
-        private readonly IDriveService _driveService;
+        private readonly IDriveStorageService _driveStorageService;
         private readonly DriveManager _driveManager;
         private readonly CircleDefinitionService _circleDefinitionService;
 
-        public ExchangeGrantService(ILogger<ExchangeGrantService> logger, IDriveService driveService, CircleDefinitionService circleDefinitionService, DriveManager driveManager)
+        public ExchangeGrantService(ILogger<ExchangeGrantService> logger, IDriveStorageService driveStorageService, CircleDefinitionService circleDefinitionService, DriveManager driveManager)
         {
             _logger = logger;
-            _driveService = driveService;
+            _driveStorageService = driveStorageService;
             _circleDefinitionService = circleDefinitionService;
             _driveManager = driveManager;
         }

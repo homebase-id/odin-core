@@ -14,6 +14,8 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Core;
 using Youverse.Core.Services.Drive.Core.Storage;
+using Youverse.Core.Services.Drives.Base;
+using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
@@ -24,7 +26,7 @@ namespace Youverse.Hosting.Controllers.Base.Upload;
 /// Enables the uploading of files and enforces system rules regarding filetypes and uploads
 /// </summary>
 public abstract class DriveUploadServiceBase<TFileService>
-    where TFileService : IDriveFileService
+    where TFileService : IDriveFileSystem
 {
     private readonly TenantContext _tenantContext;
     private readonly DotYouContextAccessor _contextAccessor;
@@ -33,9 +35,9 @@ public abstract class DriveUploadServiceBase<TFileService>
     private readonly DriveManager _driveManager;
 
     /// <summary />
-    protected DriveUploadServiceBase(TFileService driveService, TenantContext tenantContext, DotYouContextAccessor contextAccessor, DriveManager driveManager)
+    protected DriveUploadServiceBase(TFileService fileSystem, TenantContext tenantContext, DotYouContextAccessor contextAccessor, DriveManager driveManager)
     {
-        DriveService = driveService;
+        FileSystem = fileSystem;
 
         _tenantContext = tenantContext;
         _contextAccessor = contextAccessor;
@@ -43,7 +45,7 @@ public abstract class DriveUploadServiceBase<TFileService>
         _packages = new ConcurrentDictionary<Guid, UploadPackage>();
     }
 
-    protected TFileService DriveService { get; }
+    protected TFileService FileSystem { get; }
 
     public virtual async Task<Guid> CreatePackage(Stream data)
     {
@@ -68,7 +70,7 @@ public abstract class DriveUploadServiceBase<TFileService>
         if (overwriteFileId == Guid.Empty)
         {
             //get a new fileid
-            file = DriveService.Storage.CreateInternalFileId(driveId);
+            file = FileSystem.Storage.CreateInternalFileId(driveId);
         }
         else
         {
@@ -98,7 +100,7 @@ public abstract class DriveUploadServiceBase<TFileService>
             throw new YouverseSystemException("Invalid package Id");
         }
 
-        await DriveService.Storage.WriteTempStream(pkg.InternalFile, MultipartUploadParts.Metadata.ToString(), data);
+        await FileSystem.Storage.WriteTempStream(pkg.InternalFile, MultipartUploadParts.Metadata.ToString(), data);
     }
 
     public virtual async Task AddPayload(Guid packageId, Stream data)
@@ -108,7 +110,7 @@ public abstract class DriveUploadServiceBase<TFileService>
             throw new YouverseSystemException("Invalid package Id");
         }
 
-        var bytesWritten = await DriveService.Storage.WriteTempStream(pkg.InternalFile, MultipartUploadParts.Payload.ToString(), data);
+        var bytesWritten = await FileSystem.Storage.WriteTempStream(pkg.InternalFile, MultipartUploadParts.Payload.ToString(), data);
         var package = await this.GetPackage(packageId);
         package.HasPayload = bytesWritten > 0;
     }
@@ -123,8 +125,8 @@ public abstract class DriveUploadServiceBase<TFileService>
         //TODO: How to store the content type for later usage?  is it even needed?
 
         //TODO: should i validate width and height are > 0?
-        string extenstion = DriveService.Storage.GetThumbnailFileExtension(width, height);
-        await DriveService.Storage.WriteTempStream(pkg.InternalFile, extenstion, data);
+        string extenstion = FileSystem.Storage.GetThumbnailFileExtension(width, height);
+        await FileSystem.Storage.WriteTempStream(pkg.InternalFile, extenstion, data);
     }
 
     public virtual async Task<UploadPackage> GetPackage(Guid packageId)
@@ -153,7 +155,7 @@ public abstract class DriveUploadServiceBase<TFileService>
         if (package.IsUpdateOperation)
         {
             // Validate the file exists by the Id
-            if (!DriveService.Storage.FileExists(package.InternalFile))
+            if (!FileSystem.Storage.FileExists(package.InternalFile))
             {
                 throw new YouverseClientException("OverwriteFileId is specified but file does not exist", YouverseClientErrorCode.CannotOverwriteNonExistentFile);
             }
@@ -162,12 +164,12 @@ public abstract class DriveUploadServiceBase<TFileService>
             if (metadata.AppData.UniqueId.HasValue)
             {
                 var incomingClientUniqueId = metadata.AppData.UniqueId.Value;
-                var existingFileHeader = await DriveService.Storage.GetServerFileHeader(package.InternalFile);
+                var existingFileHeader = await FileSystem.Storage.GetServerFileHeader(package.InternalFile);
 
                 var isChangingUniqueId = incomingClientUniqueId != existingFileHeader.FileMetadata.AppData.UniqueId;
                 if (isChangingUniqueId)
                 {
-                    var existingFile = await DriveService.Query.GetFileByClientUniqueId(package.InternalFile.DriveId, incomingClientUniqueId);
+                    var existingFile = await FileSystem.Query.GetFileByClientUniqueId(package.InternalFile.DriveId, incomingClientUniqueId);
                     if (null != existingFile && existingFile.FileId != existingFileHeader.FileMetadata.File.FileId)
                     {
                         throw new YouverseClientException($"It looks like the uniqueId is being changed but a file already exists with ClientUniqueId: [{incomingClientUniqueId}]",
@@ -184,7 +186,7 @@ public abstract class DriveUploadServiceBase<TFileService>
             if (metadata.AppData.UniqueId.HasValue)
             {
                 var incomingClientUniqueId = metadata.AppData.UniqueId.Value;
-                var existingFile = await DriveService.Query.GetFileByClientUniqueId(package.InternalFile.DriveId, incomingClientUniqueId);
+                var existingFile = await FileSystem.Query.GetFileByClientUniqueId(package.InternalFile.DriveId, incomingClientUniqueId);
                 if (null != existingFile)
                 {
                     throw new YouverseClientException($"File already exists with ClientUniqueId: [{incomingClientUniqueId}]", YouverseClientErrorCode.ExistingFileWithUniqueId);
@@ -244,7 +246,7 @@ public abstract class DriveUploadServiceBase<TFileService>
 
     protected virtual async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadata(UploadPackage package)
     {
-        var metadataStream = await DriveService.Storage.GetTempStream(package.InternalFile, MultipartUploadParts.Metadata.ToString());
+        var metadataStream = await FileSystem.Storage.GetTempStream(package.InternalFile, MultipartUploadParts.Metadata.ToString());
 
         var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
         var decryptedJsonBytes = AesCbc.Decrypt(metadataStream.ToByteArray(), ref clientSharedSecret, package.InstructionSet.TransferIv);

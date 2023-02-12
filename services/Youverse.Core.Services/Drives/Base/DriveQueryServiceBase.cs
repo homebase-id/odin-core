@@ -2,38 +2,37 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Serilog;
-using Youverse.Core.Serialization;
 using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Apps.CommandMessaging;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Core;
 using Youverse.Core.Services.Drive.Core.Query;
 
-namespace Youverse.Core.Services.Drive.Comment
+namespace Youverse.Core.Services.Drives.Base
 {
-    public class CommentFileQueryService : IDriveQueryService
+    public abstract class DriveQueryServiceBase : RequirePermissionsBase, IDriveQueryService
     {
-        private readonly DotYouContextAccessor _contextAccessor;
-        private readonly DriveManager _driveManager;
-        private readonly IAppService _appService;
-
+        private readonly DriveStorageServiceBase _storage;
         private readonly DriveDatabaseHost _driveDatabaseHost;
 
-        public CommentFileQueryService(DotYouContextAccessor contextAccessor, IAppService appService, DriveDatabaseHost driveDatabaseHost, DriveManager driveManager)
+        protected DriveQueryServiceBase(DotYouContextAccessor contextAccessor, DriveDatabaseHost driveDatabaseHost, DriveManager driveManager, DriveStorageServiceBase storage)
         {
-            _contextAccessor = contextAccessor;
-            _appService = appService;
+            ContextAccessor = contextAccessor;
+            DriveManager = driveManager;
             _driveDatabaseHost = driveDatabaseHost;
-            _driveManager = driveManager;
+            _storage = storage;
         }
+
+        protected override DriveManager DriveManager { get; }
+
+        protected override DotYouContextAccessor ContextAccessor { get; }
 
         public async Task<QueryModifiedResult> GetModified(Guid driveId, FileQueryParams qp, QueryModifiedResultOptions options)
         {
+            AssertCanReadDrive(driveId);
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
-                var (updatedCursor, fileIdList) = await queryManager.GetModified(_contextAccessor.GetCurrent().Caller, qp, options);
+                var (updatedCursor, fileIdList) = await queryManager.GetModified(ContextAccessor.GetCurrent().Caller, qp, options);
                 var headers = await CreateClientFileHeaders(driveId, fileIdList, options);
 
                 //TODO: can we put a stop cursor and update time on this too?  does that make any sense? probably not
@@ -50,10 +49,11 @@ namespace Youverse.Core.Services.Drive.Comment
 
         public async Task<QueryBatchResult> GetBatch(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options)
         {
-            Log.Logger.Debug("reaction drive was called");
+            AssertCanReadDrive(driveId);
+
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
-                var (cursor, fileIdList) = await queryManager.GetBatch(_contextAccessor.GetCurrent().Caller, qp, options);
+                var (cursor, fileIdList) = await queryManager.GetBatch(ContextAccessor.GetCurrent().Caller, qp, options);
 
                 var headers = await CreateClientFileHeaders(driveId, fileIdList, options);
                 return new QueryBatchResult()
@@ -69,6 +69,8 @@ namespace Youverse.Core.Services.Drive.Comment
 
         public async Task<ClientFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId)
         {
+            AssertCanReadDrive(driveId);
+
             var qp = new FileQueryParams()
             {
                 ClientUniqueIdAtLeastOne = new List<Guid>() { clientUniqueId }
@@ -86,55 +88,17 @@ namespace Youverse.Core.Services.Drive.Comment
             return results.SearchResults.SingleOrDefault();
         }
 
-        public Task EnqueueCommandMessage(Guid driveId, List<Guid> fileIds)
-        {
-            TryGetOrLoadQueryManager(driveId, out var manager);
-            return manager.AddCommandMessage(fileIds);
-        }
-
-        public async Task<List<ReceivedCommand>> GetUnprocessedCommands(Guid driveId, int count)
-        {
-            await TryGetOrLoadQueryManager(driveId, out var manager);
-            var unprocessedCommands = await manager.GetUnprocessedCommands(count);
-
-            var result = new List<ReceivedCommand>();
-
-            foreach (var cmd in unprocessedCommands)
-            {
-                var file = new InternalDriveFileId()
-                {
-                    DriveId = driveId,
-                    FileId = cmd.Id
-                };
-
-                var commandFileHeader = await _appService.GetClientEncryptedFileHeader(file);
-                var command = DotYouSystemSerializer.Deserialize<CommandTransferMessage>(commandFileHeader.FileMetadata.AppData.JsonContent);
-
-                result.Add(new ReceivedCommand()
-                {
-                    Id = commandFileHeader.FileId, //TODO: should this be the ID?
-                    Sender = commandFileHeader.FileMetadata.SenderDotYouId,
-                    ClientCode = commandFileHeader.FileMetadata.AppData.DataType,
-                    ClientJsonMessage = command.ClientJsonMessage,
-                    GlobalTransitIdList = command!.GlobalTransitIdList
-                });
-            }
-
-            return result;
-        }
-
-        public async Task MarkCommandsProcessed(Guid driveId, List<Guid> idList)
-        {
-            await TryGetOrLoadQueryManager(driveId, out var manager);
-            await manager.MarkCommandsCompleted(idList);
-        }
-
         public async Task<QueryBatchCollectionResponse> GetBatchCollection(QueryBatchCollectionRequest request)
         {
+            foreach (var driveId in request.Queries.Select(q => ContextAccessor.GetCurrent().PermissionsContext.GetDriveId(q.QueryParams.TargetDrive)))
+            {
+                AssertCanReadDrive(driveId);
+            }
+
             var collection = new QueryBatchCollectionResponse();
             foreach (var query in request.Queries)
             {
-                var driveId = (await _driveManager.GetDriveIdByAlias(query.QueryParams.TargetDrive, true)).GetValueOrDefault();
+                var driveId = (await DriveManager.GetDriveIdByAlias(query.QueryParams.TargetDrive, true)).GetValueOrDefault();
                 var result = await this.GetBatch(driveId, query.QueryParams, query.ResultOptions);
 
                 var response = QueryBatchResponse.FromResult(result);
@@ -149,6 +113,7 @@ namespace Youverse.Core.Services.Drive.Comment
         {
             foreach (var driveId in driveIdList)
             {
+                AssertCanWriteToDrive(driveId);
                 if (this.TryGetOrLoadQueryManager(driveId, out var manager, false).GetAwaiter().GetResult())
                 {
                     manager.EnsureIndexDataCommitted();
@@ -160,6 +125,7 @@ namespace Youverse.Core.Services.Drive.Comment
 
         public async Task<ClientFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId)
         {
+            AssertCanReadDrive(driveId);
             var qp = new FileQueryParams()
             {
                 GlobalTransitId = new List<Guid>() { globalTransitId }
@@ -189,7 +155,8 @@ namespace Youverse.Core.Services.Drive.Comment
                     FileId = fileId
                 };
 
-                var header = await _appService.GetClientEncryptedFileHeader(file);
+                var serverFileHeader = await _storage.GetServerFileHeader(file);
+                var header = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverFileHeader, ContextAccessor);
                 if (!options.IncludeJsonContent)
                 {
                     header.FileMetadata.AppData.JsonContent = string.Empty;
@@ -209,10 +176,6 @@ namespace Youverse.Core.Services.Drive.Comment
         private Task<bool> TryGetOrLoadQueryManager(Guid driveId, out IDriveQueryManager manager, bool onlyReadyManagers = true)
         {
             return _driveDatabaseHost.TryGetOrLoadQueryManager(driveId, out manager, onlyReadyManagers);
-        }
-
-        public void Dispose()
-        {
         }
     }
 }

@@ -13,6 +13,7 @@ using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Core.Query;
+using Youverse.Core.Services.Drives.FileSystem.Standard;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Transit.Quarantine.Filter;
 
@@ -25,7 +26,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         private readonly ITransitPerimeterTransferStateService _transitPerimeterTransferStateService;
         private readonly IPublicKeyService _publicKeyService;
         private readonly IDriveQueryService _driveQueryService;
-        private readonly StandardFileDriveService _driveService;
+        private readonly StandardFileDriveStorageService _driveStorageService;
         private readonly DriveManager _driveManager;
         private readonly IAppService _appService;
 
@@ -35,14 +36,14 @@ namespace Youverse.Core.Services.Transit.Quarantine
             ITransitService transitService,
             ITransitPerimeterTransferStateService transitPerimeterTransferStateService,
             IPublicKeyService publicKeyService,
-            IDriveQueryService driveQueryService, StandardFileDriveService driveService, IAppService appService, DriveManager driveManager) : base()
+            IDriveQueryService driveQueryService, StandardFileDriveStorageService driveStorageService, IAppService appService, DriveManager driveManager) : base()
         {
             _contextAccessor = contextAccessor;
             _transitService = transitService;
             _transitPerimeterTransferStateService = transitPerimeterTransferStateService;
             _publicKeyService = publicKeyService;
             _driveQueryService = driveQueryService;
-            _driveService = driveService;
+            _driveStorageService = driveStorageService;
             _appService = appService;
             _driveManager = driveManager;
         }
@@ -193,7 +194,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             }
 
             string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
-            var payload = await _driveService.GetPayloadStream(file);
+            var payload = await _driveStorageService.GetPayloadStream(file);
 
             return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, header.FileMetadata.ContentType, payload);
         }
@@ -219,7 +220,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             var directMatchingThumb = thumbs.SingleOrDefault(t => t.PixelHeight == height && t.PixelWidth == width);
             if (null != directMatchingThumb)
             {
-                var innerThumb = await _driveService.GetThumbnailPayloadStream(file, width, height);
+                var innerThumb = await _driveStorageService.GetThumbnailPayloadStream(file, width, height);
                 return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, directMatchingThumb.ContentType, innerThumb);
             }
 
@@ -234,7 +235,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
                 }
             }
 
-            var thumb = await _driveService.GetThumbnailPayloadStream(file, width, height);
+            var thumb = await _driveStorageService.GetThumbnailPayloadStream(file, width, height);
             return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, nextSizeUp.ContentType, thumb);
         }
 

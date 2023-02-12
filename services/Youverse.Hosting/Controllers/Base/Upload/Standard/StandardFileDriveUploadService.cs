@@ -8,7 +8,7 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Core;
 using Youverse.Core.Services.Drive.Core.Storage;
-using Youverse.Core.Services.Drive.Standard;
+using Youverse.Core.Services.Drives.FileSystem.Standard;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
@@ -18,14 +18,14 @@ namespace Youverse.Hosting.Controllers.Base.Upload.Standard;
 /// <summary>
 /// Enables the uploading of files and enforces system rules regarding filetypes and uploads
 /// </summary>
-public class StandardFileDriveUploadService : DriveUploadServiceBase<StandardDriveService>
+public class StandardFileDriveUploadService : DriveUploadServiceBase<StandardFileSystem>
 {
     private readonly ITransitService _transitService;
 
     /// <summary />
-    public StandardFileDriveUploadService(StandardDriveService driveService, TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITransitService transitService,
+    public StandardFileDriveUploadService(StandardFileSystem fileSystem, TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITransitService transitService,
         DriveManager driveManager)
-        : base(driveService, tenantContext, contextAccessor, driveManager)
+        : base(fileSystem, tenantContext, contextAccessor, driveManager)
     {
         _transitService = transitService;
     }
@@ -53,12 +53,12 @@ public class StandardFileDriveUploadService : DriveUploadServiceBase<StandardDri
 
     protected override async Task ProcessNewFileUpload(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
     {
-        await DriveService.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, "payload");
+        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, "payload");
     }
 
     protected override async Task ProcessExistingFileUpload(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
     {
-        await DriveService.Storage.OverwriteFile(tempFile: package.InternalFile,
+        await FileSystem.Storage.OverwriteFile(tempFile: package.InternalFile,
             targetFile: package.InternalFile,
             keyHeader: keyHeader,
             metadata: metadata,

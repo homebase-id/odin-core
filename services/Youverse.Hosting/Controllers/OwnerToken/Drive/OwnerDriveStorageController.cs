@@ -22,16 +22,16 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
     public class OwnerDriveStorageController : DriveReadStorageControllerBase
     {
         private readonly IAppService _appService;
-        private readonly IDriveService _driveService;
+        private readonly IDriveStorageService _driveStorageService;
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly ITransitService _transitService;
 
         /// <summary />
-        public OwnerDriveStorageController(DotYouContextAccessor contextAccessor, IDriveService driveService, IAppService appService, ITransitService transitService) : base(contextAccessor,
-            driveService, appService)
+        public OwnerDriveStorageController(DotYouContextAccessor contextAccessor, IDriveStorageService driveStorageService, IAppService appService, ITransitService transitService) : base(contextAccessor,
+            driveStorageService, appService)
         {
             _contextAccessor = contextAccessor;
-            _driveService = driveService;
+            _driveStorageService = driveStorageService;
             _appService = appService;
             _transitService = transitService;
         }
@@ -173,7 +173,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
                 FileId = request.File.FileId
             };
 
-            await _driveService.HardDeleteLongTermFile(file);
+            await _driveStorageService.HardDeleteLongTermFile(file);
             return Ok();
         }
     }

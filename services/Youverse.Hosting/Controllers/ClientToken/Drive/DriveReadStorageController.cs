@@ -24,14 +24,14 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
     public class DriveReadStorageController : ControllerBase
     {
         private readonly IAppService _appService;
-        private readonly IDriveService _driveService;
+        private readonly IDriveStorageService _driveStorageService;
         private readonly DotYouContextAccessor _contextAccessor;
 
         /// <inheritdoc />
-        public DriveReadStorageController(DotYouContextAccessor contextAccessor, IDriveService driveService, IAppService appService)
+        public DriveReadStorageController(DotYouContextAccessor contextAccessor, IDriveStorageService driveStorageService, IAppService appService)
         {
             _contextAccessor = contextAccessor;
-            _driveService = driveService;
+            _driveStorageService = driveStorageService;
             _appService = appService;
         }
 
@@ -90,7 +90,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
                 FileId = request.FileId
             };
 
-            var payload = await _driveService.GetPayloadStream(file);
+            var payload = await _driveStorageService.GetPayloadStream(file);
             if (payload == Stream.Null)
             {
                 return NotFound();
@@ -135,7 +135,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
                 FileId = request.File.FileId
             };
 
-            var payload = await _driveService.GetThumbnailPayloadStream(file, request.Width, request.Height);
+            var payload = await _driveStorageService.GetThumbnailPayloadStream(file, request.Width, request.Height);
             if (payload == Stream.Null)
             {
                 return NotFound();

@@ -28,7 +28,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
 
         private readonly StandardFileDriveUploadService _uploadService;
 
-        public DriveStorageWriteController(DotYouContextAccessor contextAccessor, IDriveService driveService, ITransitService transitService,
+        public DriveStorageWriteController(DotYouContextAccessor contextAccessor, IDriveStorageService driveStorageService, ITransitService transitService,
             IAppService appService, StandardFileDriveUploadService uploadService)
         {
             _contextAccessor = contextAccessor;

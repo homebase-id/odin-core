@@ -30,10 +30,11 @@ using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.DataSubscription;
 using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Comment;
 using Youverse.Core.Services.Drive.Core;
 using Youverse.Core.Services.Drive.Core.Query;
-using Youverse.Core.Services.Drive.Standard;
+using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Drives.FileSystem.Comment;
+using Youverse.Core.Services.Drives.FileSystem.Standard;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Optimization.Cdn;
@@ -103,15 +104,16 @@ namespace Youverse.Hosting
 
 
             cb.RegisterType<StandardFileDriveUploadService>().AsSelf().InstancePerDependency();
-            cb.RegisterType<StandardFileDriveService>().AsSelf().As<IDriveService>().InstancePerDependency();
-            cb.RegisterType<DriveQueryService>().AsSelf().As<IDriveQueryService>().InstancePerDependency();
-            cb.RegisterType<StandardDriveService>().AsSelf().InstancePerDependency();
+            cb.RegisterType<StandardFileDriveStorageService>().AsSelf().As<IDriveStorageService>().InstancePerDependency();
+            cb.RegisterType<StandardFileDriveQueryService>().AsSelf().As<IDriveQueryService>().InstancePerDependency();
+            cb.RegisterType<StandardDriveCommandService>().AsSelf().InstancePerDependency();
+            cb.RegisterType<StandardFileSystem>().AsSelf().InstancePerDependency();
 
             
             cb.RegisterType<CommentFileUploadService>().AsSelf().InstancePerDependency();
             cb.RegisterType<CommentFileStorageService>().AsSelf().InstancePerDependency();
             cb.RegisterType<CommentFileQueryService>().AsSelf().InstancePerDependency();
-            cb.RegisterType<CommentDriveService>().AsSelf().InstancePerDependency();
+            cb.RegisterType<CommentFileSystem>().AsSelf().InstancePerDependency();
             
             cb.RegisterType<DriveDatabaseHost>()
                 .As<INotificationHandler<DriveFileAddedNotification>>()

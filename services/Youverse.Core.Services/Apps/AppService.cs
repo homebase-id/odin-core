@@ -15,19 +15,19 @@ namespace Youverse.Core.Services.Apps
     public class AppService : IAppService
     {
         private readonly DotYouContextAccessor _contextAccessor;
-        private readonly IDriveService _driveService;
+        private readonly IDriveStorageService _driveStorageService;
         private readonly ITransitService _transitService;
 
-        public AppService(IDriveService driveService, DotYouContextAccessor contextAccessor, ITransitService transitService)
+        public AppService(IDriveStorageService driveStorageService, DotYouContextAccessor contextAccessor, ITransitService transitService)
         {
-            _driveService = driveService;
+            _driveStorageService = driveStorageService;
             _contextAccessor = contextAccessor;
             _transitService = transitService;
         }
 
         public async Task<ClientFileHeader> GetClientEncryptedFileHeader(InternalDriveFileId file)
         {
-            var header = await _driveService.GetServerFileHeader(file);
+            var header = await _driveStorageService.GetServerFileHeader(file);
 
             if (header == null)
             {
@@ -92,7 +92,7 @@ namespace Youverse.Core.Services.Apps
                 LocalFileDeleted = false
             };
 
-            var header = await _driveService.GetServerFileHeader(file);
+            var header = await _driveStorageService.GetServerFileHeader(file);
             if (header == null)
             {
                 result.LocalFileNotFound = true;
@@ -128,7 +128,7 @@ namespace Youverse.Core.Services.Apps
                 }
             }
 
-            await _driveService.SoftDeleteLongTermFile(file);
+            await _driveStorageService.SoftDeleteLongTermFile(file);
             result.LocalFileDeleted = true;
 
             return result;

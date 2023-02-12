@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Apps.CommandMessaging;
 using Youverse.Core.Services.Drive.Core.Query;
 
 namespace Youverse.Core.Services.Drive
@@ -10,7 +9,7 @@ namespace Youverse.Core.Services.Drive
     /// <summary>
     /// Access to configured drives, their files
     /// </summary>
-    public interface IDriveQueryService : IDisposable
+    public interface IDriveQueryService
     {
         /// <summary>
         /// Returns a list of files 
@@ -26,14 +25,7 @@ namespace Youverse.Core.Services.Drive
 
         Task<ClientFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId);
 
-        Task EnqueueCommandMessage(Guid driveId, List<Guid> fileIds);
-
-        Task<List<ReceivedCommand>> GetUnprocessedCommands(Guid driveId, int count);
-
-        Task MarkCommandsProcessed(Guid driveId, List<Guid> idList);
-
         Task<QueryBatchCollectionResponse> GetBatchCollection(QueryBatchCollectionRequest request);
-
 
         Task EnsureIndexerCommits(IEnumerable<Guid> driveIdList);
     }

@@ -29,12 +29,12 @@ namespace Youverse.Hosting.Controllers.Certificate
     {
         private readonly ITransitPerimeterService _perimeterService;
         private Guid _stateItemId;
-        private readonly IDriveService _driveService;
+        private readonly IDriveStorageService _driveStorageService;
 
-        public TransitPerimeterController(ITransitPerimeterService perimeterService, IDriveService driveService)
+        public TransitPerimeterController(ITransitPerimeterService perimeterService, IDriveStorageService driveStorageService)
         {
             _perimeterService = perimeterService;
-            _driveService = driveService;
+            _driveStorageService = driveStorageService;
         }
 
         [HttpPost("stream")]
@@ -139,7 +139,7 @@ namespace Youverse.Hosting.Controllers.Certificate
             AssertIsValidThumbnailPart(section, MultipartHostTransferParts.Thumbnail, out var fileSection, out var width, out var height);
 
             // section.ContentType
-            string extenstion = _driveService.GetThumbnailFileExtension(width, height);
+            string extenstion = _driveStorageService.GetThumbnailFileExtension(width, height);
             var response = await _perimeterService.ApplyFirstStageFiltering(this._stateItemId, MultipartHostTransferParts.Thumbnail, extenstion, section.Body);
             if (response.FilterAction == FilterAction.Reject)
             {

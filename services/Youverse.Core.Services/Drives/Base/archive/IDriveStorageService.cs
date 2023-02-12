@@ -11,7 +11,7 @@ namespace Youverse.Core.Services.Drive
     /// <summary>
     /// Offers creation, read, write of data on drives.
     /// </summary>
-    public interface IDriveService
+    public interface IDriveStorageService
     {
         /// <summary>
         /// Creates an Id for storing a file

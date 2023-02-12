@@ -4,11 +4,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Core.Query;
 using Youverse.Core.Services.Drive.Core.Query.Sqlite;
 using Youverse.Core.Services.Mediator;
 
-namespace Youverse.Core.Services.Drive.Core
+namespace Youverse.Core.Services.Drives
 {
     /// <summary>
     /// Hosts all the instances of the DriveDatabase across all drives

@@ -11,42 +11,37 @@ using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Core.Storage;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Storage;
 
-namespace Youverse.Core.Services.Drive
+namespace Youverse.Core.Services.Drives.Base
 {
-    // Note: drive storage using the ThreeKey KeyValueDatabase
-    // key1 = drive id
-    // key2 = drive type  + drive alias (see TargetDrive.ToKey() method)
-    // key3 = type of data identifier (the fact this is a drive; note: we should put datatype on the KV database)
-
-    public abstract class DriveServiceBase : IDriveService
+    public abstract class DriveStorageServiceBase : RequirePermissionsBase, IDriveStorageService
     {
         private readonly IDriveAclAuthorizationService _driveAclAuthorizationService;
         private readonly IMediator _mediator;
-        private readonly DotYouContextAccessor _contextAccessor;
-        private readonly TenantContext _tenantContext;
         private readonly ILoggerFactory _loggerFactory;
 
-        protected DriveServiceBase(DotYouContextAccessor contextAccessor, ITenantSystemStorage tenantSystemStorage, ILoggerFactory loggerFactory, IMediator mediator,
-            IDriveAclAuthorizationService driveAclAuthorizationService, TenantContext tenantContext, DriveManager driveManager)
+        protected DriveStorageServiceBase(
+            DotYouContextAccessor contextAccessor,
+            ILoggerFactory loggerFactory,
+            IMediator mediator,
+            IDriveAclAuthorizationService driveAclAuthorizationService,
+            DriveManager driveManager)
         {
-            _contextAccessor = contextAccessor;
-
+            ContextAccessor = contextAccessor;
             _loggerFactory = loggerFactory;
             _mediator = mediator;
             _driveAclAuthorizationService = driveAclAuthorizationService;
-            _tenantContext = tenantContext;
             DriveManager = driveManager;
-            // _driveManager = new DriveManager(contextAccessor, tenantSystemStorage, mediator, tenantContext);
         }
 
-        protected DriveManager DriveManager { get; }
+        
+        protected override DriveManager DriveManager { get; }
+        protected override DotYouContextAccessor ContextAccessor { get; }
 
-        protected DotYouContextAccessor ContextAccessor => _contextAccessor;
         
         public InternalDriveFileId CreateInternalFileId(Guid driveId)
         {
@@ -215,7 +210,7 @@ namespace Youverse.Core.Services.Drive
 
         private async Task<EncryptedKeyHeader> EncryptKeyHeader(Guid driveId, KeyHeader keyHeader)
         {
-            var storageKey = _contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(driveId);
+            var storageKey = ContextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(driveId);
 
             (await this.DriveManager.GetDrive(driveId)).AssertValidStorageKey(storageKey);
 
@@ -394,18 +389,6 @@ namespace Youverse.Core.Services.Drive
             });
         }
 
-
-        //
-
-        /// <summary>
-        /// Enforces drive permissions when reading files
-        /// </summary>
-        protected abstract void AssertCanReadDrive(Guid driveId);
-
-        /// <summary>
-        /// Enforces drive permissions when writing files
-        /// </summary>
-        protected abstract void AssertCanWriteToDrive(Guid driveId);
 
         //
         private ILongTermStorageManager GetLongTermStorageManager(Guid driveId)

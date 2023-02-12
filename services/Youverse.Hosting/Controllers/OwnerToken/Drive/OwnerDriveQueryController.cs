@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Comment;
+using Youverse.Core.Services.Drives.FileSystem.Comment;
 using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers.ClientToken.Drive;
 
@@ -18,13 +18,13 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly IDriveQueryService _driveQueryService;
         private readonly CommentFileQueryService _commentFileQueryService;
-        private readonly IDriveService _driveService;
+        private readonly IDriveStorageService _driveStorageService;
 
-        public OwnerDriveQueryController(IDriveQueryService driveQueryService, DotYouContextAccessor contextAccessor, IDriveService driveService, CommentFileQueryService commentFileQueryService)
+        public OwnerDriveQueryController(IDriveQueryService driveQueryService, DotYouContextAccessor contextAccessor, IDriveStorageService driveStorageService, CommentFileQueryService commentFileQueryService)
         {
             _driveQueryService = driveQueryService;
             _contextAccessor = contextAccessor;
-            _driveService = driveService;
+            _driveStorageService = driveStorageService;
             _commentFileQueryService = commentFileQueryService;
         }
 

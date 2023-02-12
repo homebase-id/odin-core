@@ -18,13 +18,13 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
     {
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly IDriveQueryService _driveQueryService;
-        private readonly IDriveService _driveService;
+        private readonly IDriveStorageService _driveStorageService;
 
-        public DriveQueryController(IDriveQueryService driveQueryService, DotYouContextAccessor contextAccessor, IDriveService driveService)
+        public DriveQueryController(IDriveQueryService driveQueryService, DotYouContextAccessor contextAccessor, IDriveStorageService driveStorageService)
         {
             _driveQueryService = driveQueryService;
             _contextAccessor = contextAccessor;
-            _driveService = driveService;
+            _driveStorageService = driveStorageService;
         }
 
         /// <summary>

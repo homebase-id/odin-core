@@ -12,6 +12,7 @@ using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Core.Storage;
+using Youverse.Core.Services.Drives.FileSystem.Standard;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
@@ -27,25 +28,19 @@ namespace Youverse.Core.Services.Apps.CommandMessaging;
 public class CommandMessagingService
 {
     private readonly ITransitService _transitService;
-    private readonly IDriveService _driveService;
-    private readonly IDriveQueryService _driveQueryService;
-    private readonly TenantContext _tenantContext;
-    private readonly DotYouContextAccessor _contextAccessor;
+    private readonly StandardFileSystem _standardFileSystem;
 
-    public CommandMessagingService(ITransitService transitService, IDriveService driveService, TenantContext tenantContext, IDriveQueryService driveQueryService, DotYouContextAccessor contextAccessor)
+    public CommandMessagingService(ITransitService transitService, StandardFileSystem standardFileSystem)
     {
         _transitService = transitService;
-        _driveService = driveService;
-        _tenantContext = tenantContext;
-        _driveQueryService = driveQueryService;
-        _contextAccessor = contextAccessor;
+        _standardFileSystem = standardFileSystem;
     }
 
     public async Task<CommandMessageResult> SendCommandMessage(Guid driveId, CommandMessage command)
     {
         Guard.Argument(command, nameof(command)).NotNull().Require(m => m.IsValid());
 
-        var internalFile = _driveService.CreateInternalFileId(driveId);
+        var internalFile = _standardFileSystem.Storage.CreateInternalFileId(driveId);
 
         var msg = new CommandTransferMessage()
         {
@@ -76,8 +71,8 @@ public class CommandMessagingService
             DoNotIndex = true
         };
 
-        var serverFileHeader = await _driveService.CreateServerFileHeader(internalFile, keyHeader, fileMetadata, serverMetadata);
-        await _driveService.UpdateActiveFileHeader(internalFile, serverFileHeader);
+        var serverFileHeader = await _standardFileSystem.Storage.CreateServerFileHeader(internalFile, keyHeader, fileMetadata, serverMetadata);
+        await _standardFileSystem.Storage.UpdateActiveFileHeader(internalFile, serverFileHeader);
 
         var transferResult = await _transitService.SendFile(
             internalFile: internalFile,
@@ -102,7 +97,7 @@ public class CommandMessagingService
     /// <returns></returns>
     public async Task<ReceivedCommandResultSet> GetUnprocessedCommands(Guid driveId, string cursor)
     {
-        var commands = await _driveQueryService.GetUnprocessedCommands(driveId, count: 100);
+        var commands = await _standardFileSystem.Commands.GetUnprocessedCommands(driveId, count: 100);
         return new ReceivedCommandResultSet()
         {
             ReceivedCommands = commands
@@ -126,9 +121,9 @@ public class CommandMessagingService
 
         foreach (var internalDriveFileId in list)
         {
-            await _driveService.HardDeleteLongTermFile(internalDriveFileId);
+            await _standardFileSystem.Storage.HardDeleteLongTermFile(internalDriveFileId);
         }
 
-        await _driveQueryService.MarkCommandsProcessed(driveId, commandIdList.ToList());
+        await _standardFileSystem.Commands.MarkCommandsProcessed(driveId, commandIdList.ToList());
     }
 }

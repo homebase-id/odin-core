@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Drive.Core;
+using Youverse.Core.Services.Drives.Base;
+using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers.Base.Upload;
@@ -25,7 +27,7 @@ namespace Youverse.Hosting.Controllers.Base
         /// </remarks>
         /// <exception cref="YouverseClientException"></exception>
         protected async Task<UploadResult> ReceiveStream<TFileService>(DriveUploadServiceBase<TFileService> svc)
-            where TFileService :IDriveFileService
+            where TFileService :IDriveFileSystem
         {
             var driveUploadService = svc;
 

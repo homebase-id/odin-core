@@ -1,7 +1,6 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
-using Youverse.Core.Services.Drive.Comment;
 using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers.Base;
 using Youverse.Hosting.Controllers.Base.Upload.Comment;
