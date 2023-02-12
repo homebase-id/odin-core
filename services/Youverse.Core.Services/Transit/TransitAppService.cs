@@ -168,7 +168,7 @@ namespace Youverse.Core.Services.Transit
         private async Task StoreCommandMessage(InternalDriveFileId tempFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
         {
             serverMetadata.DoNotIndex = true;
-            await _driveService.CommitTempFileToNewLongTermFile(tempFile, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
+            await _driveService.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
             await _driveQueryService.EnqueueCommandMessage(tempFile.DriveId, new List<Guid>() { tempFile.FileId });
         }
 
@@ -220,14 +220,14 @@ namespace Youverse.Core.Services.Transit
                     };
 
                     //note: we also update the key header because it might have been changed by the sender
-                    await _driveService.OverwriteLongTermWithTempFile(tempFile, targetFile, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
+                    await _driveService.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
                     return;
                 }
                 //else there was no file by the global transit id
             }
 
 
-            await _driveService.CommitTempFileToNewLongTermFile(tempFile, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
+            await _driveService.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
         }
 
         private async Task<ClientFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId)

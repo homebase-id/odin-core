@@ -30,9 +30,10 @@ using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.DataSubscription;
 using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drive.Comment;
 using Youverse.Core.Services.Drive.Core;
 using Youverse.Core.Services.Drive.Core.Query;
-using Youverse.Core.Services.Drive.Reaction;
+using Youverse.Core.Services.Drive.Standard;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Optimization.Cdn;
@@ -44,6 +45,8 @@ using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Transit.Quarantine;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Core.Storage;
+using Youverse.Hosting.Controllers.Base.Upload.Comment;
+using Youverse.Hosting.Controllers.Base.Upload.Standard;
 
 namespace Youverse.Hosting
 {
@@ -95,9 +98,20 @@ namespace Youverse.Hosting
 
             cb.RegisterType<AppAuthenticationService>().As<IAppAuthenticationService>().SingleInstance();
 
+            cb.RegisterType<DriveManager>().AsSelf().SingleInstance();
             cb.RegisterType<DriveAclAuthorizationService>().As<IDriveAclAuthorizationService>().SingleInstance();
 
-            cb.RegisterType<DriveService>().As<IDriveService>().SingleInstance();
+
+            cb.RegisterType<StandardFileDriveUploadService>().AsSelf().InstancePerDependency();
+            cb.RegisterType<StandardFileDriveService>().AsSelf().As<IDriveService>().InstancePerDependency();
+            cb.RegisterType<DriveQueryService>().AsSelf().As<IDriveQueryService>().InstancePerDependency();
+            cb.RegisterType<StandardDriveService>().AsSelf().InstancePerDependency();
+
+            
+            cb.RegisterType<CommentFileUploadService>().AsSelf().InstancePerDependency();
+            cb.RegisterType<CommentFileStorageService>().AsSelf().InstancePerDependency();
+            cb.RegisterType<CommentFileQueryService>().AsSelf().InstancePerDependency();
+            cb.RegisterType<CommentDriveService>().AsSelf().InstancePerDependency();
             
             cb.RegisterType<DriveDatabaseHost>()
                 .As<INotificationHandler<DriveFileAddedNotification>>()
@@ -105,14 +119,6 @@ namespace Youverse.Hosting
                 .As<INotificationHandler<DriveFileDeletedNotification>>()
                 .AsSelf().SingleInstance();
             
-            cb.RegisterType<DriveQueryService>()
-                .As<IDriveQueryService>()
-                .SingleInstance();
-
-            cb.RegisterType<ReactionDriveQueryService>()
-                .AsSelf()
-                .SingleInstance();
-           
 
             cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>().SingleInstance();
 
@@ -149,7 +155,6 @@ namespace Youverse.Hosting
             cb.RegisterType<TransitPerimeterService>().As<ITransitPerimeterService>().SingleInstance();
             cb.RegisterType<TransitPerimeterTransferStateService>().As<ITransitPerimeterTransferStateService>().SingleInstance();
 
-            cb.RegisterType<DriveUploadService>().AsSelf().SingleInstance();
             cb.RegisterType<CommandMessagingService>().AsSelf().SingleInstance();
 
             cb.RegisterType<AppService>().As<IAppService>().SingleInstance();

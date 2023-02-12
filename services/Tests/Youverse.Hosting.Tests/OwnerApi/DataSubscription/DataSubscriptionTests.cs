@@ -59,13 +59,12 @@ public class DataSubscriptionTests
         var uploadResult = await UploadToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent);
 
         // Sam should have the same content on his feed drive
+        await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
 
         var qp = new FileQueryParams()
         {
             TargetDrive = SystemDriveConstants.FeedDrive,
         };
-        
-        await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
         
         var batch = await samOwnerClient.Drive.QueryBatch(qp);
         Assert.IsTrue(batch.SearchResults.Count() == 1);

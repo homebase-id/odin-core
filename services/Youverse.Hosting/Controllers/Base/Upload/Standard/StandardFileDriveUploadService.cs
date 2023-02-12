@@ -5,21 +5,26 @@ using System.Threading.Tasks;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Apps.CommandMessaging;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Core;
 using Youverse.Core.Services.Drive.Core.Storage;
+using Youverse.Core.Services.Drive.Standard;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
+using Youverse.Core.Services.Transit.Upload;
 
-namespace Youverse.Core.Services.Drive.Standard;
+namespace Youverse.Hosting.Controllers.Base.Upload.Standard;
 
 /// <summary>
 /// Enables the uploading of files and enforces system rules regarding filetypes and uploads
 /// </summary>
-public class StandardFileDriveUploadService : DriveUploadServiceBase<StandardDriveStorageService>
+public class StandardFileDriveUploadService : DriveUploadServiceBase<StandardDriveService>
 {
     private readonly ITransitService _transitService;
 
-    public StandardFileDriveUploadService(StandardDriveService driveService, TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITransitService transitService, DriveManager driveManager)
+    /// <summary />
+    public StandardFileDriveUploadService(StandardDriveService driveService, TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITransitService transitService,
+        DriveManager driveManager)
         : base(driveService, tenantContext, contextAccessor, driveManager)
     {
         _transitService = transitService;
@@ -48,7 +53,7 @@ public class StandardFileDriveUploadService : DriveUploadServiceBase<StandardDri
 
     protected override async Task ProcessNewFileUpload(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
     {
-        await DriveService.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata);
+        await DriveService.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, "payload");
     }
 
     protected override async Task ProcessExistingFileUpload(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
@@ -57,7 +62,8 @@ public class StandardFileDriveUploadService : DriveUploadServiceBase<StandardDri
             targetFile: package.InternalFile,
             keyHeader: keyHeader,
             metadata: metadata,
-            newServerMetadata: serverMetadata);
+            serverMetadata: serverMetadata,
+            "payload");
     }
 
     protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(UploadPackage package)
@@ -81,7 +87,7 @@ public class StandardFileDriveUploadService : DriveUploadServiceBase<StandardDri
             ContentType = uploadDescriptor.FileMetadata.ContentType,
 
             //Note: this intentionally does not map ReferenceToFile; this can only be done through the feedback system
-            ReferencedFile = null,
+            // ReferencedFile = null,
 
             //TODO: need an automapper *sigh
             AppData = new AppFileMetaData()

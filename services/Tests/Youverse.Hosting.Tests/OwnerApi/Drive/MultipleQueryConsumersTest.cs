@@ -33,7 +33,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
         }
 
         [Test]
-        public async Task WillDisposeWithBothReactionAndStandardFilesAreUsed()
+        public async Task WillDisposeWithBothCommentAndStandardFilesAreUsed()
         {
             var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
 
@@ -61,6 +61,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
             {
                 ContentType = "application/json",
                 PayloadIsEncrypted = false,
+                ReferencedFile = standardFileUploadResult.File,
                 AppData = new()
                 {
                     ContentIsComplete = true,
@@ -72,26 +73,23 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 }
             };
 
-            var commentFileUploadResult = await frodoOwnerClient.Drive.UploadMetadataFile(targetDrive, commentFile);
+            var commentFileUploadResult = await frodoOwnerClient.Drive.UploadCommentFile(targetDrive, commentFile);
 
-            var standardFileQuery = new FileQueryParams()
+            var standardFileResults = await frodoOwnerClient.Drive.QueryBatch(new FileQueryParams()
             {
                 TargetDrive = targetDrive,
                 FileType = new[] { standardFile.AppData.FileType }
-            };
-            var standardFileResults = await frodoOwnerClient.Drive.QueryBatch(standardFileQuery);
-            Assert.IsNotNull(standardFileResults.SearchResults.SingleOrDefault(f => f.FileId == standardFileUploadResult.File.FileId));
+            });
 
-            var commentFileQuery = new FileQueryParams()
+            Assert.IsNotNull(standardFileResults.SearchResults.SingleOrDefault(f => f.FileId == standardFileUploadResult.File.FileId));
+            
+            var commentFileResults = await frodoOwnerClient.Drive.QueryBatch(new FileQueryParams()
             {
                 UseReactionDriveHack = true,
                 TargetDrive = targetDrive,
                 FileType = new[] { commentFile.AppData.FileType }
-            };
-
-            var commentFileResults = await frodoOwnerClient.Drive.QueryBatch(commentFileQuery);
+            });
             Assert.IsNotNull(commentFileResults.SearchResults.SingleOrDefault(f => f.FileId == commentFileUploadResult.File.FileId));
         }
-
     }
 }

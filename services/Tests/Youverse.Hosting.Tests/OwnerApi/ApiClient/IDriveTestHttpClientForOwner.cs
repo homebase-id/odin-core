@@ -14,23 +14,23 @@ namespace Youverse.Hosting.Tests.OwnerApi.ApiClient
     /// </summary>
     public interface IDriveReactionHttpTestClientForOwner
     {
-        private const string RootStorageEndpoint = OwnerApiPathConstants.DriveReactionsV1;
+        private const string RootStorageEndpoint = OwnerApiPathConstants.DriveCommentsV1;
 
         [Multipart]
         [Post(RootStorageEndpoint + "/upload")]
-        Task<ApiResponse<UploadResult>> UploadTextReaction(StreamPart instructionSet, StreamPart metaData, StreamPart payload, params StreamPart[] thumbnail);
+        Task<ApiResponse<UploadResult>> UploadComment(StreamPart instructionSet, StreamPart metaData, StreamPart payload, params StreamPart[] thumbnail);
 
         [Get(RootStorageEndpoint + "/header")]
-        Task<ApiResponse<ClientFileHeader>> GetTextReactionHeader(Guid reactionFileId, Guid alias, Guid type);
+        Task<ApiResponse<ClientFileHeader>> GetCommentFileHeader(Guid reactionFileId, Guid alias, Guid type);
 
         [Get(RootStorageEndpoint + "/payload")]
-        Task<ApiResponse<HttpContent>> GetTextReactionPayload(Guid reactionFileId, Guid alias, Guid type);
+        Task<ApiResponse<HttpContent>> GetCommentPayload(Guid reactionFileId, Guid alias, Guid type);
 
         [Get(RootStorageEndpoint + "/list")]
         Task<ApiResponse<List<ClientFileHeader>>> GetTextReactionsByReferenceFile(Guid referencedFileId, Guid alias, Guid type, int pageNumber, int pageSize);
 
         [Get(RootStorageEndpoint + "/thumb")]
-        Task<ApiResponse<HttpContent>> GetTextReactionThumbnail(Guid reactionFileId,  Guid alias, Guid type, int width, int height);
+        Task<ApiResponse<HttpContent>> GetCommentThumbnail(Guid reactionFileId,  Guid alias, Guid type, int width, int height);
 
         // [Post(RootQueryEndpoint + "/modified")]
         // Task<ApiResponse<QueryModifiedResult>> GetModified(QueryModifiedRequest request);

@@ -33,6 +33,11 @@ namespace Youverse.Core.Services.Drive.Core.Storage
             this.AppData = new AppFileMetaData();
         }
 
+        /// <summary>
+        /// A file to which this file references.  I.e. this file is a comment about another file
+        /// </summary>
+        public ExternalFileIdentifier ReferencedFile { get; set; }
+        
         public InternalDriveFileId File { get; set; }
         
         /// <summary>

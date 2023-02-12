@@ -1,17 +1,12 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Data.Entity.ModelConfiguration.Configuration;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Dawn;
-using DnsClient;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Cryptography.Crypto;
-using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
@@ -28,7 +23,7 @@ namespace Youverse.Core.Services.Drive
     // key2 = drive type  + drive alias (see TargetDrive.ToKey() method)
     // key3 = type of data identifier (the fact this is a drive; note: we should put datatype on the KV database)
 
-    public class DriveService : IDriveService
+    public abstract class DriveServiceBase : IDriveService
     {
         private readonly DriveManager _driveManager;
         private readonly IDriveAclAuthorizationService _driveAclAuthorizationService;
@@ -37,7 +32,7 @@ namespace Youverse.Core.Services.Drive
         private readonly TenantContext _tenantContext;
         private readonly ILoggerFactory _loggerFactory;
 
-        public DriveService(DotYouContextAccessor contextAccessor, ITenantSystemStorage tenantSystemStorage, ILoggerFactory loggerFactory, IMediator mediator,
+        protected DriveServiceBase(DotYouContextAccessor contextAccessor, ITenantSystemStorage tenantSystemStorage, ILoggerFactory loggerFactory, IMediator mediator,
             IDriveAclAuthorizationService driveAclAuthorizationService, TenantContext tenantContext)
         {
             _contextAccessor = contextAccessor;
@@ -46,15 +41,10 @@ namespace Youverse.Core.Services.Drive
             _mediator = mediator;
             _driveAclAuthorizationService = driveAclAuthorizationService;
             _tenantContext = tenantContext;
-            // _longTermStorageManagers = new ConcurrentDictionary<Guid, ILongTermStorageManager>();
-            // _tempStorageManagers = new ConcurrentDictionary<Guid, ITempStorageManager>();
-
             _driveManager = new DriveManager(contextAccessor, tenantSystemStorage, mediator, tenantContext);
-
-            //Note: I dropped the dictionaries as multiple threads was causing issues AND there
-            //is not a good reason to cache the I*StorageManager for now.
-            // InitializeStorageDrives().GetAwaiter().GetResult();
         }
+
+        protected DotYouContextAccessor ContextAccessor => _contextAccessor;
 
         public Task<StorageDrive> CreateDrive(CreateDriveRequest request)
         {
@@ -70,7 +60,6 @@ namespace Youverse.Core.Services.Drive
         {
             return _driveManager.UpdateMetadata(driveId, metadata);
         }
-
 
         public async Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false)
         {
@@ -100,7 +89,7 @@ namespace Youverse.Core.Services.Drive
         public InternalDriveFileId CreateInternalFileId(Guid driveId)
         {
             //TODO: need a permission specifically for writing to the temp drive
-            //_contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
+            //AssertCanWriteToDrive(driveId);
 
             var df = new InternalDriveFileId()
             {
@@ -116,7 +105,7 @@ namespace Youverse.Core.Services.Drive
             Guard.Argument(header, nameof(header)).NotNull();
             Guard.Argument(header, nameof(header)).Require(x => x.IsValid());
 
-            _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(file.DriveId);
+            AssertCanWriteToDrive(file.DriveId);
 
             var metadata = header.FileMetadata;
 
@@ -149,7 +138,7 @@ namespace Youverse.Core.Services.Drive
 
         public Task WritePartStream(InternalDriveFileId file, FilePart filePart, Stream stream)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(file.DriveId);
+            AssertCanWriteToDrive(file.DriveId);
 
             var task = GetLongTermStorageManager(file.DriveId).WritePartStream(file.FileId, filePart, stream);
             return task;
@@ -170,18 +159,9 @@ namespace Youverse.Core.Services.Drive
             return o;
         }
 
-        private void AssertCanReadDrive(Guid driveId)
-        {
-            var drive = this.GetDrive(driveId, true).GetAwaiter().GetResult();
-            if (!drive.AllowAnonymousReads)
-            {
-                _contextAccessor.GetCurrent().PermissionsContext.AssertCanReadDrive(driveId);
-            }
-        }
-
         public Task<uint> WriteTempStream(InternalDriveFileId file, string extension, Stream stream)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(file.DriveId);
+            AssertCanWriteToDrive(file.DriveId);
             return GetTempStorageManager(file.DriveId).WriteStream(file.FileId, extension, stream);
         }
 
@@ -194,21 +174,21 @@ namespace Youverse.Core.Services.Drive
 
         public Task DeleteTempFile(InternalDriveFileId file, string extension)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(file.DriveId);
+            AssertCanWriteToDrive(file.DriveId);
 
             return GetTempStorageManager(file.DriveId).Delete(file.FileId, extension);
         }
 
         public Task DeleteTempFiles(InternalDriveFileId file)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(file.DriveId);
+            AssertCanWriteToDrive(file.DriveId);
 
             return GetTempStorageManager(file.DriveId).Delete(file.FileId);
         }
 
         public Task<IEnumerable<ServerFileHeader>> GetMetadataFiles(Guid driveId, PageOptions pageOptions)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertCanReadDrive(driveId);
+            AssertCanReadDrive(driveId);
 
             return GetLongTermStorageManager(driveId).GetServerFileHeaders(pageOptions);
         }
@@ -247,7 +227,7 @@ namespace Youverse.Core.Services.Drive
 
         public async Task WriteThumbnailStream(InternalDriveFileId file, int width, int height, Stream stream)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(file.DriveId);
+            AssertCanWriteToDrive(file.DriveId);
             await GetLongTermStorageManager(file.DriveId).WriteThumbnail(file.FileId, width, height, stream);
         }
 
@@ -325,7 +305,7 @@ namespace Youverse.Core.Services.Drive
 
         public async Task SoftDeleteLongTermFile(InternalDriveFileId file)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(file.DriveId);
+            AssertCanWriteToDrive(file.DriveId);
 
             var existingHeader = await this.GetServerFileHeader(file);
 
@@ -347,7 +327,7 @@ namespace Youverse.Core.Services.Drive
 
         public Task HardDeleteLongTermFile(InternalDriveFileId file)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(file.DriveId);
+            AssertCanWriteToDrive(file.DriveId);
 
             var result = GetLongTermStorageManager(file.DriveId).HardDelete(file.FileId);
 
@@ -361,9 +341,9 @@ namespace Youverse.Core.Services.Drive
             return result;
         }
 
-        public async Task CommitTempFileToNewLongTermFile(InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata, string payloadExtension)
+        public async Task CommitNewFile(InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata, string payloadExtension)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(targetFile.DriveId);
+            AssertCanWriteToDrive(targetFile.DriveId);
 
             metadata.File = targetFile;
 
@@ -405,10 +385,10 @@ namespace Youverse.Core.Services.Drive
             });
         }
 
-        public async Task OverwriteLongTermWithTempFile(InternalDriveFileId tempFile, InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
+        public async Task OverwriteFile(InternalDriveFileId tempFile, InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
             string payloadExtension)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(targetFile.DriveId);
+            AssertCanWriteToDrive(targetFile.DriveId);
 
             metadata.File = targetFile;
 
@@ -450,27 +430,27 @@ namespace Youverse.Core.Services.Drive
                 ServerFileHeader = serverHeader
             });
         }
-        
+
+
+        //
+
+        /// <summary>
+        /// Enforces drive permissions when reading files
+        /// </summary>
+        protected abstract void AssertCanReadDrive(Guid driveId);
+
+        /// <summary>
+        /// Enforces drive permissions when writing files
+        /// </summary>
+        protected abstract void AssertCanWriteToDrive(Guid driveId);
+
+        //
         private ILongTermStorageManager GetLongTermStorageManager(Guid driveId)
         {
             var logger = _loggerFactory.CreateLogger<ILongTermStorageManager>();
             var drive = this.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
             var manager = new FileBasedLongTermStorageManager(drive, logger);
             return manager;
-
-            // if (_longTermStorageManagers.TryGetValue(driveId, out var manager))
-            // {
-            //     return manager;
-            // }
-            //
-            // var sd = this.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
-            // var success = LoadLongTermStorage(sd, out manager);
-            // if (!success)
-            // {
-            //     throw new YouverseClientException($"Could not load long term storage for drive {driveId}", YouverseClientErrorCode.FileNotFound);
-            // }
-            //
-            // return manager;
         }
 
         private ITempStorageManager GetTempStorageManager(Guid driveId)
@@ -478,19 +458,6 @@ namespace Youverse.Core.Services.Drive
             var drive = this.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
             var logger = _loggerFactory.CreateLogger<ITempStorageManager>();
             return new FileBasedTempStorageManager(drive, logger);
-            // if (_tempStorageManagers.TryGetValue(driveId, out var manager))
-            // {
-            //     return manager;
-            // }
-            //
-            // var sd = this.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
-            // var success = LoadTempStorage(sd, out manager);
-            // if (!success)
-            // {
-            //     throw new YouverseClientException($"Could not load temporary storage for drive {driveId}", YouverseClientErrorCode.FileNotFound);
-            // }
-            //
-            // return manager;
         }
 
         private async Task WriteFileHeaderInternal(ServerFileHeader header)

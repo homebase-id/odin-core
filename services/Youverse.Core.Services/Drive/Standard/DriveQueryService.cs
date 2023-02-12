@@ -19,13 +19,13 @@ namespace Youverse.Core.Services.Drive
     public class DriveQueryService : IDriveQueryService
     {
         private readonly DotYouContextAccessor _contextAccessor;
-        private readonly IDriveService _driveService;
+        private readonly StandardFileDriveService _driveService;
         private readonly ILoggerFactory _loggerFactory;
         private readonly IAppService _appService;
 
         private readonly DriveDatabaseHost _driveDatabaseHost;
 
-        public DriveQueryService(IDriveService driveService, ILoggerFactory loggerFactory, DotYouContextAccessor contextAccessor, IAppService appService, DriveDatabaseHost driveDatabaseHost)
+        public DriveQueryService(StandardFileDriveService driveService, ILoggerFactory loggerFactory, DotYouContextAccessor contextAccessor, IAppService appService, DriveDatabaseHost driveDatabaseHost)
         {
             _driveService = driveService;
             _loggerFactory = loggerFactory;

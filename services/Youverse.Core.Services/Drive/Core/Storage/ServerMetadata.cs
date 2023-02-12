@@ -10,6 +10,10 @@ namespace Youverse.Core.Services.Drive.Core.Storage
         /// If true, the file should not be indexed
         /// </summary>
         public bool DoNotIndex { get; set; }
-
+        
+        /// <summary>
+        /// Indicates if this file can be distributed to Data Subscriptions
+        /// </summary>
+        public bool AllowDistribution { get; set; }
     }
 }

@@ -412,7 +412,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                         AdditionalThumbnails = new[] { thumbnail1, thumbnail2 }
                     },
                     PayloadIsEncrypted = true,
-                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Authenticated }
+                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
 
@@ -688,7 +688,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                         AdditionalThumbnails = new[] { thumbnail1, thumbnail2 }
                     },
                     PayloadIsEncrypted = true,
-                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Authenticated }
+                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
 

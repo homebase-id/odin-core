@@ -100,18 +100,18 @@ namespace Youverse.Hosting.Tests
             if (null != _webserver)
             {
                 Thread.Sleep(2000);
-                _webserver.StopAsync();
+                _webserver.StopAsync().GetAwaiter().GetResult();
                 _webserver.Dispose();
             }
         }
 
         public OwnerApiTestUtils OldOwnerApi => this._oldOwnerApi ?? throw new NullReferenceException("Check if the owner app was initialized in method RunBeforeAnyTests");
-        
+
         public OwnerApiClient CreateOwnerApiClient(TestIdentity identity)
         {
             return new OwnerApiClient(this._oldOwnerApi, identity);
         }
-        
+
         public AppApiTestUtils AppApi => this._appApi ?? throw new NullReferenceException("Check if the owner app was initialized in method RunBeforeAnyTests");
 
         public ScenarioBootstrapper Scenarios => this._scenarios ?? throw new NullReferenceException("");

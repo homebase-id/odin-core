@@ -15,7 +15,7 @@ using Youverse.Hosting.Controllers.ClientToken;
 namespace Youverse.Hosting.Controllers.Base
 {
     /// <summary>
-    /// Api endpoints for reading drives
+    /// Base class for any endpoint reading drive storage
     /// </summary>
     [ApiController]
     public abstract class DriveReadStorageControllerBase : ControllerBase

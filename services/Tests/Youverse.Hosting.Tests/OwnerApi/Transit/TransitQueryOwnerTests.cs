@@ -120,7 +120,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                         JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
                     PayloadIsEncrypted = true,
-                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Authenticated }
+                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
 
@@ -379,7 +379,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                         AdditionalThumbnails = new[] { thumbnail1 }
                     },
                     PayloadIsEncrypted = true,
-                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Authenticated }
+                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
 

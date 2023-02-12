@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Reaction;
+using Youverse.Core.Services.Drive.Comment;
 using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers.ClientToken.Drive;
 
@@ -17,15 +17,15 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
     {
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly IDriveQueryService _driveQueryService;
-        private readonly ReactionDriveQueryService _reactionDriveQueryService;
+        private readonly CommentFileQueryService _commentFileQueryService;
         private readonly IDriveService _driveService;
 
-        public OwnerDriveQueryController(IDriveQueryService driveQueryService, DotYouContextAccessor contextAccessor, IDriveService driveService, ReactionDriveQueryService reactionDriveQueryService)
+        public OwnerDriveQueryController(IDriveQueryService driveQueryService, DotYouContextAccessor contextAccessor, IDriveService driveService, CommentFileQueryService commentFileQueryService)
         {
             _driveQueryService = driveQueryService;
             _contextAccessor = contextAccessor;
             _driveService = driveService;
-            _reactionDriveQueryService = reactionDriveQueryService;
+            _commentFileQueryService = commentFileQueryService;
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
@@ -46,7 +46,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             QueryBatchResult batch = null;
             if (request.QueryParams.UseReactionDriveHack)
             {
-                batch = await _reactionDriveQueryService.GetBatch(driveId, request.QueryParams, request.ResultOptionsRequest.ToQueryBatchResultOptions());
+                batch = await _commentFileQueryService.GetBatch(driveId, request.QueryParams, request.ResultOptionsRequest.ToQueryBatchResultOptions());
             }
             else
             {

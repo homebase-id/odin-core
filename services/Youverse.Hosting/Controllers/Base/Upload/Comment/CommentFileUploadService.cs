@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drive.Comment;
 using Youverse.Core.Services.Drive.Core;
 using Youverse.Core.Services.Drive.Core.Storage;
 using Youverse.Core.Services.Transit;
@@ -14,13 +15,13 @@ using Youverse.Core.Services.Transit.Upload;
 namespace Youverse.Hosting.Controllers.Base.Upload.Comment;
 
 /// <summary />
-public class CommentUploadService : DriveUploadServiceBase<IDriveFileService>
+public class CommentFileUploadService : DriveUploadServiceBase<CommentDriveService>
 {
     private readonly DotYouContextAccessor _contextAccessor;
     private readonly ITransitService _transitService;
 
     /// <summary />
-    public CommentUploadService(IDriveFileService driveService, TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITransitService transitService,
+    public CommentFileUploadService(CommentDriveService driveService, TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITransitService transitService,
         DriveManager driveManager)
         : base(driveService, tenantContext, contextAccessor, driveManager)
     {
@@ -40,7 +41,7 @@ public class CommentUploadService : DriveUploadServiceBase<IDriveFileService>
             throw new YouverseClientException("GroupId is reserved for Text Reactions", YouverseClientErrorCode.CannotUseGroupIdInTextReactions);
         }
 
-        if (!uploadDescriptor.FileMetadata.ReferencedFile?.HasValue() ?? false)
+        if (!(uploadDescriptor.FileMetadata.ReferencedFile?.HasValue() ?? false))
         {
             throw new YouverseClientException($"{nameof(uploadDescriptor.FileMetadata.ReferencedFile)} must be set and point to another file on the same drive",
                 YouverseClientErrorCode.InvalidReferenceFile);

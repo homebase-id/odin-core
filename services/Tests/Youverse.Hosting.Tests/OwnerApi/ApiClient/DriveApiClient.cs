@@ -67,7 +67,7 @@ public class DriveApiClient
         }
     }
     
-	public async Task<UploadResult> UploadReactionFile(TargetDrive targetDrive, UploadFileMetadata fileMetadata)
+	public async Task<UploadResult> UploadCommentFile(TargetDrive targetDrive, UploadFileMetadata fileMetadata)
     {
         using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret))
         {
@@ -98,7 +98,7 @@ public class DriveApiClient
             var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
 
             var uploadService = RestService.For<IDriveReactionHttpTestClientForOwner>(client);
-            var response = await uploadService.UploadTextReaction(
+            var response = await uploadService.UploadComment(
                 new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                 new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
                 new StreamPart(new MemoryStream(), "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
@@ -259,7 +259,7 @@ public class DriveApiClient
         using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret))
         {
             var svc = RefitCreator.RestServiceFor<IDriveReactionHttpTestClientForOwner>(client, sharedSecret);
-            var apiResponse = await svc.GetTextReactionHeader(reactionFile.FileId, reactionFile.TargetDrive.Alias, reactionFile.TargetDrive.Type);
+            var apiResponse = await svc.GetCommentFileHeader(reactionFile.FileId, reactionFile.TargetDrive.Alias, reactionFile.TargetDrive.Type);
 
             Assert.IsTrue(apiResponse.IsSuccessStatusCode, "Server failure when getting file header");
             return apiResponse.Content;

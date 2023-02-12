@@ -29,7 +29,7 @@ namespace Youverse.Core.Services.Drive
             var drive = this.GetDrive(driveId, true).GetAwaiter().GetResult();
             if (!drive.AllowAnonymousReads)
             {
-                ContextAccessor.GetCurrent().PermissionsContext.AssertCanReadDrive(driveId);
+                ContextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
             }
         }
     }

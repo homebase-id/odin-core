@@ -12,7 +12,7 @@
 
         public const string DrivesV1 = BasePathV1 + "/drive";
        
-        public const string DriveReactionsV1 = BasePathV1 + "/drive/reactions";
+        public const string DriveCommentsV1 = BasePathV1 + "/drive/comments";
         
         public const string DriveManagementV1 = DrivesV1 + "/mgmt";
 

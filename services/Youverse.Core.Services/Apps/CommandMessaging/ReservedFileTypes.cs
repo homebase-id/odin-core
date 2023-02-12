@@ -2,8 +2,15 @@ namespace Youverse.Core.Services.Apps.CommandMessaging;
 
 public static class ReservedFileTypes
 {
-    private const int Start = 2100000000;
-    private const int End = int.MaxValue;
+    /// <summary>
+    /// Start range of reserved file types
+    /// </summary>
+    public const int Start = 2100000000;
+
+    /// <summary>
+    /// End range of reserved file types
+    /// </summary>
+    public const int End = int.MaxValue;
 
     public const int CommandMessage = 2100000001;
 

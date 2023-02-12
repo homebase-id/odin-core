@@ -77,13 +77,13 @@ namespace Youverse.Core.Services.Drive
         /// Stores the metadata and associated payload (from the temp storage) in long term storage
         /// </summary>
         /// <returns></returns>
-        Task CommitTempFileToNewLongTermFile(InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata, string payloadExtension);
+        Task CommitNewFile(InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata, string payloadExtension);
 
         /// <summary>
         /// Overwrites the <param name="targetFile"/> with the <param name="tempFile"/>
         /// </summary>
         /// <returns></returns>
-        Task OverwriteLongTermWithTempFile(InternalDriveFileId tempFile, InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata, string payloadExtension);
+        Task OverwriteFile(InternalDriveFileId tempFile, InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata, string payloadExtension);
 
         /// <summary>
         /// Deletes the specified temp file matching the driveId, fileId and extension

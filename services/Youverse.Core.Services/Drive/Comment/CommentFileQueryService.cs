@@ -11,9 +11,9 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Core;
 using Youverse.Core.Services.Drive.Core.Query;
 
-namespace Youverse.Core.Services.Drive.Reaction
+namespace Youverse.Core.Services.Drive.Comment
 {
-    public class ReactionDriveQueryService : IDriveQueryService
+    public class CommentFileQueryService : IDriveQueryService
     {
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly IDriveService _driveService;
@@ -22,7 +22,7 @@ namespace Youverse.Core.Services.Drive.Reaction
 
         private readonly DriveDatabaseHost _driveDatabaseHost;
 
-        public ReactionDriveQueryService(IDriveService driveService, ILoggerFactory loggerFactory, DotYouContextAccessor contextAccessor, IAppService appService, DriveDatabaseHost driveDatabaseHost)
+        public CommentFileQueryService(IDriveService driveService, ILoggerFactory loggerFactory, DotYouContextAccessor contextAccessor, IAppService appService, DriveDatabaseHost driveDatabaseHost)
         {
             _driveService = driveService;
             _loggerFactory = loggerFactory;

@@ -52,6 +52,7 @@ namespace Youverse.Hosting.Middleware
                 "/api/owner/v1/transit/inbox/processor/process", //TODO: why is this here??
                 "/api/perimeter", //TODO: temporarily allowing all perimeter traffic not use shared secret
                 "/api/owner/v1/drive/files/upload",
+                "/api/owner/v1/drive/comments/upload",
                 "/api/apps/v1/drive/files/upload",
                 "/api/youauth/v1/auth/is-authenticated",
                 //"/api/owner/v1/config/ownerapp/settings/list"

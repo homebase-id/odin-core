@@ -4,25 +4,27 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Dawn;
+using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Core;
 using Youverse.Core.Services.Drive.Core.Storage;
-using Youverse.Core.Services.Drive.Standard;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
+using Youverse.Core.Services.Transit.Upload;
 
-namespace Youverse.Core.Services.Drive;
+namespace Youverse.Hosting.Controllers.Base.Upload;
 
 /// <summary>
 /// Enables the uploading of files and enforces system rules regarding filetypes and uploads
 /// </summary>
-public abstract class DriveUploadServiceBase<TStorageService> : IDisposable
-    where TStorageService : DriveStorageServiceBase
+public abstract class DriveUploadServiceBase<TFileService>
+    where TFileService : IDriveFileService
 {
     private readonly TenantContext _tenantContext;
     private readonly DotYouContextAccessor _contextAccessor;
@@ -30,7 +32,8 @@ public abstract class DriveUploadServiceBase<TStorageService> : IDisposable
     private readonly ConcurrentDictionary<Guid, UploadPackage> _packages;
     private readonly DriveManager _driveManager;
 
-    protected DriveUploadServiceBase(StandardDriveService driveService, TenantContext tenantContext, DotYouContextAccessor contextAccessor, DriveManager driveManager)
+    /// <summary />
+    protected DriveUploadServiceBase(TFileService driveService, TenantContext tenantContext, DotYouContextAccessor contextAccessor, DriveManager driveManager)
     {
         DriveService = driveService;
 
@@ -40,9 +43,9 @@ public abstract class DriveUploadServiceBase<TStorageService> : IDisposable
         _packages = new ConcurrentDictionary<Guid, UploadPackage>();
     }
 
-    protected StandardDriveService DriveService { get; }
+    protected TFileService DriveService { get; }
 
-    public virtual async Task<Guid> CreatePackage(Stream data, UploadPackageOptions packageOptions = null)
+    public virtual async Task<Guid> CreatePackage(Stream data)
     {
         //TODO: need to partially encrypt upload instruction set
         string json = await new StreamReader(data).ReadToEndAsync();
@@ -79,7 +82,7 @@ public abstract class DriveUploadServiceBase<TStorageService> : IDisposable
         }
 
         var pkgId = Guid.NewGuid();
-        var package = new UploadPackage(pkgId, file, instructionSet!, isUpdateOperation, packageOptions);
+        var package = new UploadPackage(pkgId, file, instructionSet!, isUpdateOperation);
         if (!_packages.TryAdd(pkgId, package))
         {
             throw new YouverseSystemException("Failed to add the upload package");
@@ -247,7 +250,7 @@ public abstract class DriveUploadServiceBase<TStorageService> : IDisposable
         var decryptedJsonBytes = AesCbc.Decrypt(metadataStream.ToByteArray(), ref clientSharedSecret, package.InstructionSet.TransferIv);
         metadataStream.Close();
 
-        var json = System.Text.Encoding.UTF8.GetString(decryptedJsonBytes);
+        var json = global::System.Text.Encoding.UTF8.GetString(decryptedJsonBytes);
 
         var uploadDescriptor = DotYouSystemSerializer.Deserialize<UploadFileDescriptor>(json);
 
@@ -259,8 +262,7 @@ public abstract class DriveUploadServiceBase<TStorageService> : IDisposable
         }
 
         KeyHeader keyHeader = uploadDescriptor.FileMetadata.PayloadIsEncrypted ? transferEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret) : KeyHeader.Empty();
-
-
+        
         await ValidateUploadDescriptor(uploadDescriptor);
 
         var metadata = await MapUploadToMetadata(package, uploadDescriptor);
@@ -322,8 +324,4 @@ public abstract class DriveUploadServiceBase<TStorageService> : IDisposable
         }
     }
 
-    public void Dispose()
-    {
-        DriveService?.Dispose();
-    }
 }

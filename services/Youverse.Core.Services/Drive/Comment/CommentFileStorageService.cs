@@ -7,9 +7,9 @@ using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Drive.Comment;
 
-public class CommentFileDriveService : DriveServiceBase
+public class CommentFileStorageService : DriveServiceBase
 {
-    public CommentFileDriveService(DotYouContextAccessor contextAccessor, ITenantSystemStorage tenantSystemStorage, ILoggerFactory loggerFactory, IMediator mediator,
+    public CommentFileStorageService(DotYouContextAccessor contextAccessor, ITenantSystemStorage tenantSystemStorage, ILoggerFactory loggerFactory, IMediator mediator,
         IDriveAclAuthorizationService driveAclAuthorizationService, TenantContext tenantContext) :
         base(contextAccessor, tenantSystemStorage, loggerFactory, mediator, driveAclAuthorizationService, tenantContext)
     {
@@ -29,7 +29,7 @@ public class CommentFileDriveService : DriveServiceBase
         var drive = this.GetDrive(driveId, true).GetAwaiter().GetResult();
         if (!drive.AllowAnonymousReads)
         {
-            ContextAccessor.GetCurrent().PermissionsContext.AssertCanReadDrive(driveId);
+            ContextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
         }
     }
 }
