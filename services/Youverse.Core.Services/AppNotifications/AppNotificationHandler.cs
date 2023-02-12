@@ -18,15 +18,15 @@ namespace Youverse.Core.Services.AppNotifications
         private readonly DeviceSocketCollection _deviceSocketCollection;
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly IAppService _appService;
-        private readonly IDriveService _driveService;
         private readonly ITransitAppService _transitAppService;
+        private readonly DriveManager _driveManager;
 
-        public AppNotificationHandler(DotYouContextAccessor contextAccessor, IAppService appService, IDriveService driveService, ITransitAppService transitAppService)
+        public AppNotificationHandler(DotYouContextAccessor contextAccessor, IAppService appService, ITransitAppService transitAppService, DriveManager driveManager)
         {
             _contextAccessor = contextAccessor;
             _appService = appService;
-            _driveService = driveService;
             _transitAppService = transitAppService;
+            _driveManager = driveManager;
             _deviceSocketCollection = new DeviceSocketCollection();
         }
 
@@ -89,7 +89,7 @@ namespace Youverse.Core.Services.AppNotifications
         {
             var data = DotYouSystemSerializer.Serialize(new
             {
-                TargetDrive = _driveService.GetDrive(notification.File.DriveId).GetAwaiter().GetResult().TargetDriveInfo,
+                TargetDrive = _driveManager.GetDrive(notification.File.DriveId).GetAwaiter().GetResult().TargetDriveInfo,
                 Header = _appService.GetClientEncryptedFileHeader(notification.File).GetAwaiter().GetResult()
             });
 

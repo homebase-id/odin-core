@@ -39,18 +39,18 @@ namespace Youverse.Core.Services.Authentication.Owner
 
         private readonly DotYouContextCache _cache;
         private readonly ILogger<IOwnerAuthenticationService> _logger;
-        private readonly IDriveService _driveService;
+        private readonly DriveManager _driveManager;
 
         private readonly TenantContext _tenantContext;
 
-        public OwnerAuthenticationService(ILogger<IOwnerAuthenticationService> logger, IOwnerSecretService secretService, ITenantSystemStorage tenantSystemStorage, IDriveService driveService,
-            TenantContext tenantContext, YouverseConfiguration config)
+        public OwnerAuthenticationService(ILogger<IOwnerAuthenticationService> logger, IOwnerSecretService secretService, ITenantSystemStorage tenantSystemStorage,
+            TenantContext tenantContext, YouverseConfiguration config, DriveManager driveManager)
         {
             _logger = logger;
             _secretService = secretService;
             _tenantSystemStorage = tenantSystemStorage;
-            _driveService = driveService;
             _tenantContext = tenantContext;
+            _driveManager = driveManager;
             _cache = new DotYouContextCache(config.Host.CacheSlidingExpirationSeconds);
         }
 
@@ -134,7 +134,7 @@ namespace Youverse.Core.Services.Authentication.Owner
             {
                 var (masterKey, clientSharedSecret) = await GetMasterKey(token.Id, token.AccessTokenHalfKey);
 
-                var allDrives = await _driveService.GetDrives(PageOptions.All);
+                var allDrives = await _driveManager.GetDrives(PageOptions.All);
                 var allDriveGrants = allDrives.Results.Select(d => new DriveGrant()
                 {
                     DriveId = d.Id,

@@ -14,44 +14,10 @@ namespace Youverse.Core.Services.Drive
     public interface IDriveService
     {
         /// <summary>
-        /// Creates a new storage drive
-        /// </summary>
-        /// <returns></returns>
-        Task<StorageDrive> CreateDrive(CreateDriveRequest request);
-
-        /// <summary>
-        /// Sets a drive to allow anonymous or not
-        /// TODO: this is pending how we support owner drives
-        /// </summary>
-        /// <returns></returns>
-        public Task SetDriveReadMode(Guid driveId, bool allowAnonymous);
-
-        Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false);
-
-        Task<Guid?> GetDriveIdByAlias(TargetDrive targetDrive, bool failIfInvalid = false);
-
-        /// <summary>
-        /// Returns a list of the storage drives in the system
-        /// </summary>
-        /// <returns></returns>
-        Task<PagedResult<StorageDrive>> GetDrives(PageOptions pageOptions);
-
-        /// <summary>
-        /// Gets a list of the storage drives by type
-        /// </summary>
-        /// <param name="type"></param>
-        /// <param name="pageOptions"></param>
-        /// <returns></returns>
-        Task<PagedResult<StorageDrive>> GetDrives(GuidId type, PageOptions pageOptions);
-
-        Task<PagedResult<StorageDrive>> GetAnonymousDrives(PageOptions pageOptions);
-
-        /// <summary>
         /// Creates an Id for storing a file
         /// </summary>
         /// <returns></returns>
         InternalDriveFileId CreateInternalFileId(Guid driveId);
-
 
         Task UpdateActiveFileHeader(InternalDriveFileId file, ServerFileHeader header);
 
@@ -144,7 +110,5 @@ namespace Youverse.Core.Services.Drive
         /// TODO: I'm not certain this is the right place for this method
         /// </summary>
         Task<ServerFileHeader> CreateServerFileHeader(InternalDriveFileId file, KeyHeader keyHeader, FileMetadata fileMetadata, ServerMetadata serverMetadata);
-
-        Task UpdateMetadata(Guid driveId, string metadata);
     }
 }

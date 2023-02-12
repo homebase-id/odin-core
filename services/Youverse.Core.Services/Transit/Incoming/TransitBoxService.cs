@@ -21,14 +21,14 @@ namespace Youverse.Core.Services.Transit.Incoming
         private readonly ITenantSystemStorage _tenantSystemStorage;
         private readonly IMediator _mediator;
         private readonly DotYouContextAccessor _contextAccessor;
-        private readonly IDriveService _driveService;
+        private readonly DriveManager _driveManager;
         
-        public TransitBoxService(ILogger<ITransitBoxService> logger, ITenantSystemStorage tenantSystemStorage, IMediator mediator, DotYouContextAccessor contextAccessor, IDriveService driveService)
+        public TransitBoxService(ILogger<ITransitBoxService> logger, ITenantSystemStorage tenantSystemStorage, IMediator mediator, DotYouContextAccessor contextAccessor, DriveManager driveManager)
         {
             _tenantSystemStorage = tenantSystemStorage;
             _mediator = mediator;
             _contextAccessor = contextAccessor;
-            _driveService = driveService;
+            _driveManager = driveManager;
         }
 
         public Task Add(TransferBoxItem item)
@@ -44,7 +44,7 @@ namespace Youverse.Core.Services.Transit.Incoming
                 // Sender = item.Sender,
                 TempFile = new ExternalFileIdentifier()
                 {
-                    TargetDrive = _driveService.GetDrive(item.DriveId).Result.TargetDriveInfo,
+                    TargetDrive = _driveManager.GetDrive(item.DriveId).Result.TargetDriveInfo,
                     FileId = item.FileId
                 }
             });

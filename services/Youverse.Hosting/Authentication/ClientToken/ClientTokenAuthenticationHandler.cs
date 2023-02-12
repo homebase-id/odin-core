@@ -131,8 +131,8 @@ namespace Youverse.Hosting.Authentication.ClientToken
 
         private async Task<AuthenticationTicket> CreateAnonYouAuthTicket(DotYouContext dotYouContext)
         {
-            var driveService = Context.RequestServices.GetRequiredService<IDriveService>();
-            var anonymousDrives = await driveService.GetAnonymousDrives(PageOptions.All);
+            var driveManager = Context.RequestServices.GetRequiredService<DriveManager>();
+            var anonymousDrives = await driveManager.GetAnonymousDrives(PageOptions.All);
 
             if (!anonymousDrives.Results.Any())
             {
@@ -157,12 +157,12 @@ namespace Youverse.Hosting.Authentication.ClientToken
             {
                 anonPerms.Add(PermissionKeys.ReadConnections);
             }
-            
+
             if (tenantContext.Settings.AnonymousVisitorsCanViewWhoIFollow)
             {
                 anonPerms.Add(PermissionKeys.ReadWhoIFollow);
             }
-            
+
             var permissionGroupMap = new Dictionary<string, PermissionGroup>
             {
                 { "anonymous_drives", new PermissionGroup(new PermissionSet(anonPerms), anonDriveGrants, null) },

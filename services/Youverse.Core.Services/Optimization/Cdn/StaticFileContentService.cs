@@ -36,6 +36,7 @@ public enum CrossOriginBehavior
 
 public class StaticFileContentService
 {
+    private readonly DriveManager _driveManager;
     private readonly IDriveService _driveService;
     private readonly IDriveQueryService _driveQueryService;
     private readonly TenantContext _tenantContext;
@@ -43,13 +44,14 @@ public class StaticFileContentService
     private readonly ITenantSystemStorage _tenantSystemStorage;
 
     public StaticFileContentService(IDriveService driveService, IDriveQueryService driveQueryService,
-        TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITenantSystemStorage tenantSystemStorage)
+        TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITenantSystemStorage tenantSystemStorage, DriveManager driveManager)
     {
         _driveService = driveService;
         _driveQueryService = driveQueryService;
         _tenantContext = tenantContext;
         _contextAccessor = contextAccessor;
         _tenantSystemStorage = tenantSystemStorage;
+        _driveManager = driveManager;
     }
 
     public async Task<StaticFilePublishResult> Publish(string filename, StaticFileConfiguration config,
@@ -84,7 +86,7 @@ public class StaticFileContentService
         foreach (var section in sections)
         {
             var qp = section.QueryParams;
-            var driveId = (await _driveService.GetDriveIdByAlias(qp.TargetDrive, true)).GetValueOrDefault();
+            var driveId = (await _driveManager.GetDriveIdByAlias(qp.TargetDrive, true)).GetValueOrDefault();
 
             var options = new QueryBatchResultOptions()
             {

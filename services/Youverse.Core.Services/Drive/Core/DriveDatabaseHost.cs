@@ -18,14 +18,14 @@ namespace Youverse.Core.Services.Drive.Core
         INotificationHandler<DriveFileChangedNotification>,
         INotificationHandler<DriveFileDeletedNotification>
     {
-        private readonly IDriveService _driveService;
+        private readonly DriveManager _driveManager;
         private readonly ConcurrentDictionary<Guid, IDriveQueryManager> _queryManagers;
         private readonly ILoggerFactory _loggerFactory;
 
-        public DriveDatabaseHost(IDriveService driveService, ILoggerFactory loggerFactory)
+        public DriveDatabaseHost( ILoggerFactory loggerFactory, DriveManager driveManager)
         {
-            _driveService = driveService;
             _loggerFactory = loggerFactory;
+            _driveManager = driveManager;
             _queryManagers = new ConcurrentDictionary<Guid, IDriveQueryManager>();
 
             InitializeQueryManagers();
@@ -44,7 +44,7 @@ namespace Youverse.Core.Services.Drive.Core
                 return Task.FromResult(true);
             }
 
-            var drive = _driveService.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
+            var drive = _driveManager.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
             LoadQueryManager(drive, out manager);
 
             if (onlyReadyManagers && manager.IndexReadyState != IndexReadyState.Ready)
@@ -58,7 +58,7 @@ namespace Youverse.Core.Services.Drive.Core
 
         private async void InitializeQueryManagers()
         {
-            var allDrives = await _driveService.GetDrives(new PageOptions(1, Int32.MaxValue));
+            var allDrives = await _driveManager.GetDrives(new PageOptions(1, Int32.MaxValue));
             foreach (var drive in allDrives.Results)
             {
                 await this.LoadQueryManager(drive, out var _);

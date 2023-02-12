@@ -16,21 +16,19 @@ namespace Youverse.Core.Services.Drive.Comment
     public class CommentFileQueryService : IDriveQueryService
     {
         private readonly DotYouContextAccessor _contextAccessor;
-        private readonly IDriveService _driveService;
-        private readonly ILoggerFactory _loggerFactory;
+        private readonly DriveManager _driveManager;
         private readonly IAppService _appService;
 
         private readonly DriveDatabaseHost _driveDatabaseHost;
 
-        public CommentFileQueryService(IDriveService driveService, ILoggerFactory loggerFactory, DotYouContextAccessor contextAccessor, IAppService appService, DriveDatabaseHost driveDatabaseHost)
+        public CommentFileQueryService(DotYouContextAccessor contextAccessor, IAppService appService, DriveDatabaseHost driveDatabaseHost, DriveManager driveManager)
         {
-            _driveService = driveService;
-            _loggerFactory = loggerFactory;
             _contextAccessor = contextAccessor;
             _appService = appService;
             _driveDatabaseHost = driveDatabaseHost;
+            _driveManager = driveManager;
         }
-        
+
         public async Task<QueryModifiedResult> GetModified(Guid driveId, FileQueryParams qp, QueryModifiedResultOptions options)
         {
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
@@ -136,7 +134,7 @@ namespace Youverse.Core.Services.Drive.Comment
             var collection = new QueryBatchCollectionResponse();
             foreach (var query in request.Queries)
             {
-                var driveId = (await _driveService.GetDriveIdByAlias(query.QueryParams.TargetDrive, true)).GetValueOrDefault();
+                var driveId = (await _driveManager.GetDriveIdByAlias(query.QueryParams.TargetDrive, true)).GetValueOrDefault();
                 var result = await this.GetBatch(driveId, query.QueryParams, query.ResultOptions);
 
                 var response = QueryBatchResponse.FromResult(result);
@@ -212,7 +210,7 @@ namespace Youverse.Core.Services.Drive.Comment
         {
             return _driveDatabaseHost.TryGetOrLoadQueryManager(driveId, out manager, onlyReadyManagers);
         }
-        
+
         public void Dispose()
         {
         }

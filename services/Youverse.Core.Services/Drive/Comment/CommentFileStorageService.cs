@@ -17,7 +17,7 @@ public class CommentFileStorageService : DriveServiceBase
 
     protected override void AssertCanReadDrive(Guid driveId)
     {
-        var drive = this.GetDrive(driveId, true).GetAwaiter().GetResult();
+        var drive = DriveManager.GetDrive(driveId, true).GetAwaiter().GetResult();
         if (!drive.AllowAnonymousReads)
         {
             ContextAccessor.GetCurrent().PermissionsContext.AssertCanReadDrive(driveId);
@@ -26,7 +26,7 @@ public class CommentFileStorageService : DriveServiceBase
 
     protected override void AssertCanWriteToDrive(Guid driveId)
     {
-        var drive = this.GetDrive(driveId, true).GetAwaiter().GetResult();
+        var drive = DriveManager.GetDrive(driveId, true).GetAwaiter().GetResult();
         if (!drive.AllowAnonymousReads)
         {
             ContextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);

@@ -27,6 +27,7 @@ namespace Youverse.Core.Services.Transit
     public class TransitService : TransitServiceBase<ITransitService>, ITransitService
     {
         private readonly IDriveService _driveService;
+        private readonly DriveManager _driveManager;
         private readonly IOutboxService _outboxService;
         private readonly ITransitBoxService _transitBoxService;
         private readonly ITransferKeyEncryptionQueueService _transferKeyEncryptionQueueService;
@@ -47,8 +48,12 @@ namespace Youverse.Core.Services.Transit
             ITransferKeyEncryptionQueueService transferKeyEncryptionQueueService,
             ITransitBoxService transitBoxService,
             ITenantSystemStorage tenantSystemStorage,
-            IDotYouHttpClientFactory dotYouHttpClientFactory, TenantContext tenantContext,
-            ICircleNetworkService circleNetworkService, IPublicKeyService publicKeyService, FollowerService followerService) : base()
+            IDotYouHttpClientFactory dotYouHttpClientFactory, 
+            TenantContext tenantContext,
+            ICircleNetworkService circleNetworkService, 
+            IPublicKeyService publicKeyService, 
+            FollowerService followerService,
+            DriveManager driveManager) : base()
         {
             _contextAccessor = contextAccessor;
             _outboxService = outboxService;
@@ -61,6 +66,7 @@ namespace Youverse.Core.Services.Transit
             _circleNetworkService = circleNetworkService;
             _publicKeyService = publicKeyService;
             _followerService = followerService;
+            _driveManager = driveManager;
             _logger = logger;
         }
 
@@ -190,7 +196,7 @@ namespace Youverse.Core.Services.Transit
         public async Task ProcessOutbox(int batchSize)
         {
             //Note: here we can prioritize outbox processing by drive if need be
-            var page = await _driveService.GetDrives(PageOptions.All);
+            var page = await _driveManager.GetDrives(PageOptions.All);
 
             foreach (var drive in page.Results)
             {
@@ -208,7 +214,7 @@ namespace Youverse.Core.Services.Transit
         {
             Dictionary<string, TransitResponseCode> result = new Dictionary<string, TransitResponseCode>();
 
-            var targetDrive = (await _driveService.GetDrive(driveId, true)).TargetDriveInfo;
+            var targetDrive = (await _driveManager.GetDrive(driveId, true)).TargetDriveInfo;
             foreach (var recipient in recipients)
             {
                 var r = (DotYouIdentity)recipient;
@@ -383,7 +389,7 @@ namespace Youverse.Core.Services.Transit
                 throw new NotImplementedException("TODO: implement partial sends for feed drive support");
             }
             
-            TargetDrive targetDrive = options.OverrideTargetDrive ?? (await _driveService.GetDrive(internalFile.DriveId, failIfInvalid: true)).TargetDriveInfo;
+            TargetDrive targetDrive = options.OverrideTargetDrive ?? (await _driveManager.GetDrive(internalFile.DriveId, failIfInvalid: true)).TargetDriveInfo;
 
             var transferStatus = new Dictionary<string, TransferStatus>();
             var outboxItems = new List<OutboxItem>();

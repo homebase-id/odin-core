@@ -25,7 +25,6 @@ namespace Youverse.Core.Services.Drive
 
     public abstract class DriveServiceBase : IDriveService
     {
-        private readonly DriveManager _driveManager;
         private readonly IDriveAclAuthorizationService _driveAclAuthorizationService;
         private readonly IMediator _mediator;
         private readonly DotYouContextAccessor _contextAccessor;
@@ -41,52 +40,14 @@ namespace Youverse.Core.Services.Drive
             _mediator = mediator;
             _driveAclAuthorizationService = driveAclAuthorizationService;
             _tenantContext = tenantContext;
-            _driveManager = driveManager;
+            DriveManager = driveManager;
             // _driveManager = new DriveManager(contextAccessor, tenantSystemStorage, mediator, tenantContext);
         }
 
+        protected DriveManager DriveManager { get; }
+
         protected DotYouContextAccessor ContextAccessor => _contextAccessor;
-
-        public Task<StorageDrive> CreateDrive(CreateDriveRequest request)
-        {
-            return _driveManager.CreateDrive(request);
-        }
-
-        public Task SetDriveReadMode(Guid driveId, bool allowAnonymous)
-        {
-            return _driveManager.SetDriveReadMode(driveId, allowAnonymous);
-        }
-
-        public Task UpdateMetadata(Guid driveId, string metadata)
-        {
-            return _driveManager.UpdateMetadata(driveId, metadata);
-        }
-
-        public async Task<StorageDrive> GetDrive(Guid driveId, bool failIfInvalid = false)
-        {
-            return await _driveManager.GetDrive(driveId, failIfInvalid);
-        }
-
-        public async Task<Guid?> GetDriveIdByAlias(TargetDrive targetDrive, bool failIfInvalid = false)
-        {
-            return await _driveManager.GetDriveIdByAlias(targetDrive, failIfInvalid);
-        }
-
-        public async Task<PagedResult<StorageDrive>> GetDrives(PageOptions pageOptions)
-        {
-            return await _driveManager.GetDrives(pageOptions);
-        }
-
-        public async Task<PagedResult<StorageDrive>> GetDrives(GuidId type, PageOptions pageOptions)
-        {
-            return await _driveManager.GetDrives(type, pageOptions);
-        }
-
-        public async Task<PagedResult<StorageDrive>> GetAnonymousDrives(PageOptions pageOptions)
-        {
-            return await _driveManager.GetAnonymousDrives(pageOptions);
-        }
-
+        
         public InternalDriveFileId CreateInternalFileId(Guid driveId)
         {
             //TODO: need a permission specifically for writing to the temp drive
@@ -251,11 +212,12 @@ namespace Youverse.Core.Services.Drive
             return sv;
         }
 
+
         private async Task<EncryptedKeyHeader> EncryptKeyHeader(Guid driveId, KeyHeader keyHeader)
         {
             var storageKey = _contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(driveId);
 
-            (await this.GetDrive(driveId)).AssertValidStorageKey(storageKey);
+            (await this.DriveManager.GetDrive(driveId)).AssertValidStorageKey(storageKey);
 
             var encryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, keyHeader.Iv, ref storageKey);
             return encryptedKeyHeader;
@@ -449,14 +411,14 @@ namespace Youverse.Core.Services.Drive
         private ILongTermStorageManager GetLongTermStorageManager(Guid driveId)
         {
             var logger = _loggerFactory.CreateLogger<ILongTermStorageManager>();
-            var drive = this.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
+            var drive = this.DriveManager.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
             var manager = new FileBasedLongTermStorageManager(drive, logger);
             return manager;
         }
 
         private ITempStorageManager GetTempStorageManager(Guid driveId)
         {
-            var drive = this.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
+            var drive = this.DriveManager.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
             var logger = _loggerFactory.CreateLogger<ITempStorageManager>();
             return new FileBasedTempStorageManager(drive, logger);
         }

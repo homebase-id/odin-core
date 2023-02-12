@@ -20,18 +20,18 @@ namespace Youverse.Core.Services.DataSubscription.Follower
     public class FollowerService
     {
         private readonly ITenantSystemStorage _tenantStorage;
-        private readonly IDriveService _driveService;
+        private readonly DriveManager _driveManager;
         private readonly IDotYouHttpClientFactory _httpClientFactory;
         private readonly IPublicKeyService _rsaPublicKeyService;
         private readonly TenantContext _tenantContext;
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly IAppRegistrationService _appRegistrationService;
 
-        public FollowerService(ITenantSystemStorage tenantStorage, IDriveService driveService, IDotYouHttpClientFactory httpClientFactory, IPublicKeyService rsaPublicKeyService,
+        public FollowerService(ITenantSystemStorage tenantStorage, DriveManager driveManager, IDotYouHttpClientFactory httpClientFactory, IPublicKeyService rsaPublicKeyService,
             TenantContext tenantContext, DotYouContextAccessor contextAccessor, IAppRegistrationService appRegistrationService)
         {
             _tenantStorage = tenantStorage;
-            _driveService = driveService;
+            _driveManager = driveManager;
             _httpClientFactory = httpClientFactory;
             _rsaPublicKeyService = rsaPublicKeyService;
             _tenantContext = tenantContext;
@@ -248,7 +248,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
         {
             _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadMyFollowers);
 
-            var drive = await _driveService.GetDrive(driveId, true);
+            var drive = await _driveManager.GetDrive(driveId, true);
             if (drive.TargetDriveInfo.Type != SystemDriveConstants.ChannelDriveType)
             {
                 throw new YouverseClientException("Invalid Drive Type", YouverseClientErrorCode.InvalidTargetDrive);
@@ -314,7 +314,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
         {
             _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadWhoIFollow);
 
-            var drive = await _driveService.GetDrive(driveId, true);
+            var drive = await _driveManager.GetDrive(driveId, true);
             if (drive.TargetDriveInfo.Type != SystemDriveConstants.ChannelDriveType)
             {
                 throw new YouverseClientException("Invalid Drive Type", YouverseClientErrorCode.InvalidTargetDrive);
@@ -350,7 +350,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             {
                 new DriveGrant()
                 {
-                    DriveId = (await _driveService.GetDriveIdByAlias(targetDrive, true)).GetValueOrDefault(),
+                    DriveId = (await _driveManager.GetDriveIdByAlias(targetDrive, true)).GetValueOrDefault(),
                     KeyStoreKeyEncryptedStorageKey = null,
                     PermissionedDrive = new PermissionedDrive()
                     {
