@@ -21,6 +21,7 @@ using Youverse.Core.Services.Optimization.Cdn;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
+using Youverse.Hosting.Controllers.Base.Upload;
 using Youverse.Hosting.Controllers.OwnerToken.Cdn;
 using Youverse.Hosting.Tests.AppAPI;
 using Youverse.Hosting.Tests.OwnerApi.Drive;
@@ -431,7 +432,7 @@ namespace Youverse.Hosting.Tests.Performance
                 //
                 var getFilesDriveSvc =
                     RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
-                var fileResponse = await getFilesDriveSvc.GetFileHeader(uploadedFile);
+                var fileResponse = await getFilesDriveSvc.GetFileHeaderAsPost(uploadedFile);
 
                 Assert.That(fileResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(fileResponse.Content, Is.Not.Null);
@@ -475,7 +476,7 @@ namespace Youverse.Hosting.Tests.Performance
                 // 
                 if (payloadContent != null)
                 {
-                    var payloadResponse = await getFilesDriveSvc.GetPayload(uploadedFile);
+                    var payloadResponse = await getFilesDriveSvc.GetPayloadPost(uploadedFile);
                     Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                     Assert.That(payloadResponse.Content, Is.Not.Null);
 
@@ -500,7 +501,7 @@ namespace Youverse.Hosting.Tests.Performance
                         Assert.IsTrue(thumbnailInDescriptor.PixelWidth == clientFileHeaderList[i].PixelWidth);
                         Assert.IsTrue(thumbnailInDescriptor.PixelHeight == clientFileHeaderList[i].PixelHeight);
 
-                        var thumbnailResponse = await getFilesDriveSvc.GetThumbnail(new GetThumbnailRequest()
+                        var thumbnailResponse = await getFilesDriveSvc.GetThumbnailPost(new GetThumbnailRequest()
                         {
                             File = uploadedFile,
                             Height = thumbnailInDescriptor.PixelHeight,

@@ -4,7 +4,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Dawn;
-using Youverse.Core;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Exceptions;
@@ -14,17 +15,20 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Core.Storage;
 using Youverse.Core.Services.Drives.FileSystem;
+using Youverse.Core.Services.Drives.FileSystem.Comment;
+using Youverse.Core.Services.Drives.FileSystem.Standard;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
 
-namespace Youverse.Hosting.Controllers.Base.Upload;
+namespace Youverse.Core.Services.Drives.Base.Upload;
 
 /// <summary>
-/// Enables the uploading of files and enforces system rules regarding filetypes and uploads
+/// Enables the writing of file streams from external sources and
+/// rule enforcement specific to the type of file system
 /// </summary>
-public abstract class DriveUploadServiceBase<TFileService>
-    where TFileService : IDriveFileSystem
+public abstract class FileSystemStreamWriterBase //<TFileSystem>
+    // where TFileSystem : IDriveFileSystem
 {
     private readonly TenantContext _tenantContext;
     private readonly DotYouContextAccessor _contextAccessor;
@@ -33,7 +37,7 @@ public abstract class DriveUploadServiceBase<TFileService>
     private readonly DriveManager _driveManager;
 
     /// <summary />
-    protected DriveUploadServiceBase(TFileService fileSystem, TenantContext tenantContext, DotYouContextAccessor contextAccessor, DriveManager driveManager)
+    protected FileSystemStreamWriterBase(IDriveFileSystem fileSystem, TenantContext tenantContext, DotYouContextAccessor contextAccessor, DriveManager driveManager)
     {
         FileSystem = fileSystem;
 
@@ -43,10 +47,10 @@ public abstract class DriveUploadServiceBase<TFileService>
         _packages = new ConcurrentDictionary<Guid, UploadPackage>();
     }
 
-    protected TFileService FileSystem { get; }
+    protected IDriveFileSystem FileSystem { get; }
 
     protected UploadPackage Package { get; }
-    
+
     public virtual async Task<Guid> CreatePackage(Stream data)
     {
         //TODO: need to partially encrypt upload instruction set
@@ -85,7 +89,7 @@ public abstract class DriveUploadServiceBase<TFileService>
 
         var pkgId = Guid.NewGuid();
         var package = new UploadPackage(pkgId, file, instructionSet!, isUpdateOperation);
-        
+
         if (!_packages.TryAdd(pkgId, package))
         {
             throw new YouverseSystemException("Failed to add the upload package");

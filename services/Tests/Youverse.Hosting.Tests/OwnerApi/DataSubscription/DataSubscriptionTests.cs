@@ -94,6 +94,6 @@ public class DataSubscriptionTests
             AccessControlList = AccessControlList.OwnerOnly
         };
 
-        return await client.Drive.UploadMetadataFile(targetDrive, fileMetadata);
+        return await client.Drive.UploadStandardFileMetadata(targetDrive, fileMetadata);
     }
 }

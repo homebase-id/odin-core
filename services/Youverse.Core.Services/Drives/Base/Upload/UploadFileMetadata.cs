@@ -1,8 +1,7 @@
-﻿using System;
-using Youverse.Core.Services.Authorization.Acl;
+﻿using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive;
 
-namespace Youverse.Core.Services.Transit.Upload
+namespace Youverse.Core.Services.Drives.Base.Upload
 {
     public class UploadFileMetadata
     {

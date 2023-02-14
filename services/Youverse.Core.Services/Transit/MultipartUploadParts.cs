@@ -1,6 +1,4 @@
-using System;
-
-namespace Youverse.Core.Services.Transit.Upload
+namespace Youverse.Core.Services.Transit
 {
     public enum MultipartUploadParts
     {

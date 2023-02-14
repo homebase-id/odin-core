@@ -21,6 +21,7 @@ using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Core.Services.Workers.Transit;
 using Youverse.Hosting.Controllers;
+using Youverse.Hosting.Controllers.Base.Upload;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Tests.AppAPI;
 using Youverse.Hosting.Tests.AppAPI.Drive;

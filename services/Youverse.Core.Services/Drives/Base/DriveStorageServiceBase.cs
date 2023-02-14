@@ -9,9 +9,11 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
+using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drive.Core;
 using Youverse.Core.Services.Drive.Core.Storage;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Transit.Encryption;
@@ -42,6 +44,12 @@ namespace Youverse.Core.Services.Drives.Base
         protected override DriveManager DriveManager { get; }
         protected override DotYouContextAccessor ContextAccessor { get; }
 
+        public async Task<ClientFileHeader> GetSharedSecretEncryptedHeader(InternalDriveFileId file)
+        {
+            var serverFileHeader = await this.GetServerFileHeader(file);
+            var result = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverFileHeader, ContextAccessor);
+            return result;
+        }
         
         public InternalDriveFileId CreateInternalFileId(Guid driveId)
         {

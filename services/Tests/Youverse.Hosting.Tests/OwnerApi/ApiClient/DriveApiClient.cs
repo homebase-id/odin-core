@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
@@ -10,9 +11,11 @@ using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Core.Query;
 using Youverse.Core.Services.Drive.Core.Storage;
+using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
+using Youverse.Hosting.Controllers.Base.Upload;
 using Youverse.Hosting.Controllers.OwnerToken.Drive;
 using Youverse.Hosting.Tests.AppAPI;
 using Youverse.Hosting.Tests.OwnerApi.Drive;
@@ -66,81 +69,10 @@ public class DriveApiClient
             return theDrive;
         }
     }
-    
-	public async Task<UploadResult> UploadCommentFile(TargetDrive targetDrive, UploadFileMetadata fileMetadata)
+
+    public async Task<UploadResult> UploadCommentFile(TargetDrive targetDrive, UploadFileMetadata fileMetadata)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret))
-        {
-            var transferIv = ByteArrayUtil.GetRndByteArray(16);
-
-            var instructionSet = new UploadInstructionSet()
-            {
-                TransferIv = transferIv,
-                StorageOptions = new StorageOptions()
-                {
-                    Drive = targetDrive,
-                    OverwriteFileId = null
-                },
-                TransitOptions = null
-            };
-
-            var keyHeader = KeyHeader.NewRandom16();
-
-            var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
-            var instructionStream = new MemoryStream(bytes);
-
-            var descriptor = new UploadFileDescriptor()
-            {
-                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref sharedSecret),
-                FileMetadata = fileMetadata
-            };
-
-            var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
-
-            var uploadService = RestService.For<IDriveReactionHttpTestClientForOwner>(client);
-            var response = await uploadService.UploadComment(
-                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
-                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                new StreamPart(new MemoryStream(), "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
-
-            Assert.That(response.IsSuccessStatusCode, Is.True);
-            Assert.That(response.Content, Is.Not.Null);
-
-            return response.Content;
-        }
-    }
-
-    public async Task<QueryBatchResponse> QueryBatch(FileQueryParams qp, QueryBatchResultOptionsRequest resultOptions = null)
-    {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret))
-        {
-            var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, sharedSecret);
-
-            var ro = resultOptions ?? new QueryBatchResultOptionsRequest()
-            {
-                CursorState = "",
-                MaxRecords = 10,
-                IncludeMetadataHeader = true
-            };
-
-            var request = new QueryBatchRequest()
-            {
-                QueryParams = qp,
-                ResultOptionsRequest = ro
-            };
-
-            var response = await svc.GetBatch(request);
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
-            var batch = response.Content;
-            Assert.IsNotNull(batch);
-
-            return batch;
-        }
-    }
-
-    public async Task<UploadResult> UploadMetadataFile(TargetDrive targetDrive, UploadFileMetadata fileMetadata)
-    {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret))
+        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, FileSystemType.Comment))
         {
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
 
@@ -181,7 +113,78 @@ public class DriveApiClient
         }
     }
 
-    public async Task<UploadTestUtilsContext> UploadMetadataFile(UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, string payloadData,
+    public async Task<QueryBatchResponse> QueryBatch(FileQueryParams qp, QueryBatchResultOptionsRequest resultOptions = null)
+    {
+        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret))
+        {
+            var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, sharedSecret);
+
+            var ro = resultOptions ?? new QueryBatchResultOptionsRequest()
+            {
+                CursorState = "",
+                MaxRecords = 10,
+                IncludeMetadataHeader = true
+            };
+
+            var request = new QueryBatchRequest()
+            {
+                QueryParams = qp,
+                ResultOptionsRequest = ro
+            };
+
+            var response = await svc.GetBatch(request);
+            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+            var batch = response.Content;
+            Assert.IsNotNull(batch);
+
+            return batch;
+        }
+    }
+
+    public async Task<UploadResult> UploadStandardFileMetadata(TargetDrive targetDrive, UploadFileMetadata fileMetadata)
+    {
+        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, FileSystemType.Standard))
+        {
+            var transferIv = ByteArrayUtil.GetRndByteArray(16);
+
+            var instructionSet = new UploadInstructionSet()
+            {
+                TransferIv = transferIv,
+                StorageOptions = new StorageOptions()
+                {
+                    Drive = targetDrive,
+                    OverwriteFileId = null
+                },
+                TransitOptions = null
+            };
+
+            var keyHeader = KeyHeader.NewRandom16();
+
+            var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+            var instructionStream = new MemoryStream(bytes);
+
+            var descriptor = new UploadFileDescriptor()
+            {
+                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref sharedSecret),
+                FileMetadata = fileMetadata
+            };
+
+            var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
+
+            var uploadService = RestService.For<IDriveTestHttpClientForOwner>(client);
+            var response = await uploadService.Upload(
+                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
+                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
+                new StreamPart(new MemoryStream(), "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+
+            Assert.That(response.IsSuccessStatusCode, Is.True);
+            Assert.That(response.Content, Is.Not.Null);
+
+            return response.Content;
+        }
+    }
+
+    public async Task<UploadTestUtilsContext> UploadStandardFile(UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, string payloadData,
         bool encryptPayload = true, ImageDataContent thumbnail = null, KeyHeader keyHeader = null)
     {
         Assert.IsNull(instructionSet.TransitOptions?.Recipients, "This method will not send transfers; please ensure recipients are null");
@@ -242,24 +245,25 @@ public class DriveApiClient
         }
     }
 
-    public async Task<ClientFileHeader> GetFileHeader(ExternalFileIdentifier file)
+    public async Task<ClientFileHeader> GetFileHeader(ExternalFileIdentifier file, FileSystemType fileSystemType)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret))
+        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType))
         {
+            //wth - refit is not sending headers when you do GET request - why not!?
             var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, sharedSecret);
-            var apiResponse = await svc.GetFileHeader(file);
-
+            // var apiResponse = await svc.GetFileHeader(file.FileId, file.TargetDrive.Alias, file.TargetDrive.Type);
+            var apiResponse = await svc.GetFileHeaderAsPost(file);
             Assert.IsTrue(apiResponse.IsSuccessStatusCode, "Server failure when getting file header");
             return apiResponse.Content;
         }
     }
 
-    public async Task<ClientFileHeader> GetTextReactionHeader(ExternalFileIdentifier reactionFile)
+    public async Task<ClientFileHeader> GetCommentFileHeader(ExternalFileIdentifier reactionFile)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret))
+        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, FileSystemType.Comment))
         {
-            var svc = RefitCreator.RestServiceFor<IDriveReactionHttpTestClientForOwner>(client, sharedSecret);
-            var apiResponse = await svc.GetCommentFileHeader(reactionFile.FileId, reactionFile.TargetDrive.Alias, reactionFile.TargetDrive.Type);
+            var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, sharedSecret);
+            var apiResponse = await svc.GetFileHeader(reactionFile.FileId, reactionFile.TargetDrive.Alias, reactionFile.TargetDrive.Type);
 
             Assert.IsTrue(apiResponse.IsSuccessStatusCode, "Server failure when getting file header");
             return apiResponse.Content;

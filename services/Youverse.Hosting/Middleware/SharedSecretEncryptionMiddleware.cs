@@ -21,20 +21,22 @@ using Youverse.Core.Services.Base;
 
 namespace Youverse.Hosting.Middleware
 {
+    /// <summary />
     public class SharedSecretEncryptionMiddleware
     {
         private const string SharedSecretQueryStringParam = "ss";
 
         private readonly RequestDelegate _next;
         private readonly ILogger<SharedSecretEncryptionMiddleware> _logger;
-        private readonly List<string> IgnoredPathsForRequests;
+        private readonly List<string> _ignoredPathsForRequests;
 
         /// <summary>
         /// Paths that should not have their responses encrypted 
         /// </summary>
-        private readonly List<string> IgnoredPathsForResponses;
+        private readonly List<string> _ignoredPathsForResponses;
         //
 
+        /// <summary />
         public SharedSecretEncryptionMiddleware(
             RequestDelegate next,
             ILogger<SharedSecretEncryptionMiddleware> logger)
@@ -42,7 +44,7 @@ namespace Youverse.Hosting.Middleware
             _next = next;
             _logger = logger;
 
-            IgnoredPathsForRequests = new List<string>
+            _ignoredPathsForRequests = new List<string>
             {
                 "/api/owner/v1/youauth",
                 "/api/owner/v1/authentication",
@@ -59,7 +61,7 @@ namespace Youverse.Hosting.Middleware
             };
 
             //Paths that should not have their responses encrypted with shared secret
-            IgnoredPathsForResponses = new List<string>
+            _ignoredPathsForResponses = new List<string>
             {
                 "/api/owner/v1/drive/files/payload",
                 "/api/owner/v1/transit/query/payload",
@@ -72,7 +74,7 @@ namespace Youverse.Hosting.Middleware
                 "/cdn"
             };
 
-            IgnoredPathsForResponses.AddRange(IgnoredPathsForRequests);
+            _ignoredPathsForResponses.AddRange(_ignoredPathsForRequests);
         }
 
         //
@@ -222,7 +224,7 @@ namespace Youverse.Hosting.Middleware
                 return false;
             }
 
-            return !IgnoredPathsForRequests.Any(p => context.Request.Path.StartsWithSegments(p));
+            return !_ignoredPathsForRequests.Any(p => context.Request.Path.StartsWithSegments(p));
         }
 
         private bool ShouldEncryptResponse(HttpContext context)
@@ -232,7 +234,7 @@ namespace Youverse.Hosting.Middleware
                 return false;
             }
 
-            return !IgnoredPathsForResponses.Any(p => context.Request.Path.StartsWithSegments(p));
+            return !_ignoredPathsForResponses.Any(p => context.Request.Path.StartsWithSegments(p));
         }
 
         private bool CallerMustHaveSharedSecret(HttpContext context)

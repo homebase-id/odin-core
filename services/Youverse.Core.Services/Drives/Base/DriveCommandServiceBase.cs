@@ -48,7 +48,6 @@ public abstract class DriveCommandServiceBase : RequirePermissionsBase
 
             var serverFileHeader = await _storage.GetServerFileHeader(file);
             var commandFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverFileHeader, ContextAccessor);
-            // var commandFileHeader = await _appService.GetClientEncryptedFileHeader(file);
             var command = DotYouSystemSerializer.Deserialize<CommandTransferMessage>(commandFileHeader.FileMetadata.AppData.JsonContent);
 
             result.Add(new ReceivedCommand()

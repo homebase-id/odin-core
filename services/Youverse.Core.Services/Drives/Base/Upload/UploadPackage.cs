@@ -2,7 +2,7 @@ using System;
 using Dawn;
 using Youverse.Core.Services.Drive;
 
-namespace Youverse.Core.Services.Transit.Upload
+namespace Youverse.Core.Services.Drives.Base.Upload
 {
     /// <summary>
     /// A package/parcel to be send to a set of recipients

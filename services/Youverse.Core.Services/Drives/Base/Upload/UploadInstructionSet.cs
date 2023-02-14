@@ -4,9 +4,9 @@ using System.Linq;
 using Dawn;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Drive;
-using Youverse.Hosting.Controllers.Base.Upload;
+using Youverse.Core.Services.Transit.Upload;
 
-namespace Youverse.Core.Services.Transit.Upload
+namespace Youverse.Core.Services.Drives.Base.Upload
 {
     /// <summary>
     /// Specifies how an upload should be handled

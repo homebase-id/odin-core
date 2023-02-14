@@ -9,8 +9,10 @@ using Youverse.Core;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
+using Youverse.Hosting.Controllers.Base.Upload;
 
 namespace Youverse.Hosting.Tests.AppAPI.Drive
 {

@@ -13,19 +13,12 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
     [AuthorizeValidOwnerToken]
     public class OwnerDriveUploadController : DriveUploadControllerBase
     {
-        private readonly StandardFileDriveUploadService _uploadService;
-
-        public OwnerDriveUploadController(StandardFileDriveUploadService uploadService)
-        {
-            _uploadService = uploadService;
-        }
-
         /// <summary/>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("upload")]
         public async Task<UploadResult> Upload()
         {
-            return await base.ReceiveStream(_uploadService);
+            return await base.ReceiveStream();
         }
     }
 }

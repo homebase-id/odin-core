@@ -19,6 +19,7 @@ using Youverse.Core.Services.Drive.Core.Storage;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
+using Youverse.Hosting.Controllers.Base.Upload;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Tests.AppAPI;
 using Youverse.Hosting.Tests.AppAPI.Drive;
@@ -586,7 +587,7 @@ namespace Youverse.Hosting.Tests.Performance
                 // Retrieve the file header that was uploaded; test it matches; 
                 //
                 var getFilesDriveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
-                var fileResponse = await getFilesDriveSvc.GetFileHeader(uploadedFile);
+                var fileResponse = await getFilesDriveSvc.GetFileHeaderAsPost(uploadedFile);
 
                 Assert.That(fileResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(fileResponse.Content, Is.Not.Null);
@@ -625,7 +626,7 @@ namespace Youverse.Hosting.Tests.Performance
                 // Get the payload that was uploaded, test it
                 // 
 
-                var payloadResponse = await getFilesDriveSvc.GetPayload(uploadedFile);
+                var payloadResponse = await getFilesDriveSvc.GetPayloadPost(uploadedFile);
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 
@@ -653,7 +654,7 @@ namespace Youverse.Hosting.Tests.Performance
                 Assert.IsTrue(descriptorList[0].PixelWidth == clientFileHeaderList[0].PixelWidth);
                 Assert.IsTrue(descriptorList[0].PixelHeight == clientFileHeaderList[0].PixelHeight);
 
-                var thumbnailResponse1 = await getFilesDriveSvc.GetThumbnail(new GetThumbnailRequest()
+                var thumbnailResponse1 = await getFilesDriveSvc.GetThumbnailPost(new GetThumbnailRequest()
                 {
                     File = uploadedFile,
                     Height = thumbnail1.PixelHeight,
@@ -670,7 +671,7 @@ namespace Youverse.Hosting.Tests.Performance
                 Assert.IsTrue(descriptorList[1].PixelWidth == clientFileHeaderList[1].PixelWidth);
                 Assert.IsTrue(descriptorList[1].PixelHeight == clientFileHeaderList[1].PixelHeight);
 
-                var thumbnailResponse2 = await getFilesDriveSvc.GetThumbnail(new GetThumbnailRequest()
+                var thumbnailResponse2 = await getFilesDriveSvc.GetThumbnailPost(new GetThumbnailRequest()
                 {
                     File = uploadedFile,
                     Height = thumbnail2.PixelHeight,

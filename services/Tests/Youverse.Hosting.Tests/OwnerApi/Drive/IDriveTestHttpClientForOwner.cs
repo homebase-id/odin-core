@@ -17,25 +17,32 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
     /// </summary>
     public interface IDriveTestHttpClientForOwner
     {
-        private const string RootEndpoint = OwnerApiPathConstants.DrivesV1;
         private const string RootQueryEndpoint = OwnerApiPathConstants.DriveQueryV1;
         private const string RootStorageEndpoint = OwnerApiPathConstants.DriveStorageV1;
-
         
         [Multipart]
         [Post(RootStorageEndpoint + "/upload")]
         Task<ApiResponse<UploadResult>> Upload(StreamPart instructionSet, StreamPart metaData, StreamPart payload, params StreamPart[] thumbnail);
         
         [Post(RootStorageEndpoint + "/header")]
-        Task<ApiResponse<ClientFileHeader>> GetFileHeader(ExternalFileIdentifier file);
+        Task<ApiResponse<ClientFileHeader>> GetFileHeaderAsPost(ExternalFileIdentifier file);
 
         [Post(RootStorageEndpoint + "/payload")]
-        Task<ApiResponse<HttpContent>> GetPayload(ExternalFileIdentifier file);
-
+        Task<ApiResponse<HttpContent>> GetPayloadPost(ExternalFileIdentifier file);
         
         [Post(RootStorageEndpoint + "/thumb")]
-        Task<ApiResponse<HttpContent>> GetThumbnail(GetThumbnailRequest request);
+        Task<ApiResponse<HttpContent>> GetThumbnailPost(GetThumbnailRequest request);
 
+        [Get(RootStorageEndpoint + "/thumb")]
+        Task<ApiResponse<HttpContent>> GetThumbnail(Guid fileId, Guid alias, Guid type, int width, int height);
+
+        [Get(RootStorageEndpoint + "/payload")]
+        Task<ApiResponse<HttpContent>> GetPayload(Guid fileId, Guid alias, Guid type);
+
+        [Get(RootStorageEndpoint + "/header")]
+        Task<ApiResponse<ClientFileHeader>> GetFileHeader(Guid fileId, Guid alias, Guid type);
+
+        
         [Post(RootQueryEndpoint + "/modified")]
         Task<ApiResponse<QueryModifiedResult>> GetModified(QueryModifiedRequest request);
 

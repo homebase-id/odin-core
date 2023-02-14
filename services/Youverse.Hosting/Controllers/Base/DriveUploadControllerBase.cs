@@ -5,32 +5,20 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Drive.Core;
-using Youverse.Core.Services.Drives.Base;
-using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.Upload;
-using Youverse.Hosting.Controllers.Base.Upload;
 
 namespace Youverse.Hosting.Controllers.Base
 {
     /// <summary>
     /// Base API Controller for uploading multi-part streams
     /// </summary>
-    public abstract class DriveUploadControllerBase : ControllerBase
+    public abstract class DriveUploadControllerBase : YouverseControllerBase
     {
         /// <summary>
         /// Uploads a file
         /// </summary>
-        /// <remarks>
-        /// TODO
-        /// </remarks>
-        /// <exception cref="YouverseClientException"></exception>
-        protected async Task<UploadResult> ReceiveStream<TFileService>(DriveUploadServiceBase<TFileService> svc)
-            where TFileService :IDriveFileSystem
+        protected async Task<UploadResult> ReceiveStream()
         {
-            var driveUploadService = svc;
-
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
                 throw new YouverseClientException("Data is not multi-part content", YouverseClientErrorCode.MissingUploadData);
@@ -39,11 +27,11 @@ namespace Youverse.Hosting.Controllers.Base
             var boundary = GetBoundary(HttpContext.Request.ContentType);
             var reader = new MultipartReader(boundary, HttpContext.Request.Body);
 
+            var driveUploadService = this.GetFileSystemResolver().ResolveFileSystemWriter();
+
             var section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Instructions);
-            //TODO: return the package from create package method
             var packageId = await driveUploadService.CreatePackage(section!.Body);
-
 
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Metadata);
@@ -55,7 +43,6 @@ namespace Youverse.Hosting.Controllers.Base
             await driveUploadService.AddPayload(packageId, section!.Body);
 
             //
-
             section = await reader.ReadNextSectionAsync();
             while (null != section)
             {
@@ -121,5 +108,6 @@ namespace Youverse.Hosting.Controllers.Base
             var cd = ContentDispositionHeaderValue.Parse(contentDisposition);
             return cd.Name?.Trim('"');
         }
+
     }
 }

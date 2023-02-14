@@ -1,8 +1,11 @@
 ﻿using System;
 using Youverse.Core.Services.Drive;
 
-namespace Youverse.Core.Services.Transit.Upload
+namespace Youverse.Hosting.Controllers.Base.Upload
 {
+    /// <summary>
+    /// Defines the options for storage
+    /// </summary>
     public class StorageOptions
     {
         /// <summary>
@@ -14,7 +17,7 @@ namespace Youverse.Core.Services.Transit.Upload
         /// The fileId to overwrite if it exists
         /// </summary>
         public Guid? OverwriteFileId { get; set; }
-
+        
         /// <summary>
         /// Seconds in unix time UTC indicating when this file expires 
         /// </summary>
@@ -35,4 +38,5 @@ namespace Youverse.Core.Services.Transit.Upload
     //     UpdateThumbnails = 4,
     //     UpdateAll = UpdateMetadata | UpdatePayload | UpdateThumbnails
     // }
+    
 }

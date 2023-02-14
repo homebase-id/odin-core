@@ -30,7 +30,7 @@ public sealed class SharedSecretSystemTextJsonContentSerializer : IHttpContentSe
     public SharedSecretSystemTextJsonContentSerializer(SensitiveByteArray sharedSecret)
     {
         _sharedSecret = sharedSecret;
-        this.jsonSerializerOptions = new JsonSerializerOptions(DotYouSystemSerializer.JsonSerializerOptions);
+        this.jsonSerializerOptions = new JsonSerializerOptions(DotYouSystemSerializer.JsonSerializerOptions!);
         jsonSerializerOptions.Converters.Add(new ObjectToInferredTypesConverter());
     }
 

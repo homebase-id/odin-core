@@ -44,8 +44,8 @@ using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Incoming;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Transit.Quarantine;
-using Youverse.Core.Services.Transit.Upload;
 using Youverse.Core.Storage;
+using Youverse.Hosting.Controllers.Base;
 using Youverse.Hosting.Controllers.Base.Upload.Comment;
 using Youverse.Hosting.Controllers.Base.Upload.Standard;
 
@@ -101,16 +101,18 @@ namespace Youverse.Hosting
 
             cb.RegisterType<DriveManager>().AsSelf().SingleInstance();
             cb.RegisterType<DriveAclAuthorizationService>().As<IDriveAclAuthorizationService>().SingleInstance();
-
-
-            cb.RegisterType<StandardFileDriveUploadService>().AsSelf().InstancePerDependency();
+            
+            cb.RegisterType<FileSystemResolver>().AsSelf().InstancePerDependency();
+            
+            // cb.RegisterType<StandardFileDriveUploadService>().AsSelf().InstancePerDependency();
+            cb.RegisterType<StandardFileStreamWriter>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileDriveStorageService>().AsSelf().As<IDriveStorageService>().InstancePerDependency();
             cb.RegisterType<StandardFileDriveQueryService>().AsSelf().As<IDriveQueryService>().InstancePerDependency();
             cb.RegisterType<StandardDriveCommandService>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileSystem>().AsSelf().InstancePerDependency();
-
             
-            cb.RegisterType<CommentFileUploadService>().AsSelf().InstancePerDependency();
+            // cb.RegisterType<CommentFileUploadService>().AsSelf().InstancePerDependency();
+            cb.RegisterType<CommentStreamWriter>().AsSelf().InstancePerDependency();
             cb.RegisterType<CommentFileStorageService>().AsSelf().InstancePerDependency();
             cb.RegisterType<CommentFileQueryService>().AsSelf().InstancePerDependency();
             cb.RegisterType<CommentFileSystem>().AsSelf().InstancePerDependency();
@@ -119,7 +121,8 @@ namespace Youverse.Hosting
                 .As<INotificationHandler<DriveFileAddedNotification>>()
                 .As<INotificationHandler<DriveFileChangedNotification>>()
                 .As<INotificationHandler<DriveFileDeletedNotification>>()
-                .AsSelf().SingleInstance();
+                .AsSelf()
+                .SingleInstance();
             
 
             cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>().SingleInstance();

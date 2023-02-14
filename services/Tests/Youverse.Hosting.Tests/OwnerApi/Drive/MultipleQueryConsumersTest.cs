@@ -55,7 +55,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 }
             };
 
-            var standardFileUploadResult = await frodoOwnerClient.Drive.UploadMetadataFile(targetDrive, standardFile);
+            var standardFileUploadResult = await frodoOwnerClient.Drive.UploadStandardFileMetadata(targetDrive, standardFile);
 
             var commentFile = new UploadFileMetadata()
             {
@@ -85,7 +85,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
             
             var commentFileResults = await frodoOwnerClient.Drive.QueryBatch(new FileQueryParams()
             {
-                UseReactionDriveHack = true,
                 TargetDrive = targetDrive,
                 FileType = new[] { commentFile.AppData.FileType }
             });

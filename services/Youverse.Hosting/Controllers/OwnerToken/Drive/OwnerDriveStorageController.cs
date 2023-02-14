@@ -1,14 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Dawn;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers.Base;
@@ -22,18 +18,11 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
     public class OwnerDriveStorageController : DriveReadStorageControllerBase
     {
         private readonly IAppService _appService;
-        private readonly IDriveStorageService _driveStorageService;
-        private readonly DotYouContextAccessor _contextAccessor;
-        private readonly ITransitService _transitService;
 
         /// <summary />
-        public OwnerDriveStorageController(DotYouContextAccessor contextAccessor, IDriveStorageService driveStorageService, IAppService appService, ITransitService transitService) : base(contextAccessor,
-            driveStorageService, appService)
+        public OwnerDriveStorageController( IAppService appService) 
         {
-            _contextAccessor = contextAccessor;
-            _driveStorageService = driveStorageService;
             _appService = appService;
-            _transitService = transitService;
         }
 
         /// <summary>
@@ -136,7 +125,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("delete")]
         public async Task<IActionResult> DeleteFile([FromBody] DeleteFileRequest request)
         {
-            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.File.TargetDrive);
+            var driveId = DotYouContext.PermissionsContext.GetDriveId(request.File.TargetDrive);
 
             var file = new InternalDriveFileId()
             {
@@ -160,7 +149,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("harddelete")]
         public async Task<IActionResult> HardDeleteFile([FromBody] DeleteFileRequest request)
         {
-            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.File.TargetDrive);
+            var driveId = DotYouContext.PermissionsContext.GetDriveId(request.File.TargetDrive);
 
             if (request.Recipients != null && request.Recipients.Any())
             {
@@ -173,7 +162,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
                 FileId = request.File.FileId
             };
 
-            await _driveStorageService.HardDeleteLongTermFile(file);
+            await base.GetFileSystemResolver().ResolveFileSystem().Storage.HardDeleteLongTermFile(file);
             return Ok();
         }
     }

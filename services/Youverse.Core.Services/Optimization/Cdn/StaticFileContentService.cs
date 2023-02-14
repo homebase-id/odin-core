@@ -14,6 +14,7 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Core.Query;
 using Youverse.Core.Services.Drive.Core.Storage;
+using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Storage;
 using Youverse.Core.Util;
 
@@ -39,6 +40,7 @@ public class StaticFileContentService
     private readonly DriveManager _driveManager;
     private readonly IDriveStorageService _driveStorageService;
     private readonly IDriveQueryService _driveQueryService;
+    private readonly IDriveFileSystem _fileSystem;
     private readonly TenantContext _tenantContext;
     private readonly DotYouContextAccessor _contextAccessor;
     private readonly ITenantSystemStorage _tenantSystemStorage;

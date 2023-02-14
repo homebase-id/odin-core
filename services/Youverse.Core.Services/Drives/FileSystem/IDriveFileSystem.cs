@@ -1,7 +1,3 @@
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drives.Base;
 
 namespace Youverse.Core.Services.Drives.FileSystem;
@@ -17,5 +13,4 @@ public interface IDriveFileSystem
 
     public DriveCommandServiceBase Commands { get; }
 
-    Task<DeleteLinkedFileResult> DeleteFile(InternalDriveFileId file, List<string> requestRecipients);
 }
