@@ -20,7 +20,7 @@ using Youverse.Core.Services.Transit.Encryption;
 
 namespace Youverse.Core.Services.Drives.Base
 {
-    public abstract class DriveStorageServiceBase : RequirePermissionsBase, IDriveStorageService
+    public abstract class DriveStorageServiceBase : RequirePermissionsBase
     {
         private readonly IDriveAclAuthorizationService _driveAclAuthorizationService;
         private readonly IMediator _mediator;

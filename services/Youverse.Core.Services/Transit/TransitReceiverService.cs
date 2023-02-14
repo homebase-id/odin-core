@@ -10,7 +10,6 @@ using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Core.Storage;
-using Youverse.Core.Services.Drives.Base;
 using Youverse.Core.Services.Drives.FileSystem.Standard;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Transit.Encryption;
@@ -18,24 +17,23 @@ using Youverse.Core.Services.Transit.Incoming;
 
 namespace Youverse.Core.Services.Transit
 {
-    public class TransitAppService : ITransitAppService
+    public class TransitReceiverService : ITransitReceiverService
     {
         private readonly DotYouContextAccessor _contextAccessor;
-        private readonly IDriveStorageService _driveStorageService;
         private readonly StandardFileSystem _standardFileSystem;
         private readonly ITransitBoxService _transitBoxService;
         private readonly IPublicKeyService _publicKeyService;
-        private readonly IDriveQueryService _driveQueryService;
 
-        public TransitAppService(IDriveStorageService driveStorageService, DotYouContextAccessor contextAccessor, ITransitBoxService transitBoxService, IPublicKeyService publicKeyService,
-            IDriveQueryService driveQueryService, StandardFileSystem standardFileSystem)
+        private readonly StandardFileSystem _fileSystem;
+
+        public TransitReceiverService(DotYouContextAccessor contextAccessor, ITransitBoxService transitBoxService, IPublicKeyService publicKeyService, StandardFileSystem standardFileSystem,
+            StandardFileSystem fileSystem)
         {
-            _driveStorageService = driveStorageService;
             _contextAccessor = contextAccessor;
             _transitBoxService = transitBoxService;
             _publicKeyService = publicKeyService;
-            _driveQueryService = driveQueryService;
             _standardFileSystem = standardFileSystem;
+            _fileSystem = fileSystem;
         }
 
         public async Task ProcessIncomingTransitInstructions(TargetDrive targetDrive)
@@ -74,7 +72,7 @@ namespace Youverse.Core.Services.Transit
                 }
             }
 
-            await _driveQueryService.EnsureIndexerCommits(drivesNeedingACommit.Distinct());
+            await _fileSystem.Query.EnsureIndexerCommits(drivesNeedingACommit.Distinct());
         }
 
         private async Task HandleFile(TransferBoxItem item)
@@ -86,7 +84,7 @@ namespace Youverse.Core.Services.Transit
             };
 
             var transferInstructionSet =
-                await _driveStorageService.GetDeserializedStream<RsaEncryptedRecipientTransferInstructionSet>(tempFile,
+                await _fileSystem.Storage.GetDeserializedStream<RsaEncryptedRecipientTransferInstructionSet>(tempFile,
                     MultipartHostTransferParts.TransferKeyHeader.ToString(), StorageDisposition.Temporary);
 
             var (isValidPublicKey, decryptedAesKeyHeaderBytes) =
@@ -103,7 +101,7 @@ namespace Youverse.Core.Services.Transit
             decryptedAesKeyHeaderBytes.WriteZeros();
 
             //TODO: this deserialization would be better in the drive service under the name GetTempMetadata or something
-            var metadataStream = await _driveStorageService.GetTempStream(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower());
+            var metadataStream = await _fileSystem.Storage.GetTempStream(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower());
             var json = await new StreamReader(metadataStream).ReadToEndAsync();
             metadataStream.Close();
 
@@ -163,7 +161,7 @@ namespace Youverse.Core.Services.Transit
                 DriveId = item.DriveId,
             };
 
-            await _driveStorageService.SoftDeleteLongTermFile(file);
+            await _fileSystem.Storage.SoftDeleteLongTermFile(file);
         }
 
         /// <summary>
@@ -172,7 +170,7 @@ namespace Youverse.Core.Services.Transit
         private async Task StoreCommandMessage(InternalDriveFileId tempFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
         {
             serverMetadata.DoNotIndex = true;
-            await _driveStorageService.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
+            await _fileSystem.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
             await _standardFileSystem.Commands.EnqueueCommandMessage(tempFile.DriveId, new List<Guid>() { tempFile.FileId });
         }
 
@@ -224,19 +222,19 @@ namespace Youverse.Core.Services.Transit
                     };
 
                     //note: we also update the key header because it might have been changed by the sender
-                    await _driveStorageService.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
+                    await _fileSystem.Storage.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
                     return;
                 }
                 //else there was no file by the global transit id
             }
 
 
-            await _driveStorageService.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
+            await _fileSystem.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
         }
 
         private async Task<ClientFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId)
         {
-            var existingFile = await _driveQueryService.GetFileByGlobalTransitId(driveId, globalTransitId);
+            var existingFile = await _fileSystem.Query.GetFileByGlobalTransitId(driveId, globalTransitId);
             return existingFile;
         }
     }

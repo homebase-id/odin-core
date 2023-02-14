@@ -10,7 +10,7 @@ using Youverse.Core.Services.Drive.Core.Query;
 
 namespace Youverse.Core.Services.Drives.Base
 {
-    public abstract class DriveQueryServiceBase : RequirePermissionsBase, IDriveQueryService
+    public abstract class DriveQueryServiceBase : RequirePermissionsBase
     {
         private readonly DriveStorageServiceBase _storage;
         private readonly DriveDatabaseHost _driveDatabaseHost;

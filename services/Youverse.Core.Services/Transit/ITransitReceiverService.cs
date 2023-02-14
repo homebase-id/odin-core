@@ -9,7 +9,7 @@ namespace Youverse.Core.Services.Transit
     /// <summary>
     /// Functions to manage incoming transfers from the transit system
     /// </summary>
-    public interface ITransitAppService
+    public interface ITransitReceiverService
     {
         /// <summary>
         /// Processes incoming transfers by converting their transfer keys and moving files to long term storage

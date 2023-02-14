@@ -7,6 +7,7 @@ using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Core.Storage;
+using Youverse.Core.Services.Drives.FileSystem.Standard;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 
@@ -15,19 +16,19 @@ namespace Youverse.Core.Services.Apps
     public class AppService : IAppService
     {
         private readonly DotYouContextAccessor _contextAccessor;
-        private readonly IDriveStorageService _driveStorageService;
         private readonly ITransitService _transitService;
 
-        public AppService(IDriveStorageService driveStorageService, DotYouContextAccessor contextAccessor, ITransitService transitService)
+        private readonly StandardFileSystem _fileSystem;
+        public AppService(DotYouContextAccessor contextAccessor, ITransitService transitService, StandardFileSystem fileSystem)
         {
-            _driveStorageService = driveStorageService;
             _contextAccessor = contextAccessor;
             _transitService = transitService;
+            _fileSystem = fileSystem;
         }
 
         public async Task<ClientFileHeader> GetClientEncryptedFileHeader(InternalDriveFileId file)
         {
-            var header = await _driveStorageService.GetServerFileHeader(file);
+            var header = await _fileSystem.Storage.GetServerFileHeader(file);
 
             if (header == null)
             {
@@ -92,7 +93,7 @@ namespace Youverse.Core.Services.Apps
                 LocalFileDeleted = false
             };
 
-            var header = await _driveStorageService.GetServerFileHeader(file);
+            var header = await _fileSystem.Storage.GetServerFileHeader(file);
             if (header == null)
             {
                 result.LocalFileNotFound = true;
@@ -128,7 +129,7 @@ namespace Youverse.Core.Services.Apps
                 }
             }
 
-            await _driveStorageService.SoftDeleteLongTermFile(file);
+            await _fileSystem.Storage.SoftDeleteLongTermFile(file);
             result.LocalFileDeleted = true;
 
             return result;

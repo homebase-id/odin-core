@@ -3,6 +3,7 @@ using System.IO;
 using System.Net.Mime;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
 using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Acl;
@@ -24,14 +25,6 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
     [AuthorizeValidExchangeGrant]
     public class DriveReadStorageController : DriveReadStorageControllerBase
     {
-        private readonly IAppService _appService;
-
-        /// <inheritdoc />
-        public DriveReadStorageController(IAppService appService)
-        {
-            _appService = appService;
-        }
-
         /// <summary>
         /// Returns the file header
         /// </summary>
@@ -39,22 +32,9 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         /// <returns></returns>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("files/header")]
-        public async Task<IActionResult> GetFileHeader([FromBody] ExternalFileIdentifier request)
+        public override async Task<IActionResult> GetFileHeader([FromBody] ExternalFileIdentifier request)
         {
-            var file = new InternalDriveFileId()
-            {
-                DriveId = DotYouContext.PermissionsContext.GetDriveId(request.TargetDrive),
-                FileId = request.FileId
-            };
-            var result = await _appService.GetClientEncryptedFileHeader(file);
-
-            if (result == null)
-            {
-                return NotFound();
-            }
-
-            AddCacheHeader();
-            return new JsonResult(result);
+            return await base.GetFileHeader(request);
         }
 
         [HttpGet("files/header")]
@@ -79,29 +59,9 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         /// <returns></returns>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("files/payload")]
-        public async Task<IActionResult> GetPayloadStream([FromBody] ExternalFileIdentifier request)
+        public override async Task<IActionResult> GetPayloadStream([FromBody] ExternalFileIdentifier request)
         {
-            var file = new InternalDriveFileId()
-            {
-                DriveId = DotYouContext.PermissionsContext.GetDriveId(request.TargetDrive),
-                FileId = request.FileId
-            };
-
-            var payload = await GetFileSystemResolver().ResolveFileSystem().Storage.GetPayloadStream(file);
-            if (payload == Stream.Null)
-            {
-                return NotFound();
-            }
-
-            var header = await _appService.GetClientEncryptedFileHeader(file);
-            string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
-
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, header.FileMetadata.PayloadIsEncrypted.ToString());
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, header.FileMetadata.ContentType);
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader64);
-            AddCacheHeader();
-            AddCorsHeader();
-            return new FileStreamResult(payload, header.FileMetadata.PayloadIsEncrypted ? "application/octet-stream" : header.FileMetadata.ContentType);
+            return await base.GetPayloadStream(request);
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
@@ -124,30 +84,9 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("files/thumb")]
-        public async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
+        public override async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
         {
-            var file = new InternalDriveFileId()
-            {
-                DriveId = DotYouContext.PermissionsContext.GetDriveId(request.File.TargetDrive),
-                FileId = request.File.FileId
-            };
-
-            var payload = await GetFileSystemResolver().ResolveFileSystem().Storage.GetThumbnailPayloadStream(file, request.Width, request.Height);
-            if (payload == Stream.Null)
-            {
-                return NotFound();
-            }
-
-            var header = await _appService.GetClientEncryptedFileHeader(file);
-            string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
-
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, header.FileMetadata.PayloadIsEncrypted.ToString());
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, header.FileMetadata.ContentType);
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader64);
-
-            AddCorsHeader();
-            AddCacheHeader();
-            return new FileStreamResult(payload, header.FileMetadata.PayloadIsEncrypted ? "application/octet-stream" : header.FileMetadata.ContentType);
+            return await base.GetThumbnail(request);
         }
 
         [HttpGet("files/thumb")]
@@ -167,22 +106,6 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
                 Width = width,
                 Height = height
             });
-        }
-
-        private void AddCacheHeader()
-        {
-            if (DotYouContext.AuthContext == ClientTokenConstants.YouAuthScheme)
-            {
-                this.Response.Headers.Add("Cache-Control", "max-age=3600");
-            }
-        }
-
-        private void AddCorsHeader()
-        {
-            if (DotYouContext.Caller.SecurityLevel != SecurityGroupType.Anonymous)
-            {
-                HttpContext.Response.Headers.Add("Access-Control-Allow-Origin", DotYouContext.Caller.DotYouId.Id);
-            }
         }
     }
 }

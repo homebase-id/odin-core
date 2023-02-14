@@ -102,14 +102,12 @@ namespace Youverse.Hosting
             
             cb.RegisterType<FileSystemResolver>().AsSelf().InstancePerDependency();
             
-            // cb.RegisterType<StandardFileDriveUploadService>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileStreamWriter>().AsSelf().InstancePerDependency();
-            cb.RegisterType<StandardFileDriveStorageService>().AsSelf().As<IDriveStorageService>().InstancePerDependency();
-            cb.RegisterType<StandardFileDriveQueryService>().AsSelf().As<IDriveQueryService>().InstancePerDependency();
+            cb.RegisterType<StandardFileDriveStorageService>().AsSelf().InstancePerDependency();
+            cb.RegisterType<StandardFileDriveQueryService>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardDriveCommandService>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileSystem>().AsSelf().InstancePerDependency();
             
-            // cb.RegisterType<CommentFileUploadService>().AsSelf().InstancePerDependency();
             cb.RegisterType<CommentStreamWriter>().AsSelf().InstancePerDependency();
             cb.RegisterType<CommentFileStorageService>().AsSelf().InstancePerDependency();
             cb.RegisterType<CommentFileQueryService>().AsSelf().InstancePerDependency();
@@ -140,7 +138,7 @@ namespace Youverse.Hosting
 
             cb.RegisterType<OutboxService>().As<IOutboxService>().SingleInstance();
 
-            cb.RegisterType<TransitAppService>().As<ITransitAppService>().SingleInstance();
+            cb.RegisterType<TransitReceiverService>().As<ITransitReceiverService>().SingleInstance();
             cb.RegisterType<TransitRegistrationService>()
                 .As<INotificationHandler<IdentityConnectionRegistrationChangedNotification>>()
                 .AsSelf()

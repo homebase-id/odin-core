@@ -20,15 +20,11 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
     public class ExchangeGrantService
     {
         private readonly ILogger<ExchangeGrantService> _logger;
-        private readonly IDriveStorageService _driveStorageService;
         private readonly DriveManager _driveManager;
-        private readonly CircleDefinitionService _circleDefinitionService;
 
-        public ExchangeGrantService(ILogger<ExchangeGrantService> logger, IDriveStorageService driveStorageService, CircleDefinitionService circleDefinitionService, DriveManager driveManager)
+        public ExchangeGrantService(ILogger<ExchangeGrantService> logger, DriveManager driveManager)
         {
             _logger = logger;
-            _driveStorageService = driveStorageService;
-            _circleDefinitionService = circleDefinitionService;
             _driveManager = driveManager;
         }
 
@@ -121,7 +117,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             var (accessReg, clientAccessToken) = await this.CreateClientAccessTokenInternal(grantKeyStoreKey, tokenType);
             return (accessReg, clientAccessToken);
         }
-        
+
         public async Task<PermissionContext> CreatePermissionContext(ClientAuthenticationToken authToken, Dictionary<string, ExchangeGrant> grants, AccessRegistration accessReg,
             List<int>? additionalPermissionKeys = null, bool includeAnonymousDrives = false)
         {
@@ -177,9 +173,9 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             var anonDriveGrants = anonymousDrives.Results.Select(drive => this.CreateDriveGrant(drive, DrivePermission.Read, null, null));
             return new PermissionGroup(new PermissionSet(), anonDriveGrants, null);
         }
-        
+
         //
-        
+
         private DriveGrant CreateDriveGrant(StorageDrive drive, DrivePermission permission, SensitiveByteArray grantKeyStoreKey, SensitiveByteArray masterKey)
         {
             var storageKey = masterKey == null ? null : drive.MasterKeyEncryptedStorageKey.DecryptKeyClone(ref masterKey);

@@ -23,12 +23,10 @@ namespace Youverse.Hosting.Controllers.Certificate
     public class TransitPerimeterDriveController : ControllerBase
     {
         private readonly ITransitPerimeterService _perimeterService;
-        private readonly IDriveStorageService _driveStorageService;
 
-        public TransitPerimeterDriveController(ITransitPerimeterService perimeterService, IDriveStorageService driveStorageService)
+        public TransitPerimeterDriveController(ITransitPerimeterService perimeterService)
         {
             _perimeterService = perimeterService;
-            _driveStorageService = driveStorageService;
         }
 
         [HttpPost("querybatch")]

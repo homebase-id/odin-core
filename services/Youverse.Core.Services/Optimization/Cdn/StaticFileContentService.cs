@@ -38,22 +38,18 @@ public enum CrossOriginBehavior
 public class StaticFileContentService
 {
     private readonly DriveManager _driveManager;
-    private readonly IDriveStorageService _driveStorageService;
-    private readonly IDriveQueryService _driveQueryService;
     private readonly IDriveFileSystem _fileSystem;
     private readonly TenantContext _tenantContext;
     private readonly DotYouContextAccessor _contextAccessor;
     private readonly ITenantSystemStorage _tenantSystemStorage;
 
-    public StaticFileContentService(IDriveStorageService driveStorageService, IDriveQueryService driveQueryService,
-        TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITenantSystemStorage tenantSystemStorage, DriveManager driveManager)
+    public StaticFileContentService(TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITenantSystemStorage tenantSystemStorage, DriveManager driveManager, IDriveFileSystem fileSystem)
     {
-        _driveStorageService = driveStorageService;
-        _driveQueryService = driveQueryService;
         _tenantContext = tenantContext;
         _contextAccessor = contextAccessor;
         _tenantSystemStorage = tenantSystemStorage;
         _driveManager = driveManager;
+        _fileSystem = fileSystem;
     }
 
     public async Task<StaticFilePublishResult> Publish(string filename, StaticFileConfiguration config,
@@ -98,7 +94,7 @@ public class StaticFileContentService
                 MaxRecords = int.MaxValue //TODO: Consider
             };
 
-            var results = await _driveQueryService.GetBatch(driveId, qp, options);
+            var results = await _fileSystem.Query.GetBatch(driveId, qp, options);
             var filteredHeaders = Filter(results.SearchResults);
 
             var sectionOutput = new SectionOutput()
@@ -123,7 +119,7 @@ public class StaticFileContentService
                     foreach (var thumbHeader in fileHeader.FileMetadata.AppData?.AdditionalThumbnails ??
                                                 new List<ImageDataHeader>())
                     {
-                        var thumbnailStream = await _driveStorageService.GetThumbnailPayloadStream(
+                        var thumbnailStream = await _fileSystem.Storage.GetThumbnailPayloadStream(
                             internalFileId, thumbHeader.PixelWidth, thumbHeader.PixelHeight);
 
                         thumbnails.Add(new ImageDataContent()
@@ -138,7 +134,7 @@ public class StaticFileContentService
 
                 if (section.ResultOptions.IncludePayload)
                 {
-                    var payloadStream = await _driveStorageService.GetPayloadStream(internalFileId);
+                    var payloadStream = await _fileSystem.Storage.GetPayloadStream(internalFileId);
                     payload = payloadStream.ToByteArray();
                 }
 

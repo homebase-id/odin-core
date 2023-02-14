@@ -10,6 +10,7 @@ using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Quarantine;
@@ -29,12 +30,13 @@ namespace Youverse.Hosting.Controllers.Certificate
     {
         private readonly ITransitPerimeterService _perimeterService;
         private Guid _stateItemId;
-        private readonly IDriveStorageService _driveStorageService;
 
-        public TransitPerimeterController(ITransitPerimeterService perimeterService, IDriveStorageService driveStorageService)
+        private readonly IDriveFileSystem _fileSystem;
+
+        public TransitPerimeterController(ITransitPerimeterService perimeterService, IDriveFileSystem fileSystem)
         {
             _perimeterService = perimeterService;
-            _driveStorageService = driveStorageService;
+            _fileSystem = fileSystem;
         }
 
         [HttpPost("stream")]
@@ -139,7 +141,7 @@ namespace Youverse.Hosting.Controllers.Certificate
             AssertIsValidThumbnailPart(section, MultipartHostTransferParts.Thumbnail, out var fileSection, out var width, out var height);
 
             // section.ContentType
-            string extenstion = _driveStorageService.GetThumbnailFileExtension(width, height);
+            string extenstion = _fileSystem.Storage.GetThumbnailFileExtension(width, height);
             var response = await _perimeterService.ApplyFirstStageFiltering(this._stateItemId, MultipartHostTransferParts.Thumbnail, extenstion, section.Body);
             if (response.FilterAction == FilterAction.Reject)
             {

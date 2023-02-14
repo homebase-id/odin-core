@@ -13,6 +13,7 @@ using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Core.Query;
+using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Drives.FileSystem.Standard;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Transit.Quarantine.Filter;
@@ -25,10 +26,10 @@ namespace Youverse.Core.Services.Transit.Quarantine
         private readonly ITransitService _transitService;
         private readonly ITransitPerimeterTransferStateService _transitPerimeterTransferStateService;
         private readonly IPublicKeyService _publicKeyService;
-        private readonly IDriveQueryService _driveQueryService;
-        private readonly StandardFileDriveStorageService _driveStorageService;
         private readonly DriveManager _driveManager;
         private readonly IAppService _appService;
+
+        private readonly IDriveFileSystem _fileSystem;
 
         public TransitPerimeterService(
             DotYouContextAccessor contextAccessor,
@@ -36,16 +37,15 @@ namespace Youverse.Core.Services.Transit.Quarantine
             ITransitService transitService,
             ITransitPerimeterTransferStateService transitPerimeterTransferStateService,
             IPublicKeyService publicKeyService,
-            IDriveQueryService driveQueryService, StandardFileDriveStorageService driveStorageService, IAppService appService, DriveManager driveManager) : base()
+            IAppService appService, DriveManager driveManager, IDriveFileSystem fileSystem)
         {
             _contextAccessor = contextAccessor;
             _transitService = transitService;
             _transitPerimeterTransferStateService = transitPerimeterTransferStateService;
             _publicKeyService = publicKeyService;
-            _driveQueryService = driveQueryService;
-            _driveStorageService = driveStorageService;
             _appService = appService;
             _driveManager = driveManager;
+            _fileSystem = fileSystem;
         }
 
         public async Task<Guid> InitializeIncomingTransfer(RsaEncryptedRecipientTransferInstructionSet transferInstructionSet)
@@ -161,7 +161,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         public Task<QueryBatchResult> QueryBatch(FileQueryParams qp, QueryBatchResultOptions options)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(qp.TargetDrive);
-            var results = _driveQueryService.GetBatch(driveId, qp, options);
+            var results = _fileSystem.Query.GetBatch(driveId, qp, options);
             return results;
         }
 
@@ -194,7 +194,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             }
 
             string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
-            var payload = await _driveStorageService.GetPayloadStream(file);
+            var payload = await _fileSystem.Storage.GetPayloadStream(file);
 
             return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, header.FileMetadata.ContentType, payload);
         }
@@ -220,7 +220,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             var directMatchingThumb = thumbs.SingleOrDefault(t => t.PixelHeight == height && t.PixelWidth == width);
             if (null != directMatchingThumb)
             {
-                var innerThumb = await _driveStorageService.GetThumbnailPayloadStream(file, width, height);
+                var innerThumb = await _fileSystem.Storage.GetThumbnailPayloadStream(file, width, height);
                 return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, directMatchingThumb.ContentType, innerThumb);
             }
 
@@ -235,7 +235,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
                 }
             }
 
-            var thumb = await _driveStorageService.GetThumbnailPayloadStream(file, width, height);
+            var thumb = await _fileSystem.Storage.GetThumbnailPayloadStream(file, width, height);
             return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, nextSizeUp.ContentType, thumb);
         }
 
