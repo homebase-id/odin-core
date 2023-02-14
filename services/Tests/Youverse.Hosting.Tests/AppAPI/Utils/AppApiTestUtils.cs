@@ -14,10 +14,12 @@ using Youverse.Core.Serialization;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Core.Query;
 using Youverse.Core.Services.Drive.Core.Storage;
 using Youverse.Core.Services.Drives.Base.Upload;
+using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
@@ -46,7 +48,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
         /// <summary>
         /// Creates a client for use with the app API (/api/apps/v1/...)
         /// </summary>
-        public HttpClient CreateAppApiHttpClient(DotYouIdentity identity, ClientAuthenticationToken token, byte[] sharedSecret)
+        public HttpClient CreateAppApiHttpClient(DotYouIdentity identity, ClientAuthenticationToken token, byte[] sharedSecret, FileSystemType fileSystemType)
         {
             var cookieJar = new CookieContainer();
             cookieJar.Add(new Cookie(ClientTokenConstants.ClientAuthTokenCookieName, token.ToString(), null, identity));
@@ -57,16 +59,16 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
             };
 
             HttpClient client = new(sharedSecretGetRequestHandler);
-            client.DefaultRequestHeaders.Add("X-ODIN-FILE-SYSTEM-TYPE", "comment");
+            client.DefaultRequestHeaders.Add(DotYouHeaderNames.FileSystemTypeHeader, Enum.GetName(fileSystemType));
             client.Timeout = TimeSpan.FromMinutes(15);
 
             client.BaseAddress = new Uri($"https://{identity}");
             return client;
         }
 
-        public HttpClient CreateAppApiHttpClient(TestAppContext appTestContext)
+        public HttpClient CreateAppApiHttpClient(TestAppContext appTestContext, FileSystemType fileSystemType = FileSystemType.Standard)
         {
-            return CreateAppApiHttpClient(appTestContext.Identity, appTestContext.ClientAuthenticationToken, appTestContext.SharedSecret);
+            return CreateAppApiHttpClient(appTestContext.Identity, appTestContext.ClientAuthenticationToken, appTestContext.SharedSecret, fileSystemType);
         }
 
         public async Task<AppTransitTestUtilsContext> CreateAppAndUploadFileMetadata(TestIdentity identity, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options = null)

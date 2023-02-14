@@ -33,6 +33,7 @@ using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Core;
 using Youverse.Core.Services.Drive.Core.Query;
 using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Drives.FileSystem.Comment;
 using Youverse.Core.Services.Drives.FileSystem.Standard;
 using Youverse.Core.Services.EncryptionKeyService;
@@ -106,7 +107,8 @@ namespace Youverse.Hosting
             cb.RegisterType<StandardFileDriveStorageService>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileDriveQueryService>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardDriveCommandService>().AsSelf().InstancePerDependency();
-            cb.RegisterType<StandardFileSystem>().AsSelf().InstancePerDependency();
+            //Note As<IDriveFileSystem> means this will be the default in cases where we do not resolve the filesystem
+            cb.RegisterType<StandardFileSystem>().AsSelf().As<IDriveFileSystem>().InstancePerDependency();
             
             cb.RegisterType<CommentStreamWriter>().AsSelf().InstancePerDependency();
             cb.RegisterType<CommentFileStorageService>().AsSelf().InstancePerDependency();
