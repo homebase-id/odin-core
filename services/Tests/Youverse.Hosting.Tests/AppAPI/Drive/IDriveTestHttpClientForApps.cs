@@ -4,7 +4,9 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Refit;
 using Youverse.Core.Services.Apps;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Controllers.ClientToken;
@@ -39,6 +41,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         [Get(RootEndpoint + "/files/payload")]
         Task<ApiResponse<HttpContent>> GetPayload(Guid fileId, Guid alias, Guid type);
 
+        [Headers($"X-ODIN-FILE-SYSTEM-TYPE:Standard")]
         [Get(RootEndpoint + "/files/header")]
         Task<ApiResponse<ClientFileHeader>> GetFileHeader(Guid fileId, Guid alias, Guid type);
 
