@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers.Base;
-using Youverse.Hosting.Controllers.Base.Upload.Standard;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 {

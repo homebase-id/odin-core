@@ -46,8 +46,6 @@ using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Transit.Quarantine;
 using Youverse.Core.Storage;
 using Youverse.Hosting.Controllers.Base;
-using Youverse.Hosting.Controllers.Base.Upload.Comment;
-using Youverse.Hosting.Controllers.Base.Upload.Standard;
 
 namespace Youverse.Hosting
 {
