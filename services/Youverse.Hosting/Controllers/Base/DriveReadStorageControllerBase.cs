@@ -17,7 +17,7 @@ namespace Youverse.Hosting.Controllers.Base
         /// <summary>
         /// Returns the file header
         /// </summary>
-        public virtual async Task<IActionResult> GetFileHeader([FromBody] ExternalFileIdentifier request)
+        public virtual async Task<IActionResult> GetFileHeader(ExternalFileIdentifier request)
         {
             var file = new InternalDriveFileId()
             {
@@ -26,7 +26,7 @@ namespace Youverse.Hosting.Controllers.Base
             };
 
             var result = await this.GetFileSystemResolver().ResolveFileSystem().Storage.GetSharedSecretEncryptedHeader(file);
-            
+
             if (result == null)
             {
                 return NotFound();
@@ -39,7 +39,7 @@ namespace Youverse.Hosting.Controllers.Base
         /// <summary>
         /// Returns the payload for a given file
         /// </summary>
-        public virtual async Task<IActionResult> GetPayloadStream([FromBody] ExternalFileIdentifier request)
+        public virtual async Task<IActionResult> GetPayloadStream(ExternalFileIdentifier request)
         {
             var file = new InternalDriveFileId()
             {
@@ -48,7 +48,7 @@ namespace Youverse.Hosting.Controllers.Base
             };
 
             var fs = this.GetFileSystemResolver().ResolveFileSystem();
-            
+
             var payload = await fs.Storage.GetPayloadStream(file);
             if (payload == Stream.Null)
             {
@@ -69,7 +69,7 @@ namespace Youverse.Hosting.Controllers.Base
         /// <summary>
         /// Returns the thumbnail matching the width and height.  Note: you should get the content type from the file header
         /// </summary>
-        public virtual async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
+        public virtual async Task<IActionResult> GetThumbnail(GetThumbnailRequest request)
         {
             var file = new InternalDriveFileId()
             {
@@ -95,7 +95,7 @@ namespace Youverse.Hosting.Controllers.Base
             AddCacheHeader();
             return new FileStreamResult(payload, header.FileMetadata.PayloadIsEncrypted ? "application/octet-stream" : header.FileMetadata.ContentType);
         }
-        
+
         private void AddCacheHeader()
         {
             if (DotYouContext.AuthContext == ClientTokenConstants.YouAuthScheme)

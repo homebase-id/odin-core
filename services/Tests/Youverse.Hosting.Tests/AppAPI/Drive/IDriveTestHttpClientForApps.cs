@@ -18,6 +18,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
     /// <summary>
     /// The interface for storing files
     /// </summary>
+    [Headers("X-ODIN-FILE-SYSTEM-TYPE:Standard")]
     public interface IDriveTestHttpClientForApps
     {
         private const string RootEndpoint = AppApiPathConstants.DrivesV1;
@@ -41,7 +42,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         [Get(RootEndpoint + "/files/payload")]
         Task<ApiResponse<HttpContent>> GetPayload(Guid fileId, Guid alias, Guid type);
 
-        [Headers($"X-ODIN-FILE-SYSTEM-TYPE:Standard")]
+        [Headers("X-Header-Name: HeaderContent")]   
         [Get(RootEndpoint + "/files/header")]
         Task<ApiResponse<ClientFileHeader>> GetFileHeader(Guid fileId, Guid alias, Guid type);
 

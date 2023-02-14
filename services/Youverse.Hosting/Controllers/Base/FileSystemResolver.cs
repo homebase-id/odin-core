@@ -68,7 +68,9 @@ public class FileSystemResolver
         var ctx = _contextAccessor.HttpContext;
         if (!Enum.TryParse(typeof(FileSystemType), ctx!.Request.Headers[DotYouHeaderNames.FileSystemTypeHeader], true, out var fileSystemType))
         {
-            throw new YouverseClientException("Invalid file system type or could not parse instruction set", YouverseClientErrorCode.InvalidFileSystemType);
+            //default to standard
+            return FileSystemType.Standard;
+            // throw new YouverseClientException("Invalid file system type or no header specified", YouverseClientErrorCode.InvalidFileSystemType);
         }
 
         return (FileSystemType)fileSystemType!;
