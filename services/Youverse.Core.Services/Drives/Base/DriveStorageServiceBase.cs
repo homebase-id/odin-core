@@ -15,6 +15,7 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Core;
 using Youverse.Core.Services.Drive.Core.Storage;
+using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Transit.Encryption;
 
@@ -40,9 +41,14 @@ namespace Youverse.Core.Services.Drives.Base
             DriveManager = driveManager;
         }
 
-        
+
         protected override DriveManager DriveManager { get; }
         protected override DotYouContextAccessor ContextAccessor { get; }
+
+        /// <summary>
+        /// Gets the <see cref="FileSystemType"/> the inheriting class manages
+        /// </summary>
+        protected abstract FileSystemType GetFileSystemType();
 
         public async Task<ClientFileHeader> GetSharedSecretEncryptedHeader(InternalDriveFileId file)
         {
@@ -50,7 +56,7 @@ namespace Youverse.Core.Services.Drives.Base
             var result = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverFileHeader, ContextAccessor);
             return result;
         }
-        
+
         public InternalDriveFileId CreateInternalFileId(Guid driveId)
         {
             //TODO: need a permission specifically for writing to the temp drive
@@ -205,6 +211,7 @@ namespace Youverse.Core.Services.Drives.Base
 
         public async Task<ServerFileHeader> CreateServerFileHeader(InternalDriveFileId file, KeyHeader keyHeader, FileMetadata fileMetadata, ServerMetadata serverMetadata)
         {
+            serverMetadata.FileSystemType = GetFileSystemType();
             var sv = new ServerFileHeader()
             {
                 EncryptedKeyHeader = await this.EncryptKeyHeader(file.DriveId, keyHeader),
@@ -238,6 +245,8 @@ namespace Youverse.Core.Services.Drives.Base
             }
 
             await _driveAclAuthorizationService.AssertCallerHasPermission(header.ServerMetadata.AccessControlList);
+
+            AssertValidFileSystemType(header.ServerMetadata);
 
             return header;
         }
@@ -312,6 +321,7 @@ namespace Youverse.Core.Services.Drives.Base
             AssertCanWriteToDrive(targetFile.DriveId);
 
             metadata.File = targetFile;
+            serverMetadata.FileSystemType = GetFileSystemType();
 
             var storageManager = GetLongTermStorageManager(targetFile.DriveId);
             var tempStorageManager = GetTempStorageManager(targetFile.DriveId);
@@ -347,7 +357,9 @@ namespace Youverse.Core.Services.Drives.Base
             await _mediator.Publish(new DriveFileAddedNotification()
             {
                 File = targetFile,
-                ServerFileHeader = serverHeader
+                ServerFileHeader = serverHeader,
+                ClientFileHeader = await this.GetSharedSecretEncryptedHeader(targetFile)
+
             });
         }
 
@@ -357,6 +369,8 @@ namespace Youverse.Core.Services.Drives.Base
             AssertCanWriteToDrive(targetFile.DriveId);
 
             metadata.File = targetFile;
+
+            var existingServerHeader = await this.GetServerFileHeader(targetFile);
 
             var storageManager = GetLongTermStorageManager(targetFile.DriveId);
             var tempStorageManager = GetTempStorageManager(tempFile.DriveId);
@@ -393,10 +407,10 @@ namespace Youverse.Core.Services.Drives.Base
             await _mediator.Publish(new DriveFileChangedNotification()
             {
                 File = targetFile,
-                ServerFileHeader = serverHeader
+                ServerFileHeader = serverHeader,
+                ClientFileHeader = await this.GetSharedSecretEncryptedHeader(targetFile)
             });
         }
-
 
         //
         private ILongTermStorageManager GetLongTermStorageManager(Guid driveId)
@@ -419,6 +433,20 @@ namespace Youverse.Core.Services.Drives.Base
             var json = DotYouSystemSerializer.Serialize(header);
             var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
             await GetLongTermStorageManager(header.FileMetadata.File.DriveId).WritePartStream(header.FileMetadata.File.FileId, FilePart.Header, stream);
+        }
+
+        /// <summary>
+        /// Protects against using the wrong filesystem with a fileId
+        /// </summary>
+        /// <param name="serverMetadata"></param>
+        /// <exception cref="YouverseClientException"></exception>
+        private void AssertValidFileSystemType(ServerMetadata serverMetadata)
+        {
+            if (serverMetadata.FileSystemType != GetFileSystemType())
+            {
+                //just in case the caller used the wrong drive service instance
+                throw new YouverseClientException($"Invalid SystemFileCategory.  This service only handles {GetFileSystemType()}");
+            }
         }
     }
 }

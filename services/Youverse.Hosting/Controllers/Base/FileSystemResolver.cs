@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Youverse.Core.Exceptions;
@@ -19,12 +18,13 @@ public class FileSystemResolver
 {
     private readonly IHttpContextAccessor _contextAccessor;
 
-    /// <summary/>
+    /// <summary/>   
     public FileSystemResolver(IHttpContextAccessor contextAccessor)
     {
         _contextAccessor = contextAccessor;
     }
 
+    /// <summary />
     public FileSystemStreamWriterBase ResolveFileSystemWriter()
     {
         var ctx = _contextAccessor.HttpContext;
@@ -44,6 +44,7 @@ public class FileSystemResolver
         throw new YouverseClientException("Invalid file system type or could not parse instruction set", YouverseClientErrorCode.InvalidFileSystemType);
     }
 
+    /// <summary />
     public IDriveFileSystem ResolveFileSystem()
     {
         var ctx = _contextAccessor.HttpContext;

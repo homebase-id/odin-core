@@ -6,6 +6,7 @@ using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drive.Core;
 using Youverse.Core.Services.Drive.Core.Storage;
 using Youverse.Core.Services.Drives.FileSystem.Standard;
 using Youverse.Core.Services.Transit;
@@ -29,60 +30,13 @@ namespace Youverse.Core.Services.Apps
         public async Task<ClientFileHeader> GetClientEncryptedFileHeader(InternalDriveFileId file)
         {
             var header = await _fileSystem.Storage.GetServerFileHeader(file);
-
+            
             if (header == null)
             {
                 return null;
             }
 
-            EncryptedKeyHeader sharedSecretEncryptedKeyHeader;
-            if (header.FileMetadata.PayloadIsEncrypted)
-            {
-                var storageKey = _contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(file.DriveId);
-                var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
-                var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
-                sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, header.EncryptedKeyHeader.Iv, ref clientSharedSecret);
-            }
-            else
-            {
-                sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
-            }
-
-            int priority = 1000;
-
-            //TODO: this a strange place to calculate priority yet it was the best place w/o having to send back the acl outside of this method
-            switch (header.ServerMetadata.AccessControlList.RequiredSecurityGroup)
-            {
-                case SecurityGroupType.Anonymous:
-                    priority = 500;
-                    break;
-                case SecurityGroupType.Authenticated:
-                    priority = 400;
-                    break;
-                case SecurityGroupType.Connected:
-                    priority = 300;
-                    break;
-                case SecurityGroupType.Owner:
-                    priority = 1;
-                    break;
-            }
-
-            var clientFileHeader = new ClientFileHeader()
-            {
-                FileId = header.FileMetadata.File.FileId,
-                FileState = header.FileMetadata.FileState,
-                SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,
-                FileMetadata = RedactFileMetadata(header.FileMetadata),
-                Priority = priority
-            };
-
-            //add additional info
-            if (_contextAccessor.GetCurrent().Caller.IsOwner)
-            {
-                clientFileHeader.ServerMetadata = header.ServerMetadata;
-            }
-
-            return clientFileHeader;
+            return Utility.ConvertToSharedSecretEncryptedClientFileHeader(header, _contextAccessor);
         }
 
         public async Task<DeleteLinkedFileResult> DeleteFile(InternalDriveFileId file, List<string> requestRecipients)

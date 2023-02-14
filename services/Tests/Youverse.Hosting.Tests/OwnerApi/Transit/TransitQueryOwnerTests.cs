@@ -26,6 +26,7 @@ using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Tests.AppAPI;
 using Youverse.Hosting.Tests.AppAPI.Drive;
 using Youverse.Hosting.Tests.AppAPI.Transit;
+using Youverse.Hosting.Tests.AppAPI.Utils;
 using Youverse.Hosting.Tests.OwnerApi.Utils;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Transit
@@ -125,7 +126,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                 },
             };
 
-            var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref key);
+            var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref key);
 
             var payloadData = "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadData);
@@ -384,7 +385,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                 },
             };
 
-            var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref key);
+            var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref key);
 
             var originalPayloadData = "{payload:true, image:'b64 data'}";
             var originalPayloadCipherBytes = keyHeader.EncryptDataAesAsStream(originalPayloadData);

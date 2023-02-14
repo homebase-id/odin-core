@@ -1,19 +1,14 @@
-using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Youverse.Core;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Core.Query;
 using Youverse.Core.Services.Drives.Base.Upload;
-using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.Upload;
-using Youverse.Hosting.Controllers;
+using Youverse.Core.Services.Drives.FileSystem;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Drive
+namespace Youverse.Hosting.Tests.OwnerApi.Drive.Misc
 {
     public class MultipleQueryConsumersTest
     {
@@ -74,7 +69,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                 }
             };
 
-            var commentFileUploadResult = await frodoOwnerClient.Drive.UploadCommentFile(targetDrive, commentFile);
+            var commentFileUploadResult = await frodoOwnerClient.Drive.UploadFile(FileSystemType.Comment, targetDrive, commentFile, "some payload data");
 
             var standardFileResults = await frodoOwnerClient.Drive.QueryBatch(new FileQueryParams()
             {

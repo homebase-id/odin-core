@@ -21,6 +21,7 @@ using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Tests.AppAPI.CommandSender;
 using Youverse.Hosting.Tests.AppAPI.Drive;
 using Youverse.Hosting.Tests.AppAPI.Transit;
+using Youverse.Hosting.Tests.AppAPI.Utils;
 
 namespace Youverse.Hosting.Tests.AppAPI.ChatStructure.Api;
 
@@ -170,7 +171,7 @@ public class ChatServerContext
                 FileMetadata = fileMetadata
             };
 
-            var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
+            var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
             var payloadCipher = new MemoryStream();
 
             var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);

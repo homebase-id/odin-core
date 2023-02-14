@@ -21,6 +21,7 @@ using Youverse.Hosting.Controllers.OwnerToken.Circles;
 using Youverse.Hosting.Controllers.OwnerToken.Drive;
 using Youverse.Hosting.Tests.OwnerApi.Circle;
 using Youverse.Hosting.Tests.OwnerApi.Drive;
+using Youverse.Hosting.Tests.OwnerApi.Drive.Management;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
 {

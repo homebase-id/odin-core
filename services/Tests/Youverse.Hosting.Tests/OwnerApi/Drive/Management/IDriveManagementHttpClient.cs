@@ -1,5 +1,4 @@
-﻿using System;
-using System.Net.Http;
+﻿using System.Net.Http;
 using System.Threading.Tasks;
 using Refit;
 using Youverse.Core;
@@ -8,7 +7,7 @@ using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers.OwnerToken;
 using Youverse.Hosting.Controllers.OwnerToken.Drive;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Drive
+namespace Youverse.Hosting.Tests.OwnerApi.Drive.Management
 {
     /// <summary>
     /// The interface for storing files

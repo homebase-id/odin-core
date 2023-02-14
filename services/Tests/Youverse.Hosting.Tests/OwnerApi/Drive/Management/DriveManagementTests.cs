@@ -2,12 +2,11 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Refit;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers.OwnerToken.Drive;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Drive;
+namespace Youverse.Hosting.Tests.OwnerApi.Drive.Management;
 
 public class DriveManagementTests
 {

@@ -41,11 +41,13 @@ using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Controllers.OwnerToken.AppManagement;
 using Youverse.Hosting.Tests.AppAPI;
 using Youverse.Hosting.Tests.AppAPI.Transit;
+using Youverse.Hosting.Tests.AppAPI.Utils;
 using Youverse.Hosting.Tests.OwnerApi.Apps;
 using Youverse.Hosting.Tests.OwnerApi.Authentication;
 using Youverse.Hosting.Tests.OwnerApi.Circle;
 using Youverse.Hosting.Tests.OwnerApi.Configuration;
 using Youverse.Hosting.Tests.OwnerApi.Drive;
+using Youverse.Hosting.Tests.OwnerApi.Drive.Management;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Utils
 {
@@ -710,7 +712,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                     FileMetadata = fileMetadata
                 };
 
-                var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
+                var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
                 var payloadCipherBytes = keyHeader.EncryptDataAes(payloadData.ToUtf8ByteArray());
                 var payloadCipher = encryptPayload ? new MemoryStream(payloadCipherBytes) : new MemoryStream(payloadData.ToUtf8ByteArray());
                 var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
@@ -799,7 +801,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                     FileMetadata = fileMetadata
                 };
 
-                var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
+                var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
 
 
                 payloadData = options?.PayloadData ?? payloadData;

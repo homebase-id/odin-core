@@ -3,9 +3,9 @@ using Youverse.Core;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Transit.Encryption;
 
-namespace Youverse.Hosting.Tests.AppAPI
+namespace Youverse.Hosting.Tests.AppAPI.Utils
 {
-    public static class Utilsx
+    public static class TestUtils
     {
         public static Stream GetEncryptedStream(string data, KeyHeader keyHeader)
         {

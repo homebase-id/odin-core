@@ -82,7 +82,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             };
 
             var key = testContext.SharedSecret.ToSensitiveByteArray();
-            var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref key);
+            var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref key);
 
             var payloadDataRaw = "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadDataRaw);
@@ -277,7 +277,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
 
         [Test(Description = "")]
-        [Ignore("There is no api exposed for hard-delete.  ")]
+        [Ignore("There is no api exposed for hard-delete for an App.")]
         public async Task CanHardDeleteFile()
         {
         }

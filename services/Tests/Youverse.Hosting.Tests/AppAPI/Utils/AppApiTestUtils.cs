@@ -152,7 +152,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                     FileMetadata = fileMetadata
                 };
 
-                var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
+                var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
 
                 var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadData);
 
@@ -278,7 +278,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                     FileMetadata = fileMetadata
                 };
 
-                var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
+                var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
 
                 var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadData);
 

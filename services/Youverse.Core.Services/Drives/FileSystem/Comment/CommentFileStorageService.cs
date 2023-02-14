@@ -33,4 +33,9 @@ public class CommentFileStorageService : DriveStorageServiceBase
             ContextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
         }
     }
+
+    protected override FileSystemType GetFileSystemType()
+    {
+        return FileSystemType.Comment;
+    }
 }

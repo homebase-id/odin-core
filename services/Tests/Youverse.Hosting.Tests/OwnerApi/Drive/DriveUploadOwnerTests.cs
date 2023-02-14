@@ -21,6 +21,7 @@ using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers.Base.Upload;
 using Youverse.Hosting.Tests.AppAPI;
+using Youverse.Hosting.Tests.AppAPI.Utils;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Drive
 {
@@ -82,8 +83,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
 
             //retrieve the file that was uploaded; decrypt;
             var clientFileHeader = await frodoOwnerClient.Drive.GetFileHeader(
-                new ExternalFileIdentifier() { TargetDrive = targetDrive, FileId = fileId },
-                FileSystemType.Standard
+                FileSystemType.Standard,
+                new ExternalFileIdentifier() { TargetDrive = targetDrive, FileId = fileId }
                 );
             
             Assert.That(clientFileHeader.FileMetadata, Is.Not.Null);
@@ -169,7 +170,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                     },
                 };
 
-                var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref ownerSharedSecret);
+                var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref ownerSharedSecret);
 
                 var payloadDataRaw = "{payload:true, image:'b64 data'}";
                 var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadDataRaw);
@@ -254,7 +255,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                     },
                 };
 
-                var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref ownerSharedSecret);
+                var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref ownerSharedSecret);
 
                 var payloadDataRaw = "{payload:true, image:'b64 data'}";
                 var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadDataRaw);
@@ -429,7 +430,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                     },
                 };
 
-                var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref ownerSharedSecret);
+                var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref ownerSharedSecret);
 
                 var payloadDataRaw = "{payload:true, image:'b64 data'}";
                 var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadDataRaw);
@@ -493,7 +494,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                     },
                 };
 
-                var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref ownerSharedSecret);
+                var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref ownerSharedSecret);
 
                 var payloadDataRaw = "{payload:true, image:'b64 data'}";
                 var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadDataRaw);
@@ -578,7 +579,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                     },
                 };
 
-                var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref ownerSharedSecret);
+                var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref ownerSharedSecret);
 
                 var payloadDataRaw = "{payload:true, image:'b64 data'}";
                 var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadDataRaw);
@@ -637,7 +638,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                     },
                 };
 
-                var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref ownerSharedSecret);
+                var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref ownerSharedSecret);
 
                 var payloadDataRaw = "{payload:true, image:'b64 data'}";
                 var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadDataRaw);
@@ -689,7 +690,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                     },
                 };
 
-                var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref ownerSharedSecret);
+                var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref ownerSharedSecret);
 
                 var payloadDataRaw = "{payload:true, image:'b64 data'}";
                 var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadDataRaw);
@@ -738,7 +739,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
                     },
                 };
 
-                var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref ownerSharedSecret);
+                var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref ownerSharedSecret);
 
                 var payloadDataRaw = "{payload:true, image:'b64 data'}";
                 var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadDataRaw);
