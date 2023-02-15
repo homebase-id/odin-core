@@ -9,11 +9,9 @@ using Youverse.Core.Serialization;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Core.Query;
 using Youverse.Core.Services.Drives.Base.Upload;
-using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Drive
+namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
 {
     public class DriveQueryOwnerTests
     {

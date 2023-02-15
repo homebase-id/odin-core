@@ -24,6 +24,7 @@ namespace Youverse.Hosting.Controllers.Certificate
     {
         private readonly ITransitPerimeterService _perimeterService;
 
+        /// <summary />
         public TransitPerimeterDriveController(ITransitPerimeterService perimeterService)
         {
             _perimeterService = perimeterService;
@@ -96,7 +97,7 @@ namespace Youverse.Hosting.Controllers.Certificate
         }
 
         [HttpPost("metadata/type")]
-        public async Task<IEnumerable<PerimeterDriveData>> GetDrives([FromBody]GetDrivesByTypeRequest request)
+        public async Task<IEnumerable<PerimeterDriveData>> GetDrives([FromBody] GetDrivesByTypeRequest request)
         {
             var drives = await _perimeterService.GetDrives(request.DriveType);
             return drives;
@@ -106,7 +107,7 @@ namespace Youverse.Hosting.Controllers.Certificate
         [HttpPost("deletelinkedfile")]
         public async Task<HostTransitResponse> DeleteLinkedFile(DeleteLinkedFileTransitRequest transitRequest)
         {
-            return await _perimeterService.DeleteLinkedFile(transitRequest.TargetDrive, transitRequest.GlobalTransitId);
+            return await _perimeterService.AcceptDeleteLinkedFileRequest(transitRequest.TargetDrive, transitRequest.GlobalTransitId);
         }
     }
 }

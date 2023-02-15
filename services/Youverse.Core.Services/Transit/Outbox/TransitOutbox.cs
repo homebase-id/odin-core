@@ -25,18 +25,14 @@ namespace Youverse.Core.Services.Transit.Outbox
     /// <summary>
     /// Services that manages items in a given Tenant's outbox
     /// </summary>
-    public class OutboxService : IOutboxService
+    public class TransitOutbox : ITransitOutbox
     {
         private readonly IPendingTransfersService _pendingTransfers;
         private readonly ITenantSystemStorage _tenantSystemStorage;
-        private readonly DotYouContextAccessor _contextAccessorAccessor;
         private readonly TenantContext _tenantContext;
-        private const string OutboxItemsCollection = "obxitems";
 
-        public OutboxService(DotYouContextAccessor contextAccessor, ILogger<IOutboxService> logger, IPendingTransfersService pendingTransfers, ITenantSystemStorage tenantSystemStorage,
-            TenantContext tenantContext)
+        public TransitOutbox(IPendingTransfersService pendingTransfers, ITenantSystemStorage tenantSystemStorage, TenantContext tenantContext)
         {
-            _contextAccessorAccessor = contextAccessor;
             _pendingTransfers = pendingTransfers;
             _tenantSystemStorage = tenantSystemStorage;
             _tenantContext = tenantContext;
@@ -48,9 +44,8 @@ namespace Youverse.Core.Services.Transit.Outbox
         /// <param name="item"></param>
         public Task Add(OutboxItem item)
         {
-            
             //TODO: change to use batching inserts
-            
+
             //TODO: value should also include transfer attempts, etc.
             var state = DotYouSystemSerializer.Serialize(new OutboxItemState()
             {
@@ -59,7 +54,7 @@ namespace Youverse.Core.Services.Transit.Outbox
                 Attempts = { },
                 TransferInstructionSet = item.TransferInstructionSet
             }).ToUtf8ByteArray();
-            
+
             _tenantSystemStorage.Outbox.InsertRow(
                 item.File.DriveId.ToByteArray(),
                 item.File.FileId.ToByteArray(),

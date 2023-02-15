@@ -15,6 +15,7 @@ using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Core.Query;
 using Youverse.Core.Services.Drive.Core.Storage;
 using Youverse.Core.Services.Drives.FileSystem;
+using Youverse.Core.Services.Drives.FileSystem.Standard;
 using Youverse.Core.Storage;
 using Youverse.Core.Util;
 
@@ -38,12 +39,12 @@ public enum CrossOriginBehavior
 public class StaticFileContentService
 {
     private readonly DriveManager _driveManager;
-    private readonly IDriveFileSystem _fileSystem;
+    private readonly StandardFileSystem _fileSystem;
     private readonly TenantContext _tenantContext;
     private readonly DotYouContextAccessor _contextAccessor;
     private readonly ITenantSystemStorage _tenantSystemStorage;
 
-    public StaticFileContentService(TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITenantSystemStorage tenantSystemStorage, DriveManager driveManager, IDriveFileSystem fileSystem)
+    public StaticFileContentService(TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITenantSystemStorage tenantSystemStorage, DriveManager driveManager, StandardFileSystem fileSystem)
     {
         _tenantContext = tenantContext;
         _contextAccessor = contextAccessor;

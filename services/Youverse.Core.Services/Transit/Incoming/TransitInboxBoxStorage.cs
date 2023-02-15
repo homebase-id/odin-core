@@ -2,13 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using MediatR;
-using Microsoft.Extensions.Logging;
-using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Mediator;
 using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Transit.Incoming
@@ -16,19 +10,13 @@ namespace Youverse.Core.Services.Transit.Incoming
     /// <summary>
     /// Manages items incoming to a DI that have not yet been processed (pre-inbox)
     /// </summary>
-    public class TransitBoxService : ITransitBoxService
+    public class TransitInboxBoxStorage
     {
         private readonly ITenantSystemStorage _tenantSystemStorage;
-        private readonly IMediator _mediator;
-        private readonly DotYouContextAccessor _contextAccessor;
-        private readonly DriveManager _driveManager;
-        
-        public TransitBoxService(ILogger<ITransitBoxService> logger, ITenantSystemStorage tenantSystemStorage, IMediator mediator, DotYouContextAccessor contextAccessor, DriveManager driveManager)
+
+        public TransitInboxBoxStorage(ITenantSystemStorage tenantSystemStorage)
         {
             _tenantSystemStorage = tenantSystemStorage;
-            _mediator = mediator;
-            _contextAccessor = contextAccessor;
-            _driveManager = driveManager;
         }
 
         public Task Add(TransferBoxItem item)
@@ -37,18 +25,7 @@ namespace Youverse.Core.Services.Transit.Incoming
 
             var state = DotYouSystemSerializer.Serialize(item).ToUtf8ByteArray();
             _tenantSystemStorage.Inbox.InsertRow(item.DriveId.ToByteArray(), item.FileId.ToByteArray(), 1, state);
-
-            _mediator.Publish(new TransitFileReceivedNotification()
-            {
-                // InboxItemId = item.Id,
-                // Sender = item.Sender,
-                TempFile = new ExternalFileIdentifier()
-                {
-                    TargetDrive = _driveManager.GetDrive(item.DriveId).Result.TargetDriveInfo,
-                    FileId = item.FileId
-                }
-            });
-
+            
             return Task.CompletedTask;
         }
 
@@ -71,21 +48,8 @@ namespace Youverse.Core.Services.Transit.Incoming
                 item.AddedTimestamp = r.timeStamp;
                 item.DriveId = new Guid(r.boxId);
                 item.FileId = new Guid(r.fileId);
-                
+
                 return item;
-                
-                // return new TransferBoxItem()
-                // {
-                //     Sender = (DotYouIdentity)item.Sender,
-                //     Priority = (int)r.priority,
-                //     AddedTimestamp = r.timeStamp,
-                //     DriveId = new Guid(r.boxId),
-                //     FileId = new Guid(r.fileId),
-                //     GlobalTransitId = item.GlobalTransitId,
-                //     Marker = marker,
-                //     Id = item.Id,
-                //     PublicKeyCrc = item.PublicKeyCrc
-                // };
             }).ToList();
 
             return items;

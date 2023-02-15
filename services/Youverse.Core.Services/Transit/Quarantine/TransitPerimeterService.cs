@@ -6,8 +6,10 @@ using System.Linq;
 using System.Reflection.Metadata.Ecma335;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
+using MediatR;
 using Youverse.Core.Services.Base;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Authorization.Apps;
@@ -16,36 +18,39 @@ using Youverse.Core.Services.Drive.Core.Query;
 using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Drives.FileSystem.Standard;
 using Youverse.Core.Services.EncryptionKeyService;
+using Youverse.Core.Services.Mediator;
+using Youverse.Core.Services.Transit.Incoming;
 using Youverse.Core.Services.Transit.Quarantine.Filter;
+using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Transit.Quarantine
 {
     public class TransitPerimeterService : TransitServiceBase<ITransitPerimeterService>, ITransitPerimeterService
     {
         private readonly DotYouContextAccessor _contextAccessor;
-        private readonly ITransitService _transitService;
         private readonly ITransitPerimeterTransferStateService _transitPerimeterTransferStateService;
         private readonly IPublicKeyService _publicKeyService;
         private readonly DriveManager _driveManager;
-        private readonly IAppService _appService;
-
+        private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
         private readonly IDriveFileSystem _fileSystem;
-
+        private readonly IMediator _mediator;
+        
         public TransitPerimeterService(
             DotYouContextAccessor contextAccessor,
-            ILogger<ITransitPerimeterService> logger,
-            ITransitService transitService,
-            ITransitPerimeterTransferStateService transitPerimeterTransferStateService,
             IPublicKeyService publicKeyService,
-            IAppService appService, DriveManager driveManager, IDriveFileSystem fileSystem)
+            DriveManager driveManager,
+            IDriveFileSystem fileSystem,
+            ITenantSystemStorage tenantSystemStorage,
+            IMediator mediator)
         {
             _contextAccessor = contextAccessor;
-            _transitService = transitService;
-            _transitPerimeterTransferStateService = transitPerimeterTransferStateService;
             _publicKeyService = publicKeyService;
-            _appService = appService;
             _driveManager = driveManager;
             _fileSystem = fileSystem;
+            _transitInboxBoxStorage = new TransitInboxBoxStorage(tenantSystemStorage);
+            _mediator = mediator;
+
+            _transitPerimeterTransferStateService = new TransitPerimeterTransferStateService(_fileSystem, contextAccessor);
         }
 
         public async Task<Guid> InitializeIncomingTransfer(RsaEncryptedRecipientTransferInstructionSet transferInstructionSet)
@@ -56,7 +61,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
             if (!await _publicKeyService.IsValidPublicKey(transferInstructionSet.PublicKeyCrc))
             {
-                throw new TransitException("Invalid Public Key CRC provided");
+                throw new YouverseClientException("Invalid Public Key CRC provided", YouverseClientErrorCode.InvalidInstructionSet);
             }
 
             return await _transitPerimeterTransferStateService.CreateTransferStateItem(transferInstructionSet);
@@ -126,21 +131,60 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
             if (item.IsCompleteAndValid())
             {
-                await _transitService.AcceptTransfer(item.TempFile, item.PublicKeyCrc);
+                await CompleteTransfer(item.TempFile, item.PublicKeyCrc);
                 await _transitPerimeterTransferStateService.RemoveStateItem(item.Id);
                 return new HostTransitResponse() { Code = TransitResponseCode.Accepted };
             }
 
             throw new HostToHostTransferException("Unhandled error");
         }
+        
+        private async Task CompleteTransfer(InternalDriveFileId file, uint publicKeyCrc)
+        {
+            var item = new TransferBoxItem()
+            {
+                Id = Guid.NewGuid(),
+                AddedTimestamp = UnixTimeUtc.Now(),
+                Sender = this._contextAccessor.GetCurrent().Caller.DotYouId,
+                PublicKeyCrc = publicKeyCrc,
 
-        public async Task<HostTransitResponse> DeleteLinkedFile(TargetDrive targetDrive, Guid globalTransitId)
+                InstructionType = TransferInstructionType.SaveFile,
+                DriveId = file.DriveId,
+                FileId = file.FileId
+            };
+
+            await _transitInboxBoxStorage.Add(item);
+            await _mediator.Publish(new TransitFileReceivedNotification()
+            {
+                TempFile = new ExternalFileIdentifier()
+                {
+                    TargetDrive = _driveManager.GetDrive(item.DriveId).Result.TargetDriveInfo,
+                    FileId = item.FileId
+                }
+            });
+        }
+
+        public async Task<HostTransitResponse> AcceptDeleteLinkedFileRequest(TargetDrive targetDrive, Guid globalTransitId)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(targetDrive);
 
             try
             {
-                await _transitService.AcceptDeleteLinkedFileRequest(driveId, globalTransitId);
+                uint publicKeyCrc = 0; //TODO: we need to encrypt the delete linked file request using the public key or the shared secret
+                var item = new TransferBoxItem()
+                {
+                    Id = Guid.NewGuid(),
+                    AddedTimestamp = UnixTimeUtc.Now(),
+                    Sender = this._contextAccessor.GetCurrent().Caller.DotYouId,
+                    PublicKeyCrc = publicKeyCrc,
+
+                    InstructionType = TransferInstructionType.DeleteLinkedFile,
+                    DriveId = driveId,
+                    GlobalTransitId = globalTransitId
+                };
+
+                await _transitInboxBoxStorage.Add(item);
+                
                 return new HostTransitResponse()
                 {
                     Code = TransitResponseCode.Accepted,
@@ -173,7 +217,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
                 FileId = fileId
             };
 
-            var result = await _appService.GetClientEncryptedFileHeader(file);
+            var result = await _fileSystem.Storage.GetSharedSecretEncryptedHeader(file);
 
             return result;
         }
@@ -186,7 +230,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
                 FileId = fileId
             };
 
-            var header = await _appService.GetClientEncryptedFileHeader(file);
+            var header = await _fileSystem.Storage.GetSharedSecretEncryptedHeader(file);
 
             if (header == null)
             {
@@ -207,7 +251,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
                 FileId = fileId
             };
 
-            var header = await _appService.GetClientEncryptedFileHeader(file);
+            var header = await _fileSystem.Storage.GetSharedSecretEncryptedHeader(file);
             string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
 
             // Exact duplicate of the code in DriveService.GetThumbnailPayloadStream

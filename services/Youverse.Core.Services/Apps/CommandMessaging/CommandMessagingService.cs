@@ -12,6 +12,7 @@ using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Core.Storage;
+using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Drives.FileSystem.Standard;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
@@ -74,6 +75,7 @@ public class CommandMessagingService
         var serverFileHeader = await _standardFileSystem.Storage.CreateServerFileHeader(internalFile, keyHeader, fileMetadata, serverMetadata);
         await _standardFileSystem.Storage.UpdateActiveFileHeader(internalFile, serverFileHeader);
 
+        //TODO: with the introduction of file system type, we can probably make commands a file system type
         var transferResult = await _transitService.SendFile(
             internalFile: internalFile,
             options: new TransitOptions()
@@ -83,7 +85,8 @@ public class CommandMessagingService
                 UseGlobalTransitId = false,
                 Schedule = ScheduleOptions.SendNowAwaitResponse //TODO: let the caller specify this
             },
-            transferFileType: TransferFileType.CommandMessage);
+            transferFileType: TransferFileType.CommandMessage,
+            FileSystemType.Standard);
 
         return new CommandMessageResult()
         {

@@ -85,18 +85,16 @@ namespace Youverse.Core.Services.Drives.Base
 
             if (this.FileExists(file))
             {
+                if (metadata.FileState != FileState.Active)
+                {
+                    throw new YouverseClientException("Cannot update non-active file", YouverseClientErrorCode.CannotUpdateNonActiveFile);
+                }
+
                 var existingHeader = await this.GetServerFileHeader(file);
                 metadata.Updated = UnixTimeUtc.Now().milliseconds;
                 metadata.Created = existingHeader.FileMetadata.Created;
                 metadata.GlobalTransitId = existingHeader.FileMetadata.GlobalTransitId;
-
-                if (metadata.FileState == FileState.Deleted)
-                {
-                    throw new YouverseClientException("Cannot update deleted file", YouverseClientErrorCode.CannotUpdateDeletedFile);
-                }
-
-                //TODO: determine if we need to see if it was previously deleted, then call this an error
-                metadata.FileState = FileState.Active;
+                metadata.FileState = existingHeader.FileMetadata.FileState;
             }
             else
             {
@@ -351,15 +349,14 @@ namespace Youverse.Core.Services.Drives.Base
                 ServerMetadata = serverMetadata
             };
 
-            //Note: calling write metadata last since it will call OnLongTermFileChanged to ensure it is indexed
             await this.UpdateActiveFileHeader(targetFile, serverHeader);
 
             await _mediator.Publish(new DriveFileAddedNotification()
             {
                 File = targetFile,
                 ServerFileHeader = serverHeader,
-                ClientFileHeader = await this.GetSharedSecretEncryptedHeader(targetFile)
-
+                // ClientFileHeader = await this.GetSharedSecretEncryptedHeader(targetFile)
+                ClientFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverHeader, ContextAccessor)
             });
         }
 
@@ -368,9 +365,25 @@ namespace Youverse.Core.Services.Drives.Base
         {
             AssertCanWriteToDrive(targetFile.DriveId);
 
-            metadata.File = targetFile;
-
             var existingServerHeader = await this.GetServerFileHeader(targetFile);
+            if (null == existingServerHeader)
+            {
+                throw new YouverseClientException("Cannot overwrite file that does not exist", YouverseClientErrorCode.FileNotFound);
+            }
+
+            if (existingServerHeader.FileMetadata.FileState != FileState.Active)
+            {
+                throw new YouverseClientException("Cannot update a non-active file", YouverseClientErrorCode.CannotUpdateNonActiveFile);
+            }
+
+            metadata.Updated = UnixTimeUtc.Now().milliseconds;
+            metadata.Created = existingServerHeader.FileMetadata.Created;
+            metadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
+            metadata.FileState = existingServerHeader.FileMetadata.FileState;
+
+            metadata.File = targetFile;
+            //Note: our call to GetServerFileHeader earlier validates the existing
+            serverMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
 
             var storageManager = GetLongTermStorageManager(targetFile.DriveId);
             var tempStorageManager = GetTempStorageManager(tempFile.DriveId);
@@ -401,14 +414,13 @@ namespace Youverse.Core.Services.Drives.Base
                 ServerMetadata = serverMetadata
             };
 
-            //Note: calling write metadata last since it will call OnLongTermFileChanged to ensure it is indexed
-            await this.UpdateActiveFileHeader(targetFile, serverHeader);
-
+            await WriteFileHeaderInternal(serverHeader);
             await _mediator.Publish(new DriveFileChangedNotification()
             {
                 File = targetFile,
                 ServerFileHeader = serverHeader,
-                ClientFileHeader = await this.GetSharedSecretEncryptedHeader(targetFile)
+                ClientFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverHeader, ContextAccessor)
+                // ClientFileHeader = await this.GetSharedSecretEncryptedHeader(targetFile)
             });
         }
 

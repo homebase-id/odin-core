@@ -10,9 +10,9 @@ namespace Youverse.Hosting.Controllers.Base;
 public abstract class YouverseControllerBase : ControllerBase
 {
     /// <summary />
-    protected FileSystemResolver GetFileSystemResolver()
+    protected FileSystemHeaderResolver GetFileSystemResolver()
     {
-        return this.HttpContext.RequestServices.GetRequiredService<FileSystemResolver>();
+        return this.HttpContext.RequestServices.GetRequiredService<FileSystemHeaderResolver>();
     }
 
     /// <summary>

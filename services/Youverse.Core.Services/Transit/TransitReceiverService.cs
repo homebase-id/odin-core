@@ -21,16 +21,16 @@ namespace Youverse.Core.Services.Transit
     {
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly StandardFileSystem _standardFileSystem;
-        private readonly ITransitBoxService _transitBoxService;
+        private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
         private readonly IPublicKeyService _publicKeyService;
 
         private readonly StandardFileSystem _fileSystem;
 
-        public TransitReceiverService(DotYouContextAccessor contextAccessor, ITransitBoxService transitBoxService, IPublicKeyService publicKeyService, StandardFileSystem standardFileSystem,
+        public TransitReceiverService(DotYouContextAccessor contextAccessor, TransitInboxBoxStorage transitInboxBoxStorage, IPublicKeyService publicKeyService, StandardFileSystem standardFileSystem,
             StandardFileSystem fileSystem)
         {
             _contextAccessor = contextAccessor;
-            _transitBoxService = transitBoxService;
+            _transitInboxBoxStorage = transitInboxBoxStorage;
             _publicKeyService = publicKeyService;
             _standardFileSystem = standardFileSystem;
             _fileSystem = fileSystem;
@@ -63,12 +63,12 @@ namespace Youverse.Core.Services.Transit
                         throw new YouverseClientException("Invalid transfer type", YouverseClientErrorCode.InvalidTransferType);
                     }
 
-                    await _transitBoxService.MarkComplete(item.DriveId, item.Marker);
+                    await _transitInboxBoxStorage.MarkComplete(item.DriveId, item.Marker);
                     drivesNeedingACommit.Add(item.DriveId);
                 }
                 catch (Exception e)
                 {
-                    await _transitBoxService.MarkFailure(item.DriveId, item.Marker);
+                    await _transitInboxBoxStorage.MarkFailure(item.DriveId, item.Marker);
                 }
             }
 
@@ -148,7 +148,7 @@ namespace Youverse.Core.Services.Transit
 
         private async Task<List<TransferBoxItem>> GetAcceptedItems(Guid driveId)
         {
-            var list = await _transitBoxService.GetPendingItems(driveId);
+            var list = await _transitInboxBoxStorage.GetPendingItems(driveId);
             return list;
         }
 

@@ -1,26 +1,24 @@
 using System;
 using System.Collections.Concurrent;
-using System.Data.Entity.Migrations.Model;
-using System.Data.SQLite;
 using System.IO;
 using System.Threading.Tasks;
-using Youverse.Core.Cryptography;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Drives.FileSystem.Standard;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Incoming;
-using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Transit.Quarantine
 {
     public class TransitPerimeterTransferStateService : ITransitPerimeterTransferStateService
     {
         private readonly DotYouContextAccessor _contextAccessor;
-        private readonly StandardFileSystem _fileSystem;
+        private readonly IDriveFileSystem _fileSystem;
+        private readonly ConcurrentDictionary<Guid, IncomingTransferStateItem> _state = new();
 
-        public TransitPerimeterTransferStateService(StandardFileSystem fileSystem, DotYouContextAccessor contextAccessor)
+        public TransitPerimeterTransferStateService(IDriveFileSystem fileSystem, DotYouContextAccessor contextAccessor)
         {
             _fileSystem = fileSystem;
             _contextAccessor = contextAccessor;
@@ -34,7 +32,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             Guid id = Guid.NewGuid();
             var file = _fileSystem.Storage.CreateInternalFileId(driveId);
             var item = new IncomingTransferStateItem(id, file);
-            
+
             //write the instruction set to disk
             await using var stream = new MemoryStream(DotYouSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray());
             await _fileSystem.Storage.WriteTempStream(file, MultipartHostTransferParts.TransferKeyHeader.ToString().ToLower(), stream);
@@ -51,7 +49,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             _state.TryGetValue(id, out var item);
             if (null == item)
             {
-                throw new TransitException("Invalid perimeter state item");
+                throw new YouverseSystemException("Invalid perimeter state item");
             }
 
             return item;
@@ -92,8 +90,6 @@ namespace Youverse.Core.Services.Transit.Quarantine
             return Task.CompletedTask;
         }
 
-        private readonly ConcurrentDictionary<Guid, IncomingTransferStateItem> _state = new ();
-        
         private void Save(IncomingTransferStateItem stateItem)
         {
             _state.TryAdd(stateItem.Id.Value, stateItem);

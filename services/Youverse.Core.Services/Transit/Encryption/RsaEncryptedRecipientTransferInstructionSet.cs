@@ -1,5 +1,6 @@
 using System;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives.FileSystem;
 
 namespace Youverse.Core.Services.Transit.Encryption
 {
@@ -18,5 +19,6 @@ namespace Youverse.Core.Services.Transit.Encryption
         public TargetDrive TargetDrive { get; set; }
         
         public TransferFileType TransferFileType { get; set; }
+        public FileSystemType FileSystemType { get; set; }
     }
 }

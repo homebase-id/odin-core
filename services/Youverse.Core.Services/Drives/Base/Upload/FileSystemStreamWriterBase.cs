@@ -28,8 +28,7 @@ namespace Youverse.Core.Services.Drives.Base.Upload;
 /// Enables the writing of file streams from external sources and
 /// rule enforcement specific to the type of file system
 /// </summary>
-public abstract class FileSystemStreamWriterBase //<TFileSystem>
-    // where TFileSystem : IDriveFileSystem
+public abstract class FileSystemStreamWriterBase 
 {
     private readonly TenantContext _tenantContext;
     private readonly DotYouContextAccessor _contextAccessor;

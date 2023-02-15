@@ -42,7 +42,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.Misc
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
-                    ContentIsComplete = true,
+                    ContentIsComplete = false,
                     JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 101,
                     DataType = 202,
@@ -60,7 +60,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.Misc
                 ReferencedFile = standardFileUploadResult.File,
                 AppData = new()
                 {
-                    ContentIsComplete = true,
+                    ContentIsComplete = false,
                     JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 909,
                     DataType = 202,

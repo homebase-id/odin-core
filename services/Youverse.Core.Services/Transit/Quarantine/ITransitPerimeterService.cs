@@ -41,7 +41,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         /// <summary>
         /// Deletes a file that was linked with a GlobalTransitId
         /// </summary>
-        Task<HostTransitResponse> DeleteLinkedFile(TargetDrive targetDrive, Guid globalTransitId);
+        Task<HostTransitResponse> AcceptDeleteLinkedFileRequest(TargetDrive targetDrive, Guid globalTransitId);
 
         Task<QueryBatchResult> QueryBatch(FileQueryParams qp, QueryBatchResultOptions options);
 

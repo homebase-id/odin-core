@@ -18,12 +18,9 @@ using Youverse.Core.Services.Drives.Base.Upload;
 using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Services.Transit.Upload;
-using Youverse.Hosting.Controllers.Base.Upload;
-using Youverse.Hosting.Tests.AppAPI;
 using Youverse.Hosting.Tests.AppAPI.Utils;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Drive
+namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
 {
     public class DriveUploadOwnerTests
     {

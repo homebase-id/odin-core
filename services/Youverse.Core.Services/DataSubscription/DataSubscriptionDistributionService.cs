@@ -61,8 +61,9 @@ namespace Youverse.Core.Services.DataSubscription
                 OverrideTargetDrive = SystemDriveConstants.FeedDrive
             };
 
+            // 
             //TODO: in order to send over transit like this, the sender needs access to the feed drive
-            await _transitService.SendFile(notification.File, options, TransferFileType.Normal, ClientAccessTokenSource.Follower);
+            await _transitService.SendFile(notification.File, options, TransferFileType.Normal, notification.ServerFileHeader.ServerMetadata.FileSystemType, ClientAccessTokenSource.Follower);
         }
 
         private static readonly List<Guid> DriveTypesSupportingSubscription = new List<Guid>()

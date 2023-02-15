@@ -9,7 +9,7 @@ namespace Youverse.Core.Services.Transit.Outbox
     /// <summary>
     /// Items in the outbox for a given tenant
     /// </summary>
-    public interface IOutboxService
+    public interface ITransitOutbox
     {
         /// <summary>
         /// Adds an item to be encrypted and moved to the outbox

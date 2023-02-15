@@ -19,16 +19,13 @@ namespace Youverse.Hosting.Controllers.System
     [Authorize(Policy = SystemPolicies.IsSystemProcess, AuthenticationSchemes = SystemAuthConstants.SchemeName)]
     public class OutboxProcessorController : ControllerBase
     {
-        private readonly ILogger<OutboxProcessorController> _logger;
         private readonly ITransitService _transit;
-        private readonly IOutboxService _outbox;
 
-        public OutboxProcessorController(ITransitService transit, IOutboxService outbox, ILogger<OutboxProcessorController> logger)
+        public OutboxProcessorController(ITransitService transit)
         {
             _transit = transit;
-            _outbox = outbox;
-            _logger = logger;
         }
+
 
         [HttpPost("process")]
         public async Task<bool> ProcessOutbox(int batchSize)

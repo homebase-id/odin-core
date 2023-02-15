@@ -1,13 +1,10 @@
 using System;
-using System.IO;
 using System.Linq;
 using System.Net.NetworkInformation;
 using System.Reflection;
 using Autofac;
 using MediatR;
 using MediatR.Pipeline;
-using Microsoft.Extensions.Logging;
-using Youverse.Core.Identity;
 using Youverse.Core.Services.AppNotifications;
 using Youverse.Core.Services.AppNotifications.ClientNotifications;
 using Youverse.Core.Services.Apps;
@@ -30,8 +27,6 @@ using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.DataSubscription;
 using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Core;
-using Youverse.Core.Services.Drive.Core.Query;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Drives.FileSystem.Comment;
@@ -102,6 +97,7 @@ namespace Youverse.Hosting
             cb.RegisterType<DriveAclAuthorizationService>().As<IDriveAclAuthorizationService>().SingleInstance();
             
             cb.RegisterType<FileSystemResolver>().AsSelf().InstancePerDependency();
+            cb.RegisterType<FileSystemHeaderResolver>().AsSelf().InstancePerDependency();
             
             cb.RegisterType<StandardFileStreamWriter>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileDriveStorageService>().AsSelf().InstancePerDependency();
@@ -138,7 +134,7 @@ namespace Youverse.Hosting
             cb.RegisterType<FollowerService>().SingleInstance();
             cb.RegisterType<FollowerPerimeterService>().SingleInstance();
 
-            cb.RegisterType<OutboxService>().As<IOutboxService>().SingleInstance();
+            cb.RegisterType<TransitOutbox>().As<ITransitOutbox>().SingleInstance();
 
             cb.RegisterType<TransitReceiverService>().As<ITransitReceiverService>().SingleInstance();
             cb.RegisterType<TransitRegistrationService>()
@@ -152,11 +148,9 @@ namespace Youverse.Hosting
                 .AsSelf()
                 .SingleInstance();
             
-            cb.RegisterType<TransferKeyEncryptionQueueService>().As<ITransferKeyEncryptionQueueService>().SingleInstance();
-            cb.RegisterType<TransitBoxService>().As<ITransitBoxService>().SingleInstance();
+            cb.RegisterType<TransitInboxBoxStorage>().SingleInstance();
             cb.RegisterType<TransitService>().As<ITransitService>().SingleInstance();
-            cb.RegisterType<TransitPerimeterService>().As<ITransitPerimeterService>().SingleInstance();
-            cb.RegisterType<TransitPerimeterTransferStateService>().As<ITransitPerimeterTransferStateService>().SingleInstance();
+            cb.RegisterType<TransitPerimeterService>().As<ITransitPerimeterService>().InstancePerDependency();
 
             cb.RegisterType<CommandMessagingService>().AsSelf().SingleInstance();
 

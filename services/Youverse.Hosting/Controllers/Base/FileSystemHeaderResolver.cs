@@ -14,12 +14,12 @@ namespace Youverse.Hosting.Controllers.Base;
 /// Methods to resolve which <see cref="IDriveFileSystem"/> to use based on the
 /// <see cref="FileSystemType"/> from a header
 /// </summary>
-public class FileSystemResolver
+public class FileSystemHeaderResolver
 {
     private readonly IHttpContextAccessor _contextAccessor;
 
-    /// <summary/>   
-    public FileSystemResolver(IHttpContextAccessor contextAccessor)
+    /// <summary/> 
+    public FileSystemHeaderResolver(IHttpContextAccessor contextAccessor)
     {
         _contextAccessor = contextAccessor;
     }
@@ -76,4 +76,5 @@ public class FileSystemResolver
 
         return (FileSystemType)fileSystemType!;
     }
+    
 }

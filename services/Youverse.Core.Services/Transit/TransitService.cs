@@ -18,6 +18,7 @@ using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Core.Services.Drive.Core.Storage;
+using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Drives.FileSystem.Standard;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Transit.Incoming;
@@ -25,42 +26,43 @@ using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Transit
 {
+    internal class SendFileOptions
+    {
+        public TransferFileType TransferFileType { get; set; }
+        public ClientAccessTokenSource ClientAccessTokenSource { get; set; }
+        public FileSystemType FileSystemType { get; set; }
+    }
+
     public class TransitService : TransitServiceBase<ITransitService>, ITransitService
     {
+        private readonly FileSystemResolver _fileSystemResolver;
         private readonly DriveManager _driveManager;
-        private readonly IOutboxService _outboxService;
-        private readonly ITransitBoxService _transitBoxService;
-        private readonly ITransferKeyEncryptionQueueService _transferKeyEncryptionQueueService;
+        private readonly ITransitOutbox _transitOutbox;
+        private readonly TransferKeyEncryptionQueueService _transferKeyEncryptionQueueService;
         private readonly DotYouContextAccessor _contextAccessor;
-        private readonly ILogger<TransitService> _logger;
-        private readonly ITenantSystemStorage _tenantSystemStorage;
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
         private readonly TenantContext _tenantContext;
         private readonly ICircleNetworkService _circleNetworkService;
         private readonly FollowerService _followerService;
         private readonly IPublicKeyService _publicKeyService;
 
-        private readonly StandardFileSystem _fileSystem;
+        private readonly IDriveFileSystem _fileSystem;
 
-
-        public TransitService(DotYouContextAccessor contextAccessor,
-            ILogger<TransitService> logger,
-            IOutboxService outboxService,
-            ITransferKeyEncryptionQueueService transferKeyEncryptionQueueService,
-            ITransitBoxService transitBoxService,
+        public TransitService(
+            DotYouContextAccessor contextAccessor,
+            ITransitOutbox transitOutbox,
             ITenantSystemStorage tenantSystemStorage,
-            IDotYouHttpClientFactory dotYouHttpClientFactory, 
+            IDotYouHttpClientFactory dotYouHttpClientFactory,
             TenantContext tenantContext,
-            ICircleNetworkService circleNetworkService, 
-            IPublicKeyService publicKeyService, 
+            ICircleNetworkService circleNetworkService,
+            IPublicKeyService publicKeyService,
             FollowerService followerService,
-            DriveManager driveManager, StandardFileSystem fileSystem) : base()
+            DriveManager driveManager,
+            IDriveFileSystem fileSystem,
+            FileSystemResolver fileSystemResolver)
         {
             _contextAccessor = contextAccessor;
-            _outboxService = outboxService;
-            _transferKeyEncryptionQueueService = transferKeyEncryptionQueueService;
-            _transitBoxService = transitBoxService;
-            _tenantSystemStorage = tenantSystemStorage;
+            _transitOutbox = transitOutbox;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
             _tenantContext = tenantContext;
             _circleNetworkService = circleNetworkService;
@@ -68,46 +70,34 @@ namespace Youverse.Core.Services.Transit
             _followerService = followerService;
             _driveManager = driveManager;
             _fileSystem = fileSystem;
-            _logger = logger;
+            _fileSystemResolver = fileSystemResolver;
+
+            _transferKeyEncryptionQueueService = new TransferKeyEncryptionQueueService(tenantSystemStorage);
         }
 
-
-        public async Task AcceptTransfer(InternalDriveFileId file, uint publicKeyCrc)
-        {
-            _logger.LogInformation($"TransitService.AcceptTransfer temp fileId:{file.FileId} driveId:{file.DriveId}");
-
-            var item = new TransferBoxItem()
-            {
-                Id = Guid.NewGuid(),
-                AddedTimestamp = UnixTimeUtc.Now(),
-                Sender = this._contextAccessor.GetCurrent().Caller.DotYouId,
-                PublicKeyCrc = publicKeyCrc,
-
-                InstructionType = TransferInstructionType.SaveFile,
-                DriveId = file.DriveId,
-                FileId = file.FileId
-            };
-
-            //Note: the inbox service will send the notification
-            await _transitBoxService.Add(item);
-        }
 
         public async Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile,
-            TransitOptions options, TransferFileType transferFileType, ClientAccessTokenSource tokenSource = ClientAccessTokenSource.Circle)
+            TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType, ClientAccessTokenSource tokenSource = ClientAccessTokenSource.Circle)
         {
             Guard.Argument(options, nameof(options)).NotNull()
                 .Require(o => o.Recipients?.Any() ?? false)
                 .Require(o => o.Recipients.TrueForAll(r => r != _tenantContext.HostDotYouId));
 
+            var sfo = new SendFileOptions()
+            {
+                TransferFileType = transferFileType,
+                ClientAccessTokenSource = tokenSource,
+                FileSystemType = fileSystemType
+            };
 
             if (options.Schedule == ScheduleOptions.SendNowAwaitResponse)
             {
                 //send now
-                return await SendFileNow(internalFile, options, transferFileType, tokenSource);
+                return await SendFileNow(internalFile, options, sfo);
             }
             else
             {
-                return await SendFileLater(internalFile, options, transferFileType, tokenSource);
+                return await SendFileLater(internalFile, options, sfo);
             }
         }
 
@@ -115,8 +105,11 @@ namespace Youverse.Core.Services.Transit
 
         private RsaEncryptedRecipientTransferInstructionSet CreateTransferInstructionSet(byte[] recipientPublicKeyDer,
             KeyHeader keyHeaderToBeEncrypted,
-            ClientAuthenticationToken clientAuthenticationToken, InternalDriveFileId internalFile,
-            DotYouIdentity recipient, TargetDrive targetDrive, TransferFileType transferFileType)
+            ClientAuthenticationToken clientAuthenticationToken,
+            InternalDriveFileId internalFile,
+            DotYouIdentity recipient,
+            TargetDrive targetDrive,
+            TransferFileType transferFileType, FileSystemType fileSystemType)
         {
             //TODO: need to review how to decrypt the private key on the recipient side
             var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(recipientPublicKeyDer);
@@ -134,7 +127,8 @@ namespace Youverse.Core.Services.Transit
                 EncryptedAesKeyHeader = rsaEncryptedKeyHeader,
                 EncryptedClientAuthToken = encryptedClientAccessToken, //TODO: need to move this to be directly on the outbox item
                 TargetDrive = targetDrive,
-                TransferFileType = transferFileType
+                TransferFileType = transferFileType,
+                FileSystemType = fileSystemType
             };
         }
 
@@ -154,46 +148,6 @@ namespace Youverse.Core.Services.Transit
             _transferKeyEncryptionQueueService.Enqueue(item);
         }
 
-        public async Task<List<SendResult>> SendBatchNow(IEnumerable<OutboxItem> items)
-        {
-            var tasks = new List<Task<SendResult>>();
-            var results = new List<SendResult>();
-
-            tasks.AddRange(items.Select(SendAsync));
-
-            await Task.WhenAll(tasks);
-
-            List<InternalDriveFileId> filesForDeletion = new List<InternalDriveFileId>();
-            tasks.ForEach(task =>
-            {
-                var sendResult = task.Result;
-                results.Add(sendResult);
-
-                if (sendResult.Success)
-                {
-                    if (sendResult.OutboxItem.IsTransientFile)
-                    {
-                        filesForDeletion.Add(sendResult.OutboxItem.File);
-                    }
-
-                    _outboxService.MarkComplete(sendResult.OutboxItem.Marker);
-                }
-                else
-                {
-                    _outboxService.MarkFailure(sendResult.OutboxItem.Marker,
-                        sendResult.FailureReason.GetValueOrDefault());
-                }
-            });
-
-            foreach (var fileId in filesForDeletion)
-            {
-                //TODO: add logging?
-                await _fileSystem.Storage.HardDeleteLongTermFile(fileId);
-            }
-
-            return results;
-        }
-
         public async Task ProcessOutbox(int batchSize)
         {
             //Note: here we can prioritize outbox processing by drive if need be
@@ -201,7 +155,7 @@ namespace Youverse.Core.Services.Transit
 
             foreach (var drive in page.Results)
             {
-                var batch = await _outboxService.GetBatchForProcessing(drive.Id, batchSize);
+                var batch = await _transitOutbox.GetBatchForProcessing(drive.Id, batchSize);
                 // _logger.LogInformation($"Sending {batch.Results.Count} items from background controller");
 
                 await this.SendBatchNow(batch);
@@ -220,8 +174,7 @@ namespace Youverse.Core.Services.Transit
             {
                 var r = (DotYouIdentity)recipient;
                 var clientAuthToken = _circleNetworkService.GetConnectionAuthToken(r).GetAwaiter().GetResult();
-                var client =
-                    _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(r, clientAuthToken);
+                var client = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(r, clientAuthToken);
 
                 //TODO: change to accept a request object that has targetDrive and global transit id
                 var httpResponse = await client.DeleteLinkedFile(new DeleteLinkedFileTransitRequest()
@@ -244,30 +197,49 @@ namespace Youverse.Core.Services.Transit
             return result;
         }
 
-        public async Task AcceptDeleteLinkedFileRequest(Guid driveId, Guid globalTransitId)
+        private async Task<List<SendResult>> SendBatchNow(IEnumerable<OutboxItem> items)
         {
-            _logger.LogInformation($"TransitService.AcceptDeleteLinkedFileRequest {globalTransitId} on target drive [{driveId}]");
+            var tasks = new List<Task<SendResult>>();
+            var results = new List<SendResult>();
 
-            uint publicKeyCrc = 0; //TODO: we need to encrypt the delete linked file request using the public key or the shared secret
+            tasks.AddRange(items.Select(SendAsync));
 
-            var item = new TransferBoxItem()
+            await Task.WhenAll(tasks);
+
+            List<InternalDriveFileId> filesForDeletion = new List<InternalDriveFileId>();
+            tasks.ForEach(task =>
             {
-                Id = Guid.NewGuid(),
-                AddedTimestamp = UnixTimeUtc.Now(),
-                Sender = this._contextAccessor.GetCurrent().Caller.DotYouId,
-                PublicKeyCrc = publicKeyCrc,
+                var sendResult = task.Result;
+                results.Add(sendResult);
 
-                InstructionType = TransferInstructionType.DeleteLinkedFile,
-                DriveId = driveId,
-                GlobalTransitId = globalTransitId
-            };
+                if (sendResult.Success)
+                {
+                    if (sendResult.OutboxItem.IsTransientFile)
+                    {
+                        filesForDeletion.Add(sendResult.OutboxItem.File);
+                    }
 
-            //Note: the inbox service will send the notification
-            await _transitBoxService.Add(item);
+                    _transitOutbox.MarkComplete(sendResult.OutboxItem.Marker);
+                }
+                else
+                {
+                    _transitOutbox.MarkFailure(sendResult.OutboxItem.Marker, sendResult.FailureReason.GetValueOrDefault());
+                }
+            });
+
+            foreach (var fileId in filesForDeletion)
+            {
+                //TODO: add logging?
+                await _fileSystem.Storage.HardDeleteLongTermFile(fileId);
+            }
+
+            return results;
         }
 
         private async Task<SendResult> SendAsync(OutboxItem outboxItem)
         {
+            IDriveFileSystem fs = _fileSystemResolver.ResolveFileSystem(outboxItem.TransferInstructionSet.FileSystemType);
+
             DotYouIdentity recipient = outboxItem.Recipient;
             var file = outboxItem.File;
 
@@ -299,11 +271,12 @@ namespace Youverse.Core.Services.Transit
                 transferInstructionSet.EncryptedClientAuthToken.WriteZeros(); //never send the client auth token; even if encrypted
 
                 var transferKeyHeaderBytes = DotYouSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray();
-                var transferKeyHeaderStream = new StreamPart(new MemoryStream(transferKeyHeaderBytes),
+                var transferKeyHeaderStream = new StreamPart(
+                    new MemoryStream(transferKeyHeaderBytes),
                     "transferKeyHeader.encrypted", "application/json",
                     Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
 
-                var header = await _fileSystem.Storage.GetServerFileHeader(file);
+                var header = await fs.Storage.GetServerFileHeader(file);
                 var metadata = header.FileMetadata;
 
                 //redact the info by explicitly stating what we will keep
@@ -328,13 +301,13 @@ namespace Youverse.Core.Services.Transit
 
                 var payloadStream = metadata.AppData.ContentIsComplete
                     ? Stream.Null
-                    : await _fileSystem.Storage.GetPayloadStream(file);
+                    : await fs.Storage.GetPayloadStream(file);
                 var payload = new StreamPart(payloadStream, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartHostTransferParts.Payload));
 
                 var thumbnails = new List<StreamPart>();
                 foreach (var thumb in redactedMetadata.AppData?.AdditionalThumbnails ?? new List<ImageDataHeader>())
                 {
-                    var thumbStream = await _fileSystem.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight);
+                    var thumbStream = await fs.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight);
                     thumbnails.Add(new StreamPart(thumbStream, thumb.GetFilename(), thumb.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
                 }
 
@@ -382,14 +355,17 @@ namespace Youverse.Core.Services.Transit
             };
         }
 
-        private async Task<(Dictionary<string, TransferStatus> transferStatus, IEnumerable<OutboxItem>)> CreateOutboxItems(InternalDriveFileId internalFile, TransitOptions options,
-            TransferFileType transferFileType, ClientAccessTokenSource clientAccessTokenSource)
+        private async Task<(Dictionary<string, TransferStatus> transferStatus, IEnumerable<OutboxItem>)> CreateOutboxItems(
+            InternalDriveFileId internalFile,
+            TransitOptions options,
+            SendFileOptions sendFileOptions
+        )
         {
             if (options.SendContents != SendContents.All)
             {
                 throw new NotImplementedException("TODO: implement partial sends for feed drive support");
             }
-            
+
             TargetDrive targetDrive = options.OverrideTargetDrive ?? (await _driveManager.GetDrive(internalFile.DriveId, failIfInvalid: true)).TargetDriveInfo;
 
             var transferStatus = new Dictionary<string, TransferStatus>();
@@ -415,7 +391,7 @@ namespace Youverse.Core.Services.Transit
                     }
 
                     //TODO: i need to resolve the token outside of transit, pass it in as options instead
-                    var clientAuthToken = await ResolveClientAccessToken(recipient, clientAccessTokenSource);
+                    var clientAuthToken = await ResolveClientAccessToken(recipient, sendFileOptions.ClientAccessTokenSource);
 
                     transferStatus.Add(recipient, TransferStatus.TransferKeyCreated);
                     outboxItems.Add(new OutboxItem()
@@ -423,8 +399,15 @@ namespace Youverse.Core.Services.Transit
                         IsTransientFile = options.IsTransient,
                         File = internalFile,
                         Recipient = (DotYouIdentity)r,
-                        TransferInstructionSet = this.CreateTransferInstructionSet(pk.publicKey, keyHeader,
-                            clientAuthToken.ToAuthenticationToken(), internalFile, recipient, targetDrive, transferFileType)
+                        TransferInstructionSet = this.CreateTransferInstructionSet(
+                            pk.publicKey,
+                            keyHeader,
+                            clientAuthToken.ToAuthenticationToken(),
+                            internalFile,
+                            recipient,
+                            targetDrive,
+                            sendFileOptions.TransferFileType,
+                            sendFileOptions.FileSystemType)
                     });
                 }
                 catch (Exception ex)
@@ -455,7 +438,7 @@ namespace Youverse.Core.Services.Transit
         }
 
         private async Task<Dictionary<string, TransferStatus>> SendFileLater(InternalDriveFileId internalFile,
-            TransitOptions options, TransferFileType transferFileType, ClientAccessTokenSource clientAccessTokenSource)
+            TransitOptions options, SendFileOptions sendFileOptions)
         {
             Guard.Argument(options, nameof(options)).NotNull()
                 .Require(o => o.Recipients?.Any() ?? false)
@@ -464,19 +447,19 @@ namespace Youverse.Core.Services.Transit
             //Since the owner is online (in this request) we can prepare a transfer key.  the outbox processor
             //will read the transfer key during the background send process
 
-            var (transferStatus, outboxItems) = await CreateOutboxItems(internalFile, options, transferFileType, clientAccessTokenSource);
-            await _outboxService.Add(outboxItems);
+            var (transferStatus, outboxItems) = await CreateOutboxItems(internalFile, options, sendFileOptions);
+            await _transitOutbox.Add(outboxItems);
             return transferStatus;
         }
 
         private async Task<Dictionary<string, TransferStatus>> SendFileNow(InternalDriveFileId internalFile,
-            TransitOptions options, TransferFileType transferFileType, ClientAccessTokenSource clientAccessTokenSource)
+            TransitOptions transitOptions, SendFileOptions sendFileOptions)
         {
-            Guard.Argument(options, nameof(options)).NotNull()
+            Guard.Argument(transitOptions, nameof(transitOptions)).NotNull()
                 .Require(o => o.Recipients?.Any() ?? false)
                 .Require(o => o.Recipients.TrueForAll(r => r != _tenantContext.HostDotYouId));
 
-            var (transferStatus, outboxItems) = await CreateOutboxItems(internalFile, options, transferFileType, clientAccessTokenSource);
+            var (transferStatus, outboxItems) = await CreateOutboxItems(internalFile, transitOptions, sendFileOptions);
             var sendResults = await this.SendBatchNow(outboxItems);
 
             foreach (var result in sendResults)
@@ -494,7 +477,7 @@ namespace Youverse.Core.Services.Transit
                         case TransferFailureReason.CouldNotEncrypt:
                         case TransferFailureReason.EncryptedTransferInstructionSetNotAvailable:
                             //enqueue the failures into the outbox
-                            await _outboxService.Add(result.OutboxItem);
+                            await _transitOutbox.Add(result.OutboxItem);
                             transferStatus[result.Recipient.Id] = TransferStatus.PendingRetry;
                             break;
 

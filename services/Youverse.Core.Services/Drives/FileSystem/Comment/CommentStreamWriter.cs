@@ -102,7 +102,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         var recipients = package.InstructionSet.TransitOptions?.Recipients;
         if (recipients?.Any() ?? false)
         {
-            recipientStatus = await _transitService.SendFile(package.InternalFile, package.InstructionSet.TransitOptions, TransferFileType.Normal);
+            recipientStatus = await _transitService.SendFile(package.InternalFile, package.InstructionSet.TransitOptions, TransferFileType.Normal, FileSystemType.Comment);
         }
 
         return recipientStatus;
