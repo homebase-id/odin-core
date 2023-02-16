@@ -58,7 +58,8 @@ public static class Utility
             FileSystemType = header.ServerMetadata.FileSystemType,
             SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,
             FileMetadata = RedactFileMetadata(header.FileMetadata),
-            Priority = priority
+            Priority = priority,
+            ReactionPreview = header.ReactionPreview
         };
 
         //add additional info

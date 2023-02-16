@@ -1,4 +1,5 @@
-﻿using Youverse.Core.Services.Transit.Encryption;
+﻿using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Transit.Encryption;
 
 namespace Youverse.Core.Services.Drive.Core.Storage
 {
@@ -9,6 +10,8 @@ namespace Youverse.Core.Services.Drive.Core.Storage
         public FileMetadata FileMetadata { get; set; }
         
         public ServerMetadata ServerMetadata { get; set; }
+        
+        public ReactionPreviewData ReactionPreview { get; set; }
 
         public bool IsValid()
         {
