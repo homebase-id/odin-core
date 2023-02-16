@@ -93,7 +93,7 @@ public class DataSubscriptionTests
             Type = SystemDriveConstants.ChannelDriveType
         };
 
-        await frodoOwnerClient.Drive.CreateDrive(frodoChannelDrive, "A Channel Drive", "", false, false);
+        await frodoOwnerClient.Drive.CreateDrive(frodoChannelDrive, "A Channel Drive", "", false, ownerOnly: false, allowSubscriptions: true);
 
         // Sam to follow everything from frodo
         await samOwnerClient.Follower.FollowIdentity(frodoOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
@@ -104,6 +104,7 @@ public class DataSubscriptionTests
 
         var commentFile = new UploadFileMetadata()
         {
+            AllowDistribution = true,
             ContentType = "application/json",
             PayloadIsEncrypted = false,
             ReferencedFile = standardFileUploadResult.File,
@@ -126,7 +127,7 @@ public class DataSubscriptionTests
         var qp = new FileQueryParams()
         {
             TargetDrive = SystemDriveConstants.FeedDrive,
-            // FileType = new List<int>() { 200 }
+            FileType = new List<int>() { 200 }
         };
 
         // Sma should have the blog post
@@ -154,6 +155,7 @@ public class DataSubscriptionTests
     {
         var fileMetadata = new UploadFileMetadata()
         {
+            AllowDistribution = true,
             ContentType = "application/json",
             PayloadIsEncrypted = false,
             AppData = new()
