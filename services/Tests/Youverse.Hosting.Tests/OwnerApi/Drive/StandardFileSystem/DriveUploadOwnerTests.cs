@@ -67,7 +67,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 }
             };
 
-            var uploadResult = await frodoOwnerClient.Drive.UploadStandardFileMetadata(targetDrive, metadata);
+            var uploadResult = await frodoOwnerClient.Drive.UploadFile(FileSystemType.Standard, targetDrive, metadata, "");
 
             Assert.That(uploadResult.File, Is.Not.Null);
             Assert.That(uploadResult.File.FileId, Is.Not.EqualTo(Guid.Empty));

@@ -13,6 +13,7 @@ using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Contacts.Circle.Membership;
@@ -105,9 +106,7 @@ namespace Youverse.Core.Services.Transit
 
         private RsaEncryptedRecipientTransferInstructionSet CreateTransferInstructionSet(byte[] recipientPublicKeyDer,
             KeyHeader keyHeaderToBeEncrypted,
-            ClientAuthenticationToken clientAuthenticationToken,
-            InternalDriveFileId internalFile,
-            DotYouIdentity recipient,
+            ClientAccessToken clientAccessToken,
             TargetDrive targetDrive,
             TransferFileType transferFileType, FileSystemType fileSystemType)
         {
@@ -118,14 +117,10 @@ namespace Youverse.Core.Services.Transit
             var rsaEncryptedKeyHeader = publicKey.Encrypt(combinedKey.GetKey());
             combinedKey.Wipe();
 
-            //TODO: need to encrypt the client access token here with something on my server side (therefore, we cannot use RSA encryption)
-            var encryptedClientAccessToken = clientAuthenticationToken.ToString().ToUtf8ByteArray();
-
             return new RsaEncryptedRecipientTransferInstructionSet()
             {
                 PublicKeyCrc = publicKey.crc32c,
                 EncryptedAesKeyHeader = rsaEncryptedKeyHeader,
-                EncryptedClientAuthToken = encryptedClientAccessToken, //TODO: need to move this to be directly on the outbox item
                 TargetDrive = targetDrive,
                 TransferFileType = transferFileType,
                 FileSystemType = fileSystemType
@@ -242,6 +237,8 @@ namespace Youverse.Core.Services.Transit
 
             DotYouIdentity recipient = outboxItem.Recipient;
             var file = outboxItem.File;
+            var options = outboxItem.OriginalTransitOptions;
+
 
             TransferFailureReason tfr = TransferFailureReason.UnknownError;
             bool success = false;
@@ -257,18 +254,15 @@ namespace Youverse.Core.Services.Transit
                         Recipient = recipient,
                         Timestamp = UnixTimeUtc.Now().milliseconds,
                         Success = false,
+                        ShouldRetry = true,
                         FailureReason = TransferFailureReason.EncryptedTransferInstructionSetNotAvailable,
                         OutboxItem = outboxItem
                     };
                 }
 
-                //
-                // Critical: Get the client auth token, then redact it so it's not sent 
-                //
-                var decryptedClientAuthTokenBytes = transferInstructionSet.EncryptedClientAuthToken;
-                var clientAuthToken = ClientAuthenticationToken.Parse(decryptedClientAuthTokenBytes.ToStringFromUtf8Bytes());
-                decryptedClientAuthTokenBytes.WriteZeros();
-                transferInstructionSet.EncryptedClientAuthToken.WriteZeros(); //never send the client auth token; even if encrypted
+                var decryptedClientAuthTokenBytes = outboxItem.EncryptedClientAuthToken;
+                var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
+                decryptedClientAuthTokenBytes.WriteZeros(); //never send the client auth token; even if encrypted
 
                 var transferKeyHeaderBytes = DotYouSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray();
                 var transferKeyHeaderStream = new StreamPart(
@@ -277,6 +271,20 @@ namespace Youverse.Core.Services.Transit
                     Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
 
                 var header = await fs.Storage.GetServerFileHeader(file);
+                if (header.ServerMetadata.AllowDistribution == false)
+                {
+                    return new SendResult()
+                    {
+                        File = file,
+                        Recipient = recipient,
+                        Timestamp = UnixTimeUtc.Now().milliseconds,
+                        Success = false,
+                        ShouldRetry = false,
+                        FailureReason = TransferFailureReason.FileDoesNotAllowDistribution,
+                        OutboxItem = outboxItem
+                    };
+                }
+
                 var metadata = header.FileMetadata;
 
                 //redact the info by explicitly stating what we will keep
@@ -299,20 +307,28 @@ namespace Youverse.Core.Services.Transit
                 var stream = new MemoryStream(json.ToUtf8ByteArray());
                 var metaDataStream = new StreamPart(stream, "metadata.encrypted", "application/json", Enum.GetName(MultipartHostTransferParts.Metadata));
 
-                var payloadStream = metadata.AppData.ContentIsComplete
-                    ? Stream.Null
-                    : await fs.Storage.GetPayloadStream(file);
-                var payload = new StreamPart(payloadStream, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartHostTransferParts.Payload));
+                var additionalStreamParts = new List<StreamPart>();
 
-                var thumbnails = new List<StreamPart>();
-                foreach (var thumb in redactedMetadata.AppData?.AdditionalThumbnails ?? new List<ImageDataHeader>())
+                if (options.SendContents.HasFlag(SendContents.Payload))
                 {
-                    var thumbStream = await fs.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight);
-                    thumbnails.Add(new StreamPart(thumbStream, thumb.GetFilename(), thumb.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
+                    var payloadStream = metadata.AppData.ContentIsComplete
+                        ? Stream.Null
+                        : await fs.Storage.GetPayloadStream(file);
+                    var payload = new StreamPart(payloadStream, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartHostTransferParts.Payload));
+                    additionalStreamParts.Add(payload);
+                }
+
+                if (options.SendContents.HasFlag(SendContents.Thumbnails))
+                {
+                    foreach (var thumb in redactedMetadata.AppData?.AdditionalThumbnails ?? new List<ImageDataHeader>())
+                    {
+                        var thumbStream = await fs.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight);
+                        additionalStreamParts.Add(new StreamPart(thumbStream, thumb.GetFilename(), thumb.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
+                    }
                 }
 
                 var client = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(recipient, clientAuthToken);
-                var response = client.SendHostToHost(transferKeyHeaderStream, metaDataStream, payload, thumbnails.ToArray()).ConfigureAwait(false).GetAwaiter().GetResult();
+                var response = await client.SendHostToHost(transferKeyHeaderStream, metaDataStream, additionalStreamParts.ToArray());
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -349,6 +365,7 @@ namespace Youverse.Core.Services.Transit
                 File = file,
                 Recipient = recipient,
                 Success = success,
+                ShouldRetry = true,
                 FailureReason = tfr,
                 Timestamp = UnixTimeUtc.Now().milliseconds,
                 OutboxItem = outboxItem
@@ -361,17 +378,19 @@ namespace Youverse.Core.Services.Transit
             SendFileOptions sendFileOptions
         )
         {
-            if (options.SendContents != SendContents.All)
-            {
-                throw new NotImplementedException("TODO: implement partial sends for feed drive support");
-            }
+            var fs = _fileSystemResolver.ResolveFileSystem(sendFileOptions.FileSystemType);
 
             TargetDrive targetDrive = options.OverrideTargetDrive ?? (await _driveManager.GetDrive(internalFile.DriveId, failIfInvalid: true)).TargetDriveInfo;
 
             var transferStatus = new Dictionary<string, TransferStatus>();
             var outboxItems = new List<OutboxItem>();
 
-            var header = await _fileSystem.Storage.GetServerFileHeader(internalFile);
+            if (options.Recipients?.Contains(_tenantContext.HostDotYouId) ?? false)
+            {
+                throw new YouverseClientException("Cannot transfer a file to the sender; what's the point?", YouverseClientErrorCode.InvalidRecipient);
+            }
+
+            var header = await fs.Storage.GetServerFileHeader(internalFile);
             var storageKey = _contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(internalFile.DriveId);
             var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
             storageKey.Wipe();
@@ -394,17 +413,20 @@ namespace Youverse.Core.Services.Transit
                     var clientAuthToken = await ResolveClientAccessToken(recipient, sendFileOptions.ClientAccessTokenSource);
 
                     transferStatus.Add(recipient, TransferStatus.TransferKeyCreated);
+
+                    var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToString().ToUtf8ByteArray();
+
                     outboxItems.Add(new OutboxItem()
                     {
                         IsTransientFile = options.IsTransient,
                         File = internalFile,
                         Recipient = (DotYouIdentity)r,
+                        OriginalTransitOptions = options,
+                        EncryptedClientAuthToken = encryptedClientAccessToken,
                         TransferInstructionSet = this.CreateTransferInstructionSet(
                             pk.publicKey,
                             keyHeader,
-                            clientAuthToken.ToAuthenticationToken(),
-                            internalFile,
-                            recipient,
+                            clientAuthToken,
                             targetDrive,
                             sendFileOptions.TransferFileType,
                             sendFileOptions.FileSystemType)
@@ -428,7 +450,7 @@ namespace Youverse.Core.Services.Transit
                 return icr.CreateClientAccessToken();
             }
 
-            if (source == ClientAccessTokenSource.Follower)
+            if (source == ClientAccessTokenSource.DataSubscription)
             {
                 var def = await _followerService.GetFollower(recipient);
                 return def.CreateClientAccessToken();

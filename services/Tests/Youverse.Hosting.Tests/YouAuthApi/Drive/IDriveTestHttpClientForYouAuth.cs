@@ -18,7 +18,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
         private const string RootEndpoint = YouAuthApiPathConstants.DrivesV1;
         
         [Post(RootEndpoint + "/files/header")]
-        Task<ApiResponse<ClientFileHeader>> GetFileHeader(ExternalFileIdentifier file);
+        Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader(ExternalFileIdentifier file);
 
         [Post(RootEndpoint + "/files/payload")]
         Task<ApiResponse<HttpContent>> GetPayload(ExternalFileIdentifier file);

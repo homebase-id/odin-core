@@ -116,7 +116,7 @@ public class ChatMessageFileService
         return File2ChatMessage(file);
     }
 
-    private async Task<ClientFileHeader> GetChatMessageFileById(Guid conversationId, Guid messageId)
+    private async Task<SharedSecretEncryptedFileHeader> GetChatMessageFileById(Guid conversationId, Guid messageId)
     {
         
         var queryParams = new FileQueryParams()
@@ -138,17 +138,17 @@ public class ChatMessageFileService
         return file;
     }
 
-    private ChatMessage File2ChatMessage(ClientFileHeader clientFileHeader)
+    private ChatMessage File2ChatMessage(SharedSecretEncryptedFileHeader sharedSecretEncryptedFileHeader)
     {
-        var appData = clientFileHeader.FileMetadata.AppData;
+        var appData = sharedSecretEncryptedFileHeader.FileMetadata.AppData;
         var message = DotYouSystemSerializer.Deserialize<ChatMessage>(appData.JsonContent);
 
         //TODO: add checks for file corruption - 
         // if appData.GroupId != message.ConversationId
         // if message is null or did not deserialize correctly
 
-        message!.Sender = string.IsNullOrEmpty(clientFileHeader.FileMetadata.SenderDotYouId) ? _serverContext.Sender : clientFileHeader.FileMetadata.SenderDotYouId;
-        message!.ReceivedTimestamp = clientFileHeader.FileMetadata.Created; //TODO: determine if this makes the most sense
+        message!.Sender = string.IsNullOrEmpty(sharedSecretEncryptedFileHeader.FileMetadata.SenderDotYouId) ? _serverContext.Sender : sharedSecretEncryptedFileHeader.FileMetadata.SenderDotYouId;
+        message!.ReceivedTimestamp = sharedSecretEncryptedFileHeader.FileMetadata.Created; //TODO: determine if this makes the most sense
         return message;
     }
 

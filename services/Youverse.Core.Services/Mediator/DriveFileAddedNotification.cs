@@ -15,5 +15,5 @@ public class DriveFileAddedNotification : EventArgs, INotification, IDriveNotifi
     public InternalDriveFileId File { get; set; }
 
     public ServerFileHeader ServerFileHeader { get; set; }
-    public ClientFileHeader ClientFileHeader { get; set; }
+    public SharedSecretEncryptedFileHeader SharedSecretEncryptedFileHeader { get; set; }
 }

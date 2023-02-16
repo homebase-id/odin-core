@@ -13,7 +13,7 @@ public class QueryBatchResponse
     public bool IncludeMetadataHeader { get; set; }
     public string CursorState { get; set; }
     
-    public IEnumerable<ClientFileHeader> SearchResults { get; set; }
+    public IEnumerable<SharedSecretEncryptedFileHeader> SearchResults { get; set; }
 
     public static QueryBatchResponse FromResult(QueryBatchResult batch)
     {

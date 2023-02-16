@@ -16,27 +16,14 @@ namespace Youverse.Core.Services.Apps
 {
     public class AppService : IAppService
     {
-        private readonly DotYouContextAccessor _contextAccessor;
         private readonly ITransitService _transitService;
 
         private readonly StandardFileSystem _fileSystem;
-        public AppService(DotYouContextAccessor contextAccessor, ITransitService transitService, StandardFileSystem fileSystem)
+
+        public AppService(ITransitService transitService, StandardFileSystem fileSystem)
         {
-            _contextAccessor = contextAccessor;
             _transitService = transitService;
             _fileSystem = fileSystem;
-        }
-
-        public async Task<ClientFileHeader> GetClientEncryptedFileHeader(InternalDriveFileId file)
-        {
-            var header = await _fileSystem.Storage.GetServerFileHeader(file);
-            
-            if (header == null)
-            {
-                return null;
-            }
-
-            return Utility.ConvertToSharedSecretEncryptedClientFileHeader(header, _contextAccessor);
         }
 
         public async Task<DeleteLinkedFileResult> DeleteFile(InternalDriveFileId file, List<string> requestRecipients)
@@ -87,23 +74,6 @@ namespace Youverse.Core.Services.Apps
             result.LocalFileDeleted = true;
 
             return result;
-        }
-
-        private ClientFileMetadata RedactFileMetadata(FileMetadata fileMetadata)
-        {
-            var clientFile = new ClientFileMetadata
-            {
-                Created = fileMetadata.Created,
-                Updated = fileMetadata.Updated,
-                AppData = fileMetadata.AppData,
-                ContentType = fileMetadata.ContentType,
-                GlobalTransitId = fileMetadata.GlobalTransitId,
-                PayloadSize = fileMetadata.PayloadSize,
-                OriginalRecipientList = fileMetadata.OriginalRecipientList,
-                PayloadIsEncrypted = fileMetadata.PayloadIsEncrypted,
-                SenderDotYouId = fileMetadata.SenderDotYouId
-            };
-            return clientFile;
         }
     }
 }

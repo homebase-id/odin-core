@@ -76,7 +76,7 @@ namespace Youverse.Core.Services.Drives.Base
             throw new NoValidIndexClientException(driveId);
         }
 
-        public async Task<ClientFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId)
+        public async Task<SharedSecretEncryptedFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId)
         {
             AssertCanReadDrive(driveId);
 
@@ -132,7 +132,7 @@ namespace Youverse.Core.Services.Drives.Base
             return Task.CompletedTask;
         }
 
-        public async Task<ClientFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId)
+        public async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId)
         {
             AssertCanReadDrive(driveId);
             var qp = new FileQueryParams()
@@ -152,9 +152,9 @@ namespace Youverse.Core.Services.Drives.Base
             return results.SearchResults.SingleOrDefault();
         }
 
-        private async Task<IEnumerable<ClientFileHeader>> CreateClientFileHeaders(Guid driveId, IEnumerable<Guid> fileIdList, ResultOptions options)
+        private async Task<IEnumerable<SharedSecretEncryptedFileHeader>> CreateClientFileHeaders(Guid driveId, IEnumerable<Guid> fileIdList, ResultOptions options)
         {
-            var results = new List<ClientFileHeader>();
+            var results = new List<SharedSecretEncryptedFileHeader>();
 
             foreach (var fileId in fileIdList)
             {

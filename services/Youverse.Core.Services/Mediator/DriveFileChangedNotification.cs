@@ -17,7 +17,7 @@ namespace Youverse.Core.Services.Mediator
         public ServerFileHeader ServerFileHeader { get; set; }
         
         //TODO: revisit having put this field on here.  it might be not perform well
-        public ClientFileHeader ClientFileHeader { get; set; }
+        public SharedSecretEncryptedFileHeader SharedSecretEncryptedFileHeader { get; set; }
 
         public ExternalFileIdentifier ExternalFile { get; set; }
         

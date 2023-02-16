@@ -189,28 +189,29 @@ public class TenantConfigService
 
     public async Task CreateSystemApps()
     {
+        // [Obsolete("Still Determining if we want to have the concept of system apps; but i dont want to lose this code")]
         //Feed app
-        var request = new AppRegistrationRequest()
-        {
-            AppId = SystemAppConstants.FeedAppId,
-            Name = "System Feed Writer",
-            AuthorizedCircles = new List<Guid>(), //no circles
-            CircleMemberPermissionGrant = null,
-            Drives = new List<DriveGrantRequest>()
-            {
-                new DriveGrantRequest()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = SystemDriveConstants.FeedDrive,
-                        Permission = DrivePermission.Write
-                    }
-                }
-            },
-            PermissionSet = new PermissionSet() //no permissions for this app
-        };
-
-        await _appRegistrationService.RegisterApp(request);
+        // var request = new AppRegistrationRequest()
+        // {
+        //     AppId = SystemAppConstants.FeedAppId,
+        //     Name = "System Feed Writer",
+        //     AuthorizedCircles = new List<Guid>(), //no circles
+        //     CircleMemberPermissionGrant = null,
+        //     Drives = new List<DriveGrantRequest>()
+        //     {
+        //         new DriveGrantRequest()
+        //         {
+        //             PermissionedDrive = new PermissionedDrive()
+        //             {
+        //                 Drive = SystemDriveConstants.FeedDrive,
+        //                 Permission = DrivePermission.Write
+        //             }
+        //         }
+        //     },
+        //     PermissionSet = new PermissionSet() //no permissions for this app
+        // };
+        //
+        // await _appRegistrationService.RegisterApp(request);
     }
 
     //

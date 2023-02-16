@@ -6,7 +6,7 @@ namespace Youverse.Core.Services.Optimization.Cdn;
 
 public class StaticFile
 {
-    public ClientFileHeader Header { get; set; }
+    public SharedSecretEncryptedFileHeader Header { get; set; }
 
     public IEnumerable<ImageDataContent> AdditionalThumbnails { get; set; }
 

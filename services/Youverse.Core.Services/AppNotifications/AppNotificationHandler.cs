@@ -88,7 +88,7 @@ namespace Youverse.Core.Services.AppNotifications
             var data = DotYouSystemSerializer.Serialize(new
             {
                 TargetDrive = _driveManager.GetDrive(notification.File.DriveId).GetAwaiter().GetResult().TargetDriveInfo,
-                Header = notification.ClientFileHeader
+                Header = notification.SharedSecretEncryptedFileHeader
             });
 
             SerializeSendToAllDevices(new TranslatedClientNotification(notification.NotificationType, data)).GetAwaiter().GetResult();

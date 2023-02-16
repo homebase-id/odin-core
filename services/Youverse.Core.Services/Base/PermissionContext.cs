@@ -78,6 +78,19 @@ namespace Youverse.Core.Services.Base
             }
         }
 
+        
+            
+        /// <summary>
+        /// Determines if the current request can write to the specified drive
+        /// </summary>
+        public void AssertCanWriteReactionsAndCommentsToDrive(Guid driveId)
+        {
+            if (!this.HasDrivePermission(driveId, DrivePermission.WriteReactionsAndComments))
+            {
+                throw new YouverseSecurityException($"Unauthorized to write reactions or comments to drive [{driveId}]");
+            }
+        }
+        
         /// <summary>
         /// Determines if the current request can write to the specified drive
         /// </summary>

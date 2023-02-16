@@ -17,5 +17,5 @@ public enum ClientAccessTokenSource
     /// <summary>
     /// Get the recipient's token from the <see cref="FollowerService"/>
     /// </summary>
-    Follower = 2
+    DataSubscription = 2
 }

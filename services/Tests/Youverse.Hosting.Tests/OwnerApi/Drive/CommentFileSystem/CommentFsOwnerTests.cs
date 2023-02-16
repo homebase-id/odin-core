@@ -8,7 +8,7 @@ using Youverse.Core.Services.Drives.FileSystem;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
 {
-    public class CommentFsDeleteOwnerTests
+    public class CommentFsOwnerTests
     {
         private WebScaffold _scaffold;
 

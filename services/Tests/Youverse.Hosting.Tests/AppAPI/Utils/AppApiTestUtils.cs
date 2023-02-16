@@ -415,7 +415,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
             }
         }
 
-        public async Task<ApiResponse<ClientFileHeader>> GetFileHeader(TestAppContext appContext, ExternalFileIdentifier file)
+        public async Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader(TestAppContext appContext, ExternalFileIdentifier file)
         {
             using (var client = this.CreateAppApiHttpClient(appContext))
             {

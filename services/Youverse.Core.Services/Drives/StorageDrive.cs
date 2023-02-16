@@ -58,6 +58,12 @@ namespace Youverse.Core.Services.Drive
             set { }
         }
 
+        public override bool AllowSubscriptions
+        {
+            get => _inner.AllowSubscriptions;
+            set { }
+        }
+        
         public override SymmetricKeyEncryptedAes MasterKeyEncryptedStorageKey
         {
             get => _inner.MasterKeyEncryptedStorageKey;
@@ -153,5 +159,11 @@ namespace Youverse.Core.Services.Drive
         /// Specifies if anonymous callers can read this drive.
         /// </summary>
         public virtual bool AllowAnonymousReads { get; set; }
+        
+        /// <summary>
+        /// Indicates if the drive allows data subscriptions to be configured.  It is an error
+        /// for a drive to be marked OwnerOnly == true and AllowSubscriptions === true
+        /// </summary>
+        public virtual bool AllowSubscriptions { get; set; }
     }
 }

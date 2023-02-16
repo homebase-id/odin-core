@@ -43,7 +43,7 @@ namespace Youverse.Hosting.Controllers.Certificate
         [HttpPost("header")]
         public async Task<IActionResult> GetFileHeader([FromBody] ExternalFileIdentifier request)
         {
-            ClientFileHeader result = await _perimeterService.GetFileHeader(request.TargetDrive, request.FileId);
+            SharedSecretEncryptedFileHeader result = await _perimeterService.GetFileHeader(request.TargetDrive, request.FileId);
 
             //404 is possible
             if (result == null)

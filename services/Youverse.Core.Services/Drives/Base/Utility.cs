@@ -12,7 +12,7 @@ public static class Utility
     /// <summary>
     /// Converts the ServerFileHeader to a SharedSecretEncryptedHeader
     /// </summary>
-    public static ClientFileHeader ConvertToSharedSecretEncryptedClientFileHeader(ServerFileHeader header, DotYouContextAccessor contextAccessor)
+    public static SharedSecretEncryptedFileHeader ConvertToSharedSecretEncryptedClientFileHeader(ServerFileHeader header, DotYouContextAccessor contextAccessor)
     {
         if (header == null)
         {
@@ -51,7 +51,7 @@ public static class Utility
                 break;
         }
 
-        var clientFileHeader = new ClientFileHeader()
+        var clientFileHeader = new SharedSecretEncryptedFileHeader()
         {
             FileId = header.FileMetadata.File.FileId,
             FileState = header.FileMetadata.FileState,

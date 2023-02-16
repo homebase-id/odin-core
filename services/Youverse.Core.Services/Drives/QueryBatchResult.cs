@@ -17,6 +17,6 @@ public class QueryBatchResult
     
     public UInt64 CursorUpdatedTimestamp { get; set; }
     
-    public IEnumerable<ClientFileHeader> SearchResults { get; set; }
+    public IEnumerable<SharedSecretEncryptedFileHeader> SearchResults { get; set; }
 
 }

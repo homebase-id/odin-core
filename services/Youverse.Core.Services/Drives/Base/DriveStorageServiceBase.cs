@@ -50,7 +50,7 @@ namespace Youverse.Core.Services.Drives.Base
         /// </summary>
         protected abstract FileSystemType GetFileSystemType();
 
-        public async Task<ClientFileHeader> GetSharedSecretEncryptedHeader(InternalDriveFileId file)
+        public async Task<SharedSecretEncryptedFileHeader> GetSharedSecretEncryptedHeader(InternalDriveFileId file)
         {
             var serverFileHeader = await this.GetServerFileHeader(file);
             var result = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverFileHeader, ContextAccessor);
@@ -356,7 +356,7 @@ namespace Youverse.Core.Services.Drives.Base
                 File = targetFile,
                 ServerFileHeader = serverHeader,
                 // ClientFileHeader = await this.GetSharedSecretEncryptedHeader(targetFile)
-                ClientFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverHeader, ContextAccessor)
+                SharedSecretEncryptedFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverHeader, ContextAccessor)
             });
         }
 
@@ -419,7 +419,7 @@ namespace Youverse.Core.Services.Drives.Base
             {
                 File = targetFile,
                 ServerFileHeader = serverHeader,
-                ClientFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverHeader, ContextAccessor)
+                SharedSecretEncryptedFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverHeader, ContextAccessor)
                 // ClientFileHeader = await this.GetSharedSecretEncryptedHeader(targetFile)
             });
         }

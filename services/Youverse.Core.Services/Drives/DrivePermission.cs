@@ -13,19 +13,24 @@ namespace Youverse.Core.Services.Drive
     public enum DrivePermission
     {
         None = 0,
-        
+
         /// <summary>
         /// Can read data on a drive
         /// </summary>
         Read = 1,
-        
+
         /// <summary>
-        /// Write permissions.  This means only write.  Use DrivePermissions.ReadWrite if you want to check both at once
+        /// Write normal files.  This means only write.  Use DrivePermissions.ReadWrite if you want to check both at once
         /// </summary>
         Write = 2,
-        
-        ReadWrite = Read | Write,
-        
+
+        /// <summary>
+        /// Write reactions files (i.e. comments,reactions, etc.)
+        /// </summary>
+        WriteReactionsAndComments = 4,
+
+        ReadWrite = Read | Write | WriteReactionsAndComments,
+
         // ManagePermissions = 4,
         // All = ManagePermissions  | ReadWrite
         All = ReadWrite

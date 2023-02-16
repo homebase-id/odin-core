@@ -58,6 +58,11 @@ public class DriveManager
         {
             throw new YouverseClientException("A drive cannot be owner-only and allow anonymous reads", YouverseClientErrorCode.CannotAllowAnonymousReadsOnOwnerOnlyDrive);
         }
+        
+        if (request.OwnerOnly && request.AllowSubscriptions)
+        {
+            throw new YouverseClientException("A drive cannot be owner-only and allow subscriptions", YouverseClientErrorCode.CannotAllowSubscriptionsOnOwnerOnlyDrive);
+        }
 
         var mk = _contextAccessor.GetCurrent().Caller.GetMasterKey();
 
@@ -88,6 +93,7 @@ public class DriveManager
                 EncryptedIdIv = encryptedIdIv,
                 EncryptedIdValue = encryptedIdValue,
                 AllowAnonymousReads = request.AllowAnonymousReads,
+                AllowSubscriptions = request.AllowSubscriptions,
                 OwnerOnly = request.OwnerOnly
             };
 

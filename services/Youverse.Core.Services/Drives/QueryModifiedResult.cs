@@ -12,5 +12,5 @@ public class QueryModifiedResult
     
     public ulong Cursor { get; set; }
 
-    public IEnumerable<ClientFileHeader> SearchResults { get; set; }
+    public IEnumerable<SharedSecretEncryptedFileHeader> SearchResults { get; set; }
 }

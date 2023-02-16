@@ -12,7 +12,7 @@ namespace Youverse.Hosting.Tests;
 /// </summary>
 public static class DotYouTestAssertions
 {
-    public static void FileHeaderIsMarkedDeleted(ClientFileHeader fileHeader, bool shouldHaveGlobalTransitId = false)
+    public static void FileHeaderIsMarkedDeleted(SharedSecretEncryptedFileHeader fileHeader, bool shouldHaveGlobalTransitId = false)
     {
         if(shouldHaveGlobalTransitId)
         {

@@ -50,7 +50,7 @@ public class TransitQueryService
         };
     }
 
-    public async Task<ClientFileHeader> GetFileHeader(DotYouIdentity dotYouId, ExternalFileIdentifier file)
+    public async Task<SharedSecretEncryptedFileHeader> GetFileHeader(DotYouIdentity dotYouId, ExternalFileIdentifier file)
     {
         var (icr, httpClient) = await CreateClient(dotYouId);
         var response = await httpClient.GetFileHeader(file);
@@ -164,9 +164,9 @@ public class TransitQueryService
         return (icr, httpClient);
     }
 
-    private List<ClientFileHeader> TransformSharedSecret(IEnumerable<ClientFileHeader> headers, IdentityConnectionRegistration icr)
+    private List<SharedSecretEncryptedFileHeader> TransformSharedSecret(IEnumerable<SharedSecretEncryptedFileHeader> headers, IdentityConnectionRegistration icr)
     {
-        var result = new List<ClientFileHeader>();
+        var result = new List<SharedSecretEncryptedFileHeader>();
         foreach (var clientFileHeader in headers)
         {
             result.Add(TransformSharedSecret(clientFileHeader, icr));
@@ -178,15 +178,15 @@ public class TransitQueryService
     /// <summary>
     /// Converts the icr-shared-secret-encrypted key header to an owner-shared-secret encrypted key header
     /// </summary>
-    /// <param name="clientFileHeader"></param>
+    /// <param name="sharedSecretEncryptedFileHeader"></param>
     /// <param name="icr"></param>
-    private ClientFileHeader TransformSharedSecret(ClientFileHeader clientFileHeader, IdentityConnectionRegistration icr)
+    private SharedSecretEncryptedFileHeader TransformSharedSecret(SharedSecretEncryptedFileHeader sharedSecretEncryptedFileHeader, IdentityConnectionRegistration icr)
     {
         EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
-        if (clientFileHeader.FileMetadata.PayloadIsEncrypted)
+        if (sharedSecretEncryptedFileHeader.FileMetadata.PayloadIsEncrypted)
         {
             var currentKey = icr.ClientAccessTokenSharedSecret.ToSensitiveByteArray();
-            var icrEncryptedKeyHeader = clientFileHeader.SharedSecretEncryptedKeyHeader;
+            var icrEncryptedKeyHeader = sharedSecretEncryptedFileHeader.SharedSecretEncryptedKeyHeader;
             ownerSharedSecretEncryptedKeyHeader = ReEncrypt(currentKey, icrEncryptedKeyHeader);
         }
         else
@@ -194,9 +194,9 @@ public class TransitQueryService
             ownerSharedSecretEncryptedKeyHeader = EncryptedKeyHeader.Empty();
         }
 
-        clientFileHeader.SharedSecretEncryptedKeyHeader = ownerSharedSecretEncryptedKeyHeader;
+        sharedSecretEncryptedFileHeader.SharedSecretEncryptedKeyHeader = ownerSharedSecretEncryptedKeyHeader;
 
-        return clientFileHeader;
+        return sharedSecretEncryptedFileHeader;
     }
 
     private EncryptedKeyHeader ReEncrypt(SensitiveByteArray currentKey, EncryptedKeyHeader encryptedKeyHeader)

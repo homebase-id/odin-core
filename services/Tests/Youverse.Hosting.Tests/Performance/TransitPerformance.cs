@@ -205,7 +205,7 @@ namespace Youverse.Hosting.Tests.Performance
 
 
 
-        private async Task<List<ClientFileHeader>> GetMessages(TestAppContext recipientAppContext)
+        private async Task<List<SharedSecretEncryptedFileHeader>> GetMessages(TestAppContext recipientAppContext)
         {
             using (var client = _scaffold.AppApi.CreateAppApiHttpClient(recipientAppContext))
             {

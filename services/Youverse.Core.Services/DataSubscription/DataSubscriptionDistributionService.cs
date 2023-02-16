@@ -57,25 +57,20 @@ namespace Youverse.Core.Services.DataSubscription
                 Schedule = ScheduleOptions.SendNowAwaitResponse, //hmm should send later?
                 IsTransient = false,
                 UseGlobalTransitId = true,
-                //SendContents = SendContents.Header //TODO: need to implement
+                SendContents = SendContents.Header,
                 OverrideTargetDrive = SystemDriveConstants.FeedDrive
             };
 
             // 
             //TODO: in order to send over transit like this, the sender needs access to the feed drive
-            await _transitService.SendFile(notification.File, options, TransferFileType.Normal, notification.ServerFileHeader.ServerMetadata.FileSystemType, ClientAccessTokenSource.Follower);
+            await _transitService.SendFile(notification.File, options, TransferFileType.Normal, notification.ServerFileHeader.ServerMetadata.FileSystemType, ClientAccessTokenSource.DataSubscription);
         }
-
-        private static readonly List<Guid> DriveTypesSupportingSubscription = new List<Guid>()
-        {
-            SystemDriveConstants.ChannelDriveType
-        };
-
+        
         private async Task<bool> SupportsSubscription(Guid driveId)
         {
             //TODO: make this a property of the drive
             var drive = await _driveManager.GetDrive(driveId, false);
-            return DriveTypesSupportingSubscription.Contains(drive.TargetDriveInfo.Type);
+            return drive.AllowSubscriptions;
         }
     }
 }

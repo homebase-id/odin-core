@@ -13,12 +13,11 @@ namespace Youverse.Core.Services.Transit.Encryption
         public UInt32 PublicKeyCrc { get; set; }
 
         public byte[] EncryptedAesKeyHeader { get; set; }
-        
-        public byte[] EncryptedClientAuthToken { get; set; }
 
         public TargetDrive TargetDrive { get; set; }
         
         public TransferFileType TransferFileType { get; set; }
+        
         public FileSystemType FileSystemType { get; set; }
     }
 }

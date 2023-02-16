@@ -2,8 +2,10 @@
 using System.Collections.Generic;
 using System.IO;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit.Encryption;
+using Youverse.Core.Services.Transit.Upload;
 
 namespace Youverse.Core.Services.Transit.Outbox
 {
@@ -38,5 +40,15 @@ namespace Youverse.Core.Services.Transit.Outbox
         public bool IsTransientFile { get; set; }
         
         public RsaEncryptedRecipientTransferInstructionSet TransferInstructionSet { get; set; }
+        
+        /// <summary>
+        /// TransitOptions provided when the file was sent by the client
+        /// </summary>
+        public TransitOptions OriginalTransitOptions { get; set; }
+
+        /// <summary>
+        /// Client Auth Token from the <see cref="IdentityConnectionRegistration"/> used to send the file to the recipient
+        /// </summary>
+        public byte[] EncryptedClientAuthToken { get; set; }
     }
 }

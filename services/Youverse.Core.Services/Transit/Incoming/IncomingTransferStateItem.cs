@@ -74,7 +74,7 @@ namespace Youverse.Core.Services.Transit.Incoming
 
         public bool IsCompleteAndValid()
         {
-            return this.HeaderState.IsValid() && MetadataState.IsValid() && PayloadState.IsValid();
+            return this.HeaderState.IsValid() && MetadataState.IsValid(); //&& PayloadState.IsValid();
         }
 
         public class PartState

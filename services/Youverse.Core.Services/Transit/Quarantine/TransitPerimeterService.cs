@@ -209,7 +209,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             return results;
         }
 
-        public async Task<ClientFileHeader> GetFileHeader(TargetDrive targetDrive, Guid fileId)
+        public async Task<SharedSecretEncryptedFileHeader> GetFileHeader(TargetDrive targetDrive, Guid fileId)
         {
             var file = new InternalDriveFileId()
             {

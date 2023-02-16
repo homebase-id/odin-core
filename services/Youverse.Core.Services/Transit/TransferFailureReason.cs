@@ -32,6 +32,11 @@
         /// </summary>
         UnknownError = 800,
 
-        RecipientServerRejected = 900
+        RecipientServerRejected = 900,
+        
+        /// <summary>
+        /// Indicates the file's header has AllowDistribution == false.  The file should be removed from the queue
+        /// </summary>
+        FileDoesNotAllowDistribution = 1001
     }
 }

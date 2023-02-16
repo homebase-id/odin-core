@@ -7,5 +7,6 @@ public class CreateDriveRequest
     public string Metadata { get; set; }
     public bool AllowAnonymousReads { get; set; }
     
+    public bool AllowSubscriptions { get; set; }
     public bool OwnerOnly { get; set; }
 }

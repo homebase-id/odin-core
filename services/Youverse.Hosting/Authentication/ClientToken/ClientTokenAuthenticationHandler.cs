@@ -165,7 +165,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
 
             var permissionGroupMap = new Dictionary<string, PermissionGroup>
             {
-                { "anonymous_drives", new PermissionGroup(new PermissionSet(anonPerms), anonDriveGrants, null) },
+                { "read_anonymous_drives", new PermissionGroup(new PermissionSet(anonPerms), anonDriveGrants, null) },
             };
 
             dotYouContext.Caller = new CallerContext(

@@ -43,6 +43,7 @@ public class SqliteQueryManager : IDriveQueryManager, IDisposable
         var results = _db.QueryModified(
             noOfItems: options.MaxRecords,
             cursor: ref cursor,
+            fileSystemType: (Int32)fileSystemType,
             stopAtModifiedUnixTimeSeconds: new UnixTimeUtcUnique(options.MaxDate),
             requiredSecurityGroup: requiredSecurityGroup,
             filetypesAnyOf: qp.FileType?.ToList(),
@@ -59,7 +60,7 @@ public class SqliteQueryManager : IDriveQueryManager, IDisposable
     }
 
 
-    public Task<(QueryBatchCursor, IEnumerable<Guid>)> GetBatch(CallerContext callerContext,FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options)
+    public Task<(QueryBatchCursor, IEnumerable<Guid>)> GetBatch(CallerContext callerContext, FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options)
     {
         Guard.Argument(callerContext, nameof(callerContext)).NotNull();
 

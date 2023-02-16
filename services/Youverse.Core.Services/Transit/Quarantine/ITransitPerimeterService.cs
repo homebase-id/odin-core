@@ -45,7 +45,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
         Task<QueryBatchResult> QueryBatch(FileQueryParams qp, QueryBatchResultOptions options);
 
-        Task<ClientFileHeader> GetFileHeader(TargetDrive targetDrive, Guid fileId);
+        Task<SharedSecretEncryptedFileHeader> GetFileHeader(TargetDrive targetDrive, Guid fileId);
 
         Task<(string encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, Stream stream)> GetPayloadStream(TargetDrive targetDrive, Guid fileId);
 

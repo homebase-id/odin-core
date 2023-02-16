@@ -4,6 +4,7 @@ using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit;
+using Youverse.Hosting.Controllers.Anonymous;
 using Youverse.Hosting.Controllers.Base;
 using Youverse.Hosting.Controllers.OwnerToken.Drive;
 
@@ -12,13 +13,14 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
     /// <summary />
     [ApiController]
     [Route(AppApiPathConstants.DrivesV1)]
+    [Route(YouAuthApiPathConstants.DrivesV1)]
     [AuthorizeValidExchangeGrant]
     public class DriveStorageWriteController : DriveUploadControllerBase
     {
         private readonly IAppService _appService;
 
         /// <summary />
-        public DriveStorageWriteController( IAppService appService)
+        public DriveStorageWriteController(IAppService appService)
         {
             _appService = appService;
         }

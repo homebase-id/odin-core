@@ -27,7 +27,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         Task<ApiResponse<UploadResult>> Upload(StreamPart instructionSet, StreamPart metaData, StreamPart payload, params StreamPart[] thumbnail);
 
         [Post(RootEndpoint + "/files/header")]
-        Task<ApiResponse<ClientFileHeader>> GetFileHeaderAsPost(ExternalFileIdentifier file);
+        Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderAsPost(ExternalFileIdentifier file);
 
         [Post(RootEndpoint + "/files/payload")]
         Task<ApiResponse<HttpContent>> GetPayloadAsPost(ExternalFileIdentifier file);
@@ -42,7 +42,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         Task<ApiResponse<HttpContent>> GetPayload(Guid fileId, Guid alias, Guid type);
 
         [Get(RootEndpoint + "/files/header")]
-        Task<ApiResponse<ClientFileHeader>> GetFileHeader(Guid fileId, Guid alias, Guid type);
+        Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader(Guid fileId, Guid alias, Guid type);
 
         [Post(RootEndpoint + "/query/modified")]
         Task<ApiResponse<QueryModifiedResult>> QueryModified(QueryModifiedRequest request);

@@ -242,7 +242,7 @@ public class StaticFileContentService
         return targetFolder;
     }
 
-    private IEnumerable<ClientFileHeader> Filter(IEnumerable<ClientFileHeader> headers)
+    private IEnumerable<SharedSecretEncryptedFileHeader> Filter(IEnumerable<SharedSecretEncryptedFileHeader> headers)
     {
         return headers.Where(r =>
             r.FileState == FileState.Active &&

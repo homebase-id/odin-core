@@ -51,7 +51,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.Misc
                 }
             };
 
-            var standardFileUploadResult = await frodoOwnerClient.Drive.UploadStandardFileMetadata(targetDrive, standardFile);
+            var standardFileUploadResult = await frodoOwnerClient.Drive.UploadFile(FileSystemType.Standard, targetDrive, standardFile, "");
 
             var commentFile = new UploadFileMetadata()
             {
