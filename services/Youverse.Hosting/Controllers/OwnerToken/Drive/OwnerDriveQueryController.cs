@@ -14,7 +14,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
     {
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("modified")]
-        public async Task<QueryModifiedResult> GetModified([FromBody] QueryModifiedRequest request)
+        public async Task<QueryModifiedResult> QueryModified([FromBody] QueryModifiedRequest request)
         {
             return await base.QueryModified(request);
         }

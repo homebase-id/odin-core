@@ -20,7 +20,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         private readonly IAppService _appService;
 
         /// <summary />
-        public OwnerDriveStorageController( IAppService appService) 
+        public OwnerDriveStorageController(IAppService appService)
         {
             _appService = appService;
         }
@@ -30,7 +30,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("header")]
-        public override async Task<IActionResult> GetFileHeader([FromBody] ExternalFileIdentifier request)
+        public async Task<IActionResult> GetFileHeader([FromBody] ExternalFileIdentifier request)
         {
             return await base.GetFileHeader(request);
         }
@@ -58,7 +58,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("payload")]
-        public override async Task<IActionResult> GetPayloadStream([FromBody] ExternalFileIdentifier request)
+        public async Task<IActionResult> GetPayloadStream([FromBody] ExternalFileIdentifier request)
         {
             return await base.GetPayloadStream(request);
         }

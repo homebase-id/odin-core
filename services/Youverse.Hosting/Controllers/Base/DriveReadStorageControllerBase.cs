@@ -17,7 +17,7 @@ namespace Youverse.Hosting.Controllers.Base
         /// <summary>
         /// Returns the file header
         /// </summary>
-        public virtual async Task<IActionResult> GetFileHeader(ExternalFileIdentifier request)
+        protected async Task<IActionResult> GetFileHeader(ExternalFileIdentifier request)
         {
             var file = new InternalDriveFileId()
             {
@@ -39,7 +39,7 @@ namespace Youverse.Hosting.Controllers.Base
         /// <summary>
         /// Returns the payload for a given file
         /// </summary>
-        public virtual async Task<IActionResult> GetPayloadStream(ExternalFileIdentifier request)
+        protected async Task<IActionResult> GetPayloadStream(ExternalFileIdentifier request)
         {
             var file = new InternalDriveFileId()
             {
@@ -69,7 +69,7 @@ namespace Youverse.Hosting.Controllers.Base
         /// <summary>
         /// Returns the thumbnail matching the width and height.  Note: you should get the content type from the file header
         /// </summary>
-        public virtual async Task<IActionResult> GetThumbnail(GetThumbnailRequest request)
+        protected async Task<IActionResult> GetThumbnail(GetThumbnailRequest request)
         {
             var file = new InternalDriveFileId()
             {
