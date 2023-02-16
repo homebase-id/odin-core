@@ -55,6 +55,7 @@ public static class Utility
         {
             FileId = header.FileMetadata.File.FileId,
             FileState = header.FileMetadata.FileState,
+            FileSystemType = header.ServerMetadata.FileSystemType,
             SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,
             FileMetadata = RedactFileMetadata(header.FileMetadata),
             Priority = priority

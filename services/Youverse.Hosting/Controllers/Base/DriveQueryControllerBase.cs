@@ -1,6 +1,4 @@
-﻿using System.Security.Claims;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authentication;
+﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core.Services.Drive;
 
@@ -24,11 +22,6 @@ namespace Youverse.Hosting.Controllers.Base
             var batch = await GetFileSystemResolver().ResolveFileSystem().Query.GetBatch(driveId, request.QueryParams, request.ResultOptionsRequest.ToQueryBatchResultOptions());
 
             return QueryBatchResponse.FromResult(batch);
-        }
-
-        public override SignInResult SignIn(ClaimsPrincipal principal, AuthenticationProperties properties, string authenticationScheme)
-        {
-            return base.SignIn(principal, properties, authenticationScheme);
         }
 
         public virtual async Task<QueryBatchCollectionResponse> QueryBatchCollection([FromBody] QueryBatchCollectionRequest request)

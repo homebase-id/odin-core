@@ -70,9 +70,9 @@ public class DriveApiClient
         }
     }
 
-    public async Task<QueryBatchResponse> QueryBatch(FileQueryParams qp, QueryBatchResultOptionsRequest resultOptions = null)
+    public async Task<QueryBatchResponse> QueryBatch(FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptionsRequest resultOptions = null)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret))
+        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType))
         {
             var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, sharedSecret);
 

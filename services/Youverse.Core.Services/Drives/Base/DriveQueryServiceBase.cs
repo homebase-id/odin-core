@@ -7,6 +7,7 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Core;
 using Youverse.Core.Services.Drive.Core.Query;
+using Youverse.Core.Services.Drives.FileSystem;
 
 namespace Youverse.Core.Services.Drives.Base
 {
@@ -27,12 +28,17 @@ namespace Youverse.Core.Services.Drives.Base
 
         protected override DotYouContextAccessor ContextAccessor { get; }
 
+        /// <summary>
+        /// Gets the <see cref="FileSystemType"/> the inheriting class manages
+        /// </summary>
+        protected abstract FileSystemType GetFileSystemType();
+
         public async Task<QueryModifiedResult> GetModified(Guid driveId, FileQueryParams qp, QueryModifiedResultOptions options)
         {
             AssertCanReadDrive(driveId);
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
-                var (updatedCursor, fileIdList) = await queryManager.GetModified(ContextAccessor.GetCurrent().Caller, qp, options);
+                var (updatedCursor, fileIdList) = await queryManager.GetModified(ContextAccessor.GetCurrent().Caller, GetFileSystemType(), qp, options);
                 var headers = await CreateClientFileHeaders(driveId, fileIdList, options);
 
                 //TODO: can we put a stop cursor and update time on this too?  does that make any sense? probably not
@@ -53,7 +59,10 @@ namespace Youverse.Core.Services.Drives.Base
 
             if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
-                var (cursor, fileIdList) = await queryManager.GetBatch(ContextAccessor.GetCurrent().Caller, qp, options);
+                var (cursor, fileIdList) = await queryManager.GetBatch(ContextAccessor.GetCurrent().Caller,
+                    GetFileSystemType(),
+                    qp,
+                    options);
 
                 var headers = await CreateClientFileHeaders(driveId, fileIdList, options);
                 return new QueryBatchResult()

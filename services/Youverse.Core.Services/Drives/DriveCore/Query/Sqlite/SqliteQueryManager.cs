@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Core.Storage;
+using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Storage.SQLite.DriveDatabase;
 
 namespace Youverse.Core.Services.Drive.Core.Query.Sqlite;
@@ -31,14 +32,14 @@ public class SqliteQueryManager : IDriveQueryManager, IDisposable
 
     public IndexReadyState IndexReadyState { get; set; }
 
-    public Task<(ulong, IEnumerable<Guid>)> GetModified(CallerContext callerContext, FileQueryParams qp, QueryModifiedResultOptions options)
+    public Task<(ulong, IEnumerable<Guid>)> GetModified(CallerContext callerContext, FileSystemType fileSystemType, FileQueryParams qp, QueryModifiedResultOptions options)
     {
         Guard.Argument(callerContext, nameof(callerContext)).NotNull();
 
         var requiredSecurityGroup = new IntRange(0, (int)callerContext.SecurityLevel);
         var aclList = GetAcl(callerContext);
         var cursor = new UnixTimeUtcUnique(options.Cursor);
-        
+
         var results = _db.QueryModified(
             noOfItems: options.MaxRecords,
             cursor: ref cursor,
@@ -58,7 +59,7 @@ public class SqliteQueryManager : IDriveQueryManager, IDisposable
     }
 
 
-    public Task<(QueryBatchCursor, IEnumerable<Guid>)> GetBatch(CallerContext callerContext, FileQueryParams qp, QueryBatchResultOptions options)
+    public Task<(QueryBatchCursor, IEnumerable<Guid>)> GetBatch(CallerContext callerContext,FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options)
     {
         Guard.Argument(callerContext, nameof(callerContext)).NotNull();
 
@@ -70,6 +71,7 @@ public class SqliteQueryManager : IDriveQueryManager, IDisposable
         var results = _db.QueryBatch(
             noOfItems: options.MaxRecords,
             cursor: ref cursor,
+            fileSystemType: (Int32)fileSystemType,
             requiredSecurityGroup: securityRange,
             globalTransitIdAnyOf: qp.GlobalTransitId?.ToList(),
             filetypesAnyOf: qp.FileType?.ToList(),
@@ -147,7 +149,8 @@ public class SqliteQueryManager : IDriveQueryManager, IDisposable
                 userDate: metadata.AppData.UserDate,
                 requiredSecurityGroup: securityGroup,
                 accessControlList: acl,
-                tagIdList: tags);
+                tagIdList: tags,
+                fileSystemType: (int)header.ServerMetadata.FileSystemType);
         }
         else
         {
@@ -162,7 +165,9 @@ public class SqliteQueryManager : IDriveQueryManager, IDisposable
                 userDate: metadata.AppData.UserDate.GetValueOrDefault(),
                 requiredSecurityGroup: securityGroup,
                 accessControlList: acl,
-                tagIdList: tags);
+                tagIdList: tags,
+                (int)header.ServerMetadata.FileSystemType
+            );
         }
 
         return Task.CompletedTask;

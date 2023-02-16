@@ -30,5 +30,10 @@ namespace Youverse.Core.Services.Drives.FileSystem.Comment
                 ContextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
             }
         }
+
+        protected override FileSystemType GetFileSystemType()
+        {
+            return FileSystemType.Comment;
+        }
     }
 }

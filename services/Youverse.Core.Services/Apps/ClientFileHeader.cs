@@ -11,6 +11,8 @@ namespace Youverse.Core.Services.Apps
         
         public FileState FileState { get; set; }
         
+        public FileSystemType FileSystemType { get; set; } 
+        
         public EncryptedKeyHeader SharedSecretEncryptedKeyHeader { get; set; }
 
         public ClientFileMetadata FileMetadata { get; set; }

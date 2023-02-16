@@ -34,5 +34,10 @@ namespace Youverse.Core.Services.Drives.FileSystem.Standard
                 ContextAccessor.GetCurrent().PermissionsContext.AssertCanWriteToDrive(driveId);
             }
         }
+
+        protected override FileSystemType GetFileSystemType()
+        {
+            return FileSystemType.Standard;
+        }
     }
 }

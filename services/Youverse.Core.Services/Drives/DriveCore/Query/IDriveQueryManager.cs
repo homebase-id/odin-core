@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive.Core.Query.Sqlite;
 using Youverse.Core.Services.Drive.Core.Storage;
+using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Storage.SQLite.DriveDatabase;
 
 namespace Youverse.Core.Services.Drive.Core.Query
@@ -32,7 +33,7 @@ namespace Youverse.Core.Services.Drive.Core.Query
         /// <param name="maxDate"></param>
         /// <param name="cursor"></param>
         /// <returns>(cursor, file Id List)</returns>
-        Task<(ulong, IEnumerable<Guid>)> GetModified(CallerContext callerContext, FileQueryParams qp, QueryModifiedResultOptions options);
+        Task<(ulong, IEnumerable<Guid>)> GetModified(CallerContext callerContext, FileSystemType fileSystemType, FileQueryParams qp, QueryModifiedResultOptions options);
 
 
         /// <summary>
@@ -41,7 +42,7 @@ namespace Youverse.Core.Services.Drive.Core.Query
         /// <returns>
         /// (resultFirstCursor, resultLastCursor, cursorUpdatedTimestamp, fileId List);
         /// </returns>
-        Task<(QueryBatchCursor, IEnumerable<Guid>)> GetBatch(CallerContext callerContext, FileQueryParams qp, QueryBatchResultOptions options);
+        Task<(QueryBatchCursor, IEnumerable<Guid>)> GetBatch(CallerContext callerContext, FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options);
 
         /// <summary>
         /// Switches from the current index in use to the backup index.  Use after a rebuild

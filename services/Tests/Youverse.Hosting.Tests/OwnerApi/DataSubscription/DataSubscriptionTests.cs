@@ -12,6 +12,7 @@ using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Core.Query;
 using Youverse.Core.Services.Drive.Core.Storage;
 using Youverse.Core.Services.Drives.Base.Upload;
+using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Tests.AppAPI.ChatStructure.Api;
@@ -67,7 +68,7 @@ public class DataSubscriptionTests
             TargetDrive = SystemDriveConstants.FeedDrive,
         };
         
-        var batch = await samOwnerClient.Drive.QueryBatch(qp);
+        var batch = await samOwnerClient.Drive.QueryBatch(FileSystemType.Standard, qp);
         Assert.IsTrue(batch.SearchResults.Count() == 1);
         var theFile = batch.SearchResults.First();
         Assert.IsTrue(theFile.FileState == FileState.Active);

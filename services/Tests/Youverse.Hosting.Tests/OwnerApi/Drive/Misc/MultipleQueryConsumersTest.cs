@@ -42,7 +42,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.Misc
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
-                    ContentIsComplete = false,
+                    ContentIsComplete = true,
                     JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 101,
                     DataType = 202,
@@ -71,15 +71,15 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.Misc
 
             var commentFileUploadResult = await frodoOwnerClient.Drive.UploadFile(FileSystemType.Comment, targetDrive, commentFile, "some payload data");
 
-            var standardFileResults = await frodoOwnerClient.Drive.QueryBatch(new FileQueryParams()
+            var standardFileResults = await frodoOwnerClient.Drive.QueryBatch(FileSystemType.Standard, new FileQueryParams()
             {
                 TargetDrive = targetDrive,
                 FileType = new[] { standardFile.AppData.FileType }
             });
 
             Assert.IsNotNull(standardFileResults.SearchResults.SingleOrDefault(f => f.FileId == standardFileUploadResult.File.FileId));
-            
-            var commentFileResults = await frodoOwnerClient.Drive.QueryBatch(new FileQueryParams()
+
+            var commentFileResults = await frodoOwnerClient.Drive.QueryBatch(FileSystemType.Comment, new FileQueryParams()
             {
                 TargetDrive = targetDrive,
                 FileType = new[] { commentFile.AppData.FileType }
