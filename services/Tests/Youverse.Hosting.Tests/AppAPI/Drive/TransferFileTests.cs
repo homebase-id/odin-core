@@ -399,6 +399,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 FileMetadata = new()
                 {
                     ContentType = "application/json",
+                    AllowDistribution = true,
                     AppData = new()
                     {
                         Tags = new List<Guid>() { fileTag },
@@ -675,6 +676,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 FileMetadata = new()
                 {
                     ContentType = "application/json",
+                    AllowDistribution = true,
                     AppData = new()
                     {
                         Tags = new List<Guid>() { fileTag },

@@ -40,6 +40,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.Misc
             {
                 ContentType = "application/json",
                 PayloadIsEncrypted = false,
+                AllowDistribution = true,
                 AppData = new()
                 {
                     ContentIsComplete = true,
@@ -56,6 +57,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.Misc
             var commentFile = new UploadFileMetadata()
             {
                 ContentType = "application/json",
+                AllowDistribution = true,
                 PayloadIsEncrypted = false,
                 ReferencedFile = standardFileUploadResult.File,
                 AppData = new()

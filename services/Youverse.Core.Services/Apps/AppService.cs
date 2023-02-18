@@ -47,7 +47,7 @@ namespace Youverse.Core.Services.Apps
                 if (header.FileMetadata.GlobalTransitId.HasValue)
                 {
                     //send the deleted file
-                    var map = await _transitService.SendDeleteLinkedFileRequest(file.DriveId, header.FileMetadata.GlobalTransitId.GetValueOrDefault(), recipients);
+                    var map = await _transitService.SendDeleteLinkedFileRequest(file.DriveId, header.FileMetadata.GlobalTransitId.GetValueOrDefault(),header.ServerMetadata.FileSystemType, recipients);
 
                     foreach (var (key, value) in map)
                     {

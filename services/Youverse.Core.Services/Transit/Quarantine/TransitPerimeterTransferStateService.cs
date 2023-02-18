@@ -31,7 +31,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             //notice here: we always create a new file Id when receiving a new file.
             Guid id = Guid.NewGuid();
             var file = _fileSystem.Storage.CreateInternalFileId(driveId);
-            var item = new IncomingTransferStateItem(id, file);
+            var item = new IncomingTransferStateItem(id, file, transferInstructionSet.FileSystemType);
 
             //write the instruction set to disk
             await using var stream = new MemoryStream(DotYouSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray());

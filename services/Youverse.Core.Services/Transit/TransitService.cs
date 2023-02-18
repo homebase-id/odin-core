@@ -160,7 +160,7 @@ namespace Youverse.Core.Services.Transit
         }
 
         public async Task<Dictionary<string, TransitResponseCode>> SendDeleteLinkedFileRequest(Guid driveId,
-            Guid globalTransitId, IEnumerable<string> recipients)
+            Guid globalTransitId, FileSystemType fileSystemType, IEnumerable<string> recipients)
         {
             Dictionary<string, TransitResponseCode> result = new Dictionary<string, TransitResponseCode>();
 
@@ -175,7 +175,8 @@ namespace Youverse.Core.Services.Transit
                 var httpResponse = await client.DeleteLinkedFile(new DeleteLinkedFileTransitRequest()
                 {
                     TargetDrive = targetDrive,
-                    GlobalTransitId = globalTransitId
+                    GlobalTransitId = globalTransitId,
+                    FileSystemType = fileSystemType
                 });
 
                 if (httpResponse.IsSuccessStatusCode)
@@ -414,7 +415,8 @@ namespace Youverse.Core.Services.Transit
 
                     transferStatus.Add(recipient, TransferStatus.TransferKeyCreated);
 
-                    var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToString().ToUtf8ByteArray();
+                    //TODO apply encryption
+                    var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
 
                     outboxItems.Add(new OutboxItem()
                     {
@@ -508,6 +510,11 @@ namespace Youverse.Core.Services.Transit
                         case TransferFailureReason.RecipientServerRejected:
                             transferStatus[result.Recipient.Id] = TransferStatus.TotalRejectionClientShouldRetry;
                             break;
+
+                        case TransferFailureReason.FileDoesNotAllowDistribution:
+                            transferStatus[result.Recipient.Id] = TransferStatus.FileProhibited;
+                            break;
+
                         default:
                             throw new ArgumentOutOfRangeException();
                     }

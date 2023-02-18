@@ -138,6 +138,11 @@ namespace Youverse.Hosting.Controllers.Certificate
 
         private async Task ProcessPayloadSection(MultipartSection section)
         {
+            if (null == section)
+            {
+                return;
+            }
+
             AssertIsPart(section, MultipartHostTransferParts.Payload);
 
             //TODO: determine if the filter needs to decide if its result should be sent back to the sender
@@ -211,35 +216,12 @@ namespace Youverse.Hosting.Controllers.Certificate
             return boundary;
         }
 
-        private MultipartHostTransferParts GetFilePart(string name)
-        {
-            if (Enum.TryParse<MultipartHostTransferParts>(name, true, out var part) == false)
-            {
-                throw new HostToHostTransferException("Unknown MultipartHostTransferPart");
-            }
-
-            return part;
-        }
-
         private string GetSectionName(string contentDisposition)
         {
             var cd = ContentDispositionHeaderValue.Parse(contentDisposition);
             return cd.Name?.Trim('"');
         }
-
-        private string GetFileName(string contentDisposition)
-        {
-            var cd = ContentDispositionHeaderValue.Parse(contentDisposition);
-            var filename = cd.FileName?.Trim('"');
-
-            if (null != filename)
-            {
-                return filename;
-            }
-
-            return GetSectionName(contentDisposition);
-        }
-
+        
         private IDriveFileSystem ResolveFileSystem(FileSystemType fileSystemType)
         {
             //TODO: this is duplicated code

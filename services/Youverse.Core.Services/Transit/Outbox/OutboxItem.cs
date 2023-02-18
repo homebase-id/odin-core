@@ -47,7 +47,7 @@ namespace Youverse.Core.Services.Transit.Outbox
         public TransitOptions OriginalTransitOptions { get; set; }
 
         /// <summary>
-        /// Client Auth Token from the <see cref="IdentityConnectionRegistration"/> used to send the file to the recipient
+        /// Client Auth Token from the <see cref="IdentityConnectionRegistration"/> or Follower used to send the file to the recipient
         /// </summary>
         public byte[] EncryptedClientAuthToken { get; set; }
     }

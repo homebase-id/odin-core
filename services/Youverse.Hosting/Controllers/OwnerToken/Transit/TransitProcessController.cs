@@ -26,7 +26,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
             {
                 throw new YouverseClientException("Invalid target drive", YouverseClientErrorCode.InvalidTargetDrive);
             }
-
+            
             await _transitReceiverService.ProcessIncomingTransitInstructions(request.TargetDrive);
             return new JsonResult(true);
         }

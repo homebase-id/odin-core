@@ -289,6 +289,7 @@ namespace Youverse.Hosting.Tests.Performance
                     FileMetadata = new()
                     {
                         ContentType = "application/json",
+                        AllowDistribution = true,
                         PayloadIsEncrypted = true,
                         AppData = new()
                         {
@@ -531,6 +532,7 @@ namespace Youverse.Hosting.Tests.Performance
                     FileMetadata = new()
                     {
                         ContentType = "application/json",
+                        AllowDistribution = true,
                         PayloadIsEncrypted = true,
                         AppData = new()
                         {

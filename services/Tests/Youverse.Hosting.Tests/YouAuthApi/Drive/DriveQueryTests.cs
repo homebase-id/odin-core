@@ -266,6 +266,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
             var uploadFileMetadata = new UploadFileMetadata()
             {
                 ContentType = "application/json",
+                AllowDistribution = true,
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
@@ -311,6 +312,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
             var uploadFileMetadata = new UploadFileMetadata()
             {
                 ContentType = "application/json",
+                AllowDistribution = true,
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {

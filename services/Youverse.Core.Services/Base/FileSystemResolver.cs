@@ -21,8 +21,7 @@ namespace Youverse.Core.Services.Base
         public IDriveFileSystem ResolveFileSystem(FileSystemType fileSystemType)
         {
             var ctx = _contextAccessor.HttpContext;
-
-
+            
             if (fileSystemType == FileSystemType.Standard)
             {
                 return ctx!.RequestServices.GetRequiredService<StandardFileSystem>();
@@ -35,7 +34,5 @@ namespace Youverse.Core.Services.Base
 
             throw new YouverseClientException("Invalid file system type or could not parse instruction set", YouverseClientErrorCode.InvalidFileSystemType);
         }
-
-    
     }
 }

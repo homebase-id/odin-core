@@ -324,11 +324,23 @@ namespace Youverse.Core.Services.Drives.Base
             var storageManager = GetLongTermStorageManager(targetFile.DriveId);
             var tempStorageManager = GetTempStorageManager(targetFile.DriveId);
 
+            //HACK: Note: It's possible for a transfer only include the header (excluding thumbnails and payloads)
+            //in the case of TransitOptions.SendOptions only having the HeaderFlag
+            //
             if (metadata.AppData.ContentIsComplete == false)
             {
-                string sourceFile = await tempStorageManager.GetPath(targetFile.FileId, payloadExtension);
-                metadata.PayloadSize = new FileInfo(sourceFile).Length;
-                await storageManager.MoveToLongTerm(targetFile.FileId, sourceFile, FilePart.Payload);
+                try
+                {
+                    string sourceFile = await tempStorageManager.GetPath(targetFile.FileId, payloadExtension);
+                    metadata.PayloadSize = new FileInfo(sourceFile).Length;
+                    await storageManager.MoveToLongTerm(targetFile.FileId, sourceFile, FilePart.Payload);
+                }
+                catch 
+                {
+                    //HACK:  It's possible for a transfer only include the header (excluding thumbnails and payloads)
+                    //in the case of TransitOptions.SendOptions only having the HeaderFlag
+                }
+               
             }
 
             if (metadata.AppData.AdditionalThumbnails != null)

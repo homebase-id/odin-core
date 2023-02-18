@@ -285,6 +285,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                     FileMetadata = new()
                     {
                         ContentType = "application/json",
+                        AllowDistribution = true,
                         PayloadIsEncrypted = false,
                         AppData = new()
                         {

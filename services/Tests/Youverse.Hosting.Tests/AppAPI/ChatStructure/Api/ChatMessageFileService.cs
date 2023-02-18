@@ -162,6 +162,7 @@ public class ChatMessageFileService
         var fileMetadata = new UploadFileMetadata()
         {
             ContentType = "application/json",
+            AllowDistribution = true,
             PayloadIsEncrypted = false,
             AppData = new()
             {

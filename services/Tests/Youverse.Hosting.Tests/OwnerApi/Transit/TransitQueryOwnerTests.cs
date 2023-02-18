@@ -115,6 +115,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                 FileMetadata = new()
                 {
                     ContentType = "application/json",
+                    AllowDistribution = true,
                     AppData = new()
                     {
                         Tags = new List<Guid>() { fileTag },
@@ -373,6 +374,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                 FileMetadata = new()
                 {
                     ContentType = "application/json",
+                    AllowDistribution = true,
                     AppData = new()
                     {
                         Tags = new List<Guid>() { fileTag },

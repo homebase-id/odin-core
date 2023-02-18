@@ -19,6 +19,7 @@ public static class NotificationTestUtils
         var fileMetadata = new UploadFileMetadata()
         {
             ContentType = "application/json",
+            AllowDistribution = true,
             PayloadIsEncrypted = true,
             AppData = new()
             {

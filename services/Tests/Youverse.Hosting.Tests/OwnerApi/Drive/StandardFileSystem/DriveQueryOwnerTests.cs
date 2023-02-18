@@ -47,6 +47,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             var uploadFileMetadata = new UploadFileMetadata()
             {
                 ContentType = "application/json",
+                AllowDistribution = true,
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
@@ -109,6 +110,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             var uploadFileMetadata = new UploadFileMetadata()
             {
                 ContentType = "application/json",
+                AllowDistribution = true,
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
@@ -199,6 +201,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             var uploadFileMetadata = new UploadFileMetadata()
             {
                 ContentType = "application/json",
+                AllowDistribution = true,
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
@@ -261,6 +264,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             var file1Metadata = new UploadFileMetadata()
             {
                 ContentType = "application/json",
+                AllowDistribution = true,
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
@@ -302,6 +306,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             var file2Metadata = new UploadFileMetadata()
             {
                 ContentType = "application/json",
+                AllowDistribution = true,
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {

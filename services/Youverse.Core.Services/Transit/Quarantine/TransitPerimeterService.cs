@@ -3,20 +3,15 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection.Metadata.Ecma335;
-using System.Security.Cryptography;
 using System.Threading.Tasks;
 using MediatR;
 using Youverse.Core.Services.Base;
-using Microsoft.Extensions.Logging;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Core.Query;
 using Youverse.Core.Services.Drives.FileSystem;
-using Youverse.Core.Services.Drives.FileSystem.Standard;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Transit.Incoming;
@@ -34,7 +29,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
         private readonly IDriveFileSystem _fileSystem;
         private readonly IMediator _mediator;
-        
+
         public TransitPerimeterService(
             DotYouContextAccessor contextAccessor,
             IPublicKeyService publicKeyService,
@@ -131,26 +126,27 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
             if (item.IsCompleteAndValid())
             {
-                await CompleteTransfer(item.TempFile, item.PublicKeyCrc);
+                await CompleteTransfer(item);
                 await _transitPerimeterTransferStateService.RemoveStateItem(item.Id);
                 return new HostTransitResponse() { Code = TransitResponseCode.Accepted };
             }
 
             throw new HostToHostTransferException("Unhandled error");
         }
-        
-        private async Task CompleteTransfer(InternalDriveFileId file, uint publicKeyCrc)
+
+        private async Task CompleteTransfer(IncomingTransferStateItem stateItem)
         {
             var item = new TransferBoxItem()
             {
                 Id = Guid.NewGuid(),
                 AddedTimestamp = UnixTimeUtc.Now(),
                 Sender = this._contextAccessor.GetCurrent().Caller.DotYouId,
-                PublicKeyCrc = publicKeyCrc,
+                PublicKeyCrc = stateItem.PublicKeyCrc,
 
                 InstructionType = TransferInstructionType.SaveFile,
-                DriveId = file.DriveId,
-                FileId = file.FileId
+                DriveId = stateItem.TempFile.DriveId,
+                FileId = stateItem.TempFile.FileId,
+                FileSystemType = stateItem.TransferFileSystemType
             };
 
             await _transitInboxBoxStorage.Add(item);
@@ -160,11 +156,13 @@ namespace Youverse.Core.Services.Transit.Quarantine
                 {
                     TargetDrive = _driveManager.GetDrive(item.DriveId).Result.TargetDriveInfo,
                     FileId = item.FileId
-                }
+                },
+                
+                FileSystemType = item.FileSystemType
             });
         }
 
-        public async Task<HostTransitResponse> AcceptDeleteLinkedFileRequest(TargetDrive targetDrive, Guid globalTransitId)
+        public async Task<HostTransitResponse> AcceptDeleteLinkedFileRequest(TargetDrive targetDrive, Guid globalTransitId, FileSystemType fileSystemType)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(targetDrive);
 
@@ -180,11 +178,12 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
                     InstructionType = TransferInstructionType.DeleteLinkedFile,
                     DriveId = driveId,
-                    GlobalTransitId = globalTransitId
+                    GlobalTransitId = globalTransitId,
+                    FileSystemType = fileSystemType
                 };
 
                 await _transitInboxBoxStorage.Add(item);
-                
+
                 return new HostTransitResponse()
                 {
                     Code = TransitResponseCode.Accepted,

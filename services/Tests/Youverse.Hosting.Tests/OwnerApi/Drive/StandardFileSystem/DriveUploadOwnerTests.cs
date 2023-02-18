@@ -59,6 +59,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             {
                 ContentType = "application/json",
                 PayloadIsEncrypted = true,
+                AllowDistribution = true,
                 AppData = new()
                 {
                     Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
@@ -156,6 +157,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     FileMetadata = new()
                     {
                         ContentType = "application/json",
+                        AllowDistribution = true,
                         PayloadIsEncrypted = true,
                         AppData = new()
                         {
@@ -232,6 +234,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     FileMetadata = new()
                     {
                         ContentType = "application/json",
+                        AllowDistribution = true,
                         PayloadIsEncrypted = true,
                         AppData = new()
                         {
@@ -417,6 +420,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     FileMetadata = new()
                     {
                         ContentType = "application/json",
+                        AllowDistribution = true,
                         PayloadIsEncrypted = true,
                         AppData = new()
                         {
@@ -480,6 +484,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     FileMetadata = new()
                     {
                         ContentType = "application/json",
+                        AllowDistribution = true,
                         PayloadIsEncrypted = true,
                         AppData = new()
                         {
@@ -566,6 +571,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     FileMetadata = new()
                     {
                         ContentType = "application/json",
+                        AllowDistribution = true,
                         PayloadIsEncrypted = true,
                         AppData = new()
                         {
@@ -625,6 +631,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     FileMetadata = new()
                     {
                         ContentType = "application/json",
+                        AllowDistribution = true,
                         PayloadIsEncrypted = true,
                         AppData = new()
                         {
@@ -677,6 +684,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     FileMetadata = new()
                     {
                         ContentType = "application/json",
+                        AllowDistribution = true,
                         PayloadIsEncrypted = true,
                         AppData = new()
                         {
@@ -726,6 +734,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     FileMetadata = new()
                     {
                         ContentType = "application/json",
+                        AllowDistribution = true,
                         PayloadIsEncrypted = true,
                         AppData = new()
                         {
