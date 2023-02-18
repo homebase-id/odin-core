@@ -18,20 +18,9 @@ public class DriveFileAddedNotification : EventArgs, INotification, IDriveNotifi
     public SharedSecretEncryptedFileHeader SharedSecretEncryptedFileHeader { get; set; }
 }
 
-public class ReactionFileAddedNotification : EventArgs, INotification, IDriveNotification
+public class StatisticsUpdatedNotification : EventArgs, INotification, IDriveNotification
 {
-    public ClientNotificationType NotificationType { get; } = ClientNotificationType.FileAdded;
-    
-    public InternalDriveFileId File { get; set; }
-
-    public ServerFileHeader ServerFileHeader { get; set; }
-    public SharedSecretEncryptedFileHeader SharedSecretEncryptedFileHeader { get; set; }
-}
-
-
-public class ReactionFileChangedNotification : EventArgs, INotification, IDriveNotification
-{
-    public ClientNotificationType NotificationType { get; } = ClientNotificationType.FileModified;
+    public ClientNotificationType NotificationType { get; } = ClientNotificationType.StatisticsChanged;
     
     public InternalDriveFileId File { get; set; }
 

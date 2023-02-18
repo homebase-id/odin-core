@@ -118,14 +118,14 @@ namespace Youverse.Hosting
                 .As<INotificationHandler<DriveFileDeletedNotification>>()
                 .AsSelf()
                 .SingleInstance();
-            
 
-            // cb.RegisterType<ReactionPreviewCalculator>()
-            //     .As<INotificationHandler<ReactionFileAddedNotification>>()
-            //     .As<INotificationHandler<ReactionFileChangedNotification>>();
+
+            cb.RegisterType<ReactionPreviewCalculator>()
+                .As<INotificationHandler<DriveFileAddedNotification>>()
+                .As<INotificationHandler<DriveFileChangedNotification>>()
+                .As<INotificationHandler<DriveFileDeletedNotification>>();
             
             cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>().SingleInstance();
-
             
             cb.RegisterType<CircleDefinitionService>().As<CircleDefinitionService>().SingleInstance();
             cb.RegisterType<CircleNetworkService>()

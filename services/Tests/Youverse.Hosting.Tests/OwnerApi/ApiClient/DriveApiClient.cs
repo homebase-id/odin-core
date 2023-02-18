@@ -98,8 +98,8 @@ public class DriveApiClient
             return batch;
         }
     }
-    
-    public async Task<UploadResult> UploadFile(FileSystemType fileSystemType, TargetDrive targetDrive, UploadFileMetadata fileMetadata, string payloadData, ImageDataContent thumbnail = null)
+
+    public async Task<UploadResult> UploadFile(FileSystemType fileSystemType, TargetDrive targetDrive, UploadFileMetadata fileMetadata, string payloadData = "", ImageDataContent thumbnail = null)
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
@@ -169,5 +169,4 @@ public class DriveApiClient
             return apiResponse.Content;
         }
     }
-
 }

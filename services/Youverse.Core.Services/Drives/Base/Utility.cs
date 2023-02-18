@@ -59,8 +59,12 @@ public static class Utility
             SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,
             FileMetadata = RedactFileMetadata(header.FileMetadata),
             Priority = priority,
-            ReactionPreview = header.ReactionPreview
+            ReactionPreview = header.ReactionPreview,
+            
+            
         };
+        
+        
 
         //add additional info
         if (contextAccessor.GetCurrent().Caller.IsOwner)
@@ -83,7 +87,8 @@ public static class Utility
             PayloadSize = fileMetadata.PayloadSize,
             OriginalRecipientList = fileMetadata.OriginalRecipientList,
             PayloadIsEncrypted = fileMetadata.PayloadIsEncrypted,
-            SenderDotYouId = fileMetadata.SenderDotYouId
+            SenderDotYouId = fileMetadata.SenderDotYouId,
+            ReferencedFile = fileMetadata.ReferencedFile
         };
         return clientFile;
     }

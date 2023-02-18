@@ -25,9 +25,10 @@ namespace Youverse.Core.Services.Drive
         Write = 2,
 
         /// <summary>
-        /// Write reactions files (i.e. comments,reactions, etc.)
+        /// Write comments and reactions
         /// </summary>
         WriteReactionsAndComments = 4,
+        
 
         ReadWrite = Read | Write | WriteReactionsAndComments,
 

@@ -335,12 +335,11 @@ namespace Youverse.Core.Services.Drives.Base
                     metadata.PayloadSize = new FileInfo(sourceFile).Length;
                     await storageManager.MoveToLongTerm(targetFile.FileId, sourceFile, FilePart.Payload);
                 }
-                catch 
+                catch
                 {
                     //HACK:  It's possible for a transfer only include the header (excluding thumbnails and payloads)
                     //in the case of TransitOptions.SendOptions only having the HeaderFlag
                 }
-               
             }
 
             if (metadata.AppData.AdditionalThumbnails != null)
@@ -367,7 +366,6 @@ namespace Youverse.Core.Services.Drives.Base
             {
                 File = targetFile,
                 ServerFileHeader = serverHeader,
-                // ClientFileHeader = await this.GetSharedSecretEncryptedHeader(targetFile)
                 SharedSecretEncryptedFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverHeader, ContextAccessor)
             });
         }
@@ -432,7 +430,27 @@ namespace Youverse.Core.Services.Drives.Base
                 File = targetFile,
                 ServerFileHeader = serverHeader,
                 SharedSecretEncryptedFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverHeader, ContextAccessor)
-                // ClientFileHeader = await this.GetSharedSecretEncryptedHeader(targetFile)
+            });
+        }
+
+        public async Task UpdateStatistics(InternalDriveFileId targetFile, ReactionPreviewData previewData)
+        {
+            //TODO: is this the right permission to check?
+            if (!ContextAccessor.GetCurrent().PermissionsContext.HasDrivePermission(targetFile.DriveId, DrivePermission.WriteReactionsAndComments))
+            {
+                throw new YouverseSystemException("No permission to update a target file's statistics");
+            }
+
+            var existingHeader = await GetLongTermStorageManager(targetFile.DriveId).GetServerFileHeader(targetFile.FileId);
+            existingHeader.ReactionPreview = previewData;
+
+            await WriteFileHeaderInternal(existingHeader);
+
+            await _mediator.Publish(new StatisticsUpdatedNotification()
+            {
+                File = targetFile,
+                ServerFileHeader = existingHeader,
+                SharedSecretEncryptedFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(existingHeader, ContextAccessor)
             });
         }
 
