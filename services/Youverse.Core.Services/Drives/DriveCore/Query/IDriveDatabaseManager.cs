@@ -1,18 +1,21 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drive.Core.Query.Sqlite;
+using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drive.Core.Query;
 using Youverse.Core.Services.Drive.Core.Storage;
+using Youverse.Core.Services.Drives.DriveCore.Query.Sqlite;
 using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Storage.SQLite.DriveDatabase;
 
-namespace Youverse.Core.Services.Drive.Core.Query
+namespace Youverse.Core.Services.Drives.DriveCore.Query
 {
     /// <summary>
-    /// Offers query and indexing features for a specific <see cref="StorageDrive"/>
+    /// Surfaces functions of the DriveDatabase for a specific drive
     /// </summary>
-    public interface IDriveQueryManager : IDisposable
+    public interface IDriveDatabaseManager : IDisposable
     {
         /// <summary>
         /// Specifies the drive being managed (indexed and queried)
@@ -20,19 +23,8 @@ namespace Youverse.Core.Services.Drive.Core.Query
         StorageDrive Drive { get; init; }
 
         /// <summary>
-        /// 
-        /// </summary>
-        IndexReadyState IndexReadyState { get; set; }
-
-        /// <summary>
         /// Returns the fileId of recently modified files
         /// </summary>
-        /// <param name="callerContext"></param>
-        /// <param name="qp"></param>
-        /// <param name="options"></param>
-        /// <param name="maxDate"></param>
-        /// <param name="cursor"></param>
-        /// <returns>(cursor, file Id List)</returns>
         Task<(ulong, IEnumerable<Guid>)> GetModified(CallerContext callerContext, FileSystemType fileSystemType, FileQueryParams qp, QueryModifiedResultOptions options);
 
 
@@ -43,12 +35,6 @@ namespace Youverse.Core.Services.Drive.Core.Query
         /// (resultFirstCursor, resultLastCursor, cursorUpdatedTimestamp, fileId List);
         /// </returns>
         Task<(QueryBatchCursor, IEnumerable<Guid>)> GetBatch(CallerContext callerContext, FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options);
-
-        /// <summary>
-        /// Switches from the current index in use to the backup index.  Use after a rebuild
-        /// </summary>
-        /// <returns></returns>
-        Task SwitchIndex();
 
         /// <summary>
         /// Updates the current index that is in use.
@@ -62,25 +48,6 @@ namespace Youverse.Core.Services.Drive.Core.Query
         /// <returns></returns>
         Task RemoveFromCurrentIndex(InternalDriveFileId file);
 
-        /// <summary>
-        /// Removes the specified file from the secondary index.
-        /// </summary>
-        /// <param name="file"></param>
-        /// <returns></returns>
-        Task RemoveFromSecondaryIndex(InternalDriveFileId file);
-
-        /// <summary>
-        /// Updates the index that is not currently in use.  Use when performing a rebuild.
-        /// </summary>
-        /// <param name="metadata"></param>
-        Task UpdateSecondaryIndex(ServerFileHeader metadata);
-
-        /// <summary>
-        /// Prepares backup index for rebuild; clears and instantiates a new instance.
-        /// </summary>
-        /// <returns></returns>
-        Task PrepareSecondaryIndexForRebuild();
-
         Task LoadLatestIndex();
 
         Task AddCommandMessage(List<Guid> fileIds);
@@ -90,5 +57,13 @@ namespace Youverse.Core.Services.Drive.Core.Query
         Task MarkCommandsCompleted(List<Guid> fileIds);
 
         void EnsureIndexDataCommitted();
+
+        void AddReaction(DotYouIdentity dotYouId, Guid fileId, string reaction);
+
+        void DeleteReactions(DotYouIdentity dotYouId, Guid fileId);
+
+        void DeleteReaction(DotYouIdentity dotYouId, Guid fileId, string reaction);
+
+        (List<string>, int) GetReactions(Guid fileId);
     }
 }

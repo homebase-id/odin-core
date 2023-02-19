@@ -6,20 +6,21 @@ using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drive.Core.Query;
 using Youverse.Core.Services.Drive.Core.Storage;
 using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Storage.SQLite.DriveDatabase;
 
-namespace Youverse.Core.Services.Drive.Core.Query.Sqlite;
+namespace Youverse.Core.Services.Drives.DriveCore.Query.Sqlite;
 
-public class SqliteQueryManager : IDriveQueryManager, IDisposable
+public class SqliteDatabaseManager : IDriveDatabaseManager
 {
     private readonly ILogger<object> _logger;
 
     private readonly DriveDatabase _db;
-    // private readonly DriveIndexDatabase _secondaryIndexDb;
 
-    public SqliteQueryManager(StorageDrive drive, ILogger<object> logger)
+    public SqliteDatabaseManager(StorageDrive drive, ILogger<object> logger)
     {
         Drive = drive;
         _logger = logger;
@@ -29,8 +30,6 @@ public class SqliteQueryManager : IDriveQueryManager, IDisposable
     }
 
     public StorageDrive Drive { get; init; }
-
-    public IndexReadyState IndexReadyState { get; set; }
 
     public Task<(ulong, IEnumerable<Guid>)> GetModified(CallerContext callerContext, FileSystemType fileSystemType, FileQueryParams qp, QueryModifiedResultOptions options)
     {
@@ -105,11 +104,6 @@ public class SqliteQueryManager : IDriveQueryManager, IDisposable
         return aclList.Any() ? aclList : null;
     }
 
-    public Task SwitchIndex()
-    {
-        throw new NotImplementedException();
-    }
-
     public Task UpdateCurrentIndex(ServerFileHeader header)
     {
         var metadata = header.FileMetadata;
@@ -180,25 +174,9 @@ public class SqliteQueryManager : IDriveQueryManager, IDisposable
         return Task.CompletedTask;
     }
 
-    public Task RemoveFromSecondaryIndex(InternalDriveFileId file)
-    {
-        throw new NotImplementedException("need a delete entry on DriveIndexDatabase");
-    }
-
-    public Task UpdateSecondaryIndex(ServerFileHeader metadata)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task PrepareSecondaryIndexForRebuild()
-    {
-        throw new NotImplementedException("Rebuild not yet supported");
-    }
-
     public Task LoadLatestIndex()
     {
         _db.CreateDatabase(false);
-        this.IndexReadyState = IndexReadyState.Ready;
         return Task.CompletedTask;
     }
 
@@ -238,6 +216,27 @@ public class SqliteQueryManager : IDriveQueryManager, IDisposable
         _db.Commit();
         _db.Dispose();
     }
+
+    public void AddReaction(DotYouIdentity dotYouId, Guid fileId, string reaction)
+    {
+        _db.TblReactions.InsertReaction(dotYouId, fileId, reaction);
+    }
+
+    public void DeleteReactions(DotYouIdentity dotYouId, Guid fileId)
+    {
+        _db.TblReactions.DeleteAllReactions(dotYouId, fileId);
+    }
+
+    public void DeleteReaction(DotYouIdentity dotYouId, Guid fileId, string reaction)
+    {
+        _db.TblReactions.DeleteReaction(dotYouId, fileId, reaction);
+    }
+
+    public (List<string>, int) GetReactions(Guid fileId)
+    {
+        return _db.TblReactions.GetPostReactions(fileId);
+    }
+    
 }
 
 public class UnprocessedCommandMessage

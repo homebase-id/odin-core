@@ -7,6 +7,7 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Core;
 using Youverse.Core.Services.Drive.Core.Query;
+using Youverse.Core.Services.Drives.DriveCore.Query;
 using Youverse.Core.Services.Drives.FileSystem;
 
 namespace Youverse.Core.Services.Drives.Base
@@ -36,7 +37,7 @@ namespace Youverse.Core.Services.Drives.Base
         public async Task<QueryModifiedResult> GetModified(Guid driveId, FileQueryParams qp, QueryModifiedResultOptions options)
         {
             AssertCanReadDrive(driveId);
-            if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
+            if (TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
                 var (updatedCursor, fileIdList) = await queryManager.GetModified(ContextAccessor.GetCurrent().Caller, GetFileSystemType(), qp, options);
                 var headers = await CreateClientFileHeaders(driveId, fileIdList, options);
@@ -57,7 +58,7 @@ namespace Youverse.Core.Services.Drives.Base
         {
             AssertCanReadDrive(driveId);
 
-            if (await TryGetOrLoadQueryManager(driveId, out var queryManager))
+            if (TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
                 var (cursor, fileIdList) = await queryManager.GetBatch(ContextAccessor.GetCurrent().Caller,
                     GetFileSystemType(),
@@ -123,7 +124,7 @@ namespace Youverse.Core.Services.Drives.Base
             foreach (var driveId in driveIdList)
             {
                 AssertCanWriteToDrive(driveId);
-                if (this.TryGetOrLoadQueryManager(driveId, out var manager, false).GetAwaiter().GetResult())
+                if (this.TryGetOrLoadQueryManager(driveId, out var manager))
                 {
                     manager.EnsureIndexDataCommitted();
                 }
@@ -182,9 +183,9 @@ namespace Youverse.Core.Services.Drives.Base
             return results;
         }
 
-        private Task<bool> TryGetOrLoadQueryManager(Guid driveId, out IDriveQueryManager manager, bool onlyReadyManagers = true)
+        private bool TryGetOrLoadQueryManager(Guid driveId, out IDriveDatabaseManager manager)
         {
-            return _driveDatabaseHost.TryGetOrLoadQueryManager(driveId, out manager, onlyReadyManagers);
+            return _driveDatabaseHost.TryGetOrLoadQueryManager(driveId, out manager);
         }
     }
 }

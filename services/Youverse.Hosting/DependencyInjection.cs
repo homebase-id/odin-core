@@ -31,6 +31,7 @@ using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Drives.FileSystem.Comment;
 using Youverse.Core.Services.Drives.FileSystem.Standard;
+using Youverse.Core.Services.Drives.Reactions;
 using Youverse.Core.Services.Drives.Statistics;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Mediator;
@@ -120,6 +121,8 @@ namespace Youverse.Hosting
                 .SingleInstance();
 
 
+            cb.RegisterType<EmojiReactionService>().AsSelf().SingleInstance();
+            
             cb.RegisterType<ReactionPreviewCalculator>()
                 .As<INotificationHandler<DriveFileAddedNotification>>()
                 .As<INotificationHandler<DriveFileChangedNotification>>()

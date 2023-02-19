@@ -7,6 +7,7 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drive.Core;
 using Youverse.Core.Services.Drive.Core.Query;
+using Youverse.Core.Services.Drives.DriveCore.Query;
 
 namespace Youverse.Core.Services.Drives.Base;
 
@@ -14,6 +15,7 @@ public abstract class DriveCommandServiceBase : RequirePermissionsBase
 {
     private readonly DriveDatabaseHost _driveDatabaseHost;
     private readonly DriveStorageServiceBase _storage;
+
     protected DriveCommandServiceBase(DriveDatabaseHost driveDatabaseHost, DriveStorageServiceBase storage, DotYouContextAccessor contextAccessor, DriveManager driveManager)
     {
         _driveDatabaseHost = driveDatabaseHost;
@@ -24,7 +26,7 @@ public abstract class DriveCommandServiceBase : RequirePermissionsBase
 
     protected override DriveManager DriveManager { get; }
     protected override DotYouContextAccessor ContextAccessor { get; }
-    
+
     public Task EnqueueCommandMessage(Guid driveId, List<Guid> fileIds)
     {
         TryGetOrLoadQueryManager(driveId, out var manager);
@@ -33,7 +35,7 @@ public abstract class DriveCommandServiceBase : RequirePermissionsBase
 
     public async Task<List<ReceivedCommand>> GetUnprocessedCommands(Guid driveId, int count)
     {
-        await TryGetOrLoadQueryManager(driveId, out var manager);
+        TryGetOrLoadQueryManager(driveId, out var manager);
         var unprocessedCommands = await manager.GetUnprocessedCommands(count);
 
         var result = new List<ReceivedCommand>();
@@ -65,12 +67,12 @@ public abstract class DriveCommandServiceBase : RequirePermissionsBase
 
     public async Task MarkCommandsProcessed(Guid driveId, List<Guid> idList)
     {
-        await TryGetOrLoadQueryManager(driveId, out var manager);
+        TryGetOrLoadQueryManager(driveId, out var manager);
         await manager.MarkCommandsCompleted(idList);
     }
 
-    private Task<bool> TryGetOrLoadQueryManager(Guid driveId, out IDriveQueryManager manager, bool onlyReadyManagers = true)
+    private bool TryGetOrLoadQueryManager(Guid driveId, out IDriveDatabaseManager manager, bool onlyReadyManagers = true)
     {
-        return _driveDatabaseHost.TryGetOrLoadQueryManager(driveId, out manager, onlyReadyManagers);
+        return _driveDatabaseHost.TryGetOrLoadQueryManager(driveId, out manager);
     }
 }

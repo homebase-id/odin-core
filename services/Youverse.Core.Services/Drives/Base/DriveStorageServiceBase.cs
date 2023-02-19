@@ -435,12 +435,8 @@ namespace Youverse.Core.Services.Drives.Base
 
         public async Task UpdateStatistics(InternalDriveFileId targetFile, ReactionPreviewData previewData)
         {
-            //TODO: is this the right permission to check?
-            if (!ContextAccessor.GetCurrent().PermissionsContext.HasDrivePermission(targetFile.DriveId, DrivePermission.WriteReactionsAndComments))
-            {
-                throw new YouverseSystemException("No permission to update a target file's statistics");
-            }
-
+            ContextAccessor.GetCurrent().PermissionsContext.AssertHasDrivePermission(targetFile.DriveId, DrivePermission.WriteReactionsAndComments);
+                
             var existingHeader = await GetLongTermStorageManager(targetFile.DriveId).GetServerFileHeader(targetFile.FileId);
             existingHeader.ReactionPreview = previewData;
 

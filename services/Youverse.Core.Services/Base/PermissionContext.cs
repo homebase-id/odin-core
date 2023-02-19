@@ -50,6 +50,14 @@ namespace Youverse.Core.Services.Base
             return false;
         }
 
+        public void AssertHasDrivePermission(Guid driveId, DrivePermission permission)
+        {
+            if (!this.HasDrivePermission(driveId, permission))
+            {
+                throw new YouverseSecurityException($"Unauthorized access to {permission} to drive [{driveId}]");
+            }
+        }
+        
         public bool HasPermission(int permissionKey)
         {
             if (_isSystem)
