@@ -94,7 +94,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             if ((identity == null) || (identity.Length >= MAX_MEMBER_LENGTH))
                 throw new Exception("invalid identity.");
 
-            if ((singleReaction == null) || (singleReaction.Length > 1)) // :x:
+            if ((singleReaction == null) || (singleReaction.Length > 3)) // :x:
                 throw new Exception("singlereaction is not a reaction");
 
             lock (_insertLock)
@@ -174,7 +174,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             if ((identity == null) || (identity.Length >= MAX_MEMBER_LENGTH))
                 throw new Exception("invalid identity.");
 
-            if ((singleReaction == null) || (singleReaction.Length > 1)) // :x:
+            if ((singleReaction == null) || (singleReaction.Length > 3)) // :x:
                 throw new Exception("singlereaction is not a reaction");
 
             lock (_singleDeleteLock)
