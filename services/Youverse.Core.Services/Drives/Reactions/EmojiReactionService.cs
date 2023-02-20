@@ -52,16 +52,21 @@ public class EmojiReactionService
         }
     }
 
-    public (List<string>, int) GetReactions(InternalDriveFileId file)
+    public GetReactionsResponse GetReactions(InternalDriveFileId file)
     {
         _contextAccessor.GetCurrent().PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
 
         if (_driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId, out var manager))
         {
-            return manager.GetReactions(file.FileId);
+            var (list, count) = manager.GetReactions(file.FileId);
+
+            return new GetReactionsResponse()
+            {
+                Reactions = list,
+                TotalCount = count
+            };
         }
 
         throw new YouverseSystemException($"Invalid query manager instance for drive {file.DriveId}");
     }
-    
 }

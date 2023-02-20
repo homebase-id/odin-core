@@ -19,13 +19,7 @@ namespace Youverse.Hosting.Controllers.Base
         /// </summary>
         protected async Task<IActionResult> GetFileHeader(ExternalFileIdentifier request)
         {
-            var file = new InternalDriveFileId()
-            {
-                DriveId = DotYouContext.PermissionsContext.GetDriveId(request.TargetDrive),
-                FileId = request.FileId
-            };
-
-            var result = await this.GetFileSystemResolver().ResolveFileSystem().Storage.GetSharedSecretEncryptedHeader(file);
+            var result = await this.GetFileSystemResolver().ResolveFileSystem().Storage.GetSharedSecretEncryptedHeader(MapToInternalFile(request));
 
             if (result == null)
             {
@@ -41,11 +35,7 @@ namespace Youverse.Hosting.Controllers.Base
         /// </summary>
         protected async Task<IActionResult> GetPayloadStream(ExternalFileIdentifier request)
         {
-            var file = new InternalDriveFileId()
-            {
-                DriveId = DotYouContext.PermissionsContext.GetDriveId(request.TargetDrive),
-                FileId = request.FileId
-            };
+            var file = MapToInternalFile(request);
 
             var fs = this.GetFileSystemResolver().ResolveFileSystem();
 
@@ -71,11 +61,7 @@ namespace Youverse.Hosting.Controllers.Base
         /// </summary>
         protected async Task<IActionResult> GetThumbnail(GetThumbnailRequest request)
         {
-            var file = new InternalDriveFileId()
-            {
-                DriveId = DotYouContext.PermissionsContext.GetDriveId(request.File.TargetDrive),
-                FileId = request.File.FileId
-            };
+            var file = MapToInternalFile(request.File);
 
             var fs = this.GetFileSystemResolver().ResolveFileSystem();
             var payload = await fs.Storage.GetThumbnailPayloadStream(file, request.Width, request.Height);

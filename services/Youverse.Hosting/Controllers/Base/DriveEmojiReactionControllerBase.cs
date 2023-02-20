@@ -18,22 +18,26 @@ public class DriveEmojiReactionControllerBase : YouverseControllerBase
         _emojiReactionService = emojiReactionService;
     }
 
+    /// <summary />
     protected void AddReaction(AddReactionReqeust request)
     {
         _emojiReactionService.AddReaction((DotYouIdentity)request.DotYouId, MapToInternalFile(request.File), request.Reaction);
     }
 
+    /// <summary />
     protected void DeleteReaction(DeleteReactionRequest request)
     {
         _emojiReactionService.DeleteReaction((DotYouIdentity)request.DotYouId, MapToInternalFile(request.File), request.Reaction);
     }
 
+    /// <summary />
     protected void DeleteAllReactions(DeleteReactionRequest request)
     {
         _emojiReactionService.DeleteReactions((DotYouIdentity)request.DotYouId, MapToInternalFile(request.File));
     }
 
-    protected (List<string>, int) GetReactions(ExternalFileIdentifier file)
+    /// <summary />
+    protected GetReactionsResponse GetReactions(ExternalFileIdentifier file)
     {
         return _emojiReactionService.GetReactions(MapToInternalFile(file));
     }

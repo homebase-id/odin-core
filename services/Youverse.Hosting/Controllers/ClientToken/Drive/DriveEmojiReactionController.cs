@@ -13,8 +13,8 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
 {
     /// <summary />
     [ApiController]
-    [Route(AppApiPathConstants.DrivesV1)]
-    [Route(YouAuthApiPathConstants.DrivesV1)]
+    [Route(AppApiPathConstants.DriveReactionsV1)]
+    [Route(YouAuthApiPathConstants.DriveReactionsV1)]
     [AuthorizeValidExchangeGrant]
     public class DriveEmojiReactionController : DriveEmojiReactionControllerBase
     {
@@ -28,7 +28,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         /// </summary>
         /// <param name="request"></param>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
-        [HttpPost("files/reactions/add")]
+        [HttpPost("add")]
         public IActionResult AddEmojiReaction([FromBody] AddReactionReqeust request)
         {
             base.AddReaction(request);
@@ -40,7 +40,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         /// </summary>
         /// <param name="request"></param>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
-        [HttpPost("files/reaction/delete")]
+        [HttpPost("delete")]
         public IActionResult DeleteEmojiReaction([FromBody] DeleteReactionRequest request)
         {
             base.DeleteReaction(request);
@@ -52,8 +52,8 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         /// </summary>
         /// <param name="request"></param>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
-        [HttpPost("files/reaction/deleteall")]
-        public IActionResult DeleteAllReactions([FromBody] DeleteReactionRequest request)
+        [HttpPost("deleteall")]
+        public IActionResult DeleteAllReactionsOnFile([FromBody] DeleteReactionRequest request)
         {
             base.DeleteAllReactions(request);
             return Ok();
@@ -62,12 +62,11 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         /// <summary>
         /// Adds an emoji reaction for a given file
         /// </summary>
-        /// <param name="request"></param>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
-        [HttpPost("files/reaction/list")]
-        public IActionResult GetAllReactions([FromBody] ExternalFileIdentifier file)
+        [HttpPost("list")]
+        public GetReactionsResponse GetAllReactions([FromBody] ExternalFileIdentifier file)
         {
-            return new JsonResult(base.GetReactions(file));
+            return base.GetReactions(file);
         }
     }
     
