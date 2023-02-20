@@ -72,7 +72,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
                 cmd.CommandText =
                     @"CREATE TABLE IF NOT EXISTS reactions(
-                     identity STRING NOT NULL, 
+                     identity STRING NOT NULL,
                      postid BLOB NOT NULL,
                      singlereaction STRING NOT NULL,
                      UNIQUE(identity, postid, singlereaction)); "
@@ -94,12 +94,12 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             if ((identity == null) || (identity.Length >= MAX_MEMBER_LENGTH))
                 throw new Exception("invalid identity.");
 
-            if ((singleReaction == null) || (singleReaction.Length < 3)) // :x:
+            if ((singleReaction == null) || (singleReaction.Length > 1)) // :x:
                 throw new Exception("singlereaction is not a reaction");
 
             lock (_insertLock)
             {
-                // Make sure we only prep once 
+                // Make sure we only prep once
                 if (_insertCommand == null)
                 {
                     _insertCommand = _database.CreateCommand();
@@ -144,7 +144,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
             lock (_deleteLock)
             {
-                // Make sure we only prep once 
+                // Make sure we only prep once
                 if (_deleteCommand == null)
                 {
                     _deleteCommand = _database.CreateCommand();
@@ -174,12 +174,12 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             if ((identity == null) || (identity.Length >= MAX_MEMBER_LENGTH))
                 throw new Exception("invalid identity.");
 
-            if ((singleReaction == null) || (singleReaction.Length < 3)) // :x:
+            if ((singleReaction == null) || (singleReaction.Length > 1)) // :x:
                 throw new Exception("singlereaction is not a reaction");
 
             lock (_singleDeleteLock)
             {
-                // Make sure we only prep once 
+                // Make sure we only prep once
                 if (_singleDeleteCommand == null)
                 {
                     _singleDeleteCommand = _database.CreateCommand();
