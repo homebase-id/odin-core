@@ -50,6 +50,13 @@ namespace Youverse.Core.Services.DataSubscription
             recipients!.AddRange(driveFollowers.Results);
             recipients.AddRange(allDriveFollowers.Results.Except(driveFollowers.Results));
 
+
+            // Don't handle if there are no recipients
+            if (!recipients.Any())
+            {
+                return;
+            }
+
             //use transit? to send like normal?
             var options = new TransitOptions()
             {
@@ -61,11 +68,16 @@ namespace Youverse.Core.Services.DataSubscription
                 OverrideTargetDrive = SystemDriveConstants.FeedDrive
             };
 
-            // 
+            //
             //TODO: in order to send over transit like this, the sender needs access to the feed drive
             await _transitService.SendFile(notification.File, options, TransferFileType.Normal, notification.ServerFileHeader.ServerMetadata.FileSystemType, ClientAccessTokenSource.DataSubscription);
         }
-        
+
+        private static readonly List<Guid> DriveTypesSupportingSubscription = new List<Guid>()
+        {
+            SystemDriveConstants.ChannelDriveType
+        };
+
         private async Task<bool> SupportsSubscription(Guid driveId)
         {
             //TODO: make this a property of the drive
