@@ -50,7 +50,10 @@ namespace Youverse.Core.Services.DataSubscription
             recipients!.AddRange(driveFollowers.Results);
             recipients.AddRange(allDriveFollowers.Results.Except(driveFollowers.Results));
 
-            if(!recipients.Any()){
+
+            // Don't handle if there are no recipients
+            if (!recipients.Any())
+            {
                 return;
             }
 
