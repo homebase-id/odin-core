@@ -1,6 +1,7 @@
 ﻿using System;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives.FileSystem;
 
 namespace Youverse.Core.Services.Transit.Incoming
 {
@@ -38,5 +39,9 @@ namespace Youverse.Core.Services.Transit.Incoming
 
         public byte[] Marker { get; set; }
 
+        /// <summary>
+        /// The FileSystemType of the incoming file
+        /// </summary>
+        public FileSystemType FileSystemType { get; set; }
     }
 }

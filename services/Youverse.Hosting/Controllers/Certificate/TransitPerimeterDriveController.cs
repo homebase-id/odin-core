@@ -23,12 +23,11 @@ namespace Youverse.Hosting.Controllers.Certificate
     public class TransitPerimeterDriveController : ControllerBase
     {
         private readonly ITransitPerimeterService _perimeterService;
-        private readonly IDriveService _driveService;
 
-        public TransitPerimeterDriveController(ITransitPerimeterService perimeterService, IDriveService driveService)
+        /// <summary />
+        public TransitPerimeterDriveController(ITransitPerimeterService perimeterService)
         {
             _perimeterService = perimeterService;
-            _driveService = driveService;
         }
 
         [HttpPost("querybatch")]
@@ -44,7 +43,7 @@ namespace Youverse.Hosting.Controllers.Certificate
         [HttpPost("header")]
         public async Task<IActionResult> GetFileHeader([FromBody] ExternalFileIdentifier request)
         {
-            ClientFileHeader result = await _perimeterService.GetFileHeader(request.TargetDrive, request.FileId);
+            SharedSecretEncryptedFileHeader result = await _perimeterService.GetFileHeader(request.TargetDrive, request.FileId);
 
             //404 is possible
             if (result == null)
@@ -98,7 +97,7 @@ namespace Youverse.Hosting.Controllers.Certificate
         }
 
         [HttpPost("metadata/type")]
-        public async Task<IEnumerable<PerimeterDriveData>> GetDrives([FromBody]GetDrivesByTypeRequest request)
+        public async Task<IEnumerable<PerimeterDriveData>> GetDrives([FromBody] GetDrivesByTypeRequest request)
         {
             var drives = await _perimeterService.GetDrives(request.DriveType);
             return drives;
@@ -108,7 +107,7 @@ namespace Youverse.Hosting.Controllers.Certificate
         [HttpPost("deletelinkedfile")]
         public async Task<HostTransitResponse> DeleteLinkedFile(DeleteLinkedFileTransitRequest transitRequest)
         {
-            return await _perimeterService.DeleteLinkedFile(transitRequest.TargetDrive, transitRequest.GlobalTransitId);
+            return await _perimeterService.AcceptDeleteLinkedFileRequest(transitRequest.TargetDrive, transitRequest.GlobalTransitId, transitRequest.FileSystemType);
         }
     }
 }

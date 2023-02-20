@@ -3,18 +3,24 @@ using System.IO;
 using System.Linq;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.DependencyInjection;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
-using Youverse.Core.Services.Apps;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives.FileSystem;
+using Youverse.Core.Services.Drives.FileSystem.Comment;
+using Youverse.Core.Services.Drives.FileSystem.Standard;
+using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Quarantine;
+using Youverse.Core.Storage;
 using Youverse.Hosting.Authentication.Perimeter;
-using Youverse.Hosting.Controllers.ClientToken.Drive;
 
 namespace Youverse.Hosting.Controllers.Certificate
 {
@@ -23,20 +29,29 @@ namespace Youverse.Hosting.Controllers.Certificate
     /// </summary>
     [ApiController]
     [Route("/api/perimeter/transit/host")]
-    // [Route("/api/perimeter/subscriptions/feed")] //HACK: route to handle incoming data for the feed; lets us distinguish during LoadTransitContext
     [Authorize(Policy = CertificatePerimeterPolicies.IsInYouverseNetwork, AuthenticationSchemes = PerimeterAuthConstants.TransitCertificateAuthScheme)]
     public class TransitPerimeterController : ControllerBase
     {
-        private readonly ITransitPerimeterService _perimeterService;
+        private readonly DotYouContextAccessor _contextAccessor;
+        private readonly IPublicKeyService _publicKeyService;
+        private readonly DriveManager _driveManager;
+        private readonly ITenantSystemStorage _tenantSystemStorage;
+        private ITransitPerimeterService _perimeterService;
+        private IDriveFileSystem _fileSystem;
+        private readonly IMediator _mediator;
         private Guid _stateItemId;
-        private readonly IDriveService _driveService;
 
-        public TransitPerimeterController(ITransitPerimeterService perimeterService, IDriveService driveService)
+        /// <summary />
+        public TransitPerimeterController(DotYouContextAccessor contextAccessor, IPublicKeyService publicKeyService, DriveManager driveManager, ITenantSystemStorage tenantSystemStorage, IMediator mediator)
         {
-            _perimeterService = perimeterService;
-            _driveService = driveService;
+            _contextAccessor = contextAccessor;
+            _publicKeyService = publicKeyService;
+            _driveManager = driveManager;
+            _tenantSystemStorage = tenantSystemStorage;
+            _mediator = mediator;
         }
 
+        /// <summary />
         [HttpPost("stream")]
         public async Task<HostTransitResponse> AcceptHostToHostTransfer()
         {
@@ -49,10 +64,13 @@ namespace Youverse.Hosting.Controllers.Certificate
 
                 var boundary = GetBoundary(HttpContext.Request.ContentType);
                 var reader = new MultipartReader(boundary, HttpContext.Request.Body);
-                var section = await reader.ReadNextSectionAsync();
 
-                this._stateItemId = await ProcessTransferKeyHeader(section);
+                var transferKeyHeader = await ProcessTransferKeyHeader(await reader.ReadNextSectionAsync());
 
+                _fileSystem = ResolveFileSystem(transferKeyHeader.FileSystemType);
+                _perimeterService = new TransitPerimeterService(_contextAccessor, _publicKeyService, _driveManager, _fileSystem, _tenantSystemStorage, _mediator);
+
+                _stateItemId = await _perimeterService.InitializeIncomingTransfer(transferKeyHeader);
                 //
 
                 await ProcessMetadataSection(await reader.ReadNextSectionAsync());
@@ -63,7 +81,7 @@ namespace Youverse.Hosting.Controllers.Certificate
 
                 //
 
-                section = await reader.ReadNextSectionAsync();
+                var section = await reader.ReadNextSectionAsync();
                 while (null != section)
                 {
                     await ProcessThumbnailSection(section);
@@ -97,15 +115,12 @@ namespace Youverse.Hosting.Controllers.Certificate
             }
         }
 
-        private async Task<Guid> ProcessTransferKeyHeader(MultipartSection section)
+        private async Task<RsaEncryptedRecipientTransferInstructionSet> ProcessTransferKeyHeader(MultipartSection section)
         {
             AssertIsPart(section, MultipartHostTransferParts.TransferKeyHeader);
-
             string json = await new StreamReader(section.Body).ReadToEndAsync();
             var transferKeyHeader = DotYouSystemSerializer.Deserialize<RsaEncryptedRecipientTransferInstructionSet>(json);
-
-            var transferStateItemId = await _perimeterService.InitializeIncomingTransfer(transferKeyHeader);
-            return transferStateItemId;
+            return transferKeyHeader;
         }
 
         private async Task ProcessMetadataSection(MultipartSection section)
@@ -123,6 +138,11 @@ namespace Youverse.Hosting.Controllers.Certificate
 
         private async Task ProcessPayloadSection(MultipartSection section)
         {
+            if (null == section)
+            {
+                return;
+            }
+
             AssertIsPart(section, MultipartHostTransferParts.Payload);
 
             //TODO: determine if the filter needs to decide if its result should be sent back to the sender
@@ -139,7 +159,7 @@ namespace Youverse.Hosting.Controllers.Certificate
             AssertIsValidThumbnailPart(section, MultipartHostTransferParts.Thumbnail, out var fileSection, out var width, out var height);
 
             // section.ContentType
-            string extenstion = _driveService.GetThumbnailFileExtension(width, height);
+            string extenstion = _fileSystem.Storage.GetThumbnailFileExtension(width, height);
             var response = await _perimeterService.ApplyFirstStageFiltering(this._stateItemId, MultipartHostTransferParts.Thumbnail, extenstion, section.Body);
             if (response.FilterAction == FilterAction.Reject)
             {
@@ -196,33 +216,29 @@ namespace Youverse.Hosting.Controllers.Certificate
             return boundary;
         }
 
-        private MultipartHostTransferParts GetFilePart(string name)
-        {
-            if (Enum.TryParse<MultipartHostTransferParts>(name, true, out var part) == false)
-            {
-                throw new HostToHostTransferException("Unknown MultipartHostTransferPart");
-            }
-
-            return part;
-        }
-
         private string GetSectionName(string contentDisposition)
         {
             var cd = ContentDispositionHeaderValue.Parse(contentDisposition);
             return cd.Name?.Trim('"');
         }
-
-        private string GetFileName(string contentDisposition)
+        
+        private IDriveFileSystem ResolveFileSystem(FileSystemType fileSystemType)
         {
-            var cd = ContentDispositionHeaderValue.Parse(contentDisposition);
-            var filename = cd.FileName?.Trim('"');
+            //TODO: this is duplicated code
 
-            if (null != filename)
+            var ctx = this.HttpContext;
+
+            if (fileSystemType == FileSystemType.Standard)
             {
-                return filename;
+                return ctx!.RequestServices.GetRequiredService<StandardFileSystem>();
             }
 
-            return GetSectionName(contentDisposition);
+            if (fileSystemType == FileSystemType.Comment)
+            {
+                return ctx!.RequestServices.GetRequiredService<CommentFileSystem>();
+            }
+
+            throw new YouverseClientException("Invalid file system type or could not parse instruction set", YouverseClientErrorCode.InvalidFileSystemType);
         }
     }
 }

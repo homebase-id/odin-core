@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Drive.Storage;
 using Youverse.Core.Storage.SQLite.IdentityDatabase;
 using Youverse.Core.Util;
 

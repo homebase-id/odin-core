@@ -16,11 +16,11 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
     [AuthorizeValidOwnerToken]
     public class OwnerDriveMetadataController : ControllerBase
     {
-        private readonly IDriveService _driveService;
+        private readonly DriveManager _driveManager;
 
-        public OwnerDriveMetadataController(IDriveService driveService)
+        public OwnerDriveMetadataController(DriveManager driveManager)
         {
-            _driveService = driveService;
+            _driveManager = driveManager;
         }
 
         /// <summary>
@@ -32,7 +32,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         [HttpGet("metadata/type")]
         public async Task<PagedResult<OwnerClientDriveData>> GetDrivesByType([FromQuery] GetDrivesByTypeRequest request)
         {
-            var drives = await _driveService.GetDrives(request.DriveType, new PageOptions(request.PageNumber, request.PageSize));
+            var drives = await _driveManager.GetDrives(request.DriveType, new PageOptions(request.PageNumber, request.PageSize));
 
             var clientDriveData = drives.Results.Select(drive =>
                 new OwnerClientDriveData()

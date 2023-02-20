@@ -56,7 +56,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         [HttpPost("header")]
         public async Task<IActionResult> GetFileHeader([FromBody] TransitExternalFileIdentifier request)
         {
-            ClientFileHeader result = await _transitQueryService.GetFileHeader((DotYouIdentity)request.DotYouId, request.File);
+            SharedSecretEncryptedFileHeader result = await _transitQueryService.GetFileHeader((DotYouIdentity)request.DotYouId, request.File);
 
             if (null == result)
             {

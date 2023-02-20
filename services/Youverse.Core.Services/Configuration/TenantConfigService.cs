@@ -23,23 +23,23 @@ namespace Youverse.Core.Services.Configuration;
 public class TenantConfigService
 {
     private readonly ICircleNetworkService _cns;
-    private readonly IDriveService _driveService;
     private readonly DotYouContextAccessor _contextAccessor;
     private readonly TenantContext _tenantContext;
     private readonly SingleKeyValueStorage _configStorage;
     private readonly IIdentityRegistry _registry;
     private readonly IAppRegistrationService _appRegistrationService;
+    private readonly DriveManager _driveManager;
 
     public TenantConfigService(ICircleNetworkService cns, DotYouContextAccessor contextAccessor,
-        IDriveService driveService, ITenantSystemStorage storage, TenantContext tenantContext,
-        IIdentityRegistry registry, IAppRegistrationService appRegistrationService)
+        ITenantSystemStorage storage, TenantContext tenantContext,
+        IIdentityRegistry registry, IAppRegistrationService appRegistrationService, DriveManager driveManager)
     {
         _cns = cns;
         _contextAccessor = contextAccessor;
-        _driveService = driveService;
         _tenantContext = tenantContext;
         _registry = registry;
         _appRegistrationService = appRegistrationService;
+        _driveManager = driveManager;
         _configStorage = storage.SingleKeyValueStorage;
         _tenantContext.UpdateSystemConfig(this.GetTenantSettings());
     }
@@ -189,28 +189,29 @@ public class TenantConfigService
 
     public async Task CreateSystemApps()
     {
+        // [Obsolete("Still Determining if we want to have the concept of system apps; but i dont want to lose this code")]
         //Feed app
-        var request = new AppRegistrationRequest()
-        {
-            AppId = SystemAppConstants.FeedAppId,
-            Name = "System Feed Writer",
-            AuthorizedCircles = new List<Guid>(), //no circles
-            CircleMemberPermissionGrant = null,
-            Drives = new List<DriveGrantRequest>()
-            {
-                new DriveGrantRequest()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = SystemDriveConstants.FeedDrive,
-                        Permission = DrivePermission.Write
-                    }
-                }
-            },
-            PermissionSet = new PermissionSet() //no permissions for this app
-        };
-
-        await _appRegistrationService.RegisterApp(request);
+        // var request = new AppRegistrationRequest()
+        // {
+        //     AppId = SystemAppConstants.FeedAppId,
+        //     Name = "System Feed Writer",
+        //     AuthorizedCircles = new List<Guid>(), //no circles
+        //     CircleMemberPermissionGrant = null,
+        //     Drives = new List<DriveGrantRequest>()
+        //     {
+        //         new DriveGrantRequest()
+        //         {
+        //             PermissionedDrive = new PermissionedDrive()
+        //             {
+        //                 Drive = SystemDriveConstants.FeedDrive,
+        //                 Permission = DrivePermission.Write
+        //             }
+        //         }
+        //     },
+        //     PermissionSet = new PermissionSet() //no permissions for this app
+        // };
+        //
+        // await _appRegistrationService.RegisterApp(request);
     }
 
     //
@@ -228,11 +229,11 @@ public class TenantConfigService
 
     private async Task<bool> CreateDriveIfNotExists(CreateDriveRequest request)
     {
-        var drive = await _driveService.GetDriveIdByAlias(request.TargetDrive, false);
+        var drive = await _driveManager.GetDriveIdByAlias(request.TargetDrive, false);
 
         if (null == drive)
         {
-            await _driveService.CreateDrive(request);
+            await _driveManager.CreateDrive(request);
             return true;
         }
 

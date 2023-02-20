@@ -14,17 +14,19 @@ using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Query;
-using Youverse.Core.Services.Drive.Storage;
+using Youverse.Core.Services.Drive.Core.Query;
+using Youverse.Core.Services.Drive.Core.Storage;
+using Youverse.Core.Services.Drives.Base.Upload;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
-using Youverse.Core.Services.Workers.Transit;
 using Youverse.Hosting.Controllers;
+
 using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Tests.AppAPI;
 using Youverse.Hosting.Tests.AppAPI.Drive;
 using Youverse.Hosting.Tests.AppAPI.Transit;
+using Youverse.Hosting.Tests.AppAPI.Utils;
 using Youverse.Hosting.Tests.OwnerApi.Utils;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Transit
@@ -50,8 +52,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
         [Test]
         public async Task CanSendTransferAndRecipientCanQueryFilesByTag()
         {
-            var sender = TestIdentities.Frodo;
-            var recipient = TestIdentities.Samwise;
+            var sender = TestIdentities.Samwise;
+            var recipient = TestIdentities.Pippin;
 
             Guid appId = Guid.NewGuid();
             var targetDrive = TargetDrive.NewTargetDrive();
@@ -113,6 +115,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                 FileMetadata = new()
                 {
                     ContentType = "application/json",
+                    AllowDistribution = true,
                     AppData = new()
                     {
                         Tags = new List<Guid>() { fileTag },
@@ -120,11 +123,11 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                         JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
                     PayloadIsEncrypted = true,
-                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Authenticated }
+                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
 
-            var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref key);
+            var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref key);
 
             var payloadData = "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadData);
@@ -371,6 +374,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                 FileMetadata = new()
                 {
                     ContentType = "application/json",
+                    AllowDistribution = true,
                     AppData = new()
                     {
                         Tags = new List<Guid>() { fileTag },
@@ -379,11 +383,11 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                         AdditionalThumbnails = new[] { thumbnail1 }
                     },
                     PayloadIsEncrypted = true,
-                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Authenticated }
+                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
 
-            var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref key);
+            var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref key);
 
             var originalPayloadData = "{payload:true, image:'b64 data'}";
             var originalPayloadCipherBytes = keyHeader.EncryptDataAesAsStream(originalPayloadData);

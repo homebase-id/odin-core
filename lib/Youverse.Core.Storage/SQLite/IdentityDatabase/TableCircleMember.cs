@@ -80,8 +80,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                      memberid BLOB NOT NULL,
                      data BLOB,
                      UNIQUE(circleid, memberid)); "
-                    + "CREATE INDEX if not exists circleididx ON circlemember(circleid);"
-                    + "CREATE INDEX if not exists memberididx ON circlemember(memberid);";
+                    + "CREATE INDEX if not exists circleididx ON circlemember(circleid);";
+                    // + "CREATE INDEX if not exists memberididx ON circlemember(memberid);";
 
                 cmd.ExecuteNonQuery();
             }

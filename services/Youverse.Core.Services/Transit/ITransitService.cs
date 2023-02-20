@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Transit.Upload;
 
@@ -15,19 +16,7 @@ namespace Youverse.Core.Services.Transit
         /// Sends the specified file
         /// </summary>
         /// <returns></returns>
-        Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile, TransitOptions options, TransferFileType transferFileType, ClientAccessTokenSource tokenSource = ClientAccessTokenSource.Circle);
-
-        /// <summary>
-        /// Accepts an incoming file as complete and valid.
-        /// </summary>
-        Task AcceptTransfer(InternalDriveFileId file, uint publicKeyCrc);
-
-        /// <summary>
-        /// Sends a collection if <see cref="OutboxItem"/>s.  Returns the results of each recipient
-        /// </summary>
-        /// <param name="items"></param>
-        /// <returns></returns>
-        Task<List<SendResult>> SendBatchNow(IEnumerable<OutboxItem> items);
+        Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile, TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType, ClientAccessTokenSource tokenSource = ClientAccessTokenSource.Circle);
 
         /// <summary>
         /// Processes and sends any files in the outbox across all drives
@@ -38,11 +27,7 @@ namespace Youverse.Core.Services.Transit
         /// <summary>
         /// Notifies the recipients the file with the <param name="globalTransitId"/> must be deleted
         /// </summary>
-        Task<Dictionary<string, TransitResponseCode>> SendDeleteLinkedFileRequest(Guid driveId, Guid globalTransitId, IEnumerable<string> recipients);
+        Task<Dictionary<string, TransitResponseCode>> SendDeleteLinkedFileRequest(Guid driveId, Guid globalTransitId, FileSystemType fileSystemType, IEnumerable<string> recipients);
 
-        /// <summary>
-        /// Deletes the requested file.
-        /// </summary>
-        Task AcceptDeleteLinkedFileRequest(Guid driveId, Guid globalTransitId);
     }
 }

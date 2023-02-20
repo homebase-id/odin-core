@@ -1,49 +1,31 @@
-﻿using System;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
-using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Transit;
-using Youverse.Hosting.Controllers.ClientToken.Drive;
+using Youverse.Hosting.Controllers.Base;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 {
+    /// <summary />
     [ApiController]
     [Route(OwnerApiPathConstants.DriveQueryV1)]
     [AuthorizeValidOwnerToken]
-    public class OwnerDriveQueryController : ControllerBase
+    public class OwnerDriveQueryController : DriveQueryControllerBase
     {
-        private readonly DotYouContextAccessor _contextAccessor;
-        private readonly IDriveQueryService _driveQueryService;
-        private readonly IDriveService _driveService;
-
-        public OwnerDriveQueryController(IDriveQueryService driveQueryService, DotYouContextAccessor contextAccessor, IDriveService driveService)
-        {
-            _driveQueryService = driveQueryService;
-            _contextAccessor = contextAccessor;
-            _driveService = driveService;
-        }
-
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("modified")]
-        public async Task<QueryModifiedResult> GetModified([FromBody] QueryModifiedRequest request)
+        public async Task<QueryModifiedResult> QueryModified([FromBody] QueryModifiedRequest request)
         {
-            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
-            var batch = await _driveQueryService.GetModified(driveId, request.QueryParams, request.ResultOptions);
-            return batch;
+            return await base.QueryModified(request);
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("batch")]
         public async Task<QueryBatchResponse> QueryBatch([FromBody] QueryBatchRequest request)
         {
-            var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
-            var batch = await _driveQueryService.GetBatch(driveId, request.QueryParams, request.ResultOptionsRequest.ToQueryBatchResultOptions());
-
-            return QueryBatchResponse.FromResult(batch);
+            return await base.QueryBatch(request);
         }
-        
+
         /// <summary>
         /// Returns multiple <see cref="QueryBatchResponse"/>s
         /// </summary>
@@ -53,8 +35,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("batchcollection")]
         public async Task<QueryBatchCollectionResponse> QueryBatchCollection([FromBody] QueryBatchCollectionRequest request)
         {
-            var collection = await _driveQueryService.GetBatchCollection(request);
-            return collection;
+            return await base.QueryBatchCollection(request);
         }
     }
 }

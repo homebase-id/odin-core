@@ -1,29 +1,28 @@
 using System;
 using Dawn;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Transit.Quarantine;
 
 namespace Youverse.Core.Services.Transit.Incoming
 {
     public class IncomingTransferStateItem
     {
-        public IncomingTransferStateItem()
-        {
-            //for LiteDB
-        }
-
-        public IncomingTransferStateItem(GuidId id, InternalDriveFileId tempFile)
+        public IncomingTransferStateItem(GuidId id, InternalDriveFileId tempFile, FileSystemType transferTransferFileSystemType)
         {
             Guard.Argument(id, nameof(id)).NotNull().Require(x => GuidId.IsValid(x));
             Guard.Argument(tempFile, nameof(tempFile)).Require(tempFile.IsValid());
 
             this.Id = id;
             this.TempFile = tempFile;
+            this.TransferFileSystemType = transferTransferFileSystemType;
 
             this.HeaderState = new();
             this.MetadataState = new();
             this.PayloadState = new();
         }
+
+        public FileSystemType TransferFileSystemType { get; init; }
 
         public GuidId Id { get; init; }
 
@@ -74,7 +73,7 @@ namespace Youverse.Core.Services.Transit.Incoming
 
         public bool IsCompleteAndValid()
         {
-            return this.HeaderState.IsValid() && MetadataState.IsValid() && PayloadState.IsValid();
+            return this.HeaderState.IsValid() && MetadataState.IsValid(); //&& PayloadState.IsValid();
         }
 
         public class PartState

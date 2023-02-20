@@ -27,7 +27,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
         Task<ApiResponse<QueryBatchResponse>> GetBatch([Body] TransitQueryBatchRequest request);
 
         [Post(RootEndpoint + "/header")]
-        Task<ApiResponse<ClientFileHeader>> GetFileHeader([Body] TransitExternalFileIdentifier file);
+        Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader([Body] TransitExternalFileIdentifier file);
 
         [Post(RootEndpoint + "/payload")]
         Task<ApiResponse<HttpContent>> GetPayload([Body] TransitExternalFileIdentifier file);

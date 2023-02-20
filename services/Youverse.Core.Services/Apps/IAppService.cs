@@ -11,11 +11,6 @@ namespace Youverse.Core.Services.Apps
     /// </summary>
     public interface IAppService
     {
-        /// <summary>
-        /// Gets the file header information encrypted using the app's shared secret for the requesting client
-        /// </summary>
-        Task<ClientFileHeader> GetClientEncryptedFileHeader(InternalDriveFileId file);
-
         Task<DeleteLinkedFileResult> DeleteFile(InternalDriveFileId file, List<string> requestRecipients);
     }
 }

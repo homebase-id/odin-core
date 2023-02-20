@@ -21,8 +21,7 @@ namespace Youverse.Core.Services.Transit
         Task<ApiResponse<HostTransitResponse>> SendHostToHost(
             StreamPart header,
             StreamPart metaData,
-            StreamPart payload,
-            params StreamPart[] thumbnail);
+            params StreamPart[] additionalStreamParts);
 
         [Post(RootPath + "/deletelinkedfile")]
         Task<ApiResponse<HostTransitResponse>> DeleteLinkedFile([Body] DeleteLinkedFileTransitRequest request);
@@ -31,7 +30,7 @@ namespace Youverse.Core.Services.Transit
         Task<ApiResponse<QueryBatchResponse>> QueryBatch([Body] QueryBatchRequest request);
 
         [Post(RootPath + "/header")]
-        Task<ApiResponse<ClientFileHeader>> GetFileHeader([Body] ExternalFileIdentifier file);
+        Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader([Body] ExternalFileIdentifier file);
 
         [Post(RootPath + "/thumb")]
         Task<ApiResponse<HttpContent>> GetThumbnailStream([Body] GetThumbnailRequest request);

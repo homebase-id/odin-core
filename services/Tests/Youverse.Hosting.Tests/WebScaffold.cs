@@ -7,6 +7,8 @@ using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 using Youverse.Core;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Util;
 using Youverse.Hosting._dev;
@@ -100,18 +102,18 @@ namespace Youverse.Hosting.Tests
             if (null != _webserver)
             {
                 Thread.Sleep(2000);
-                _webserver.StopAsync();
+                _webserver.StopAsync().GetAwaiter().GetResult();
                 _webserver.Dispose();
             }
         }
 
         public OwnerApiTestUtils OldOwnerApi => this._oldOwnerApi ?? throw new NullReferenceException("Check if the owner app was initialized in method RunBeforeAnyTests");
-        
+
         public OwnerApiClient CreateOwnerApiClient(TestIdentity identity)
         {
             return new OwnerApiClient(this._oldOwnerApi, identity);
         }
-        
+
         public AppApiTestUtils AppApi => this._appApi ?? throw new NullReferenceException("Check if the owner app was initialized in method RunBeforeAnyTests");
 
         public ScenarioBootstrapper Scenarios => this._scenarios ?? throw new NullReferenceException("");
@@ -120,7 +122,7 @@ namespace Youverse.Hosting.Tests
         /// Creates an http client that has a cookie jar but no authentication tokens.  This is useful for testing token exchanges.
         /// </summary>
         /// <returns></returns>
-        public HttpClient CreateAnonymousApiHttpClient(DotYouIdentity identity)
+        public HttpClient CreateAnonymousApiHttpClient(DotYouIdentity identity, FileSystemType fileSystemType = FileSystemType.Standard)
         {
             var cookieJar = new CookieContainer();
             HttpMessageHandler handler = new HttpClientHandler()
@@ -130,7 +132,7 @@ namespace Youverse.Hosting.Tests
 
             HttpClient client = new(handler);
             client.Timeout = TimeSpan.FromMinutes(15);
-
+            client.DefaultRequestHeaders.Add(DotYouHeaderNames.FileSystemTypeHeader, Enum.GetName(fileSystemType));
             client.BaseAddress = new Uri($"https://{identity}");
             return client;
         }
