@@ -133,7 +133,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             Int32 requiredSecurityGroup,
             List<Guid> accessControlList,
             List<Guid> tagIdList,
-            Int32 fileSystemType = 0
+            Int32 fileSystemType = (int)FileSystemType.Standard
         )
         {
             BeginTransaction();
@@ -418,7 +418,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
         /// <returns></returns>
         public List<Guid> QueryBatch(int noOfItems,
             ref QueryBatchCursor cursor,
-            Int32? fileSystemType = null,
+            Int32? fileSystemType = (int)FileSystemType.Standard,
             IntRange requiredSecurityGroup = null,
             List<Guid> globalTransitIdAnyOf = null,
             List<int> filetypesAnyOf = null,
@@ -530,7 +530,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
         public List<Guid> QueryModified(int noOfItems,
             ref UnixTimeUtcUnique cursor,
             UnixTimeUtcUnique stopAtModifiedUnixTimeSeconds = default(UnixTimeUtcUnique),
-            Int32? fileSystemType = null,
+            Int32? fileSystemType = (int)FileSystemType.Standard,
             IntRange requiredSecurityGroup = null,
             List<Guid> globalTransitIdAnyOf = null,
             List<int> filetypesAnyOf = null,

@@ -10,6 +10,7 @@ using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Registry;
+using Youverse.Core.Storage;
 using Youverse.Core.Util;
 using Youverse.Hosting._dev;
 using Youverse.Hosting.Tests.AppAPI.Utils;

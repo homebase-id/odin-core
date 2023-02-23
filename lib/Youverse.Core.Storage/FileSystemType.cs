@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.Drives.FileSystem;
+namespace Youverse.Core.Storage;
 
 public enum FileSystemType
 {

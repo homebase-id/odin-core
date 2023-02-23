@@ -402,8 +402,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             Guid? groupId = null,
             Guid? uniqueId = null,
             UInt64? userDate = null,
-            Int32? requiredSecurityGroup = null,
-            Int32? fileSystemType = null)
+            Int32? requiredSecurityGroup = null)
         {
             lock (_updateLock)
             {
@@ -449,8 +448,8 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     _uparam9.ParameterName = "$globaltransitid";
                     _updateCommand.Parameters.Add(_uparam9);
 
-                    _uparam10.ParameterName = "$fileSystemType";
-                    _updateCommand.Parameters.Add(_uparam10);
+                    // _uparam10.ParameterName = "$fileSystemType";
+                    // _updateCommand.Parameters.Add(_uparam10);
                 }
 
                 string stm;
@@ -482,8 +481,8 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 if (requiredSecurityGroup != null)
                     stm += ", requiredSecurityGroup = $requiredSecurityGroup ";
 
-                if (fileSystemType != null)
-                    stm += ", fileSystemType = $fileSystemType";
+                // if (fileSystemType != null)
+                //     stm += ", fileSystemType = $fileSystemType";
 
                 _updateCommand.CommandText =
                     $"UPDATE mainindex SET " + stm + $" WHERE fileid = x'{Convert.ToHexString(fileId.ToByteArray())}'";
@@ -497,7 +496,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 _uparam7.Value = userDate;
                 _uparam8.Value = requiredSecurityGroup;
                 _uparam9.Value = globalTransitId;
-                _uparam10.Value = fileSystemType;
+                // _uparam10.Value = fileSystemType;
                 _database.BeginTransaction();
                 _updateCommand.ExecuteNonQuery();
             }
