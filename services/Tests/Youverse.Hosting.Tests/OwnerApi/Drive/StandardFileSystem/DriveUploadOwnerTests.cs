@@ -64,12 +64,12 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 AppData = new()
                 {
                     Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
-                    ContentIsComplete = true,
+                    ContentIsComplete = false,
                     JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
                 }
             };
 
-            var uploadResult = await frodoOwnerClient.Drive.UploadFile(FileSystemType.Standard, targetDrive, metadata, "");
+            var uploadResult = await frodoOwnerClient.Drive.UploadEncryptedFile(FileSystemType.Standard, targetDrive, metadata, "");
 
             Assert.That(uploadResult.File, Is.Not.Null);
             Assert.That(uploadResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
