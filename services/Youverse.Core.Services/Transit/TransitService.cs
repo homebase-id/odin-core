@@ -512,7 +512,7 @@ namespace Youverse.Core.Services.Transit
                             break;
 
                         case TransferFailureReason.FileDoesNotAllowDistribution:
-                            transferStatus[result.Recipient.Id] = TransferStatus.FileProhibited;
+                            transferStatus[result.Recipient.Id] = TransferStatus.FileDoesNotAllowDistribution;
                             break;
 
                         default:

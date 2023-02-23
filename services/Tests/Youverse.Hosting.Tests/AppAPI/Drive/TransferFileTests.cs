@@ -56,6 +56,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
             var fileMetadata = new UploadFileMetadata()
             {
+                AllowDistribution = true,
                 AppData = new UploadAppFileMetaData()
                 {
                     FileType = someFiletype,
@@ -131,6 +132,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
             var fileMetadata = new UploadFileMetadata()
             {
+                AllowDistribution = true,
                 AppData = new UploadAppFileMetaData()
                 {
                     FileType = someFiletype,
@@ -230,6 +232,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
             var fileMetadata = new UploadFileMetadata()
             {
+                AllowDistribution = true,
                 AppData = new UploadAppFileMetaData()
                 {
                     FileType = someFiletype,

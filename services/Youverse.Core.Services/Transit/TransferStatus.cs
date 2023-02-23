@@ -32,6 +32,6 @@ namespace Youverse.Core.Services.Transit
         /// <summary>
         /// Indicates the file is not allowed to be sent (i.e. AllowDistribution is false)
         /// </summary>
-        FileProhibited = 11
+        FileDoesNotAllowDistribution = 11
     }
 }
