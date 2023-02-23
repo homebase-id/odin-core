@@ -12,11 +12,13 @@ using Youverse.Core.Serialization;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Query;
+using Youverse.Core.Services.Drive.Core.Query;
+using Youverse.Core.Services.Drives.Base.Upload;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers;
+using Youverse.Hosting.Controllers.Base.Upload;
 using Youverse.Hosting.Controllers.OwnerToken.Drive;
 using Youverse.Hosting.Tests.AppAPI.Utils;
 
@@ -69,6 +71,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 FileMetadata = new()
                 {
                     ContentType = "application/json",
+                    AllowDistribution = true,
                     PayloadIsEncrypted = true,
                     AppData = new()
                     {
@@ -80,7 +83,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             };
 
             var key = testContext.SharedSecret.ToSensitiveByteArray();
-            var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref key);
+            var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref key);
 
             var payloadDataRaw = "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadDataRaw);
@@ -174,6 +177,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             var fileMetadata = new UploadFileMetadata()
             {
                 ContentType = "application/json",
+                AllowDistribution = true,
                 PayloadIsEncrypted = true,
                 AppData = new()
                 {
@@ -275,7 +279,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
 
         [Test(Description = "")]
-        [Ignore("There is no api exposed for hard-delete.  ")]
+        [Ignore("There is no api exposed for hard-delete for an App.")]
         public async Task CanHardDeleteFile()
         {
         }

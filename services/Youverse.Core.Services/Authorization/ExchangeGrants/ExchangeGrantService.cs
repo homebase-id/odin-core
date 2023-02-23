@@ -20,14 +20,12 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
     public class ExchangeGrantService
     {
         private readonly ILogger<ExchangeGrantService> _logger;
-        private readonly IDriveService _driveService;
-        private readonly CircleDefinitionService _circleDefinitionService;
+        private readonly DriveManager _driveManager;
 
-        public ExchangeGrantService(ILogger<ExchangeGrantService> logger, IDriveService driveService, CircleDefinitionService circleDefinitionService)
+        public ExchangeGrantService(ILogger<ExchangeGrantService> logger, DriveManager driveManager)
         {
             _logger = logger;
-            _driveService = driveService;
-            _circleDefinitionService = circleDefinitionService;
+            _driveManager = driveManager;
         }
 
         /// <summary>
@@ -51,8 +49,8 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
                 foreach (var req in driveGrantRequests)
                 {
                     //Note: fail the whole operation (CreateExchangeGrant) if an invalid drive is specified (the true flag will ensure we throw an exception)
-                    var driveId = await _driveService.GetDriveIdByAlias(req.PermissionedDrive.Drive, true);
-                    var drive = await _driveService.GetDrive(driveId.GetValueOrDefault(), true);
+                    var driveId = await _driveManager.GetDriveIdByAlias(req.PermissionedDrive.Drive, true);
+                    var drive = await _driveManager.GetDrive(driveId.GetValueOrDefault(), true);
 
                     var driveGrant = CreateDriveGrant(drive, req.PermissionedDrive.Permission, grantKeyStoreKey, masterKey);
                     driveGrants.Add(driveGrant);
@@ -119,7 +117,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             var (accessReg, clientAccessToken) = await this.CreateClientAccessTokenInternal(grantKeyStoreKey, tokenType);
             return (accessReg, clientAccessToken);
         }
-        
+
         public async Task<PermissionContext> CreatePermissionContext(ClientAuthenticationToken authToken, Dictionary<string, ExchangeGrant> grants, AccessRegistration accessReg,
             List<int>? additionalPermissionKeys = null, bool includeAnonymousDrives = false)
         {
@@ -171,13 +169,13 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         /// <returns></returns>
         public async Task<PermissionGroup> CreateAnonymousDrivePermissionGroup()
         {
-            var anonymousDrives = await _driveService.GetAnonymousDrives(PageOptions.All);
+            var anonymousDrives = await _driveManager.GetAnonymousDrives(PageOptions.All);
             var anonDriveGrants = anonymousDrives.Results.Select(drive => this.CreateDriveGrant(drive, DrivePermission.Read, null, null));
             return new PermissionGroup(new PermissionSet(), anonDriveGrants, null);
         }
-        
+
         //
-        
+
         private DriveGrant CreateDriveGrant(StorageDrive drive, DrivePermission permission, SensitiveByteArray grantKeyStoreKey, SensitiveByteArray masterKey)
         {
             var storageKey = masterKey == null ? null : drive.MasterKeyEncryptedStorageKey.DecryptKeyClone(ref masterKey);
@@ -239,7 +237,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             //get the anonymous drives
             //merge; existing drive grants take priority because they likely have keys for decryption
             var finalGrantList = new List<DriveGrant>(list!);
-            var anonymousDrives = await _driveService.GetAnonymousDrives(PageOptions.All);
+            var anonymousDrives = await _driveManager.GetAnonymousDrives(PageOptions.All);
 
             foreach (var drive in anonymousDrives.Results)
             {

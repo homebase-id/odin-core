@@ -16,13 +16,11 @@ namespace Youverse.Hosting.Controllers.ClientToken.Configuration;
 public class ConfigurationController : Controller
 {
     private readonly TenantConfigService _tenantConfigService;
-    private readonly IDriveService _driveService;
 
     /// <summary />
-    public ConfigurationController(TenantConfigService tenantConfigService, IDriveService driveService)
+    public ConfigurationController(TenantConfigService tenantConfigService)
     {
         _tenantConfigService = tenantConfigService;
-        _driveService = driveService;
     }
 
     /// <summary>

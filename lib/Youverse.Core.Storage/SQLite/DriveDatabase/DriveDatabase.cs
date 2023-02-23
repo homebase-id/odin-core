@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data.SQLite;
 using System.Diagnostics;
 using System.Linq;
+using Youverse.Core.Exceptions;
 
 /*
 =====
@@ -62,11 +63,10 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
         public readonly TableCommandMessageQueue TblCmdMsgQueue = null;
 
 
-
         public DriveDatabase(string connectionString, DatabaseIndexKind databaseKind, ulong commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
         {
             _kind = databaseKind;
- 
+
             TblMainIndex = new TableMainIndex(this);
             TblAclIndex = new TableAclIndex(this);
             TblTagIndex = new TableTagIndex(this);
@@ -123,22 +123,24 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
         /// <param name="accessControlList">The list of Id's of the circles or identities which can access this file</param>
         /// <param name="tagIdList">The tags</param>
         public void AddEntry(Guid fileId,
-                Guid? globalTransitId,
-                Int32 fileType,
-                Int32 dataType,
-                byte[] senderId,
-                Guid? groupId,
-                Guid? uniqueId,
-                UInt64 userDate,
-                Int32 requiredSecurityGroup,
-                List<Guid> accessControlList,
-                List<Guid> tagIdList)
+            Guid? globalTransitId,
+            Int32 fileType,
+            Int32 dataType,
+            byte[] senderId,
+            Guid? groupId,
+            Guid? uniqueId,
+            UInt64 userDate,
+            Int32 requiredSecurityGroup,
+            List<Guid> accessControlList,
+            List<Guid> tagIdList,
+            Int32 fileSystemType = (int)FileSystemType.Standard
+        )
         {
             BeginTransaction();
 
             using (CreateCommitUnitOfWork())
             {
-                TblMainIndex.InsertRow(fileId, globalTransitId, UnixTimeUtc.Now(), fileType, dataType, senderId, groupId, uniqueId, userDate, false, false, requiredSecurityGroup);
+                TblMainIndex.InsertRow(fileId, globalTransitId, UnixTimeUtc.Now(), fileType, dataType, senderId, groupId, uniqueId, userDate, false, false, requiredSecurityGroup, fileSystemType);
                 TblAclIndex.InsertRows(fileId, accessControlList);
                 TblTagIndex.InsertRows(fileId, tagIdList);
             }
@@ -199,7 +201,8 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             UInt64? userDate = null,
             Int32? requiredSecurityGroup = null,
             List<Guid> accessControlList = null,
-            List<Guid> tagIdList = null)
+            List<Guid> tagIdList = null,
+            Int32 fileSystemType = 0)
         {
             BeginTransaction();
 
@@ -236,6 +239,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
         /// <returns></returns>
         private (List<Guid>, bool moreRows) QueryBatchRaw(int noOfItems,
             ref QueryBatchCursor cursor,
+            Int32? fileSystemType = null,
             IntRange requiredSecurityGroup = null,
             List<Guid> globalTransitIdAnyOf = null,
             List<int> filetypesAnyOf = null,
@@ -275,6 +279,16 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             {
                 throw new Exception($"{nameof(requiredSecurityGroup)} is required");
             }
+
+            if (fileSystemType == null)
+            {
+                throw new Exception($"{nameof(fileSystemType)} is required");
+            }
+
+            if (strWhere != "")
+                strWhere += "AND ";
+
+            strWhere += $"(fileSystemType == {fileSystemType}) ";
 
             if (strWhere != "")
                 strWhere += "AND ";
@@ -404,6 +418,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
         /// <returns></returns>
         public List<Guid> QueryBatch(int noOfItems,
             ref QueryBatchCursor cursor,
+            Int32? fileSystemType = (int)FileSystemType.Standard,
             IntRange requiredSecurityGroup = null,
             List<Guid> globalTransitIdAnyOf = null,
             List<int> filetypesAnyOf = null,
@@ -416,7 +431,13 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             List<Guid> tagsAnyOf = null,
             List<Guid> tagsAllOf = null)
         {
-            var (result, moreRows) = QueryBatchRaw(noOfItems, ref cursor, requiredSecurityGroup, globalTransitIdAnyOf, filetypesAnyOf, datatypesAnyOf, senderidAnyOf, groupIdAnyOf, uniqueIdAnyOf,
+            if (null == fileSystemType)
+            {
+                throw new YouverseSystemException("fileSystemType required in Query Batch");
+            }
+            
+            var (result, moreRows) = QueryBatchRaw(noOfItems, ref cursor, fileSystemType, requiredSecurityGroup, globalTransitIdAnyOf, filetypesAnyOf, datatypesAnyOf, senderidAnyOf, groupIdAnyOf,
+                uniqueIdAnyOf,
                 userdateSpan, aclAnyOf, tagsAnyOf, tagsAllOf);
 
             if (result.Count > 0)
@@ -452,7 +473,9 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     //
                     // Do a recursive call to check there are no more items.
                     //
-                    var r2 = QueryBatch(noOfItems - result.Count, ref cursor, requiredSecurityGroup,
+                    var r2 = QueryBatch(noOfItems - result.Count, ref cursor,
+                        fileSystemType,
+                        requiredSecurityGroup,
                         globalTransitIdAnyOf,
                         filetypesAnyOf,
                         datatypesAnyOf,
@@ -480,7 +503,8 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     cursor.currentBoundaryCursor = cursor.nextBoundaryCursor;
                     cursor.nextBoundaryCursor = null;
                     cursor.pagingCursor = null;
-                    return QueryBatch(noOfItems, ref cursor, requiredSecurityGroup, globalTransitIdAnyOf, filetypesAnyOf, datatypesAnyOf, senderidAnyOf, groupIdAnyOf, uniqueIdAnyOf, userdateSpan,
+                    return QueryBatch(noOfItems, ref cursor, fileSystemType, requiredSecurityGroup, globalTransitIdAnyOf, filetypesAnyOf, datatypesAnyOf, senderidAnyOf, groupIdAnyOf, uniqueIdAnyOf,
+                        userdateSpan,
                         aclAnyOf, tagsAnyOf, tagsAllOf);
                 }
                 else
@@ -506,6 +530,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
         public List<Guid> QueryModified(int noOfItems,
             ref UnixTimeUtcUnique cursor,
             UnixTimeUtcUnique stopAtModifiedUnixTimeSeconds = default(UnixTimeUtcUnique),
+            Int32? fileSystemType = (int)FileSystemType.Standard,
             IntRange requiredSecurityGroup = null,
             List<Guid> globalTransitIdAnyOf = null,
             List<int> filetypesAnyOf = null,
@@ -524,14 +549,25 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             string stm;
             string strWhere = "";
 
-            stopWatch.Start();
 
+            if (null == fileSystemType)
+            {
+                throw new YouverseSystemException("fileSystemType required in Query Modified");
+            }
+            
+            stopWatch.Start();
+            
             strWhere += $"updatedtimestamp > {cursor.uniqueTime} ";
 
             if (stopAtModifiedUnixTimeSeconds.uniqueTime > 0)
             {
                 strWhere += $"AND updatedtimestamp >= {stopAtModifiedUnixTimeSeconds.uniqueTime} ";
             }
+
+            if (strWhere != "")
+                strWhere += "AND ";
+
+            strWhere += $"(fileSystemType == {fileSystemType})";
 
             if (requiredSecurityGroup == null)
             {

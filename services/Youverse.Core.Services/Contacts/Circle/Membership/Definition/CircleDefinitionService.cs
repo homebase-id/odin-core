@@ -13,14 +13,14 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
 {
     public class CircleDefinitionService
     {
-        private readonly IDriveService _driveService;
+        private readonly DriveManager _driveManager;
 
         private readonly GuidId _circleDataType = GuidId.FromString("circle__");
         private readonly ThreeKeyValueStorage _circleValueStorage;
 
-        public CircleDefinitionService(ITenantSystemStorage tenantSystemStorage, IDriveService driveService)
+        public CircleDefinitionService(ITenantSystemStorage tenantSystemStorage, DriveManager driveManager)
         {
-            _driveService = driveService;
+            _driveManager = driveManager;
             _circleValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
         }
 
@@ -121,14 +121,14 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
             foreach (var dgr in driveGrantRequests)
             {
                 //fail if the drive is invalid
-                var driveId = _driveService.GetDriveIdByAlias(dgr.PermissionedDrive.Drive, false).GetAwaiter().GetResult();
+                var driveId = _driveManager.GetDriveIdByAlias(dgr.PermissionedDrive.Drive, false).GetAwaiter().GetResult();
 
                 if (driveId == null)
                 {
                     throw new YouverseClientException("Invalid drive specified on DriveGrantRequest", YouverseClientErrorCode.InvalidGrantNonExistingDrive);
                 }
 
-                var drive = _driveService.GetDrive(driveId.GetValueOrDefault()).GetAwaiter().GetResult();
+                var drive = _driveManager.GetDrive(driveId.GetValueOrDefault()).GetAwaiter().GetResult();
 
                 if (drive.OwnerOnly)
                 {

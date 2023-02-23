@@ -13,18 +13,18 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
     [AuthorizeValidOwnerToken]
     public class OwnerDriveManagementController : ControllerBase
     {
-        private readonly IDriveService _driveService;
+        private readonly DriveManager _driveManager;
 
-        public OwnerDriveManagementController(IDriveService driveService)
+        public OwnerDriveManagementController(DriveManager driveManager)
         {
-            _driveService = driveService;
+            _driveManager = driveManager;
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost]
         public async Task<PagedResult<OwnerClientDriveData>> GetDrives([FromBody] GetDrivesRequest request)
         {
-            var drives = await _driveService.GetDrives(new PageOptions(request.PageNumber, request.PageSize));
+            var drives = await _driveManager.GetDrives(new PageOptions(request.PageNumber, request.PageSize));
 
             var clientDriveData = drives.Results.Select(drive =>
                 new OwnerClientDriveData()
@@ -46,23 +46,23 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         public async Task<bool> CreateDrive([FromBody] CreateDriveRequest request)
         {
             //create a drive on the drive service
-            var _ = await _driveService.CreateDrive(request);
+            var _ = await _driveManager.CreateDrive(request);
             return true;
         }
 
         [HttpPost("setdrivemode")]
         public async Task<bool> SetDriveReadMode([FromBody] UpdateDriveDefinitionRequest request)
         {
-            var driveId = await _driveService.GetDriveIdByAlias(request.TargetDrive, true);
-            await _driveService.SetDriveReadMode(driveId.GetValueOrDefault(), request.AllowAnonymousReads);
+            var driveId = await _driveManager.GetDriveIdByAlias(request.TargetDrive, true);
+            await _driveManager.SetDriveReadMode(driveId.GetValueOrDefault(), request.AllowAnonymousReads);
             return true;
         }
         
         [HttpPost("updatemetadata")]
         public async Task<bool> UpdateDriveMetadata([FromBody] UpdateDriveDefinitionRequest request)
         {
-            var driveId = await _driveService.GetDriveIdByAlias(request.TargetDrive, true);
-            await _driveService.UpdateMetadata(driveId.GetValueOrDefault(), request.Metadata);
+            var driveId = await _driveManager.GetDriveIdByAlias(request.TargetDrive, true);
+            await _driveManager.UpdateMetadata(driveId.GetValueOrDefault(), request.Metadata);
             return true;
         }
 
@@ -70,7 +70,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("type")]
         public async Task<PagedResult<OwnerClientDriveData>> GetDrivesByType([FromBody]GetDrivesByTypeRequest request)
         {
-            var drives = await _driveService.GetDrives(request.DriveType, new PageOptions(request.PageNumber, request.PageSize));
+            var drives = await _driveManager.GetDrives(request.DriveType, new PageOptions(request.PageNumber, request.PageSize));
             var clientDriveData = drives.Results.Select(drive =>
                 new OwnerClientDriveData()
                 {

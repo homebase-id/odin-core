@@ -12,14 +12,15 @@ using Youverse.Core;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Query;
-using Youverse.Core.Services.Drive.Storage;
+using Youverse.Core.Services.Drive.Core.Query;
+using Youverse.Core.Services.Drive.Core.Storage;
+using Youverse.Core.Services.Drives.Base.Upload;
 using Youverse.Core.Services.Optimization.Cdn;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Services.Transit.Upload;
 using Youverse.Hosting.Controllers.OwnerToken.Cdn;
 using Youverse.Hosting.Tests.AppAPI;
+using Youverse.Hosting.Tests.AppAPI.Utils;
 using Youverse.Hosting.Tests.OwnerApi.Drive;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
@@ -284,6 +285,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                     FileMetadata = new()
                     {
                         ContentType = "application/json",
+                        AllowDistribution = true,
                         PayloadIsEncrypted = false,
                         AppData = new()
                         {
@@ -299,7 +301,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                     },
                 };
 
-                var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref ownerSharedSecret);
+                var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref ownerSharedSecret);
 
                 var additionalThumbnailContent = additionalThumbs?.Select(thumb =>
                     new StreamPart(new MemoryStream(thumb.Content), thumb.GetFilename(), thumb.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail))
@@ -328,7 +330,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                 // Retrieve the file header that was uploaded; test it matches; 
                 //
                 var getFilesDriveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
-                var fileResponse = await getFilesDriveSvc.GetFileHeader(uploadedFile);
+                var fileResponse = await getFilesDriveSvc.GetFileHeaderAsPost(uploadedFile);
 
                 Assert.That(fileResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(fileResponse.Content, Is.Not.Null);
@@ -362,7 +364,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                 // 
                 if(payloadContent != null)
                 {
-                    var payloadResponse = await getFilesDriveSvc.GetPayload(uploadedFile);
+                    var payloadResponse = await getFilesDriveSvc.GetPayloadPost(uploadedFile);
                     Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                     Assert.That(payloadResponse.Content, Is.Not.Null);
 
@@ -387,7 +389,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                         Assert.IsTrue(thumbnailInDescriptor.PixelWidth == clientFileHeaderList[i].PixelWidth);
                         Assert.IsTrue(thumbnailInDescriptor.PixelHeight == clientFileHeaderList[i].PixelHeight);
 
-                        var thumbnailResponse = await getFilesDriveSvc.GetThumbnail(new GetThumbnailRequest()
+                        var thumbnailResponse = await getFilesDriveSvc.GetThumbnailPost(new GetThumbnailRequest()
                         {
                             File = uploadedFile,
                             Height = thumbnailInDescriptor.PixelHeight,

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Contacts.Circle.Requests;
-using Youverse.Core.Services.Drive.Storage;
 
 namespace Youverse.Hosting.Tests
 {

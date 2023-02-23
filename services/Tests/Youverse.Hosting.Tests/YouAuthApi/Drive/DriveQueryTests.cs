@@ -10,9 +10,8 @@ using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Query;
-using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.Upload;
+using Youverse.Core.Services.Drive.Core.Query;
+using Youverse.Core.Services.Drives.Base.Upload;
 using Youverse.Hosting.Controllers;
 
 namespace Youverse.Hosting.Tests.DriveApi.YouAuth
@@ -267,6 +266,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
             var uploadFileMetadata = new UploadFileMetadata()
             {
                 ContentType = "application/json",
+                AllowDistribution = true,
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
@@ -312,6 +312,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
             var uploadFileMetadata = new UploadFileMetadata()
             {
                 ContentType = "application/json",
+                AllowDistribution = true,
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {

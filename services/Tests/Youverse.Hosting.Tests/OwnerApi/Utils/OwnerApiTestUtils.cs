@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.Security;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -28,22 +29,26 @@ using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Storage;
+using Youverse.Core.Services.Drive.Core.Storage;
+using Youverse.Core.Services.Drives.Base.Upload;
+using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
+using Youverse.Core.Storage;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Controllers.OwnerToken.AppManagement;
-using Youverse.Hosting.Controllers.OwnerToken.Drive;
 using Youverse.Hosting.Tests.AppAPI;
 using Youverse.Hosting.Tests.AppAPI.Transit;
+using Youverse.Hosting.Tests.AppAPI.Utils;
 using Youverse.Hosting.Tests.OwnerApi.Apps;
 using Youverse.Hosting.Tests.OwnerApi.Authentication;
 using Youverse.Hosting.Tests.OwnerApi.Circle;
 using Youverse.Hosting.Tests.OwnerApi.Configuration;
 using Youverse.Hosting.Tests.OwnerApi.Drive;
+using Youverse.Hosting.Tests.OwnerApi.Drive.Management;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Utils
 {
@@ -196,27 +201,20 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             }
         }
 
-        public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity)
+        public HttpClient CreateOwnerApiHttpClient(TestIdentity identity, out SensitiveByteArray sharedSecret, FileSystemType fileSystemType = FileSystemType.Standard)
         {
-            var token = GetOwnerAuthContext(identity).ConfigureAwait(false).GetAwaiter().GetResult();
-            var client = CreateOwnerApiHttpClient(identity, token.AuthenticationResult, token.SharedSecret);
-            return client;
+            return this.CreateOwnerApiHttpClient(identity.DotYouId, out sharedSecret, fileSystemType);
         }
 
-        public HttpClient CreateOwnerApiHttpClient(TestIdentity identity, out SensitiveByteArray sharedSecret)
-        {
-            return this.CreateOwnerApiHttpClient(identity.DotYouId, out sharedSecret);
-        }
-
-        public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity, out SensitiveByteArray sharedSecret)
+        public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity, out SensitiveByteArray sharedSecret, FileSystemType fileSystemType = FileSystemType.Standard)
         {
             var token = GetOwnerAuthContext(identity).ConfigureAwait(false).GetAwaiter().GetResult();
-            var client = CreateOwnerApiHttpClient(identity, token.AuthenticationResult, token.SharedSecret);
+            var client = CreateOwnerApiHttpClient(identity, token.AuthenticationResult, token.SharedSecret, fileSystemType);
             sharedSecret = token.SharedSecret;
             return client;
         }
 
-        public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity, ClientAuthenticationToken token, SensitiveByteArray sharedSecret)
+        public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity, ClientAuthenticationToken token, SensitiveByteArray sharedSecret, FileSystemType fileSystemType)
         {
             var cookieJar = new CookieContainer();
             cookieJar.Add(new Cookie(OwnerAuthConstants.CookieName, token.ToString(), null, identity));
@@ -227,6 +225,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             };
 
             HttpClient client = new(sharedSecretGetRequestHandler);
+            client.DefaultRequestHeaders.Add(DotYouHeaderNames.FileSystemTypeHeader, Enum.GetName(typeof(FileSystemType), fileSystemType));
             client.Timeout = TimeSpan.FromMinutes(15);
 
             client.BaseAddress = new Uri($"https://{identity}");
@@ -340,14 +339,14 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 Assert.That(reply.Token, Is.Not.EqualTo(Guid.Empty));
                 Assert.That(decryptedData, Is.Not.Null);
                 Assert.That(decryptedData.Length, Is.EqualTo(49));
-                
+
                 var cat = ClientAccessToken.FromPortableBytes(decryptedData);
                 Assert.IsFalse(cat.Id == Guid.Empty);
                 Assert.IsNotNull(cat.AccessTokenHalfKey);
                 Assert.That(cat.AccessTokenHalfKey.GetKey().Length, Is.EqualTo(16));
                 Assert.IsTrue(cat.AccessTokenHalfKey.IsSet());
                 Assert.IsTrue(cat.IsValid());
-                
+
                 return (cat.ToAuthenticationToken(), cat.SharedSecret.GetKey());
             }
         }
@@ -714,7 +713,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                     FileMetadata = fileMetadata
                 };
 
-                var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
+                var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
                 var payloadCipherBytes = keyHeader.EncryptDataAes(payloadData.ToUtf8ByteArray());
                 var payloadCipher = encryptPayload ? new MemoryStream(payloadCipherBytes) : new MemoryStream(payloadData.ToUtf8ByteArray());
                 var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
@@ -803,7 +802,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                     FileMetadata = fileMetadata
                 };
 
-                var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
+                var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref sharedSecret);
 
 
                 payloadData = options?.PayloadData ?? payloadData;

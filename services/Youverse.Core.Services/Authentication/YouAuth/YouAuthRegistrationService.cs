@@ -199,7 +199,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             var permissionCtx = new PermissionContext(
                 new Dictionary<string, PermissionGroup>
                 {
-                    { "anonymous_drives", _exchangeGrantService.CreateAnonymousDrivePermissionGroup().GetAwaiter().GetResult() },
+                    { "read_anonymous_drives", _exchangeGrantService.CreateAnonymousDrivePermissionGroup().GetAwaiter().GetResult() },
                     { "read_connections", new PermissionGroup(new PermissionSet(permissionKeys), null, null) }
                 },
                 sharedSecretKey: ss);

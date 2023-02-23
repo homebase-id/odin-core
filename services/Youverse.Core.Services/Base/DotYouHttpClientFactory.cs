@@ -68,6 +68,10 @@ namespace Youverse.Core.Services.Base
                 }.Uri
             };
 
+#if DEBUG
+            client.Timeout = TimeSpan.FromHours(1);
+#endif
+            
             // client.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, appId);
             if (null != clientAuthenticationToken)
             {

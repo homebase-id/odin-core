@@ -36,6 +36,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
         private SQLiteParameter _param11 = null;
         private SQLiteParameter _param12 = null;
         private SQLiteParameter _param13 = null;
+        private SQLiteParameter _param14 = null;
         private Object _insertLock = new Object();
 
         private SQLiteCommand _deleteCommand = null;
@@ -52,6 +53,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
         private SQLiteParameter _uparam7 = null;
         private SQLiteParameter _uparam8 = null;
         private SQLiteParameter _uparam9 = null;
+        private SQLiteParameter _uparam10 = null;
         private Object _updateLock = new Object();
 
         private SQLiteCommand _touchCommand = null;
@@ -116,7 +118,8 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                      senderid BLOB,
                      groupId BLOB,
                      uniqueid BLOB,
-                     requiredSecurityGroup INTEGER NOT NULL); "
+                     requiredSecurityGroup INTEGER NOT NULL,
+                     fileSystemType INTEGER NOT NULL); "
                     + "CREATE INDEX if not exists idxupdatedtimestamp ON mainindex(updatedtimestamp); "
                     + "CREATE INDEX if not exists idxglobaltransitid ON mainindex(globaltransitid);";
 
@@ -237,7 +240,8 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                                 UInt64 userZeroSeconds,
                                 bool isArchived,
                                 bool isHistory,
-                                Int32 requiredSecurityGroup)
+                                Int32 requiredSecurityGroup,
+                                Int32 fileSystemType = 0)
         {
             lock (_insertLock)
             {
@@ -259,11 +263,13 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                             groupid,
                             uniqueid,
                             userdate,
-                            requiredSecurityGroup)
+                            requiredSecurityGroup,
+                            fileSystemType)
                     VALUES ($fileid, $globaltransitid, $createdtimestamp, $updatedtimestamp,
                         $isarchived, $ishistory,
                         $filetype, $datatype,
-                        $senderid, $groupid, $uniqueid, $userdate, $requiredSecurityGroup)";
+                        $senderid, $groupid, $uniqueid, $userdate, $requiredSecurityGroup,
+                        $fileSystemType)";
 
                     _param1 = _insertCommand.CreateParameter();
                     _param1.ParameterName = "$fileid";
@@ -292,6 +298,9 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     _param13 = _insertCommand.CreateParameter();
                     _param13.ParameterName = "$requiredSecurityGroup";
 
+                    _param14 = _insertCommand.CreateParameter();
+                    _param14.ParameterName = "$fileSystemType";
+                    
                     _insertCommand.Parameters.Add(_param1);
                     _insertCommand.Parameters.Add(_param2);
                     _insertCommand.Parameters.Add(_param3);
@@ -305,6 +314,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     _insertCommand.Parameters.Add(_param11);
                     _insertCommand.Parameters.Add(_param12);
                     _insertCommand.Parameters.Add(_param13);
+                    _insertCommand.Parameters.Add(_param14);
                 }
 
                 _param1.Value = fileId;
@@ -320,6 +330,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 _param11.Value = UniqueId;
                 _param12.Value = userZeroSeconds;
                 _param13.Value = requiredSecurityGroup;
+                _param14.Value = fileSystemType;
 
                 _database.BeginTransaction();
                 _insertCommand.ExecuteNonQuery();
@@ -408,6 +419,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     _uparam7 = _updateCommand.CreateParameter();
                     _uparam8 = _updateCommand.CreateParameter();
                     _uparam9 = _updateCommand.CreateParameter();
+                    _uparam10 = _updateCommand.CreateParameter();
 
                     _uparam1.ParameterName = "$updatedtimestamp";
                     _updateCommand.Parameters.Add(_uparam1);
@@ -435,6 +447,9 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
                     _uparam9.ParameterName = "$globaltransitid";
                     _updateCommand.Parameters.Add(_uparam9);
+
+                    // _uparam10.ParameterName = "$fileSystemType";
+                    // _updateCommand.Parameters.Add(_uparam10);
                 }
 
                 string stm;
@@ -466,6 +481,9 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 if (requiredSecurityGroup != null)
                     stm += ", requiredSecurityGroup = $requiredSecurityGroup ";
 
+                // if (fileSystemType != null)
+                //     stm += ", fileSystemType = $fileSystemType";
+
                 _updateCommand.CommandText =
                     $"UPDATE mainindex SET " + stm + $" WHERE fileid = x'{Convert.ToHexString(fileId.ToByteArray())}'";
 
@@ -478,7 +496,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 _uparam7.Value = userDate;
                 _uparam8.Value = requiredSecurityGroup;
                 _uparam9.Value = globalTransitId;
-
+                // _uparam10.Value = fileSystemType;
                 _database.BeginTransaction();
                 _updateCommand.ExecuteNonQuery();
             }

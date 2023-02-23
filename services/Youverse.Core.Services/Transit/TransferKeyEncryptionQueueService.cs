@@ -4,7 +4,7 @@ using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Transit
 {
-    public class TransferKeyEncryptionQueueService : ITransferKeyEncryptionQueueService
+    public class TransferKeyEncryptionQueueService
     {
         private readonly GuidId _queueKey = GuidId.FromString("tkequeue__");
         private readonly ITenantSystemStorage _tenantSystemStorage;

@@ -50,6 +50,14 @@ namespace Youverse.Core.Services.Base
             return false;
         }
 
+        public void AssertHasDrivePermission(Guid driveId, DrivePermission permission)
+        {
+            if (!this.HasDrivePermission(driveId, permission))
+            {
+                throw new YouverseSecurityException($"Unauthorized access to {permission} to drive [{driveId}]");
+            }
+        }
+        
         public bool HasPermission(int permissionKey)
         {
             if (_isSystem)
@@ -78,6 +86,7 @@ namespace Youverse.Core.Services.Base
             }
         }
 
+        
         /// <summary>
         /// Determines if the current request can write to the specified drive
         /// </summary>
@@ -107,6 +116,11 @@ namespace Youverse.Core.Services.Base
         /// <returns></returns>
         public Guid GetDriveId(TargetDrive drive)
         {
+            if (null == drive)
+            {
+                throw new YouverseClientException("target drive not specified", YouverseClientErrorCode.InvalidTargetDrive);
+            }
+            
             foreach (var key in _permissionGroups.Keys)
             {
                 var group = _permissionGroups[key];

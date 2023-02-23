@@ -12,8 +12,10 @@ using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Query;
-using Youverse.Core.Services.Drive.Storage;
+using Youverse.Core.Services.Drive.Core.Query;
+using Youverse.Core.Services.Drive.Core.Storage;
+using Youverse.Core.Services.Drives.FileSystem;
+using Youverse.Core.Services.Drives.FileSystem.Standard;
 using Youverse.Core.Storage;
 using Youverse.Core.Util;
 
@@ -36,20 +38,19 @@ public enum CrossOriginBehavior
 
 public class StaticFileContentService
 {
-    private readonly IDriveService _driveService;
-    private readonly IDriveQueryService _driveQueryService;
+    private readonly DriveManager _driveManager;
+    private readonly StandardFileSystem _fileSystem;
     private readonly TenantContext _tenantContext;
     private readonly DotYouContextAccessor _contextAccessor;
     private readonly ITenantSystemStorage _tenantSystemStorage;
 
-    public StaticFileContentService(IDriveService driveService, IDriveQueryService driveQueryService,
-        TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITenantSystemStorage tenantSystemStorage)
+    public StaticFileContentService(TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITenantSystemStorage tenantSystemStorage, DriveManager driveManager, StandardFileSystem fileSystem)
     {
-        _driveService = driveService;
-        _driveQueryService = driveQueryService;
         _tenantContext = tenantContext;
         _contextAccessor = contextAccessor;
         _tenantSystemStorage = tenantSystemStorage;
+        _driveManager = driveManager;
+        _fileSystem = fileSystem;
     }
 
     public async Task<StaticFilePublishResult> Publish(string filename, StaticFileConfiguration config,
@@ -84,7 +85,7 @@ public class StaticFileContentService
         foreach (var section in sections)
         {
             var qp = section.QueryParams;
-            var driveId = (await _driveService.GetDriveIdByAlias(qp.TargetDrive, true)).GetValueOrDefault();
+            var driveId = (await _driveManager.GetDriveIdByAlias(qp.TargetDrive, true)).GetValueOrDefault();
 
             var options = new QueryBatchResultOptions()
             {
@@ -94,7 +95,7 @@ public class StaticFileContentService
                 MaxRecords = int.MaxValue //TODO: Consider
             };
 
-            var results = await _driveQueryService.GetBatch(driveId, qp, options);
+            var results = await _fileSystem.Query.GetBatch(driveId, qp, options);
             var filteredHeaders = Filter(results.SearchResults);
 
             var sectionOutput = new SectionOutput()
@@ -119,7 +120,7 @@ public class StaticFileContentService
                     foreach (var thumbHeader in fileHeader.FileMetadata.AppData?.AdditionalThumbnails ??
                                                 new List<ImageDataHeader>())
                     {
-                        var thumbnailStream = await _driveService.GetThumbnailPayloadStream(
+                        var thumbnailStream = await _fileSystem.Storage.GetThumbnailPayloadStream(
                             internalFileId, thumbHeader.PixelWidth, thumbHeader.PixelHeight);
 
                         thumbnails.Add(new ImageDataContent()
@@ -134,7 +135,7 @@ public class StaticFileContentService
 
                 if (section.ResultOptions.IncludePayload)
                 {
-                    var payloadStream = await _driveService.GetPayloadStream(internalFileId);
+                    var payloadStream = await _fileSystem.Storage.GetPayloadStream(internalFileId);
                     payload = payloadStream.ToByteArray();
                 }
 
@@ -241,7 +242,7 @@ public class StaticFileContentService
         return targetFolder;
     }
 
-    private IEnumerable<ClientFileHeader> Filter(IEnumerable<ClientFileHeader> headers)
+    private IEnumerable<SharedSecretEncryptedFileHeader> Filter(IEnumerable<SharedSecretEncryptedFileHeader> headers)
     {
         return headers.Where(r =>
             r.FileState == FileState.Active &&

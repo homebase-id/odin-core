@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Net.Mime;
 using System.Reflection;
 using Autofac;
@@ -15,6 +16,7 @@ using Microsoft.Extensions.Hosting;
 using Quartz;
 using Microsoft.Extensions.Logging;
 using Serilog;
+using Swashbuckle.AspNetCore.SwaggerGen;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Certificate.Renewal;
 using Youverse.Core.Services.Configuration;
@@ -112,6 +114,9 @@ namespace Youverse.Hosting
             services.AddEndpointsApiExplorer();
             services.AddSwaggerGen(c =>
             {
+                c.IgnoreObsoleteActions();
+                c.IgnoreObsoleteProperties();
+                c.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
                 c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, $"{Assembly.GetExecutingAssembly().GetName().Name}.xml"));
                 c.EnableAnnotations();
                 c.SwaggerDoc("v1", new()

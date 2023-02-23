@@ -27,6 +27,11 @@ namespace Youverse.Core.Services.Transit
         /// <summary>
         /// Recipient server rejected the transfer, client should retry 
         /// </summary>
-        TotalRejectionClientShouldRetry = 9
+        TotalRejectionClientShouldRetry = 9,
+        
+        /// <summary>
+        /// Indicates the file is not allowed to be sent (i.e. AllowDistribution is false)
+        /// </summary>
+        FileDoesNotAllowDistribution = 11
     }
 }

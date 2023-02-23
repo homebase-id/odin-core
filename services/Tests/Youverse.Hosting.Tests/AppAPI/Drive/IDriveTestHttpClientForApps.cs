@@ -1,14 +1,13 @@
 ﻿using System;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
 using Refit;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers;
+using Youverse.Hosting.Controllers.Base;
 using Youverse.Hosting.Controllers.ClientToken;
-using Youverse.Hosting.Controllers.ClientToken.Drive;
 using Youverse.Hosting.Controllers.OwnerToken.Drive;
 
 namespace Youverse.Hosting.Tests.AppAPI.Drive
@@ -19,13 +18,14 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
     public interface IDriveTestHttpClientForApps
     {
         private const string RootEndpoint = AppApiPathConstants.DrivesV1;
+        private const string ReactionRootEndpoint = AppApiPathConstants.DriveReactionsV1;
 
         [Multipart]
         [Post(RootEndpoint + "/files/upload")]
         Task<ApiResponse<UploadResult>> Upload(StreamPart instructionSet, StreamPart metaData, StreamPart payload, params StreamPart[] thumbnail);
 
         [Post(RootEndpoint + "/files/header")]
-        Task<ApiResponse<ClientFileHeader>> GetFileHeaderAsPost(ExternalFileIdentifier file);
+        Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderAsPost(ExternalFileIdentifier file);
 
         [Post(RootEndpoint + "/files/payload")]
         Task<ApiResponse<HttpContent>> GetPayloadAsPost(ExternalFileIdentifier file);
@@ -40,7 +40,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         Task<ApiResponse<HttpContent>> GetPayload(Guid fileId, Guid alias, Guid type);
 
         [Get(RootEndpoint + "/files/header")]
-        Task<ApiResponse<ClientFileHeader>> GetFileHeader(Guid fileId, Guid alias, Guid type);
+        Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader(Guid fileId, Guid alias, Guid type);
 
         [Post(RootEndpoint + "/query/modified")]
         Task<ApiResponse<QueryModifiedResult>> QueryModified(QueryModifiedRequest request);
@@ -53,5 +53,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
         [Post(RootEndpoint + "/files/delete")]
         Task<ApiResponse<DeleteLinkedFileResult>> DeleteFile([Body] DeleteFileRequest file);
+        
+        
     }
 }

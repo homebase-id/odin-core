@@ -22,9 +22,10 @@ public enum YouverseClientErrorCode
 
     // Drive mgmt errors 40xx
     CannotAllowAnonymousReadsOnOwnerOnlyDrive = 4001,
-    CannotUpdateDeletedFile = 4002,
+    CannotUpdateNonActiveFile = 4002,
     DriveAliasAndTypeAlreadyExists = 4003,
     InvalidGrantNonExistingDrive = 4004,
+    CannotAllowSubscriptionsOnOwnerOnlyDrive = 4004,
 
     // Drive errors 41xx
     CannotOverwriteNonExistentFile = 4101,
@@ -45,8 +46,13 @@ public enum YouverseClientErrorCode
     MissingUploadData = 4116,
     TransferTypeNotSpecified = 4117,
     UnknownId = 4118,
-    InvalidPayload  = 4119,
-    
+    InvalidPayload = 4119,
+    CannotUseReservedFileType = 4120,
+    InvalidReferenceFile = 4122,
+    CannotUseReferencedFileOnNonReactionFile = 4123,
+    CannotUseGroupIdInTextReactions = 4124,
+    InvalidFileSystemType = 4125,
+
     // Connection errors 50xx
     CannotSendConnectionRequestToExistingIncomingRequest = 5001,
     CannotSendMultipleConnectionRequestToTheSameIdentity = 5002,
@@ -67,6 +73,5 @@ public enum YouverseClientErrorCode
     // System Errors 90xx
     InvalidFlagName = 9001,
     NotInitialized = 9002,
-    UnknownFlagName = 9003
-    
+    UnknownFlagName = 9003,
 }

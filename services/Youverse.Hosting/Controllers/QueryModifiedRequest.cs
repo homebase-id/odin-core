@@ -1,4 +1,4 @@
-using Youverse.Core.Services.Drive.Query;
+using Youverse.Core.Services.Drive.Core.Query;
 
 namespace Youverse.Hosting.Controllers;
 

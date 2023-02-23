@@ -10,6 +10,11 @@ namespace Youverse.Core.Services.Transit
         public DotYouIdentity Recipient { get; set; }
         public bool Success { get; set; }
 
+        /// <summary>
+        /// Specifies if the file should be put back in the queue
+        /// </summary>
+        public bool ShouldRetry { get; set; }
+        
         public TransferFailureReason? FailureReason { get; set; }
 
         public InternalDriveFileId File { get; set; }

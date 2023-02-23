@@ -1,0 +1,102 @@
+using System;
+using System.Linq;
+using System.Reflection;
+using System.Threading.Tasks;
+using NUnit.Framework;
+using Youverse.Core.Serialization;
+using Youverse.Core.Services.Authorization.Acl;
+using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drive.Core.Query;
+using Youverse.Core.Services.Drives.Base.Upload;
+using Youverse.Core.Services.Drives.FileSystem;
+using Youverse.Core.Services.Transit;
+using Youverse.Core.Storage;
+using Youverse.Hosting.Tests.OwnerApi.ApiClient;
+
+namespace Youverse.Hosting.Tests.OwnerApi.Drive.Statistics;
+
+public class ReactionPreviewTests
+{
+    private WebScaffold _scaffold;
+
+    [OneTimeSetUp]
+    public void OneTimeSetUp()
+    {
+        string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
+        _scaffold = new WebScaffold(folder);
+        _scaffold.RunBeforeAnyTests();
+    }
+
+    [OneTimeTearDown]
+    public void OneTimeTearDown()
+    {
+        _scaffold.RunAfterAnyTests();
+    }
+
+    [Test]
+    public async Task AddingCommentUpdatesReactionPreview()
+    {
+        var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
+
+        //create a channel drive
+        var frodoChannelDrive = new TargetDrive()
+        {
+            Alias = Guid.NewGuid(),
+            Type = SystemDriveConstants.ChannelDriveType
+        };
+
+        await frodoOwnerClient.Drive.CreateDrive(frodoChannelDrive, "A Channel Drive", "", false, false);
+
+        // Frodo uploads content to channel drive
+        var uploadedContent = "I'm Mr. Underhill";
+        var uploadedContentResult = await UploadStandardFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent);
+
+        //
+        // Frodo posts a comment to his post
+        //
+        var commentFile = new UploadFileMetadata()
+        {
+            AllowDistribution = true,
+            ContentType = "application/json",
+            PayloadIsEncrypted = false,
+            ReferencedFile = uploadedContentResult.File,
+            AppData = new()
+            {
+                ContentIsComplete = true,
+                JsonContent = DotYouSystemSerializer.Serialize(new { message = "a reply comment" }),
+                FileType = 909,
+                DataType = 202,
+                UserDate = 0,
+                Tags = default
+            }
+        };
+
+        var commentFileUploadResult = await frodoOwnerClient.Drive.UploadFile(FileSystemType.Comment, frodoChannelDrive, commentFile, "");
+
+        // get the target blog file
+        var blogPostHeader = await frodoOwnerClient.Drive.GetFileHeader(FileSystemType.Standard, uploadedContentResult.File);
+
+        string x = "";
+    }
+
+    private async Task<UploadResult> UploadStandardFileToChannel(OwnerApiClient client, TargetDrive targetDrive, string uploadedContent)
+    {
+        var fileMetadata = new UploadFileMetadata()
+        {
+            AllowDistribution = true,
+            ContentType = "application/json",
+            PayloadIsEncrypted = false,
+            AppData = new()
+            {
+                ContentIsComplete = true,
+                JsonContent = uploadedContent,
+                FileType = 200,
+                GroupId = default,
+                Tags = default
+            },
+            AccessControlList = AccessControlList.OwnerOnly
+        };
+
+        return await client.Drive.UploadFile(FileSystemType.Standard, targetDrive, fileMetadata, "");
+    }
+}

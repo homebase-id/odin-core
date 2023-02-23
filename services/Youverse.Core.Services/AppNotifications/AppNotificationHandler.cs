@@ -13,20 +13,18 @@ using Youverse.Core.Services.Transit;
 
 namespace Youverse.Core.Services.AppNotifications
 {
-    public class AppNotificationHandler : INotificationHandler<IClientNotification>, INotificationHandler<IDriveClientNotification>, INotificationHandler<TransitFileReceivedNotification>
+    public class AppNotificationHandler : INotificationHandler<IClientNotification>, INotificationHandler<IDriveNotification>, INotificationHandler<TransitFileReceivedNotification>
     {
         private readonly DeviceSocketCollection _deviceSocketCollection;
         private readonly DotYouContextAccessor _contextAccessor;
-        private readonly IAppService _appService;
-        private readonly IDriveService _driveService;
-        private readonly ITransitAppService _transitAppService;
+        private readonly ITransitReceiverService _transitReceiverService;
+        private readonly DriveManager _driveManager;
 
-        public AppNotificationHandler(DotYouContextAccessor contextAccessor, IAppService appService, IDriveService driveService, ITransitAppService transitAppService)
+        public AppNotificationHandler(DotYouContextAccessor contextAccessor, ITransitReceiverService transitReceiverService, DriveManager driveManager)
         {
             _contextAccessor = contextAccessor;
-            _appService = appService;
-            _driveService = driveService;
-            _transitAppService = transitAppService;
+            _transitReceiverService = transitReceiverService;
+            _driveManager = driveManager;
             _deviceSocketCollection = new DeviceSocketCollection();
         }
 
@@ -85,12 +83,12 @@ namespace Youverse.Core.Services.AppNotifications
             await this.SerializeSendToAllDevices(notification);
         }
 
-        public Task Handle(IDriveClientNotification notification, CancellationToken cancellationToken)
+        public Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
             var data = DotYouSystemSerializer.Serialize(new
             {
-                TargetDrive = _driveService.GetDrive(notification.File.DriveId).GetAwaiter().GetResult().TargetDriveInfo,
-                Header = _appService.GetClientEncryptedFileHeader(notification.File).GetAwaiter().GetResult()
+                TargetDrive = _driveManager.GetDrive(notification.File.DriveId).GetAwaiter().GetResult().TargetDriveInfo,
+                Header = notification.SharedSecretEncryptedFileHeader
             });
 
             SerializeSendToAllDevices(new TranslatedClientNotification(notification.NotificationType, data)).GetAwaiter().GetResult();
@@ -154,7 +152,7 @@ namespace Youverse.Core.Services.AppNotifications
             {
                 case SocketCommandType.ProcessTransitInstructions:
                     var d = DotYouSystemSerializer.Deserialize<ExternalFileIdentifier>(command.Data);
-                    await _transitAppService.ProcessIncomingTransitInstructions(d.TargetDrive);
+                    await _transitReceiverService.ProcessIncomingTransitInstructions(d.TargetDrive);
                     break;
 
                 default:

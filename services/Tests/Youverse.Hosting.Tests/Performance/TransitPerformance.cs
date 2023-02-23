@@ -14,15 +14,18 @@ using Youverse.Core.Serialization;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Query;
-using Youverse.Core.Services.Drive.Storage;
+using Youverse.Core.Services.Drive.Core.Query;
+using Youverse.Core.Services.Drive.Core.Storage;
+using Youverse.Core.Services.Drives.Base.Upload;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
+using Youverse.Hosting.Controllers.Base.Upload;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Tests.AppAPI;
 using Youverse.Hosting.Tests.AppAPI.Drive;
 using Youverse.Hosting.Tests.AppAPI.Transit;
+using Youverse.Hosting.Tests.AppAPI.Utils;
 using Youverse.Hosting.Tests.OwnerApi.Drive;
 
 
@@ -202,7 +205,7 @@ namespace Youverse.Hosting.Tests.Performance
 
 
 
-        private async Task<List<ClientFileHeader>> GetMessages(TestAppContext recipientAppContext)
+        private async Task<List<SharedSecretEncryptedFileHeader>> GetMessages(TestAppContext recipientAppContext)
         {
             using (var client = _scaffold.AppApi.CreateAppApiHttpClient(recipientAppContext))
             {
@@ -286,6 +289,7 @@ namespace Youverse.Hosting.Tests.Performance
                     FileMetadata = new()
                     {
                         ContentType = "application/json",
+                        AllowDistribution = true,
                         PayloadIsEncrypted = true,
                         AppData = new()
                         {
@@ -307,7 +311,7 @@ namespace Youverse.Hosting.Tests.Performance
                     },
                 };
 
-                var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref ss);
+                var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref ss);
 
                 var payloadCipher = keyHeader.EncryptDataAesAsStream(payload);
 
@@ -528,6 +532,7 @@ namespace Youverse.Hosting.Tests.Performance
                     FileMetadata = new()
                     {
                         ContentType = "application/json",
+                        AllowDistribution = true,
                         PayloadIsEncrypted = true,
                         AppData = new()
                         {
@@ -549,7 +554,7 @@ namespace Youverse.Hosting.Tests.Performance
                     },
                 };
 
-                var fileDescriptorCipher = Utilsx.JsonEncryptAes(descriptor, transferIv, ref ownerSharedSecret);
+                var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref ownerSharedSecret);
 
                 var payloadCipher = keyHeader.EncryptDataAesAsStream(payload);
 
@@ -586,7 +591,7 @@ namespace Youverse.Hosting.Tests.Performance
                 // Retrieve the file header that was uploaded; test it matches; 
                 //
                 var getFilesDriveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
-                var fileResponse = await getFilesDriveSvc.GetFileHeader(uploadedFile);
+                var fileResponse = await getFilesDriveSvc.GetFileHeaderAsPost(uploadedFile);
 
                 Assert.That(fileResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(fileResponse.Content, Is.Not.Null);
@@ -625,7 +630,7 @@ namespace Youverse.Hosting.Tests.Performance
                 // Get the payload that was uploaded, test it
                 // 
 
-                var payloadResponse = await getFilesDriveSvc.GetPayload(uploadedFile);
+                var payloadResponse = await getFilesDriveSvc.GetPayloadPost(uploadedFile);
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 
@@ -653,7 +658,7 @@ namespace Youverse.Hosting.Tests.Performance
                 Assert.IsTrue(descriptorList[0].PixelWidth == clientFileHeaderList[0].PixelWidth);
                 Assert.IsTrue(descriptorList[0].PixelHeight == clientFileHeaderList[0].PixelHeight);
 
-                var thumbnailResponse1 = await getFilesDriveSvc.GetThumbnail(new GetThumbnailRequest()
+                var thumbnailResponse1 = await getFilesDriveSvc.GetThumbnailPost(new GetThumbnailRequest()
                 {
                     File = uploadedFile,
                     Height = thumbnail1.PixelHeight,
@@ -670,7 +675,7 @@ namespace Youverse.Hosting.Tests.Performance
                 Assert.IsTrue(descriptorList[1].PixelWidth == clientFileHeaderList[1].PixelWidth);
                 Assert.IsTrue(descriptorList[1].PixelHeight == clientFileHeaderList[1].PixelHeight);
 
-                var thumbnailResponse2 = await getFilesDriveSvc.GetThumbnail(new GetThumbnailRequest()
+                var thumbnailResponse2 = await getFilesDriveSvc.GetThumbnailPost(new GetThumbnailRequest()
                 {
                     File = uploadedFile,
                     Height = thumbnail2.PixelHeight,

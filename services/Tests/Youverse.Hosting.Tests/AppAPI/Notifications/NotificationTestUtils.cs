@@ -2,6 +2,7 @@
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives.Base.Upload;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Upload;
 
@@ -18,6 +19,7 @@ public static class NotificationTestUtils
         var fileMetadata = new UploadFileMetadata()
         {
             ContentType = "application/json",
+            AllowDistribution = true,
             PayloadIsEncrypted = true,
             AppData = new()
             {

@@ -13,6 +13,8 @@
         public const string CirclesV1 = BasePathV1 + "/circles";
 
         public const string DrivesV1 = BasePathV1 + "/drive";
+
+        public const string DriveReactionsV1 = DrivesV1 + "/files/reactions";
         
         public const string CommandSenderV1 = BasePathV1 + "/commands";
     }

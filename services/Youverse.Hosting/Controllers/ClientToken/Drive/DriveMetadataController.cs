@@ -19,11 +19,11 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
     [AuthorizeValidExchangeGrant]
     public class DriveMetadataController : ControllerBase
     {
-        private readonly IDriveService _driveService;
+        private readonly DriveManager _driveManager;
 
-        public DriveMetadataController(IDriveService driveService)
+        public DriveMetadataController(DriveManager driveManager)
         {
-            _driveService = driveService;
+            _driveManager = driveManager;
         }
 
         /// <summary>
@@ -35,7 +35,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         [HttpGet("metadata/type")]
         public async Task<PagedResult<ClientDriveData>> GetDrivesByType([FromQuery] GetDrivesByTypeRequest request)
         {
-            var drives = await _driveService.GetDrives(request.DriveType, new PageOptions(request.PageNumber, request.PageSize));
+            var drives = await _driveManager.GetDrives(request.DriveType, new PageOptions(request.PageNumber, request.PageSize));
 
             var clientDriveData = drives.Results.Select(drive =>
                 new ClientDriveData()
