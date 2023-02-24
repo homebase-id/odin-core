@@ -143,7 +143,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
         ~TableConnectionsCRUD()
         {
-            if (_disposed == false) throw new Exception("Not disposed properly");
+            if (_disposed == false) throw new Exception("TableConnectionsCRUD Not disposed properly");
         }
 
         public override void Dispose()

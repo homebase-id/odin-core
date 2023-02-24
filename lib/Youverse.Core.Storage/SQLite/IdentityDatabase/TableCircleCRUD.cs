@@ -82,7 +82,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
         ~TableCircleCRUD()
         {
-            if (_disposed == false) throw new Exception("Not disposed properly");
+            if (_disposed == false) throw new Exception("TableCircleCRUD Not disposed properly");
         }
 
         public override void Dispose()

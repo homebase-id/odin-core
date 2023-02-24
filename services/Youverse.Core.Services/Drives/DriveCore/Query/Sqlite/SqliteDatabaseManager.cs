@@ -237,7 +237,6 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
     {
         return _db.TblReactions.GetPostReactions(fileId);
     }
-    
 }
 
 public class UnprocessedCommandMessage

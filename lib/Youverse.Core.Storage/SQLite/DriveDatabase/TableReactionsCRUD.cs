@@ -110,7 +110,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
         ~TableReactionsCRUD()
         {
-            if (_disposed == false) throw new Exception("Not disposed properly");
+            if (_disposed == false) throw new Exception("TableReactionsCRUD Not disposed properly");
         }
 
         public override void Dispose()

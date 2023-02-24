@@ -7,8 +7,6 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 {
     public class TableReactions : TableReactionsCRUD
     {
-        const int ID_EQUAL = 16; // Precisely 16 bytes for the ID key
-
         private SQLiteCommand _deleteCommand = null;
         private SQLiteParameter _delparam1 = null;
         private SQLiteParameter _delparam2 = null;
@@ -46,6 +44,9 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
             _selectCommand?.Dispose();
             _selectCommand = null;
+
+            _getPaging0Command?.Dispose();
+            _getPaging0Command = null;
 
             base.Dispose();
         }
