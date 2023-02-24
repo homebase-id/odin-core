@@ -40,10 +40,12 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteCommand _select2Command = null;
         private SQLiteParameter _s2param1 = null;
         private SQLiteParameter _s2param2 = null;
+        private SQLiteParameter _s2param3 = null;
         private static object _select2Lock = new object();
 
         private SQLiteCommand _select3Command = null;
         private SQLiteParameter _s3param1 = null;
+        private SQLiteParameter _s3param2 = null;
         private static object _select3Lock = new object();
 
         public TableImFollowing(IdentityDatabase db) : base(db)
@@ -166,8 +168,6 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             if (inCursor == null)
                 inCursor = "";
 
-            nextCursor = null;
-
             lock (_select3Lock)
             {
                 // Make sure we only prep once 
@@ -175,16 +175,21 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 {
                     _select3Command = _database.CreateCommand();
                     _select3Command.CommandText =
-                        $"SELECT DISTINCT identity FROM imfollowing WHERE identity > $cursor ORDER BY identity ASC LIMIT {count+1}";
-                    // +1 because we want to see if there are more records to set the nextCursor correctly
+                        $"SELECT DISTINCT identity FROM imfollowing WHERE identity > $cursor ORDER BY identity ASC LIMIT $count;";
+
                     _s3param1 = _select3Command.CreateParameter();
                     _s3param1.ParameterName = "$cursor";
                     _select3Command.Parameters.Add(_s3param1);
+
+                    _s3param2 = _select3Command.CreateParameter();
+                    _s3param2.ParameterName = "$count";
+                    _select3Command.Parameters.Add(_s3param2);
 
                     _select3Command.Prepare();
                 }
 
                 _s3param1.Value = inCursor;
+                _s3param2.Value = count + 1; // +1 because we want to see if there are more records to set the nextCursor correctly
 
                 using (SQLiteDataReader rdr = _select3Command.ExecuteReader(System.Data.CommandBehavior.Default))
                 {
@@ -205,7 +210,10 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     {
                         nextCursor = result[n - 1];
                     }
-
+                    else
+                    {
+                        nextCursor = null; 
+                    }
                     return result;
                 }
             }
@@ -230,8 +238,6 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             if (inCursor == null)
                 inCursor = "";
 
-            nextCursor = null;
-
             lock (_select2Lock)
             {
                 // Make sure we only prep once 
@@ -239,8 +245,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 {
                     _select2Command = _database.CreateCommand();
                     _select2Command.CommandText =
-                        $"SELECT DISTINCT identity FROM imfollowing WHERE (driveid=$driveid OR driveid=x'{Convert.ToHexString(Guid.Empty.ToByteArray())}') AND identity > $cursor ORDER BY identity ASC LIMIT {count+1}";
-                    // +1 to check for EOD on nextCursor
+                        $"SELECT DISTINCT identity FROM imfollowing WHERE (driveid=$driveid OR driveid=x'{Convert.ToHexString(Guid.Empty.ToByteArray())}') AND identity > $cursor ORDER BY identity ASC LIMIT $count;";
+
                     _s2param1 = _select2Command.CreateParameter();
                     _s2param1.ParameterName = "$driveid";
                     _select2Command.Parameters.Add(_s2param1);
@@ -249,11 +255,16 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _s2param2.ParameterName = "$cursor";
                     _select2Command.Parameters.Add(_s2param2);
 
+                    _s2param3 = _select2Command.CreateParameter();
+                    _s2param3.ParameterName = "$count";
+                    _select2Command.Parameters.Add(_s2param3);
+
                     _select2Command.Prepare();
                 }
 
                 _s2param1.Value = driveId;
                 _s2param2.Value = inCursor;
+                _s2param3.Value = count + 1;                    // +1 to check for EOD on nextCursor
 
                 using (SQLiteDataReader rdr = _select2Command.ExecuteReader(System.Data.CommandBehavior.Default))
                 {
@@ -273,6 +284,10 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     if ((n > 0) && rdr.HasRows)
                     {
                         nextCursor = result[n - 1];
+                    }
+                    else
+                    {
+                        nextCursor = null;
                     }
 
                     return result;

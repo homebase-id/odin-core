@@ -19,12 +19,15 @@ namespace DriveDatabaseTests
 
             var p1 = Guid.NewGuid();
 
-            db.TblReactions.InsertReaction("frodo.baggins.me", p1, ":lol:");
-            db.TblReactions.InsertReaction("frodo.baggins.me", p1, ":wink:");
-            db.TblReactions.InsertReaction("bilbo.baggins.me", p1, ":lol:");
-            db.TblReactions.InsertReaction("bilbo.baggins.me", p1, ":wink:");
-            db.TblReactions.InsertReaction("sam.gamgee.me", p1, ":lol:");
-            db.TblReactions.InsertReaction("sam.gamgee.me", p1, ":smiley:");
+            db.TblReactions.Insert(new ReactionsItem { identity = "frodo.baggins.me", postid = p1, singlereaction = ":lol:" });
+            db.TblReactions.Insert(new ReactionsItem { identity = "frodo.baggins.me", postid = p1, singlereaction = ":wink:" });
+            db.TblReactions.Insert(new ReactionsItem { identity = "bilbo.baggins.me", postid = p1, singlereaction = ":lol:" });
+            db.TblReactions.Insert(new ReactionsItem { identity = "bilbo.baggins.me", postid = p1, singlereaction = ":wink:" });
+            db.TblReactions.Insert(new ReactionsItem { identity = "sam.gamgee.me", postid = p1, singlereaction = ":lol:" });
+            db.TblReactions.Insert(new ReactionsItem { identity = "sam.gamgee.me", postid = p1, singlereaction = ":smiley:" });
+
+            int n = db.TblReactions.GetIdentityPostReactions("frodo.baggins.me", p1);
+            Assert.IsTrue(n == 2); // Frodo made 2 reactions to post P1
 
             // Added: 3 lol, 2 wink, 1 smiley to post 'p1'
 
@@ -52,9 +55,9 @@ namespace DriveDatabaseTests
             var a1 = new List<Guid>();
             a1.Add(Guid.NewGuid());
 
-            db.TblReactions.InsertReaction("frodo.baggins.me", k1, ":lol:");
-            db.TblReactions.InsertReaction("frodo.baggins.me", k1, ":wink:");
-            db.TblReactions.InsertReaction("bilbo.baggins.me", k1, ":lol:");
+            db.TblReactions.Insert(new ReactionsItem { identity = "frodo.baggins.me", postid = k1, singlereaction = ":lol:" });
+            db.TblReactions.Insert(new ReactionsItem { identity = "frodo.baggins.me", postid = k1, singlereaction = ":wink:" });
+            db.TblReactions.Insert(new ReactionsItem { identity = "bilbo.baggins.me", postid = k1, singlereaction = ":lol:" });
         }
 
 
@@ -67,13 +70,13 @@ namespace DriveDatabaseTests
 
             var k1 = Guid.NewGuid();
 
-            db.TblReactions.InsertReaction("frodo.baggins.me", k1, ":lol:");
+            db.TblReactions.Insert(new ReactionsItem { identity = "frodo.baggins.me", postid = k1, singlereaction = ":lol:" });
 
             bool ok = false;
             try
             {
                 // Insert duplicate, expect exception
-                db.TblReactions.InsertReaction("frodo.baggins.me", k1, ":lol:");
+                db.TblReactions.Insert(new ReactionsItem { identity = "frodo.baggins.me", postid = k1, singlereaction = ":lol:" });
                 ok = false;
             }
             catch
@@ -87,7 +90,7 @@ namespace DriveDatabaseTests
             try
             {
                 // Insert invalid reaction
-                db.TblReactions.InsertReaction("frodo.baggins.me", k1, ":l");
+                db.TblReactions.Insert(new ReactionsItem { identity = "frodo.baggins.me", postid = k1, singlereaction = ":l" });
                 ok = false;
             }
             catch
@@ -101,7 +104,7 @@ namespace DriveDatabaseTests
             try
             {
                 // Insert invalid identity
-                db.TblReactions.InsertReaction(new string('a', 257), k1, ":lol:");
+                db.TblReactions.Insert(new ReactionsItem { identity = new string('a', 257), postid = k1, singlereaction = ":lol:" });
                 ok = false;
             }
             catch
@@ -122,17 +125,19 @@ namespace DriveDatabaseTests
             var k1 = Guid.NewGuid();
 
             // The duplicate insert will fail unless the row was successfully deleted
-            db.TblReactions.InsertReaction("frodo.baggins.me", k1, ":lol:");
-            db.TblReactions.DeleteReaction("frodo.baggins.me", k1, ":lol:");
-            db.TblReactions.InsertReaction("frodo.baggins.me", k1, ":lol:");
-            db.TblReactions.DeleteReaction("frodo.baggins.me", k1, ":lol:");
+            db.TblReactions.Insert(new ReactionsItem { identity = "frodo.baggins.me", postid = k1, singlereaction = ":lol:" });
+            db.TblReactions.Delete("frodo.baggins.me", k1, ":lol:");
+            db.TblReactions.Insert(new ReactionsItem { identity = "frodo.baggins.me", postid = k1, singlereaction = ":lol:" });
+            db.TblReactions.Delete("frodo.baggins.me", k1, ":lol:");
 
             // The duplicate insert(s) will fail unless the rows were successfully deleted
-            db.TblReactions.InsertReaction("frodo.baggins.me", k1, ":lol:");
-            db.TblReactions.InsertReaction("frodo.baggins.me", k1, ":wink:");
+            db.TblReactions.Insert(new ReactionsItem { identity = "frodo.baggins.me", postid = k1, singlereaction = ":lol:" });
+            db.TblReactions.Insert(new ReactionsItem { identity = "frodo.baggins.me", postid = k1, singlereaction = ":wink:" });
             db.TblReactions.DeleteAllReactions("frodo.baggins.me", k1);
-            db.TblReactions.InsertReaction("frodo.baggins.me", k1, ":lol:");
-            db.TblReactions.InsertReaction("frodo.baggins.me", k1, ":wink:");
+            db.TblReactions.Insert(new ReactionsItem { identity = "frodo.baggins.me", postid = k1, singlereaction = ":lol:" });
+            db.TblReactions.Insert(new ReactionsItem { identity = "frodo.baggins.me", postid = k1, singlereaction = ":wink:" });
+            int n = db.TblReactions.GetIdentityPostReactions("frodo.baggins.me", k1);
+            Assert.IsTrue(n == 2);
         }
 
 
@@ -145,12 +150,12 @@ namespace DriveDatabaseTests
 
             var k1 = Guid.NewGuid();
 
-            db.TblReactions.InsertReaction("frodo.baggins.me", k1, ":lol:");
-            db.TblReactions.InsertReaction("frodo.baggins.me", k1, ":wink:");
-            db.TblReactions.InsertReaction("bilbo.baggins.me", k1, ":lol:");
-            db.TblReactions.InsertReaction("bilbo.baggins.me", k1, ":wink:");
-            db.TblReactions.InsertReaction("sam.gamgee.me", k1, ":lol:");
-            db.TblReactions.InsertReaction("sam.gamgee.me", k1, ":smiley:");
+            db.TblReactions.Insert(new ReactionsItem { identity = "frodo.baggins.me", postid = k1, singlereaction = ":lol:" });
+            db.TblReactions.Insert(new ReactionsItem { identity = "frodo.baggins.me", postid = k1, singlereaction = ":wink:" });
+            db.TblReactions.Insert(new ReactionsItem { identity = "bilbo.baggins.me", postid = k1, singlereaction = ":lol:" });
+            db.TblReactions.Insert(new ReactionsItem { identity = "bilbo.baggins.me", postid = k1, singlereaction = ":wink:" });
+            db.TblReactions.Insert(new ReactionsItem { identity = "sam.gamgee.me", postid = k1, singlereaction = ":lol:" });
+            db.TblReactions.Insert(new ReactionsItem { identity = "sam.gamgee.me", postid = k1, singlereaction = ":smiley:" });
 
             // 3 lol, 2 wink, 1 smiley
 
@@ -171,16 +176,16 @@ namespace DriveDatabaseTests
 
             var k1 = Guid.NewGuid();
 
-            db.TblReactions.InsertReaction("frodo.baggins.me", k1, ":lol:");
-            db.TblReactions.InsertReaction("frodo.baggins.me", k1, ":wink:");
-            db.TblReactions.InsertReaction("bilbo.baggins.me", k1, ":lol:");
-            db.TblReactions.InsertReaction("bilbo.baggins.me", k1, ":wink:");
-            db.TblReactions.InsertReaction("sam.gamgee.me", k1, ":lol:");
-            db.TblReactions.InsertReaction("sam.gamgee.me", k1, ":smiley:");
-            db.TblReactions.InsertReaction("sam.gamgee.me", k1, ":skull:");
-            db.TblReactions.InsertReaction("sam.gamgee.me", k1, ":wagon:");
-            db.TblReactions.InsertReaction("sam.gamgee.me", k1, ":heart:");
-            db.TblReactions.InsertReaction("sam.gamgee.me", k1, ":cat:");
+            db.TblReactions.Insert(new ReactionsItem { identity = "frodo.baggins.me", postid = k1, singlereaction = ":lol:" });
+            db.TblReactions.Insert(new ReactionsItem { identity = "frodo.baggins.me", postid = k1, singlereaction = ":wink:" });
+            db.TblReactions.Insert(new ReactionsItem { identity = "bilbo.baggins.me", postid = k1, singlereaction = ":lol:" });
+            db.TblReactions.Insert(new ReactionsItem { identity = "bilbo.baggins.me", postid = k1, singlereaction = ":wink:" });
+            db.TblReactions.Insert(new ReactionsItem { identity = "sam.gamgee.me", postid = k1, singlereaction = ":lol:" });
+            db.TblReactions.Insert(new ReactionsItem { identity = "sam.gamgee.me", postid = k1, singlereaction = ":smiley:" });
+            db.TblReactions.Insert(new ReactionsItem { identity = "sam.gamgee.me", postid = k1, singlereaction = ":skull:" });
+            db.TblReactions.Insert(new ReactionsItem { identity = "sam.gamgee.me", postid = k1, singlereaction = ":wagon:" });
+            db.TblReactions.Insert(new ReactionsItem { identity = "sam.gamgee.me", postid = k1, singlereaction = ":heart:" });
+            db.TblReactions.Insert(new ReactionsItem { identity = "sam.gamgee.me", postid = k1, singlereaction = ":cat:" });
 
             // 3 lol, 2 wink, 1 smiley, 4 additionals; total of 7 emojis, 10 reactions
 

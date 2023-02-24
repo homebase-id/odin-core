@@ -375,11 +375,11 @@ namespace IdentityDatabaseTests
             using var db = new IdentityDatabase("URI=file:.\\imfollowing-all-07.db");
             db.CreateDatabase();
 
-            var i1 = "odin.valhalla.com";
-            var i2 = "thor.valhalla.com";
-            var i3 = "freja.valhalla.com";
-            var i4 = "heimdal.valhalla.com";
-            var i5 = "loke.valhalla.com";
+            var i1 = "odin.valhalla.com";     // 4
+            var i2 = "thor.valhalla.com";     // 5
+            var i3 = "freja.valhalla.com";    // 1
+            var i4 = "heimdal.valhalla.com";  // 2
+            var i5 = "loke.valhalla.com";     // 3
             var d1 = Guid.NewGuid();
             var d2 = Guid.NewGuid();
             var d3 = Guid.NewGuid();

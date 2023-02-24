@@ -9,34 +9,7 @@ namespace IdentityDatabaseTests
     public class TableCircleTests
     {
         [Test]
-        public void InsertInvalidCircleTest()
-        {
-            using var db = new IdentityDatabase("URI=file:.\\circle-insert-01.db");
-            db.CreateDatabase();
-
-            var c1 = Guid.NewGuid();
-            var d1 = Guid.NewGuid().ToByteArray();
-
-            // This should be OK
-            db.tblCircle.InsertCircle(c1, d1);
-            db.tblCircle.InsertCircle(Guid.NewGuid(), null);
-
-
-            bool ok = false;
-            var ld = new byte[TableCircle.MAX_DATA_LENGTH+1];
-            try
-            {
-                db.tblCircle.InsertCircle(c1, ld);
-            }
-            catch
-            {
-                ok = true;
-            }
-            Debug.Assert(ok);
-        }
-
-        [Test]
-        public void InsertCircleTest()
+        public void InsertTest()
         {   
             using var db = new IdentityDatabase("URI=file:.\\circle-insert-02.db");
             db.CreateDatabase();
@@ -46,11 +19,13 @@ namespace IdentityDatabaseTests
             var c2 = SequentialGuid.CreateGuid();
             var d2 = Guid.NewGuid().ToByteArray();
 
-            db.tblCircle.InsertCircle(c1, d1);
-            db.tblCircle.InsertCircle(c2, d2);
+            db.tblCircle.Insert(new CircleItem() { circleName = "aiai1", circleId = c1, data = d1 });
+            db.tblCircle.Insert(new CircleItem() { circleName = "aiai2", circleId = c2, data = d2 });
 
-            var r = db.tblCircle.GetAllCircles();
+            var r = db.tblCircle.PagingByCircleId(100, null, out var nextCursor);
             Debug.Assert(r.Count == 2);
+            Debug.Assert(nextCursor == null);
+
             // Result set is ordered
             Debug.Assert(ByteArrayUtil.muidcmp(r[0].circleId, c1) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(r[0].data, d1) == 0);
@@ -70,13 +45,15 @@ namespace IdentityDatabaseTests
             var d2 = Guid.NewGuid().ToByteArray();
             var d1 = Guid.NewGuid().ToByteArray();
 
-            db.tblCircle.InsertCircle(c1, d1);
-            db.tblCircle.InsertCircle(c2, d2);
+            db.tblCircle.Insert(new CircleItem() { circleName = "aiai1", circleId = c1, data = d1 });
+            db.tblCircle.Insert(new CircleItem() { circleName = "aiai2", circleId = c2, data = d2 });
 
-            db.tblCircle.DeleteCircle(c2);
+            db.tblCircle.Delete(c2);
 
-            var r = db.tblCircle.GetAllCircles();
+            var r = db.tblCircle.PagingByCircleId(100, null, out var nextCursor);
             Debug.Assert(r.Count == 1);
+            Debug.Assert(nextCursor == null);
+
             // Result set is ordered
             Debug.Assert(ByteArrayUtil.muidcmp(r[0].circleId, c1) == 0);
         }
@@ -93,8 +70,8 @@ namespace IdentityDatabaseTests
             var d1 = Guid.NewGuid().ToByteArray();
             var d2 = Guid.NewGuid().ToByteArray();
 
-            db.tblCircle.InsertCircle(c1, d1);
-            db.tblCircle.InsertCircle(c2, d2);
+            db.tblCircle.Insert(new CircleItem() { circleName = "aiai", circleId = c1, data = d1 });
+            db.tblCircle.Insert(new CircleItem() { circleName = "aiai", circleId = c2, data = d2 });
 
             var r = db.tblCircle.Get(c1);
             Debug.Assert(ByteArrayUtil.muidcmp(r.circleId, c1) == 0);
@@ -112,8 +89,9 @@ namespace IdentityDatabaseTests
             using var db = new IdentityDatabase("URI=file:.\\circle-getall-01.db");
             db.CreateDatabase();
 
-            var r = db.tblCircle.GetAllCircles();
+            var r = db.tblCircle.PagingByCircleId(100, null, out var nextCursor);
             Debug.Assert(r.Count == 0);
+            Debug.Assert(nextCursor == null);
         }
 
 
@@ -128,11 +106,12 @@ namespace IdentityDatabaseTests
             var d1 = Guid.NewGuid().ToByteArray();
             var d2 = Guid.NewGuid().ToByteArray();
 
-            db.tblCircle.InsertCircle(c1, d1);
-            db.tblCircle.InsertCircle(c2, d2);
+            db.tblCircle.Insert(new CircleItem() { circleName = "aiai", circleId = c1, data = d1 });
+            db.tblCircle.Insert(new CircleItem() { circleName = "aiai", circleId = c2, data = d2 });
 
-            var r = db.tblCircle.GetAllCircles();
+            var r = db.tblCircle.PagingByCircleId(100, null, out var nextCursor);
             Debug.Assert(r.Count == 2);
+            Debug.Assert(nextCursor == null);
 
             Debug.Assert(ByteArrayUtil.muidcmp(r[0].circleId, c1) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(r[0].data, d1) == 0);

@@ -75,5 +75,20 @@ namespace Youverse.Core.Tests
             Assert.IsTrue(value == deserializedValue);
             Assert.IsTrue(value.milliseconds == deserializedValue.milliseconds);
         }
+
+
+        [Test]
+        public void UniqueIsUniqueTest()
+        {
+            UnixTimeUtcUnique t1, t2;
+
+            for (int i = 0; i < 1000; i++)
+            {
+                t1 = UnixTimeUtcUnique.Now();
+                t2 = UnixTimeUtcUnique.Now();
+
+                Assert.IsTrue(t1.uniqueTime != t2.uniqueTime);
+            }
+        }
     }
 }

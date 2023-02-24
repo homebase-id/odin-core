@@ -40,6 +40,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteCommand _select2Command = null;
         private SQLiteParameter _s2param1 = null;
         private SQLiteParameter _s2param2 = null;
+        private SQLiteParameter _s2param3 = null;
         private static object _select2Lock = new object();
 
         public TableFollowsMe(IdentityDatabase db) : base(db)
@@ -162,8 +163,6 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             if (inCursor == null)
                 inCursor = "";
 
-            nextCursor = null;
-
             lock (_select2Lock)
             {
                 // Make sure we only prep once 
@@ -171,8 +170,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 {
                     _select2Command = _database.CreateCommand();
                     _select2Command.CommandText =
-                        $"SELECT DISTINCT identity FROM followers WHERE (driveid=$driveid OR driveid=x'{Convert.ToHexString(Guid.Empty.ToByteArray())}') AND identity > $cursor ORDER BY identity ASC LIMIT {count+1}";
-                    // Added +1 to detect EOD
+                        $"SELECT DISTINCT identity FROM followers WHERE (driveid=$driveid OR driveid=x'{Convert.ToHexString(Guid.Empty.ToByteArray())}') AND identity > $cursor ORDER BY identity ASC LIMIT $count;";
+
                     _s2param1 = _select2Command.CreateParameter();
                     _s2param1.ParameterName = "$driveid";
                     _select2Command.Parameters.Add(_s2param1);
@@ -180,6 +179,10 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _s2param2 = _select2Command.CreateParameter();
                     _s2param2.ParameterName = "$cursor";
                     _select2Command.Parameters.Add(_s2param2);
+
+                    _s2param3 = _select2Command.CreateParameter();
+                    _s2param3.ParameterName = "$count";
+                    _select2Command.Parameters.Add(_s2param3);
 
                     _select2Command.Prepare();
                 }
@@ -205,6 +208,10 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     if ((n > 0) && rdr.HasRows)
                     {
                         nextCursor = result[n-1];
+                    }
+                    else
+                    { 
+                        nextCursor = null; 
                     }
 
                     return result;
