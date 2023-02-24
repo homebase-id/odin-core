@@ -52,26 +52,29 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteParameter _insertParam1 = null;
         private SQLiteParameter _insertParam2 = null;
         private SQLiteParameter _insertParam3 = null;
+        private SQLiteParameter _insertParam4 = null;
         private SQLiteCommand _updateCommand = null;
         private static Object _updateLock = new Object();
         private SQLiteParameter _updateParam1 = null;
         private SQLiteParameter _updateParam2 = null;
         private SQLiteParameter _updateParam3 = null;
+        private SQLiteParameter _updateParam4 = null;
         private SQLiteCommand _upsertCommand = null;
         private static Object _upsertLock = new Object();
         private SQLiteParameter _upsertParam1 = null;
         private SQLiteParameter _upsertParam2 = null;
         private SQLiteParameter _upsertParam3 = null;
+        private SQLiteParameter _upsertParam4 = null;
         private SQLiteCommand _deleteCommand = null;
         private static Object _deleteLock = new Object();
         private SQLiteParameter _deleteParam1 = null;
         private SQLiteCommand _getCommand = null;
         private static Object _getLock = new Object();
         private SQLiteParameter _getParam1 = null;
-        private SQLiteCommand _getPaging1Command = null;
-        private static Object _getPaging1Lock = new Object();
-        private SQLiteParameter _getPaging1Param1 = null;
-        private SQLiteParameter _getPaging1Param2 = null;
+        private SQLiteCommand _getPaging2Command = null;
+        private static Object _getPaging2Lock = new Object();
+        private SQLiteParameter _getPaging2Param1 = null;
+        private SQLiteParameter _getPaging2Param2 = null;
 
         public TableCircleCRUD(IdentityDatabase db) : base(db)
         {
@@ -94,8 +97,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             _deleteCommand = null;
             _getCommand?.Dispose();
             _getCommand = null;
-            _getPaging1Command?.Dispose();
-            _getPaging1Command = null;
+            _getPaging2Command?.Dispose();
+            _getPaging2Command = null;
             _disposed = true;
         }
 
@@ -248,7 +251,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                         return null;
                     var item = new CircleItem();
                     item.circleId = circleId;
-                    byte[] _tmpbuf = new byte[65000+1];
+                    byte[] _tmpbuf = new byte[65535+1];
                     long bytesRead;
                     var _guid = new byte[16];
 
@@ -287,58 +290,61 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             if (inCursor == null)
                 inCursor = Guid.Empty;
 
-            lock (_getPaging1Lock)
+            lock (_getPaging2Lock)
             {
-                if (_getPaging1Command == null)
+                if (_getPaging2Command == null)
                 {
-                    _getPaging1Command = _database.CreateCommand();
-                    _getPaging1Command.CommandText = "SELECT circleName,circleId,data FROM circle " +
+                    _getPaging2Command = _database.CreateCommand();
+                    _getPaging2Command.CommandText = "SELECT rowid,circleName,circleId,data FROM circle " +
                                                  "WHERE circleId > $circleId ORDER BY circleId ASC LIMIT $_count;";
-                    _getPaging1Param1 = _getPaging1Command.CreateParameter();
-                    _getPaging1Command.Parameters.Add(_getPaging1Param1);
-                    _getPaging1Param1.ParameterName = "$circleId";
-                    _getPaging1Param2 = _getPaging1Command.CreateParameter();
-                    _getPaging1Command.Parameters.Add(_getPaging1Param2);
-                    _getPaging1Param2.ParameterName = "$_count";
-                    _getPaging1Command.Prepare();
+                    _getPaging2Param1 = _getPaging2Command.CreateParameter();
+                    _getPaging2Command.Parameters.Add(_getPaging2Param1);
+                    _getPaging2Param1.ParameterName = "$circleId";
+                    _getPaging2Param2 = _getPaging2Command.CreateParameter();
+                    _getPaging2Command.Parameters.Add(_getPaging2Param2);
+                    _getPaging2Param2.ParameterName = "$_count";
+                    _getPaging2Command.Prepare();
                 }
-                _getPaging1Param1.Value = inCursor;
-                _getPaging1Param2.Value = count+1;
+                _getPaging2Param1.Value = inCursor;
+                _getPaging2Param2.Value = count+1;
 
-                using (SQLiteDataReader rdr = _getPaging1Command.ExecuteReader(System.Data.CommandBehavior.Default))
+                using (SQLiteDataReader rdr = _getPaging2Command.ExecuteReader(System.Data.CommandBehavior.Default))
                 {
                     var result = new List<CircleItem>();
                     int n = 0;
+                    int rowid = 0;
                     while (rdr.Read() && (n < count))
                     {
                         n++;
                         var item = new CircleItem();
-                        byte[] _tmpbuf = new byte[65000+1];
+                        byte[] _tmpbuf = new byte[65535+1];
                         long bytesRead;
                         var _guid = new byte[16];
 
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.circleName = rdr.GetString(0);
-                        }
+                        rowid = rdr.GetInt32(0);
 
                         if (rdr.IsDBNull(1))
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
-                            bytesRead = rdr.GetBytes(1, 0, _guid, 0, 16);
+                            item.circleName = rdr.GetString(1);
+                        }
+
+                        if (rdr.IsDBNull(2))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            bytesRead = rdr.GetBytes(2, 0, _guid, 0, 16);
                             if (bytesRead != 16)
                                 throw new Exception("Not a GUID in circleId...");
                             item.circleId = new Guid(_guid);
                         }
 
-                        if (rdr.IsDBNull(2))
+                        if (rdr.IsDBNull(3))
                             item.data = null;
                         else
                         {
-                            bytesRead = rdr.GetBytes(2, 0, _tmpbuf, 0, 65000+1);
+                            bytesRead = rdr.GetBytes(3, 0, _tmpbuf, 0, 65000+1);
                             if (bytesRead > 65000)
                                 throw new Exception("Too much data in data...");
                             if (bytesRead < 0)
@@ -353,7 +359,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     } // while
                     if ((n > 0) && rdr.HasRows)
                     {
-                        nextCursor = result[n - 1].circleId;
+                            nextCursor = result[n - 1].circleId;
                     }
                     else
                     {

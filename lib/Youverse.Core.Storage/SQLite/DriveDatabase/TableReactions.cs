@@ -24,6 +24,13 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
         private SQLiteParameter _s2param2 = null;
         private static Object _select2Lock = new Object();
 
+        private SQLiteCommand _getPaging0Command = null;
+        private static Object _getPaging0Lock = new Object();
+        private SQLiteParameter _getPaging0Param1 = null;
+        private SQLiteParameter _getPaging0Param2 = null;
+        private SQLiteParameter _getPaging0Param3 = null;
+
+
         public TableReactions(DriveDatabase db) : base(db)
         {
         }
@@ -173,6 +180,108 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     return (result, totalCount);
                 }
             }
-        }
+        } //
+
+
+        // Copied and modified from CRUD
+        public List<ReactionsItem> PagingByRowid(int count, Int32? inCursor, out Int32? nextCursor, Guid PostIdFilter)
+        {
+            if (count < 1)
+                throw new Exception("Count must be at least 1.");
+            if (inCursor == null)
+                inCursor = 0;
+
+            lock (_getPaging0Lock)
+            {
+                if (_getPaging0Command == null)
+                {
+                    _getPaging0Command = _database.CreateCommand();
+                    _getPaging0Command.CommandText = "SELECT rowid,identity,postid,singlereaction,created,modified FROM reactions " +
+                                                 "WHERE postid == $postid AND rowid > $rowid ORDER BY rowid ASC LIMIT $_count;";
+                    _getPaging0Param1 = _getPaging0Command.CreateParameter();
+                    _getPaging0Command.Parameters.Add(_getPaging0Param1);
+                    _getPaging0Param1.ParameterName = "$rowid";
+
+                    _getPaging0Param2 = _getPaging0Command.CreateParameter();
+                    _getPaging0Command.Parameters.Add(_getPaging0Param2);
+                    _getPaging0Param2.ParameterName = "$_count";
+
+                    _getPaging0Param3 = _getPaging0Command.CreateParameter();
+                    _getPaging0Command.Parameters.Add(_getPaging0Param3);
+                    _getPaging0Param3.ParameterName = "$postid";
+
+                    _getPaging0Command.Prepare();
+                }
+                _getPaging0Param1.Value = inCursor;
+                _getPaging0Param2.Value = count + 1;
+                _getPaging0Param3.Value = PostIdFilter;
+
+                using (SQLiteDataReader rdr = _getPaging0Command.ExecuteReader(System.Data.CommandBehavior.Default))
+                {
+                    var result = new List<ReactionsItem>();
+                    int n = 0;
+                    int rowid = 0;
+                    while (rdr.Read() && (n < count))
+                    {
+                        n++;
+                        var item = new ReactionsItem();
+                        byte[] _tmpbuf = new byte[65535 + 1];
+                        long bytesRead;
+                        var _guid = new byte[16];
+
+                        rowid = rdr.GetInt32(0);
+
+                        if (rdr.IsDBNull(1))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            item.identity = rdr.GetString(1);
+                        }
+
+                        if (rdr.IsDBNull(2))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            bytesRead = rdr.GetBytes(2, 0, _guid, 0, 16);
+                            if (bytesRead != 16)
+                                throw new Exception("Not a GUID in postid...");
+                            item.postid = new Guid(_guid);
+                        }
+
+                        if (rdr.IsDBNull(3))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            item.singlereaction = rdr.GetString(3);
+                        }
+
+                        if (rdr.IsDBNull(4))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            item.created = new UnixTimeUtcUnique((UInt64)rdr.GetInt64(4));
+                        }
+
+                        if (rdr.IsDBNull(5))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            item.modified = new UnixTimeUtc((UInt64)rdr.GetInt64(5));
+                        }
+                        result.Add(item);
+                    } // while
+                    if ((n > 0) && rdr.HasRows)
+                    {
+                        nextCursor = rowid;
+                    }
+                    else
+                    {
+                        nextCursor = null;
+                    }
+
+                    return result;
+                } // using
+            } // lock
+        } // PagingGet
     }
 }

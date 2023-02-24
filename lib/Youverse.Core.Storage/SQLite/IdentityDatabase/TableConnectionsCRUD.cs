@@ -101,6 +101,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteParameter _insertParam5 = null;
         private SQLiteParameter _insertParam6 = null;
         private SQLiteParameter _insertParam7 = null;
+        private SQLiteParameter _insertParam8 = null;
         private SQLiteCommand _updateCommand = null;
         private static Object _updateLock = new Object();
         private SQLiteParameter _updateParam1 = null;
@@ -110,6 +111,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteParameter _updateParam5 = null;
         private SQLiteParameter _updateParam6 = null;
         private SQLiteParameter _updateParam7 = null;
+        private SQLiteParameter _updateParam8 = null;
         private SQLiteCommand _upsertCommand = null;
         private static Object _upsertLock = new Object();
         private SQLiteParameter _upsertParam1 = null;
@@ -119,20 +121,21 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteParameter _upsertParam5 = null;
         private SQLiteParameter _upsertParam6 = null;
         private SQLiteParameter _upsertParam7 = null;
+        private SQLiteParameter _upsertParam8 = null;
         private SQLiteCommand _deleteCommand = null;
         private static Object _deleteLock = new Object();
         private SQLiteParameter _deleteParam1 = null;
         private SQLiteCommand _getCommand = null;
         private static Object _getLock = new Object();
         private SQLiteParameter _getParam1 = null;
-        private SQLiteCommand _getPaging0Command = null;
-        private static Object _getPaging0Lock = new Object();
-        private SQLiteParameter _getPaging0Param1 = null;
-        private SQLiteParameter _getPaging0Param2 = null;
-        private SQLiteCommand _getPaging5Command = null;
-        private static Object _getPaging5Lock = new Object();
-        private SQLiteParameter _getPaging5Param1 = null;
-        private SQLiteParameter _getPaging5Param2 = null;
+        private SQLiteCommand _getPaging1Command = null;
+        private static Object _getPaging1Lock = new Object();
+        private SQLiteParameter _getPaging1Param1 = null;
+        private SQLiteParameter _getPaging1Param2 = null;
+        private SQLiteCommand _getPaging6Command = null;
+        private static Object _getPaging6Lock = new Object();
+        private SQLiteParameter _getPaging6Param1 = null;
+        private SQLiteParameter _getPaging6Param2 = null;
 
         public TableConnectionsCRUD(IdentityDatabase db) : base(db)
         {
@@ -155,10 +158,10 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             _deleteCommand = null;
             _getCommand?.Dispose();
             _getCommand = null;
-            _getPaging0Command?.Dispose();
-            _getPaging0Command = null;
-            _getPaging5Command?.Dispose();
-            _getPaging5Command = null;
+            _getPaging1Command?.Dispose();
+            _getPaging1Command = null;
+            _getPaging6Command?.Dispose();
+            _getPaging6Command = null;
             _disposed = true;
         }
 
@@ -432,28 +435,29 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             if (inCursor == null)
                 inCursor = "";
 
-            lock (_getPaging0Lock)
+            lock (_getPaging1Lock)
             {
-                if (_getPaging0Command == null)
+                if (_getPaging1Command == null)
                 {
-                    _getPaging0Command = _database.CreateCommand();
-                    _getPaging0Command.CommandText = "SELECT identity,displayname,status,accessisrevoked,data,created,modified FROM connections " +
+                    _getPaging1Command = _database.CreateCommand();
+                    _getPaging1Command.CommandText = "SELECT rowid,identity,displayname,status,accessisrevoked,data,created,modified FROM connections " +
                                                  "WHERE identity > $identity ORDER BY identity ASC LIMIT $_count;";
-                    _getPaging0Param1 = _getPaging0Command.CreateParameter();
-                    _getPaging0Command.Parameters.Add(_getPaging0Param1);
-                    _getPaging0Param1.ParameterName = "$identity";
-                    _getPaging0Param2 = _getPaging0Command.CreateParameter();
-                    _getPaging0Command.Parameters.Add(_getPaging0Param2);
-                    _getPaging0Param2.ParameterName = "$_count";
-                    _getPaging0Command.Prepare();
+                    _getPaging1Param1 = _getPaging1Command.CreateParameter();
+                    _getPaging1Command.Parameters.Add(_getPaging1Param1);
+                    _getPaging1Param1.ParameterName = "$identity";
+                    _getPaging1Param2 = _getPaging1Command.CreateParameter();
+                    _getPaging1Command.Parameters.Add(_getPaging1Param2);
+                    _getPaging1Param2.ParameterName = "$_count";
+                    _getPaging1Command.Prepare();
                 }
-                _getPaging0Param1.Value = inCursor;
-                _getPaging0Param2.Value = count+1;
+                _getPaging1Param1.Value = inCursor;
+                _getPaging1Param2.Value = count+1;
 
-                using (SQLiteDataReader rdr = _getPaging0Command.ExecuteReader(System.Data.CommandBehavior.Default))
+                using (SQLiteDataReader rdr = _getPaging1Command.ExecuteReader(System.Data.CommandBehavior.Default))
                 {
                     var result = new List<ConnectionsItem>();
                     int n = 0;
+                    int rowid = 0;
                     while (rdr.Read() && (n < count))
                     {
                         n++;
@@ -462,39 +466,41 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                         long bytesRead;
                         var _guid = new byte[16];
 
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.identity = rdr.GetString(0);
-                        }
+                        rowid = rdr.GetInt32(0);
 
                         if (rdr.IsDBNull(1))
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
-                            item.displayname = rdr.GetString(1);
+                            item.identity = rdr.GetString(1);
                         }
 
                         if (rdr.IsDBNull(2))
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
-                            item.status = rdr.GetInt32(2);
+                            item.displayname = rdr.GetString(2);
                         }
 
                         if (rdr.IsDBNull(3))
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
-                            item.accessisrevoked = rdr.GetInt32(3);
+                            item.status = rdr.GetInt32(3);
                         }
 
                         if (rdr.IsDBNull(4))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            item.accessisrevoked = rdr.GetInt32(4);
+                        }
+
+                        if (rdr.IsDBNull(5))
                             item.data = null;
                         else
                         {
-                            bytesRead = rdr.GetBytes(4, 0, _tmpbuf, 0, 65535+1);
+                            bytesRead = rdr.GetBytes(5, 0, _tmpbuf, 0, 65535+1);
                             if (bytesRead > 65535)
                                 throw new Exception("Too much data in data...");
                             if (bytesRead < 0)
@@ -506,24 +512,24 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                             }
                         }
 
-                        if (rdr.IsDBNull(5))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.created = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(5));
-                        }
-
                         if (rdr.IsDBNull(6))
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
-                            item.modified = new UnixTimeUtc((UInt64) rdr.GetInt64(6));
+                            item.created = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(6));
+                        }
+
+                        if (rdr.IsDBNull(7))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            item.modified = new UnixTimeUtc((UInt64) rdr.GetInt64(7));
                         }
                         result.Add(item);
                     } // while
                     if ((n > 0) && rdr.HasRows)
                     {
-                        nextCursor = result[n - 1].identity;
+                            nextCursor = result[n - 1].identity;
                     }
                     else
                     {
@@ -542,28 +548,29 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             if (inCursor == null)
                 inCursor = new UnixTimeUtcUnique(0);
 
-            lock (_getPaging5Lock)
+            lock (_getPaging6Lock)
             {
-                if (_getPaging5Command == null)
+                if (_getPaging6Command == null)
                 {
-                    _getPaging5Command = _database.CreateCommand();
-                    _getPaging5Command.CommandText = "SELECT identity,displayname,status,accessisrevoked,data,created,modified FROM connections " +
+                    _getPaging6Command = _database.CreateCommand();
+                    _getPaging6Command.CommandText = "SELECT rowid,identity,displayname,status,accessisrevoked,data,created,modified FROM connections " +
                                                  "WHERE created > $created ORDER BY created DESC LIMIT $_count;";
-                    _getPaging5Param1 = _getPaging5Command.CreateParameter();
-                    _getPaging5Command.Parameters.Add(_getPaging5Param1);
-                    _getPaging5Param1.ParameterName = "$created";
-                    _getPaging5Param2 = _getPaging5Command.CreateParameter();
-                    _getPaging5Command.Parameters.Add(_getPaging5Param2);
-                    _getPaging5Param2.ParameterName = "$_count";
-                    _getPaging5Command.Prepare();
+                    _getPaging6Param1 = _getPaging6Command.CreateParameter();
+                    _getPaging6Command.Parameters.Add(_getPaging6Param1);
+                    _getPaging6Param1.ParameterName = "$created";
+                    _getPaging6Param2 = _getPaging6Command.CreateParameter();
+                    _getPaging6Command.Parameters.Add(_getPaging6Param2);
+                    _getPaging6Param2.ParameterName = "$_count";
+                    _getPaging6Command.Prepare();
                 }
-                _getPaging5Param1.Value = inCursor?.uniqueTime;
-                _getPaging5Param2.Value = count+1;
+                _getPaging6Param1.Value = inCursor?.uniqueTime;
+                _getPaging6Param2.Value = count+1;
 
-                using (SQLiteDataReader rdr = _getPaging5Command.ExecuteReader(System.Data.CommandBehavior.Default))
+                using (SQLiteDataReader rdr = _getPaging6Command.ExecuteReader(System.Data.CommandBehavior.Default))
                 {
                     var result = new List<ConnectionsItem>();
                     int n = 0;
+                    int rowid = 0;
                     while (rdr.Read() && (n < count))
                     {
                         n++;
@@ -572,39 +579,41 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                         long bytesRead;
                         var _guid = new byte[16];
 
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.identity = rdr.GetString(0);
-                        }
+                        rowid = rdr.GetInt32(0);
 
                         if (rdr.IsDBNull(1))
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
-                            item.displayname = rdr.GetString(1);
+                            item.identity = rdr.GetString(1);
                         }
 
                         if (rdr.IsDBNull(2))
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
-                            item.status = rdr.GetInt32(2);
+                            item.displayname = rdr.GetString(2);
                         }
 
                         if (rdr.IsDBNull(3))
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
-                            item.accessisrevoked = rdr.GetInt32(3);
+                            item.status = rdr.GetInt32(3);
                         }
 
                         if (rdr.IsDBNull(4))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            item.accessisrevoked = rdr.GetInt32(4);
+                        }
+
+                        if (rdr.IsDBNull(5))
                             item.data = null;
                         else
                         {
-                            bytesRead = rdr.GetBytes(4, 0, _tmpbuf, 0, 65535+1);
+                            bytesRead = rdr.GetBytes(5, 0, _tmpbuf, 0, 65535+1);
                             if (bytesRead > 65535)
                                 throw new Exception("Too much data in data...");
                             if (bytesRead < 0)
@@ -616,24 +625,24 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                             }
                         }
 
-                        if (rdr.IsDBNull(5))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.created = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(5));
-                        }
-
                         if (rdr.IsDBNull(6))
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
-                            item.modified = new UnixTimeUtc((UInt64) rdr.GetInt64(6));
+                            item.created = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(6));
+                        }
+
+                        if (rdr.IsDBNull(7))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            item.modified = new UnixTimeUtc((UInt64) rdr.GetInt64(7));
                         }
                         result.Add(item);
                     } // while
                     if ((n > 0) && rdr.HasRows)
                     {
-                        nextCursor = result[n - 1].created;
+                            nextCursor = result[n - 1].created;
                     }
                     else
                     {

@@ -40,6 +40,15 @@ namespace DriveDatabaseTests
             Debug.Assert(r[1] == ":wink:");
             Debug.Assert(r[2] == ":smiley:");
 
+            Int32? cursor = 0;
+            var r2 = db.TblReactions.PagingByRowid(5, cursor, out cursor, p1);
+            Debug.Assert(r2.Count == 5);
+            Debug.Assert(cursor != null);
+
+            r2 = db.TblReactions.PagingByRowid(5, cursor, out cursor, p1);
+            Debug.Assert(r2.Count == 1);
+            Debug.Assert(cursor == null);
+
             // As a result we had 6 in total, 3 :lol:, 2 :wink: and 1 :smiley:
         }
 
