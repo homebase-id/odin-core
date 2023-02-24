@@ -189,6 +189,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
                 _s2param1.Value = driveId;
                 _s2param2.Value = inCursor;
+                _s2param3.Value = count + 1;
 
                 using (SQLiteDataReader rdr = _select2Command.ExecuteReader(System.Data.CommandBehavior.Default))
                 {
