@@ -18,6 +18,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
         public override void Dispose()
         {
+            base.Dispose();
         }
     }
 }
