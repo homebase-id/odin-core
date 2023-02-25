@@ -9,14 +9,7 @@ using System.Data.SQLite;
 
 namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 {
-    public class ImFollowingItem
-    {
-        public string identity;
-        public UnixTimeUtc timeStamp;
-        public Guid driveId;  // I suppose this is the infamous 'driveAlias' :-) 
-    }
-
-    public class TableImFollowing : TableBase
+    public class TableImFollowing : TableImFollowingCRUD
     {
         public const int GUID_SIZE = 16; // Precisely 16 bytes for the ID key
 
@@ -75,32 +68,10 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
             _select3Command?.Dispose();
             _select3Command = null;
+
+            base.Dispose();
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        public override void EnsureTableExists(bool dropExisting = false)
-        {
-            using (var cmd = _database.CreateCommand())
-            {
-                if (dropExisting)
-                {
-                    cmd.CommandText = "DROP TABLE IF EXISTS imfollowing;";
-                    cmd.ExecuteNonQuery();
-                }
-
-                cmd.CommandText =
-                    @"CREATE TABLE IF NOT EXISTS imfollowing(
-                     identity STRING NOT NULL,
-                     timestamp INT NOT NULL,
-                     driveid BLOB NOT NULL,
-                     UNIQUE(identity,driveid)); "
-                    + "CREATE INDEX if not exists imfollowingidentityidx ON imfollowing(identity);";
-
-                cmd.ExecuteNonQuery();
-            }
-        }
 
         /// <summary>
         /// For the given identity, return all drives being followed (and possibly Guid.Empty for everything)
@@ -120,7 +91,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 {
                     _selectCommand = _database.CreateCommand();
                     _selectCommand.CommandText =
-                        $"SELECT driveid, timestamp FROM imfollowing WHERE identity=$identity";
+                        $"SELECT driveid, created FROM imfollowing WHERE identity=$identity";
                     _sparam1 = _selectCommand.CreateParameter();
                     _sparam1.ParameterName = "$identity";
                     _selectCommand.Parameters.Add(_sparam1);
@@ -137,14 +108,20 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
                     while (rdr.Read())
                     {
-                        var n = rdr.GetBytes(0, 0, _tmpbuf, 0, 16);
-                        if (n != GUID_SIZE)
-                            throw new Exception("Not a GUID");
-                        var d = rdr.GetInt64(1);
                         var f = new ImFollowingItem();
+
+                        if (rdr.IsDBNull(0))
+                            f.driveid = Guid.Empty;
+                        else
+                        {
+                            var n = rdr.GetBytes(0, 0, _tmpbuf, 0, 16);
+                            if (n != GUID_SIZE)
+                                throw new Exception("Not a GUID");
+                            f.driveid = new Guid(_tmpbuf);
+                        }
+                        var d = rdr.GetInt64(1);
                         f.identity = identity;
-                        f.timeStamp = new UnixTimeUtc((ulong) d);
-                        f.driveId = new Guid(_tmpbuf);
+                        f.created = new UnixTimeUtcUnique((ulong) d);
                         result.Add(f);
                     }
 
@@ -298,57 +275,6 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
 
         /// <summary>
-        /// Add a new follower that's following you, for the specified drive. Use Guid.Empty as a "full follow of everything".
-        /// </summary>
-        /// <param name="identity"></param>
-        /// <param name="driveId">if Guid.Empty will follow 'everything' otherwise driveid bring followed</param>
-        /// <exception cref="Exception"></exception>
-        public void InsertFollower(string identity, Guid? driveId)
-        {
-            if (driveId == null)
-                driveId = Guid.Empty;
-            else
-            {
-                if (driveId == Guid.Empty)
-                    throw new Exception("Guid.Empty is reserved for 'all'.");
-            }
-
-            if (identity == null || identity.Length < 1)
-                throw new Exception("identity can't be NULL or empty.");
-
-            lock (_insertLock)
-            {
-                // Make sure we only prep once 
-                if (_insertCommand == null)
-                {
-                    _insertCommand = _database.CreateCommand();
-                    _insertCommand.CommandText = @"INSERT INTO imfollowing(identity, timestamp, driveid) " +
-                                                  "VALUES ($identity, $timestamp, $driveid)";
-
-                    _iparam1 = _insertCommand.CreateParameter();
-                    _iparam2 = _insertCommand.CreateParameter();
-                    _iparam3 = _insertCommand.CreateParameter();
-                    _insertCommand.Parameters.Add(_iparam1);
-                    _insertCommand.Parameters.Add(_iparam2);
-                    _insertCommand.Parameters.Add(_iparam3);
-                    _iparam1.ParameterName = "$identity";
-                    _iparam2.ParameterName = "$timestamp";
-                    _iparam3.ParameterName = "$driveid";
-
-                    _insertCommand.Prepare();
-                }
-
-                _iparam1.Value = identity;
-                _iparam2.Value = UnixTimeUtc.Now().milliseconds;
-                _iparam3.Value = driveId;
-
-                _database.BeginTransaction();
-                _insertCommand.ExecuteNonQuery();
-            }
-        }
-
-
-        /// <summary>
         /// For the identity following you, delete all follows.
         /// </summary>
         /// <param name="identity">The identity following you</param>
@@ -376,45 +302,6 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
                 _database.BeginTransaction();
                 _deleteCommand.ExecuteNonQuery();
-            }
-        }
-
-
-        /// <summary>
-        /// Delete following for the specified drive.
-        /// </summary>
-        /// <param name="identity">The identity following you</param>
-        /// <param name="driveId">The drive you want to unfollow</param>
-        /// <exception cref="Exception"></exception>
-        public void DeleteFollower(string identity, Guid driveId)
-        {
-            if (identity == null || identity.Length < 1)
-                throw new Exception("identity cannot be NULL or empty");
-
-            lock (_deleteLock)
-            {
-                // Make sure we only prep once 
-                if (_deleteCommand2 == null)
-                {
-                    _deleteCommand2 = _database.CreateCommand();
-                    _deleteCommand2.CommandText = @"DELETE FROM imfollowing WHERE identity=$identity AND driveid=$driveid;";
-
-                    _dparam2_1 = _deleteCommand2.CreateParameter();
-                    _deleteCommand2.Parameters.Add(_dparam2_1);
-                    _dparam2_1.ParameterName = "$identity";
-
-                    _dparam2_2 = _deleteCommand2.CreateParameter();
-                    _deleteCommand2.Parameters.Add(_dparam2_2);
-                    _dparam2_2.ParameterName = "$driveid";
-
-                    _deleteCommand2.Prepare();
-                }
-
-                _dparam2_1.Value = identity;
-                _dparam2_2.Value = driveId;
-
-                _database.BeginTransaction();
-                _deleteCommand2.ExecuteNonQuery();
             }
         }
     }

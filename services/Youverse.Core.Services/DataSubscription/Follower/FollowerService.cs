@@ -93,8 +93,12 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             _tenantStorage.WhoIFollow.DeleteFollower(request.DotYouId);
             if (request.NotificationType == FollowerNotificationType.AllNotifications)
             {
-                _tenantStorage.WhoIFollow.InsertFollower(request.DotYouId, null);
+                _tenantStorage.WhoIFollow.Insert(new Storage.SQLite.IdentityDatabase.ImFollowingItem() { identity = request.DotYouId, driveid = Guid.Empty });
             }
+            // MS: I changed null -> guid.empty. Databases behave very oddly with "NULL". In the database
+            // if we do = NULL it fails (it's supposed to), you have to do "IS NULL". That doesn't work with
+            // the pattern I have. And to fix it would cause N permutations of all code (1 permutation per column nullable).
+
             //TODO: need to better understand the followers table
             // else
             // {
@@ -143,12 +147,12 @@ namespace Youverse.Core.Services.DataSubscription.Follower
                 throw new YouverseSystemException($"Follower data for [{dotYouId}] is corrupt");
             }
 
-            if (dbRecords.Any(r => r.driveId == Guid.Empty) && dbRecords.Count > 1)
+            if (dbRecords.Any(r => r.driveid == Guid.Empty) && dbRecords.Count > 1)
             {
                 throw new YouverseSystemException($"Follower data for [{dotYouId}] is corrupt");
             }
             
-            if (dbRecords.All(r => r.driveId == Guid.Empty))
+            if (dbRecords.All(r => r.driveid == Guid.Empty))
             {
                 return new FollowerDefinition()
                 {
@@ -161,7 +165,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             var channels = new List<TargetDrive>();
             foreach (var record in dbRecords)
             {
-                var td = _contextAccessor.GetCurrent().PermissionsContext.GetTargetDrive(record.driveId);
+                var td = _contextAccessor.GetCurrent().PermissionsContext.GetTargetDrive(record.driveid);
                 channels.Add(td);
             }
 
@@ -390,12 +394,12 @@ namespace Youverse.Core.Services.DataSubscription.Follower
                 throw new YouverseSystemException($"Follower data for [{dotYouId}] is corrupt");
             }
 
-            if (dbRecords.Any(r => r.driveId == Guid.Empty) && dbRecords.Count > 1)
+            if (dbRecords.Any(r => r.driveid == Guid.Empty) && dbRecords.Count > 1)
             {
                 throw new YouverseSystemException($"Follower data for [{dotYouId}] is corrupt");
             }
             
-            if (dbRecords.All(r => r.driveId == Guid.Empty))
+            if (dbRecords.All(r => r.driveid == Guid.Empty))
             {
                 return Task.FromResult(new FollowerDefinition()
                 {
@@ -408,7 +412,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             var channels = new List<TargetDrive>();
             foreach (var record in dbRecords)
             {
-                var td = _contextAccessor.GetCurrent().PermissionsContext.GetTargetDrive(record.driveId);
+                var td = _contextAccessor.GetCurrent().PermissionsContext.GetTargetDrive(record.driveid);
                 channels.Add(td);
             }
 

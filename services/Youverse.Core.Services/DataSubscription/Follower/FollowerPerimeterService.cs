@@ -6,6 +6,7 @@ using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Storage;
+using Youverse.Core.Storage.SQLite.IdentityDatabase;
 
 namespace Youverse.Core.Services.DataSubscription.Follower
 {
@@ -47,7 +48,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
                 _tenantStorage.Followers.DeleteFollower(request.DotYouId);
                 foreach (var driveId in driveIdList)
                 {
-                    _tenantStorage.Followers.InsertFollower(request.DotYouId, driveId);
+                    _tenantStorage.Followers.Insert(new FollowsMeItem() { identity = request.DotYouId, driveid = driveId });
                 }
 
                 return Task.CompletedTask;
@@ -56,7 +57,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             if (request.NotificationType == FollowerNotificationType.AllNotifications)
             {
                 _tenantStorage.Followers.DeleteFollower(request.DotYouId);
-                _tenantStorage.Followers.InsertFollower(request.DotYouId, null);
+                _tenantStorage.Followers.Insert(new FollowsMeItem() { identity = request.DotYouId, driveid = System.Guid.Empty });
             }
 
             return Task.CompletedTask;
