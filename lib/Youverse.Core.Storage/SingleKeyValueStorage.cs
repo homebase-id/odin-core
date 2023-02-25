@@ -4,7 +4,7 @@ using Youverse.Core.Storage.SQLite.IdentityDatabase;
 
 namespace Youverse.Core.Storage;
 
-public class SingleKeyValueStorage : KeyValueStorageBase
+public class SingleKeyValueStorage
 {
     private readonly TableKeyValue _table;
 

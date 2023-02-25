@@ -8,7 +8,7 @@ namespace Youverse.Core.Storage;
 /// <summary>
 /// Key value storage using 3 keys; serializes as json
 /// </summary>
-public class ThreeKeyValueStorage : KeyValueStorageBase
+public class ThreeKeyValueStorage
 {
     private readonly TableKeyThreeValue _db;
 

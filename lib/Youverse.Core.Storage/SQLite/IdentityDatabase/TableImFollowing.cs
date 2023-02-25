@@ -13,18 +13,9 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
     {
         public const int GUID_SIZE = 16; // Precisely 16 bytes for the ID key
 
-        private SQLiteCommand _insertCommand = null;
-        private SQLiteParameter _iparam1 = null;
-        private SQLiteParameter _iparam2 = null;
-        private SQLiteParameter _iparam3 = null;
-        private static object _insertLock = new object();
-
         private SQLiteCommand _deleteCommand = null;
         private SQLiteParameter _dparam1 = null;
         private static object _deleteLock = new object();
-        private SQLiteCommand _deleteCommand2 = null;
-        private SQLiteParameter _dparam2_1 = null;
-        private SQLiteParameter _dparam2_2 = null;
 
         private SQLiteCommand _selectCommand = null;
         private SQLiteParameter _sparam1 = null;
@@ -51,14 +42,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
         public override void Dispose()
         {
-            _insertCommand?.Dispose();
-            _insertCommand = null;
-
             _deleteCommand?.Dispose();
             _deleteCommand = null;
-
-            _deleteCommand2?.Dispose();
-            _deleteCommand2 = null;
 
             _selectCommand?.Dispose();
             _selectCommand = null;

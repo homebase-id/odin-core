@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.SQLite;
 
+
 namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 {
     public class CircleItem
@@ -14,8 +15,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                }
            set {
                   if (value == null) throw new Exception("Cannot be null");
-                  if (value != null) if (value.Length < 2) throw new Exception("Too short");
-                  if (value != null) if (value.Length > 80) throw new Exception("Too long");
+                  if (value?.Length < 2) throw new Exception("Too short");
+                  if (value?.Length > 80) throw new Exception("Too long");
                   _circleName = value;
                }
         }
@@ -26,19 +27,18 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                    return _circleId;
                }
            set {
-                  if (value == null) throw new Exception("Cannot be null");
                   _circleId = value;
                }
         }
-        private byte[]? _data;
-        public byte[]? data
+        private byte[] _data;
+        public byte[] data
         {
            get {
                    return _data;
                }
            set {
-                  if (value != null) if (value.Length < 0) throw new Exception("Too short");
-                  if (value != null) if (value.Length > 65000) throw new Exception("Too long");
+                  if (value?.Length < 0) throw new Exception("Too short");
+                  if (value?.Length > 65000) throw new Exception("Too long");
                   _data = value;
                }
         }
@@ -52,19 +52,16 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteParameter _insertParam1 = null;
         private SQLiteParameter _insertParam2 = null;
         private SQLiteParameter _insertParam3 = null;
-        private SQLiteParameter _insertParam4 = null;
         private SQLiteCommand _updateCommand = null;
         private static Object _updateLock = new Object();
         private SQLiteParameter _updateParam1 = null;
         private SQLiteParameter _updateParam2 = null;
         private SQLiteParameter _updateParam3 = null;
-        private SQLiteParameter _updateParam4 = null;
         private SQLiteCommand _upsertCommand = null;
         private static Object _upsertLock = new Object();
         private SQLiteParameter _upsertParam1 = null;
         private SQLiteParameter _upsertParam2 = null;
         private SQLiteParameter _upsertParam3 = null;
-        private SQLiteParameter _upsertParam4 = null;
         private SQLiteCommand _deleteCommand = null;
         private static Object _deleteLock = new Object();
         private SQLiteParameter _deleteParam1 = null;

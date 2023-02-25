@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.SQLite;
 
+
 namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 {
     public class ConnectionsItem
@@ -14,8 +15,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                }
            set {
                   if (value == null) throw new Exception("Cannot be null");
-                  if (value != null) if (value.Length < 3) throw new Exception("Too short");
-                  if (value != null) if (value.Length > 255) throw new Exception("Too long");
+                  if (value?.Length < 3) throw new Exception("Too short");
+                  if (value?.Length > 255) throw new Exception("Too long");
                   _identity = value;
                }
         }
@@ -27,8 +28,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                }
            set {
                   if (value == null) throw new Exception("Cannot be null");
-                  if (value != null) if (value.Length < 0) throw new Exception("Too short");
-                  if (value != null) if (value.Length > 80) throw new Exception("Too long");
+                  if (value?.Length < 0) throw new Exception("Too short");
+                  if (value?.Length > 80) throw new Exception("Too long");
                   _displayname = value;
                }
         }
@@ -39,7 +40,6 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                    return _status;
                }
            set {
-                  if (value == null) throw new Exception("Cannot be null");
                   _status = value;
                }
         }
@@ -50,19 +50,18 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                    return _accessisrevoked;
                }
            set {
-                  if (value == null) throw new Exception("Cannot be null");
                   _accessisrevoked = value;
                }
         }
-        private byte[]? _data;
-        public byte[]? data
+        private byte[] _data;
+        public byte[] data
         {
            get {
                    return _data;
                }
            set {
-                  if (value != null) if (value.Length < 0) throw new Exception("Too short");
-                  if (value != null) if (value.Length > 65535) throw new Exception("Too long");
+                  if (value?.Length < 0) throw new Exception("Too short");
+                  if (value?.Length > 65535) throw new Exception("Too long");
                   _data = value;
                }
         }
@@ -83,7 +82,6 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                    return _modified;
                }
            set {
-                  if (value == null) throw new Exception("Cannot be null");
                   _modified = value;
                }
         }
@@ -101,7 +99,6 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteParameter _insertParam5 = null;
         private SQLiteParameter _insertParam6 = null;
         private SQLiteParameter _insertParam7 = null;
-        private SQLiteParameter _insertParam8 = null;
         private SQLiteCommand _updateCommand = null;
         private static Object _updateLock = new Object();
         private SQLiteParameter _updateParam1 = null;
@@ -111,7 +108,6 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteParameter _updateParam5 = null;
         private SQLiteParameter _updateParam6 = null;
         private SQLiteParameter _updateParam7 = null;
-        private SQLiteParameter _updateParam8 = null;
         private SQLiteCommand _upsertCommand = null;
         private static Object _upsertLock = new Object();
         private SQLiteParameter _upsertParam1 = null;
@@ -121,7 +117,6 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteParameter _upsertParam5 = null;
         private SQLiteParameter _upsertParam6 = null;
         private SQLiteParameter _upsertParam7 = null;
-        private SQLiteParameter _upsertParam8 = null;
         private SQLiteCommand _deleteCommand = null;
         private static Object _deleteLock = new Object();
         private SQLiteParameter _deleteParam1 = null;
@@ -428,7 +423,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             } // lock
         }
 
-        public List<ConnectionsItem> PagingByIdentity(int count, string? inCursor, out string? nextCursor)
+        public List<ConnectionsItem> PagingByIdentity(int count, string inCursor, out string nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");

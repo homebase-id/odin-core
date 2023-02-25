@@ -4,14 +4,7 @@ using System.Data.SQLite;
 
 namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 {
-    public class CircleMemberItem
-    {
-        public Guid circleId;
-        public Guid memberId;
-        public byte[] data;
-    }
-
-    public class TableCircleMember : TableBase
+    public class TableCircleMember : TableCirclememberCRUD
     {
         public const int MAX_DATA_LENGTH = 65000;  // Some max value for the data
 
@@ -62,31 +55,9 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
             _select2Command?.Dispose();
             _select2Command = null;
+
+            base.Dispose();
         }
-
-        public override void EnsureTableExists(bool dropExisting = false)
-        {
-            using (var cmd = _database.CreateCommand())
-            {
-                if (dropExisting)
-                {
-                    cmd.CommandText = "DROP TABLE IF EXISTS circlemember;";
-                    cmd.ExecuteNonQuery();
-                }
-
-                cmd.CommandText =
-                    @"CREATE TABLE IF NOT EXISTS circlemember(
-                     circleid BLOB NOT NULL, 
-                     memberid BLOB NOT NULL,
-                     data BLOB,
-                     UNIQUE(circleid, memberid)); "
-                    + "CREATE INDEX if not exists circleididx ON circlemember(circleid);"
-                    + "CREATE INDEX if not exists memberididx ON circlemember(memberid);";
-
-                cmd.ExecuteNonQuery();
-            }
-        }
-
 
         /// <summary>
         /// Returns all members of the given circle (the data, aka exchange grants not returned)
@@ -94,7 +65,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         /// <param name="circleId"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public List<CircleMemberItem> GetCircleMembers(Guid circleId)
+        public List<CirclememberItem> GetCircleMembers(Guid circleId)
         {
             lock (_selectLock)
             {
@@ -115,14 +86,14 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
                 using (SQLiteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.Default))
                 {
-                    var result = new List<CircleMemberItem>();
+                    var result = new List<CirclememberItem>();
 
                     byte[] _tmpbuf = new byte[MAX_DATA_LENGTH];
                     byte[] g = new byte[16];
 
                     while (rdr.Read())
                     {
-                        var item = new CircleMemberItem();
+                        var item = new CirclememberItem();
 
                         item.circleId = circleId;
                         long n = rdr.GetBytes(0, 0, g, 0, 16);
@@ -156,7 +127,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         /// <param name="circleId"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public List<CircleMemberItem> GetMemberCirclesAndData(Guid memberId)
+        public List<CirclememberItem> GetMemberCirclesAndData(Guid memberId)
         {
             lock (_select2Lock)
             {
@@ -177,14 +148,14 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
                 using (SQLiteDataReader rdr = _select2Command.ExecuteReader(System.Data.CommandBehavior.Default))
                 {
-                    var result = new List<CircleMemberItem>();
+                    var result = new List<CirclememberItem>();
 
                     byte[] _tmpbuf = new byte[MAX_DATA_LENGTH];
                     byte[] g = new byte[16];
 
                     while (rdr.Read())
                     {
-                        var item = new CircleMemberItem();
+                        var item = new CirclememberItem();
                         item.memberId = memberId;
 
                         long n = rdr.GetBytes(0, 0, g, 0, 16);
@@ -213,13 +184,13 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
 
         /// <summary>
-        /// Adds each CircleMemberItem in the supplied list.
+        /// Adds each CirclememberItem in the supplied list.
         /// </summary>
-        /// <param name="circleMemberItemList"></param>
+        /// <param name="CirclememberItemList"></param>
         /// <exception cref="Exception"></exception>
-        public void AddCircleMembers(List<CircleMemberItem> circleMemberItemList)
+        public void AddCircleMembers(List<CirclememberItem> CirclememberItemList)
         {
-            if ((circleMemberItemList == null) || (circleMemberItemList.Count < 1))
+            if ((CirclememberItemList == null) || (CirclememberItemList.Count < 1))
                 throw new Exception("No members supplied (null or empty)");
 
             lock (_insertLock)
@@ -251,11 +222,11 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 using (_database.CreateCommitUnitOfWork())
                 {
                     // Possibly do a Commit() here. But I need to think about Commits, Semaphores and multiple threads.
-                    for (int i = 0; i < circleMemberItemList.Count; i++)
+                    for (int i = 0; i < CirclememberItemList.Count; i++)
                     {
-                        _iparam1.Value = circleMemberItemList[i].circleId;
-                        _iparam2.Value = circleMemberItemList[i].memberId;
-                        _iparam3.Value = circleMemberItemList[i].data;
+                        _iparam1.Value = CirclememberItemList[i].circleId;
+                        _iparam2.Value = CirclememberItemList[i].memberId;
+                        _iparam3.Value = CirclememberItemList[i].data;
 
                         _insertCommand.ExecuteNonQuery();
                     }

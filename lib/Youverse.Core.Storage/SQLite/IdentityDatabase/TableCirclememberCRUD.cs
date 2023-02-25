@@ -5,54 +5,43 @@ using System.Data.SQLite;
 
 namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 {
-    public class FollowsMeItem
+    public class CirclememberItem
     {
-        private string _identity;
-        public string identity
+        private Guid _circleId;
+        public Guid circleId
         {
            get {
-                   return _identity;
+                   return _circleId;
                }
            set {
-                  if (value == null) throw new Exception("Cannot be null");
-                  if (value?.Length < 3) throw new Exception("Too short");
-                  if (value?.Length > 255) throw new Exception("Too long");
-                  _identity = value;
+                  _circleId = value;
                }
         }
-        private Guid _driveid;
-        public Guid driveid
+        private Guid _memberId;
+        public Guid memberId
         {
            get {
-                   return _driveid;
+                   return _memberId;
                }
            set {
-                  _driveid = value;
+                  _memberId = value;
                }
         }
-        private UnixTimeUtcUnique _created;
-        public UnixTimeUtcUnique created
+        private byte[] _data;
+        public byte[] data
         {
            get {
-                   return _created;
+                   return _data;
                }
            set {
-                  _created = value;
+                  if (value?.Length < 0) throw new Exception("Too short");
+                  if (value?.Length > 65535) throw new Exception("Too long");
+                  _data = value;
                }
         }
-        private UnixTimeUtc _modified;
-        public UnixTimeUtc modified
-        {
-           get {
-                   return _modified;
-               }
-           set {
-                  _modified = value;
-               }
-        }
-    } // End of class FollowsMeItem
+    } // End of class CirclememberItem
 
-    public class TableFollowsMeCRUD : TableBase
+    public class TableCirclememberCRUD : TableBase
     {
         private bool _disposed = false;
         private SQLiteCommand _insertCommand = null;
@@ -60,19 +49,16 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteParameter _insertParam1 = null;
         private SQLiteParameter _insertParam2 = null;
         private SQLiteParameter _insertParam3 = null;
-        private SQLiteParameter _insertParam4 = null;
         private SQLiteCommand _updateCommand = null;
         private static Object _updateLock = new Object();
         private SQLiteParameter _updateParam1 = null;
         private SQLiteParameter _updateParam2 = null;
         private SQLiteParameter _updateParam3 = null;
-        private SQLiteParameter _updateParam4 = null;
         private SQLiteCommand _upsertCommand = null;
         private static Object _upsertLock = new Object();
         private SQLiteParameter _upsertParam1 = null;
         private SQLiteParameter _upsertParam2 = null;
         private SQLiteParameter _upsertParam3 = null;
-        private SQLiteParameter _upsertParam4 = null;
         private SQLiteCommand _deleteCommand = null;
         private static Object _deleteLock = new Object();
         private SQLiteParameter _deleteParam1 = null;
@@ -82,13 +68,13 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteParameter _getParam1 = null;
         private SQLiteParameter _getParam2 = null;
 
-        public TableFollowsMeCRUD(IdentityDatabase db) : base(db)
+        public TableCirclememberCRUD(IdentityDatabase db) : base(db)
         {
         }
 
-        ~TableFollowsMeCRUD()
+        ~TableCirclememberCRUD()
         {
-            if (_disposed == false) throw new Exception("TableFollowsMeCRUD Not disposed properly");
+            if (_disposed == false) throw new Exception("TableCirclememberCRUD Not disposed properly");
         }
 
         public override void Dispose()
@@ -112,188 +98,177 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             {
                 if (dropExisting)
                 {
-                    cmd.CommandText = "DROP TABLE IF EXISTS followsMe;";
+                    cmd.CommandText = "DROP TABLE IF EXISTS circlemember;";
                     cmd.ExecuteNonQuery();
                 }
                 cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS followsMe("
-                     +"identity STRING NOT NULL, "
-                     +"driveid BLOB NOT NULL, "
-                     +"created INT NOT NULL, "
-                     +"modified INT NOT NULL "
-                     +", PRIMARY KEY (identity,driveid)"
-                     +", UNIQUE(identity,driveid)"
+                    "CREATE TABLE IF NOT EXISTS circlemember("
+                     +"circleId BLOB NOT NULL, "
+                     +"memberId BLOB NOT NULL, "
+                     +"data BLOB  "
+                     +", PRIMARY KEY (circleId,memberId)"
+                     +", UNIQUE(circleId,memberId)"
                      +");"
-                     +"CREATE INDEX IF NOT EXISTS Idx0TableFollowsMeCRUD ON followsMe(identity);"
                      ;
                 cmd.ExecuteNonQuery();
             }
         }
 
-        public int Insert(FollowsMeItem item)
+        public int Insert(CirclememberItem item)
         {
             lock (_insertLock)
             {
                 if (_insertCommand == null)
                 {
                     _insertCommand = _database.CreateCommand();
-                    _insertCommand.CommandText = "INSERT INTO followsMe (identity,driveid,created,modified) " +
-                                                 "VALUES ($identity,$driveid,$created,$modified)";
+                    _insertCommand.CommandText = "INSERT INTO circlemember (circleId,memberId,data) " +
+                                                 "VALUES ($circleId,$memberId,$data)";
                     _insertParam1 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam1);
-                    _insertParam1.ParameterName = "$identity";
+                    _insertParam1.ParameterName = "$circleId";
                     _insertParam2 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam2);
-                    _insertParam2.ParameterName = "$driveid";
+                    _insertParam2.ParameterName = "$memberId";
                     _insertParam3 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam3);
-                    _insertParam3.ParameterName = "$created";
-                    _insertParam4 = _insertCommand.CreateParameter();
-                    _insertCommand.Parameters.Add(_insertParam4);
-                    _insertParam4.ParameterName = "$modified";
+                    _insertParam3.ParameterName = "$data";
                     _insertCommand.Prepare();
                 }
-                _insertParam1.Value = item.identity;
-                _insertParam2.Value = item.driveid;
-                _insertParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _insertParam4.Value = UnixTimeUtc.Now().milliseconds;
+                _insertParam1.Value = item.circleId;
+                _insertParam2.Value = item.memberId;
+                _insertParam3.Value = item.data;
                 _database.BeginTransaction();
                 return _insertCommand.ExecuteNonQuery();
             } // Lock
         }
 
-        public int Upsert(FollowsMeItem item)
+        public int Upsert(CirclememberItem item)
         {
             lock (_upsertLock)
             {
                 if (_upsertCommand == null)
                 {
                     _upsertCommand = _database.CreateCommand();
-                    _upsertCommand.CommandText = "INSERT INTO followsMe (identity,driveid,created,modified) " +
-                                                 "VALUES ($identity,$driveid,$created,$modified)"+
-                                                 "ON CONFLICT (identity,driveid) DO UPDATE "+
-                                                 "SET modified = $modified;";
+                    _upsertCommand.CommandText = "INSERT INTO circlemember (circleId,memberId,data) " +
+                                                 "VALUES ($circleId,$memberId,$data)"+
+                                                 "ON CONFLICT (circleId,memberId) DO UPDATE "+
+                                                 "SET data = $data;";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
-                    _upsertParam1.ParameterName = "$identity";
+                    _upsertParam1.ParameterName = "$circleId";
                     _upsertParam2 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam2);
-                    _upsertParam2.ParameterName = "$driveid";
+                    _upsertParam2.ParameterName = "$memberId";
                     _upsertParam3 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam3);
-                    _upsertParam3.ParameterName = "$created";
-                    _upsertParam4 = _upsertCommand.CreateParameter();
-                    _upsertCommand.Parameters.Add(_upsertParam4);
-                    _upsertParam4.ParameterName = "$modified";
+                    _upsertParam3.ParameterName = "$data";
                     _upsertCommand.Prepare();
                 }
-                _upsertParam1.Value = item.identity;
-                _upsertParam2.Value = item.driveid;
-                _upsertParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _upsertParam4.Value = UnixTimeUtc.Now().milliseconds;
+                _upsertParam1.Value = item.circleId;
+                _upsertParam2.Value = item.memberId;
+                _upsertParam3.Value = item.data;
                 _database.BeginTransaction();
                 return _upsertCommand.ExecuteNonQuery();
             } // Lock
         }
 
-        public int Update(FollowsMeItem item)
+        public int Update(CirclememberItem item)
         {
             lock (_updateLock)
             {
                 if (_updateCommand == null)
                 {
                     _updateCommand = _database.CreateCommand();
-                    _updateCommand.CommandText = "UPDATE followsMe (identity,driveid,created,modified) " +
-                                                 "VALUES ($modified)"+
-                                                 "WHERE (identity = $identity,driveid = $driveid)";
+                    _updateCommand.CommandText = "UPDATE circlemember (circleId,memberId,data) " +
+                                                 "VALUES ($data)"+
+                                                 "WHERE (circleId = $circleId,memberId = $memberId)";
                     _updateParam1 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam1);
-                    _updateParam1.ParameterName = "$identity";
+                    _updateParam1.ParameterName = "$circleId";
                     _updateParam2 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam2);
-                    _updateParam2.ParameterName = "$driveid";
+                    _updateParam2.ParameterName = "$memberId";
                     _updateParam3 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam3);
-                    _updateParam3.ParameterName = "$created";
-                    _updateParam4 = _updateCommand.CreateParameter();
-                    _updateCommand.Parameters.Add(_updateParam4);
-                    _updateParam4.ParameterName = "$modified";
+                    _updateParam3.ParameterName = "$data";
                     _updateCommand.Prepare();
                 }
-                _updateParam1.Value = item.identity;
-                _updateParam2.Value = item.driveid;
-                _updateParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _updateParam4.Value = UnixTimeUtc.Now().milliseconds;
+                _updateParam1.Value = item.circleId;
+                _updateParam2.Value = item.memberId;
+                _updateParam3.Value = item.data;
                 _database.BeginTransaction();
                 return _updateCommand.ExecuteNonQuery();
             } // Lock
         }
 
-        public int Delete(string identity,Guid driveid)
+        public int Delete(Guid circleId,Guid memberId)
         {
             lock (_deleteLock)
             {
                 if (_deleteCommand == null)
                 {
                     _deleteCommand = _database.CreateCommand();
-                    _deleteCommand.CommandText = "DELETE FROM followsMe " +
-                                                 "WHERE identity = $identity AND driveid = $driveid";
+                    _deleteCommand.CommandText = "DELETE FROM circlemember " +
+                                                 "WHERE circleId = $circleId AND memberId = $memberId";
                     _deleteParam1 = _deleteCommand.CreateParameter();
                     _deleteCommand.Parameters.Add(_deleteParam1);
-                    _deleteParam1.ParameterName = "$identity";
+                    _deleteParam1.ParameterName = "$circleId";
                     _deleteParam2 = _deleteCommand.CreateParameter();
                     _deleteCommand.Parameters.Add(_deleteParam2);
-                    _deleteParam2.ParameterName = "$driveid";
+                    _deleteParam2.ParameterName = "$memberId";
                     _deleteCommand.Prepare();
                 }
-                _deleteParam1.Value = identity;
-                _deleteParam2.Value = driveid;
+                _deleteParam1.Value = circleId;
+                _deleteParam2.Value = memberId;
                 _database.BeginTransaction();
                 return _deleteCommand.ExecuteNonQuery();
             } // Lock
         }
 
-        public FollowsMeItem Get(string identity,Guid driveid)
+        public CirclememberItem Get(Guid circleId,Guid memberId)
         {
             lock (_getLock)
             {
                 if (_getCommand == null)
                 {
                     _getCommand = _database.CreateCommand();
-                    _getCommand.CommandText = "SELECT created,modified FROM followsMe " +
-                                                 "WHERE identity = $identity AND driveid = $driveid;";
+                    _getCommand.CommandText = "SELECT data FROM circlemember " +
+                                                 "WHERE circleId = $circleId AND memberId = $memberId;";
                     _getParam1 = _getCommand.CreateParameter();
                     _getCommand.Parameters.Add(_getParam1);
-                    _getParam1.ParameterName = "$identity";
+                    _getParam1.ParameterName = "$circleId";
                     _getParam2 = _getCommand.CreateParameter();
                     _getCommand.Parameters.Add(_getParam2);
-                    _getParam2.ParameterName = "$driveid";
+                    _getParam2.ParameterName = "$memberId";
                     _getCommand.Prepare();
                 }
-                _getParam1.Value = identity;
-                _getParam2.Value = driveid;
+                _getParam1.Value = circleId;
+                _getParam2.Value = memberId;
                 using (SQLiteDataReader rdr = _getCommand.ExecuteReader(System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                         return null;
-                    var item = new FollowsMeItem();
-                    item.identity = identity;
-                    item.driveid = driveid;
+                    var item = new CirclememberItem();
+                    item.circleId = circleId;
+                    item.memberId = memberId;
                     byte[] _tmpbuf = new byte[65535+1];
+                    long bytesRead;
                     var _guid = new byte[16];
 
                     if (rdr.IsDBNull(0))
-                        throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        item.data = null;
                     else
                     {
-                        item.created = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(0));
-                    }
-
-                    if (rdr.IsDBNull(1))
-                        throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                    else
-                    {
-                        item.modified = new UnixTimeUtc((UInt64) rdr.GetInt64(1));
+                        bytesRead = rdr.GetBytes(0, 0, _tmpbuf, 0, 65535+1);
+                        if (bytesRead > 65535)
+                            throw new Exception("Too much data in data...");
+                        if (bytesRead < 0)
+                            throw new Exception("Too little data in data...");
+                        if (bytesRead > 0)
+                        {
+                            item.data = new byte[bytesRead];
+                            Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+                        }
                     }
 
                     return item;

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.SQLite;
 
+
 namespace Youverse.Core.Storage.SQLite.DriveDatabase
 {
     public class ReactionsItem
@@ -14,8 +15,8 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                }
            set {
                   if (value == null) throw new Exception("Cannot be null");
-                  if (value != null) if (value.Length < 3) throw new Exception("Too short");
-                  if (value != null) if (value.Length > 256) throw new Exception("Too long");
+                  if (value?.Length < 3) throw new Exception("Too short");
+                  if (value?.Length > 256) throw new Exception("Too long");
                   _identity = value;
                }
         }
@@ -26,7 +27,6 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                    return _postid;
                }
            set {
-                  if (value == null) throw new Exception("Cannot be null");
                   _postid = value;
                }
         }
@@ -38,8 +38,8 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                }
            set {
                   if (value == null) throw new Exception("Cannot be null");
-                  if (value != null) if (value.Length < 3) throw new Exception("Too short");
-                  if (value != null) if (value.Length > 80) throw new Exception("Too long");
+                  if (value?.Length < 3) throw new Exception("Too short");
+                  if (value?.Length > 80) throw new Exception("Too long");
                   _singlereaction = value;
                }
         }
@@ -60,7 +60,6 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                    return _modified;
                }
            set {
-                  if (value == null) throw new Exception("Cannot be null");
                   _modified = value;
                }
         }
@@ -76,7 +75,6 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
         private SQLiteParameter _insertParam3 = null;
         private SQLiteParameter _insertParam4 = null;
         private SQLiteParameter _insertParam5 = null;
-        private SQLiteParameter _insertParam6 = null;
         private SQLiteCommand _updateCommand = null;
         private static Object _updateLock = new Object();
         private SQLiteParameter _updateParam1 = null;
@@ -84,7 +82,6 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
         private SQLiteParameter _updateParam3 = null;
         private SQLiteParameter _updateParam4 = null;
         private SQLiteParameter _updateParam5 = null;
-        private SQLiteParameter _updateParam6 = null;
         private SQLiteCommand _upsertCommand = null;
         private static Object _upsertLock = new Object();
         private SQLiteParameter _upsertParam1 = null;
@@ -92,7 +89,6 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
         private SQLiteParameter _upsertParam3 = null;
         private SQLiteParameter _upsertParam4 = null;
         private SQLiteParameter _upsertParam5 = null;
-        private SQLiteParameter _upsertParam6 = null;
         private SQLiteCommand _deleteCommand = null;
         private static Object _deleteLock = new Object();
         private SQLiteParameter _deleteParam1 = null;
@@ -322,7 +318,6 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     item.postid = postid;
                     item.singlereaction = singlereaction;
                     byte[] _tmpbuf = new byte[65535+1];
-                    long bytesRead;
                     var _guid = new byte[16];
 
                     if (rdr.IsDBNull(0))
