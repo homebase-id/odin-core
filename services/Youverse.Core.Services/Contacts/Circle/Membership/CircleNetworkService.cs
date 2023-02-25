@@ -350,7 +350,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 var isMember = circleMembers.Any(item => item.memberId == dotYouId.ToGuidIdentifier());
                 if (!isMember)
                 {
-                    _circleMemberStorage.AddCircleMembers(new List<CircleMemberItem>()
+                    _circleMemberStorage.AddCircleMembers(new List<CirclememberItem>()
                     {
                         CreateCircleMemberItemStorage(circleId, dotYouId)
                     });
@@ -409,7 +409,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             keyStoreKey.Wipe();
 
-            _circleMemberStorage.AddCircleMembers(new List<CircleMemberItem>()
+            _circleMemberStorage.AddCircleMembers(new List<CirclememberItem>()
             {
                 CreateCircleMemberItemStorage(circleId, dotYouId)
             });
@@ -910,7 +910,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             //
         }
 
-        private CircleMemberItem CreateCircleMemberItemStorage(GuidId circleId, DotYouIdentity dotYouId)
+        private CirclememberItem CreateCircleMemberItemStorage(GuidId circleId, DotYouIdentity dotYouId)
         {
             return new()
             {
@@ -923,7 +923,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             };
         }
         
-        private CircleMemberStorageData DeserializeCircleMemberItemStorage(CircleMemberItem item)
+        private CircleMemberStorageData DeserializeCircleMemberItemStorage(CirclememberItem item)
         {
             if (item.data?.Length > 0)
             {
