@@ -24,7 +24,8 @@ namespace Youverse.Core.Services.Transit.Incoming
             item.AddedTimestamp = UnixTimeUtc.Now();
 
             var state = DotYouSystemSerializer.Serialize(item).ToUtf8ByteArray();
-            _tenantSystemStorage.Inbox.InsertRow(item.DriveId.ToByteArray(), item.FileId.ToByteArray(), 1, state);
+            // XXX MS Did I do that right?
+            _tenantSystemStorage.Inbox.Insert(new Storage.SQLite.IdentityDatabase.InboxItem() { boxId = item.DriveId, fileId = item.FileId, priority = 1, value = state });
             
             return Task.CompletedTask;
         }
@@ -32,7 +33,7 @@ namespace Youverse.Core.Services.Transit.Incoming
         public async Task<List<TransferBoxItem>> GetPendingItems(Guid driveId)
         {
             //CRITICAL NOTE: we can only get back one item since we want to make sure the marker is for that one item in-case the operation fails
-            var records = this._tenantSystemStorage.Inbox.Pop(driveId.ToByteArray(), 1, out var marker);
+            var records = this._tenantSystemStorage.Inbox.Pop(driveId, 1, out var marker);
 
             var record = records.SingleOrDefault();
             if (null == record)
@@ -45,9 +46,9 @@ namespace Youverse.Core.Services.Transit.Incoming
                 var item = DotYouSystemSerializer.Deserialize<TransferBoxItem>(r.value.ToStringFromUtf8Bytes());
 
                 item.Priority = (int)r.priority;
-                item.AddedTimestamp = r.timeStamp;
-                item.DriveId = new Guid(r.boxId);
-                item.FileId = new Guid(r.fileId);
+                item.AddedTimestamp = r.timestamp;
+                item.DriveId = r.boxId;
+                item.FileId = r.fileId;
 
                 return item;
             }).ToList();
