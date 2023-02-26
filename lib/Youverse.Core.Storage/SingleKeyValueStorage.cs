@@ -23,23 +23,28 @@ public class SingleKeyValueStorage
     /// <returns></returns>
     public T Get<T>(GuidId key, string context = null) where T : class
     {
-        var bytes = _table.Get(key);
-        if (null == bytes)
+        var item = _table.Get(key);
+        if (null == item)
         {
             return null;
         }
 
-        return DotYouSystemSerializer.Deserialize<T>(bytes.ToStringFromUtf8Bytes());
+        if (null == item.data)
+        {
+            return null;
+        }
+
+        return DotYouSystemSerializer.Deserialize<T>(item.data.ToStringFromUtf8Bytes());
     }
 
     public void Upsert<T>(GuidId key, T value)
     {
         var json = DotYouSystemSerializer.Serialize(value);
-        _table.UpsertRow(key, json.ToUtf8ByteArray());
+        _table.Upsert(new KeyValueItem() { key = key, data = json.ToUtf8ByteArray() });
     }
 
     public void Delete(GuidId key)
     {
-        _table.DeleteRow(key);
+        _table.Delete(key);
     }
 }

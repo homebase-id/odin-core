@@ -228,8 +228,8 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 if (_updateCommand == null)
                 {
                     _updateCommand = _database.CreateCommand();
-                    _updateCommand.CommandText = "UPDATE reactions (identity,postId,singleReaction,created,modified) " +
-                                                 "VALUES ($modified)"+
+                    _updateCommand.CommandText = "UPDATE reactions " +
+                                                 "SET modified = $modified "+
                                                  "WHERE (identity = $identity,postId = $postId,singleReaction = $singleReaction)";
                     _updateParam1 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam1);

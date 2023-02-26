@@ -5,26 +5,16 @@ using System.Data.SQLite;
 
 namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 {
-    public class CircleMemberItem
+    public class KeyValueItem
     {
-        private Guid _circleId;
-        public Guid circleId
+        private Guid _key;
+        public Guid key
         {
            get {
-                   return _circleId;
+                   return _key;
                }
            set {
-                  _circleId = value;
-               }
-        }
-        private Guid _memberId;
-        public Guid memberId
-        {
-           get {
-                   return _memberId;
-               }
-           set {
-                  _memberId = value;
+                  _key = value;
                }
         }
         private byte[] _data;
@@ -35,46 +25,41 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                }
            set {
                   if (value?.Length < 0) throw new Exception("Too short");
-                  if (value?.Length > 65535) throw new Exception("Too long");
+                  if (value?.Length > 1048576) throw new Exception("Too long");
                   _data = value;
                }
         }
-    } // End of class CircleMemberItem
+    } // End of class KeyValueItem
 
-    public class TableCircleMemberCRUD : TableBase
+    public class TableKeyValueCRUD : TableBase
     {
         private bool _disposed = false;
         private SQLiteCommand _insertCommand = null;
         private static Object _insertLock = new Object();
         private SQLiteParameter _insertParam1 = null;
         private SQLiteParameter _insertParam2 = null;
-        private SQLiteParameter _insertParam3 = null;
         private SQLiteCommand _updateCommand = null;
         private static Object _updateLock = new Object();
         private SQLiteParameter _updateParam1 = null;
         private SQLiteParameter _updateParam2 = null;
-        private SQLiteParameter _updateParam3 = null;
         private SQLiteCommand _upsertCommand = null;
         private static Object _upsertLock = new Object();
         private SQLiteParameter _upsertParam1 = null;
         private SQLiteParameter _upsertParam2 = null;
-        private SQLiteParameter _upsertParam3 = null;
         private SQLiteCommand _deleteCommand = null;
         private static Object _deleteLock = new Object();
         private SQLiteParameter _deleteParam1 = null;
-        private SQLiteParameter _deleteParam2 = null;
         private SQLiteCommand _getCommand = null;
         private static Object _getLock = new Object();
         private SQLiteParameter _getParam1 = null;
-        private SQLiteParameter _getParam2 = null;
 
-        public TableCircleMemberCRUD(IdentityDatabase db) : base(db)
+        public TableKeyValueCRUD(IdentityDatabase db) : base(db)
         {
         }
 
-        ~TableCircleMemberCRUD()
+        ~TableKeyValueCRUD()
         {
-            if (_disposed == false) throw new Exception("TableCircleMemberCRUD Not disposed properly");
+            if (_disposed == false) throw new Exception("TableKeyValueCRUD Not disposed properly");
         }
 
         public override void Dispose()
@@ -98,159 +83,137 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             {
                 if (dropExisting)
                 {
-                    cmd.CommandText = "DROP TABLE IF EXISTS circleMember;";
+                    cmd.CommandText = "DROP TABLE IF EXISTS keyValue;";
                     cmd.ExecuteNonQuery();
                 }
                 cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS circleMember("
-                     +"circleId BLOB NOT NULL, "
-                     +"memberId BLOB NOT NULL, "
+                    "CREATE TABLE IF NOT EXISTS keyValue("
+                     +"key BLOB NOT NULL UNIQUE, "
                      +"data BLOB  "
-                     +", PRIMARY KEY (circleId,memberId)"
+                     +", PRIMARY KEY (key)"
                      +");"
                      ;
                 cmd.ExecuteNonQuery();
             }
         }
 
-        public virtual int Insert(CircleMemberItem item)
+        public virtual int Insert(KeyValueItem item)
         {
             lock (_insertLock)
             {
                 if (_insertCommand == null)
                 {
                     _insertCommand = _database.CreateCommand();
-                    _insertCommand.CommandText = "INSERT INTO circleMember (circleId,memberId,data) " +
-                                                 "VALUES ($circleId,$memberId,$data)";
+                    _insertCommand.CommandText = "INSERT INTO keyValue (key,data) " +
+                                                 "VALUES ($key,$data)";
                     _insertParam1 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam1);
-                    _insertParam1.ParameterName = "$circleId";
+                    _insertParam1.ParameterName = "$key";
                     _insertParam2 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam2);
-                    _insertParam2.ParameterName = "$memberId";
-                    _insertParam3 = _insertCommand.CreateParameter();
-                    _insertCommand.Parameters.Add(_insertParam3);
-                    _insertParam3.ParameterName = "$data";
+                    _insertParam2.ParameterName = "$data";
                     _insertCommand.Prepare();
                 }
-                _insertParam1.Value = item.circleId;
-                _insertParam2.Value = item.memberId;
-                _insertParam3.Value = item.data;
+                _insertParam1.Value = item.key;
+                _insertParam2.Value = item.data;
                 _database.BeginTransaction();
                 return _insertCommand.ExecuteNonQuery();
             } // Lock
         }
 
-        public virtual int Upsert(CircleMemberItem item)
+        public virtual int Upsert(KeyValueItem item)
         {
             lock (_upsertLock)
             {
                 if (_upsertCommand == null)
                 {
                     _upsertCommand = _database.CreateCommand();
-                    _upsertCommand.CommandText = "INSERT INTO circleMember (circleId,memberId,data) " +
-                                                 "VALUES ($circleId,$memberId,$data)"+
-                                                 "ON CONFLICT (circleId,memberId) DO UPDATE "+
+                    _upsertCommand.CommandText = "INSERT INTO keyValue (key,data) " +
+                                                 "VALUES ($key,$data)"+
+                                                 "ON CONFLICT (key) DO UPDATE "+
                                                  "SET data = $data;";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
-                    _upsertParam1.ParameterName = "$circleId";
+                    _upsertParam1.ParameterName = "$key";
                     _upsertParam2 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam2);
-                    _upsertParam2.ParameterName = "$memberId";
-                    _upsertParam3 = _upsertCommand.CreateParameter();
-                    _upsertCommand.Parameters.Add(_upsertParam3);
-                    _upsertParam3.ParameterName = "$data";
+                    _upsertParam2.ParameterName = "$data";
                     _upsertCommand.Prepare();
                 }
-                _upsertParam1.Value = item.circleId;
-                _upsertParam2.Value = item.memberId;
-                _upsertParam3.Value = item.data;
+                _upsertParam1.Value = item.key;
+                _upsertParam2.Value = item.data;
                 _database.BeginTransaction();
                 return _upsertCommand.ExecuteNonQuery();
             } // Lock
         }
 
-        public virtual int Update(CircleMemberItem item)
+        public virtual int Update(KeyValueItem item)
         {
             lock (_updateLock)
             {
                 if (_updateCommand == null)
                 {
                     _updateCommand = _database.CreateCommand();
-                    _updateCommand.CommandText = "UPDATE circleMember " +
+                    _updateCommand.CommandText = "UPDATE keyValue " +
                                                  "SET data = $data "+
-                                                 "WHERE (circleId = $circleId,memberId = $memberId)";
+                                                 "WHERE (key = $key)";
                     _updateParam1 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam1);
-                    _updateParam1.ParameterName = "$circleId";
+                    _updateParam1.ParameterName = "$key";
                     _updateParam2 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam2);
-                    _updateParam2.ParameterName = "$memberId";
-                    _updateParam3 = _updateCommand.CreateParameter();
-                    _updateCommand.Parameters.Add(_updateParam3);
-                    _updateParam3.ParameterName = "$data";
+                    _updateParam2.ParameterName = "$data";
                     _updateCommand.Prepare();
                 }
-                _updateParam1.Value = item.circleId;
-                _updateParam2.Value = item.memberId;
-                _updateParam3.Value = item.data;
+                _updateParam1.Value = item.key;
+                _updateParam2.Value = item.data;
                 _database.BeginTransaction();
                 return _updateCommand.ExecuteNonQuery();
             } // Lock
         }
 
-        public int Delete(Guid circleId,Guid memberId)
+        public int Delete(Guid key)
         {
             lock (_deleteLock)
             {
                 if (_deleteCommand == null)
                 {
                     _deleteCommand = _database.CreateCommand();
-                    _deleteCommand.CommandText = "DELETE FROM circleMember " +
-                                                 "WHERE circleId = $circleId AND memberId = $memberId";
+                    _deleteCommand.CommandText = "DELETE FROM keyValue " +
+                                                 "WHERE key = $key";
                     _deleteParam1 = _deleteCommand.CreateParameter();
                     _deleteCommand.Parameters.Add(_deleteParam1);
-                    _deleteParam1.ParameterName = "$circleId";
-                    _deleteParam2 = _deleteCommand.CreateParameter();
-                    _deleteCommand.Parameters.Add(_deleteParam2);
-                    _deleteParam2.ParameterName = "$memberId";
+                    _deleteParam1.ParameterName = "$key";
                     _deleteCommand.Prepare();
                 }
-                _deleteParam1.Value = circleId;
-                _deleteParam2.Value = memberId;
+                _deleteParam1.Value = key;
                 _database.BeginTransaction();
                 return _deleteCommand.ExecuteNonQuery();
             } // Lock
         }
 
-        public CircleMemberItem Get(Guid circleId,Guid memberId)
+        public KeyValueItem Get(Guid key)
         {
             lock (_getLock)
             {
                 if (_getCommand == null)
                 {
                     _getCommand = _database.CreateCommand();
-                    _getCommand.CommandText = "SELECT data FROM circleMember " +
-                                                 "WHERE circleId = $circleId AND memberId = $memberId;";
+                    _getCommand.CommandText = "SELECT data FROM keyValue " +
+                                                 "WHERE key = $key;";
                     _getParam1 = _getCommand.CreateParameter();
                     _getCommand.Parameters.Add(_getParam1);
-                    _getParam1.ParameterName = "$circleId";
-                    _getParam2 = _getCommand.CreateParameter();
-                    _getCommand.Parameters.Add(_getParam2);
-                    _getParam2.ParameterName = "$memberId";
+                    _getParam1.ParameterName = "$key";
                     _getCommand.Prepare();
                 }
-                _getParam1.Value = circleId;
-                _getParam2.Value = memberId;
+                _getParam1.Value = key;
                 using (SQLiteDataReader rdr = _getCommand.ExecuteReader(System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                         return null;
-                    var item = new CircleMemberItem();
-                    item.circleId = circleId;
-                    item.memberId = memberId;
-                    byte[] _tmpbuf = new byte[65535+1];
+                    var item = new KeyValueItem();
+                    item.key = key;
+                    byte[] _tmpbuf = new byte[1048576+1];
                     long bytesRead;
                     var _guid = new byte[16];
 
@@ -258,8 +221,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                         item.data = null;
                     else
                     {
-                        bytesRead = rdr.GetBytes(0, 0, _tmpbuf, 0, 65535+1);
-                        if (bytesRead > 65535)
+                        bytesRead = rdr.GetBytes(0, 0, _tmpbuf, 0, 1048576+1);
+                        if (bytesRead > 1048576)
                             throw new Exception("Too much data in data...");
                         if (bytesRead < 0)
                             throw new Exception("Too little data in data...");

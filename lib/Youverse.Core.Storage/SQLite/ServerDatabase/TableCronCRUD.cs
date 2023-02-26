@@ -312,8 +312,8 @@ namespace Youverse.Core.Storage.SQLite.ServerDatabase
                 if (_updateCommand == null)
                 {
                     _updateCommand = _database.CreateCommand();
-                    _updateCommand.CommandText = "UPDATE cron (identityId,type,data,runCount,nextRun,lastRun,popStamp,created,modified) " +
-                                                 "VALUES ($data,$runCount,$nextRun,$lastRun,$popStamp,$modified)"+
+                    _updateCommand.CommandText = "UPDATE cron " +
+                                                 "SET data = $data,runCount = $runCount,nextRun = $nextRun,lastRun = $lastRun,popStamp = $popStamp,modified = $modified "+
                                                  "WHERE (identityId = $identityId,type = $type)";
                     _updateParam1 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam1);

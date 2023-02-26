@@ -284,8 +284,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (_updateCommand == null)
                 {
                     _updateCommand = _database.CreateCommand();
-                    _updateCommand.CommandText = "UPDATE connections (identity,displayName,status,accessIsRevoked,data,created,modified) " +
-                                                 "VALUES ($displayName,$status,$accessIsRevoked,$data,$modified)"+
+                    _updateCommand.CommandText = "UPDATE connections " +
+                                                 "SET displayName = $displayName,status = $status,accessIsRevoked = $accessIsRevoked,data = $data,modified = $modified "+
                                                  "WHERE (identity = $identity)";
                     _updateParam1 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam1);

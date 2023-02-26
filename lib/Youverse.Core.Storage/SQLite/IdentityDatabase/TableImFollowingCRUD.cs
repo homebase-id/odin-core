@@ -202,8 +202,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (_updateCommand == null)
                 {
                     _updateCommand = _database.CreateCommand();
-                    _updateCommand.CommandText = "UPDATE imFollowing (identity,driveId,created,modified) " +
-                                                 "VALUES ($modified)"+
+                    _updateCommand.CommandText = "UPDATE imFollowing " +
+                                                 "SET modified = $modified "+
                                                  "WHERE (identity = $identity,driveId = $driveId)";
                     _updateParam1 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam1);

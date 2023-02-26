@@ -316,8 +316,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (_updateCommand == null)
                 {
                     _updateCommand = _database.CreateCommand();
-                    _updateCommand.CommandText = "UPDATE outbox (fileId,recipient,boxId,priority,timeStamp,value,popStamp,created,modified) " +
-                                                 "VALUES ($boxId,$priority,$timeStamp,$value,$popStamp,$modified)"+
+                    _updateCommand.CommandText = "UPDATE outbox " +
+                                                 "SET boxId = $boxId,priority = $priority,timeStamp = $timeStamp,value = $value,popStamp = $popStamp,modified = $modified "+
                                                  "WHERE (fileId = $fileId,recipient = $recipient)";
                     _updateParam1 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam1);

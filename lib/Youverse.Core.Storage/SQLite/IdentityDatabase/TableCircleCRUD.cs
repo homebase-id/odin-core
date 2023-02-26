@@ -185,8 +185,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (_updateCommand == null)
                 {
                     _updateCommand = _database.CreateCommand();
-                    _updateCommand.CommandText = "UPDATE circle (circleName,circleId,data) " +
-                                                 "VALUES ($circleName,$data)"+
+                    _updateCommand.CommandText = "UPDATE circle " +
+                                                 "SET circleName = $circleName,data = $data "+
                                                  "WHERE (circleId = $circleId)";
                     _updateParam1 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam1);
