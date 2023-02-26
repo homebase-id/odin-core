@@ -49,6 +49,20 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             base.Dispose();
         }
 
+        public override int Insert(InboxItem item)
+        {
+            if (item.timeStamp.milliseconds == 0)
+                item.timeStamp = UnixTimeUtc.Now();
+            return base.Insert(item);
+        }
+
+        public override int Upsert(InboxItem item)
+        {
+            if (item.timeStamp.milliseconds == 0)
+                item.timeStamp = UnixTimeUtc.Now();
+            return base.Insert(item);
+        }
+
         /// <summary>
         /// Pops 'count' items from the inbox. The items remain in the DB with the 'popstamp' unique identifier.
         /// Popstamp is used by the caller to release the items when they have been successfully processed, or
