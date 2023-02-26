@@ -5,5 +5,5 @@ namespace Youverse.Core.Services.AppNotifications.ClientNotifications;
 
 public class IdentityConnectionRegistrationChangedNotification : INotification
 {
-    public DotYouIdentity DotYouId { get; set; }
+    public OdinId DotYouId { get; set; }
 }

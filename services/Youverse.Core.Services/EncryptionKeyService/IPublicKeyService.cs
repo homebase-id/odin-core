@@ -26,7 +26,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
 
         Task<(bool, byte[])> DecryptKeyHeaderUsingOfflineKey(byte[] encryptedData, uint publicKeyCrc32, bool failIfNoMatchingPublicKey = true);
 
-        Task<RsaPublicKeyData> GetRecipientOfflinePublicKey(DotYouIdentity recipient, bool lookupIfInvalid = true, bool failIfCannotRetrieve = true);
+        Task<RsaPublicKeyData> GetRecipientOfflinePublicKey(OdinId recipient, bool lookupIfInvalid = true, bool failIfCannotRetrieve = true);
 
         Task<RsaEncryptedPayload> EncryptPayloadForRecipient(string recipient, byte[] payload);
 
@@ -37,6 +37,6 @@ namespace Youverse.Core.Services.EncryptionKeyService
         /// </summary>
         /// <param name="recipient"></param>
         /// <returns></returns>
-        Task InvalidatePublicKey(DotYouIdentity recipient);
+        Task InvalidatePublicKey(OdinId recipient);
     }
 }

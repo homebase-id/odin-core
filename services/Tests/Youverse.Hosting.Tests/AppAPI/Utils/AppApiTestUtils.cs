@@ -49,7 +49,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
         /// <summary>
         /// Creates a client for use with the app API (/api/apps/v1/...)
         /// </summary>
-        public HttpClient CreateAppApiHttpClient(DotYouIdentity identity, ClientAuthenticationToken token, byte[] sharedSecret, FileSystemType fileSystemType)
+        public HttpClient CreateAppApiHttpClient(OdinId identity, ClientAuthenticationToken token, byte[] sharedSecret, FileSystemType fileSystemType)
         {
             var cookieJar = new CookieContainer();
             cookieJar.Add(new Cookie(ClientTokenConstants.ClientAuthTokenCookieName, token.ToString(), null, identity));
@@ -96,7 +96,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
         }
 
         public async Task<AppTransitTestUtilsContext> TransferFile(TestAppContext senderAppContext,
-            Dictionary<DotYouIdentity, TestAppContext> recipientContexts,
+            Dictionary<OdinId, TestAppContext> recipientContexts,
             UploadInstructionSet instructionSet,
             UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
         {
@@ -350,7 +350,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                     });
 
             //Setup the app on all recipient DIs
-            var recipientContexts = new Dictionary<DotYouIdentity, TestAppContext>();
+            var recipientContexts = new Dictionary<OdinId, TestAppContext>();
             foreach (var r in instructionSet.TransitOptions?.Recipients ?? new List<string>())
             {
                 var recipient = TestIdentities.All[r];

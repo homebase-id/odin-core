@@ -3,7 +3,7 @@ using System;
 namespace Youverse.Core.Identity
 {
     /// <summary>
-    /// Base class for any which need their ID to be based on the <see cref="DotYouIdentity"/>.  This is useful for storage in LiteDB
+    /// Base class for any which need their ID to be based on the <see cref="OdinId"/>.  This is useful for storage in LiteDB
     /// </summary>
     public abstract class DotYouIdBase
     {
@@ -20,6 +20,6 @@ namespace Youverse.Core.Identity
         /// <summary>
         /// Specifies the DI address for this Human
         /// </summary>
-        public DotYouIdentity DotYouId { get; init; }
+        public OdinId DotYouId { get; init; }
     }
 }

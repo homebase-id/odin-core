@@ -30,7 +30,7 @@ namespace Youverse.Core.Services.Transit.Incoming
 
         public UnixTimeUtc AddedTimestamp { get; set; }
 
-        public DotYouIdentity Sender { get; set; }
+        public OdinId Sender { get; set; }
 
         /// <summary>
         /// Specifies how this item should be prioritized by the Outbox Sending

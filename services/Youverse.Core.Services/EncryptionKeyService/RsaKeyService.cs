@@ -66,7 +66,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
             return (isValidPublicKey, bytes);
         }
 
-        public async Task InvalidatePublicKey(DotYouIdentity recipient)
+        public async Task InvalidatePublicKey(OdinId recipient)
         {
             _tenantSystemStorage.SingleKeyValueStorage.Delete(GuidId.FromString(recipient.Id));
         }
@@ -101,7 +101,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
 
         private static readonly SemaphoreSlim _rsaPublicKeyCacheLock = new SemaphoreSlim(1, 1);
 
-        public async Task<RsaPublicKeyData> GetRecipientOfflinePublicKey(DotYouIdentity recipient, bool lookupIfInvalid = true, bool failIfCannotRetrieve = true)
+        public async Task<RsaPublicKeyData> GetRecipientOfflinePublicKey(OdinId recipient, bool lookupIfInvalid = true, bool failIfCannotRetrieve = true)
         {
             //TODO: need to clean up the cache for expired items
             //TODO: optimize by reading a dictionary cache
@@ -148,7 +148,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
 
         public async Task<RsaEncryptedPayload> EncryptPayloadForRecipient(string recipient, byte[] payload)
         {
-            var pk = await this.GetRecipientOfflinePublicKey((DotYouIdentity)recipient);
+            var pk = await this.GetRecipientOfflinePublicKey((OdinId)recipient);
             var keyHeader = KeyHeader.NewRandom16();
             return new RsaEncryptedPayload()
             {

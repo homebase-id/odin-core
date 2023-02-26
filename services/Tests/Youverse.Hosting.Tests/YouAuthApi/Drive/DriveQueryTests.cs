@@ -259,7 +259,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
             }
         }
 
-        private async Task<UploadTestUtilsContext> UploadFile(DotYouIdentity identity, Guid tag, SecurityGroupType requiredSecurityGroup)
+        private async Task<UploadTestUtilsContext> UploadFile(OdinId identity, Guid tag, SecurityGroupType requiredSecurityGroup)
         {
             List<Guid> tags = new List<Guid>() { tag};
 
@@ -296,7 +296,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
             return await _scaffold.OldOwnerApi.Upload(identity, uploadFileMetadata, options);
         }
 
-        private async Task<UploadTestUtilsContext> UploadFile2(DotYouIdentity identity, TargetDrive drive, Guid? overwriteFileId, Guid tag, SecurityGroupType requiredSecurityGroup, string payload)
+        private async Task<UploadTestUtilsContext> UploadFile2(OdinId identity, TargetDrive drive, Guid? overwriteFileId, Guid tag, SecurityGroupType requiredSecurityGroup, string payload)
         {
             var instructionSet = new UploadInstructionSet()
             {

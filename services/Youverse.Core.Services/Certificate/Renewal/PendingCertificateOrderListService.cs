@@ -32,7 +32,7 @@ namespace Youverse.Core.Services.Certificate.Renewal
             _db.CreateDatabase(false);
         }
 
-        public void Add(DotYouIdentity identity)
+        public void Add(OdinId identity)
         {
             //Note: I use sender here because boxId has a unique constraint; and we only a sender in this table once.
             //I swallow the exception because there's no direct way to see if a record exists for this sender already
@@ -58,12 +58,12 @@ namespace Youverse.Core.Services.Certificate.Renewal
         /// <summary>
         /// Gets a list of identities awaiting certificate validation/creation.
         /// </summary>
-        public async Task<(IEnumerable<DotYouIdentity>, byte[] marker)> GetIdentities()
+        public async Task<(IEnumerable<OdinId>, byte[] marker)> GetIdentities()
         {
             var records = _db.tblOutbox.PopAll(out var marker);
             
             //see Add method.  fileId = dotYouId
-            var senders = records.Select(item => new DotYouIdentity(item.value.ToStringFromUtf8Bytes())).ToList();
+            var senders = records.Select(item => new OdinId(item.value.ToStringFromUtf8Bytes())).ToList();
             return (senders, marker);
         }
 

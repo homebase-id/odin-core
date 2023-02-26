@@ -127,7 +127,7 @@ namespace Youverse.Core.Services.Transit
             };
         }
 
-        private void AddToTransferKeyEncryptionQueue(DotYouIdentity recipient, InternalDriveFileId file)
+        private void AddToTransferKeyEncryptionQueue(OdinId recipient, InternalDriveFileId file)
         {
             var now = UnixTimeUtc.Now().milliseconds;
             var item = new TransitKeyEncryptionQueueItem()
@@ -167,7 +167,7 @@ namespace Youverse.Core.Services.Transit
             var targetDrive = (await _driveManager.GetDrive(driveId, true)).TargetDriveInfo;
             foreach (var recipient in recipients)
             {
-                var r = (DotYouIdentity)recipient;
+                var r = (OdinId)recipient;
                 var clientAuthToken = _circleNetworkService.GetConnectionAuthToken(r).GetAwaiter().GetResult();
                 var client = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(r, clientAuthToken);
 
@@ -236,7 +236,7 @@ namespace Youverse.Core.Services.Transit
         {
             IDriveFileSystem fs = _fileSystemResolver.ResolveFileSystem(outboxItem.TransferInstructionSet.FileSystemType);
 
-            DotYouIdentity recipient = outboxItem.Recipient;
+            OdinId recipient = outboxItem.Recipient;
             var file = outboxItem.File;
             var options = outboxItem.OriginalTransitOptions;
 
@@ -398,7 +398,7 @@ namespace Youverse.Core.Services.Transit
 
             foreach (var r in options.Recipients)
             {
-                var recipient = (DotYouIdentity)r;
+                var recipient = (OdinId)r;
                 try
                 {
                     //TODO: decide if we should lookup the public key from the recipients host if not cached or just drop the item in the queue
@@ -422,7 +422,7 @@ namespace Youverse.Core.Services.Transit
                     {
                         IsTransientFile = options.IsTransient,
                         File = internalFile,
-                        Recipient = (DotYouIdentity)r,
+                        Recipient = (OdinId)r,
                         OriginalTransitOptions = options,
                         EncryptedClientAuthToken = encryptedClientAccessToken,
                         TransferInstructionSet = this.CreateTransferInstructionSet(
@@ -444,7 +444,7 @@ namespace Youverse.Core.Services.Transit
             return (transferStatus, outboxItems);
         }
 
-        private async Task<ClientAccessToken> ResolveClientAccessToken(DotYouIdentity recipient, ClientAccessTokenSource source)
+        private async Task<ClientAccessToken> ResolveClientAccessToken(OdinId recipient, ClientAccessTokenSource source)
         {
             if (source == ClientAccessTokenSource.Circle)
             {

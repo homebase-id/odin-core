@@ -32,9 +32,9 @@ public class ConversationDefinitionService
     }
 
 
-    public async Task<ChatConversation> StartConversation(DotYouIdentity recipient)
+    public async Task<ChatConversation> StartConversation(OdinId recipient)
     {
-        var senderBytes = ((DotYouIdentity)_serverContext.Sender).ToGuidIdentifier().ToByteArray();
+        var senderBytes = ((OdinId)_serverContext.Sender).ToGuidIdentifier().ToByteArray();
         var recipientBytes = recipient.ToGuidIdentifier().ToByteArray();
 
         var convo = new ChatConversation()

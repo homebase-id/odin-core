@@ -58,7 +58,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             // var request = new HttpRequestMessage(HttpMethod.Get, url);
             // var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseContentRead);
 
-            var dotYouId = new DotYouIdentity(subject);
+            var dotYouId = new OdinId(subject);
             var response = await _dotYouHttpClientFactory
                 .CreateClient<IYouAuthPerimeterHttpClient>(dotYouId)
                 .ValidateAuthorizationCodeResponse(initiator, authorizationCode);
@@ -97,7 +97,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             if (isValid)
             {
                 string dotYouId = initiator;
-                var info = await _circleNetwork.GetIdentityConnectionRegistration((DotYouIdentity)dotYouId, isValid);
+                var info = await _circleNetwork.GetIdentityConnectionRegistration((OdinId)dotYouId, isValid);
                 if (info.IsConnected())
                 {
                     //TODO: RSA Encrypt or used shared secret?

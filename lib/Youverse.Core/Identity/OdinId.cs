@@ -9,12 +9,12 @@ namespace Youverse.Core.Identity
     /// Holds the identity for an individual using the dotYou platform
     /// </summary>
     [JsonConverter(typeof(DotYouIdentityConverter))]
-    public readonly struct DotYouIdentity
+    public readonly struct OdinId
     {
         private readonly string _identifier;
         private readonly Guid _id;
 
-        public DotYouIdentity(string identifier)
+        public OdinId(string identifier)
         {
             _identifier = identifier?.ToLower().Trim();
             if (string.IsNullOrEmpty(_identifier) == false)
@@ -35,31 +35,31 @@ namespace Youverse.Core.Identity
         {
             return this._id != Guid.Empty;
         }
-        public static bool operator ==(DotYouIdentity d1, DotYouIdentity d2)
+        public static bool operator ==(OdinId d1, OdinId d2)
         {
             return d1.ToGuidIdentifier() == d2.ToGuidIdentifier();
         }
 
-        public static bool operator !=(DotYouIdentity d1, DotYouIdentity d2) => !(d1 == d2);
+        public static bool operator !=(OdinId d1, OdinId d2) => !(d1 == d2);
 
-        public static implicit operator string(DotYouIdentity dy)
+        public static implicit operator string(OdinId dy)
         {
             return dy._identifier;
         }
 
-        public static explicit operator DotYouIdentity(string id)
+        public static explicit operator OdinId(string id)
         {
-            return new DotYouIdentity(id);
+            return new OdinId(id);
         }
 
-        public static implicit operator Guid(DotYouIdentity dotYouId)
+        public static implicit operator Guid(OdinId dotYouId)
         {
             return dotYouId.ToGuidIdentifier();
         }
 
         public override bool Equals(object obj)
         {
-            var d2 = (DotYouIdentity)obj;
+            var d2 = (OdinId)obj;
             return this == d2;
         }
 
@@ -88,9 +88,9 @@ namespace Youverse.Core.Identity
             return key;
         }
 
-        public static DotYouIdentity FromByteArray(byte[] id)
+        public static OdinId FromByteArray(byte[] id)
         {
-            return new DotYouIdentity(id.ToStringFromUtf8Bytes());
+            return new OdinId(id.ToStringFromUtf8Bytes());
         }
 
         public static void Validate(string dotYouId)

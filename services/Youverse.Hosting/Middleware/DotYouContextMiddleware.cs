@@ -80,7 +80,7 @@ namespace Youverse.Hosting.Middleware
                 
                 var user = httpContext.User;
                 var transitRegService = httpContext.RequestServices.GetRequiredService<TransitRegistrationService>();
-                var callerDotYouId = (DotYouIdentity)user.Identity!.Name;
+                var callerDotYouId = (OdinId)user.Identity!.Name;
                 var ctx = await transitRegService.GetDotYouContext(callerDotYouId, clientAuthToken);
 
                 if (ctx != null)
@@ -101,7 +101,7 @@ namespace Youverse.Hosting.Middleware
             {
                 var user = httpContext.User;
                 var authService = httpContext.RequestServices.GetRequiredService<DataProviderAuthenticationService>();
-                var callerDotYouId = (DotYouIdentity)user.Identity!.Name;
+                var callerDotYouId = (OdinId)user.Identity!.Name;
                 var ctx = await authService.GetDotYouContext(callerDotYouId, clientAuthToken);
                 if (ctx != null)
                 {
@@ -127,7 +127,7 @@ namespace Youverse.Hosting.Middleware
              */
 
             var user = httpContext.User;
-            var callerDotYouId = (DotYouIdentity)user.Identity!.Name;
+            var callerDotYouId = (OdinId)user.Identity!.Name;
 
             dotYouContext.Caller = new CallerContext(
                 dotYouId: callerDotYouId, //note: this will need to come from a claim: re: best buy/3rd party scenario

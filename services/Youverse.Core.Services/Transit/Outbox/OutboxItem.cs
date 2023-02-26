@@ -18,7 +18,7 @@ namespace Youverse.Core.Services.Transit.Outbox
             this.File = new InternalDriveFileId();
         }
 
-        public DotYouIdentity Recipient { get; set; }
+        public OdinId Recipient { get; set; }
 
         public InternalDriveFileId File { get; set; }
 

@@ -5,16 +5,16 @@ using System.Text.Json.Serialization;
 
 namespace Youverse.Core.Identity
 {
-    public class DotYouIdentityConverter : JsonConverter<DotYouIdentity>
+    public class DotYouIdentityConverter : JsonConverter<OdinId>
     {
-        public override DotYouIdentity Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        public override OdinId Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
             var value = reader.GetString();
-            return new DotYouIdentity(value);
+            return new OdinId(value);
         }
         
         
-        public override void Write(Utf8JsonWriter writer, DotYouIdentity value, JsonSerializerOptions options)
+        public override void Write(Utf8JsonWriter writer, OdinId value, JsonSerializerOptions options)
         {
             writer.WriteStringValue(value.ToString());
         }
