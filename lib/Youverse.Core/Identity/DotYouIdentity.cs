@@ -12,7 +12,7 @@ namespace Youverse.Core.Identity
     public readonly struct DotYouIdentity
     {
         private readonly string _identifier;
-        private readonly Guid _id;
+        private readonly Guid _hash;
 
         public DotYouIdentity(string identifier)
         {
@@ -21,11 +21,11 @@ namespace Youverse.Core.Identity
             {
                 // TODO: Activate this code, but check with Stef & Bishwa what happens when they use international URLs
                 // Validate(identifier);  // Important. Validates domain is valid RFC. No funky chars.
-                _id = new Guid(HashUtil.ReduceSHA256Hash(_identifier.ToUtf8ByteArray())); // Hm, the chars are guaranteed to be ASCII < 128
+                _hash = new Guid(HashUtil.ReduceSHA256Hash(_identifier.ToUtf8ByteArray())); // Hm, the chars are guaranteed to be ASCII < 128
             }
             else
             {
-                _id = Guid.Empty;
+                _hash = Guid.Empty;
             }
         }
 
@@ -33,7 +33,7 @@ namespace Youverse.Core.Identity
 
         public bool HasValue()
         {
-            return this._id != Guid.Empty;
+            return this._hash != Guid.Empty;
         }
         public static bool operator ==(DotYouIdentity d1, DotYouIdentity d2)
         {
@@ -79,7 +79,7 @@ namespace Youverse.Core.Identity
         /// <returns></returns>
         public Guid ToGuidIdentifier()
         {
-            return this._id;
+            return this._hash;
         }
 
         public byte[] ToByteArray()

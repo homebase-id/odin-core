@@ -3,73 +3,71 @@ using System.Collections.Generic;
 using System.Data.SQLite;
 
 
-namespace Youverse.Core.Storage.SQLite.IdentityDatabase
+namespace Youverse.Core.Storage.SQLite.ServerDatabase
 {
-    public class OutboxItem
+    public class CronItem
     {
-        private Guid _fileId;
-        public Guid fileId
+        private Guid _identityId;
+        public Guid identityId
         {
            get {
-                   return _fileId;
+                   return _identityId;
                }
            set {
-                  _fileId = value;
+                  _identityId = value;
                }
         }
-        private string _recipient;
-        public string recipient
+        private Int32 _type;
+        public Int32 type
         {
            get {
-                   return _recipient;
+                   return _type;
+               }
+           set {
+                  _type = value;
+               }
+        }
+        private byte[] _data;
+        public byte[] data
+        {
+           get {
+                   return _data;
                }
            set {
                   if (value == null) throw new Exception("Cannot be null");
                   if (value?.Length < 0) throw new Exception("Too short");
                   if (value?.Length > 65535) throw new Exception("Too long");
-                  _recipient = value;
+                  _data = value;
                }
         }
-        private Guid _boxId;
-        public Guid boxId
+        private Int32 _runCount;
+        public Int32 runCount
         {
            get {
-                   return _boxId;
+                   return _runCount;
                }
            set {
-                  _boxId = value;
+                  _runCount = value;
                }
         }
-        private Int32 _priority;
-        public Int32 priority
+        private UnixTimeUtc _nextRun;
+        public UnixTimeUtc nextRun
         {
            get {
-                   return _priority;
+                   return _nextRun;
                }
            set {
-                  _priority = value;
+                  _nextRun = value;
                }
         }
-        private UnixTimeUtc _timeStamp;
-        public UnixTimeUtc timeStamp
+        private UnixTimeUtc _lastRun;
+        public UnixTimeUtc lastRun
         {
            get {
-                   return _timeStamp;
+                   return _lastRun;
                }
            set {
-                  _timeStamp = value;
-               }
-        }
-        private byte[] _value;
-        public byte[] value
-        {
-           get {
-                   return _value;
-               }
-           set {
-                  if (value?.Length < 0) throw new Exception("Too short");
-                  if (value?.Length > 65535) throw new Exception("Too long");
-                  _value = value;
+                  _lastRun = value;
                }
         }
         private Guid? _popStamp;
@@ -102,9 +100,9 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                   _modified = value;
                }
         }
-    } // End of class OutboxItem
+    } // End of class CronItem
 
-    public class TableOutboxCRUD : TableBase
+    public class TableCronCRUD : TableBase
     {
         private bool _disposed = false;
         private SQLiteCommand _insertCommand = null;
@@ -149,13 +147,13 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteParameter _getParam1 = null;
         private SQLiteParameter _getParam2 = null;
 
-        public TableOutboxCRUD(IdentityDatabase db) : base(db)
+        public TableCronCRUD(ServerDatabase db) : base(db)
         {
         }
 
-        ~TableOutboxCRUD()
+        ~TableCronCRUD()
         {
-            if (_disposed == false) throw new Exception("TableOutboxCRUD Not disposed properly");
+            if (_disposed == false) throw new Exception("TableCronCRUD Not disposed properly");
         }
 
         public override void Dispose()
@@ -179,57 +177,55 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             {
                 if (dropExisting)
                 {
-                    cmd.CommandText = "DROP TABLE IF EXISTS outbox;";
+                    cmd.CommandText = "DROP TABLE IF EXISTS cron;";
                     cmd.ExecuteNonQuery();
                 }
                 cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS outbox("
-                     +"fileId BLOB NOT NULL, "
-                     +"recipient STRING NOT NULL, "
-                     +"boxId BLOB NOT NULL, "
-                     +"priority INT NOT NULL, "
-                     +"timeStamp INT NOT NULL, "
-                     +"value BLOB , "
+                    "CREATE TABLE IF NOT EXISTS cron("
+                     +"identityId BLOB NOT NULL, "
+                     +"type INT NOT NULL, "
+                     +"data BLOB NOT NULL, "
+                     +"runCount INT NOT NULL, "
+                     +"nextRun INT NOT NULL, "
+                     +"lastRun INT NOT NULL, "
                      +"popStamp BLOB , "
                      +"created INT NOT NULL, "
                      +"modified INT NOT NULL "
-                     +", PRIMARY KEY (fileId,recipient)"
+                     +", PRIMARY KEY (identityId,type)"
                      +");"
-                     +"CREATE INDEX IF NOT EXISTS Idx0TableOutboxCRUD ON outbox(timeStamp);"
-                     +"CREATE INDEX IF NOT EXISTS Idx1TableOutboxCRUD ON outbox(boxId);"
-                     +"CREATE INDEX IF NOT EXISTS Idx2TableOutboxCRUD ON outbox(popStamp);"
+                     +"CREATE INDEX IF NOT EXISTS Idx0TableCronCRUD ON cron(nextRun);"
                      ;
                 cmd.ExecuteNonQuery();
             }
         }
 
-        public virtual int Insert(OutboxItem item)
+        public virtual int Insert(CronItem item)
         {
             lock (_insertLock)
             {
                 if (_insertCommand == null)
                 {
                     _insertCommand = _database.CreateCommand();
-                    _insertCommand.CommandText = "INSERT INTO outbox (fileId,recipient,boxId,priority,timeStamp,value,popStamp,created,modified) " +
-                                                 "VALUES ($fileId,$recipient,$boxId,$priority,$timeStamp,$value,$popStamp,$created,$modified)";
+                    _insertCommand.CommandText = "INSERT INTO cron (identityId,type,data,runCount,nextRun,lastRun,popStamp,created,modified) " +
+                                                 "VALUES ($identityId,$type,$data,$runCount,$nextRun,$lastRun,$popStamp,$created,$modified)";
                     _insertParam1 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam1);
-                    _insertParam1.ParameterName = "$fileId";
+                    _insertParam1.ParameterName = "$identityId";
                     _insertParam2 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam2);
-                    _insertParam2.ParameterName = "$recipient";
+                    _insertParam2.ParameterName = "$type";
                     _insertParam3 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam3);
-                    _insertParam3.ParameterName = "$boxId";
+                    _insertParam3.ParameterName = "$data";
                     _insertParam4 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam4);
-                    _insertParam4.ParameterName = "$priority";
+                    _insertParam4.ParameterName = "$runCount";
                     _insertParam5 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam5);
-                    _insertParam5.ParameterName = "$timeStamp";
+                    _insertParam5.ParameterName = "$nextRun";
                     _insertParam6 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam6);
-                    _insertParam6.ParameterName = "$value";
+                    _insertParam6.ParameterName = "$lastRun";
                     _insertParam7 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam7);
                     _insertParam7.ParameterName = "$popStamp";
@@ -241,12 +237,12 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _insertParam9.ParameterName = "$modified";
                     _insertCommand.Prepare();
                 }
-                _insertParam1.Value = item.fileId;
-                _insertParam2.Value = item.recipient;
-                _insertParam3.Value = item.boxId;
-                _insertParam4.Value = item.priority;
-                _insertParam5.Value = item.timeStamp.milliseconds;
-                _insertParam6.Value = item.value;
+                _insertParam1.Value = item.identityId;
+                _insertParam2.Value = item.type;
+                _insertParam3.Value = item.data;
+                _insertParam4.Value = item.runCount;
+                _insertParam5.Value = item.nextRun.milliseconds;
+                _insertParam6.Value = item.lastRun.milliseconds;
                 _insertParam7.Value = item.popStamp;
                 _insertParam8.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _insertParam9.Value = UnixTimeUtc.Now().milliseconds;
@@ -255,35 +251,35 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public virtual int Upsert(OutboxItem item)
+        public virtual int Upsert(CronItem item)
         {
             lock (_upsertLock)
             {
                 if (_upsertCommand == null)
                 {
                     _upsertCommand = _database.CreateCommand();
-                    _upsertCommand.CommandText = "INSERT INTO outbox (fileId,recipient,boxId,priority,timeStamp,value,popStamp,created,modified) " +
-                                                 "VALUES ($fileId,$recipient,$boxId,$priority,$timeStamp,$value,$popStamp,$created,$modified)"+
-                                                 "ON CONFLICT (fileId,recipient) DO UPDATE "+
-                                                 "SET boxId = $boxId,priority = $priority,timeStamp = $timeStamp,value = $value,popStamp = $popStamp,modified = $modified;";
+                    _upsertCommand.CommandText = "INSERT INTO cron (identityId,type,data,runCount,nextRun,lastRun,popStamp,created,modified) " +
+                                                 "VALUES ($identityId,$type,$data,$runCount,$nextRun,$lastRun,$popStamp,$created,$modified)"+
+                                                 "ON CONFLICT (identityId,type) DO UPDATE "+
+                                                 "SET data = $data,runCount = $runCount,nextRun = $nextRun,lastRun = $lastRun,popStamp = $popStamp,modified = $modified;";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
-                    _upsertParam1.ParameterName = "$fileId";
+                    _upsertParam1.ParameterName = "$identityId";
                     _upsertParam2 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam2);
-                    _upsertParam2.ParameterName = "$recipient";
+                    _upsertParam2.ParameterName = "$type";
                     _upsertParam3 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam3);
-                    _upsertParam3.ParameterName = "$boxId";
+                    _upsertParam3.ParameterName = "$data";
                     _upsertParam4 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam4);
-                    _upsertParam4.ParameterName = "$priority";
+                    _upsertParam4.ParameterName = "$runCount";
                     _upsertParam5 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam5);
-                    _upsertParam5.ParameterName = "$timeStamp";
+                    _upsertParam5.ParameterName = "$nextRun";
                     _upsertParam6 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam6);
-                    _upsertParam6.ParameterName = "$value";
+                    _upsertParam6.ParameterName = "$lastRun";
                     _upsertParam7 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam7);
                     _upsertParam7.ParameterName = "$popStamp";
@@ -295,12 +291,12 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _upsertParam9.ParameterName = "$modified";
                     _upsertCommand.Prepare();
                 }
-                _upsertParam1.Value = item.fileId;
-                _upsertParam2.Value = item.recipient;
-                _upsertParam3.Value = item.boxId;
-                _upsertParam4.Value = item.priority;
-                _upsertParam5.Value = item.timeStamp.milliseconds;
-                _upsertParam6.Value = item.value;
+                _upsertParam1.Value = item.identityId;
+                _upsertParam2.Value = item.type;
+                _upsertParam3.Value = item.data;
+                _upsertParam4.Value = item.runCount;
+                _upsertParam5.Value = item.nextRun.milliseconds;
+                _upsertParam6.Value = item.lastRun.milliseconds;
                 _upsertParam7.Value = item.popStamp;
                 _upsertParam8.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _upsertParam9.Value = UnixTimeUtc.Now().milliseconds;
@@ -309,34 +305,34 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public virtual int Update(OutboxItem item)
+        public virtual int Update(CronItem item)
         {
             lock (_updateLock)
             {
                 if (_updateCommand == null)
                 {
                     _updateCommand = _database.CreateCommand();
-                    _updateCommand.CommandText = "UPDATE outbox (fileId,recipient,boxId,priority,timeStamp,value,popStamp,created,modified) " +
-                                                 "VALUES ($boxId,$priority,$timeStamp,$value,$popStamp,$modified)"+
-                                                 "WHERE (fileId = $fileId,recipient = $recipient)";
+                    _updateCommand.CommandText = "UPDATE cron (identityId,type,data,runCount,nextRun,lastRun,popStamp,created,modified) " +
+                                                 "VALUES ($data,$runCount,$nextRun,$lastRun,$popStamp,$modified)"+
+                                                 "WHERE (identityId = $identityId,type = $type)";
                     _updateParam1 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam1);
-                    _updateParam1.ParameterName = "$fileId";
+                    _updateParam1.ParameterName = "$identityId";
                     _updateParam2 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam2);
-                    _updateParam2.ParameterName = "$recipient";
+                    _updateParam2.ParameterName = "$type";
                     _updateParam3 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam3);
-                    _updateParam3.ParameterName = "$boxId";
+                    _updateParam3.ParameterName = "$data";
                     _updateParam4 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam4);
-                    _updateParam4.ParameterName = "$priority";
+                    _updateParam4.ParameterName = "$runCount";
                     _updateParam5 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam5);
-                    _updateParam5.ParameterName = "$timeStamp";
+                    _updateParam5.ParameterName = "$nextRun";
                     _updateParam6 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam6);
-                    _updateParam6.ParameterName = "$value";
+                    _updateParam6.ParameterName = "$lastRun";
                     _updateParam7 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam7);
                     _updateParam7.ParameterName = "$popStamp";
@@ -348,12 +344,12 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _updateParam9.ParameterName = "$modified";
                     _updateCommand.Prepare();
                 }
-                _updateParam1.Value = item.fileId;
-                _updateParam2.Value = item.recipient;
-                _updateParam3.Value = item.boxId;
-                _updateParam4.Value = item.priority;
-                _updateParam5.Value = item.timeStamp.milliseconds;
-                _updateParam6.Value = item.value;
+                _updateParam1.Value = item.identityId;
+                _updateParam2.Value = item.type;
+                _updateParam3.Value = item.data;
+                _updateParam4.Value = item.runCount;
+                _updateParam5.Value = item.nextRun.milliseconds;
+                _updateParam6.Value = item.lastRun.milliseconds;
                 _updateParam7.Value = item.popStamp;
                 _updateParam8.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _updateParam9.Value = UnixTimeUtc.Now().milliseconds;
@@ -362,56 +358,56 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public int Delete(Guid fileId,string recipient)
+        public int Delete(Guid identityId,Int32 type)
         {
             lock (_deleteLock)
             {
                 if (_deleteCommand == null)
                 {
                     _deleteCommand = _database.CreateCommand();
-                    _deleteCommand.CommandText = "DELETE FROM outbox " +
-                                                 "WHERE fileId = $fileId AND recipient = $recipient";
+                    _deleteCommand.CommandText = "DELETE FROM cron " +
+                                                 "WHERE identityId = $identityId AND type = $type";
                     _deleteParam1 = _deleteCommand.CreateParameter();
                     _deleteCommand.Parameters.Add(_deleteParam1);
-                    _deleteParam1.ParameterName = "$fileId";
+                    _deleteParam1.ParameterName = "$identityId";
                     _deleteParam2 = _deleteCommand.CreateParameter();
                     _deleteCommand.Parameters.Add(_deleteParam2);
-                    _deleteParam2.ParameterName = "$recipient";
+                    _deleteParam2.ParameterName = "$type";
                     _deleteCommand.Prepare();
                 }
-                _deleteParam1.Value = fileId;
-                _deleteParam2.Value = recipient;
+                _deleteParam1.Value = identityId;
+                _deleteParam2.Value = type;
                 _database.BeginTransaction();
                 return _deleteCommand.ExecuteNonQuery();
             } // Lock
         }
 
-        public OutboxItem Get(Guid fileId,string recipient)
+        public CronItem Get(Guid identityId,Int32 type)
         {
             lock (_getLock)
             {
                 if (_getCommand == null)
                 {
                     _getCommand = _database.CreateCommand();
-                    _getCommand.CommandText = "SELECT boxId,priority,timeStamp,value,popStamp,created,modified FROM outbox " +
-                                                 "WHERE fileId = $fileId AND recipient = $recipient;";
+                    _getCommand.CommandText = "SELECT data,runCount,nextRun,lastRun,popStamp,created,modified FROM cron " +
+                                                 "WHERE identityId = $identityId AND type = $type;";
                     _getParam1 = _getCommand.CreateParameter();
                     _getCommand.Parameters.Add(_getParam1);
-                    _getParam1.ParameterName = "$fileId";
+                    _getParam1.ParameterName = "$identityId";
                     _getParam2 = _getCommand.CreateParameter();
                     _getCommand.Parameters.Add(_getParam2);
-                    _getParam2.ParameterName = "$recipient";
+                    _getParam2.ParameterName = "$type";
                     _getCommand.Prepare();
                 }
-                _getParam1.Value = fileId;
-                _getParam2.Value = recipient;
+                _getParam1.Value = identityId;
+                _getParam2.Value = type;
                 using (SQLiteDataReader rdr = _getCommand.ExecuteReader(System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                         return null;
-                    var item = new OutboxItem();
-                    item.fileId = fileId;
-                    item.recipient = recipient;
+                    var item = new CronItem();
+                    item.identityId = identityId;
+                    item.type = type;
                     byte[] _tmpbuf = new byte[65535+1];
                     long bytesRead;
                     var _guid = new byte[16];
@@ -420,40 +416,37 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                         throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                     else
                     {
-                        bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
-                        if (bytesRead != 16)
-                            throw new Exception("Not a GUID in boxId...");
-                        item.boxId = new Guid(_guid);
+                        bytesRead = rdr.GetBytes(0, 0, _tmpbuf, 0, 65535+1);
+                        if (bytesRead > 65535)
+                            throw new Exception("Too much data in data...");
+                        if (bytesRead < 0)
+                            throw new Exception("Too little data in data...");
+                        if (bytesRead > 0)
+                        {
+                            item.data = new byte[bytesRead];
+                            Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+                        }
                     }
 
                     if (rdr.IsDBNull(1))
                         throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                     else
                     {
-                        item.priority = rdr.GetInt32(1);
+                        item.runCount = rdr.GetInt32(1);
                     }
 
                     if (rdr.IsDBNull(2))
                         throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                     else
                     {
-                        item.timeStamp = new UnixTimeUtc((UInt64) rdr.GetInt64(2));
+                        item.nextRun = new UnixTimeUtc((UInt64) rdr.GetInt64(2));
                     }
 
                     if (rdr.IsDBNull(3))
-                        item.value = null;
+                        throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                     else
                     {
-                        bytesRead = rdr.GetBytes(3, 0, _tmpbuf, 0, 65535+1);
-                        if (bytesRead > 65535)
-                            throw new Exception("Too much data in value...");
-                        if (bytesRead < 0)
-                            throw new Exception("Too little data in value...");
-                        if (bytesRead > 0)
-                        {
-                            item.value = new byte[bytesRead];
-                            Buffer.BlockCopy(_tmpbuf, 0, item.value, 0, (int) bytesRead);
-                        }
+                        item.lastRun = new UnixTimeUtc((UInt64) rdr.GetInt64(3));
                     }
 
                     if (rdr.IsDBNull(4))

@@ -184,7 +184,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public int Insert(InboxItem item)
+        public virtual int Insert(InboxItem item)
         {
             lock (_insertLock)
             {
@@ -222,7 +222,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _insertParam1.Value = item.fileId;
                 _insertParam2.Value = item.boxId;
                 _insertParam3.Value = item.priority;
-                _insertParam4.Value = UnixTimeUtc.Now().milliseconds;
+                _insertParam4.Value = item.timeStamp.milliseconds;
                 _insertParam5.Value = item.value;
                 _insertParam6.Value = item.popStamp;
                 _insertParam7.Value = UnixTimeUtcUnique.Now().uniqueTime;
@@ -232,7 +232,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public int Upsert(InboxItem item)
+        public virtual int Upsert(InboxItem item)
         {
             lock (_upsertLock)
             {
@@ -272,7 +272,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam1.Value = item.fileId;
                 _upsertParam2.Value = item.boxId;
                 _upsertParam3.Value = item.priority;
-                _upsertParam4.Value = item.timeStamp;
+                _upsertParam4.Value = item.timeStamp.milliseconds;
                 _upsertParam5.Value = item.value;
                 _upsertParam6.Value = item.popStamp;
                 _upsertParam7.Value = UnixTimeUtcUnique.Now().uniqueTime;
@@ -282,7 +282,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public int Update(InboxItem item)
+        public virtual int Update(InboxItem item)
         {
             lock (_updateLock)
             {
@@ -321,7 +321,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _updateParam1.Value = item.fileId;
                 _updateParam2.Value = item.boxId;
                 _updateParam3.Value = item.priority;
-                _updateParam4.Value = item.timeStamp;
+                _updateParam4.Value = item.timeStamp.milliseconds;
                 _updateParam5.Value = item.value;
                 _updateParam6.Value = item.popStamp;
                 _updateParam7.Value = UnixTimeUtcUnique.Now().uniqueTime;

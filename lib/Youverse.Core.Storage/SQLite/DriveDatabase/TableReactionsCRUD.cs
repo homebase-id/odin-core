@@ -147,7 +147,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             }
         }
 
-        public int Insert(ReactionsItem item)
+        public virtual int Insert(ReactionsItem item)
         {
             lock (_insertLock)
             {
@@ -183,7 +183,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             } // Lock
         }
 
-        public int Upsert(ReactionsItem item)
+        public virtual int Upsert(ReactionsItem item)
         {
             lock (_upsertLock)
             {
@@ -221,7 +221,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             } // Lock
         }
 
-        public int Update(ReactionsItem item)
+        public virtual int Update(ReactionsItem item)
         {
             lock (_updateLock)
             {

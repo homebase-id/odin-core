@@ -107,14 +107,13 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                      +"memberId BLOB NOT NULL, "
                      +"data BLOB  "
                      +", PRIMARY KEY (circleId,memberId)"
-                     +", UNIQUE(circleId,memberId)"
                      +");"
                      ;
                 cmd.ExecuteNonQuery();
             }
         }
 
-        public int Insert(CircleMemberItem item)
+        public virtual int Insert(CircleMemberItem item)
         {
             lock (_insertLock)
             {
@@ -142,7 +141,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public int Upsert(CircleMemberItem item)
+        public virtual int Upsert(CircleMemberItem item)
         {
             lock (_upsertLock)
             {
@@ -172,7 +171,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public int Update(CircleMemberItem item)
+        public virtual int Update(CircleMemberItem item)
         {
             lock (_updateLock)
             {

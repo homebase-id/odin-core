@@ -187,7 +187,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public int Insert(ConnectionsItem item)
+        public virtual int Insert(ConnectionsItem item)
         {
             lock (_insertLock)
             {
@@ -231,7 +231,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public int Upsert(ConnectionsItem item)
+        public virtual int Upsert(ConnectionsItem item)
         {
             lock (_upsertLock)
             {
@@ -277,7 +277,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public int Update(ConnectionsItem item)
+        public virtual int Update(ConnectionsItem item)
         {
             lock (_updateLock)
             {

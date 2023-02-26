@@ -122,7 +122,6 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                      +"created INT NOT NULL, "
                      +"modified INT NOT NULL "
                      +", PRIMARY KEY (identity,driveId)"
-                     +", UNIQUE(identity,driveId)"
                      +");"
                      +"CREATE INDEX IF NOT EXISTS Idx0TableFollowsMeCRUD ON followsMe(identity);"
                      ;
@@ -130,7 +129,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public int Insert(FollowsMeItem item)
+        public virtual int Insert(FollowsMeItem item)
         {
             lock (_insertLock)
             {
@@ -162,7 +161,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public int Upsert(FollowsMeItem item)
+        public virtual int Upsert(FollowsMeItem item)
         {
             lock (_upsertLock)
             {
@@ -196,7 +195,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public int Update(FollowsMeItem item)
+        public virtual int Update(FollowsMeItem item)
         {
             lock (_updateLock)
             {

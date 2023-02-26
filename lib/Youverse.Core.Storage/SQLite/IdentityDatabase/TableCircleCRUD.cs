@@ -120,7 +120,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public int Insert(CircleItem item)
+        public virtual int Insert(CircleItem item)
         {
             lock (_insertLock)
             {
@@ -148,7 +148,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public int Upsert(CircleItem item)
+        public virtual int Upsert(CircleItem item)
         {
             lock (_upsertLock)
             {
@@ -178,7 +178,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public int Update(CircleItem item)
+        public virtual int Update(CircleItem item)
         {
             lock (_updateLock)
             {
