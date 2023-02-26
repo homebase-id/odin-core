@@ -43,7 +43,7 @@ namespace Youverse.Core.Services.Certificate.Renewal
             try
             {
                 // _db.tblOutbox.InsertRow(boxId, fileId, 0, identity.Id.ToLower().ToUtf8ByteArray());
-                _db.tblOutbox.Insert(new OutboxDBItem() { boxId = boxId, recipient = identity.Id, fileId = fileId, priority = 0, value = identity.Id.ToLower().ToUtf8ByteArray() });
+                _db.tblOutbox.Insert(new OutboxItem() { boxId = boxId, recipient = identity.Id, fileId = fileId, priority = 0, value = identity.Id.ToLower().ToUtf8ByteArray() });
             }
             catch (System.Data.SQLite.SQLiteException ex)
             {

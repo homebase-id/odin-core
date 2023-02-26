@@ -23,8 +23,8 @@ namespace IdentityDatabaseTests
             var boxid = SequentialGuid.CreateGuid();
 
             var tslo = UnixTimeUtc.Now();
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = boxid, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = boxid, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v2 });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = boxid, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = boxid, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v2 });
             var tshi = UnixTimeUtc.Now();
 
             var r = db.tblOutbox.Get(f1, "frodo.baggins.me");
@@ -67,11 +67,11 @@ namespace IdentityDatabaseTests
             var boxid = SequentialGuid.CreateGuid();
 
             var tslo = UnixTimeUtc.Now();
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = boxid, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = boxid, fileId = f2, recipient = "frodo.baggins.me", priority = 1, value = v2 });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = boxid, fileId = f3, recipient = "frodo.baggins.me", priority = 2, value = v3 });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = boxid, fileId = f4, recipient = "frodo.baggins.me", priority = 3, value = v4 });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = boxid, fileId = f5, recipient = "frodo.baggins.me", priority = 4, value = v5 });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = boxid, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = boxid, fileId = f2, recipient = "frodo.baggins.me", priority = 1, value = v2 });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = boxid, fileId = f3, recipient = "frodo.baggins.me", priority = 2, value = v3 });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = boxid, fileId = f4, recipient = "frodo.baggins.me", priority = 3, value = v4 });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = boxid, fileId = f5, recipient = "frodo.baggins.me", priority = 4, value = v5 });
             var tshi = UnixTimeUtc.Now();
 
             // pop one item from the Outbox
@@ -153,11 +153,11 @@ namespace IdentityDatabaseTests
             var f5 = SequentialGuid.CreateGuid();
             var boxid = SequentialGuid.CreateGuid();
 
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = boxid, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = null });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = boxid, fileId = f2, recipient = "frodo.baggins.me", priority = 0, value = null });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = boxid, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = null });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = boxid, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = null });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = boxid, fileId = f5, recipient = "frodo.baggins.me", priority = 20, value = null });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = boxid, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = null });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = boxid, fileId = f2, recipient = "frodo.baggins.me", priority = 0, value = null });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = boxid, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = null });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = boxid, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = null });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = boxid, fileId = f5, recipient = "frodo.baggins.me", priority = 20, value = null });
 
             var r1 = db.tblOutbox.Pop(boxid, 2, out var popTimestamp1);
             var r2 = db.tblOutbox.Pop(boxid, 3, out var popTimestamp2);
@@ -197,11 +197,11 @@ namespace IdentityDatabaseTests
 
             var boxid = SequentialGuid.CreateGuid();
 
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = boxid, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = null });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = boxid, fileId = f2, recipient = "frodo.baggins.me", priority = 0, value = null });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = boxid, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = null });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = boxid, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = null });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = boxid, fileId = f5, recipient = "frodo.baggins.me", priority = 20, value = null });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = boxid, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = null });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = boxid, fileId = f2, recipient = "frodo.baggins.me", priority = 0, value = null });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = boxid, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = null });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = boxid, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = null });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = boxid, fileId = f5, recipient = "frodo.baggins.me", priority = 20, value = null });
 
             var r1 = db.tblOutbox.Pop(boxid, 2, out var popTimestamp1);
             db.tblOutbox.PopCommit(popTimestamp1);
@@ -225,11 +225,11 @@ namespace IdentityDatabaseTests
 
             var boxid = SequentialGuid.CreateGuid();
 
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = boxid, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = null });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = boxid, fileId = f2, recipient = "frodo.baggins.me", priority = 0, value = null });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = boxid, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = null });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = boxid, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = null });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = boxid, fileId = f5, recipient = "frodo.baggins.me", priority = 20, value = null });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = boxid, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = null });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = boxid, fileId = f2, recipient = "frodo.baggins.me", priority = 0, value = null });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = boxid, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = null });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = boxid, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = null });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = boxid, fileId = f5, recipient = "frodo.baggins.me", priority = 20, value = null });
 
             var r1 = db.tblOutbox.Pop(boxid, 2, out var popTimestamp1);
 
@@ -265,11 +265,11 @@ namespace IdentityDatabaseTests
             var b2 = SequentialGuid.CreateGuid();
 
             // Insert three records with fileId (f1), priority, and value (e.g. appId etc)
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = b1, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1.ToByteArray() });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = b1, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v1.ToByteArray() });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = b2, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = v1.ToByteArray() });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = b2, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = v1.ToByteArray() });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = b2, fileId = f5, recipient = "frodo.baggins.me", priority = 10, value = v1.ToByteArray() });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = b1, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1.ToByteArray() });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = b1, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v1.ToByteArray() });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = b2, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = v1.ToByteArray() });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = b2, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = v1.ToByteArray() });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = b2, fileId = f5, recipient = "frodo.baggins.me", priority = 10, value = v1.ToByteArray() });
 
             // Pop the oldest record from the Outbox 1
             var r1 = db.tblOutbox.Pop(b1, 1, out var popTimestamp1);
@@ -321,11 +321,11 @@ namespace IdentityDatabaseTests
             // An Outbox is simply a GUID. E.g. the DriveID.
             // A record has a fileId, priority and a custom value
             // The custom value could e.g. be a GUID or a JSON of { senderId, appId }
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = box1id, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = box1id, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v2 });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = box1id, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = v3 });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = box2id, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = v4 });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = box2id, fileId = f5, recipient = "frodo.baggins.me", priority = 10, value = v5 });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = box1id, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = box1id, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v2 });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = box1id, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = v3 });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = box2id, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = v4 });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = box2id, fileId = f5, recipient = "frodo.baggins.me", priority = 10, value = v5 });
 
             // A thread1 pops one record from Outbox1 (it'll get the oldest one)
             // Popping the record "reserves it" for your thread but doesn't remove
@@ -371,9 +371,9 @@ namespace IdentityDatabaseTests
             var b1 = SequentialGuid.CreateGuid();
 
             // Insert three records with fileId (f1), priority, and value (e.g. appId etc)
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = b1, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = b1, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = b1, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = v1 });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = b1, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = b1, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v1 });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = b1, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = v1 });
 
             // Pop all records from the Outbox,be sure we get 3
             var r1 = db.tblOutbox.Pop(b1, 5, out var popTimestamp1);
@@ -412,9 +412,9 @@ namespace IdentityDatabaseTests
             var b1 = SequentialGuid.CreateGuid();
 
             // Insert three records with fileId (f1), priority, and value (e.g. appId etc)
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = b1, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = b1, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = b1, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = v1 });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = b1, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = b1, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v1 });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = b1, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = v1 });
 
             // Pop all records from the Outbox,be sure we get 3
             var r1 = db.tblOutbox.Pop(b1, 5, out var popTimestamp1);
@@ -469,16 +469,16 @@ namespace IdentityDatabaseTests
             var box2id = SequentialGuid.CreateGuid();
             var box3id = SequentialGuid.CreateGuid();
 
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = box1id, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = box1id, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = box1id, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = box2id, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = box2id, fileId = f5, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = box3id, fileId = f6, recipient = "frodo.baggins.me", priority = 0, value = v1 });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = box3id, fileId = f7, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = box3id, fileId = f8, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = box3id, fileId = f9, recipient = "frodo.baggins.me", priority = 10, value = v1 });
-            db.tblOutbox.Insert(new OutboxDBItem() { boxId = box3id, fileId = f10, recipient = "frodo.baggins.me", priority = 10, value = v1 });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = box1id, fileId = f1, recipient = "frodo.baggins.me", priority = 0, value = v1 });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = box1id, fileId = f2, recipient = "frodo.baggins.me", priority = 10, value = v1 });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = box1id, fileId = f3, recipient = "frodo.baggins.me", priority = 10, value = v1 });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = box2id, fileId = f4, recipient = "frodo.baggins.me", priority = 10, value = v1 });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = box2id, fileId = f5, recipient = "frodo.baggins.me", priority = 10, value = v1 });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = box3id, fileId = f6, recipient = "frodo.baggins.me", priority = 0, value = v1 });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = box3id, fileId = f7, recipient = "frodo.baggins.me", priority = 10, value = v1 });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = box3id, fileId = f8, recipient = "frodo.baggins.me", priority = 10, value = v1 });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = box3id, fileId = f9, recipient = "frodo.baggins.me", priority = 10, value = v1 });
+            db.tblOutbox.Insert(new OutboxItem() { boxId = box3id, fileId = f10, recipient = "frodo.baggins.me", priority = 10, value = v1 });
 
             var r = db.tblOutbox.PopAll(out var popStamp);
 

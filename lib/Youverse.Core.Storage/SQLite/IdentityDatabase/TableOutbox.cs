@@ -4,7 +4,7 @@ using System.Data.SQLite;
 
 namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 {
-    public class TableOutbox: TableOutboxDBCRUD
+    public class TableOutbox: TableOutboxCRUD
     {
         const int MAX_VALUE_LENGTH = 65535;  // Stored value cannot be longer than this
 
@@ -78,7 +78,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         /// <param name="count">How many items to 'pop' (reserve)</param>
         /// <param name="popStamp">The unique identifier for the items reserved for pop</param>
         /// <returns></returns>
-        public List<OutboxDBItem> Pop(Guid boxId, int count, out Guid popStamp)
+        public List<OutboxItem> Pop(Guid boxId, int count, out Guid popStamp)
         {
             lock (_popLock)
             {
@@ -86,8 +86,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (_popCommand == null)
                 {
                     _popCommand = _database.CreateCommand();
-                    _popCommand.CommandText = "UPDATE outboxdb SET popStamp=$popstamp WHERE boxId=$boxid AND popStamp IS NULL ORDER BY timeStamp ASC LIMIT $count; " +
-                                              "SELECT fileId, priority, timeStamp, value, recipient from outboxdb WHERE popstamp=$popstamp";
+                    _popCommand.CommandText = "UPDATE outbox SET popStamp=$popstamp WHERE boxId=$boxid AND popStamp IS NULL ORDER BY timeStamp ASC LIMIT $count; " +
+                                              "SELECT fileId, priority, timeStamp, value, recipient from outbox WHERE popstamp=$popstamp";
 
                     _pparam1 = _popCommand.CreateParameter();
                     _pparam1.ParameterName = "$popstamp";
@@ -109,7 +109,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _pparam2.Value = count;
                 _pparam3.Value = boxId;
 
-                List<OutboxDBItem> result = new List<OutboxDBItem>();
+                List<OutboxItem> result = new List<OutboxItem>();
 
                 _database.BeginTransaction();
 
@@ -117,14 +117,14 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 {
                     using (SQLiteDataReader rdr = _popCommand.ExecuteReader(System.Data.CommandBehavior.Default))
                     {
-                        OutboxDBItem item;
+                        OutboxItem item;
 
                         while (rdr.Read())
                         {
                             if (rdr.IsDBNull(0))
                                 throw new Exception("Not possible");
 
-                            item = new OutboxDBItem();
+                            item = new OutboxItem();
                             item.boxId = boxId;
                             var _guid = new byte[16];
                             var n = rdr.GetBytes(0, 0, _guid, 0, 16);
@@ -161,7 +161,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public List<OutboxDBItem> PopAll(out Guid popStamp)
+        public List<OutboxItem> PopAll(out Guid popStamp)
         {
             lock (_popAllLock)
             {
@@ -169,8 +169,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (_popAllCommand == null)
                 {
                     _popAllCommand = _database.CreateCommand();
-                    _popAllCommand.CommandText = "UPDATE outboxdb SET popstamp=$popstamp WHERE popstamp is NULL and fileId IN (SELECT fileid FROM outboxdb WHERE popstamp is NULL GROUP BY boxid ORDER BY timestamp ASC); " +
-                                              "SELECT fileid, priority, timestamp, value, boxid, recipient from outboxdb WHERE popstamp=$popstamp";
+                    _popAllCommand.CommandText = "UPDATE outbox SET popstamp=$popstamp WHERE popstamp is NULL and fileId IN (SELECT fileid FROM outbox WHERE popstamp is NULL GROUP BY boxid ORDER BY timestamp ASC); " +
+                                              "SELECT fileid, priority, timestamp, value, boxid, recipient from outbox WHERE popstamp=$popstamp";
 
                     _paparam1 = _popAllCommand.CreateParameter();
                     _paparam1.ParameterName = "$popstamp";
@@ -182,7 +182,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 popStamp = SequentialGuid.CreateGuid();
                 _paparam1.Value = popStamp;
 
-                List<OutboxDBItem> result = new List<OutboxDBItem>();
+                List<OutboxItem> result = new List<OutboxItem>();
 
                 _database.BeginTransaction();
 
@@ -190,14 +190,14 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 {
                     using (SQLiteDataReader rdr = _popAllCommand.ExecuteReader(System.Data.CommandBehavior.Default))
                     {
-                        OutboxDBItem item;
+                        OutboxItem item;
 
                         while (rdr.Read())
                         {
                             if (rdr.IsDBNull(0))
                                 throw new Exception("Not possible");
 
-                            item = new OutboxDBItem();
+                            item = new OutboxItem();
 
                             var _guid  = new byte[16];
                             var n = rdr.GetBytes(0, 0, _guid, 0, 16);
@@ -252,7 +252,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (_popCancelCommand == null)
                 {
                     _popCancelCommand = _database.CreateCommand();
-                    _popCancelCommand.CommandText = "UPDATE outboxdb SET popstamp=NULL WHERE popstamp=$popstamp";
+                    _popCancelCommand.CommandText = "UPDATE outbox SET popstamp=NULL WHERE popstamp=$popstamp";
 
                     _pcancelparam1 = _popCancelCommand.CreateParameter();
 
@@ -277,7 +277,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (_popCancelListCommand == null)
                 {
                     _popCancelListCommand = _database.CreateCommand();
-                    _popCancelListCommand.CommandText = "UPDATE outboxdb SET popstamp=NULL WHERE fileid=$fileid AND popstamp=$popstamp";
+                    _popCancelListCommand.CommandText = "UPDATE outbox SET popstamp=NULL WHERE fileid=$fileid AND popstamp=$popstamp";
 
                     _pcancellistparam1 = _popCancelListCommand.CreateParameter();
                     _pcancellistparam1.ParameterName = "$popstamp";
@@ -319,7 +319,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (_popCommitCommand == null)
                 {
                     _popCommitCommand = _database.CreateCommand();
-                    _popCommitCommand.CommandText = "DELETE FROM outboxdb WHERE popstamp=$popstamp";
+                    _popCommitCommand.CommandText = "DELETE FROM outbox WHERE popstamp=$popstamp";
 
                     _pcommitparam1 = _popCommitCommand.CreateParameter();
                     _pcommitparam1.ParameterName = "$popstamp";
@@ -347,7 +347,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (_popCommitListCommand == null)
                 {
                     _popCommitListCommand = _database.CreateCommand();
-                    _popCommitListCommand.CommandText = "DELETE FROM outboxdb WHERE fileid=$fileid AND popstamp=$popstamp";
+                    _popCommitListCommand.CommandText = "DELETE FROM outbox WHERE fileid=$fileid AND popstamp=$popstamp";
 
                     _pcommitlistparam1 = _popCommitListCommand.CreateParameter();
                     _pcommitlistparam1.ParameterName = "$popstamp";
@@ -389,7 +389,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (_popRecoverCommand == null)
                 {
                     _popRecoverCommand = _database.CreateCommand();
-                    _popRecoverCommand.CommandText = "UPDATE outboxdb SET popstamp=NULL WHERE popstamp < $popstamp";
+                    _popRecoverCommand.CommandText = "UPDATE outbox SET popstamp=NULL WHERE popstamp < $popstamp";
 
                     _pcrecoverparam1 = _popRecoverCommand.CreateParameter();
 

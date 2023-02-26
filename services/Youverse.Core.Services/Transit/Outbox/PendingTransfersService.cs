@@ -43,7 +43,7 @@ namespace Youverse.Core.Services.Transit.Outbox
             try
             {
                 // _db.tblOutbox.InsertRow(sender.ToGuidIdentifier().ToByteArray(), fileId, 0, sender.Id.ToLower().ToUtf8ByteArray());
-                _db.tblOutbox.Insert(new OutboxDBItem() { boxId = sender.ToGuidIdentifier(), fileId = fileId, recipient = sender.Id.ToLower(), priority = 0, value = sender.Id.ToLower().ToUtf8ByteArray() });
+                _db.tblOutbox.Insert(new OutboxItem() { boxId = sender.ToGuidIdentifier(), fileId = fileId, recipient = sender.Id.ToLower(), priority = 0, value = sender.Id.ToLower().ToUtf8ByteArray() });
             }
             catch (System.Data.SQLite.SQLiteException ex)
             {

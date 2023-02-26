@@ -5,7 +5,7 @@ using System.Data.SQLite;
 
 namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 {
-    public class OutboxDBItem
+    public class OutboxItem
     {
         private Guid _fileId;
         public Guid fileId
@@ -102,9 +102,9 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                   _modified = value;
                }
         }
-    } // End of class OutboxDBItem
+    } // End of class OutboxItem
 
-    public class TableOutboxDBCRUD : TableBase
+    public class TableOutboxCRUD : TableBase
     {
         private bool _disposed = false;
         private SQLiteCommand _insertCommand = null;
@@ -149,13 +149,13 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteParameter _getParam1 = null;
         private SQLiteParameter _getParam2 = null;
 
-        public TableOutboxDBCRUD(IdentityDatabase db) : base(db)
+        public TableOutboxCRUD(IdentityDatabase db) : base(db)
         {
         }
 
-        ~TableOutboxDBCRUD()
+        ~TableOutboxCRUD()
         {
-            if (_disposed == false) throw new Exception("TableOutboxDBCRUD Not disposed properly");
+            if (_disposed == false) throw new Exception("TableOutboxCRUD Not disposed properly");
         }
 
         public override void Dispose()
@@ -179,11 +179,11 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             {
                 if (dropExisting)
                 {
-                    cmd.CommandText = "DROP TABLE IF EXISTS outboxDB;";
+                    cmd.CommandText = "DROP TABLE IF EXISTS outbox;";
                     cmd.ExecuteNonQuery();
                 }
                 cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS outboxDB("
+                    "CREATE TABLE IF NOT EXISTS outbox("
                      +"fileId BLOB NOT NULL, "
                      +"recipient STRING NOT NULL, "
                      +"boxId BLOB NOT NULL, "
@@ -195,22 +195,22 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                      +"modified INT NOT NULL "
                      +", PRIMARY KEY (fileId,recipient)"
                      +");"
-                     +"CREATE INDEX IF NOT EXISTS Idx0TableOutboxDBCRUD ON outboxDB(timeStamp);"
-                     +"CREATE INDEX IF NOT EXISTS Idx1TableOutboxDBCRUD ON outboxDB(boxId);"
-                     +"CREATE INDEX IF NOT EXISTS Idx2TableOutboxDBCRUD ON outboxDB(popStamp);"
+                     +"CREATE INDEX IF NOT EXISTS Idx0TableOutboxCRUD ON outbox(timeStamp);"
+                     +"CREATE INDEX IF NOT EXISTS Idx1TableOutboxCRUD ON outbox(boxId);"
+                     +"CREATE INDEX IF NOT EXISTS Idx2TableOutboxCRUD ON outbox(popStamp);"
                      ;
                 cmd.ExecuteNonQuery();
             }
         }
 
-        public int Insert(OutboxDBItem item)
+        public int Insert(OutboxItem item)
         {
             lock (_insertLock)
             {
                 if (_insertCommand == null)
                 {
                     _insertCommand = _database.CreateCommand();
-                    _insertCommand.CommandText = "INSERT INTO outboxDB (fileId,recipient,boxId,priority,timeStamp,value,popStamp,created,modified) " +
+                    _insertCommand.CommandText = "INSERT INTO outbox (fileId,recipient,boxId,priority,timeStamp,value,popStamp,created,modified) " +
                                                  "VALUES ($fileId,$recipient,$boxId,$priority,$timeStamp,$value,$popStamp,$created,$modified)";
                     _insertParam1 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam1);
@@ -255,14 +255,14 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public int Upsert(OutboxDBItem item)
+        public int Upsert(OutboxItem item)
         {
             lock (_upsertLock)
             {
                 if (_upsertCommand == null)
                 {
                     _upsertCommand = _database.CreateCommand();
-                    _upsertCommand.CommandText = "INSERT INTO outboxDB (fileId,recipient,boxId,priority,timeStamp,value,popStamp,created,modified) " +
+                    _upsertCommand.CommandText = "INSERT INTO outbox (fileId,recipient,boxId,priority,timeStamp,value,popStamp,created,modified) " +
                                                  "VALUES ($fileId,$recipient,$boxId,$priority,$timeStamp,$value,$popStamp,$created,$modified)"+
                                                  "ON CONFLICT (fileId,recipient) DO UPDATE "+
                                                  "SET boxId = $boxId,priority = $priority,timeStamp = $timeStamp,value = $value,popStamp = $popStamp,modified = $modified;";
@@ -309,14 +309,14 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public int Update(OutboxDBItem item)
+        public int Update(OutboxItem item)
         {
             lock (_updateLock)
             {
                 if (_updateCommand == null)
                 {
                     _updateCommand = _database.CreateCommand();
-                    _updateCommand.CommandText = "UPDATE outboxDB (fileId,recipient,boxId,priority,timeStamp,value,popStamp,created,modified) " +
+                    _updateCommand.CommandText = "UPDATE outbox (fileId,recipient,boxId,priority,timeStamp,value,popStamp,created,modified) " +
                                                  "VALUES ($boxId,$priority,$timeStamp,$value,$popStamp,$modified)"+
                                                  "WHERE (fileId = $fileId,recipient = $recipient)";
                     _updateParam1 = _updateCommand.CreateParameter();
@@ -369,7 +369,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (_deleteCommand == null)
                 {
                     _deleteCommand = _database.CreateCommand();
-                    _deleteCommand.CommandText = "DELETE FROM outboxDB " +
+                    _deleteCommand.CommandText = "DELETE FROM outbox " +
                                                  "WHERE fileId = $fileId AND recipient = $recipient";
                     _deleteParam1 = _deleteCommand.CreateParameter();
                     _deleteCommand.Parameters.Add(_deleteParam1);
@@ -386,14 +386,14 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public OutboxDBItem Get(Guid fileId,string recipient)
+        public OutboxItem Get(Guid fileId,string recipient)
         {
             lock (_getLock)
             {
                 if (_getCommand == null)
                 {
                     _getCommand = _database.CreateCommand();
-                    _getCommand.CommandText = "SELECT boxId,priority,timeStamp,value,popStamp,created,modified FROM outboxDB " +
+                    _getCommand.CommandText = "SELECT boxId,priority,timeStamp,value,popStamp,created,modified FROM outbox " +
                                                  "WHERE fileId = $fileId AND recipient = $recipient;";
                     _getParam1 = _getCommand.CreateParameter();
                     _getCommand.Parameters.Add(_getParam1);
@@ -409,7 +409,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 {
                     if (!rdr.Read())
                         return null;
-                    var item = new OutboxDBItem();
+                    var item = new OutboxItem();
                     item.fileId = fileId;
                     item.recipient = recipient;
                     byte[] _tmpbuf = new byte[65535+1];
