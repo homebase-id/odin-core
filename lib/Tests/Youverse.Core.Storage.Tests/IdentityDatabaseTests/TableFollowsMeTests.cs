@@ -26,20 +26,20 @@ namespace IdentityDatabaseTests
             var d2 = Guid.NewGuid();
 
             // Odin follows d1
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveid = d1 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveId = d1 });
 
             // Thor follows d1
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveid = d1 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveId = d1 });
 
             // Freja follows d1 & d2
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i3, driveid = d1 });
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i3, driveid = d2 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i3, driveId = d1 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i3, driveId = d2 });
 
             // Heimdal follows d2
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i4, driveid = d2 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i4, driveId = d2 });
 
             // Loke follows everything
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i5, driveid = Guid.Empty });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i5, driveId = Guid.Empty });
 
             // Now Frodo makes a new post to d1, which means we shouold get
             // everyone except Heimdal. Let's do a page size of 3
@@ -77,24 +77,24 @@ namespace IdentityDatabaseTests
             var g1 = Guid.NewGuid();
             var g2 = Guid.NewGuid();
 
-            // This is OK {odin.vahalla.com, driveid}
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveid = g1 });
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveid = g2 });
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = "thor.valhalla.com", driveid = g1 });
+            // This is OK {odin.vahalla.com, driveId}
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveId = g1 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveId = g2 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = "thor.valhalla.com", driveId = g1 });
 
             var r = db.tblFollowsMe.Get(i1);
-            Debug.Assert((ByteArrayUtil.muidcmp(r[0].driveid, g1) == 0) || (ByteArrayUtil.muidcmp(r[0].driveid, g2) == 0));
-            Debug.Assert((ByteArrayUtil.muidcmp(r[1].driveid, g1) == 0) || (ByteArrayUtil.muidcmp(r[1].driveid, g2) == 0));
+            Debug.Assert((ByteArrayUtil.muidcmp(r[0].driveId, g1) == 0) || (ByteArrayUtil.muidcmp(r[0].driveId, g2) == 0));
+            Debug.Assert((ByteArrayUtil.muidcmp(r[1].driveId, g1) == 0) || (ByteArrayUtil.muidcmp(r[1].driveId, g2) == 0));
 
             // This is OK {odin.vahalla.com, {000000}}
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveid = Guid.Empty });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveId = Guid.Empty });
             r = db.tblFollowsMe.Get(i1);
-            Debug.Assert((ByteArrayUtil.muidcmp(r[0].driveid, Guid.Empty) == 0) || (ByteArrayUtil.muidcmp(r[1].driveid, Guid.Empty) == 0) || (ByteArrayUtil.muidcmp(r[2].driveid, Guid.Empty) == 0));
+            Debug.Assert((ByteArrayUtil.muidcmp(r[0].driveId, Guid.Empty) == 0) || (ByteArrayUtil.muidcmp(r[1].driveId, Guid.Empty) == 0) || (ByteArrayUtil.muidcmp(r[2].driveId, Guid.Empty) == 0));
 
             // Test non ASCII
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = "ødin.valhalla.com", driveid = g1 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = "ødin.valhalla.com", driveId = g1 });
             r = db.tblFollowsMe.Get("ødin.valhalla.com");
-            Debug.Assert(ByteArrayUtil.muidcmp(r[0].driveid, g1) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(r[0].driveId, g1) == 0);
         }
 
 
@@ -107,14 +107,14 @@ namespace IdentityDatabaseTests
             var i1 = "odin.valhalla.com";
             var g1 = Guid.NewGuid();
 
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveid = g1 });
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveid = Guid.Empty });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveId = g1 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveId = Guid.Empty });
 
             bool ok = false;
             try
             {
                 // Can't insert duplicate
-                db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveid = g1 });
+                db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveId = g1 });
             }
             catch
             {
@@ -127,7 +127,7 @@ namespace IdentityDatabaseTests
             try
             {
                 // 
-                db.tblFollowsMe.Insert(new FollowsMeItem() { identity = null, driveid = Guid.NewGuid() });
+                db.tblFollowsMe.Insert(new FollowsMeItem() { identity = null, driveId = Guid.NewGuid() });
             }
             catch
             {
@@ -138,7 +138,7 @@ namespace IdentityDatabaseTests
             ok = false;
             try
             {
-                db.tblFollowsMe.Insert(new FollowsMeItem() { identity = "", driveid = Guid.NewGuid() });
+                db.tblFollowsMe.Insert(new FollowsMeItem() { identity = "", driveId = Guid.NewGuid() });
             }
             catch
             {
@@ -150,7 +150,7 @@ namespace IdentityDatabaseTests
             ok = false;
             try
             {
-                db.tblFollowsMe.Insert(new FollowsMeItem() { identity = "", driveid = Guid.Empty });
+                db.tblFollowsMe.Insert(new FollowsMeItem() { identity = "", driveId = Guid.Empty });
             }
             catch
             {
@@ -163,7 +163,7 @@ namespace IdentityDatabaseTests
             try
             {
                 // Can't insert duplicate, this is supposed to fail.
-                db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveid = Guid.Empty });
+                db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveId = Guid.Empty });
             }
             catch
             {
@@ -213,10 +213,10 @@ namespace IdentityDatabaseTests
             var d1 = Guid.NewGuid();
             var d2 = Guid.NewGuid();
 
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveid = d1 });
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveid = Guid.Empty });
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveid = d1 });
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveid = d2 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveId = d1 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveId = Guid.Empty });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveId = d1 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveId = d2 });
 
             db.tblFollowsMe.DeleteFollower(i2);
 
@@ -241,11 +241,11 @@ namespace IdentityDatabaseTests
             var d1 = Guid.NewGuid();
             var d2 = Guid.NewGuid();
 
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveid = d1 });
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveid = Guid.Empty });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveId = d1 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveId = Guid.Empty });
 
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveid = d1 });
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveid = d2 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveId = d1 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveId = d2 });
 
             db.tblFollowsMe.Delete(i1, d2);
             var r = db.tblFollowsMe.Get(i1);
@@ -302,10 +302,10 @@ namespace IdentityDatabaseTests
             var d2 = Guid.NewGuid();
             var d3 = Guid.NewGuid();
 
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveid = d1 });
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveid = Guid.Empty });
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveid = d1 });
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveid = d2 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveId = d1 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveId = Guid.Empty });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveId = d1 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveId = d2 });
 
             // Get the all drive (only)
             var r = db.tblFollowsMe.GetFollowers(100, d3, null, out var nextCursor);
@@ -340,11 +340,11 @@ namespace IdentityDatabaseTests
             var d2 = Guid.NewGuid();
             var d3 = Guid.NewGuid();
 
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveid = d1 });
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveid = d1 });
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i3, driveid = d1 });
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i4, driveid = d1 });
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i5, driveid = Guid.Empty });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveId = d1 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveId = d1 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i3, driveId = d1 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i4, driveId = d1 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i5, driveId = Guid.Empty });
 
             var r = db.tblFollowsMe.GetFollowers(2, d1, null, out var nextCursor);
             Debug.Assert(r.Count == 2);

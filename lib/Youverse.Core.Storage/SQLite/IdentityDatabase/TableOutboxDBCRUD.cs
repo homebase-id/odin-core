@@ -5,7 +5,7 @@ using System.Data.SQLite;
 
 namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 {
-    public class InboxItem
+    public class OutboxDBItem
     {
         private Guid _fileId;
         public Guid fileId
@@ -15,6 +15,19 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                }
            set {
                   _fileId = value;
+               }
+        }
+        private string _recipient;
+        public string recipient
+        {
+           get {
+                   return _recipient;
+               }
+           set {
+                  if (value == null) throw new Exception("Cannot be null");
+                  if (value?.Length < 0) throw new Exception("Too short");
+                  if (value?.Length > 65535) throw new Exception("Too long");
+                  _recipient = value;
                }
         }
         private Guid _boxId;
@@ -89,9 +102,9 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                   _modified = value;
                }
         }
-    } // End of class InboxItem
+    } // End of class OutboxDBItem
 
-    public class TableInboxCRUD : TableBase
+    public class TableOutboxDBCRUD : TableBase
     {
         private bool _disposed = false;
         private SQLiteCommand _insertCommand = null;
@@ -104,6 +117,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteParameter _insertParam6 = null;
         private SQLiteParameter _insertParam7 = null;
         private SQLiteParameter _insertParam8 = null;
+        private SQLiteParameter _insertParam9 = null;
         private SQLiteCommand _updateCommand = null;
         private static Object _updateLock = new Object();
         private SQLiteParameter _updateParam1 = null;
@@ -114,6 +128,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteParameter _updateParam6 = null;
         private SQLiteParameter _updateParam7 = null;
         private SQLiteParameter _updateParam8 = null;
+        private SQLiteParameter _updateParam9 = null;
         private SQLiteCommand _upsertCommand = null;
         private static Object _upsertLock = new Object();
         private SQLiteParameter _upsertParam1 = null;
@@ -124,20 +139,23 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteParameter _upsertParam6 = null;
         private SQLiteParameter _upsertParam7 = null;
         private SQLiteParameter _upsertParam8 = null;
+        private SQLiteParameter _upsertParam9 = null;
         private SQLiteCommand _deleteCommand = null;
         private static Object _deleteLock = new Object();
         private SQLiteParameter _deleteParam1 = null;
+        private SQLiteParameter _deleteParam2 = null;
         private SQLiteCommand _getCommand = null;
         private static Object _getLock = new Object();
         private SQLiteParameter _getParam1 = null;
+        private SQLiteParameter _getParam2 = null;
 
-        public TableInboxCRUD(IdentityDatabase db) : base(db)
+        public TableOutboxDBCRUD(IdentityDatabase db) : base(db)
         {
         }
 
-        ~TableInboxCRUD()
+        ~TableOutboxDBCRUD()
         {
-            if (_disposed == false) throw new Exception("TableInboxCRUD Not disposed properly");
+            if (_disposed == false) throw new Exception("TableOutboxDBCRUD Not disposed properly");
         }
 
         public override void Dispose()
@@ -161,12 +179,13 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             {
                 if (dropExisting)
                 {
-                    cmd.CommandText = "DROP TABLE IF EXISTS inbox;";
+                    cmd.CommandText = "DROP TABLE IF EXISTS outboxDB;";
                     cmd.ExecuteNonQuery();
                 }
                 cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS inbox("
-                     +"fileId BLOB NOT NULL UNIQUE, "
+                    "CREATE TABLE IF NOT EXISTS outboxDB("
+                     +"fileId BLOB NOT NULL, "
+                     +"recipient STRING NOT NULL, "
                      +"boxId BLOB NOT NULL, "
                      +"priority INT NOT NULL, "
                      +"timeStamp INT NOT NULL, "
@@ -174,204 +193,225 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                      +"popStamp BLOB , "
                      +"created INT NOT NULL, "
                      +"modified INT NOT NULL "
-                     +", PRIMARY KEY (fileId)"
+                     +", PRIMARY KEY (fileId,recipient)"
                      +");"
-                     +"CREATE INDEX IF NOT EXISTS Idx0TableInboxCRUD ON inbox(timeStamp);"
-                     +"CREATE INDEX IF NOT EXISTS Idx1TableInboxCRUD ON inbox(boxId);"
-                     +"CREATE INDEX IF NOT EXISTS Idx2TableInboxCRUD ON inbox(popStamp);"
+                     +"CREATE INDEX IF NOT EXISTS Idx0TableOutboxDBCRUD ON outboxDB(timeStamp);"
+                     +"CREATE INDEX IF NOT EXISTS Idx1TableOutboxDBCRUD ON outboxDB(boxId);"
+                     +"CREATE INDEX IF NOT EXISTS Idx2TableOutboxDBCRUD ON outboxDB(popStamp);"
                      ;
                 cmd.ExecuteNonQuery();
             }
         }
 
-        public int Insert(InboxItem item)
+        public int Insert(OutboxDBItem item)
         {
             lock (_insertLock)
             {
                 if (_insertCommand == null)
                 {
                     _insertCommand = _database.CreateCommand();
-                    _insertCommand.CommandText = "INSERT INTO inbox (fileId,boxId,priority,timeStamp,value,popStamp,created,modified) " +
-                                                 "VALUES ($fileId,$boxId,$priority,$timeStamp,$value,$popStamp,$created,$modified)";
+                    _insertCommand.CommandText = "INSERT INTO outboxDB (fileId,recipient,boxId,priority,timeStamp,value,popStamp,created,modified) " +
+                                                 "VALUES ($fileId,$recipient,$boxId,$priority,$timeStamp,$value,$popStamp,$created,$modified)";
                     _insertParam1 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam1);
                     _insertParam1.ParameterName = "$fileId";
                     _insertParam2 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam2);
-                    _insertParam2.ParameterName = "$boxId";
+                    _insertParam2.ParameterName = "$recipient";
                     _insertParam3 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam3);
-                    _insertParam3.ParameterName = "$priority";
+                    _insertParam3.ParameterName = "$boxId";
                     _insertParam4 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam4);
-                    _insertParam4.ParameterName = "$timeStamp";
+                    _insertParam4.ParameterName = "$priority";
                     _insertParam5 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam5);
-                    _insertParam5.ParameterName = "$value";
+                    _insertParam5.ParameterName = "$timeStamp";
                     _insertParam6 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam6);
-                    _insertParam6.ParameterName = "$popStamp";
+                    _insertParam6.ParameterName = "$value";
                     _insertParam7 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam7);
-                    _insertParam7.ParameterName = "$created";
+                    _insertParam7.ParameterName = "$popStamp";
                     _insertParam8 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam8);
-                    _insertParam8.ParameterName = "$modified";
+                    _insertParam8.ParameterName = "$created";
+                    _insertParam9 = _insertCommand.CreateParameter();
+                    _insertCommand.Parameters.Add(_insertParam9);
+                    _insertParam9.ParameterName = "$modified";
                     _insertCommand.Prepare();
                 }
                 _insertParam1.Value = item.fileId;
-                _insertParam2.Value = item.boxId;
-                _insertParam3.Value = item.priority;
-                _insertParam4.Value = UnixTimeUtc.Now().milliseconds;
-                _insertParam5.Value = item.value;
-                _insertParam6.Value = item.popStamp;
-                _insertParam7.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _insertParam8.Value = UnixTimeUtc.Now().milliseconds;
+                _insertParam2.Value = item.recipient;
+                _insertParam3.Value = item.boxId;
+                _insertParam4.Value = item.priority;
+                _insertParam5.Value = UnixTimeUtc.Now().milliseconds;
+                _insertParam6.Value = item.value;
+                _insertParam7.Value = item.popStamp;
+                _insertParam8.Value = UnixTimeUtcUnique.Now().uniqueTime;
+                _insertParam9.Value = UnixTimeUtc.Now().milliseconds;
                 _database.BeginTransaction();
                 return _insertCommand.ExecuteNonQuery();
             } // Lock
         }
 
-        public int Upsert(InboxItem item)
+        public int Upsert(OutboxDBItem item)
         {
             lock (_upsertLock)
             {
                 if (_upsertCommand == null)
                 {
                     _upsertCommand = _database.CreateCommand();
-                    _upsertCommand.CommandText = "INSERT INTO inbox (fileId,boxId,priority,timeStamp,value,popStamp,created,modified) " +
-                                                 "VALUES ($fileId,$boxId,$priority,$timeStamp,$value,$popStamp,$created,$modified)"+
-                                                 "ON CONFLICT (fileId) DO UPDATE "+
+                    _upsertCommand.CommandText = "INSERT INTO outboxDB (fileId,recipient,boxId,priority,timeStamp,value,popStamp,created,modified) " +
+                                                 "VALUES ($fileId,$recipient,$boxId,$priority,$timeStamp,$value,$popStamp,$created,$modified)"+
+                                                 "ON CONFLICT (fileId,recipient) DO UPDATE "+
                                                  "SET boxId = $boxId,priority = $priority,timeStamp = $timeStamp,value = $value,popStamp = $popStamp,modified = $modified;";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
                     _upsertParam1.ParameterName = "$fileId";
                     _upsertParam2 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam2);
-                    _upsertParam2.ParameterName = "$boxId";
+                    _upsertParam2.ParameterName = "$recipient";
                     _upsertParam3 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam3);
-                    _upsertParam3.ParameterName = "$priority";
+                    _upsertParam3.ParameterName = "$boxId";
                     _upsertParam4 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam4);
-                    _upsertParam4.ParameterName = "$timeStamp";
+                    _upsertParam4.ParameterName = "$priority";
                     _upsertParam5 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam5);
-                    _upsertParam5.ParameterName = "$value";
+                    _upsertParam5.ParameterName = "$timeStamp";
                     _upsertParam6 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam6);
-                    _upsertParam6.ParameterName = "$popStamp";
+                    _upsertParam6.ParameterName = "$value";
                     _upsertParam7 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam7);
-                    _upsertParam7.ParameterName = "$created";
+                    _upsertParam7.ParameterName = "$popStamp";
                     _upsertParam8 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam8);
-                    _upsertParam8.ParameterName = "$modified";
+                    _upsertParam8.ParameterName = "$created";
+                    _upsertParam9 = _upsertCommand.CreateParameter();
+                    _upsertCommand.Parameters.Add(_upsertParam9);
+                    _upsertParam9.ParameterName = "$modified";
                     _upsertCommand.Prepare();
                 }
                 _upsertParam1.Value = item.fileId;
-                _upsertParam2.Value = item.boxId;
-                _upsertParam3.Value = item.priority;
-                _upsertParam4.Value = item.timeStamp;
-                _upsertParam5.Value = item.value;
-                _upsertParam6.Value = item.popStamp;
-                _upsertParam7.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _upsertParam8.Value = UnixTimeUtc.Now().milliseconds;
+                _upsertParam2.Value = item.recipient;
+                _upsertParam3.Value = item.boxId;
+                _upsertParam4.Value = item.priority;
+                _upsertParam5.Value = item.timeStamp;
+                _upsertParam6.Value = item.value;
+                _upsertParam7.Value = item.popStamp;
+                _upsertParam8.Value = UnixTimeUtcUnique.Now().uniqueTime;
+                _upsertParam9.Value = UnixTimeUtc.Now().milliseconds;
                 _database.BeginTransaction();
                 return _upsertCommand.ExecuteNonQuery();
             } // Lock
         }
 
-        public int Update(InboxItem item)
+        public int Update(OutboxDBItem item)
         {
             lock (_updateLock)
             {
                 if (_updateCommand == null)
                 {
                     _updateCommand = _database.CreateCommand();
-                    _updateCommand.CommandText = "UPDATE inbox (fileId,boxId,priority,timeStamp,value,popStamp,created,modified) " +
+                    _updateCommand.CommandText = "UPDATE outboxDB (fileId,recipient,boxId,priority,timeStamp,value,popStamp,created,modified) " +
                                                  "VALUES ($boxId,$priority,$timeStamp,$value,$popStamp,$modified)"+
-                                                 "WHERE (fileId = $fileId)";
+                                                 "WHERE (fileId = $fileId,recipient = $recipient)";
                     _updateParam1 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam1);
                     _updateParam1.ParameterName = "$fileId";
                     _updateParam2 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam2);
-                    _updateParam2.ParameterName = "$boxId";
+                    _updateParam2.ParameterName = "$recipient";
                     _updateParam3 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam3);
-                    _updateParam3.ParameterName = "$priority";
+                    _updateParam3.ParameterName = "$boxId";
                     _updateParam4 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam4);
-                    _updateParam4.ParameterName = "$timeStamp";
+                    _updateParam4.ParameterName = "$priority";
                     _updateParam5 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam5);
-                    _updateParam5.ParameterName = "$value";
+                    _updateParam5.ParameterName = "$timeStamp";
                     _updateParam6 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam6);
-                    _updateParam6.ParameterName = "$popStamp";
+                    _updateParam6.ParameterName = "$value";
                     _updateParam7 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam7);
-                    _updateParam7.ParameterName = "$created";
+                    _updateParam7.ParameterName = "$popStamp";
                     _updateParam8 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam8);
-                    _updateParam8.ParameterName = "$modified";
+                    _updateParam8.ParameterName = "$created";
+                    _updateParam9 = _updateCommand.CreateParameter();
+                    _updateCommand.Parameters.Add(_updateParam9);
+                    _updateParam9.ParameterName = "$modified";
                     _updateCommand.Prepare();
                 }
                 _updateParam1.Value = item.fileId;
-                _updateParam2.Value = item.boxId;
-                _updateParam3.Value = item.priority;
-                _updateParam4.Value = item.timeStamp;
-                _updateParam5.Value = item.value;
-                _updateParam6.Value = item.popStamp;
-                _updateParam7.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _updateParam8.Value = UnixTimeUtc.Now().milliseconds;
+                _updateParam2.Value = item.recipient;
+                _updateParam3.Value = item.boxId;
+                _updateParam4.Value = item.priority;
+                _updateParam5.Value = item.timeStamp;
+                _updateParam6.Value = item.value;
+                _updateParam7.Value = item.popStamp;
+                _updateParam8.Value = UnixTimeUtcUnique.Now().uniqueTime;
+                _updateParam9.Value = UnixTimeUtc.Now().milliseconds;
                 _database.BeginTransaction();
                 return _updateCommand.ExecuteNonQuery();
             } // Lock
         }
 
-        public int Delete(Guid fileId)
+        public int Delete(Guid fileId,string recipient)
         {
             lock (_deleteLock)
             {
                 if (_deleteCommand == null)
                 {
                     _deleteCommand = _database.CreateCommand();
-                    _deleteCommand.CommandText = "DELETE FROM inbox " +
-                                                 "WHERE fileId = $fileId";
+                    _deleteCommand.CommandText = "DELETE FROM outboxDB " +
+                                                 "WHERE fileId = $fileId AND recipient = $recipient";
                     _deleteParam1 = _deleteCommand.CreateParameter();
                     _deleteCommand.Parameters.Add(_deleteParam1);
                     _deleteParam1.ParameterName = "$fileId";
+                    _deleteParam2 = _deleteCommand.CreateParameter();
+                    _deleteCommand.Parameters.Add(_deleteParam2);
+                    _deleteParam2.ParameterName = "$recipient";
                     _deleteCommand.Prepare();
                 }
                 _deleteParam1.Value = fileId;
+                _deleteParam2.Value = recipient;
                 _database.BeginTransaction();
                 return _deleteCommand.ExecuteNonQuery();
             } // Lock
         }
 
-        public InboxItem Get(Guid fileId)
+        public OutboxDBItem Get(Guid fileId,string recipient)
         {
             lock (_getLock)
             {
                 if (_getCommand == null)
                 {
                     _getCommand = _database.CreateCommand();
-                    _getCommand.CommandText = "SELECT boxId,priority,timeStamp,value,popStamp,created,modified FROM inbox " +
-                                                 "WHERE fileId = $fileId;";
+                    _getCommand.CommandText = "SELECT boxId,priority,timeStamp,value,popStamp,created,modified FROM outboxDB " +
+                                                 "WHERE fileId = $fileId AND recipient = $recipient;";
                     _getParam1 = _getCommand.CreateParameter();
                     _getCommand.Parameters.Add(_getParam1);
                     _getParam1.ParameterName = "$fileId";
+                    _getParam2 = _getCommand.CreateParameter();
+                    _getCommand.Parameters.Add(_getParam2);
+                    _getParam2.ParameterName = "$recipient";
                     _getCommand.Prepare();
                 }
                 _getParam1.Value = fileId;
+                _getParam2.Value = recipient;
                 using (SQLiteDataReader rdr = _getCommand.ExecuteReader(System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                         return null;
-                    var item = new InboxItem();
+                    var item = new OutboxDBItem();
                     item.fileId = fileId;
+                    item.recipient = recipient;
                     byte[] _tmpbuf = new byte[65535+1];
                     long bytesRead;
                     var _guid = new byte[16];

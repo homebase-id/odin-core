@@ -46,7 +46,7 @@ namespace Youverse.Core.Services.Transit.Incoming
                 var item = DotYouSystemSerializer.Deserialize<TransferBoxItem>(r.value.ToStringFromUtf8Bytes());
 
                 item.Priority = (int)r.priority;
-                item.AddedTimestamp = r.timestamp;
+                item.AddedTimestamp = r.timeStamp;
                 item.DriveId = r.boxId;
                 item.FileId = r.fileId;
 

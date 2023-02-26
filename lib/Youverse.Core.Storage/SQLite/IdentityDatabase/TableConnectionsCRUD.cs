@@ -20,17 +20,17 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                   _identity = value;
                }
         }
-        private string _displayname;
-        public string displayname
+        private string _displayName;
+        public string displayName
         {
            get {
-                   return _displayname;
+                   return _displayName;
                }
            set {
                   if (value == null) throw new Exception("Cannot be null");
                   if (value?.Length < 0) throw new Exception("Too short");
                   if (value?.Length > 80) throw new Exception("Too long");
-                  _displayname = value;
+                  _displayName = value;
                }
         }
         private Int32 _status;
@@ -43,14 +43,14 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                   _status = value;
                }
         }
-        private Int32 _accessisrevoked;
-        public Int32 accessisrevoked
+        private Int32 _accessIsRevoked;
+        public Int32 accessIsRevoked
         {
            get {
-                   return _accessisrevoked;
+                   return _accessIsRevoked;
                }
            set {
-                  _accessisrevoked = value;
+                  _accessIsRevoked = value;
                }
         }
         private byte[] _data;
@@ -172,9 +172,9 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS connections("
                      +"identity STRING NOT NULL UNIQUE, "
-                     +"displayname STRING NOT NULL, "
+                     +"displayName STRING NOT NULL, "
                      +"status INT NOT NULL, "
-                     +"accessisrevoked INT NOT NULL, "
+                     +"accessIsRevoked INT NOT NULL, "
                      +"data BLOB , "
                      +"created INT NOT NULL, "
                      +"modified INT NOT NULL "
@@ -194,20 +194,20 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (_insertCommand == null)
                 {
                     _insertCommand = _database.CreateCommand();
-                    _insertCommand.CommandText = "INSERT INTO connections (identity,displayname,status,accessisrevoked,data,created,modified) " +
-                                                 "VALUES ($identity,$displayname,$status,$accessisrevoked,$data,$created,$modified)";
+                    _insertCommand.CommandText = "INSERT INTO connections (identity,displayName,status,accessIsRevoked,data,created,modified) " +
+                                                 "VALUES ($identity,$displayName,$status,$accessIsRevoked,$data,$created,$modified)";
                     _insertParam1 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam1);
                     _insertParam1.ParameterName = "$identity";
                     _insertParam2 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam2);
-                    _insertParam2.ParameterName = "$displayname";
+                    _insertParam2.ParameterName = "$displayName";
                     _insertParam3 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam3);
                     _insertParam3.ParameterName = "$status";
                     _insertParam4 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam4);
-                    _insertParam4.ParameterName = "$accessisrevoked";
+                    _insertParam4.ParameterName = "$accessIsRevoked";
                     _insertParam5 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam5);
                     _insertParam5.ParameterName = "$data";
@@ -220,9 +220,9 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _insertCommand.Prepare();
                 }
                 _insertParam1.Value = item.identity;
-                _insertParam2.Value = item.displayname;
+                _insertParam2.Value = item.displayName;
                 _insertParam3.Value = item.status;
-                _insertParam4.Value = item.accessisrevoked;
+                _insertParam4.Value = item.accessIsRevoked;
                 _insertParam5.Value = item.data;
                 _insertParam6.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _insertParam7.Value = UnixTimeUtc.Now().milliseconds;
@@ -238,22 +238,22 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (_upsertCommand == null)
                 {
                     _upsertCommand = _database.CreateCommand();
-                    _upsertCommand.CommandText = "INSERT INTO connections (identity,displayname,status,accessisrevoked,data,created,modified) " +
-                                                 "VALUES ($identity,$displayname,$status,$accessisrevoked,$data,$created,$modified)"+
+                    _upsertCommand.CommandText = "INSERT INTO connections (identity,displayName,status,accessIsRevoked,data,created,modified) " +
+                                                 "VALUES ($identity,$displayName,$status,$accessIsRevoked,$data,$created,$modified)"+
                                                  "ON CONFLICT (identity) DO UPDATE "+
-                                                 "SET displayname = $displayname,status = $status,accessisrevoked = $accessisrevoked,data = $data,modified = $modified;";
+                                                 "SET displayName = $displayName,status = $status,accessIsRevoked = $accessIsRevoked,data = $data,modified = $modified;";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
                     _upsertParam1.ParameterName = "$identity";
                     _upsertParam2 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam2);
-                    _upsertParam2.ParameterName = "$displayname";
+                    _upsertParam2.ParameterName = "$displayName";
                     _upsertParam3 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam3);
                     _upsertParam3.ParameterName = "$status";
                     _upsertParam4 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam4);
-                    _upsertParam4.ParameterName = "$accessisrevoked";
+                    _upsertParam4.ParameterName = "$accessIsRevoked";
                     _upsertParam5 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam5);
                     _upsertParam5.ParameterName = "$data";
@@ -266,9 +266,9 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _upsertCommand.Prepare();
                 }
                 _upsertParam1.Value = item.identity;
-                _upsertParam2.Value = item.displayname;
+                _upsertParam2.Value = item.displayName;
                 _upsertParam3.Value = item.status;
-                _upsertParam4.Value = item.accessisrevoked;
+                _upsertParam4.Value = item.accessIsRevoked;
                 _upsertParam5.Value = item.data;
                 _upsertParam6.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _upsertParam7.Value = UnixTimeUtc.Now().milliseconds;
@@ -284,21 +284,21 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (_updateCommand == null)
                 {
                     _updateCommand = _database.CreateCommand();
-                    _updateCommand.CommandText = "UPDATE connections (identity,displayname,status,accessisrevoked,data,created,modified) " +
-                                                 "VALUES ($displayname,$status,$accessisrevoked,$data,$modified)"+
+                    _updateCommand.CommandText = "UPDATE connections (identity,displayName,status,accessIsRevoked,data,created,modified) " +
+                                                 "VALUES ($displayName,$status,$accessIsRevoked,$data,$modified)"+
                                                  "WHERE (identity = $identity)";
                     _updateParam1 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam1);
                     _updateParam1.ParameterName = "$identity";
                     _updateParam2 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam2);
-                    _updateParam2.ParameterName = "$displayname";
+                    _updateParam2.ParameterName = "$displayName";
                     _updateParam3 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam3);
                     _updateParam3.ParameterName = "$status";
                     _updateParam4 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam4);
-                    _updateParam4.ParameterName = "$accessisrevoked";
+                    _updateParam4.ParameterName = "$accessIsRevoked";
                     _updateParam5 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam5);
                     _updateParam5.ParameterName = "$data";
@@ -311,9 +311,9 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _updateCommand.Prepare();
                 }
                 _updateParam1.Value = item.identity;
-                _updateParam2.Value = item.displayname;
+                _updateParam2.Value = item.displayName;
                 _updateParam3.Value = item.status;
-                _updateParam4.Value = item.accessisrevoked;
+                _updateParam4.Value = item.accessIsRevoked;
                 _updateParam5.Value = item.data;
                 _updateParam6.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _updateParam7.Value = UnixTimeUtc.Now().milliseconds;
@@ -349,7 +349,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (_getCommand == null)
                 {
                     _getCommand = _database.CreateCommand();
-                    _getCommand.CommandText = "SELECT displayname,status,accessisrevoked,data,created,modified FROM connections " +
+                    _getCommand.CommandText = "SELECT displayName,status,accessIsRevoked,data,created,modified FROM connections " +
                                                  "WHERE identity = $identity;";
                     _getParam1 = _getCommand.CreateParameter();
                     _getCommand.Parameters.Add(_getParam1);
@@ -371,7 +371,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                         throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                     else
                     {
-                        item.displayname = rdr.GetString(0);
+                        item.displayName = rdr.GetString(0);
                     }
 
                     if (rdr.IsDBNull(1))
@@ -385,7 +385,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                         throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                     else
                     {
-                        item.accessisrevoked = rdr.GetInt32(2);
+                        item.accessIsRevoked = rdr.GetInt32(2);
                     }
 
                     if (rdr.IsDBNull(3))
@@ -435,7 +435,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (_getPaging1Command == null)
                 {
                     _getPaging1Command = _database.CreateCommand();
-                    _getPaging1Command.CommandText = "SELECT rowid,identity,displayname,status,accessisrevoked,data,created,modified FROM connections " +
+                    _getPaging1Command.CommandText = "SELECT rowid,identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
                                                  "WHERE identity > $identity ORDER BY identity ASC LIMIT $_count;";
                     _getPaging1Param1 = _getPaging1Command.CreateParameter();
                     _getPaging1Command.Parameters.Add(_getPaging1Param1);
@@ -474,7 +474,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
-                            item.displayname = rdr.GetString(2);
+                            item.displayName = rdr.GetString(2);
                         }
 
                         if (rdr.IsDBNull(3))
@@ -488,7 +488,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
-                            item.accessisrevoked = rdr.GetInt32(4);
+                            item.accessIsRevoked = rdr.GetInt32(4);
                         }
 
                         if (rdr.IsDBNull(5))
@@ -548,7 +548,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (_getPaging6Command == null)
                 {
                     _getPaging6Command = _database.CreateCommand();
-                    _getPaging6Command.CommandText = "SELECT rowid,identity,displayname,status,accessisrevoked,data,created,modified FROM connections " +
+                    _getPaging6Command.CommandText = "SELECT rowid,identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
                                                  "WHERE created > $created ORDER BY created DESC LIMIT $_count;";
                     _getPaging6Param1 = _getPaging6Command.CreateParameter();
                     _getPaging6Command.Parameters.Add(_getPaging6Param1);
@@ -587,7 +587,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
-                            item.displayname = rdr.GetString(2);
+                            item.displayName = rdr.GetString(2);
                         }
 
                         if (rdr.IsDBNull(3))
@@ -601,7 +601,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
-                            item.accessisrevoked = rdr.GetInt32(4);
+                            item.accessIsRevoked = rdr.GetInt32(4);
                         }
 
                         if (rdr.IsDBNull(5))

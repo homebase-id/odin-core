@@ -5,7 +5,7 @@ using System.Data.SQLite;
 
 namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 {
-    public class CirclememberItem
+    public class CircleMemberItem
     {
         private Guid _circleId;
         public Guid circleId
@@ -39,9 +39,9 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                   _data = value;
                }
         }
-    } // End of class CirclememberItem
+    } // End of class CircleMemberItem
 
-    public class TableCirclememberCRUD : TableBase
+    public class TableCircleMemberCRUD : TableBase
     {
         private bool _disposed = false;
         private SQLiteCommand _insertCommand = null;
@@ -68,13 +68,13 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteParameter _getParam1 = null;
         private SQLiteParameter _getParam2 = null;
 
-        public TableCirclememberCRUD(IdentityDatabase db) : base(db)
+        public TableCircleMemberCRUD(IdentityDatabase db) : base(db)
         {
         }
 
-        ~TableCirclememberCRUD()
+        ~TableCircleMemberCRUD()
         {
-            if (_disposed == false) throw new Exception("TableCirclememberCRUD Not disposed properly");
+            if (_disposed == false) throw new Exception("TableCircleMemberCRUD Not disposed properly");
         }
 
         public override void Dispose()
@@ -98,11 +98,11 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             {
                 if (dropExisting)
                 {
-                    cmd.CommandText = "DROP TABLE IF EXISTS circlemember;";
+                    cmd.CommandText = "DROP TABLE IF EXISTS circleMember;";
                     cmd.ExecuteNonQuery();
                 }
                 cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS circlemember("
+                    "CREATE TABLE IF NOT EXISTS circleMember("
                      +"circleId BLOB NOT NULL, "
                      +"memberId BLOB NOT NULL, "
                      +"data BLOB  "
@@ -114,14 +114,14 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public int Insert(CirclememberItem item)
+        public int Insert(CircleMemberItem item)
         {
             lock (_insertLock)
             {
                 if (_insertCommand == null)
                 {
                     _insertCommand = _database.CreateCommand();
-                    _insertCommand.CommandText = "INSERT INTO circlemember (circleId,memberId,data) " +
+                    _insertCommand.CommandText = "INSERT INTO circleMember (circleId,memberId,data) " +
                                                  "VALUES ($circleId,$memberId,$data)";
                     _insertParam1 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam1);
@@ -142,14 +142,14 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public int Upsert(CirclememberItem item)
+        public int Upsert(CircleMemberItem item)
         {
             lock (_upsertLock)
             {
                 if (_upsertCommand == null)
                 {
                     _upsertCommand = _database.CreateCommand();
-                    _upsertCommand.CommandText = "INSERT INTO circlemember (circleId,memberId,data) " +
+                    _upsertCommand.CommandText = "INSERT INTO circleMember (circleId,memberId,data) " +
                                                  "VALUES ($circleId,$memberId,$data)"+
                                                  "ON CONFLICT (circleId,memberId) DO UPDATE "+
                                                  "SET data = $data;";
@@ -172,14 +172,14 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public int Update(CirclememberItem item)
+        public int Update(CircleMemberItem item)
         {
             lock (_updateLock)
             {
                 if (_updateCommand == null)
                 {
                     _updateCommand = _database.CreateCommand();
-                    _updateCommand.CommandText = "UPDATE circlemember (circleId,memberId,data) " +
+                    _updateCommand.CommandText = "UPDATE circleMember (circleId,memberId,data) " +
                                                  "VALUES ($data)"+
                                                  "WHERE (circleId = $circleId,memberId = $memberId)";
                     _updateParam1 = _updateCommand.CreateParameter();
@@ -208,7 +208,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (_deleteCommand == null)
                 {
                     _deleteCommand = _database.CreateCommand();
-                    _deleteCommand.CommandText = "DELETE FROM circlemember " +
+                    _deleteCommand.CommandText = "DELETE FROM circleMember " +
                                                  "WHERE circleId = $circleId AND memberId = $memberId";
                     _deleteParam1 = _deleteCommand.CreateParameter();
                     _deleteCommand.Parameters.Add(_deleteParam1);
@@ -225,14 +225,14 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public CirclememberItem Get(Guid circleId,Guid memberId)
+        public CircleMemberItem Get(Guid circleId,Guid memberId)
         {
             lock (_getLock)
             {
                 if (_getCommand == null)
                 {
                     _getCommand = _database.CreateCommand();
-                    _getCommand.CommandText = "SELECT data FROM circlemember " +
+                    _getCommand.CommandText = "SELECT data FROM circleMember " +
                                                  "WHERE circleId = $circleId AND memberId = $memberId;";
                     _getParam1 = _getCommand.CreateParameter();
                     _getCommand.Parameters.Add(_getParam1);
@@ -248,7 +248,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 {
                     if (!rdr.Read())
                         return null;
-                    var item = new CirclememberItem();
+                    var item = new CircleMemberItem();
                     item.circleId = circleId;
                     item.memberId = memberId;
                     byte[] _tmpbuf = new byte[65535+1];

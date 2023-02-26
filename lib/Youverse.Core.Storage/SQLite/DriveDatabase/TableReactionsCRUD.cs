@@ -20,27 +20,27 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                   _identity = value;
                }
         }
-        private Guid _postid;
-        public Guid postid
+        private Guid _postId;
+        public Guid postId
         {
            get {
-                   return _postid;
+                   return _postId;
                }
            set {
-                  _postid = value;
+                  _postId = value;
                }
         }
-        private string _singlereaction;
-        public string singlereaction
+        private string _singleReaction;
+        public string singleReaction
         {
            get {
-                   return _singlereaction;
+                   return _singleReaction;
                }
            set {
                   if (value == null) throw new Exception("Cannot be null");
                   if (value?.Length < 3) throw new Exception("Too short");
                   if (value?.Length > 80) throw new Exception("Too long");
-                  _singlereaction = value;
+                  _singleReaction = value;
                }
         }
         private UnixTimeUtcUnique _created;
@@ -136,11 +136,11 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS reactions("
                      +"identity STRING NOT NULL, "
-                     +"postid BLOB NOT NULL, "
-                     +"singlereaction STRING NOT NULL, "
+                     +"postId BLOB NOT NULL, "
+                     +"singleReaction STRING NOT NULL, "
                      +"created INT NOT NULL, "
                      +"modified INT NOT NULL "
-                     +", PRIMARY KEY (identity,postid,singlereaction)"
+                     +", PRIMARY KEY (identity,postId,singleReaction)"
                      +");"
                      ;
                 cmd.ExecuteNonQuery();
@@ -154,17 +154,17 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 if (_insertCommand == null)
                 {
                     _insertCommand = _database.CreateCommand();
-                    _insertCommand.CommandText = "INSERT INTO reactions (identity,postid,singlereaction,created,modified) " +
-                                                 "VALUES ($identity,$postid,$singlereaction,$created,$modified)";
+                    _insertCommand.CommandText = "INSERT INTO reactions (identity,postId,singleReaction,created,modified) " +
+                                                 "VALUES ($identity,$postId,$singleReaction,$created,$modified)";
                     _insertParam1 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam1);
                     _insertParam1.ParameterName = "$identity";
                     _insertParam2 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam2);
-                    _insertParam2.ParameterName = "$postid";
+                    _insertParam2.ParameterName = "$postId";
                     _insertParam3 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam3);
-                    _insertParam3.ParameterName = "$singlereaction";
+                    _insertParam3.ParameterName = "$singleReaction";
                     _insertParam4 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam4);
                     _insertParam4.ParameterName = "$created";
@@ -174,8 +174,8 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     _insertCommand.Prepare();
                 }
                 _insertParam1.Value = item.identity;
-                _insertParam2.Value = item.postid;
-                _insertParam3.Value = item.singlereaction;
+                _insertParam2.Value = item.postId;
+                _insertParam3.Value = item.singleReaction;
                 _insertParam4.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _insertParam5.Value = UnixTimeUtc.Now().milliseconds;
                 _database.BeginTransaction();
@@ -190,19 +190,19 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 if (_upsertCommand == null)
                 {
                     _upsertCommand = _database.CreateCommand();
-                    _upsertCommand.CommandText = "INSERT INTO reactions (identity,postid,singlereaction,created,modified) " +
-                                                 "VALUES ($identity,$postid,$singlereaction,$created,$modified)"+
-                                                 "ON CONFLICT (identity,postid,singlereaction) DO UPDATE "+
+                    _upsertCommand.CommandText = "INSERT INTO reactions (identity,postId,singleReaction,created,modified) " +
+                                                 "VALUES ($identity,$postId,$singleReaction,$created,$modified)"+
+                                                 "ON CONFLICT (identity,postId,singleReaction) DO UPDATE "+
                                                  "SET modified = $modified;";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
                     _upsertParam1.ParameterName = "$identity";
                     _upsertParam2 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam2);
-                    _upsertParam2.ParameterName = "$postid";
+                    _upsertParam2.ParameterName = "$postId";
                     _upsertParam3 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam3);
-                    _upsertParam3.ParameterName = "$singlereaction";
+                    _upsertParam3.ParameterName = "$singleReaction";
                     _upsertParam4 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam4);
                     _upsertParam4.ParameterName = "$created";
@@ -212,8 +212,8 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     _upsertCommand.Prepare();
                 }
                 _upsertParam1.Value = item.identity;
-                _upsertParam2.Value = item.postid;
-                _upsertParam3.Value = item.singlereaction;
+                _upsertParam2.Value = item.postId;
+                _upsertParam3.Value = item.singleReaction;
                 _upsertParam4.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _upsertParam5.Value = UnixTimeUtc.Now().milliseconds;
                 _database.BeginTransaction();
@@ -228,18 +228,18 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 if (_updateCommand == null)
                 {
                     _updateCommand = _database.CreateCommand();
-                    _updateCommand.CommandText = "UPDATE reactions (identity,postid,singlereaction,created,modified) " +
+                    _updateCommand.CommandText = "UPDATE reactions (identity,postId,singleReaction,created,modified) " +
                                                  "VALUES ($modified)"+
-                                                 "WHERE (identity = $identity,postid = $postid,singlereaction = $singlereaction)";
+                                                 "WHERE (identity = $identity,postId = $postId,singleReaction = $singleReaction)";
                     _updateParam1 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam1);
                     _updateParam1.ParameterName = "$identity";
                     _updateParam2 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam2);
-                    _updateParam2.ParameterName = "$postid";
+                    _updateParam2.ParameterName = "$postId";
                     _updateParam3 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam3);
-                    _updateParam3.ParameterName = "$singlereaction";
+                    _updateParam3.ParameterName = "$singleReaction";
                     _updateParam4 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam4);
                     _updateParam4.ParameterName = "$created";
@@ -249,8 +249,8 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     _updateCommand.Prepare();
                 }
                 _updateParam1.Value = item.identity;
-                _updateParam2.Value = item.postid;
-                _updateParam3.Value = item.singlereaction;
+                _updateParam2.Value = item.postId;
+                _updateParam3.Value = item.singleReaction;
                 _updateParam4.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _updateParam5.Value = UnixTimeUtc.Now().milliseconds;
                 _database.BeginTransaction();
@@ -258,7 +258,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             } // Lock
         }
 
-        public int Delete(string identity,Guid postid,string singlereaction)
+        public int Delete(string identity,Guid postId,string singleReaction)
         {
             lock (_deleteLock)
             {
@@ -266,27 +266,27 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 {
                     _deleteCommand = _database.CreateCommand();
                     _deleteCommand.CommandText = "DELETE FROM reactions " +
-                                                 "WHERE identity = $identity AND postid = $postid AND singlereaction = $singlereaction";
+                                                 "WHERE identity = $identity AND postId = $postId AND singleReaction = $singleReaction";
                     _deleteParam1 = _deleteCommand.CreateParameter();
                     _deleteCommand.Parameters.Add(_deleteParam1);
                     _deleteParam1.ParameterName = "$identity";
                     _deleteParam2 = _deleteCommand.CreateParameter();
                     _deleteCommand.Parameters.Add(_deleteParam2);
-                    _deleteParam2.ParameterName = "$postid";
+                    _deleteParam2.ParameterName = "$postId";
                     _deleteParam3 = _deleteCommand.CreateParameter();
                     _deleteCommand.Parameters.Add(_deleteParam3);
-                    _deleteParam3.ParameterName = "$singlereaction";
+                    _deleteParam3.ParameterName = "$singleReaction";
                     _deleteCommand.Prepare();
                 }
                 _deleteParam1.Value = identity;
-                _deleteParam2.Value = postid;
-                _deleteParam3.Value = singlereaction;
+                _deleteParam2.Value = postId;
+                _deleteParam3.Value = singleReaction;
                 _database.BeginTransaction();
                 return _deleteCommand.ExecuteNonQuery();
             } // Lock
         }
 
-        public ReactionsItem Get(string identity,Guid postid,string singlereaction)
+        public ReactionsItem Get(string identity,Guid postId,string singleReaction)
         {
             lock (_getLock)
             {
@@ -294,29 +294,29 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 {
                     _getCommand = _database.CreateCommand();
                     _getCommand.CommandText = "SELECT created,modified FROM reactions " +
-                                                 "WHERE identity = $identity AND postid = $postid AND singlereaction = $singlereaction;";
+                                                 "WHERE identity = $identity AND postId = $postId AND singleReaction = $singleReaction;";
                     _getParam1 = _getCommand.CreateParameter();
                     _getCommand.Parameters.Add(_getParam1);
                     _getParam1.ParameterName = "$identity";
                     _getParam2 = _getCommand.CreateParameter();
                     _getCommand.Parameters.Add(_getParam2);
-                    _getParam2.ParameterName = "$postid";
+                    _getParam2.ParameterName = "$postId";
                     _getParam3 = _getCommand.CreateParameter();
                     _getCommand.Parameters.Add(_getParam3);
-                    _getParam3.ParameterName = "$singlereaction";
+                    _getParam3.ParameterName = "$singleReaction";
                     _getCommand.Prepare();
                 }
                 _getParam1.Value = identity;
-                _getParam2.Value = postid;
-                _getParam3.Value = singlereaction;
+                _getParam2.Value = postId;
+                _getParam3.Value = singleReaction;
                 using (SQLiteDataReader rdr = _getCommand.ExecuteReader(System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                         return null;
                     var item = new ReactionsItem();
                     item.identity = identity;
-                    item.postid = postid;
-                    item.singlereaction = singlereaction;
+                    item.postId = postId;
+                    item.singleReaction = singleReaction;
                     byte[] _tmpbuf = new byte[65535+1];
                     var _guid = new byte[16];
 

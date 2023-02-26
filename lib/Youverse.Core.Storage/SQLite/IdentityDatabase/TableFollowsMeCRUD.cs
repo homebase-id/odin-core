@@ -20,14 +20,14 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                   _identity = value;
                }
         }
-        private Guid _driveid;
-        public Guid driveid
+        private Guid _driveId;
+        public Guid driveId
         {
            get {
-                   return _driveid;
+                   return _driveId;
                }
            set {
-                  _driveid = value;
+                  _driveId = value;
                }
         }
         private UnixTimeUtcUnique _created;
@@ -118,11 +118,11 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS followsMe("
                      +"identity STRING NOT NULL, "
-                     +"driveid BLOB NOT NULL, "
+                     +"driveId BLOB NOT NULL, "
                      +"created INT NOT NULL, "
                      +"modified INT NOT NULL "
-                     +", PRIMARY KEY (identity,driveid)"
-                     +", UNIQUE(identity,driveid)"
+                     +", PRIMARY KEY (identity,driveId)"
+                     +", UNIQUE(identity,driveId)"
                      +");"
                      +"CREATE INDEX IF NOT EXISTS Idx0TableFollowsMeCRUD ON followsMe(identity);"
                      ;
@@ -137,14 +137,14 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (_insertCommand == null)
                 {
                     _insertCommand = _database.CreateCommand();
-                    _insertCommand.CommandText = "INSERT INTO followsMe (identity,driveid,created,modified) " +
-                                                 "VALUES ($identity,$driveid,$created,$modified)";
+                    _insertCommand.CommandText = "INSERT INTO followsMe (identity,driveId,created,modified) " +
+                                                 "VALUES ($identity,$driveId,$created,$modified)";
                     _insertParam1 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam1);
                     _insertParam1.ParameterName = "$identity";
                     _insertParam2 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam2);
-                    _insertParam2.ParameterName = "$driveid";
+                    _insertParam2.ParameterName = "$driveId";
                     _insertParam3 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam3);
                     _insertParam3.ParameterName = "$created";
@@ -154,7 +154,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _insertCommand.Prepare();
                 }
                 _insertParam1.Value = item.identity;
-                _insertParam2.Value = item.driveid;
+                _insertParam2.Value = item.driveId;
                 _insertParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _insertParam4.Value = UnixTimeUtc.Now().milliseconds;
                 _database.BeginTransaction();
@@ -169,16 +169,16 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (_upsertCommand == null)
                 {
                     _upsertCommand = _database.CreateCommand();
-                    _upsertCommand.CommandText = "INSERT INTO followsMe (identity,driveid,created,modified) " +
-                                                 "VALUES ($identity,$driveid,$created,$modified)"+
-                                                 "ON CONFLICT (identity,driveid) DO UPDATE "+
+                    _upsertCommand.CommandText = "INSERT INTO followsMe (identity,driveId,created,modified) " +
+                                                 "VALUES ($identity,$driveId,$created,$modified)"+
+                                                 "ON CONFLICT (identity,driveId) DO UPDATE "+
                                                  "SET modified = $modified;";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
                     _upsertParam1.ParameterName = "$identity";
                     _upsertParam2 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam2);
-                    _upsertParam2.ParameterName = "$driveid";
+                    _upsertParam2.ParameterName = "$driveId";
                     _upsertParam3 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam3);
                     _upsertParam3.ParameterName = "$created";
@@ -188,7 +188,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _upsertCommand.Prepare();
                 }
                 _upsertParam1.Value = item.identity;
-                _upsertParam2.Value = item.driveid;
+                _upsertParam2.Value = item.driveId;
                 _upsertParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _upsertParam4.Value = UnixTimeUtc.Now().milliseconds;
                 _database.BeginTransaction();
@@ -203,15 +203,15 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (_updateCommand == null)
                 {
                     _updateCommand = _database.CreateCommand();
-                    _updateCommand.CommandText = "UPDATE followsMe (identity,driveid,created,modified) " +
+                    _updateCommand.CommandText = "UPDATE followsMe (identity,driveId,created,modified) " +
                                                  "VALUES ($modified)"+
-                                                 "WHERE (identity = $identity,driveid = $driveid)";
+                                                 "WHERE (identity = $identity,driveId = $driveId)";
                     _updateParam1 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam1);
                     _updateParam1.ParameterName = "$identity";
                     _updateParam2 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam2);
-                    _updateParam2.ParameterName = "$driveid";
+                    _updateParam2.ParameterName = "$driveId";
                     _updateParam3 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam3);
                     _updateParam3.ParameterName = "$created";
@@ -221,7 +221,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _updateCommand.Prepare();
                 }
                 _updateParam1.Value = item.identity;
-                _updateParam2.Value = item.driveid;
+                _updateParam2.Value = item.driveId;
                 _updateParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _updateParam4.Value = UnixTimeUtc.Now().milliseconds;
                 _database.BeginTransaction();
@@ -229,7 +229,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public int Delete(string identity,Guid driveid)
+        public int Delete(string identity,Guid driveId)
         {
             lock (_deleteLock)
             {
@@ -237,23 +237,23 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 {
                     _deleteCommand = _database.CreateCommand();
                     _deleteCommand.CommandText = "DELETE FROM followsMe " +
-                                                 "WHERE identity = $identity AND driveid = $driveid";
+                                                 "WHERE identity = $identity AND driveId = $driveId";
                     _deleteParam1 = _deleteCommand.CreateParameter();
                     _deleteCommand.Parameters.Add(_deleteParam1);
                     _deleteParam1.ParameterName = "$identity";
                     _deleteParam2 = _deleteCommand.CreateParameter();
                     _deleteCommand.Parameters.Add(_deleteParam2);
-                    _deleteParam2.ParameterName = "$driveid";
+                    _deleteParam2.ParameterName = "$driveId";
                     _deleteCommand.Prepare();
                 }
                 _deleteParam1.Value = identity;
-                _deleteParam2.Value = driveid;
+                _deleteParam2.Value = driveId;
                 _database.BeginTransaction();
                 return _deleteCommand.ExecuteNonQuery();
             } // Lock
         }
 
-        public FollowsMeItem Get(string identity,Guid driveid)
+        public FollowsMeItem Get(string identity,Guid driveId)
         {
             lock (_getLock)
             {
@@ -261,24 +261,24 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 {
                     _getCommand = _database.CreateCommand();
                     _getCommand.CommandText = "SELECT created,modified FROM followsMe " +
-                                                 "WHERE identity = $identity AND driveid = $driveid;";
+                                                 "WHERE identity = $identity AND driveId = $driveId;";
                     _getParam1 = _getCommand.CreateParameter();
                     _getCommand.Parameters.Add(_getParam1);
                     _getParam1.ParameterName = "$identity";
                     _getParam2 = _getCommand.CreateParameter();
                     _getCommand.Parameters.Add(_getParam2);
-                    _getParam2.ParameterName = "$driveid";
+                    _getParam2.ParameterName = "$driveId";
                     _getCommand.Prepare();
                 }
                 _getParam1.Value = identity;
-                _getParam2.Value = driveid;
+                _getParam2.Value = driveId;
                 using (SQLiteDataReader rdr = _getCommand.ExecuteReader(System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                         return null;
                     var item = new FollowsMeItem();
                     item.identity = identity;
-                    item.driveid = driveid;
+                    item.driveId = driveId;
                     byte[] _tmpbuf = new byte[65535+1];
                     var _guid = new byte[16];
 

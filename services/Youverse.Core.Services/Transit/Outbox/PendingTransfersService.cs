@@ -39,10 +39,11 @@ namespace Youverse.Core.Services.Transit.Outbox
             //Note: I use sender here because boxId has a unique constraint; and we only a sender in this table once.
             //I swallow the exception because there's no direct way to see if a record exists for this sender already
             // byte[] fileId = new byte[] { 1, 1, 2, 3, 5 };
-            byte[] fileId = Guid.NewGuid().ToByteArray();
+            Guid fileId = Guid.NewGuid();
             try
             {
-                 _db.tblOutbox.InsertRow(sender.ToGuidIdentifier().ToByteArray(), fileId, 0, sender.Id.ToLower().ToUtf8ByteArray());
+                // _db.tblOutbox.InsertRow(sender.ToGuidIdentifier().ToByteArray(), fileId, 0, sender.Id.ToLower().ToUtf8ByteArray());
+                _db.tblOutbox.Insert(new OutboxDBItem() { boxId = sender.ToGuidIdentifier(), fileId = fileId, recipient = sender.Id.ToLower(), priority = 0, value = sender.Id.ToLower().ToUtf8ByteArray() });
             }
             catch (System.Data.SQLite.SQLiteException ex)
             {
@@ -55,7 +56,7 @@ namespace Youverse.Core.Services.Transit.Outbox
             }
         }
 
-        public async Task<(IEnumerable<DotYouIdentity>, byte[] marker)> GetIdentities()
+        public async Task<(IEnumerable<DotYouIdentity>, Guid marker)> GetIdentities()
         {
             var records = _db.tblOutbox.PopAll(out var marker);
 
@@ -64,12 +65,12 @@ namespace Youverse.Core.Services.Transit.Outbox
             return (senders, marker);
         }
 
-        public void MarkComplete(byte[] marker)
+        public void MarkComplete(Guid marker)
         {
             _db.tblOutbox.PopCommit(marker);
         }
 
-        public void MarkFailure(byte[] marker)
+        public void MarkFailure(Guid marker)
         {
             _db.tblOutbox.PopCancel(marker);
         }

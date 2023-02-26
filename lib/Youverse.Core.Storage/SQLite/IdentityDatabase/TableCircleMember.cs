@@ -4,7 +4,7 @@ using System.Data.SQLite;
 
 namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 {
-    public class TableCircleMember : TableCirclememberCRUD
+    public class TableCircleMember : TableCircleMemberCRUD
     {
         public const int MAX_DATA_LENGTH = 65000;  // Some max value for the data
 
@@ -48,7 +48,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         /// <param name="circleId"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public List<CirclememberItem> GetCircleMembers(Guid circleId)
+        public List<CircleMemberItem> GetCircleMembers(Guid circleId)
         {
             lock (_selectLock)
             {
@@ -69,14 +69,14 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
                 using (SQLiteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.Default))
                 {
-                    var result = new List<CirclememberItem>();
+                    var result = new List<CircleMemberItem>();
 
                     byte[] _tmpbuf = new byte[MAX_DATA_LENGTH];
                     byte[] g = new byte[16];
 
                     while (rdr.Read())
                     {
-                        var item = new CirclememberItem();
+                        var item = new CircleMemberItem();
 
                         item.circleId = circleId;
                         long n = rdr.GetBytes(0, 0, g, 0, 16);
@@ -110,7 +110,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         /// <param name="circleId"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public List<CirclememberItem> GetMemberCirclesAndData(Guid memberId)
+        public List<CircleMemberItem> GetMemberCirclesAndData(Guid memberId)
         {
             lock (_select2Lock)
             {
@@ -131,14 +131,14 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
                 using (SQLiteDataReader rdr = _select2Command.ExecuteReader(System.Data.CommandBehavior.Default))
                 {
-                    var result = new List<CirclememberItem>();
+                    var result = new List<CircleMemberItem>();
 
                     byte[] _tmpbuf = new byte[MAX_DATA_LENGTH];
                     byte[] g = new byte[16];
 
                     while (rdr.Read())
                     {
-                        var item = new CirclememberItem();
+                        var item = new CircleMemberItem();
                         item.memberId = memberId;
 
                         long n = rdr.GetBytes(0, 0, g, 0, 16);
@@ -167,20 +167,20 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
 
         /// <summary>
-        /// Adds each CirclememberItem in the supplied list.
+        /// Adds each CircleMemberItem in the supplied list.
         /// </summary>
-        /// <param name="CirclememberItemList"></param>
+        /// <param name="CircleMemberItemList"></param>
         /// <exception cref="Exception"></exception>
-        public void AddCircleMembers(List<CirclememberItem> CirclememberItemList)
+        public void AddCircleMembers(List<CircleMemberItem> CircleMemberItemList)
         {
-            if ((CirclememberItemList == null) || (CirclememberItemList.Count < 1))
+            if ((CircleMemberItemList == null) || (CircleMemberItemList.Count < 1))
                 throw new Exception("No members supplied (null or empty)");
 
             _database.BeginTransaction();
 
             using (_database.CreateCommitUnitOfWork())
-                for (int i = 0; i < CirclememberItemList.Count; i++)
-                    Insert(CirclememberItemList[i]);
+                for (int i = 0; i < CircleMemberItemList.Count; i++)
+                    Insert(CircleMemberItemList[i]);
         }
 
 

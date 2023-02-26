@@ -21,6 +21,6 @@ namespace Youverse.Core.Services.Transit
 
         public UInt64 Timestamp { get; set; }
         
-        public OutboxItem OutboxItem { get; set; }
+        public TransitOutboxItem OutboxItem { get; set; }
     }
 }

@@ -29,7 +29,7 @@ namespace IdentityDatabaseTests
                 Assert.Fail();
             if (ByteArrayUtil.muidcmp(r.value, v1) != 0)
                 Assert.Fail();
-            if ((r.timestamp < tslo) || (r.timestamp > tshi))
+            if ((r.timeStamp < tslo) || (r.timeStamp > tshi))
                 Assert.Fail();
             if (r.priority != 0)
                 Assert.Fail();
@@ -39,7 +39,7 @@ namespace IdentityDatabaseTests
                 Assert.Fail();
             if (ByteArrayUtil.muidcmp(r.value, v2) != 0)
                 Assert.Fail();
-            if ((r.timestamp < tslo) || (r.timestamp > tshi))
+            if ((r.timeStamp < tslo) || (r.timeStamp > tshi))
                 Assert.Fail();
             if (r.priority != 10)
                 Assert.Fail();
@@ -72,11 +72,11 @@ namespace IdentityDatabaseTests
             var tshi = UnixTimeUtc.Now();
 
             // pop one item from the inbox
-            var r = db.tblInbox.Pop(boxid, 1, out var poptimestamp);
+            var r = db.tblInbox.Pop(boxid, 1, out var poptimeStamp);
             if (r.Count != 1)
                 Assert.Fail();
 
-            if (poptimestamp == null)
+            if (poptimeStamp == null)
                 Assert.Fail();
 
             if (ByteArrayUtil.muidcmp(r[0].fileId, f1) != 0)
@@ -85,15 +85,15 @@ namespace IdentityDatabaseTests
                 Assert.Fail();
             if (r[0].priority != 0)
                 Assert.Fail();
-            if ((r[0].timestamp < tslo) || (r[0].timestamp > tshi))
+            if ((r[0].timeStamp < tslo) || (r[0].timeStamp > tshi))
                 Assert.Fail();
 
             // pop all the remaining items from the inbox
-            r = db.tblInbox.Pop(boxid, 10, out poptimestamp);
+            r = db.tblInbox.Pop(boxid, 10, out poptimeStamp);
             if (r.Count != 4)
                 Assert.Fail();
 
-            if (poptimestamp == null)
+            if (poptimeStamp == null)
                 Assert.Fail();
 
             if (ByteArrayUtil.muidcmp(r[0].fileId, f2) != 0)
@@ -102,7 +102,7 @@ namespace IdentityDatabaseTests
                 Assert.Fail();
             if (r[0].priority != 1)
                 Assert.Fail();
-            if ((r[0].timestamp < tslo) || (r[0].timestamp > tshi))
+            if ((r[0].timeStamp < tslo) || (r[0].timeStamp > tshi))
                 Assert.Fail();
 
             if (ByteArrayUtil.muidcmp(r[1].fileId, f3) != 0)
@@ -111,7 +111,7 @@ namespace IdentityDatabaseTests
                 Assert.Fail();
             if (r[1].priority != 2)
                 Assert.Fail();
-            if ((r[1].timestamp < tslo) || (r[1].timestamp > tshi))
+            if ((r[1].timeStamp < tslo) || (r[1].timeStamp > tshi))
                 Assert.Fail();
 
             if (ByteArrayUtil.muidcmp(r[2].fileId, f4) != 0)
@@ -120,7 +120,7 @@ namespace IdentityDatabaseTests
                 Assert.Fail();
             if (r[2].priority != 3)
                 Assert.Fail();
-            if ((r[2].timestamp < tslo) || (r[2].timestamp > tshi))
+            if ((r[2].timeStamp < tslo) || (r[2].timeStamp > tshi))
                 Assert.Fail();
 
             if (ByteArrayUtil.muidcmp(r[3].fileId, f5) != 0)
@@ -129,11 +129,11 @@ namespace IdentityDatabaseTests
                 Assert.Fail();
             if (r[3].priority != 4)
                 Assert.Fail();
-            if ((r[3].timestamp < tslo) || (r[3].timestamp > tshi))
+            if ((r[3].timeStamp < tslo) || (r[3].timeStamp > tshi))
                 Assert.Fail();
 
             // pop to make sure there are no more items
-            r = db.tblInbox.Pop(boxid, 1, out poptimestamp);
+            r = db.tblInbox.Pop(boxid, 1, out poptimeStamp);
             if (r.Count != 0)
                 Assert.Fail();
         }
@@ -157,12 +157,12 @@ namespace IdentityDatabaseTests
             db.tblInbox.Insert(new InboxItem() { boxId = boxid, fileId = f4, priority = 10, value = null });
             db.tblInbox.Insert(new InboxItem() { boxId = boxid, fileId = f5, priority = 20, value = null });
 
-            var r1 = db.tblInbox.Pop(boxid, 2, out var poptimestamp1);
-            var r2 = db.tblInbox.Pop(boxid, 3, out var poptimestamp2);
+            var r1 = db.tblInbox.Pop(boxid, 2, out var poptimeStamp1);
+            var r2 = db.tblInbox.Pop(boxid, 3, out var poptimeStamp2);
 
-            db.tblInbox.PopCancel(poptimestamp1);
+            db.tblInbox.PopCancel(poptimeStamp1);
 
-            var r3 = db.tblInbox.Pop(boxid, 10, out var poptimestamp3);
+            var r3 = db.tblInbox.Pop(boxid, 10, out var poptimeStamp3);
 
             if (r3.Count != 2)
                 Assert.Fail();
@@ -172,9 +172,9 @@ namespace IdentityDatabaseTests
             if (ByteArrayUtil.muidcmp(r1[1].fileId, r3[1].fileId) != 0)
                 Assert.Fail();
 
-            db.tblInbox.PopCancel(poptimestamp3);
-            db.tblInbox.PopCancel(poptimestamp2);
-            var r4 = db.tblInbox.Pop(boxid, 10, out var poptimestamp4);
+            db.tblInbox.PopCancel(poptimeStamp3);
+            db.tblInbox.PopCancel(poptimeStamp2);
+            var r4 = db.tblInbox.Pop(boxid, 10, out var poptimeStamp4);
 
             if (r4.Count != 5)
                 Assert.Fail();
@@ -201,10 +201,10 @@ namespace IdentityDatabaseTests
             db.tblInbox.Insert(new InboxItem() { boxId = boxid, fileId = f4, priority = 10, value = null });
             db.tblInbox.Insert(new InboxItem() { boxId = boxid, fileId = f5, priority = 20, value = null });
 
-            var r1 = db.tblInbox.Pop(boxid, 2, out var poptimestamp1);
-            db.tblInbox.PopCommit(poptimestamp1);
+            var r1 = db.tblInbox.Pop(boxid, 2, out var poptimeStamp1);
+            db.tblInbox.PopCommit(poptimeStamp1);
 
-            var r2 = db.tblInbox.Pop(boxid, 10, out var poptimestamp2);
+            var r2 = db.tblInbox.Pop(boxid, 10, out var poptimeStamp2);
             if (r2.Count != 3)
                 Assert.Fail();
         }
@@ -230,18 +230,18 @@ namespace IdentityDatabaseTests
             db.tblInbox.Insert(new InboxItem() { boxId = boxid, fileId = f4, priority = 10, value = null });
             db.tblInbox.Insert(new InboxItem() { boxId = boxid, fileId = f5, priority = 20, value = null });
 
-            var r1 = db.tblInbox.Pop(boxid, 2, out var poptimestamp1);
+            var r1 = db.tblInbox.Pop(boxid, 2, out var poptimeStamp1);
 
             // Recover all items older than the future (=all)
             db.tblInbox.PopRecoverDead(UnixTimeUtc.Now().AddSeconds(2));
 
-            var r2 = db.tblInbox.Pop(boxid, 10, out var poptimestamp2);
+            var r2 = db.tblInbox.Pop(boxid, 10, out var poptimeStamp2);
             if (r2.Count != 5)
                 Assert.Fail();
 
             // Recover items older than long ago (=none)
             db.tblInbox.PopRecoverDead(UnixTimeUtc.Now().AddSeconds(-2));
-            var r3 = db.tblInbox.Pop(boxid, 10, out var poptimestamp3);
+            var r3 = db.tblInbox.Pop(boxid, 10, out var poptimeStamp3);
             if (r3.Count != 0)
                 Assert.Fail();
         }
@@ -271,25 +271,25 @@ namespace IdentityDatabaseTests
             db.tblInbox.Insert(new InboxItem() { boxId = b2, fileId = f5, priority = 10, value = v1 });
 
             // Pop the oldest record from the inbox 1
-            var r1 = db.tblInbox.Pop(b1, 1, out var poptimestamp1);
-            var r2 = db.tblInbox.Pop(b1, 10, out var poptimestamp2);
+            var r1 = db.tblInbox.Pop(b1, 1, out var poptimeStamp1);
+            var r2 = db.tblInbox.Pop(b1, 10, out var poptimeStamp2);
             if (r2.Count != 1)
                 Assert.Fail();
 
             // Then pop 10 oldest record from the inbox (only 2 are available now)
-            var r3 = db.tblInbox.Pop(b2, 10, out var poptimestamp3);
+            var r3 = db.tblInbox.Pop(b2, 10, out var poptimeStamp3);
             if (r3.Count != 3)
                 Assert.Fail();
 
             // The thread that popped the first record is now done.
             // Commit the pop
-            db.tblInbox.PopCommit(poptimestamp1);
+            db.tblInbox.PopCommit(poptimeStamp1);
 
             // Oh no, the second thread running on the second pop of records
             // encountered a terrible error. Undo the pop
-            db.tblInbox.PopCancel(poptimestamp2);
+            db.tblInbox.PopCancel(poptimeStamp2);
 
-            var r4 = db.tblInbox.Pop(b1, 10, out var poptimestamp4);
+            var r4 = db.tblInbox.Pop(b1, 10, out var poptimeStamp4);
             if (r4.Count != 1)
                 Assert.Fail();
         }
@@ -329,23 +329,23 @@ namespace IdentityDatabaseTests
             // A thread1 pops one record from inbox1 (it'll get the oldest one)
             // Popping the record "reserves it" for your thread but doesn't remove
             // it from the inbox until the pop is committed or cancelled.
-            var r1 = db.tblInbox.Pop(box1id, 1, out var poptimestamp1);
+            var r1 = db.tblInbox.Pop(box1id, 1, out var poptimeStamp1);
 
             // Another thread2 then pops 10 records from inbox1 (only 2 are available now)
-            var r2 = db.tblInbox.Pop(box1id, 10, out var poptimestamp2);
+            var r2 = db.tblInbox.Pop(box1id, 10, out var poptimeStamp2);
 
             // The thread1 that popped the first record is now done.
             // Commit the pop, which effectively deletes it from the inbox
             // You of course call commit as the very final step when you're
             // certain the item has been saved correctly.
-            db.tblInbox.PopCommit(poptimestamp1);
+            db.tblInbox.PopCommit(poptimeStamp1);
 
             // Imagine that thread2 encountered a terrible error, e.g. out of disk space
             // Undo the pop and put the items back into the inbox
-            db.tblInbox.PopCancel(poptimestamp2);
+            db.tblInbox.PopCancel(poptimeStamp2);
 
             // Thread3 pops 10 items from inbox2 (will retrieve 2)
-            var r3 = db.tblInbox.Pop(box2id, 10, out var poptimestamp3);
+            var r3 = db.tblInbox.Pop(box2id, 10, out var poptimeStamp3);
 
             // Now imagine that there is a power outage, the server crashes.
             // The popped items are in "limbo" because they are not committed and not cancelled.

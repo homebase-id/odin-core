@@ -48,7 +48,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
                 _tenantStorage.Followers.DeleteFollower(request.DotYouId);
                 foreach (var driveId in driveIdList)
                 {
-                    _tenantStorage.Followers.Insert(new FollowsMeItem() { identity = request.DotYouId, driveid = driveId });
+                    _tenantStorage.Followers.Insert(new FollowsMeItem() { identity = request.DotYouId, driveId = driveId });
                 }
 
                 return Task.CompletedTask;
@@ -57,7 +57,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             if (request.NotificationType == FollowerNotificationType.AllNotifications)
             {
                 _tenantStorage.Followers.DeleteFollower(request.DotYouId);
-                _tenantStorage.Followers.Insert(new FollowsMeItem() { identity = request.DotYouId, driveid = System.Guid.Empty });
+                _tenantStorage.Followers.Insert(new FollowsMeItem() { identity = request.DotYouId, driveId = System.Guid.Empty });
             }
 
             return Task.CompletedTask;

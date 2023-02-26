@@ -21,9 +21,9 @@ namespace IdentityDatabaseTests
             var item1 = new ConnectionsItem()
             {
                 identity = "frodo.baggins.me",
-                displayname = "Frodo",
+                displayName = "Frodo",
                 status = 42,
-                accessisrevoked = 1,
+                accessIsRevoked = 1,
                 data = g1.ToByteArray()
             };
             db.tblConnections.Upsert(item1);
@@ -31,9 +31,9 @@ namespace IdentityDatabaseTests
             var item2 = new ConnectionsItem()
             {
                 identity = "samwise.gamgee.me",
-                displayname = "Sam",
+                displayName = "Sam",
                 status = 43,
-                accessisrevoked = 0,
+                accessIsRevoked = 0,
                 data = g2.ToByteArray()
             };
             db.tblConnections.Upsert(item2);
@@ -41,9 +41,9 @@ namespace IdentityDatabaseTests
             var item3 = new ConnectionsItem()
             {
                 identity = "gandalf.white.me",
-                displayname = "G",
+                displayName = "G",
                 status = 44,
-                accessisrevoked = 0,
+                accessIsRevoked = 0,
                 data = g3.ToByteArray()
             };
             db.tblConnections.Upsert(item3);
@@ -71,9 +71,9 @@ namespace IdentityDatabaseTests
             var item = new ConnectionsItem()
             {
                 identity = "frodo.baggins.me",
-                displayname = "Frodo Baggins",
+                displayName = "Frodo Baggins",
                 status = 42,
-                accessisrevoked = 0,
+                accessIsRevoked = 0,
                 data = g1.ToByteArray()
             };
 
@@ -81,9 +81,9 @@ namespace IdentityDatabaseTests
 
             var r = db.tblConnections.Get("frodo.baggins.me");
             Debug.Assert(r.identity == "frodo.baggins.me");
-            Debug.Assert(r.displayname == "Frodo Baggins");
+            Debug.Assert(r.displayName == "Frodo Baggins");
             Debug.Assert(r.status == 42);
-            Debug.Assert(r.accessisrevoked == 0);
+            Debug.Assert(r.accessIsRevoked == 0);
             Debug.Assert((ByteArrayUtil.muidcmp(r.data, g1.ToByteArray()) == 0));
         }
 
@@ -100,9 +100,9 @@ namespace IdentityDatabaseTests
             var item = new ConnectionsItem()
             {
                 identity = "frodo.baggins.me",
-                displayname = "",
+                displayName = "",
                 status = 42,
-                accessisrevoked = 1,
+                accessIsRevoked = 1,
                 data = g1.ToByteArray()
             };
 
@@ -111,9 +111,9 @@ namespace IdentityDatabaseTests
             db.tblConnections.Upsert(item);
             r = db.tblConnections.Get("frodo.baggins.me");
             Debug.Assert(r.identity == "frodo.baggins.me");
-            Debug.Assert(r.displayname == "");
+            Debug.Assert(r.displayName == "");
             Debug.Assert(r.status == 42);
-            Debug.Assert(r.accessisrevoked == 1);
+            Debug.Assert(r.accessIsRevoked == 1);
             Debug.Assert((ByteArrayUtil.muidcmp(r.data, g1.ToByteArray()) == 0));
         }
 
@@ -131,9 +131,9 @@ namespace IdentityDatabaseTests
             var item1 = new ConnectionsItem()
             {
                 identity = "frodo.baggins.me",
-                displayname = "Frodo",
+                displayName = "Frodo",
                 status = 42,
-                accessisrevoked = 1,
+                accessIsRevoked = 1,
                 data = g1.ToByteArray()
             };
             db.tblConnections.Upsert(item1);
@@ -141,9 +141,9 @@ namespace IdentityDatabaseTests
             var item2 = new ConnectionsItem()
             {
                 identity = "samwise.gamgee.me",
-                displayname = "Sam",
+                displayName = "Sam",
                 status = 43,
-                accessisrevoked = 0,
+                accessIsRevoked = 0,
                 data = g2.ToByteArray()
             };
             db.tblConnections.Upsert(item2);
@@ -151,9 +151,9 @@ namespace IdentityDatabaseTests
             var item3 = new ConnectionsItem()
             {
                 identity = "gandalf.white.me",
-                displayname = "G",
+                displayName = "G",
                 status = 44,
-                accessisrevoked = 0,
+                accessIsRevoked = 0,
                 data = g3.ToByteArray()
             };
             db.tblConnections.Upsert(item3);

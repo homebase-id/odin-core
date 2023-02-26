@@ -66,8 +66,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (_popCommand == null)
                 {
                     _popCommand = _database.CreateCommand();
-                    _popCommand.CommandText = "UPDATE inbox SET popstamp=$popstamp WHERE boxid=$boxid AND popstamp IS NULL ORDER BY timestamp ASC LIMIT $count; " +
-                                              "SELECT fileid, priority, timestamp, value from inbox WHERE popstamp=$popstamp";
+                    _popCommand.CommandText = "UPDATE inbox SET popstamp=$popstamp WHERE boxid=$boxid AND popstamp IS NULL ORDER BY timeStamp ASC LIMIT $count; " +
+                                              "SELECT fileid, priority, timeStamp, value from inbox WHERE popstamp=$popstamp";
 
                     _pparam1 = _popCommand.CreateParameter();
                     _pparam1.ParameterName = "$popstamp";
@@ -115,7 +115,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                                 throw new Exception("wooot");
 
                             var l = rdr.GetInt64(2);
-                            item.timestamp = new UnixTimeUtc((UInt64) l);
+                            item.timeStamp = new UnixTimeUtc((UInt64) l);
 
                             if (rdr.IsDBNull(3))
                             {

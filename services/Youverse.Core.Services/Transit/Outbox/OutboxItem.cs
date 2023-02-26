@@ -9,9 +9,9 @@ using Youverse.Core.Services.Transit.Upload;
 
 namespace Youverse.Core.Services.Transit.Outbox
 {
-    public class OutboxItem
+    public class TransitOutboxItem
     {
-        public OutboxItem()
+        public TransitOutboxItem()
         {
             this.AddedTimestamp = UnixTimeUtc.Now().seconds;
             this.Attempts = new List<TransferAttempt>();
@@ -32,7 +32,7 @@ namespace Youverse.Core.Services.Transit.Outbox
 
         public UInt64 AddedTimestamp { get; set; }
 
-        public byte[] Marker { get; set; }
+        public Guid Marker { get; set; }
 
         /// <summary>
         /// Indicates the file should be read from the temp folder of the drive and deleted after it is sent to all recipients

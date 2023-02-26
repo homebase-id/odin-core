@@ -19,7 +19,7 @@ namespace IdentityDatabaseTests
             var m1 = Guid.NewGuid();
             var d1 = Guid.NewGuid().ToByteArray();
 
-            var cl = new List<CirclememberItem> { new CirclememberItem() { circleId = c1, memberId =m1, data = d1 } };
+            var cl = new List<CircleMemberItem> { new CircleMemberItem() { circleId = c1, memberId =m1, data = d1 } };
             db.tblCircleMember.AddCircleMembers(cl);
 
             var r = db.tblCircleMember.GetCircleMembers(c1);
@@ -38,7 +38,7 @@ namespace IdentityDatabaseTests
             var c1 = Guid.NewGuid();
             var m1 = Guid.NewGuid();
 
-            var cl = new List<CirclememberItem> { new CirclememberItem() { circleId = c1, memberId = m1, data = null } };
+            var cl = new List<CircleMemberItem> { new CircleMemberItem() { circleId = c1, memberId = m1, data = null } };
             db.tblCircleMember.AddCircleMembers(cl);
 
             bool ok = false;
@@ -64,12 +64,12 @@ namespace IdentityDatabaseTests
             var c1 = Guid.NewGuid();
             var m1 = Guid.NewGuid();
             var d1 = Guid.NewGuid().ToByteArray();
-            var cl = new List<CirclememberItem> { new CirclememberItem() { circleId = c1, memberId = m1, data = d1 } };
+            var cl = new List<CircleMemberItem> { new CircleMemberItem() { circleId = c1, memberId = m1, data = d1 } };
 
             bool ok = false;
             try
             {
-                db.tblCircleMember.AddCircleMembers(new List<CirclememberItem> ());
+                db.tblCircleMember.AddCircleMembers(new List<CircleMemberItem> ());
             }
             catch
             {
@@ -92,10 +92,10 @@ namespace IdentityDatabaseTests
             var m2 = Guid.NewGuid();
             var m3 = Guid.NewGuid();
 
-            var cl = new List<CirclememberItem> { 
-                new CirclememberItem() { circleId = c1, memberId = m1, data = d1 },
-                new CirclememberItem() { circleId = c1, memberId = m2, data = d1 },
-                new CirclememberItem() { circleId = c1, memberId = m3, data = d1 } };
+            var cl = new List<CircleMemberItem> { 
+                new CircleMemberItem() { circleId = c1, memberId = m1, data = d1 },
+                new CircleMemberItem() { circleId = c1, memberId = m2, data = d1 },
+                new CircleMemberItem() { circleId = c1, memberId = m3, data = d1 } };
 
             db.tblCircleMember.AddCircleMembers(cl);
 
@@ -121,18 +121,18 @@ namespace IdentityDatabaseTests
             var m4 = Guid.NewGuid();
             var m5 = Guid.NewGuid();
 
-            var cl = new List<CirclememberItem> {
-                new CirclememberItem() { circleId = c1, memberId = m1, data = d1 },
-                new CirclememberItem() { circleId = c1, memberId = m2, data = d1 },
-                new CirclememberItem() { circleId = c1, memberId = m3, data = d1 } };
+            var cl = new List<CircleMemberItem> {
+                new CircleMemberItem() { circleId = c1, memberId = m1, data = d1 },
+                new CircleMemberItem() { circleId = c1, memberId = m2, data = d1 },
+                new CircleMemberItem() { circleId = c1, memberId = m3, data = d1 } };
 
             db.tblCircleMember.AddCircleMembers(cl);
 
-            var cl2 = new List<CirclememberItem> {
-                new CirclememberItem() { circleId = c2, memberId = m2, data = d1 },
-                new CirclememberItem() { circleId = c2, memberId = m3, data = d1 },
-                new CirclememberItem() { circleId = c2, memberId = m4, data = d1 },
-                new CirclememberItem() { circleId = c2, memberId = m5, data = d1 }
+            var cl2 = new List<CircleMemberItem> {
+                new CircleMemberItem() { circleId = c2, memberId = m2, data = d1 },
+                new CircleMemberItem() { circleId = c2, memberId = m3, data = d1 },
+                new CircleMemberItem() { circleId = c2, memberId = m4, data = d1 },
+                new CircleMemberItem() { circleId = c2, memberId = m5, data = d1 }
             };
             db.tblCircleMember.AddCircleMembers(cl2);
 
@@ -159,18 +159,18 @@ namespace IdentityDatabaseTests
             var m4 = Guid.NewGuid();
             var m5 = Guid.NewGuid();
 
-            var cl = new List<CirclememberItem> {
-                new CirclememberItem() { circleId = c1, memberId = m1, data = d1 },
-                new CirclememberItem() { circleId = c1, memberId = m2, data = d1 },
-                new CirclememberItem() { circleId = c1, memberId = m3, data = d1 } };
+            var cl = new List<CircleMemberItem> {
+                new CircleMemberItem() { circleId = c1, memberId = m1, data = d1 },
+                new CircleMemberItem() { circleId = c1, memberId = m2, data = d1 },
+                new CircleMemberItem() { circleId = c1, memberId = m3, data = d1 } };
 
             db.tblCircleMember.AddCircleMembers(cl);
 
-            var cl2 = new List<CirclememberItem> {
-                new CirclememberItem() { circleId = c2, memberId = m2, data = d1 },
-                new CirclememberItem() { circleId = c2, memberId = m3, data = d1 },
-                new CirclememberItem() { circleId = c2, memberId = m4, data = d1 },
-                new CirclememberItem() { circleId = c2, memberId = m5, data = d1 }
+            var cl2 = new List<CircleMemberItem> {
+                new CircleMemberItem() { circleId = c2, memberId = m2, data = d1 },
+                new CircleMemberItem() { circleId = c2, memberId = m3, data = d1 },
+                new CircleMemberItem() { circleId = c2, memberId = m4, data = d1 },
+                new CircleMemberItem() { circleId = c2, memberId = m5, data = d1 }
             };
             db.tblCircleMember.AddCircleMembers(cl2);
 
@@ -223,18 +223,18 @@ namespace IdentityDatabaseTests
             var m4 = Guid.NewGuid();
             var m5 = Guid.NewGuid();
 
-            var cl = new List<CirclememberItem> {
-                new CirclememberItem() { circleId = c1, memberId = m1, data = d1 },
-                new CirclememberItem() { circleId = c1, memberId = m2, data = d1 },
-                new CirclememberItem() { circleId = c1, memberId = m3, data = d1 } };
+            var cl = new List<CircleMemberItem> {
+                new CircleMemberItem() { circleId = c1, memberId = m1, data = d1 },
+                new CircleMemberItem() { circleId = c1, memberId = m2, data = d1 },
+                new CircleMemberItem() { circleId = c1, memberId = m3, data = d1 } };
 
             db.tblCircleMember.AddCircleMembers(cl);
 
-            var cl2 = new List<CirclememberItem> {
-                new CirclememberItem() { circleId = c2, memberId = m2, data = d1 },
-                new CirclememberItem() { circleId = c2, memberId = m3, data = d1 },
-                new CirclememberItem() { circleId = c2, memberId = m4, data = d1 },
-                new CirclememberItem() { circleId = c2, memberId = m5, data = d1 }
+            var cl2 = new List<CircleMemberItem> {
+                new CircleMemberItem() { circleId = c2, memberId = m2, data = d1 },
+                new CircleMemberItem() { circleId = c2, memberId = m3, data = d1 },
+                new CircleMemberItem() { circleId = c2, memberId = m4, data = d1 },
+                new CircleMemberItem() { circleId = c2, memberId = m5, data = d1 }
             };
             db.tblCircleMember.AddCircleMembers(cl2);
 
@@ -266,18 +266,18 @@ namespace IdentityDatabaseTests
             var m4 = Guid.NewGuid();
             var m5 = Guid.NewGuid();
 
-            var cl = new List<CirclememberItem> {
-                new CirclememberItem() { circleId = c1, memberId = m1, data = d1 },
-                new CirclememberItem() { circleId = c1, memberId = m2, data = d2 },
-                new CirclememberItem() { circleId = c1, memberId = m3, data = d3 } };
+            var cl = new List<CircleMemberItem> {
+                new CircleMemberItem() { circleId = c1, memberId = m1, data = d1 },
+                new CircleMemberItem() { circleId = c1, memberId = m2, data = d2 },
+                new CircleMemberItem() { circleId = c1, memberId = m3, data = d3 } };
 
             db.tblCircleMember.AddCircleMembers(cl);
 
-            var cl2 = new List<CirclememberItem> {
-                new CirclememberItem() { circleId = c2, memberId = m2, data = d1 },
-                new CirclememberItem() { circleId = c2, memberId = m3, data = d2 },
-                new CirclememberItem() { circleId = c2, memberId = m4, data = d3 },
-                new CirclememberItem() { circleId = c2, memberId = m5, data = null }
+            var cl2 = new List<CircleMemberItem> {
+                new CircleMemberItem() { circleId = c2, memberId = m2, data = d1 },
+                new CircleMemberItem() { circleId = c2, memberId = m3, data = d2 },
+                new CircleMemberItem() { circleId = c2, memberId = m4, data = d3 },
+                new CircleMemberItem() { circleId = c2, memberId = m5, data = null }
             };
             db.tblCircleMember.AddCircleMembers(cl2);
 

@@ -76,7 +76,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 {
                     _selectCommand = _database.CreateCommand();
                     _selectCommand.CommandText =
-                        $"SELECT driveid, created FROM imfollowing WHERE identity=$identity";
+                        $"SELECT driveId, created FROM imfollowing WHERE identity=$identity";
                     _sparam1 = _selectCommand.CreateParameter();
                     _sparam1.ParameterName = "$identity";
                     _selectCommand.Parameters.Add(_sparam1);
@@ -96,13 +96,13 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                         var f = new ImFollowingItem();
 
                         if (rdr.IsDBNull(0))
-                            f.driveid = Guid.Empty;
+                            f.driveId = Guid.Empty;
                         else
                         {
                             var n = rdr.GetBytes(0, 0, _tmpbuf, 0, 16);
                             if (n != GUID_SIZE)
                                 throw new Exception("Not a GUID");
-                            f.driveid = new Guid(_tmpbuf);
+                            f.driveId = new Guid(_tmpbuf);
                         }
                         var d = rdr.GetInt64(1);
                         f.identity = identity;
@@ -207,10 +207,10 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 {
                     _select2Command = _database.CreateCommand();
                     _select2Command.CommandText =
-                        $"SELECT DISTINCT identity FROM imfollowing WHERE (driveid=$driveid OR driveid=x'{Convert.ToHexString(Guid.Empty.ToByteArray())}') AND identity > $cursor ORDER BY identity ASC LIMIT $count;";
+                        $"SELECT DISTINCT identity FROM imfollowing WHERE (driveId=$driveId OR driveId=x'{Convert.ToHexString(Guid.Empty.ToByteArray())}') AND identity > $cursor ORDER BY identity ASC LIMIT $count;";
 
                     _s2param1 = _select2Command.CreateParameter();
-                    _s2param1.ParameterName = "$driveid";
+                    _s2param1.ParameterName = "$driveId";
                     _select2Command.Parameters.Add(_s2param1);
 
                     _s2param2 = _select2Command.CreateParameter();

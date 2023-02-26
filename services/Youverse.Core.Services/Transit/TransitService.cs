@@ -193,7 +193,7 @@ namespace Youverse.Core.Services.Transit
             return result;
         }
 
-        private async Task<List<SendResult>> SendBatchNow(IEnumerable<OutboxItem> items)
+        private async Task<List<SendResult>> SendBatchNow(IEnumerable<TransitOutboxItem> items)
         {
             var tasks = new List<Task<SendResult>>();
             var results = new List<SendResult>();
@@ -232,7 +232,7 @@ namespace Youverse.Core.Services.Transit
             return results;
         }
 
-        private async Task<SendResult> SendAsync(OutboxItem outboxItem)
+        private async Task<SendResult> SendAsync(TransitOutboxItem outboxItem)
         {
             IDriveFileSystem fs = _fileSystemResolver.ResolveFileSystem(outboxItem.TransferInstructionSet.FileSystemType);
 
@@ -373,7 +373,7 @@ namespace Youverse.Core.Services.Transit
             };
         }
 
-        private async Task<(Dictionary<string, TransferStatus> transferStatus, IEnumerable<OutboxItem>)> CreateOutboxItems(
+        private async Task<(Dictionary<string, TransferStatus> transferStatus, IEnumerable<TransitOutboxItem>)> CreateOutboxItems(
             InternalDriveFileId internalFile,
             TransitOptions options,
             SendFileOptions sendFileOptions
@@ -384,7 +384,7 @@ namespace Youverse.Core.Services.Transit
             TargetDrive targetDrive = options.OverrideTargetDrive ?? (await _driveManager.GetDrive(internalFile.DriveId, failIfInvalid: true)).TargetDriveInfo;
 
             var transferStatus = new Dictionary<string, TransferStatus>();
-            var outboxItems = new List<OutboxItem>();
+            var outboxItems = new List<TransitOutboxItem>();
 
             if (options.Recipients?.Contains(_tenantContext.HostDotYouId) ?? false)
             {
@@ -418,7 +418,7 @@ namespace Youverse.Core.Services.Transit
                     //TODO apply encryption
                     var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
 
-                    outboxItems.Add(new OutboxItem()
+                    outboxItems.Add(new TransitOutboxItem()
                     {
                         IsTransientFile = options.IsTransient,
                         File = internalFile,

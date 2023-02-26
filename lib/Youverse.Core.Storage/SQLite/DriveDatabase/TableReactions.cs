@@ -57,13 +57,13 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
         /// <param name="identity"></param>
         /// <param name="postId"></param>
         /// <exception cref="Exception"></exception>
-        public void DeleteAllReactions(string identity, Guid postid)
+        public void DeleteAllReactions(string identity, Guid postId)
         {
             // Assign to throw exceptions, it's kind of bizarre :-)
             var item = new ReactionsItem()
             {
                 identity = identity,
-                postid = postid
+                postId = postId
             };
 
             lock (_deleteLock)
@@ -72,20 +72,20 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 if (_deleteCommand == null)
                 {
                     _deleteCommand = _database.CreateCommand();
-                    _deleteCommand.CommandText = @"DELETE FROM reactions WHERE identity=$identity AND postid=$postid;";
+                    _deleteCommand.CommandText = @"DELETE FROM reactions WHERE identity=$identity AND postId=$postId;";
 
                     _delparam1 = _deleteCommand.CreateParameter();
                     _delparam2 = _deleteCommand.CreateParameter();
                     _deleteCommand.Parameters.Add(_delparam1);
                     _deleteCommand.Parameters.Add(_delparam2);
                     _delparam1.ParameterName = "$identity";
-                    _delparam2.ParameterName = "$postid";
+                    _delparam2.ParameterName = "$postId";
 
                     _deleteCommand.Prepare();
                 }
 
                 _delparam1.Value = identity;
-                _delparam2.Value = postid.ToByteArray();
+                _delparam2.Value = postId.ToByteArray();
 
                 _database.BeginTransaction();
                 _deleteCommand.ExecuteNonQuery();
@@ -98,7 +98,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             var item = new ReactionsItem()
             {
                 identity = identity,
-                postid = postId
+                postId = postId
             };
 
             lock (_select2Lock)
@@ -107,10 +107,10 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 {
                     _select2Command = _database.CreateCommand();
                     _select2Command.CommandText =
-                        $"SELECT COUNT(singlereaction) as reactioncount FROM reactions WHERE identity=$identity AND postid=$postid;";
+                        $"SELECT COUNT(singleReaction) as reactioncount FROM reactions WHERE identity=$identity AND postId=$postId;";
 
                     _s2param1 = _select2Command.CreateParameter();
-                    _s2param1.ParameterName = "$postid";
+                    _s2param1.ParameterName = "$postId";
                     _select2Command.Parameters.Add(_s2param1);
 
                     _s2param2 = _select2Command.CreateParameter();
@@ -138,7 +138,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             // Assign to throw exceptions, it's kind of bizarre :-)
             var item = new ReactionsItem()
             {
-                postid = postId
+                postId = postId
             };
 
             lock (_selectLock)
@@ -147,10 +147,10 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 {
                     _selectCommand = _database.CreateCommand();
                     _selectCommand.CommandText =
-                        $"SELECT singlereaction, COUNT(singlereaction) as reactioncount FROM reactions WHERE postid=$postid GROUP BY singlereaction ORDER BY reactioncount DESC;";
+                        $"SELECT singleReaction, COUNT(singleReaction) as reactioncount FROM reactions WHERE postId=$postId GROUP BY singleReaction ORDER BY reactioncount DESC;";
 
                     _sparam1 = _selectCommand.CreateParameter();
-                    _sparam1.ParameterName = "$postid";
+                    _sparam1.ParameterName = "$postId";
                     _selectCommand.Parameters.Add(_sparam1);
 
                     _selectCommand.Prepare();
@@ -185,7 +185,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
 
         // Copied and modified from CRUD
-        public List<ReactionsItem> PagingByRowid(int count, Int32? inCursor, out Int32? nextCursor, Guid PostIdFilter)
+        public List<ReactionsItem> PagingByRowid(int count, Int32? inCursor, out Int32? nextCursor, Guid postIdFilter)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -197,8 +197,8 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 if (_getPaging0Command == null)
                 {
                     _getPaging0Command = _database.CreateCommand();
-                    _getPaging0Command.CommandText = "SELECT rowid,identity,postid,singlereaction,created,modified FROM reactions " +
-                                                 "WHERE postid == $postid AND rowid > $rowid ORDER BY rowid ASC LIMIT $_count;";
+                    _getPaging0Command.CommandText = "SELECT rowid,identity,postId,singleReaction,created,modified FROM reactions " +
+                                                 "WHERE postId == $postId AND rowid > $rowid ORDER BY rowid ASC LIMIT $_count;";
                     _getPaging0Param1 = _getPaging0Command.CreateParameter();
                     _getPaging0Command.Parameters.Add(_getPaging0Param1);
                     _getPaging0Param1.ParameterName = "$rowid";
@@ -209,13 +209,13 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
                     _getPaging0Param3 = _getPaging0Command.CreateParameter();
                     _getPaging0Command.Parameters.Add(_getPaging0Param3);
-                    _getPaging0Param3.ParameterName = "$postid";
+                    _getPaging0Param3.ParameterName = "$postId";
 
                     _getPaging0Command.Prepare();
                 }
                 _getPaging0Param1.Value = inCursor;
                 _getPaging0Param2.Value = count + 1;
-                _getPaging0Param3.Value = PostIdFilter;
+                _getPaging0Param3.Value = postIdFilter;
 
                 using (SQLiteDataReader rdr = _getPaging0Command.ExecuteReader(System.Data.CommandBehavior.Default))
                 {
@@ -245,15 +245,15 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                         {
                             bytesRead = rdr.GetBytes(2, 0, _guid, 0, 16);
                             if (bytesRead != 16)
-                                throw new Exception("Not a GUID in postid...");
-                            item.postid = new Guid(_guid);
+                                throw new Exception("Not a GUID in postId...");
+                            item.postId = new Guid(_guid);
                         }
 
                         if (rdr.IsDBNull(3))
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
-                            item.singlereaction = rdr.GetString(3);
+                            item.singleReaction = rdr.GetString(3);
                         }
 
                         if (rdr.IsDBNull(4))
