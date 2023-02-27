@@ -14,19 +14,23 @@ namespace Youverse.Core.Identity
         private readonly string _identifier;
         private readonly Guid _hash;
 
+        /// <summary>
+        /// Guaranteed to hold a trimmed, RFC compliant domain name and unique HASH of the name
+        /// </summary>
+        /// <param name="identifier">The domain name (ASCII 127) as per the RFC</param>
+        /// <exception cref="ArgumentNullException"></exception>
         public DotYouIdentity(string identifier)
         {
-            _identifier = identifier?.ToLower().Trim();
-            if (string.IsNullOrEmpty(_identifier) == false)
-            {
-                // TODO: Activate this code, but check with Stef & Bishwa what happens when they use international URLs
-                // Validate(identifier);  // Important. Validates domain is valid RFC. No funky chars.
-                _hash = new Guid(HashUtil.ReduceSHA256Hash(_identifier.ToUtf8ByteArray())); // Hm, the chars are guaranteed to be ASCII < 128
-            }
-            else
-            {
-                _hash = Guid.Empty;
-            }
+            if (identifier == null) 
+                throw new ArgumentNullException(nameof(identifier));
+
+            var s = identifier?.ToLower().Trim();
+            DomainNameValidator.TryValidateDomain(s);
+
+            _identifier = s;
+
+            // I would have preferred if the HASH was evaluated lazily. But that's not possible with a RO struct.
+            _hash = new Guid(HashUtil.ReduceSHA256Hash(_identifier.ToUtf8ByteArray()));
         }
 
         [JsonIgnore] public string Id => _identifier;
@@ -84,7 +88,7 @@ namespace Youverse.Core.Identity
 
         public byte[] ToByteArray()
         {
-            var key = _identifier.ToLower().Trim().ToUtf8ByteArray();
+            var key = _identifier.ToUtf8ByteArray();
             return key;
         }
 
@@ -95,7 +99,7 @@ namespace Youverse.Core.Identity
 
         public static void Validate(string dotYouId)
         {
-            DomainNameValidator.ValidateDomain(dotYouId);
+            DomainNameValidator.TryValidateDomain(dotYouId);
         }
     }
 }

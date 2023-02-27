@@ -45,5 +45,54 @@ namespace Youverse.Core.Tests
             Assert.IsTrue(sam != frodo);
         }
 
+        [Test(Description = "Invalid names rejected")]
+        public void InvalidTest()
+        {
+            bool bOk;
+            try
+            {
+                DotYouIdentity id = new DotYouIdentity(null); // Null illegal
+                bOk = false;
+            }
+            catch 
+            {
+                bOk = true;
+            }
+            Assert.IsTrue(bOk);
+
+            try
+            {
+                DotYouIdentity id = new DotYouIdentity("ab"); // too short
+                bOk = false;
+            }
+            catch
+            {
+                bOk = true;
+            }
+            Assert.IsTrue(bOk);
+
+            try
+            {
+                DotYouIdentity id = new DotYouIdentity("aba"); // not enough labels
+                bOk = false;
+            }
+            catch
+            {
+                bOk = true;
+            }
+            Assert.IsTrue(bOk);
+
+            try
+            {
+                DotYouIdentity id = new DotYouIdentity("å.a"); // not ASCII
+                bOk = false;
+            }
+            catch
+            {
+                bOk = true;
+            }
+            Assert.IsTrue(bOk);
+        }
+
     }
 }

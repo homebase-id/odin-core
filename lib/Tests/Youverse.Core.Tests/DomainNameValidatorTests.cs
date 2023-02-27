@@ -57,7 +57,7 @@ namespace Youverse.Core.Tests
         {
             try
             {
-                DomainNameValidator.ValidateDomain("a.b");
+                DomainNameValidator.TryValidateDomain("a.b");
             }
             catch (Exception)
             {
@@ -74,7 +74,7 @@ namespace Youverse.Core.Tests
             // Assert.Throws<Exception>(c=> DomainNameValidator.ValidateDomain(".com"), "domain test failed"),
             try
             {
-                DomainNameValidator.ValidateDomain(".com");
+                DomainNameValidator.TryValidateDomain(".com");
             }
             catch (Exception)
             {
@@ -89,7 +89,7 @@ namespace Youverse.Core.Tests
         {
             try
             {
-                DomainNameValidator.ValidateDomain("com.");
+                DomainNameValidator.TryValidateDomain("com.");
             }
             catch (Exception)
             {
@@ -105,7 +105,7 @@ namespace Youverse.Core.Tests
         {
             try
             {
-                DomainNameValidator.ValidateDomain("-a.com");
+                DomainNameValidator.TryValidateDomain("-a.com");
             }
             catch (Exception)
             {
@@ -120,7 +120,7 @@ namespace Youverse.Core.Tests
         {
             try
             {
-                DomainNameValidator.ValidateDomain("a.com-");
+                DomainNameValidator.TryValidateDomain("a.com-");
             }
             catch (Exception)
             {
@@ -135,7 +135,7 @@ namespace Youverse.Core.Tests
         {
             try
             {
-                DomainNameValidator.ValidateDomain(".");
+                DomainNameValidator.TryValidateDomain(".");
             }
             catch (Exception)
             {
@@ -150,7 +150,7 @@ namespace Youverse.Core.Tests
         {
             try
             {
-                DomainNameValidator.ValidateDomain("..");
+                DomainNameValidator.TryValidateDomain("..");
             }
             catch (Exception)
             {
@@ -165,7 +165,7 @@ namespace Youverse.Core.Tests
         {
             try
             {
-                DomainNameValidator.ValidateDomain("...");
+                DomainNameValidator.TryValidateDomain("...");
             }
             catch (Exception)
             {
@@ -188,16 +188,16 @@ namespace Youverse.Core.Tests
             Debug.Assert(DomainNameValidator.ValidLabel("a-") == false, "Allowed to end with -");
             Debug.Assert(DomainNameValidator.ValidLabel("a") == true, "one char not allowed");
 
-            DomainNameValidator.ValidateDomain("a.com");
+            DomainNameValidator.TryValidateDomain("a.com");
 
-            try { DomainNameValidator.ValidateDomain(".com"); Assert.Fail(); } catch { }
-            try { DomainNameValidator.ValidateDomain("a."); Assert.Fail(); } catch { }
-            try { DomainNameValidator.ValidateDomain("-a.com"); Assert.Fail(); } catch { }
-            try { DomainNameValidator.ValidateDomain("a-.com"); Assert.Fail(); } catch { }
-            try { DomainNameValidator.ValidateDomain("a.com-"); Assert.Fail(); } catch { }
-            try { DomainNameValidator.ValidateDomain("."); Assert.Fail(); } catch { }
-            try { DomainNameValidator.ValidateDomain(".."); Assert.Fail(); } catch { }
-            try { DomainNameValidator.ValidateDomain("..."); Assert.Fail(); } catch { }
+            try { DomainNameValidator.TryValidateDomain(".com"); Assert.Fail(); } catch { }
+            try { DomainNameValidator.TryValidateDomain("a."); Assert.Fail(); } catch { }
+            try { DomainNameValidator.TryValidateDomain("-a.com"); Assert.Fail(); } catch { }
+            try { DomainNameValidator.TryValidateDomain("a-.com"); Assert.Fail(); } catch { }
+            try { DomainNameValidator.TryValidateDomain("a.com-"); Assert.Fail(); } catch { }
+            try { DomainNameValidator.TryValidateDomain("."); Assert.Fail(); } catch { }
+            try { DomainNameValidator.TryValidateDomain(".."); Assert.Fail(); } catch { }
+            try { DomainNameValidator.TryValidateDomain("..."); Assert.Fail(); } catch { }
 
             Assert.Pass();
         }
