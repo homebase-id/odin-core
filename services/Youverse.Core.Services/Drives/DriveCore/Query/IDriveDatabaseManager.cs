@@ -66,5 +66,9 @@ namespace Youverse.Core.Services.Drives.DriveCore.Query
         void DeleteReaction(OdinId dotYouId, Guid fileId, string reaction);
 
         (List<string>, int) GetReactions(Guid fileId);
+
+        int GetReactionCountByIdentity(OdinId odinId, Guid fileId);
+
+        (List<Reaction>, Int32? cursor) GetReactionsByFile(int maxCount, int cursor, Guid fileId);
     }
 }

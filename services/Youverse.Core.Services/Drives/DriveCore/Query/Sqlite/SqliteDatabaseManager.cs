@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
@@ -64,7 +66,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
     public Task<(QueryBatchCursor, IEnumerable<Guid>)> GetBatch(DotYouContext dotYouContext, FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options)
     {
         Guard.Argument(dotYouContext, nameof(dotYouContext)).NotNull();
-        
+
         var securityRange = new IntRange(0, (int)dotYouContext.Caller.SecurityLevel);
 
         var aclList = GetAcl(dotYouContext);
@@ -93,7 +95,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
     private List<Guid> GetAcl(DotYouContext dotYouContext)
     {
         var callerContext = dotYouContext.Caller;
-        
+
         var aclList = new List<Guid>();
         if (callerContext.IsOwner == false)
         {
@@ -240,10 +242,26 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
     {
         return _db.TblReactions.GetPostReactions(fileId);
     }
-}
 
-public class UnprocessedCommandMessage
-{
-    public Guid Id { get; set; }
-    public UnixTimeUtc Received { get; set; }
+    public int GetReactionCountByIdentity(OdinId odinId, Guid fileId)
+    {
+        return _db.TblReactions.GetIdentityPostReactions(odinId, fileId);
+    }
+
+    public (List<Reaction>, Int32? cursor) GetReactionsByFile(int maxCount, int cursor, Guid fileId)
+    {
+        var items = _db.TblReactions.PagingByRowid(maxCount, inCursor: cursor, out var nextCursor, fileId);
+
+        var results = items.Select(item =>
+            new Reaction()
+            {
+                FileId = item.postId,
+                OdinId = item.identity,
+                ReactionText = item.singleReaction,
+                Created = item.created,
+            }
+        ).ToList();
+
+        return (results, nextCursor);
+    }
 }

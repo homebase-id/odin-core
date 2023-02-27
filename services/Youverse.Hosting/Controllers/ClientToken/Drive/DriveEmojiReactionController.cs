@@ -68,6 +68,14 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         {
             return base.GetReactions(file);
         }
+        
+        /// <summary />
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        [HttpPost("list2")]
+        public GetReactionsResponse2 GetAllReactions2([FromBody] GetReactionsRequest request)
+        {
+            return base.GetReactions2(request);
+        }
     }
     
 }

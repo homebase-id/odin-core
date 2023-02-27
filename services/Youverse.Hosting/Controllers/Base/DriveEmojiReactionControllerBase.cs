@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drives.Reactions;
@@ -40,5 +39,10 @@ public class DriveEmojiReactionControllerBase : YouverseControllerBase
     protected GetReactionsResponse GetReactions(ExternalFileIdentifier file)
     {
         return _emojiReactionService.GetReactions(MapToInternalFile(file));
+    }
+
+    protected GetReactionsResponse2 GetReactions2(GetReactionsRequest request)
+    {
+        return _emojiReactionService.GetReactions2(MapToInternalFile(request.File), cursor: request.Cursor, maxCount: request.MaxRecords);
     }
 }

@@ -69,4 +69,22 @@ public class EmojiReactionService
 
         throw new YouverseSystemException($"Invalid query manager instance for drive {file.DriveId}");
     }
+
+    public GetReactionsResponse2 GetReactions2(InternalDriveFileId file, int cursor, int maxCount)
+    {
+        _contextAccessor.GetCurrent().PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
+
+        if (_driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId, out var manager))
+        {
+            var (list, nextCursor) = manager.GetReactionsByFile(fileId: file.FileId, cursor: cursor, maxCount: maxCount);
+
+            return new GetReactionsResponse2()
+            {
+                Reactions = list,
+                Cursor = nextCursor
+            };
+        }
+
+        throw new YouverseSystemException($"Invalid query manager instance for drive {file.DriveId}");
+    }
 }

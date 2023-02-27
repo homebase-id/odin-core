@@ -16,6 +16,7 @@ public abstract class YouverseControllerBase : ControllerBase
         return this.HttpContext.RequestServices.GetRequiredService<FileSystemHeaderResolver>();
     }
 
+    /// <summary />
     protected InternalDriveFileId MapToInternalFile(ExternalFileIdentifier file)
     {
         return  new InternalDriveFileId()
