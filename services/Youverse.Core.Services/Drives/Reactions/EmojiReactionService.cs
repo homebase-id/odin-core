@@ -1,12 +1,28 @@
-using System.Collections.Generic;
+using System;
+using MediatR;
 using Youverse.Core.Exceptions;
-using Youverse.Core.Identity;
+using Youverse.Core.Serialization;
+using Youverse.Core.Services.AppNotifications;
+using Youverse.Core.Services.AppNotifications.ClientNotifications;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives.DriveCore.Query.Sqlite;
 
 namespace Youverse.Core.Services.Drives.Reactions;
 
 //TODO: need to determine if I want to validate if the file exists.  file exist calls are expensive 
+
+public class EmojiReactionAddedNotification : EventArgs, IClientNotification
+{
+    public Reaction Reaction { get; set; }
+    
+    public ClientNotificationType NotificationType { get; } = ClientNotificationType.EmojiReactionAdded;
+
+    public string GetClientData()
+    {
+        return DotYouSystemSerializer.Serialize(this.Reaction);
+    }
+}
 
 /// <summary>
 /// Manages emoji reactions to files
@@ -15,40 +31,56 @@ public class EmojiReactionService
 {
     private readonly DotYouContextAccessor _contextAccessor;
     private readonly DriveDatabaseHost _driveDatabaseHost;
+    private readonly IMediator _mediator;
 
-    public EmojiReactionService(DriveDatabaseHost driveDatabaseHost, DotYouContextAccessor contextAccessor)
+    public EmojiReactionService(DriveDatabaseHost driveDatabaseHost, DotYouContextAccessor contextAccessor, IMediator mediator)
     {
         _driveDatabaseHost = driveDatabaseHost;
         _contextAccessor = contextAccessor;
+        _mediator = mediator;
     }
 
-    public void AddReaction(OdinId dotYouId, InternalDriveFileId file, string reactionContent)
+    public void AddReaction(InternalDriveFileId file, string reactionContent)
     {
-        _contextAccessor.GetCurrent().PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.WriteReactionsAndComments);
+        var context = _contextAccessor.GetCurrent();
+        context.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.WriteReactionsAndComments);
+        var callerId = context.GetCallerOdinIdOrFail();
+        if (_driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId, out var manager))
+        {
+            manager.AddReaction(callerId, file.FileId, reactionContent);
+        }
+
+        _mediator.Publish(new EmojiReactionAddedNotification()
+        {
+            Reaction = new Reaction()
+            {
+                OdinId = callerId,
+                Created = UnixTimeUtcUnique.Now(), //TODO: i should technically pull this from the db records
+                ReactionContent = reactionContent,
+                FileId = file
+            }
+        });
+    }
+
+    public void DeleteReaction(InternalDriveFileId file, string reactionContent)
+    {
+        var context = _contextAccessor.GetCurrent();
+        context.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.WriteReactionsAndComments);
 
         if (_driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId, out var manager))
         {
-            manager.AddReaction(dotYouId, file.FileId, reactionContent);
+            manager.DeleteReaction(context.GetCallerOdinIdOrFail(), file.FileId, reactionContent);
         }
     }
 
-    public void DeleteReaction(OdinId dotYouId, InternalDriveFileId file, string reactionContent)
+    public void DeleteReactions(InternalDriveFileId file)
     {
-        _contextAccessor.GetCurrent().PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.WriteReactionsAndComments);
+        var context = _contextAccessor.GetCurrent();
+        context.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.WriteReactionsAndComments);
 
         if (_driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId, out var manager))
         {
-            manager.DeleteReaction(dotYouId, file.FileId, reactionContent);
-        }
-    }
-
-    public void DeleteReactions(OdinId dotYouId, InternalDriveFileId file)
-    {
-        _contextAccessor.GetCurrent().PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.WriteReactionsAndComments);
-
-        if (_driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId, out var manager))
-        {
-            manager.DeleteReactions(dotYouId, file.FileId);
+            manager.DeleteReactions(context.GetCallerOdinIdOrFail(), file.FileId);
         }
     }
 

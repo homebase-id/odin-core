@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Drives.FileSystem.Comment;
 using Youverse.Core.Services.Drives.FileSystem.Standard;
@@ -34,6 +35,26 @@ namespace Youverse.Core.Services.Base
             }
 
             throw new YouverseClientException("Invalid file system type or could not parse instruction set", YouverseClientErrorCode.InvalidFileSystemType);
+        }
+        
+        /// <summary>
+        /// Gets the file system for the specified file
+        /// </summary>
+        public IDriveFileSystem ResolveFileSystem(InternalDriveFileId file)
+        {
+            //TODO: this sucks and is wierd.   i don't know at this point if the target file is 
+            // comment or standard; so i have to get a IDriveFileSystem instance and look up
+            // the type, then get a new IDriveFileSystem
+            
+            var fs = this.ResolveFileSystem(FileSystemType.Standard);
+            var targetFsType = fs.Storage.GetFileSystemType(file).GetAwaiter().GetResult();
+
+            if (targetFsType != FileSystemType.Standard)
+            {
+                return this.ResolveFileSystem(targetFsType);
+            }
+
+            return fs;
         }
     }
 }

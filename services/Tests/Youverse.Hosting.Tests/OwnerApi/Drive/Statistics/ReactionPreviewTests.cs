@@ -54,7 +54,7 @@ public class ReactionPreviewTests
         //
         // Frodo posts a comment to his post
         //
-        var commentFile = new UploadFileMetadata()
+        var commentFile1 = new UploadFileMetadata()
         {
             AllowDistribution = true,
             ContentType = "application/json",
@@ -63,7 +63,7 @@ public class ReactionPreviewTests
             AppData = new()
             {
                 ContentIsComplete = true,
-                JsonContent = DotYouSystemSerializer.Serialize(new { message = "a reply comment" }),
+                JsonContent = DotYouSystemSerializer.Serialize(new { message = "a reply comment 1" }),
                 FileType = 909,
                 DataType = 202,
                 UserDate = 0,
@@ -71,14 +71,86 @@ public class ReactionPreviewTests
             }
         };
 
-        var commentFileUploadResult = await frodoOwnerClient.Drive.UploadFile(FileSystemType.Comment, frodoChannelDrive, commentFile, "");
+        var commentFileUploadResult1 = await frodoOwnerClient.Drive.UploadFile(FileSystemType.Comment, frodoChannelDrive, commentFile1, "");
+
+        var commentFile2 = new UploadFileMetadata()
+        {
+            AllowDistribution = true,
+            ContentType = "application/json",
+            PayloadIsEncrypted = false,
+            ReferencedFile = uploadedContentResult.File,
+            AppData = new()
+            {
+                ContentIsComplete = true,
+                JsonContent = DotYouSystemSerializer.Serialize(new { message = "a reply comment 2" }),
+                FileType = 909,
+                DataType = 202,
+                UserDate = 0,
+                Tags = default
+            }
+        };
+
+        var commentFileUploadResult2 = await frodoOwnerClient.Drive.UploadFile(FileSystemType.Comment, frodoChannelDrive, commentFile2, "");
+
+        var commentFile3 = new UploadFileMetadata()
+        {
+            AllowDistribution = true,
+            ContentType = "application/json",
+            PayloadIsEncrypted = false,
+            ReferencedFile = uploadedContentResult.File,
+            AppData = new()
+            {
+                ContentIsComplete = true,
+                JsonContent = DotYouSystemSerializer.Serialize(new { message = "a reply comment 3" }),
+                FileType = 909,
+                DataType = 202,
+                UserDate = 0,
+                Tags = default
+            }
+        };
+
+        var commentFileUploadResult3 = await frodoOwnerClient.Drive.UploadFile(FileSystemType.Comment, frodoChannelDrive, commentFile3, "");
 
         // get the target blog file
         var blogPostHeader = await frodoOwnerClient.Drive.GetFileHeader(FileSystemType.Standard, uploadedContentResult.File);
 
-        string x = "";
+        Assert.IsTrue(blogPostHeader.ReactionPreview.Comments.Count == 3);
+        Assert.IsTrue(blogPostHeader.ReactionPreview.Reactions2.Count == 0);
+        Assert.IsTrue(blogPostHeader.ReactionPreview.TotalCommentCount == 3);
+
+        Assert.NotNull(blogPostHeader.ReactionPreview.Comments.SingleOrDefault(x => x.JsonContent == commentFile1.AppData.JsonContent));
+        Assert.NotNull(blogPostHeader.ReactionPreview.Comments.SingleOrDefault(x => x.JsonContent == commentFile2.AppData.JsonContent));
+        Assert.NotNull(blogPostHeader.ReactionPreview.Comments.SingleOrDefault(x => x.JsonContent == commentFile3.AppData.JsonContent));
     }
 
+    
+    public async Task AddingEmojiReactionUpdatesReactionPreview()
+    {
+        var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
+
+        //create a channel drive
+        var frodoChannelDrive = new TargetDrive()
+        {
+            Alias = Guid.NewGuid(),
+            Type = SystemDriveConstants.ChannelDriveType
+        };
+
+        await frodoOwnerClient.Drive.CreateDrive(frodoChannelDrive, "A Channel Drive", "", false, false);
+
+        // Frodo uploads content to channel drive
+        var uploadedContent = "I'm Mr. Underhill";
+        var uploadedContentResult = await UploadStandardFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent);
+
+
+        Assert.Inconclusive("TODO");
+        
+        
+        // get the target blog file
+        var blogPostHeader = await frodoOwnerClient.Drive.GetFileHeader(FileSystemType.Standard, uploadedContentResult.File);
+
+    }
+
+    
     private async Task<UploadResult> UploadStandardFileToChannel(OwnerApiClient client, TargetDrive targetDrive, string uploadedContent)
     {
         var fileMetadata = new UploadFileMetadata()

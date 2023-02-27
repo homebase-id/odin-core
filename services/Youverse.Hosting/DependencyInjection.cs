@@ -67,6 +67,7 @@ namespace Youverse.Hosting
                 .As<INotificationHandler<DriveFileDeletedNotification>>()
                 .As<INotificationHandler<TransitFileReceivedNotification>>()
                 .As<INotificationHandler<NewFollowerNotification>>()
+                .As<INotificationHandler<EmojiReactionAddedNotification>>()
                 .AsSelf()
                 .SingleInstance();
 
@@ -126,7 +127,8 @@ namespace Youverse.Hosting
             cb.RegisterType<ReactionPreviewCalculator>()
                 .As<INotificationHandler<DriveFileAddedNotification>>()
                 .As<INotificationHandler<DriveFileChangedNotification>>()
-                .As<INotificationHandler<DriveFileDeletedNotification>>();
+                .As<INotificationHandler<DriveFileDeletedNotification>>()
+                .As<INotificationHandler<EmojiReactionAddedNotification>>();
             
             cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>().SingleInstance();
             

@@ -255,9 +255,13 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         var results = items.Select(item =>
             new Reaction()
             {
-                FileId = item.postId,
+                FileId = new InternalDriveFileId()
+                {
+                    FileId = item.postId,
+                    DriveId = Drive.Id
+                },
                 OdinId = item.identity,
-                ReactionText = item.singleReaction,
+                ReactionContent = item.singleReaction,
                 Created = item.created,
             }
         ).ToList();

@@ -24,7 +24,6 @@ public abstract class YouverseControllerBase : ControllerBase
             FileId = file.FileId,
             DriveId = DotYouContext.PermissionsContext.GetDriveId(file.TargetDrive)
         };
-
     }
     
     /// <summary>

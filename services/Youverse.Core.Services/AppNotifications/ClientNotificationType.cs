@@ -15,5 +15,6 @@ public enum ClientNotificationType
     ConnectionRequestAccepted = 808,
     TransitFileReceived = 909,
     NewFollower = 1001,
-    StatisticsChanged = 1002
+    StatisticsChanged = 1002,
+    EmojiReactionAdded = 2003,
 }

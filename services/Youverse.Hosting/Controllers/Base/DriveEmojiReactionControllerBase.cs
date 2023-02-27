@@ -20,19 +20,19 @@ public class DriveEmojiReactionControllerBase : YouverseControllerBase
     /// <summary />
     protected void AddReaction(AddReactionReqeust request)
     {
-        _emojiReactionService.AddReaction((OdinId)request.DotYouId, MapToInternalFile(request.File), request.Reaction);
+        _emojiReactionService.AddReaction(MapToInternalFile(request.File), request.Reaction);
     }
 
     /// <summary />
     protected void DeleteReaction(DeleteReactionRequest request)
     {
-        _emojiReactionService.DeleteReaction((OdinId)request.DotYouId, MapToInternalFile(request.File), request.Reaction);
+        _emojiReactionService.DeleteReaction(MapToInternalFile(request.File), request.Reaction);
     }
 
     /// <summary />
     protected void DeleteAllReactions(DeleteReactionRequest request)
     {
-        _emojiReactionService.DeleteReactions((OdinId)request.DotYouId, MapToInternalFile(request.File));
+        _emojiReactionService.DeleteReactions(MapToInternalFile(request.File));
     }
 
     /// <summary />
