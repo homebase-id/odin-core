@@ -47,14 +47,14 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
 
             var scenarioCtx = await _scaffold.Scenarios.CreateConnectedHobbits(targetDrive);
 
-            var senderTestContext = scenarioCtx.AppContexts[TestIdentities.Frodo.DotYouId];
+            var senderTestContext = scenarioCtx.AppContexts[TestIdentities.Frodo.OdinId];
 
             //Setup the app on all recipient DIs
-            var recipientContexts = new Dictionary<DotYouIdentity, TestAppContext>()
+            var recipientContexts = new Dictionary<OdinId, TestAppContext>()
             {
-                { TestIdentities.Samwise.DotYouId, scenarioCtx.AppContexts[TestIdentities.Samwise.DotYouId] },
-                { TestIdentities.Merry.DotYouId, scenarioCtx.AppContexts[TestIdentities.Merry.DotYouId] },
-                { TestIdentities.Pippin.DotYouId, scenarioCtx.AppContexts[TestIdentities.Pippin.DotYouId] }
+                { TestIdentities.Samwise.OdinId, scenarioCtx.AppContexts[TestIdentities.Samwise.OdinId] },
+                { TestIdentities.Merry.OdinId, scenarioCtx.AppContexts[TestIdentities.Merry.OdinId] },
+                { TestIdentities.Pippin.OdinId, scenarioCtx.AppContexts[TestIdentities.Pippin.OdinId] }
             };
 
             var instructionSet = new UploadInstructionSet()
@@ -131,25 +131,25 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
                 await _scaffold.OldOwnerApi.ProcessOutbox(senderTestContext.Identity, batchSize: commandResult.RecipientStatus.Count + 100);
             }
 
-            await AssertCommandReceived(recipientContexts[TestIdentities.Samwise.DotYouId], command, originalFileSendResult, senderTestContext.Identity);
-            await AssertCommandReceived(recipientContexts[TestIdentities.Merry.DotYouId], command, originalFileSendResult, senderTestContext.Identity);
-            await AssertCommandReceived(recipientContexts[TestIdentities.Pippin.DotYouId], command, originalFileSendResult, senderTestContext.Identity);
+            await AssertCommandReceived(recipientContexts[TestIdentities.Samwise.OdinId], command, originalFileSendResult, senderTestContext.Identity);
+            await AssertCommandReceived(recipientContexts[TestIdentities.Merry.OdinId], command, originalFileSendResult, senderTestContext.Identity);
+            await AssertCommandReceived(recipientContexts[TestIdentities.Pippin.OdinId], command, originalFileSendResult, senderTestContext.Identity);
 
             //
             // validate frodo no longer as the file associated w/ the command
             // 
 
-            await _scaffold.OldOwnerApi.DisconnectIdentities(TestIdentities.Frodo.DotYouId, TestIdentities.Samwise.DotYouId);
-            await _scaffold.OldOwnerApi.DisconnectIdentities(TestIdentities.Frodo.DotYouId, TestIdentities.Merry.DotYouId);
-            await _scaffold.OldOwnerApi.DisconnectIdentities(TestIdentities.Frodo.DotYouId, TestIdentities.Pippin.DotYouId);
+            await _scaffold.OldOwnerApi.DisconnectIdentities(TestIdentities.Frodo.OdinId, TestIdentities.Samwise.OdinId);
+            await _scaffold.OldOwnerApi.DisconnectIdentities(TestIdentities.Frodo.OdinId, TestIdentities.Merry.OdinId);
+            await _scaffold.OldOwnerApi.DisconnectIdentities(TestIdentities.Frodo.OdinId, TestIdentities.Pippin.OdinId);
 
-            await _scaffold.OldOwnerApi.DisconnectIdentities(TestIdentities.Samwise.DotYouId, TestIdentities.Merry.DotYouId);
-            await _scaffold.OldOwnerApi.DisconnectIdentities(TestIdentities.Samwise.DotYouId, TestIdentities.Pippin.DotYouId);
+            await _scaffold.OldOwnerApi.DisconnectIdentities(TestIdentities.Samwise.OdinId, TestIdentities.Merry.OdinId);
+            await _scaffold.OldOwnerApi.DisconnectIdentities(TestIdentities.Samwise.OdinId, TestIdentities.Pippin.OdinId);
 
-            await _scaffold.OldOwnerApi.DisconnectIdentities(TestIdentities.Pippin.DotYouId, TestIdentities.Merry.DotYouId);
+            await _scaffold.OldOwnerApi.DisconnectIdentities(TestIdentities.Pippin.OdinId, TestIdentities.Merry.OdinId);
         }
 
-        private async Task AssertCommandReceived(TestAppContext recipientAppContext, CommandMessage command, AppTransitTestUtilsContext originalFileSendResult, DotYouIdentity sender)
+        private async Task AssertCommandReceived(TestAppContext recipientAppContext, CommandMessage command, AppTransitTestUtilsContext originalFileSendResult, OdinId sender)
         {
             var drive = originalFileSendResult.UploadedFile.TargetDrive;
 
@@ -175,7 +175,7 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
                 Assert.IsFalse(receivedCommand.Id == Guid.Empty);
                 Assert.IsTrue(receivedCommand.ClientJsonMessage == command.JsonMessage, "received json message should match the sent message");
                 Assert.IsTrue(receivedCommand.ClientCode == command.Code);
-                Assert.IsTrue(((DotYouIdentity)receivedCommand.Sender) == sender);
+                Assert.IsTrue(((OdinId)receivedCommand.Sender) == sender);
                 var gtid = receivedCommand.GlobalTransitIdList.SingleOrDefault();
                 Assert.IsNotNull(gtid, "There should be only 1 GlobalTransitId returned");
                 Assert.IsTrue(gtid == originalFileSendResult.GlobalTransitId);

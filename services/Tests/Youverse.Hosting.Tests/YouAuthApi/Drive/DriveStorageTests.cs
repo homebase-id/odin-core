@@ -37,9 +37,9 @@ namespace Youverse.Hosting.Tests.YouAuthApi.Drive
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
-            var uploadContext = await this.UploadFile(identity.DotYouId, tag, SecurityGroupType.Connected);
+            var uploadContext = await this.UploadFile(identity.OdinId, tag, SecurityGroupType.Connected);
 
-            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity.DotYouId))
+            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId))
             {
                 var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
 
@@ -58,9 +58,9 @@ namespace Youverse.Hosting.Tests.YouAuthApi.Drive
         {
             var identity = TestIdentities.Samwise;
             Guid tag = Guid.NewGuid();
-            var uploadContext = await this.UploadFile(identity.DotYouId, tag, SecurityGroupType.Connected);
+            var uploadContext = await this.UploadFile(identity.OdinId, tag, SecurityGroupType.Connected);
 
-            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity.DotYouId))
+            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId))
             {
                 var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
 
@@ -75,7 +75,7 @@ namespace Youverse.Hosting.Tests.YouAuthApi.Drive
             }
         }
 
-        private async Task<UploadTestUtilsContext> UploadFile(DotYouIdentity identity, Guid tag, SecurityGroupType requiredSecurityGroup)
+        private async Task<UploadTestUtilsContext> UploadFile(OdinId identity, Guid tag, SecurityGroupType requiredSecurityGroup)
         {
             List<Guid> tags = new List<Guid>() { tag };
 

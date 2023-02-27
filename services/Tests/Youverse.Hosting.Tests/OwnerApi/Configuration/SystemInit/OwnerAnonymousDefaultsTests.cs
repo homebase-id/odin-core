@@ -50,7 +50,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
             var (frodo, sam, _) = await utils.CreateConnectionRequestFrodoToSam();
             await utils.AcceptConnectionRequest(sender: frodo, recipient: sam);
 
-            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity.DotYouId))
+            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId))
             {
                 var youAuthCircleSvc = RestService.For<ICircleNetworkYouAuthClient>(client);
                 var getConnectionsResponse = await youAuthCircleSvc.GetConnectedProfiles(1, 100);
@@ -59,7 +59,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
 
             await utils.UpdateSystemConfigFlag(identity, TenantConfigFlagNames.AnonymousVisitorsCanViewConnections.ToString(), bool.TrueString);
 
-            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity.DotYouId))
+            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId))
             {
                 var youAuthCircleSvc = RestService.For<ICircleNetworkYouAuthClient>(client);
 
@@ -85,7 +85,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
             var (frodo, sam, _) = await utils.CreateConnectionRequestFrodoToSam();
             await utils.AcceptConnectionRequest(sender: frodo, recipient: sam);
 
-            using (var client = _scaffold.CreateAnonymousApiHttpClient(TestIdentities.Frodo.DotYouId))
+            using (var client = _scaffold.CreateAnonymousApiHttpClient(TestIdentities.Frodo.OdinId))
             {
                 var youAuthCircleSvc = RestService.For<ICircleNetworkYouAuthClient>(client);
 

@@ -8,7 +8,7 @@ namespace Youverse.Hosting.Tests
 {
     public class TestAppContext
     {
-        public DotYouIdentity Identity { get; set; }
+        public OdinId Identity { get; set; }
         
         public Guid AppId { get; set; }
         public ClientAuthenticationToken ClientAuthenticationToken { get; set; }

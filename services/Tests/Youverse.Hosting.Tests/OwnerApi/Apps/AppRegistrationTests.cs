@@ -54,7 +54,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             var name = "API TestApp";
 
             var targetDrive1 = TargetDrive.NewTargetDrive();
-            await _scaffold.OldOwnerApi.CreateDrive(_identity.DotYouId, targetDrive1, "Drive 1 for Circle Test", "", false);
+            await _scaffold.OldOwnerApi.CreateDrive(_identity.OdinId, targetDrive1, "Drive 1 for Circle Test", "", false);
 
             var dgr1 = new DriveGrantRequest()
             {
@@ -76,9 +76,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
             var circle1PermissionKeys = new List<int>() { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections };
             var circle1Drives = new List<PermissionedDrive>() { new() { Drive = targetDrive1, Permission = DrivePermission.Read } };
-            var circle1Definition = await _scaffold.OldOwnerApi.CreateCircleWithDrive(_identity.DotYouId, "Circle 1", circle1PermissionKeys, circle1Drives);
+            var circle1Definition = await _scaffold.OldOwnerApi.CreateCircleWithDrive(_identity.OdinId, "Circle 1", circle1PermissionKeys, circle1Drives);
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.DotYouId, out var ownerSharedSecret))
+            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.OdinId, out var ownerSharedSecret))
             {
                 var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
                 var request = new AppRegistrationRequest
@@ -123,7 +123,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             var name = "API TestApp";
 
             var targetDrive1 = TargetDrive.NewTargetDrive();
-            await _scaffold.OldOwnerApi.CreateDrive(_identity.DotYouId, targetDrive1, "Drive 1 for Circle Test", "", false);
+            await _scaffold.OldOwnerApi.CreateDrive(_identity.OdinId, targetDrive1, "Drive 1 for Circle Test", "", false);
 
             var dgr1 = new DriveGrantRequest()
             {
@@ -143,7 +143,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 }
             };
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.DotYouId, out var ownerSharedSecret))
+            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.OdinId, out var ownerSharedSecret))
             {
                 var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
                 var request = new AppRegistrationRequest
@@ -219,7 +219,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
             await AddSampleAppNoDrive(appId, name);
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.DotYouId, out var ownerSharedSecret))
+            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.OdinId, out var ownerSharedSecret))
             {
                 var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
 
@@ -262,7 +262,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             var name = "API TestApp";
 
             var targetDrive1 = TargetDrive.NewTargetDrive();
-            await _scaffold.OldOwnerApi.CreateDrive(_identity.DotYouId, targetDrive1, "Drive 1 for Circle Test", "", false);
+            await _scaffold.OldOwnerApi.CreateDrive(_identity.OdinId, targetDrive1, "Drive 1 for Circle Test", "", false);
 
             var dgr1 = new DriveGrantRequest()
             {
@@ -293,9 +293,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
             var circle1PermissionKeys = new List<int>() { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections };
             var circle1Drives = new List<PermissionedDrive>() { new() { Drive = targetDrive1, Permission = DrivePermission.Read } };
-            var circle1Definition = await _scaffold.OldOwnerApi.CreateCircleWithDrive(_identity.DotYouId, "Circle 1", circle1PermissionKeys, circle1Drives);
+            var circle1Definition = await _scaffold.OldOwnerApi.CreateCircleWithDrive(_identity.OdinId, "Circle 1", circle1PermissionKeys, circle1Drives);
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.DotYouId, out var ownerSharedSecret))
+            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.OdinId, out var ownerSharedSecret))
             {
                 var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
                 var request = new AppRegistrationRequest
@@ -360,7 +360,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             var name = "API TestApp";
 
             var targetDrive1 = TargetDrive.NewTargetDrive();
-            await _scaffold.OldOwnerApi.CreateDrive(_identity.DotYouId, targetDrive1, "Drive 1 for Circle Test", "", false);
+            await _scaffold.OldOwnerApi.CreateDrive(_identity.OdinId, targetDrive1, "Drive 1 for Circle Test", "", false);
 
             var dgr1 = new DriveGrantRequest()
             {
@@ -391,13 +391,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
             var circle1PermissionKeys = new List<int>() { PermissionKeys.ReadCircleMembership, PermissionKeys.ReadConnections };
             var circle1Drives = new List<PermissionedDrive>() { new() { Drive = targetDrive1, Permission = DrivePermission.Read } };
-            var circle1Definition = await _scaffold.OldOwnerApi.CreateCircleWithDrive(_identity.DotYouId, "Circle 1", circle1PermissionKeys, circle1Drives);
+            var circle1Definition = await _scaffold.OldOwnerApi.CreateCircleWithDrive(_identity.OdinId, "Circle 1", circle1PermissionKeys, circle1Drives);
 
             var circle2PermissionKeys = new List<int>() { PermissionKeys.ReadConnections };
             var circle2Drives = new List<PermissionedDrive>() { new() { Drive = targetDrive1, Permission = DrivePermission.Write } };
-            var circle2Definition = await _scaffold.OldOwnerApi.CreateCircleWithDrive(_identity.DotYouId, "Circle 2", circle2PermissionKeys, circle2Drives);
+            var circle2Definition = await _scaffold.OldOwnerApi.CreateCircleWithDrive(_identity.OdinId, "Circle 2", circle2PermissionKeys, circle2Drives);
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.DotYouId, out var ownerSharedSecret))
+            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.OdinId, out var ownerSharedSecret))
             {
                 var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
                 var request = new AppRegistrationRequest

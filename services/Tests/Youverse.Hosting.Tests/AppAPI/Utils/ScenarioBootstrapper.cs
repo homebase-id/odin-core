@@ -29,7 +29,7 @@ public class ScenarioBootstrapper
         var scenarioContext = new ScenarioContext()
         {
             AppId = Guid.NewGuid(),
-            AppContexts = new Dictionary<DotYouIdentity, TestAppContext>()
+            AppContexts = new Dictionary<OdinId, TestAppContext>()
         };
 
         var frodoAppContext = await _ownerApi.SetupTestSampleApp(scenarioContext.AppId, TestIdentities.Frodo, canReadConnections: true, targetDrive, driveAllowAnonymousReads: false);
@@ -49,37 +49,37 @@ public class ScenarioBootstrapper
         scenarioContext.AppContexts.Add(samAppContext.Identity, samAppContext);
         
 
-        await _ownerApi.CreateConnection(TestIdentities.Frodo.DotYouId, TestIdentities.Samwise.DotYouId, new CreateConnectionOptions()
+        await _ownerApi.CreateConnection(TestIdentities.Frodo.OdinId, TestIdentities.Samwise.OdinId, new CreateConnectionOptions()
         {
             CircleIdsGrantedToRecipient = new List<GuidId>() { frodoCircleDef.Id },
             CircleIdsGrantedToSender = new List<GuidId>() { samCircleDef.Id }
         });
 
-        await _ownerApi.CreateConnection(TestIdentities.Frodo.DotYouId, TestIdentities.Merry.DotYouId, new CreateConnectionOptions()
+        await _ownerApi.CreateConnection(TestIdentities.Frodo.OdinId, TestIdentities.Merry.OdinId, new CreateConnectionOptions()
         {
             CircleIdsGrantedToRecipient = new List<GuidId>() { frodoCircleDef.Id },
             CircleIdsGrantedToSender = new List<GuidId>() { merryCircleDef.Id }
         });
 
-        await _ownerApi.CreateConnection(TestIdentities.Frodo.DotYouId, TestIdentities.Pippin.DotYouId, new CreateConnectionOptions()
+        await _ownerApi.CreateConnection(TestIdentities.Frodo.OdinId, TestIdentities.Pippin.OdinId, new CreateConnectionOptions()
         {
             CircleIdsGrantedToRecipient = new List<GuidId>() { frodoCircleDef.Id },
             CircleIdsGrantedToSender = new List<GuidId>() { pippinCircleDef.Id }
         });
 
-        await _ownerApi.CreateConnection(TestIdentities.Samwise.DotYouId, TestIdentities.Merry.DotYouId, new CreateConnectionOptions()
+        await _ownerApi.CreateConnection(TestIdentities.Samwise.OdinId, TestIdentities.Merry.OdinId, new CreateConnectionOptions()
         {
             CircleIdsGrantedToRecipient = new List<GuidId>() { samCircleDef.Id },
             CircleIdsGrantedToSender = new List<GuidId>() { merryCircleDef.Id }
         });
 
-        await _ownerApi.CreateConnection(TestIdentities.Samwise.DotYouId, TestIdentities.Pippin.DotYouId, new CreateConnectionOptions()
+        await _ownerApi.CreateConnection(TestIdentities.Samwise.OdinId, TestIdentities.Pippin.OdinId, new CreateConnectionOptions()
         {
             CircleIdsGrantedToRecipient = new List<GuidId>() { samCircleDef.Id },
             CircleIdsGrantedToSender = new List<GuidId>() { pippinCircleDef.Id }
         });
 
-        await _ownerApi.CreateConnection(TestIdentities.Pippin.DotYouId, TestIdentities.Merry.DotYouId, new CreateConnectionOptions()
+        await _ownerApi.CreateConnection(TestIdentities.Pippin.OdinId, TestIdentities.Merry.OdinId, new CreateConnectionOptions()
         {
             CircleIdsGrantedToRecipient = new List<GuidId>() { pippinCircleDef.Id },
             CircleIdsGrantedToSender = new List<GuidId>() { merryCircleDef.Id }
@@ -88,7 +88,7 @@ public class ScenarioBootstrapper
         return scenarioContext;
     }
 
-    private async Task<CircleDefinition> CreateCircle(DotYouIdentity identity, TargetDrive targetDrive)
+    private async Task<CircleDefinition> CreateCircle(OdinId identity, TargetDrive targetDrive)
     {
         return await _ownerApi.CreateCircleWithDrive(identity, $"Sender ({identity}) Circle",
             permissionKeys: new List<int>() { },
@@ -104,5 +104,5 @@ public class ScenarioContext
 {
     public Guid AppId { get; set; }
 
-    public Dictionary<DotYouIdentity, TestAppContext> AppContexts { get; set; }
+    public Dictionary<OdinId, TestAppContext> AppContexts { get; set; }
 }

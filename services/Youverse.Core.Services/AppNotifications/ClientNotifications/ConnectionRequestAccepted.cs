@@ -7,7 +7,7 @@ namespace Youverse.Core.Services.AppNotifications.ClientNotifications
     {
         public ClientNotificationType NotificationType { get; } = ClientNotificationType.ConnectionRequestAccepted;
 
-        public DotYouIdentity Sender { get; set; }
+        public OdinId Sender { get; set; }
         
         public string GetClientData()
         {

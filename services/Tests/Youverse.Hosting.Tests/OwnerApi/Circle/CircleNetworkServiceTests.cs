@@ -223,8 +223,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             //basically create 2 circles on frodo's identity, then give sam access
             var circleOnFrodosIdentity1 =
-                await this.CreateCircleWith2Drives(TestIdentities.Frodo.DotYouId, "frodo c1", new List<int>() { PermissionKeys.ReadConnections, PermissionKeys.ReadConnections });
-            var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo.DotYouId, "frodo c2", new List<int> { PermissionKeys.ReadCircleMembership });
+                await this.CreateCircleWith2Drives(TestIdentities.Frodo.OdinId, "frodo c1", new List<int>() { PermissionKeys.ReadConnections, PermissionKeys.ReadConnections });
+            var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo.OdinId, "frodo c2", new List<int> { PermissionKeys.ReadCircleMembership });
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam(circleOnFrodosIdentity1, circleOnFrodosIdentity2);
 
             // create 2 circles on sam's identity and give frodo access
@@ -344,8 +344,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             #region Firstly, setup connections and put into circles
 
-            var circleOnFrodosIdentity1 = await this.CreateCircleWith2Drives(TestIdentities.Frodo.DotYouId, "frodo c1", new List<int>());
-            var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo.DotYouId, "frodo c2", new List<int>() { PermissionKeys.ReadConnections });
+            var circleOnFrodosIdentity1 = await this.CreateCircleWith2Drives(TestIdentities.Frodo.OdinId, "frodo c1", new List<int>());
+            var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo.OdinId, "frodo c2", new List<int>() { PermissionKeys.ReadConnections });
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam(circleOnFrodosIdentity1, circleOnFrodosIdentity2);
 
             // create 2 circles on sam's identity and give frodo access
@@ -514,8 +514,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             #region Firstly, setup connections and put into circles
 
-            var circleOnFrodosIdentity1 = await this.CreateCircleWith2Drives(TestIdentities.Frodo.DotYouId, "frodo c1", new List<int>());
-            var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo.DotYouId, "frodo c2", new List<int>() { PermissionKeys.ReadConnections });
+            var circleOnFrodosIdentity1 = await this.CreateCircleWith2Drives(TestIdentities.Frodo.OdinId, "frodo c1", new List<int>());
+            var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo.OdinId, "frodo c2", new List<int>() { PermissionKeys.ReadConnections });
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam(circleOnFrodosIdentity1, circleOnFrodosIdentity2);
 
             // create 2 circles on sam's identity and give frodo access
@@ -782,7 +782,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var frodoConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
                 var disconnectResponse = await frodoConnections.Disconnect(new DotYouIdRequest() { DotYouId = sam.Identity });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
-                await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Samwise.DotYouId, ConnectionStatus.None);
+                await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Samwise.OdinId, ConnectionStatus.None);
             }
         }
 
@@ -882,7 +882,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             }
         }
 
-        private async Task AssertIdentityIsInCircle(HttpClient client, SensitiveByteArray ownerSharedSecret, GuidId circleId, DotYouIdentity expectedIdentity)
+        private async Task AssertIdentityIsInCircle(HttpClient client, SensitiveByteArray ownerSharedSecret, GuidId circleId, OdinId expectedIdentity)
         {
             var circleMemberSvc = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
             var getCircleMemberResponse = await circleMemberSvc.GetCircleMembers(new GetCircleMembersRequest() { CircleId = circleId });
@@ -1040,7 +1040,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var frodoConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
                 var disconnectResponse = await frodoConnections.Disconnect(new DotYouIdRequest() { DotYouId = sam.Identity });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
-                await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Samwise.DotYouId, ConnectionStatus.None);
+                await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Samwise.OdinId, ConnectionStatus.None);
             }
 
             using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
@@ -1048,11 +1048,11 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var samConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
                 var disconnectResponse = await samConnections.Disconnect(new DotYouIdRequest() { DotYouId = frodo.Identity });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
-                await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Frodo.DotYouId, ConnectionStatus.None);
+                await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Frodo.OdinId, ConnectionStatus.None);
             }
         }
 
-        private async Task<CircleDefinition> CreateCircleWith2Drives(DotYouIdentity identity, string name, IEnumerable<int> permissionKeys)
+        private async Task<CircleDefinition> CreateCircleWith2Drives(OdinId identity, string name, IEnumerable<int> permissionKeys)
         {
             var targetDrive1 = TargetDrive.NewTargetDrive();
             var targetDrive2 = TargetDrive.NewTargetDrive();

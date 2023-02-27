@@ -7,7 +7,7 @@ namespace Youverse.Hosting.Tests
 {
     public class TestIdentity
     {
-        public DotYouIdentity DotYouId { get; set; }
+        public OdinId OdinId { get; set; }
         public ContactRequestData ContactData { get; set; }
     }
 
@@ -15,7 +15,7 @@ namespace Youverse.Hosting.Tests
     {
         public static readonly TestIdentity Frodo = new TestIdentity()
         {
-            DotYouId = (DotYouIdentity)"frodo.digital",
+            OdinId = (OdinId)"frodo.digital",
             ContactData = new ContactRequestData()
             {
                 Name = "frodo baggins",
@@ -25,7 +25,7 @@ namespace Youverse.Hosting.Tests
 
         public static readonly TestIdentity Samwise = new TestIdentity()
         {
-            DotYouId = (DotYouIdentity)"samwise.digital",
+            OdinId = (OdinId)"samwise.digital",
             ContactData = new ContactRequestData()
             {
                 Name = "Samwise Gamgee",
@@ -35,7 +35,7 @@ namespace Youverse.Hosting.Tests
 
         public static readonly TestIdentity Merry = new()
         {
-            DotYouId = (DotYouIdentity)"merry.youfoundation.id",
+            OdinId = (OdinId)"merry.youfoundation.id",
             ContactData = new ContactRequestData()
             {
                 Name = "Merry Brandybuck"
@@ -44,7 +44,7 @@ namespace Youverse.Hosting.Tests
 
         public static readonly TestIdentity Pippin = new()
         {
-            DotYouId = (DotYouIdentity)"pippin.youfoundation.id",
+            OdinId = (OdinId)"pippin.youfoundation.id",
             ContactData = new ContactRequestData()
             {
                 Name = "Pippin Took"
@@ -53,10 +53,10 @@ namespace Youverse.Hosting.Tests
 
         public static Dictionary<string, TestIdentity> All = new Dictionary<string, TestIdentity>()
         {
-            { Frodo.DotYouId, Frodo },
-            { Samwise.DotYouId, Samwise },
-            { Merry.DotYouId, Merry },
-            { Pippin.DotYouId, Pippin }
+            { Frodo.OdinId, Frodo },
+            { Samwise.OdinId, Samwise },
+            { Merry.OdinId, Merry },
+            { Pippin.OdinId, Pippin }
         };
     }
 }

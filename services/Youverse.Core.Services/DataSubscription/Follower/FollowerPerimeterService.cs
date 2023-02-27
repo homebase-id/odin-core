@@ -30,7 +30,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
         {
             Guard.Argument(request, nameof(request)).NotNull();
             Guard.Argument(request.DotYouId, nameof(request.DotYouId)).NotNull().NotEmpty();
-            DotYouIdentity.Validate(request.DotYouId);
+            OdinId.Validate(request.DotYouId);
             // Guard.Argument(request.PortableClientAuthToken, nameof(request.PortableClientAuthToken)).NotNull().NotEmpty();
             // var clientAccessToken = ClientAccessToken.FromPortableBytes(request.PortableClientAuthToken);
             // Guard.Argument(clientAccessToken, nameof(clientAccessToken)).NotNull().Require(cat => cat.IsValid());

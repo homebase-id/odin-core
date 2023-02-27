@@ -26,7 +26,7 @@ namespace Youverse.Core.Services.Drives.DriveCore.Query
         /// <summary>
         /// Returns the fileId of recently modified files
         /// </summary>
-        Task<(ulong, IEnumerable<Guid>)> GetModified(CallerContext callerContext, FileSystemType fileSystemType, FileQueryParams qp, QueryModifiedResultOptions options);
+        Task<(ulong, IEnumerable<Guid>)> GetModified(DotYouContext dotYouContext, FileSystemType fileSystemType, FileQueryParams qp, QueryModifiedResultOptions options);
 
 
         /// <summary>
@@ -35,7 +35,7 @@ namespace Youverse.Core.Services.Drives.DriveCore.Query
         /// <returns>
         /// (resultFirstCursor, resultLastCursor, cursorUpdatedTimestamp, fileId List);
         /// </returns>
-        Task<(QueryBatchCursor, IEnumerable<Guid>)> GetBatch(CallerContext callerContext, FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options);
+        Task<(QueryBatchCursor, IEnumerable<Guid>)> GetBatch(DotYouContext dotYouContext, FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options);
 
         /// <summary>
         /// Updates the current index that is in use.
@@ -59,12 +59,16 @@ namespace Youverse.Core.Services.Drives.DriveCore.Query
 
         void EnsureIndexDataCommitted();
 
-        void AddReaction(DotYouIdentity dotYouId, Guid fileId, string reaction);
+        void AddReaction(OdinId dotYouId, Guid fileId, string reaction);
 
-        void DeleteReactions(DotYouIdentity dotYouId, Guid fileId);
+        void DeleteReactions(OdinId dotYouId, Guid fileId);
 
-        void DeleteReaction(DotYouIdentity dotYouId, Guid fileId, string reaction);
+        void DeleteReaction(OdinId dotYouId, Guid fileId, string reaction);
 
         (List<string>, int) GetReactions(Guid fileId);
+
+        int GetReactionCountByIdentity(OdinId odinId, Guid fileId);
+
+        (List<Reaction>, Int32? cursor) GetReactionsByFile(int maxCount, int cursor, Guid fileId);
     }
 }

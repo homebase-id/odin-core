@@ -7,7 +7,7 @@ public class NewFollowerNotification : IClientNotification
 {
     public ClientNotificationType NotificationType { get; }=ClientNotificationType.NewFollower;
         
-    public DotYouIdentity DotYouId { get; set; }
+    public OdinId DotYouId { get; set; }
         
     public string GetClientData()
     {

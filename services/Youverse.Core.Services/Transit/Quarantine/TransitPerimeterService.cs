@@ -140,7 +140,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
             {
                 Id = Guid.NewGuid(),
                 AddedTimestamp = UnixTimeUtc.Now(),
-                Sender = this._contextAccessor.GetCurrent().Caller.DotYouId,
+                Sender = this._contextAccessor.GetCurrent().GetCallerOdinIdOrFail(),
                 PublicKeyCrc = stateItem.PublicKeyCrc,
 
                 InstructionType = TransferInstructionType.SaveFile,
@@ -173,7 +173,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
                 {
                     Id = Guid.NewGuid(),
                     AddedTimestamp = UnixTimeUtc.Now(),
-                    Sender = this._contextAccessor.GetCurrent().Caller.DotYouId,
+                    Sender = this._contextAccessor.GetCurrent().GetCallerOdinIdOrFail(),
                     PublicKeyCrc = publicKeyCrc,
 
                     InstructionType = TransferInstructionType.DeleteLinkedFile,
@@ -309,7 +309,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
 
             var context = new FilterContext()
             {
-                Sender = this._contextAccessor.GetCurrent().Caller.DotYouId
+                Sender = this._contextAccessor.GetCurrent().GetCallerOdinIdOrFail()
             };
 
             //TODO: this should be executed in parallel

@@ -68,7 +68,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 DisconnectIdentitiesAfterTransfer = true
             };
 
-            var uploadContext = await _scaffold.OldOwnerApi.Upload(identity.DotYouId, uploadFileMetadata, options);
+            var uploadContext = await _scaffold.OldOwnerApi.Upload(identity.OdinId, uploadFileMetadata, options);
 
             using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
@@ -130,7 +130,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 DisconnectIdentitiesAfterTransfer = true
             };
 
-            var uploadContext = await _scaffold.OldOwnerApi.Upload(identity.DotYouId, uploadFileMetadata, options);
+            var uploadContext = await _scaffold.OldOwnerApi.Upload(identity.OdinId, uploadFileMetadata, options);
 
 
             //
@@ -141,7 +141,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             instructionSet.StorageOptions.OverwriteFileId = uploadContext.UploadedFile.FileId;
 
             uploadFileMetadata.AppData.DataType = 10844;
-            var _ = await _scaffold.OldOwnerApi.UploadFile(identity.DotYouId, instructionSet, uploadFileMetadata, "a new payload", true);
+            var _ = await _scaffold.OldOwnerApi.UploadFile(identity.OdinId, instructionSet, uploadFileMetadata, "a new payload", true);
 
             //
             // query the data to see the changes
@@ -221,7 +221,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 DisconnectIdentitiesAfterTransfer = true
             };
 
-            var uploadContext = await _scaffold.OldOwnerApi.Upload(identity.DotYouId, uploadFileMetadata, options);
+            var uploadContext = await _scaffold.OldOwnerApi.Upload(identity.OdinId, uploadFileMetadata, options);
 
             using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
@@ -286,7 +286,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 }
             };
 
-            await _scaffold.OldOwnerApi.UploadFile(identity.DotYouId, file1InstructionSet, file1Metadata, "file one payload");
+            await _scaffold.OldOwnerApi.UploadFile(identity.OdinId, file1InstructionSet, file1Metadata, "file one payload");
 
             //
             // Add another drive and file
@@ -319,7 +319,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 }
             };
 
-            await _scaffold.OldOwnerApi.UploadFile(identity.DotYouId, file2InstructionSet, file2Metadata, "file two payload");
+            await _scaffold.OldOwnerApi.UploadFile(identity.OdinId, file2InstructionSet, file2Metadata, "file two payload");
 
             //
             // perform the batch search

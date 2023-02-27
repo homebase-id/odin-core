@@ -47,7 +47,7 @@ namespace Youverse.Hosting.Controllers.Anonymous
                 };
                 return new ObjectResult(problemDetails)
                 {
-                    ContentTypes = {"application/problem+json"},
+                    ContentTypes = { "application/problem+json" },
                     StatusCode = problemDetails.Status,
                 };
             }
@@ -72,6 +72,7 @@ namespace Youverse.Hosting.Controllers.Anonymous
 
             var handlerUrl = $"/home/youauth/finalize?ss64={HttpUtility.UrlEncode(shareSecret64)}&returnUrl={HttpUtility.UrlEncode(returnUrl)}";
             return Redirect(handlerUrl);
+            // return Ok(handlerUrl);
         }
 
 

@@ -45,7 +45,7 @@ namespace Youverse.Hosting.Authentication.System
                 //TODO: include IP address checking so this can only be called by a whitelist
                 if (token == Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e"))
                 {
-                    string domain = "system";
+                    string domain = "system.domain";
                     var claims = new List<Claim>()
                     {
                         new Claim(ClaimTypes.NameIdentifier, domain, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
@@ -56,7 +56,7 @@ namespace Youverse.Hosting.Authentication.System
 
                     var dotYouContext = Context.RequestServices.GetRequiredService<DotYouContext>();
                     dotYouContext.Caller = new CallerContext(
-                        dotYouId: (DotYouIdentity)domain,
+                        dotYouId: (OdinId)domain,
                         masterKey: null,
                         securityLevel: SecurityGroupType.System);
                     

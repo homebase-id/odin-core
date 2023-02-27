@@ -169,12 +169,11 @@ namespace Youverse.Hosting.Authentication.ClientToken
             };
 
             dotYouContext.Caller = new CallerContext(
-                dotYouId: (DotYouIdentity)string.Empty,
+                dotYouId: null,
                 securityLevel: SecurityGroupType.Anonymous,
                 masterKey: null
             );
-
-            //HACK: giving this the master key makes my hairs raise >:-[
+            
             dotYouContext.SetPermissionContext(
                 new PermissionContext(
                     permissionGroupMap,

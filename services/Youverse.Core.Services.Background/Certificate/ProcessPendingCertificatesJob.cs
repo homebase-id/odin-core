@@ -35,7 +35,7 @@ namespace Youverse.Core.Services.Workers.Certificate
             foreach (var ident in identities)
             {
                 var status = await GenerateCertificate(ident);
-                statusMap.Add(ident.ToGuidIdentifier(), status);
+                statusMap.Add(ident.ToHashId(), status);
             }
 
             if (statusMap.Values.ToList().TrueForAll(s => s == CertificateOrderStatus.CertificateUpdateComplete))
@@ -44,7 +44,7 @@ namespace Youverse.Core.Services.Workers.Certificate
             }
         }
 
-        private async Task<CertificateOrderStatus> GenerateCertificate(DotYouIdentity identity)
+        private async Task<CertificateOrderStatus> GenerateCertificate(OdinId identity)
         {
             _logger.LogInformation($"Checking certificate creation status for {identity.Id}");
 

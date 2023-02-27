@@ -30,7 +30,7 @@ public class FollowerApiClient
 
             var request = new FollowRequest()
             {
-                DotYouId = identity.DotYouId,
+                DotYouId = identity.OdinId,
                 NotificationType = notificationType,
                 Channels = channels
             };
@@ -38,7 +38,7 @@ public class FollowerApiClient
             var apiResponse = await svc.Follow(request);
             if (assertSuccessStatus)
             {
-                Assert.IsTrue(apiResponse.IsSuccessStatusCode, $"Failed to follow identity: [{identity.DotYouId}]");
+                Assert.IsTrue(apiResponse.IsSuccessStatusCode, $"Failed to follow identity: [{identity.OdinId}]");
             }
 
             return apiResponse;
@@ -53,11 +53,11 @@ public class FollowerApiClient
 
             var request = new UnfollowRequest()
             {
-                DotYouId = identity.DotYouId,
+                DotYouId = identity.OdinId,
             };
 
             var apiResponse = await svc.Unfollow(request);
-            Assert.IsTrue(apiResponse.IsSuccessStatusCode, $"Failed to unfollow identity: [{identity.DotYouId}]");
+            Assert.IsTrue(apiResponse.IsSuccessStatusCode, $"Failed to unfollow identity: [{identity.OdinId}]");
         }
     }
 
@@ -94,7 +94,7 @@ public class FollowerApiClient
         using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
         {
             var svc = RefitCreator.RestServiceFor<ITestFollowerOwnerClient>(client, ownerSharedSecret);
-            var apiResponse = await svc.GetFollower(identity.DotYouId);
+            var apiResponse = await svc.GetFollower(identity.OdinId);
 
             Assert.IsTrue(apiResponse.IsSuccessStatusCode);
             return apiResponse.Content;
@@ -106,7 +106,7 @@ public class FollowerApiClient
         using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
         {
             var svc = RefitCreator.RestServiceFor<ITestFollowerOwnerClient>(client, ownerSharedSecret);
-            var apiResponse = await svc.GetIdentityIFollow(identity.DotYouId);
+            var apiResponse = await svc.GetIdentityIFollow(identity.OdinId);
 
             Assert.IsTrue(apiResponse.IsSuccessStatusCode);
             return apiResponse.Content;

@@ -88,8 +88,8 @@ namespace Youverse.Hosting.Tests.Performance
             // Prepare environment by connecting identities
             //
             var scenarioCtx = await _scaffold.Scenarios.CreateConnectedHobbits(targetDrive);
-            var frodoAppContext = scenarioCtx.AppContexts[TestIdentities.Frodo.DotYouId];
-            var samAppContext = scenarioCtx.AppContexts[TestIdentities.Samwise.DotYouId];
+            var frodoAppContext = scenarioCtx.AppContexts[TestIdentities.Frodo.OdinId];
+            var samAppContext = scenarioCtx.AppContexts[TestIdentities.Samwise.OdinId];
 
             //
             // Now back to performance testing

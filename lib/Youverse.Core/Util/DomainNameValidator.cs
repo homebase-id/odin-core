@@ -43,7 +43,7 @@ namespace Youverse.Core.Util
         }
 
         // Check the whole domain name. Throw an exception if it is invalid.
-        public static void ValidateDomain(string domain)
+        public static void AssertValidDomain(string domain)
         {
             if (domain.Length > MAX_DNS_DOMAIN)
                 throw new DomainTooLongException(); // Too long

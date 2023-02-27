@@ -138,7 +138,7 @@ namespace Youverse.Core.Services.Certificate.Renewal
             {
                 RegistryId = _tenantContext.DotYouRegistryId,
                 AccountPem = accountPem,
-                Domain = (DotYouIdentity)domain,
+                Domain = (OdinId)domain,
                 LocationUri = acmeOrder.Location.ToString()
             };
             _tenantSystemStorage.SingleKeyValueStorage.Upsert(GuidId.FromString(domain), pco);
@@ -153,7 +153,7 @@ namespace Youverse.Core.Services.Certificate.Renewal
             }
             
             //add to list so the background job can call it.
-            _certificateOrderList.Add((DotYouIdentity)domain);
+            _certificateOrderList.Add((OdinId)domain);
             _logger.LogInformation($"Certificate order placed and background job will check for validation then continue creation process");
         }
 

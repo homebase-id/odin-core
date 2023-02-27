@@ -234,6 +234,24 @@ namespace Youverse.Core.Services.Drives.Base
 
         public async Task<ServerFileHeader> GetServerFileHeader(InternalDriveFileId file)
         {
+            var header = await GetServerFileHeaderInternal(file);
+            AssertValidFileSystemType(header.ServerMetadata);
+
+            return header;
+        }
+        
+        /// <summary>
+        /// Gets the <see cref="FileSystemType"/> of the target file and only enforces the Read
+        /// permission; allowing you to determine the file system type when you don't have it.
+        /// </summary>
+        public async Task<FileSystemType> GetFileSystemType(InternalDriveFileId file)
+        {
+            var header = await GetServerFileHeaderInternal(file);
+            return header.ServerMetadata.FileSystemType;
+        }
+        
+        private async Task<ServerFileHeader> GetServerFileHeaderInternal(InternalDriveFileId file)
+        {
             this.AssertCanReadDrive(file.DriveId);
 
             var header = await GetLongTermStorageManager(file.DriveId).GetServerFileHeader(file.FileId);
@@ -244,9 +262,7 @@ namespace Youverse.Core.Services.Drives.Base
             }
 
             await _driveAclAuthorizationService.AssertCallerHasPermission(header.ServerMetadata.AccessControlList);
-
-            AssertValidFileSystemType(header.ServerMetadata);
-
+            
             return header;
         }
 

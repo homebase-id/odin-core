@@ -7,7 +7,11 @@ public enum ClientTokenType
     /// </summary>
     YouAuth = 1,
 
+    /// <summary>
+    /// The bearer is using the CircleNetwork Connection via transit
+    /// </summary>
     IdentityConnectionRegistration = 2,
+    
 
     Other = 3,
 

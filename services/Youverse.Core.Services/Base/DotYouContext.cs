@@ -1,4 +1,5 @@
 using Youverse.Core.Exceptions;
+using Youverse.Core.Identity;
 
 namespace Youverse.Core.Services.Base
 {
@@ -9,6 +10,11 @@ namespace Youverse.Core.Services.Base
         public string AuthContext { get; set; }
 
         public CallerContext Caller { get; set; }
+
+        public OdinId GetCallerOdinIdOrFail()
+        {
+            return Caller.DotYouId ?? throw new YouverseSystemException("Invalid Caller");
+        }
 
         public PermissionContext PermissionsContext
         {

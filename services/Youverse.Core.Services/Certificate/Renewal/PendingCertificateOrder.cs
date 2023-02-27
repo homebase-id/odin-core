@@ -13,7 +13,7 @@ namespace Youverse.Core.Services.Certificate.Renewal
             Status = CertificateOrderStatus.AwaitingOrderPlacement;
         }
         
-        public DotYouIdentity Domain { get; set; }
+        public OdinId Domain { get; set; }
 
         public string LocationUri { get; set; }
         public CertificateOrderStatus Status { get; set; }

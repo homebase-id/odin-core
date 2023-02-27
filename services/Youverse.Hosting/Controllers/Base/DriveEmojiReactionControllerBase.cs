@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drives.Reactions;
@@ -21,24 +20,29 @@ public class DriveEmojiReactionControllerBase : YouverseControllerBase
     /// <summary />
     protected void AddReaction(AddReactionReqeust request)
     {
-        _emojiReactionService.AddReaction((DotYouIdentity)request.DotYouId, MapToInternalFile(request.File), request.Reaction);
+        _emojiReactionService.AddReaction(MapToInternalFile(request.File), request.Reaction);
     }
 
     /// <summary />
     protected void DeleteReaction(DeleteReactionRequest request)
     {
-        _emojiReactionService.DeleteReaction((DotYouIdentity)request.DotYouId, MapToInternalFile(request.File), request.Reaction);
+        _emojiReactionService.DeleteReaction(MapToInternalFile(request.File), request.Reaction);
     }
 
     /// <summary />
     protected void DeleteAllReactions(DeleteReactionRequest request)
     {
-        _emojiReactionService.DeleteReactions((DotYouIdentity)request.DotYouId, MapToInternalFile(request.File));
+        _emojiReactionService.DeleteReactions(MapToInternalFile(request.File));
     }
 
     /// <summary />
     protected GetReactionsResponse GetReactions(ExternalFileIdentifier file)
     {
         return _emojiReactionService.GetReactions(MapToInternalFile(file));
+    }
+
+    protected GetReactionsResponse2 GetReactions2(GetReactionsRequest request)
+    {
+        return _emojiReactionService.GetReactions2(MapToInternalFile(request.File), cursor: request.Cursor, maxCount: request.MaxRecords);
     }
 }
