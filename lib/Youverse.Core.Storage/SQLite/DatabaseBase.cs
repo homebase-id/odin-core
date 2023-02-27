@@ -212,8 +212,11 @@ namespace Youverse.Core.Storage.SQLite
                     // We already had a transaction, let's check if we should commit
                     if (UnixTimeUtc.Now().milliseconds - _lastCommit.milliseconds > _commitFrequency)
                     {
-                        Commit();
-                        BeginTransaction();
+                        if (Commit() == true)
+                        {
+                            _transaction = GetConnection().BeginTransaction();
+                            _lastCommit = new UnixTimeUtc();
+                        }
                     }
                 }
 
@@ -222,14 +225,19 @@ namespace Youverse.Core.Storage.SQLite
         }
 
 
-        public void Commit()
+        /// <summary>
+        /// Commit the current transaction - if possible. The transaction cannot be commited if 
+        /// multiple threads are in the middle of different units of work.
+        /// </summary>
+        /// <returns>true is data was committed to the DB, false otherwise.</returns>
+        public bool Commit()
         {
             lock (_getTransactionLock)
             {
                 _commitCallCount++;
 
                 if (!_counter.ReadyToCommit())
-                    return;
+                    return false;
 
                 _commitTimer.Stop();
                 if (_transaction != null)
@@ -239,6 +247,8 @@ namespace Youverse.Core.Storage.SQLite
                     _transaction.Dispose(); // I believe these objects need to be disposed
                     _transaction = null;
                 }
+
+                return true;
             }
         }
 
