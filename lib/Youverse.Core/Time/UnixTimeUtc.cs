@@ -159,7 +159,7 @@ namespace Youverse.Core
 
         public static UnixTimeUtcUnique Now()
         {
-            return new UnixTimeUtcUnique(UnixTimeUtc.Now().milliseconds << 16);
+            return UnixTimeUtcUniqueGenerator.Generator();
         }
 
         public UnixTimeUtc ToUnixTimeUtc()

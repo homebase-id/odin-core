@@ -46,7 +46,7 @@ namespace Youverse.Core.Services.Transit.Outbox
         /// Adds an item to be encrypted and moved to the outbox
         /// </summary>
         /// <param name="item"></param>
-        public Task Add(OutboxItem item)
+        public Task Add(TransitOutboxItem item)
         {
             //TODO: change to use batching inserts
 
@@ -62,17 +62,24 @@ namespace Youverse.Core.Services.Transit.Outbox
             }).ToUtf8ByteArray();
             
             
-            _tenantSystemStorage.Outbox.InsertRow(
+            /*_tenantSystemStorage.Outbox.InsertRow(
                 item.File.DriveId.ToByteArray(),
                 item.File.FileId.ToByteArray(),
                 item.Priority,
-                state);
+                state);*/
+
+            _tenantSystemStorage.Outbox.Insert(new Storage.SQLite.IdentityDatabase.OutboxItem() {
+                boxId = item.File.DriveId,
+                recipient = item.Recipient,
+                fileId = item.File.FileId,
+                priority = item.Priority,
+                value = state });
 
             _pendingTransfers.EnsureIdentityIsPending(_tenantContext.HostDotYouId);
             return Task.CompletedTask;
         }
 
-        public Task Add(IEnumerable<OutboxItem> items)
+        public Task Add(IEnumerable<TransitOutboxItem> items)
         {
             foreach (var item in items)
             {
@@ -82,7 +89,7 @@ namespace Youverse.Core.Services.Transit.Outbox
             return Task.CompletedTask;
         }
 
-        public Task MarkComplete(byte[] marker)
+        public Task MarkComplete(Guid marker)
         {
             _tenantSystemStorage.Outbox.PopCommit(marker);
             return Task.CompletedTask;
@@ -91,9 +98,9 @@ namespace Youverse.Core.Services.Transit.Outbox
         /// <summary>
         /// Add and item back the queue due to a failure
         /// </summary>
-        public async Task MarkFailure(byte[] marker, TransferFailureReason reason)
+        public async Task MarkFailure(Guid marker, TransferFailureReason reason)
         {
-            _tenantSystemStorage.Outbox.PopCommitList(marker, listFileId: new List<byte[]>());
+            _tenantSystemStorage.Outbox.PopCommitList(marker, listFileId: new List<Guid>());
             //TODO: there is no way to keep information on why an item failed
             _tenantSystemStorage.Outbox.PopCancel(marker);
 
@@ -109,15 +116,15 @@ namespace Youverse.Core.Services.Transit.Outbox
             // });
         }
 
-        public async Task<List<OutboxItem>> GetBatchForProcessing(Guid driveId, int batchSize)
+        public async Task<List<TransitOutboxItem>> GetBatchForProcessing(Guid driveId, int batchSize)
         {
             //CRITICAL NOTE: To integrate this with the existing outbox design, you can only pop one item at a time since the marker defines a set
-            var records = _tenantSystemStorage.Outbox.Pop(driveId.ToByteArray(), batchSize, out var marker);
+            var records = _tenantSystemStorage.Outbox.Pop(driveId, batchSize, out var marker);
 
             var items = records.Select(r =>
             {
                 var state = DotYouSystemSerializer.Deserialize<OutboxItemState>(r.value.ToStringFromUtf8Bytes());
-                return new OutboxItem()
+                return new TransitOutboxItem()
                 {
                     Recipient = (DotYouIdentity)state!.Recipient,
                     IsTransientFile = state!.IsTransientFile,
@@ -126,8 +133,8 @@ namespace Youverse.Core.Services.Transit.Outbox
                     TransferInstructionSet = state.TransferInstructionSet,
                     File = new InternalDriveFileId()
                     {
-                        DriveId = new Guid(r.boxId),
-                        FileId = new Guid(r.fileId)
+                        DriveId = r.boxId,
+                        FileId = r.fileId
                     },
                     OriginalTransitOptions = state.OriginalTransitOptions,
                     EncryptedClientAuthToken = state.EncryptedClientAuthToken,

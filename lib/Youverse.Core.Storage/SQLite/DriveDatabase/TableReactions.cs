@@ -1,41 +1,33 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.Entity;
 using System.Data.SQLite;
 
 namespace Youverse.Core.Storage.SQLite.DriveDatabase
 {
-    public class ReactionItem
+    public class TableReactions : TableReactionsCRUD
     {
-        public string identity;
-        public byte[] postId;
-        public string singleReaction;
-    }
-
-    public class TableReactions : TableBase
-    {
-        const int ID_EQUAL = 16; // Precisely 16 bytes for the ID key
-        public const int MAX_MEMBER_LENGTH = 257;  // Maximum 512 bytes for the member value (domain 256)
-
-        private SQLiteCommand _insertCommand = null;
-        private SQLiteParameter _iparam1 = null;
-        private SQLiteParameter _iparam2 = null;
-        private SQLiteParameter _iparam3 = null;
-        private static Object _insertLock = new Object();
-
         private SQLiteCommand _deleteCommand = null;
         private SQLiteParameter _delparam1 = null;
         private SQLiteParameter _delparam2 = null;
         private static Object _deleteLock = new Object();
 
-        private SQLiteCommand _singleDeleteCommand = null;
-        private SQLiteParameter _singleDelparam1 = null;
-        private SQLiteParameter _singleDelparam2 = null;
-        private SQLiteParameter _singleDelparam3 = null;
-        private static Object _singleDeleteLock = new Object();
-
         private SQLiteCommand _selectCommand = null;
         private SQLiteParameter _sparam1 = null;
         private static Object _selectLock = new Object();
+
+
+        private SQLiteCommand _select2Command = null;
+        private SQLiteParameter _s2param1 = null;
+        private SQLiteParameter _s2param2 = null;
+        private static Object _select2Lock = new Object();
+
+        private SQLiteCommand _getPaging0Command = null;
+        private static Object _getPaging0Lock = new Object();
+        private SQLiteParameter _getPaging0Param1 = null;
+        private SQLiteParameter _getPaging0Param2 = null;
+        private SQLiteParameter _getPaging0Param3 = null;
+
 
         public TableReactions(DriveDatabase db) : base(db)
         {
@@ -47,89 +39,17 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
         public override void Dispose()
         {
-            _insertCommand?.Dispose();
-            _insertCommand = null;
-
             _deleteCommand?.Dispose();
             _deleteCommand = null;
 
-            _singleDeleteCommand?.Dispose();
-            _singleDeleteCommand= null;
-
             _selectCommand?.Dispose();
             _selectCommand = null;
+
+            _getPaging0Command?.Dispose();
+            _getPaging0Command = null;
+
+            base.Dispose();
         }
-
-        public override void EnsureTableExists(bool dropExisting = false)
-        {
-            using (var cmd = _database.CreateCommand())
-            {
-                if (dropExisting)
-                {
-                    cmd.CommandText = "DROP TABLE IF EXISTS reactions;";
-                    cmd.ExecuteNonQuery();
-                }
-
-                cmd.CommandText =
-                    @"CREATE TABLE IF NOT EXISTS reactions(
-                     identity STRING NOT NULL, 
-                     postid BLOB NOT NULL,
-                     singlereaction STRING NOT NULL,
-                     UNIQUE(identity, postid, singlereaction)); "
-                    + "CREATE INDEX if not exists reactionidx ON reactions(identity, postid);";
-
-                cmd.ExecuteNonQuery();
-            }
-        }
-
-        /// <summary>
-        /// I'd really like to change identity string to the identity class which is validated
-        /// </summary>
-        /// <param name="identity"></param>
-        /// <param name="postId"></param>
-        /// <param name="singleReaction">Be sure your string is trimmed, lowercase, etc.</param>
-        /// <exception cref="Exception">If duplicate, will throw error</exception>
-        public void InsertReaction(string identity, Guid postId, string singleReaction)
-        {
-            if ((identity == null) || (identity.Length >= MAX_MEMBER_LENGTH))
-                throw new Exception("invalid identity.");
-
-            if ((singleReaction == null) || (singleReaction.Length < 3)) // :x:
-                throw new Exception("singlereaction is not a reaction");
-
-            lock (_insertLock)
-            {
-                // Make sure we only prep once 
-                if (_insertCommand == null)
-                {
-                    _insertCommand = _database.CreateCommand();
-                    _insertCommand.CommandText = @"INSERT INTO reactions (identity, postid, singlereaction) " +
-                                                  "VALUES ($identity, $postid, $singlereaction)";
-
-                    _iparam1 = _insertCommand.CreateParameter();
-                    _iparam2 = _insertCommand.CreateParameter();
-                    _iparam3 = _insertCommand.CreateParameter();
-
-                    _insertCommand.Parameters.Add(_iparam1);
-                    _insertCommand.Parameters.Add(_iparam2);
-                    _insertCommand.Parameters.Add(_iparam3);
-
-                    _iparam1.ParameterName = "$identity";
-                    _iparam2.ParameterName = "$postid";
-                    _iparam3.ParameterName = "$singlereaction";
-
-                    _insertCommand.Prepare();
-                }
-
-                _iparam1.Value = identity;
-                _iparam2.Value = postId.ToByteArray();
-                _iparam3.Value = singleReaction;
-
-                _database.BeginTransaction();
-                _insertCommand.ExecuteNonQuery();
-            }
-        }
-
 
         /// <summary>
         /// Removes all reactions from the supplied identity
@@ -137,10 +57,14 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
         /// <param name="identity"></param>
         /// <param name="postId"></param>
         /// <exception cref="Exception"></exception>
-        public void DeleteAllReactions(string identity, Guid postid)
+        public void DeleteAllReactions(string identity, Guid postId)
         {
-            if ((identity == null) || (identity.Length >= MAX_MEMBER_LENGTH))
-                throw new Exception("invalid identity.");
+            // Assign to throw exceptions, it's kind of bizarre :-)
+            var item = new ReactionsItem()
+            {
+                identity = identity,
+                postId = postId
+            };
 
             lock (_deleteLock)
             {
@@ -148,80 +72,85 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 if (_deleteCommand == null)
                 {
                     _deleteCommand = _database.CreateCommand();
-                    _deleteCommand.CommandText = @"DELETE FROM reactions WHERE identity=$identity AND postid=$postid;";
+                    _deleteCommand.CommandText = @"DELETE FROM reactions WHERE identity=$identity AND postId=$postId;";
 
                     _delparam1 = _deleteCommand.CreateParameter();
                     _delparam2 = _deleteCommand.CreateParameter();
                     _deleteCommand.Parameters.Add(_delparam1);
                     _deleteCommand.Parameters.Add(_delparam2);
                     _delparam1.ParameterName = "$identity";
-                    _delparam2.ParameterName = "$postid";
+                    _delparam2.ParameterName = "$postId";
 
                     _deleteCommand.Prepare();
                 }
 
                 _delparam1.Value = identity;
-                _delparam2.Value = postid.ToByteArray();
+                _delparam2.Value = postId.ToByteArray();
 
                 _database.BeginTransaction();
                 _deleteCommand.ExecuteNonQuery();
             }
         }
 
-
-        public void DeleteReaction(string identity, Guid postid, string singleReaction)
+        public int GetIdentityPostReactions(string identity, Guid postId)
         {
-            if ((identity == null) || (identity.Length >= MAX_MEMBER_LENGTH))
-                throw new Exception("invalid identity.");
-
-            if ((singleReaction == null) || (singleReaction.Length < 3)) // :x:
-                throw new Exception("singlereaction is not a reaction");
-
-            lock (_singleDeleteLock)
+            // Assign to throw exceptions, it's kind of bizarre :-)
+            var item = new ReactionsItem()
             {
-                // Make sure we only prep once 
-                if (_singleDeleteCommand == null)
+                identity = identity,
+                postId = postId
+            };
+
+            lock (_select2Lock)
+            {
+                if (_select2Command == null)
                 {
-                    _singleDeleteCommand = _database.CreateCommand();
-                    _singleDeleteCommand.CommandText = @"DELETE FROM reactions WHERE identity=$identity AND postid=$postid AND singlereaction=$singlereaction;";
+                    _select2Command = _database.CreateCommand();
+                    _select2Command.CommandText =
+                        $"SELECT COUNT(singleReaction) as reactioncount FROM reactions WHERE identity=$identity AND postId=$postId;";
 
-                    _singleDelparam1 = _singleDeleteCommand.CreateParameter();
-                    _singleDelparam2 = _singleDeleteCommand.CreateParameter();
-                    _singleDelparam3 = _singleDeleteCommand.CreateParameter();
+                    _s2param1 = _select2Command.CreateParameter();
+                    _s2param1.ParameterName = "$postId";
+                    _select2Command.Parameters.Add(_s2param1);
 
-                    _singleDeleteCommand.Parameters.Add(_singleDelparam1);
-                    _singleDeleteCommand.Parameters.Add(_singleDelparam2);
-                    _singleDeleteCommand.Parameters.Add(_singleDelparam3);
+                    _s2param2 = _select2Command.CreateParameter();
+                    _s2param2.ParameterName = "$identity";
+                    _select2Command.Parameters.Add(_s2param2);
 
-                    _singleDelparam1.ParameterName = "$identity";
-                    _singleDelparam2.ParameterName = "$postid";
-                    _singleDelparam3.ParameterName = "$singlereaction";
-
-                    _singleDeleteCommand.Prepare();
+                    _select2Command.Prepare();
                 }
 
-                _singleDelparam1.Value = identity;
-                _singleDelparam2.Value = postid.ToByteArray();
-                _singleDelparam3.Value = singleReaction;
+                _s2param1.Value = postId;
+                _s2param2.Value = identity;
 
-                _database.BeginTransaction();
-                _singleDeleteCommand.ExecuteNonQuery();
+                using (SQLiteDataReader rdr = _select2Command.ExecuteReader(System.Data.CommandBehavior.Default))
+                {
+                    if (rdr.Read())
+                        return rdr.GetInt32(0);
+                    else
+                        return 0;
+                }
             }
         }
 
-
         public (List<string>, int) GetPostReactions(Guid postId)
         {
+            // Assign to throw exceptions, it's kind of bizarre :-)
+            var item = new ReactionsItem()
+            {
+                postId = postId
+            };
+
             lock (_selectLock)
             {
                 if (_selectCommand == null)
                 {
                     _selectCommand = _database.CreateCommand();
                     _selectCommand.CommandText =
-                        $"SELECT singlereaction, COUNT(singlereaction) as reactioncount FROM reactions WHERE postid=$postid GROUP BY singlereaction ORDER BY reactioncount DESC;";
+                        $"SELECT singleReaction, COUNT(singleReaction) as reactioncount FROM reactions WHERE postId=$postId GROUP BY singleReaction ORDER BY reactioncount DESC;";
 
                     _sparam1 = _selectCommand.CreateParameter();
-                    _sparam1.ParameterName = "$postid";
+                    _sparam1.ParameterName = "$postId";
                     _selectCommand.Parameters.Add(_sparam1);
 
                     _selectCommand.Prepare();
@@ -241,8 +170,6 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                         if (n < 5)
                         {
                             string s = rdr.GetString(0);
-                            if (s.Length >= MAX_MEMBER_LENGTH)
-                                throw new Exception("Too much data...");
                             result.Add(s);
                         }
 
@@ -254,6 +181,108 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     return (result, totalCount);
                 }
             }
-        }
+        } //
+
+
+        // Copied and modified from CRUD
+        public List<ReactionsItem> PagingByRowid(int count, Int32? inCursor, out Int32? nextCursor, Guid postIdFilter)
+        {
+            if (count < 1)
+                throw new Exception("Count must be at least 1.");
+            if (inCursor == null)
+                inCursor = 0;
+
+            lock (_getPaging0Lock)
+            {
+                if (_getPaging0Command == null)
+                {
+                    _getPaging0Command = _database.CreateCommand();
+                    _getPaging0Command.CommandText = "SELECT rowid,identity,postId,singleReaction,created,modified FROM reactions " +
+                                                 "WHERE postId == $postId AND rowid > $rowid ORDER BY rowid ASC LIMIT $_count;";
+                    _getPaging0Param1 = _getPaging0Command.CreateParameter();
+                    _getPaging0Command.Parameters.Add(_getPaging0Param1);
+                    _getPaging0Param1.ParameterName = "$rowid";
+
+                    _getPaging0Param2 = _getPaging0Command.CreateParameter();
+                    _getPaging0Command.Parameters.Add(_getPaging0Param2);
+                    _getPaging0Param2.ParameterName = "$_count";
+
+                    _getPaging0Param3 = _getPaging0Command.CreateParameter();
+                    _getPaging0Command.Parameters.Add(_getPaging0Param3);
+                    _getPaging0Param3.ParameterName = "$postId";
+
+                    _getPaging0Command.Prepare();
+                }
+                _getPaging0Param1.Value = inCursor;
+                _getPaging0Param2.Value = count + 1;
+                _getPaging0Param3.Value = postIdFilter;
+
+                using (SQLiteDataReader rdr = _getPaging0Command.ExecuteReader(System.Data.CommandBehavior.Default))
+                {
+                    var result = new List<ReactionsItem>();
+                    int n = 0;
+                    int rowid = 0;
+                    while (rdr.Read() && (n < count))
+                    {
+                        n++;
+                        var item = new ReactionsItem();
+                        byte[] _tmpbuf = new byte[65535 + 1];
+                        long bytesRead;
+                        var _guid = new byte[16];
+
+                        rowid = rdr.GetInt32(0);
+
+                        if (rdr.IsDBNull(1))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            item.identity = rdr.GetString(1);
+                        }
+
+                        if (rdr.IsDBNull(2))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            bytesRead = rdr.GetBytes(2, 0, _guid, 0, 16);
+                            if (bytesRead != 16)
+                                throw new Exception("Not a GUID in postId...");
+                            item.postId = new Guid(_guid);
+                        }
+
+                        if (rdr.IsDBNull(3))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            item.singleReaction = rdr.GetString(3);
+                        }
+
+                        if (rdr.IsDBNull(4))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            item.created = new UnixTimeUtcUnique((UInt64)rdr.GetInt64(4));
+                        }
+
+                        if (rdr.IsDBNull(5))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            item.modified = new UnixTimeUtc((UInt64)rdr.GetInt64(5));
+                        }
+                        result.Add(item);
+                    } // while
+                    if ((n > 0) && rdr.HasRows)
+                    {
+                        nextCursor = rowid;
+                    }
+                    else
+                    {
+                        nextCursor = null;
+                    }
+
+                    return result;
+                } // using
+            } // lock
+        } // PagingGet
     }
 }

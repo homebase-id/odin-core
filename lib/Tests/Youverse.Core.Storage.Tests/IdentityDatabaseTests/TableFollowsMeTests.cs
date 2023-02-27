@@ -26,20 +26,20 @@ namespace IdentityDatabaseTests
             var d2 = Guid.NewGuid();
 
             // Odin follows d1
-            db.tblFollowsMe.InsertFollower(i1, d1);
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveId = d1 });
 
             // Thor follows d1
-            db.tblFollowsMe.InsertFollower(i2, d1);
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveId = d1 });
 
             // Freja follows d1 & d2
-            db.tblFollowsMe.InsertFollower(i3, d1);
-            db.tblFollowsMe.InsertFollower(i3, d2);
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i3, driveId = d1 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i3, driveId = d2 });
 
             // Heimdal follows d2
-            db.tblFollowsMe.InsertFollower(i4, d2);
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i4, driveId = d2 });
 
             // Loke follows everything
-            db.tblFollowsMe.InsertFollower(i5, null);
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i5, driveId = Guid.Empty });
 
             // Now Frodo makes a new post to d1, which means we shouold get
             // everyone except Heimdal. Let's do a page size of 3
@@ -77,22 +77,22 @@ namespace IdentityDatabaseTests
             var g1 = Guid.NewGuid();
             var g2 = Guid.NewGuid();
 
-            // This is OK {odin.vahalla.com, driveid}
-            db.tblFollowsMe.InsertFollower(i1, g1);
-            db.tblFollowsMe.InsertFollower(i1, g2);
-            db.tblFollowsMe.InsertFollower("thor.valhalla.com", g1);
+            // This is OK {odin.vahalla.com, driveId}
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveId = g1 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveId = g2 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = "thor.valhalla.com", driveId = g1 });
 
             var r = db.tblFollowsMe.Get(i1);
             Debug.Assert((ByteArrayUtil.muidcmp(r[0].driveId, g1) == 0) || (ByteArrayUtil.muidcmp(r[0].driveId, g2) == 0));
             Debug.Assert((ByteArrayUtil.muidcmp(r[1].driveId, g1) == 0) || (ByteArrayUtil.muidcmp(r[1].driveId, g2) == 0));
 
             // This is OK {odin.vahalla.com, {000000}}
-            db.tblFollowsMe.InsertFollower(i1, null);
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveId = Guid.Empty });
             r = db.tblFollowsMe.Get(i1);
             Debug.Assert((ByteArrayUtil.muidcmp(r[0].driveId, Guid.Empty) == 0) || (ByteArrayUtil.muidcmp(r[1].driveId, Guid.Empty) == 0) || (ByteArrayUtil.muidcmp(r[2].driveId, Guid.Empty) == 0));
 
             // Test non ASCII
-            db.tblFollowsMe.InsertFollower("ødin.valhalla.com", g1);
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = "ødin.valhalla.com", driveId = g1 });
             r = db.tblFollowsMe.Get("ødin.valhalla.com");
             Debug.Assert(ByteArrayUtil.muidcmp(r[0].driveId, g1) == 0);
         }
@@ -107,14 +107,14 @@ namespace IdentityDatabaseTests
             var i1 = "odin.valhalla.com";
             var g1 = Guid.NewGuid();
 
-            db.tblFollowsMe.InsertFollower(i1, g1);
-            db.tblFollowsMe.InsertFollower(i1, null);
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveId = g1 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveId = Guid.Empty });
 
             bool ok = false;
             try
             {
                 // Can't insert duplicate
-                db.tblFollowsMe.InsertFollower(i1, g1);
+                db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveId = g1 });
             }
             catch
             {
@@ -127,7 +127,7 @@ namespace IdentityDatabaseTests
             try
             {
                 // 
-                db.tblFollowsMe.InsertFollower(null, Guid.NewGuid());
+                db.tblFollowsMe.Insert(new FollowsMeItem() { identity = null, driveId = Guid.NewGuid() });
             }
             catch
             {
@@ -138,7 +138,7 @@ namespace IdentityDatabaseTests
             ok = false;
             try
             {
-                db.tblFollowsMe.InsertFollower("", Guid.NewGuid());
+                db.tblFollowsMe.Insert(new FollowsMeItem() { identity = "", driveId = Guid.NewGuid() });
             }
             catch
             {
@@ -150,7 +150,7 @@ namespace IdentityDatabaseTests
             ok = false;
             try
             {
-                db.tblFollowsMe.InsertFollower("", null);
+                db.tblFollowsMe.Insert(new FollowsMeItem() { identity = "", driveId = Guid.Empty });
             }
             catch
             {
@@ -163,7 +163,7 @@ namespace IdentityDatabaseTests
             try
             {
                 // Can't insert duplicate, this is supposed to fail.
-                db.tblFollowsMe.InsertFollower(i1, null);
+                db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveId = Guid.Empty });
             }
             catch
             {
@@ -173,7 +173,7 @@ namespace IdentityDatabaseTests
         }
 
         [Test]
-        public void DeleteFollowerInvalidTest()
+        public void DeleteInvalidTest()
         {
             using var db = new IdentityDatabase("URI=file:.\\follower-delete-01.db");
             db.CreateDatabase();
@@ -203,7 +203,7 @@ namespace IdentityDatabaseTests
 
 
         [Test]
-        public void DeleteFollowerTest()
+        public void DeleteTest()
         {
             using var db = new IdentityDatabase("URI=file:.\\follower-delete-02.db");
             db.CreateDatabase();
@@ -213,10 +213,10 @@ namespace IdentityDatabaseTests
             var d1 = Guid.NewGuid();
             var d2 = Guid.NewGuid();
 
-            db.tblFollowsMe.InsertFollower(i1, d1);
-            db.tblFollowsMe.InsertFollower(i2, null);
-            db.tblFollowsMe.InsertFollower(i2, d1);
-            db.tblFollowsMe.InsertFollower(i2, d2);
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveId = d1 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveId = Guid.Empty });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveId = d1 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveId = d2 });
 
             db.tblFollowsMe.DeleteFollower(i2);
 
@@ -231,7 +231,7 @@ namespace IdentityDatabaseTests
 
 
         [Test]
-        public void DeleteFollowerDriveTest()
+        public void DeleteDriveTest()
         {
             using var db = new IdentityDatabase("URI=file:.\\follower-delete-03.db");
             db.CreateDatabase();
@@ -241,29 +241,29 @@ namespace IdentityDatabaseTests
             var d1 = Guid.NewGuid();
             var d2 = Guid.NewGuid();
 
-            db.tblFollowsMe.InsertFollower(i1, d1);
-            db.tblFollowsMe.InsertFollower(i2, null);
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveId = d1 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveId = Guid.Empty });
 
-            db.tblFollowsMe.InsertFollower(i2, d1);
-            db.tblFollowsMe.InsertFollower(i2, d2);
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveId = d1 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveId = d2 });
 
-            db.tblFollowsMe.DeleteFollower(i1, d2);
+            db.tblFollowsMe.Delete(i1, d2);
             var r = db.tblFollowsMe.Get(i1);
             Debug.Assert(r.Count == 1);
 
-            db.tblFollowsMe.DeleteFollower(i1, d1);
+            db.tblFollowsMe.Delete(i1, d1);
             r = db.tblFollowsMe.Get(i1);
             Debug.Assert(r.Count == 0);
 
-            db.tblFollowsMe.DeleteFollower(i2, d1);
+            db.tblFollowsMe.Delete(i2, d1);
             r = db.tblFollowsMe.Get(i2);
             Debug.Assert(r.Count == 2);
 
-            db.tblFollowsMe.DeleteFollower(i2, d2);
+            db.tblFollowsMe.Delete(i2, d2);
             r = db.tblFollowsMe.Get(i2);
             Debug.Assert(r.Count == 1);
 
-            db.tblFollowsMe.DeleteFollower(i2, Guid.Empty);
+            db.tblFollowsMe.Delete(i2, Guid.Empty);
             r = db.tblFollowsMe.Get(i2);
             Debug.Assert(r.Count == 0);
         }
@@ -302,16 +302,18 @@ namespace IdentityDatabaseTests
             var d2 = Guid.NewGuid();
             var d3 = Guid.NewGuid();
 
-            db.tblFollowsMe.InsertFollower(i1, d1);
-            db.tblFollowsMe.InsertFollower(i2, null);
-            db.tblFollowsMe.InsertFollower(i2, d1);
-            db.tblFollowsMe.InsertFollower(i2, d2);
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveId = d1 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveId = Guid.Empty });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveId = d1 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveId = d2 });
 
+            // Get the all drive (only)
             var r = db.tblFollowsMe.GetFollowers(100, d3, null, out var nextCursor);
             Debug.Assert(r.Count == 1);
             Debug.Assert(r[0] == i2);
             Debug.Assert(nextCursor == null);
 
+            // Get all d1 (and empty) drive. 
             r = db.tblFollowsMe.GetFollowers(100, d1, "", out nextCursor);
             Debug.Assert(r.Count == 2);
             Debug.Assert(nextCursor == null);
@@ -338,11 +340,11 @@ namespace IdentityDatabaseTests
             var d2 = Guid.NewGuid();
             var d3 = Guid.NewGuid();
 
-            db.tblFollowsMe.InsertFollower(i1, d1);
-            db.tblFollowsMe.InsertFollower(i2, d1);
-            db.tblFollowsMe.InsertFollower(i3, d1);
-            db.tblFollowsMe.InsertFollower(i4, d1);
-            db.tblFollowsMe.InsertFollower(i5, null);
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i1, driveId = d1 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i2, driveId = d1 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i3, driveId = d1 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i4, driveId = d1 });
+            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = i5, driveId = Guid.Empty });
 
             var r = db.tblFollowsMe.GetFollowers(2, d1, null, out var nextCursor);
             Debug.Assert(r.Count == 2);

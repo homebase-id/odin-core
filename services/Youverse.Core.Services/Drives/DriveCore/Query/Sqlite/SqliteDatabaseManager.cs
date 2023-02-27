@@ -220,7 +220,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
 
     public void AddReaction(DotYouIdentity dotYouId, Guid fileId, string reaction)
     {
-        _db.TblReactions.InsertReaction(dotYouId, fileId, reaction);
+        _db.TblReactions.Insert(new ReactionsItem() { identity = dotYouId, postId = fileId, singleReaction = reaction } );
     }
 
     public void DeleteReactions(DotYouIdentity dotYouId, Guid fileId)
@@ -230,14 +230,13 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
 
     public void DeleteReaction(DotYouIdentity dotYouId, Guid fileId, string reaction)
     {
-        _db.TblReactions.DeleteReaction(dotYouId, fileId, reaction);
+        _db.TblReactions.Delete(dotYouId, fileId, reaction);
     }
 
     public (List<string>, int) GetReactions(Guid fileId)
     {
         return _db.TblReactions.GetPostReactions(fileId);
     }
-    
 }
 
 public class UnprocessedCommandMessage

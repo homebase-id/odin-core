@@ -4,26 +4,9 @@ using System.Data.SQLite;
 
 namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 {
-    public class OutboxItem
-    {
-        public byte[] boxId;
-        public byte[] fileId;
-        public UInt32 priority;
-        public UnixTimeUtc timeStamp;
-        public byte[] value;
-    }
-
-    public class TableOutbox: TableBase
+    public class TableOutbox: TableOutboxCRUD
     {
         const int MAX_VALUE_LENGTH = 65535;  // Stored value cannot be longer than this
-
-        private SQLiteCommand _insertCommand = null;
-        private SQLiteParameter _iparam1 = null;
-        private SQLiteParameter _iparam2 = null;
-        private SQLiteParameter _iparam3 = null;
-        private SQLiteParameter _iparam4 = null;
-        private SQLiteParameter _iparam5 = null;
-        private static Object _insertLock = new Object();
 
         private SQLiteCommand _popCommand = null;
         private SQLiteParameter _pparam1 = null;
@@ -54,11 +37,6 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteCommand _popRecoverCommand = null;
         private SQLiteParameter _pcrecoverparam1 = null;
 
-        private SQLiteCommand _selectCommand = null;
-        private SQLiteParameter _sparam1 = null;
-        private static Object _selectLock = new Object();
-
-
         public TableOutbox(IdentityDatabase db) : base(db)
         {
         }
@@ -69,14 +47,17 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
         public override void Dispose()
         {
-            _insertCommand?.Dispose();
-            _insertCommand = null;
-
             _popCommand?.Dispose();
             _popCommand = null;
 
+            _popAllCommand?.Dispose();
+            _popAllCommand = null;
+
             _popCancelCommand?.Dispose();
             _popCancelCommand = null;
+
+            _popCancelListCommand?.Dispose();
+            _popCancelListCommand = null;
 
             _popCommitCommand?.Dispose();
             _popCommitCommand = null;
@@ -84,153 +65,23 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             _popRecoverCommand?.Dispose();
             _popRecoverCommand = null;
 
-            _selectCommand?.Dispose();
-            _selectCommand = null;
+            base.Dispose();
         }
 
-
-        /// <summary>
-        /// Table description:
-        /// fileId is a SequentialGuid.CreateGuid() because it's unique & contains a timestamp
-        /// priority not currently used, but an integer to indicate priority (lower is higher? or higher is higher? :)
-        /// timestamp is the UnixTime in seconds for when this item was inserted into the DB (kind of not needed since we have the fileId)
-        /// popstamp is a SequentialGuid.CreateGuid() used to handle multi-threaded popping of items in the outbox.
-        ///    An item first needs to be popped (but isn't removed from the table yet)
-        ///    Once the item is safely handled, the pop can be committed and the item is removed from the outbox.
-        ///    There'll be a function to recover 'hanging' pops for threads that died.
-        /// </summary>
-        public override void EnsureTableExists(bool dropExisting = false)
+        public override int Insert(OutboxItem item)
         {
-            using (var cmd = _database.CreateCommand())
-            {
-                if (dropExisting)
-                {
-                    cmd.CommandText = "DROP TABLE IF EXISTS outbox;";
-                    cmd.ExecuteNonQuery();
-                }
-
-                cmd.CommandText =
-                    @"CREATE TABLE if not exists outbox(
-                     fileid BLOB NOT NULL, 
-                     boxid BLOB NOT NULL,
-                     priority INT NOT NULL,
-                     timestamp INT NOT NULL,
-                     value BLOB,
-                     popstamp BLOB); "
-                    + "CREATE INDEX if not exists outboxtimestampidx ON outbox(timestamp);"
-                    + "CREATE INDEX if not exists outboxboxidx ON outbox(boxid);"
-                    + "CREATE INDEX if not exists outboxpopidx ON outbox(popstamp);";
-
-                // Get() is only used for testing. We don't have an index on fileId
-                // because only Get() retrieves by the fileId()
-
-                cmd.ExecuteNonQuery();
-            }
+            if (item.timeStamp.milliseconds == 0)
+                item.timeStamp = UnixTimeUtc.Now();
+            return base.Insert(item);
         }
 
-
-        public OutboxItem Get(byte[] fileId)
+        public override int Upsert(OutboxItem item)
         {
-            lock (_selectLock)
-            {
-                // Make sure we only prep once 
-                if (_selectCommand == null)
-                {
-                    _selectCommand = _database.CreateCommand();
-                    _selectCommand.CommandText =
-                        $"SELECT priority, timestamp, value FROM outbox WHERE fileid=$fileid";
-                    _sparam1 = _selectCommand.CreateParameter();
-                    _sparam1.ParameterName = "$fileid";
-                    _selectCommand.Parameters.Add(_sparam1);
-                    _selectCommand.Prepare();
-                }
-
-                _sparam1.Value = fileId;
-
-                using (SQLiteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.SingleRow))
-                {
-                    if (!rdr.Read())
-                        return null;
-
-                    if (rdr.IsDBNull(0))
-                        return null;
-
-                    var item = new OutboxItem();
-
-                    item.fileId = fileId; // Should I duplicate it? :-/ Hm...
-                    item.priority = (UInt32) rdr.GetInt32(0);
-                    item.timeStamp = new UnixTimeUtc((UInt64) rdr.GetInt64(1));
-
-                    if (rdr.IsDBNull(2))
-                    {
-                        item.value = null;
-                    }
-                    else
-                    {
-                        byte[] _tmpbuf = new byte[MAX_VALUE_LENGTH];
-                        long n = rdr.GetBytes(2, 0, _tmpbuf, 0, MAX_VALUE_LENGTH);
-                        if (n != 16)
-                            throw new Exception("Unexpected fileId");
-                        if (n >= MAX_VALUE_LENGTH)
-                            throw new Exception("Too much data...");
-
-                        item.value = new byte[n];
-                        Buffer.BlockCopy(_tmpbuf, 0, item.value, 0, (int)n);
-                    }
-
-                    return item;
-                }
-            }
+            if (item.timeStamp.milliseconds == 0)
+                item.timeStamp = UnixTimeUtc.Now();
+            return base.Insert(item);
         }
 
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="boxId">Is the outbox, e.g. the outbox for drive A</param>
-        /// <param name="fileId">Should be a SequentialGuid (because it then contains the timestamp)</param>
-        /// <param name="priority">Placeholder, but not currently used</param>
-        /// <param name="value">Custom value, e.g. the appId or the senderId</param>
-        public void InsertRow(byte[] boxId, byte[] fileId, int priority, byte[] value)
-        {
-            lock (_insertLock)
-            {
-                // Make sure we only prep once 
-                if (_insertCommand == null)
-                {
-                    _insertCommand = _database.CreateCommand();
-                    _insertCommand.CommandText = @"INSERT INTO outbox(boxid, fileid, priority, timestamp, popstamp, value) "+
-                                                  "VALUES ($boxid, $fileid, $priority, $timestamp, NULL, $value)";
-
-                    _iparam1 = _insertCommand.CreateParameter();
-                    _iparam1.ParameterName = "$fileid";
-                    _iparam2 = _insertCommand.CreateParameter();
-                    _iparam2.ParameterName = "$priority";
-                    _iparam3 = _insertCommand.CreateParameter();
-                    _iparam3.ParameterName = "$timestamp";
-                    _iparam4 = _insertCommand.CreateParameter();
-                    _iparam4.ParameterName = "$value";
-                    _iparam5 = _insertCommand.CreateParameter();
-                    _iparam5.ParameterName = "$boxid";
-
-                    _insertCommand.Parameters.Add(_iparam1);
-                    _insertCommand.Parameters.Add(_iparam2);
-                    _insertCommand.Parameters.Add(_iparam3);
-                    _insertCommand.Parameters.Add(_iparam4);
-                    _insertCommand.Parameters.Add(_iparam5);
-                    _insertCommand.Prepare();
-                }
-
-                _iparam1.Value = fileId;
-                _iparam2.Value = priority;
-                _iparam3.Value = UnixTimeUtc.Now().milliseconds;
-                _iparam4.Value = value;
-                _iparam5.Value = boxId;
-
-                _database.BeginTransaction();
-                _insertCommand.ExecuteNonQuery();
-            }
-        }
 
         /// <summary>
         /// Pops 'count' items from the outbox. The items remain in the DB with the 'popstamp' unique identifier.
@@ -241,7 +92,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         /// <param name="count">How many items to 'pop' (reserve)</param>
         /// <param name="popStamp">The unique identifier for the items reserved for pop</param>
         /// <returns></returns>
-        public List<OutboxItem> Pop(byte[] boxId, int count, out byte[] popStamp)
+        public List<OutboxItem> Pop(Guid boxId, int count, out Guid popStamp)
         {
             lock (_popLock)
             {
@@ -249,8 +100,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (_popCommand == null)
                 {
                     _popCommand = _database.CreateCommand();
-                    _popCommand.CommandText = "UPDATE outbox SET popstamp=$popstamp WHERE boxid=$boxid AND popstamp IS NULL ORDER BY timestamp ASC LIMIT $count; " +
-                                              "SELECT fileid, priority, timestamp, value from outbox WHERE popstamp=$popstamp";
+                    _popCommand.CommandText = "UPDATE outbox SET popStamp=$popstamp WHERE boxId=$boxid AND popStamp IS NULL ORDER BY timeStamp ASC LIMIT $count; " +
+                                              "SELECT fileId, priority, timeStamp, value, recipient from outbox WHERE popstamp=$popstamp";
 
                     _pparam1 = _popCommand.CreateParameter();
                     _pparam1.ParameterName = "$popstamp";
@@ -267,8 +118,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _popCommand.Prepare();
                 }
 
-                popStamp = SequentialGuid.CreateGuid().ToByteArray();
-                _pparam1.Value = popStamp;
+                popStamp = SequentialGuid.CreateGuid();
+                _pparam1.Value = popStamp.ToByteArray();
                 _pparam2.Value = count;
                 _pparam3.Value = boxId;
 
@@ -289,11 +140,12 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
                             item = new OutboxItem();
                             item.boxId = boxId;
-                            item.fileId = new byte[16];
-                            var n = rdr.GetBytes(0, 0, item.fileId, 0, 16);
+                            var _guid = new byte[16];
+                            var n = rdr.GetBytes(0, 0, _guid, 0, 16);
                             if (n != 16)
                                 throw new Exception("Invalid fileId");
-                            item.priority = (UInt32)rdr.GetInt32(1);
+                            item.fileId = new Guid(_guid);
+                            item.priority = rdr.GetInt32(1);
                             item.timeStamp = new UnixTimeUtc((UInt64)rdr.GetInt64(2));
 
                             if (rdr.IsDBNull(3))
@@ -312,6 +164,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                                 item.value = new byte[n];
                                 Buffer.BlockCopy(_tmpbuf, 0, item.value, 0, (int)n);
                             }
+                            item.recipient = rdr.GetString(4);
+
                             result.Add(item);
                         }
                     }
@@ -321,7 +175,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public List<OutboxItem> PopAll(out byte[] popStamp)
+        public List<OutboxItem> PopAll(out Guid popStamp)
         {
             lock (_popAllLock)
             {
@@ -330,7 +184,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 {
                     _popAllCommand = _database.CreateCommand();
                     _popAllCommand.CommandText = "UPDATE outbox SET popstamp=$popstamp WHERE popstamp is NULL and fileId IN (SELECT fileid FROM outbox WHERE popstamp is NULL GROUP BY boxid ORDER BY timestamp ASC); " +
-                                              "SELECT fileid, priority, timestamp, value, boxid from outbox WHERE popstamp=$popstamp";
+                                              "SELECT fileid, priority, timestamp, value, boxid, recipient from outbox WHERE popstamp=$popstamp";
 
                     _paparam1 = _popAllCommand.CreateParameter();
                     _paparam1.ParameterName = "$popstamp";
@@ -339,7 +193,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _popAllCommand.Prepare();
                 }
 
-                popStamp = SequentialGuid.CreateGuid().ToByteArray();
+                popStamp = SequentialGuid.CreateGuid();
                 _paparam1.Value = popStamp;
 
                 List<OutboxItem> result = new List<OutboxItem>();
@@ -359,11 +213,12 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
                             item = new OutboxItem();
 
-                            item.fileId = new byte[16];
-                            var n = rdr.GetBytes(0, 0, item.fileId, 0, 16);
+                            var _guid  = new byte[16];
+                            var n = rdr.GetBytes(0, 0, _guid, 0, 16);
                             if (n != 16)
                                 throw new Exception("Invalid fileId");
-                            item.priority = (UInt32)rdr.GetInt32(1);
+                            item.fileId = new Guid(_guid);
+                            item.priority = rdr.GetInt32(1);
                             item.timeStamp = new UnixTimeUtc((UInt64)rdr.GetInt64(2));
 
                             if (rdr.IsDBNull(3))
@@ -383,11 +238,12 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                                 Buffer.BlockCopy(_tmpbuf, 0, item.value, 0, (int)n);
                             }
 
-                            item.boxId = new byte[16];
-                            n = rdr.GetBytes(4, 0, item.boxId, 0, 16);
+                            n = rdr.GetBytes(4, 0, _guid, 0, 16);
 
                             if (n != 16)
                                 throw new Exception("Invalid boxId");
+                            item.boxId = new Guid(_guid);
+                            item.recipient = rdr.GetString(5);
 
                             result.Add(item);
                         }
@@ -402,7 +258,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         /// Cancels the pop of items with the 'popstamp' from a previous pop operation
         /// </summary>
         /// <param name="popstamp"></param>
-        public void PopCancel(byte[] popstamp)
+        public void PopCancel(Guid popstamp)
         {
             lock (_popLock)
             {
@@ -427,7 +283,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
-        public void PopCancelList(byte[] popstamp, List<byte[]> listFileId)
+        public void PopCancelList(Guid popstamp, List<Guid> listFileId)
         {
             lock (_popCancelListLock)
             {
@@ -469,7 +325,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         /// Commits (removes) the items previously popped with the supplied 'popstamp'
         /// </summary>
         /// <param name="popstamp"></param>
-        public void PopCommit(byte[] popstamp)
+        public void PopCommit(Guid popstamp)
         {
             lock (_popLock)
             {
@@ -497,7 +353,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         /// Commits (removes) the items previously popped with the supplied 'popstamp'
         /// </summary>
         /// <param name="popstamp"></param>
-        public void PopCommitList(byte[] popstamp, List<byte[]> listFileId)
+        public void PopCommitList(Guid popstamp, List<Guid> listFileId)
         {
             lock (_popCommitListLock)
             {

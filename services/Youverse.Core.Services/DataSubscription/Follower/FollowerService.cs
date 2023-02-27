@@ -93,8 +93,12 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             _tenantStorage.WhoIFollow.DeleteFollower(request.DotYouId);
             if (request.NotificationType == FollowerNotificationType.AllNotifications)
             {
-                _tenantStorage.WhoIFollow.InsertFollower(request.DotYouId, null);
+                _tenantStorage.WhoIFollow.Insert(new Storage.SQLite.IdentityDatabase.ImFollowingItem() { identity = request.DotYouId, driveId = Guid.Empty });
             }
+            // MS: I changed null -> guid.empty. Databases behave very oddly with "NULL". In the database
+            // if we do = NULL it fails (it's supposed to), you have to do "IS NULL". That doesn't work with
+            // the pattern I have. And to fix it would cause N permutations of all code (1 permutation per column nullable).
+
             //TODO: need to better understand the followers table
             // else
             // {

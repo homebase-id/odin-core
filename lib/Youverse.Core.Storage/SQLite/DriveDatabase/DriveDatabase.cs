@@ -58,7 +58,6 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
         public readonly TableMainIndex TblMainIndex = null;
         public readonly TableAclIndex TblAclIndex = null;
         public readonly TableTagIndex TblTagIndex = null;
-
         public readonly TableReactions TblReactions = null;
         public readonly TableCommandMessageQueue TblCmdMsgQueue = null;
 

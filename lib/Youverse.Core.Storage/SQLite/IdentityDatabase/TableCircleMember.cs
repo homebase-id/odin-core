@@ -4,27 +4,9 @@ using System.Data.SQLite;
 
 namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 {
-    public class CircleMemberItem
-    {
-        public Guid circleId;
-        public Guid memberId;
-        public byte[] data;
-    }
-
-    public class TableCircleMember : TableBase
+    public class TableCircleMember : TableCircleMemberCRUD
     {
         public const int MAX_DATA_LENGTH = 65000;  // Some max value for the data
-
-        private SQLiteCommand _insertCommand = null;
-        private SQLiteParameter _iparam1 = null;
-        private SQLiteParameter _iparam2 = null;
-        private SQLiteParameter _iparam3 = null;
-        private static Object _insertLock = new Object();
-
-        private SQLiteCommand _removeCommand = null;
-        private SQLiteParameter _remparam1 = null;
-        private SQLiteParameter _remparam2 = null;
-        private static Object _removeLock = new Object();
 
         private SQLiteCommand _deleteCommand = null;
         private SQLiteParameter _delparam1 = null;
@@ -48,12 +30,6 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
         public override void Dispose()
         {
-            _insertCommand?.Dispose();
-            _insertCommand = null;
-
-            _removeCommand?.Dispose();
-            _removeCommand = null;
-
             _deleteCommand?.Dispose();
             _deleteCommand = null;
 
@@ -62,31 +38,9 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
             _select2Command?.Dispose();
             _select2Command = null;
+
+            base.Dispose();
         }
-
-        public override void EnsureTableExists(bool dropExisting = false)
-        {
-            using (var cmd = _database.CreateCommand())
-            {
-                if (dropExisting)
-                {
-                    cmd.CommandText = "DROP TABLE IF EXISTS circlemember;";
-                    cmd.ExecuteNonQuery();
-                }
-
-                cmd.CommandText =
-                    @"CREATE TABLE IF NOT EXISTS circlemember(
-                     circleid BLOB NOT NULL, 
-                     memberid BLOB NOT NULL,
-                     data BLOB,
-                     UNIQUE(circleid, memberid)); "
-                    + "CREATE INDEX if not exists circleididx ON circlemember(circleid);";
-                    // + "CREATE INDEX if not exists memberididx ON circlemember(memberid);";
-
-                cmd.ExecuteNonQuery();
-            }
-        }
-
 
         /// <summary>
         /// Returns all members of the given circle (the data, aka exchange grants not returned)
@@ -215,52 +169,18 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         /// <summary>
         /// Adds each CircleMemberItem in the supplied list.
         /// </summary>
-        /// <param name="circleMemberItemList"></param>
+        /// <param name="CircleMemberItemList"></param>
         /// <exception cref="Exception"></exception>
-        public void AddCircleMembers(List<CircleMemberItem> circleMemberItemList)
+        public void AddCircleMembers(List<CircleMemberItem> CircleMemberItemList)
         {
-            if ((circleMemberItemList == null) || (circleMemberItemList.Count < 1))
+            if ((CircleMemberItemList == null) || (CircleMemberItemList.Count < 1))
                 throw new Exception("No members supplied (null or empty)");
 
-            lock (_insertLock)
-            {
-                // Make sure we only prep once 
-                if (_insertCommand == null)
-                {
-                    _insertCommand = _database.CreateCommand();
-                    _insertCommand.CommandText = @"INSERT INTO circlemember (circleid, memberid, data) "+
-                                                  "VALUES ($circleid, $memberid, $data)";
+            _database.BeginTransaction();
 
-                    _iparam1 = _insertCommand.CreateParameter();
-                    _iparam2 = _insertCommand.CreateParameter();
-                    _iparam3 = _insertCommand.CreateParameter();
-
-                    _iparam1.ParameterName = "$circleid";
-                    _iparam2.ParameterName = "$memberid";
-                    _iparam3.ParameterName = "$data";
-
-                    _insertCommand.Parameters.Add(_iparam1);
-                    _insertCommand.Parameters.Add(_iparam2);
-                    _insertCommand.Parameters.Add(_iparam3);
-
-                    _insertCommand.Prepare();
-                }
-
-                _database.BeginTransaction();
-
-                using (_database.CreateCommitUnitOfWork())
-                {
-                    // Possibly do a Commit() here. But I need to think about Commits, Semaphores and multiple threads.
-                    for (int i = 0; i < circleMemberItemList.Count; i++)
-                    {
-                        _iparam1.Value = circleMemberItemList[i].circleId;
-                        _iparam2.Value = circleMemberItemList[i].memberId;
-                        _iparam3.Value = circleMemberItemList[i].data;
-
-                        _insertCommand.ExecuteNonQuery();
-                    }
-                }
-            }
+            using (_database.CreateCommitUnitOfWork())
+                for (int i = 0; i < CircleMemberItemList.Count; i++)
+                    Insert(CircleMemberItemList[i]);
         }
 
 
@@ -275,38 +195,11 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             if ((members == null) || (members.Count < 1))
                 throw new Exception("No members supplied (null or empty)");
 
-            lock (_removeLock)
-            {
-                // Make sure we only prep once 
-                if (_removeCommand == null)
-                {
-                    _removeCommand = _database.CreateCommand();
-                    _removeCommand.CommandText = "DELETE FROM circlemember WHERE circleid=$circleid AND memberid=$memberid;";
+            _database.BeginTransaction();
 
-                    _remparam1 = _removeCommand.CreateParameter();
-                    _remparam1.ParameterName = "$circleid";
-                    _removeCommand.Parameters.Add(_remparam1);
-
-                    _remparam2 = _removeCommand.CreateParameter();
-                    _remparam2.ParameterName = "$memberid";
-                    _removeCommand.Parameters.Add(_remparam2);
-
-                    _removeCommand.Prepare();
-                }
-
-                _remparam1.Value = circleId;
-
-                _database.BeginTransaction();
-
-                using (_database.CreateCommitUnitOfWork())
-                {
-                    for (int i = 0; i < members.Count; i++)
-                    {
-                        _remparam2.Value = members[i].ToByteArray();
-                        _removeCommand.ExecuteNonQuery();
-                    }
-                }
-            }
+            using (_database.CreateCommitUnitOfWork())
+                for (int i = 0; i < members.Count; i++)
+                    Delete(circleId, members[i]);
         }
 
 

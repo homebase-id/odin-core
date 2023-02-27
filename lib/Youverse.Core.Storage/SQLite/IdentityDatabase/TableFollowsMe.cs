@@ -9,29 +9,13 @@ using System.Data.SQLite;
 
 namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 {
-    public class FollowsMeItem
-    {
-        public string identity;
-        public UnixTimeUtc timeStamp;
-        public Guid driveId;
-    }
-
-    public class TableFollowsMe : TableBase
+    public class TableFollowsMe : TableFollowsMeCRUD
     {
         public const int GUID_SIZE = 16; // Precisely 16 bytes for the ID key
-
-        private SQLiteCommand _insertCommand = null;
-        private SQLiteParameter _iparam1 = null;
-        private SQLiteParameter _iparam2 = null;
-        private SQLiteParameter _iparam3 = null;
-        private static object _insertLock = new object();
 
         private SQLiteCommand _deleteCommand = null;
         private SQLiteParameter _dparam1 = null;
         private static object _deleteLock = new object();
-        private SQLiteCommand _deleteCommand2 = null;
-        private SQLiteParameter _dparam2_1 = null;
-        private SQLiteParameter _dparam2_2 = null;
 
         private SQLiteCommand _selectCommand = null;
         private SQLiteParameter _sparam1 = null;
@@ -40,6 +24,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteCommand _select2Command = null;
         private SQLiteParameter _s2param1 = null;
         private SQLiteParameter _s2param2 = null;
+        private SQLiteParameter _s2param3 = null;
         private static object _select2Lock = new object();
 
         public TableFollowsMe(IdentityDatabase db) : base(db)
@@ -52,46 +37,18 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
         public override void Dispose()
         {
-            _insertCommand?.Dispose();
-            _insertCommand = null;
-
             _deleteCommand?.Dispose();
             _deleteCommand = null;
-
-            _deleteCommand2?.Dispose();
-            _deleteCommand2 = null;
 
             _selectCommand?.Dispose();
             _selectCommand = null;
 
             _select2Command?.Dispose();
             _select2Command = null;
+
+            base.Dispose();
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        public override void EnsureTableExists(bool dropExisting = false)
-        {
-            using (var cmd = _database.CreateCommand())
-            {
-                if (dropExisting)
-                {
-                    cmd.CommandText = "DROP TABLE IF EXISTS followers;";
-                    cmd.ExecuteNonQuery();
-                }
-
-                cmd.CommandText =
-                    @"CREATE TABLE IF NOT EXISTS followers(
-                     identity STRING NOT NULL,
-                     timestamp INT NOT NULL,
-                     driveid BLOB NOT NULL,
-                     UNIQUE(identity,driveid)); "
-                    + "CREATE INDEX if not exists followersidentityidx ON followers(identity);";
-
-                cmd.ExecuteNonQuery();
-            }
-        }
 
         /// <summary>
         /// For the given identity, return all drives being followed (and possibly Guid.Empty for everything)
@@ -111,7 +68,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 {
                     _selectCommand = _database.CreateCommand();
                     _selectCommand.CommandText =
-                        $"SELECT driveid, timestamp FROM followers WHERE identity=$identity";
+                        $"SELECT driveId, created FROM followsme WHERE identity=$identity";
                     _sparam1 = _selectCommand.CreateParameter();
                     _sparam1.ParameterName = "$identity";
                     _selectCommand.Parameters.Add(_sparam1);
@@ -134,7 +91,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                         var d = rdr.GetInt64(1);
                         var f = new FollowsMeItem();
                         f.identity = identity;
-                        f.timeStamp = new UnixTimeUtc((ulong) d);
+                        f.created = new UnixTimeUtcUnique((ulong) d);
                         f.driveId = new Guid(_tmpbuf);
                         result.Add(f);
                     }
@@ -162,8 +119,6 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             if (inCursor == null)
                 inCursor = "";
 
-            nextCursor = null;
-
             lock (_select2Lock)
             {
                 // Make sure we only prep once 
@@ -171,21 +126,26 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 {
                     _select2Command = _database.CreateCommand();
                     _select2Command.CommandText =
-                        $"SELECT DISTINCT identity FROM followers WHERE (driveid=$driveid OR driveid=x'{Convert.ToHexString(Guid.Empty.ToByteArray())}') AND identity > $cursor ORDER BY identity ASC LIMIT {count+1}";
-                    // Added +1 to detect EOD
+                        $"SELECT DISTINCT identity FROM followsme WHERE (driveId=$driveId OR driveId=x'{Convert.ToHexString(Guid.Empty.ToByteArray())}') AND identity > $cursor ORDER BY identity ASC LIMIT $count;";
+
                     _s2param1 = _select2Command.CreateParameter();
-                    _s2param1.ParameterName = "$driveid";
+                    _s2param1.ParameterName = "$driveId";
                     _select2Command.Parameters.Add(_s2param1);
 
                     _s2param2 = _select2Command.CreateParameter();
                     _s2param2.ParameterName = "$cursor";
                     _select2Command.Parameters.Add(_s2param2);
 
+                    _s2param3 = _select2Command.CreateParameter();
+                    _s2param3.ParameterName = "$count";
+                    _select2Command.Parameters.Add(_s2param3);
+
                     _select2Command.Prepare();
                 }
 
                 _s2param1.Value = driveId;
                 _s2param2.Value = inCursor;
+                _s2param3.Value = count + 1;
 
                 using (SQLiteDataReader rdr = _select2Command.ExecuteReader(System.Data.CommandBehavior.Default))
                 {
@@ -206,63 +166,16 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     {
                         nextCursor = result[n-1];
                     }
+                    else
+                    { 
+                        nextCursor = null; 
+                    }
 
                     return result;
                 }
             }
         }
 
-
-
-        /// <summary>
-        /// Add a new follower that's following you, for the specified drive. Use Guid.Empty as a "full follow of everything".
-        /// </summary>
-        /// <param name="identity"></param>
-        /// <param name="driveId">if Guid.Empty will follow 'everything' otherwise driveid bring followed</param>
-        /// <exception cref="Exception"></exception>
-        public void InsertFollower(string identity, Guid? driveId)
-        {
-            if (driveId == null)
-                driveId = Guid.Empty;
-            else
-            {
-                if (driveId == Guid.Empty)
-                    throw new Exception("Guid.Empty is reserved for 'all'.");
-            }
-
-            if (identity == null || identity.Length < 1)
-                throw new Exception("identity can't be NULL or empty.");
-
-            lock (_insertLock)
-            {
-                // Make sure we only prep once 
-                if (_insertCommand == null)
-                {
-                    _insertCommand = _database.CreateCommand();
-                    _insertCommand.CommandText = @"INSERT INTO followers(identity, timestamp, driveid) " +
-                                                  "VALUES ($identity, $timestamp, $driveid)";
-
-                    _iparam1 = _insertCommand.CreateParameter();
-                    _iparam2 = _insertCommand.CreateParameter();
-                    _iparam3 = _insertCommand.CreateParameter();
-                    _insertCommand.Parameters.Add(_iparam1);
-                    _insertCommand.Parameters.Add(_iparam2);
-                    _insertCommand.Parameters.Add(_iparam3);
-                    _iparam1.ParameterName = "$identity";
-                    _iparam2.ParameterName = "$timestamp";
-                    _iparam3.ParameterName = "$driveid";
-
-                    _insertCommand.Prepare();
-                }
-
-                _iparam1.Value = identity;
-                _iparam2.Value = UnixTimeUtc.Now().milliseconds;
-                _iparam3.Value = driveId;
-
-                _database.BeginTransaction();
-                _insertCommand.ExecuteNonQuery();
-            }
-        }
 
 
         /// <summary>
@@ -281,7 +194,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (_deleteCommand == null)
                 {
                     _deleteCommand = _database.CreateCommand();
-                    _deleteCommand.CommandText = @"DELETE FROM followers WHERE identity=$identity;";
+                    _deleteCommand.CommandText = @"DELETE FROM followsme WHERE identity=$identity;";
                     _dparam1 = _deleteCommand.CreateParameter();
                     _deleteCommand.Parameters.Add(_dparam1);
                     _dparam1.ParameterName = "$identity";
@@ -293,45 +206,6 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
                 _database.BeginTransaction();
                 _deleteCommand.ExecuteNonQuery();
-            }
-        }
-
-
-        /// <summary>
-        /// Delete following for the specified drive.
-        /// </summary>
-        /// <param name="identity">The identity following you</param>
-        /// <param name="driveId">The drive you want to unfollow</param>
-        /// <exception cref="Exception"></exception>
-        public void DeleteFollower(string identity, Guid driveId)
-        {
-            if (identity == null || identity.Length < 1)
-                throw new Exception("identity cannot be NULL or empty");
-
-            lock (_deleteLock)
-            {
-                // Make sure we only prep once 
-                if (_deleteCommand2 == null)
-                {
-                    _deleteCommand2 = _database.CreateCommand();
-                    _deleteCommand2.CommandText = @"DELETE FROM followers WHERE identity=$identity AND driveid=$driveid;";
-
-                    _dparam2_1 = _deleteCommand2.CreateParameter();
-                    _deleteCommand2.Parameters.Add(_dparam2_1);
-                    _dparam2_1.ParameterName = "$identity";
-
-                    _dparam2_2 = _deleteCommand2.CreateParameter();
-                    _deleteCommand2.Parameters.Add(_dparam2_2);
-                    _dparam2_2.ParameterName = "$driveid";
-
-                    _deleteCommand2.Prepare();
-                }
-
-                _dparam2_1.Value = identity;
-                _dparam2_2.Value = driveId;
-
-                _database.BeginTransaction();
-                _deleteCommand2.ExecuteNonQuery();
             }
         }
     }

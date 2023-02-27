@@ -40,7 +40,6 @@ namespace Youverse.Core.Services.DataSubscription
             //TODO: move this to a background thread or use ScheduleOptions.SendLater so the original call can finish
             //TODO: first store on this identities feed drive.
             //then send from their feed drive
-
             var (driveFollowers, nextCursor1) = await _followerService.GetFollowers(notification.File.DriveId, cursor: "");
             var (allDriveFollowers, nextCursor2) = await _followerService.GetFollowersOfAllNotifications(cursor: "");
 

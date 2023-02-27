@@ -38,11 +38,12 @@ namespace Youverse.Core.Services.Certificate.Renewal
             //I swallow the exception because there's no direct way to see if a record exists for this sender already
             // byte[] fileId = new byte[] { 1, 1, 2, 3, 5 };
 
-            byte[] boxId = GuidId.FromString("pcol").Value.ToByteArray();
-            byte[] fileId = identity.ToGuidIdentifier().ToByteArray();
+            Guid boxId = GuidId.FromString("pcol").Value;
+            Guid fileId = identity.ToGuidIdentifier();
             try
             {
-                _db.tblOutbox.InsertRow(boxId, fileId, 0, identity.Id.ToLower().ToUtf8ByteArray());
+                // _db.tblOutbox.InsertRow(boxId, fileId, 0, identity.Id.ToLower().ToUtf8ByteArray());
+                _db.tblOutbox.Insert(new OutboxItem() { boxId = boxId, recipient = identity.Id, fileId = fileId, priority = 0, value = identity.Id.ToLower().ToUtf8ByteArray() });
             }
             catch (System.Data.SQLite.SQLiteException ex)
             {
@@ -58,7 +59,7 @@ namespace Youverse.Core.Services.Certificate.Renewal
         /// <summary>
         /// Gets a list of identities awaiting certificate validation/creation.
         /// </summary>
-        public async Task<(IEnumerable<DotYouIdentity>, byte[] marker)> GetIdentities()
+        public async Task<(IEnumerable<DotYouIdentity>, Guid marker)> GetIdentities()
         {
             var records = _db.tblOutbox.PopAll(out var marker);
             
@@ -67,12 +68,12 @@ namespace Youverse.Core.Services.Certificate.Renewal
             return (senders, marker);
         }
 
-        public void MarkComplete(byte[] marker)
+        public void MarkComplete(Guid marker)
         {
             _db.tblOutbox.PopCommit(marker);
         }
 
-        public void MarkFailure(byte[] marker)
+        public void MarkFailure(Guid marker)
         {
             _db.tblOutbox.PopCancel(marker);
         }

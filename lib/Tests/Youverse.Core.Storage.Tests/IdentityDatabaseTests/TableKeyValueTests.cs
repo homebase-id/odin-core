@@ -18,19 +18,19 @@ namespace IdentityDatabaseTests
             using var db = new IdentityDatabase("URI=file:.\\kvtbltest1.db");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid().ToByteArray();
-            var k2 = Guid.NewGuid().ToByteArray();
+            var k1 = Guid.NewGuid();
+            var k2 = Guid.NewGuid();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
             var r = db.tblKeyValue.Get(k1);
             Debug.Assert(r == null);
 
-            db.tblKeyValue.InsertRow(k1, v1);
-            db.tblKeyValue.InsertRow(k2, v2);
+            db.tblKeyValue.Insert(new KeyValueItem() { key = k1, data = v1 });
+            db.tblKeyValue.Insert(new KeyValueItem() { key = k2, data = v2 });
 
             r = db.tblKeyValue.Get(k1);
-            if (ByteArrayUtil.muidcmp(r, v1) != 0)
+            if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
                 Assert.Fail();
         }
 
@@ -42,20 +42,20 @@ namespace IdentityDatabaseTests
             using var db = new IdentityDatabase("URI=file:.\\kvtbltest2.db");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid().ToByteArray();
+            var k1 = Guid.NewGuid();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
             var r = db.tblKeyValue.Get(k1);
             Debug.Assert(r == null);
 
-            db.tblKeyValue.InsertRow(k1, v1);
+            db.tblKeyValue.Insert(new KeyValueItem() { key = k1, data = v1 });
 
             bool ok = false;
 
             try
             {
-                db.tblKeyValue.InsertRow(k1, v2);
+                db.tblKeyValue.Insert(new KeyValueItem() { key = k1, data = v2 });
                 ok = true;
             }
             catch
@@ -66,7 +66,7 @@ namespace IdentityDatabaseTests
             Debug.Assert(ok == false);
 
             r = db.tblKeyValue.Get(k1);
-            if (ByteArrayUtil.muidcmp(r, v1) != 0)
+            if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
                 Assert.Fail();
         }
 
@@ -77,19 +77,19 @@ namespace IdentityDatabaseTests
             using var db = new IdentityDatabase("URI=file:.\\kvtbltest3.db");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid().ToByteArray();
-            var k2 = Guid.NewGuid().ToByteArray();
+            var k1 = Guid.NewGuid();
+            var k2 = Guid.NewGuid();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
             var r = db.tblKeyValue.Get(k1);
             Debug.Assert(r == null);
 
-            db.tblKeyValue.InsertRow(k1, v1);
-            db.tblKeyValue.UpdateRow(k1, v2);
+            db.tblKeyValue.Insert(new KeyValueItem() { key = k1, data = v1 });
+            db.tblKeyValue.Update(new KeyValueItem() { key = k1, data = v2 });
 
             r = db.tblKeyValue.Get(k1);
-            if (ByteArrayUtil.muidcmp(r, v2) != 0)
+            if (ByteArrayUtil.muidcmp(r.data, v2) != 0)
                 Assert.Fail();
         }
 
@@ -101,21 +101,21 @@ namespace IdentityDatabaseTests
             using var db = new IdentityDatabase("URI=file:.\\kvtbltest4.db");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid().ToByteArray();
-            var k2 = Guid.NewGuid().ToByteArray();
+            var k1 = Guid.NewGuid();
+            var k2 = Guid.NewGuid();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
             var r = db.tblKeyValue.Get(k1);
             Debug.Assert(r == null);
 
-            db.tblKeyValue.InsertRow(k1, v1);
+            db.tblKeyValue.Insert(new KeyValueItem() { key = k1, data = v1 });
 
             bool ok = false;
 
             try
             {
-                db.tblKeyValue.UpdateRow(k2, v2);
+                db.tblKeyValue.Update(new KeyValueItem() { key = k2, data = v2 });
                 ok = true;
             }
             catch
@@ -134,22 +134,22 @@ namespace IdentityDatabaseTests
             using var db = new IdentityDatabase("URI=file:.\\kvtbltest5.db");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid().ToByteArray();
-            var k2 = Guid.NewGuid().ToByteArray();
+            var k1 = Guid.NewGuid();
+            var k2 = Guid.NewGuid();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
             var r = db.tblKeyValue.Get(k1);
             Debug.Assert(r == null);
 
-            db.tblKeyValue.InsertRow(k1, v1);
-            db.tblKeyValue.InsertRow(k2, v2);
+            db.tblKeyValue.Insert(new KeyValueItem() { key = k1, data = v1 });
+            db.tblKeyValue.Insert(new KeyValueItem() { key = k2, data = v2 });
 
             r = db.tblKeyValue.Get(k1);
-            if (ByteArrayUtil.muidcmp(r, v1) != 0)
+            if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
                 Assert.Fail();
 
-            db.tblKeyValue.DeleteRow(k1);
+            db.tblKeyValue.Delete(k1);
             r = db.tblKeyValue.Get(k1);
             Debug.Assert(r == null);
         }
@@ -161,8 +161,8 @@ namespace IdentityDatabaseTests
             using var db = new IdentityDatabase("URI=file:.\\kvtbltest6.db");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid().ToByteArray();
-            var k2 = Guid.NewGuid().ToByteArray();
+            var k1 = Guid.NewGuid();
+            var k2 = Guid.NewGuid();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
             var v3 = Guid.NewGuid().ToByteArray();
@@ -170,21 +170,21 @@ namespace IdentityDatabaseTests
             var r = db.tblKeyValue.Get(k1);
             Debug.Assert(r == null);
 
-            db.tblKeyValue.UpsertRow(k1, v1);
-            db.tblKeyValue.UpsertRow(k2, v2);
+            db.tblKeyValue.Upsert(new KeyValueItem() { key = k1, data = v1 });
+            db.tblKeyValue.Upsert(new KeyValueItem() { key = k2, data = v2 });
 
             r = db.tblKeyValue.Get(k1);
-            if (ByteArrayUtil.muidcmp(r, v1) != 0)
+            if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
                 Assert.Fail();
 
             r = db.tblKeyValue.Get(k2);
-            if (ByteArrayUtil.muidcmp(r, v2) != 0)
+            if (ByteArrayUtil.muidcmp(r.data, v2) != 0)
                 Assert.Fail();
 
-            db.tblKeyValue.UpsertRow(k2, v3);
+            db.tblKeyValue.Upsert(new KeyValueItem() { key = k2, data = v3 });
 
             r = db.tblKeyValue.Get(k2);
-            if (ByteArrayUtil.muidcmp(r, v3) != 0)
+            if (ByteArrayUtil.muidcmp(r.data, v3) != 0)
                 Assert.Fail();
         }
 
@@ -193,12 +193,12 @@ namespace IdentityDatabaseTests
         [Test]
         public void LockingTest()
         {
-            List<byte[]> Rows = new List<byte[]>();
+            List<Guid> Rows = new List<Guid>();
 
             void writeDB(IdentityDatabase db)
             {
                 for (int i = 0; i < 100; i++)
-                    db.tblKeyValue.UpdateRow(Rows[i], Guid.NewGuid().ToByteArray());
+                    db.tblKeyValue.Update(new KeyValueItem() { key = Rows[i], data = Guid.NewGuid().ToByteArray() });
             }
 
             void readDB(IdentityDatabase db)
@@ -212,8 +212,8 @@ namespace IdentityDatabaseTests
 
             for (int i = 0; i < 100; i++)
             {
-                Rows.Add(Guid.NewGuid().ToByteArray());
-                db.tblKeyValue.InsertRow(Rows[i], Guid.NewGuid().ToByteArray());
+                Rows.Add(Guid.NewGuid());
+                db.tblKeyValue.Insert(new KeyValueItem() { key = Rows[i], data = Guid.NewGuid().ToByteArray() });
             }
 
             Thread tw = new Thread(() => writeDB(db));
@@ -232,38 +232,38 @@ namespace IdentityDatabaseTests
             using var db = new IdentityDatabase("URI=file:.\\kvtbltest15.db");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid().ToByteArray();
-            var k2 = Guid.NewGuid().ToByteArray();
+            var k1 = Guid.NewGuid();
+            var k2 = Guid.NewGuid();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
-            db.tblKeyValue.InsertRow(k1, v1);
+            db.tblKeyValue.Insert(new KeyValueItem() { key = k1, data = v1 });
 
             var r = db.tblKeyValue.Get(k1);
 
-            if (ByteArrayUtil.muidcmp(r, v1) != 0)
+            if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
                 Assert.Fail();
 
-            db.tblKeyValue.InsertRow(k2, v2);
+            db.tblKeyValue.Insert(new KeyValueItem() { key = k2, data = v2 });
 
             r = db.tblKeyValue.Get(k1);
 
-            if (ByteArrayUtil.muidcmp(r, v1) != 0)
+            if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
                 Assert.Fail();
 
             r = db.tblKeyValue.Get(k2);
 
-            if (ByteArrayUtil.muidcmp(r, v2) != 0)
+            if (ByteArrayUtil.muidcmp(r.data, v2) != 0)
                 Assert.Fail();
 
-            db.tblKeyValue.UpdateRow(k2, v1);
+            db.tblKeyValue.Update(new KeyValueItem() { key = k2, data = v1 });
 
             r = db.tblKeyValue.Get(k2);
 
-            if (ByteArrayUtil.muidcmp(r, v1) != 0)
+            if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
                 Assert.Fail();
 
-            db.tblKeyValue.DeleteRow(k2);
+            db.tblKeyValue.Delete(k2);
 
             r = db.tblKeyValue.Get(k2);
 
@@ -280,8 +280,8 @@ namespace IdentityDatabaseTests
             using var db = new IdentityDatabase("URI=file:.\\kvtbltest22.db");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid().ToByteArray();
-            var k2 = Guid.NewGuid().ToByteArray();
+            var k1 = Guid.NewGuid();
+            var k2 = Guid.NewGuid();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
@@ -289,17 +289,17 @@ namespace IdentityDatabaseTests
             var r = db.tblKeyValue.Get(k1);
             if (r != null)
                 Assert.Fail();
-            db.tblKeyValue.InsertRow(k1, v1);
-            db.tblKeyValue.InsertRow(k2, v2);
+            db.tblKeyValue.Insert(new KeyValueItem() { key = k1, data = v1 });
+            db.tblKeyValue.Insert(new KeyValueItem() { key = k2, data = v2 });
             // If I query the DB here before commit for k1, I get v1.
             // Wonder if that's a bug or a feature
             db.Commit();
 
             r = db.tblKeyValue.Get(k1);
-            if (ByteArrayUtil.muidcmp(r, v1) != 0)
+            if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
                 Assert.Fail();
             r = db.tblKeyValue.Get(k2);
-            if (ByteArrayUtil.muidcmp(r, v2) != 0)
+            if (ByteArrayUtil.muidcmp(r.data, v2) != 0)
                 Assert.Fail();
         }
     }
