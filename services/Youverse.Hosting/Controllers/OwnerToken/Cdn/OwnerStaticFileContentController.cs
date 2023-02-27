@@ -38,7 +38,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Cdn
         public async Task<IActionResult> PublishPublicProfileImage([FromBody] PublishPublicProfileImageRequest request)
         {
             await _staticFileContentService.PublishProfileImage(request.Image64, request.ContentType);
-            return Ok();
+            return NoContent();
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCdn })]
@@ -46,7 +46,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Cdn
         public async Task<IActionResult> PublishPublicProfileCard([FromBody] PublishPublicProfileCardRequest request)
         {
             await _staticFileContentService.PublishProfileCard(request.ProfileCardJson);
-            return Ok();
+            return NoContent();
         }
     }
 
