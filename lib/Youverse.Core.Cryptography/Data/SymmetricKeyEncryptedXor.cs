@@ -44,8 +44,8 @@ namespace Youverse.Core.Cryptography.Data
 
         public byte[] CalcKeyHash(ref SensitiveByteArray key)
         {
-            KeyHash = HashUtil.ReduceSHA256Hash(key.GetKey());
-            return KeyHash;
+            var k = HashUtil.ReduceSHA256Hash(key.GetKey());
+            return k;
         }
 
         private void EncryptKey(ref SensitiveByteArray remoteHalfKey, ref SensitiveByteArray keyToProtect)

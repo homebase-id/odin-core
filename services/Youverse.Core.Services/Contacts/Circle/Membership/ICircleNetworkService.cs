@@ -20,28 +20,28 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// Gets the <see cref="ClientAuthenticationToken"/> for a given connection
         /// </summary>
         /// <returns></returns>
-        Task<ClientAuthenticationToken> GetConnectionAuthToken(DotYouIdentity dotYouId, bool failIfNotConnected = true, bool overrideHack = false);
+        Task<ClientAuthenticationToken> GetConnectionAuthToken(OdinId dotYouId, bool failIfNotConnected = true, bool overrideHack = false);
 
         /// <summary>
-        /// Disconnects you from the specified <see cref="DotYouIdentity"/>
+        /// Disconnects you from the specified <see cref="OdinId"/>
         /// </summary>
         /// <param name="dotYouId"></param>
         /// <returns></returns>
-        Task<bool> Disconnect(DotYouIdentity dotYouId);
+        Task<bool> Disconnect(OdinId dotYouId);
 
         /// <summary>
-        /// Blocks the specified <see cref="DotYouIdentity"/> from your network
+        /// Blocks the specified <see cref="OdinId"/> from your network
         /// </summary>
         /// <param name="dotYouId"></param>
         /// <returns></returns>
-        Task<bool> Block(DotYouIdentity dotYouId);
+        Task<bool> Block(OdinId dotYouId);
 
         /// <summary>
-        /// Unblocks the specified <see cref="DotYouIdentity"/> from your network
+        /// Unblocks the specified <see cref="OdinId"/> from your network
         /// </summary>
         /// <param name="dotYouId"></param>
         /// <returns></returns>
-        Task<bool> Unblock(DotYouIdentity dotYouId);
+        Task<bool> Unblock(OdinId dotYouId);
 
         /// <summary>
         /// Returns a list of identities which are connected to this DI
@@ -54,7 +54,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// </summary>
         /// <param name="dotYouId"></param>
         /// <returns></returns>
-        Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(DotYouIdentity dotYouId, bool overrideHack = false);
+        Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(OdinId dotYouId, bool overrideHack = false);
 
         /// <summary>
         /// Gets the connection info if the specified <param name="remoteClientAuthenticationToken">xtoken half key</param> is valid
@@ -62,21 +62,21 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <param name="dotYouId"></param>
         /// <param name="remoteClientAuthenticationToken"></param>
         /// <returns></returns>
-        Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(DotYouIdentity dotYouId, ClientAuthenticationToken remoteClientAuthenticationToken);
+        Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(OdinId dotYouId, ClientAuthenticationToken remoteClientAuthenticationToken);
 
         /// <summary>
         /// Determines if the specified dotYouId is connected 
         /// </summary>
         /// <param name="dotYouId"></param>
         /// <returns></returns>
-        Task<bool> IsConnected(DotYouIdentity dotYouId);
+        Task<bool> IsConnected(OdinId dotYouId);
 
         /// <summary>
         /// Throws an exception if the dotYouId is blocked.
         /// </summary>
         /// <param name="dotYouId"></param>
         /// <returns></returns>
-        Task AssertConnectionIsNoneOrValid(DotYouIdentity dotYouId);
+        Task AssertConnectionIsNoneOrValid(OdinId dotYouId);
 
         /// <summary>
         /// Throws an exception if the dotYouId is blocked.
@@ -108,18 +108,18 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <param name="dotYouId"></param>
         /// <param name="remoteIdentityConnectionKey"></param>
         /// <returns></returns>
-        Task<AccessRegistration> GetIdentityConnectionAccessRegistration(DotYouIdentity dotYouId, SensitiveByteArray remoteIdentityConnectionKey);
+        Task<AccessRegistration> GetIdentityConnectionAccessRegistration(OdinId dotYouId, SensitiveByteArray remoteIdentityConnectionKey);
 
         /// <summary>
         /// Handles the incoming notification.
         /// </summary>
-        Task HandleNotification(DotYouIdentity senderDotYouId, CircleNetworkNotification notification);
+        Task HandleNotification(OdinId senderDotYouId, CircleNetworkNotification notification);
 
         /// <summary>
         /// Creates a <see cref="PermissionContext"/> for the specified caller based on their access
         /// </summary>
         /// <returns></returns>
-        Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreateTransitPermissionContext(DotYouIdentity dotYouId, ClientAuthenticationToken clientAuthToken);
+        Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreateTransitPermissionContext(OdinId dotYouId, ClientAuthenticationToken clientAuthToken);
 
 
         /// <summary>
@@ -130,14 +130,14 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <summary>
         /// Grants the dotYouId access to the drives and permissions of the specified circle
         /// </summary>
-        Task GrantCircle(GuidId circleId, DotYouIdentity dotYouId);
+        Task GrantCircle(GuidId circleId, OdinId dotYouId);
 
         /// <summary>
         /// Removes drives and permissions of the specified circle from the dotYouId
         /// </summary>
-        Task RevokeCircleAccess(GuidId circleId, DotYouIdentity dotYouId);
+        Task RevokeCircleAccess(GuidId circleId, OdinId dotYouId);
 
-        Task<IEnumerable<DotYouIdentity>> GetCircleMembers(GuidId circleId);
+        Task<IEnumerable<OdinId>> GetCircleMembers(GuidId circleId);
 
         Task<Dictionary<string, CircleGrant>> CreateCircleGrantList(List<GuidId> circleIds, SensitiveByteArray keyStoreKey);
 

@@ -22,7 +22,7 @@ public class EmojiReactionService
         _contextAccessor = contextAccessor;
     }
 
-    public void AddReaction(DotYouIdentity dotYouId, InternalDriveFileId file, string reactionContent)
+    public void AddReaction(OdinId dotYouId, InternalDriveFileId file, string reactionContent)
     {
         _contextAccessor.GetCurrent().PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.WriteReactionsAndComments);
 
@@ -32,7 +32,7 @@ public class EmojiReactionService
         }
     }
 
-    public void DeleteReaction(DotYouIdentity dotYouId, InternalDriveFileId file, string reactionContent)
+    public void DeleteReaction(OdinId dotYouId, InternalDriveFileId file, string reactionContent)
     {
         _contextAccessor.GetCurrent().PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.WriteReactionsAndComments);
 
@@ -42,7 +42,7 @@ public class EmojiReactionService
         }
     }
 
-    public void DeleteReactions(DotYouIdentity dotYouId, InternalDriveFileId file)
+    public void DeleteReactions(OdinId dotYouId, InternalDriveFileId file)
     {
         _contextAccessor.GetCurrent().PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.WriteReactionsAndComments);
 

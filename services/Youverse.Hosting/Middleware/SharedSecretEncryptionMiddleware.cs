@@ -71,7 +71,8 @@ namespace Youverse.Hosting.Middleware
                 "/api/owner/v1/transit/query/thumb",
                 "/api/apps/v1/drive/files/thumb",
                 "/api/youauth/v1/drive/files/thumb",
-                "/cdn"
+                "/cdn",
+                //"/api/owner/v1/notify/ws" //TODO: should 
             };
 
             _ignoredPathsForResponses.AddRange(_ignoredPathsForRequests);
@@ -190,11 +191,13 @@ namespace Youverse.Hosting.Middleware
             };
 
             var finalBytes = JsonSerializer.SerializeToUtf8Bytes(encryptedPayload, encryptedPayload.GetType(), DotYouSystemSerializer.JsonSerializerOptions);
-
+            
+            // HttpResponseWritingExtensions.WriteAsync(...)
+            // originalBody.WriteAsync(finalBytes)
             context.Response.Headers.Add("X-SSE", "1");
             context.Response.ContentLength = finalBytes.Length;
             await new MemoryStream(finalBytes).CopyToAsync(originalBody);
-
+            
             context.Response.Body = originalBody;
         }
 

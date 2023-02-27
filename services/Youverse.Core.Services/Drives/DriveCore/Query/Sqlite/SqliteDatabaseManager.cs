@@ -32,12 +32,13 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
 
     public StorageDrive Drive { get; init; }
 
-    public Task<(ulong, IEnumerable<Guid>)> GetModified(CallerContext callerContext, FileSystemType fileSystemType, FileQueryParams qp, QueryModifiedResultOptions options)
+    public Task<(ulong, IEnumerable<Guid>)> GetModified(DotYouContext dotYouContext, FileSystemType fileSystemType, FileQueryParams qp, QueryModifiedResultOptions options)
     {
-        Guard.Argument(callerContext, nameof(callerContext)).NotNull();
+        Guard.Argument(dotYouContext, nameof(dotYouContext)).NotNull();
+        var callerContext = dotYouContext.Caller;
 
         var requiredSecurityGroup = new IntRange(0, (int)callerContext.SecurityLevel);
-        var aclList = GetAcl(callerContext);
+        var aclList = GetAcl(dotYouContext);
         var cursor = new UnixTimeUtcUnique(options.Cursor);
 
         var results = _db.QueryModified(
@@ -60,13 +61,13 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
     }
 
 
-    public Task<(QueryBatchCursor, IEnumerable<Guid>)> GetBatch(CallerContext callerContext, FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options)
+    public Task<(QueryBatchCursor, IEnumerable<Guid>)> GetBatch(DotYouContext dotYouContext, FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options)
     {
-        Guard.Argument(callerContext, nameof(callerContext)).NotNull();
+        Guard.Argument(dotYouContext, nameof(dotYouContext)).NotNull();
+        
+        var securityRange = new IntRange(0, (int)dotYouContext.Caller.SecurityLevel);
 
-        var securityRange = new IntRange(0, (int)callerContext.SecurityLevel);
-
-        var aclList = GetAcl(callerContext);
+        var aclList = GetAcl(dotYouContext);
 
         var cursor = options.Cursor;
         var results = _db.QueryBatch(
@@ -89,14 +90,16 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
     }
 
 
-    private List<Guid> GetAcl(CallerContext callerContext)
+    private List<Guid> GetAcl(DotYouContext dotYouContext)
     {
+        var callerContext = dotYouContext.Caller;
+        
         var aclList = new List<Guid>();
         if (callerContext.IsOwner == false)
         {
             if (!callerContext.IsAnonymous)
             {
-                aclList.Add(callerContext.DotYouId.ToGuidIdentifier());
+                aclList.Add(dotYouContext.GetCallerOdinIdOrFail().ToHashId());
             }
 
             aclList.AddRange(callerContext.Circles?.Select(c => c.Value) ?? Array.Empty<Guid>());
@@ -122,12 +125,12 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
             return Task.CompletedTask;
         }
 
-        var sender = string.IsNullOrEmpty(metadata.SenderDotYouId) ? Array.Empty<byte>() : ((DotYouIdentity)metadata.SenderDotYouId).ToByteArray();
+        var sender = string.IsNullOrEmpty(metadata.SenderDotYouId) ? Array.Empty<byte>() : ((OdinId)metadata.SenderDotYouId).ToByteArray();
         var acl = new List<Guid>();
 
         acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles());
         var ids = header.ServerMetadata.AccessControlList.GetRequiredIdentities().Select(dotYouId =>
-            ((DotYouIdentity)dotYouId).ToGuidIdentifier()
+            ((OdinId)dotYouId).ToHashId()
         );
         acl.AddRange(ids.ToList());
 
@@ -218,17 +221,17 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         _db.Dispose();
     }
 
-    public void AddReaction(DotYouIdentity dotYouId, Guid fileId, string reaction)
+    public void AddReaction(OdinId dotYouId, Guid fileId, string reaction)
     {
-        _db.TblReactions.Insert(new ReactionsItem() { identity = dotYouId, postId = fileId, singleReaction = reaction } );
+        _db.TblReactions.Insert(new ReactionsItem() { identity = dotYouId, postId = fileId, singleReaction = reaction });
     }
 
-    public void DeleteReactions(DotYouIdentity dotYouId, Guid fileId)
+    public void DeleteReactions(OdinId dotYouId, Guid fileId)
     {
         _db.TblReactions.DeleteAllReactions(dotYouId, fileId);
     }
 
-    public void DeleteReaction(DotYouIdentity dotYouId, Guid fileId, string reaction)
+    public void DeleteReaction(OdinId dotYouId, Guid fileId, string reaction)
     {
         _db.TblReactions.Delete(dotYouId, fileId, reaction);
     }

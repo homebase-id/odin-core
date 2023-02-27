@@ -51,7 +51,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         public async Task TransientFileIsDeletedAfterSending()
         {
             int someFiletype = 3892;
-            var instructionSet = UploadInstructionSet.WithRecipients(TargetDrive.NewTargetDrive(), TestIdentities.Merry.DotYouId);
+            var instructionSet = UploadInstructionSet.WithRecipients(TargetDrive.NewTargetDrive(), TestIdentities.Merry.OdinId);
             instructionSet.TransitOptions.IsTransient = true;
 
             var fileMetadata = new UploadFileMetadata()
@@ -127,7 +127,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         {
             int someFiletype = 39205;
 
-            var instructionSet = UploadInstructionSet.WithRecipients(TargetDrive.NewTargetDrive(), TestIdentities.Merry.DotYouId);
+            var instructionSet = UploadInstructionSet.WithRecipients(TargetDrive.NewTargetDrive(), TestIdentities.Merry.OdinId);
             instructionSet.TransitOptions.UseGlobalTransitId = true;
 
             var fileMetadata = new UploadFileMetadata()
@@ -227,7 +227,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
             int someFiletype = 89994;
 
-            var instructionSet = UploadInstructionSet.WithRecipients(TargetDrive.NewTargetDrive(), TestIdentities.Merry.DotYouId);
+            var instructionSet = UploadInstructionSet.WithRecipients(TargetDrive.NewTargetDrive(), TestIdentities.Merry.OdinId);
             instructionSet.TransitOptions.UseGlobalTransitId = true;
 
             var fileMetadata = new UploadFileMetadata()
@@ -305,7 +305,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         [Test(Description = "Setting both TransitOptions.IsTransient = true and TransitOptions.UseGlobalTransitId = true should fail")]
         public async Task FailToSendTransientFile_WithGlobalTransitId()
         {
-            var instructionSet = UploadInstructionSet.WithRecipients(TargetDrive.NewTargetDrive(), TestIdentities.Merry.DotYouId);
+            var instructionSet = UploadInstructionSet.WithRecipients(TargetDrive.NewTargetDrive(), TestIdentities.Merry.OdinId);
             instructionSet.TransitOptions.IsTransient = true;
             instructionSet.TransitOptions.UseGlobalTransitId = true;
 
@@ -333,7 +333,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             Guid fileTag = Guid.NewGuid();
 
             var senderCircleDef =
-                await _scaffold.OldOwnerApi.CreateCircleWithDrive(sender.DotYouId, "Sender Circle",
+                await _scaffold.OldOwnerApi.CreateCircleWithDrive(sender.OdinId, "Sender Circle",
                     permissionKeys: new List<int>() { },
                     drive: new PermissionedDrive()
                     {
@@ -342,7 +342,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     });
 
             var recipientCircleDef =
-                await _scaffold.OldOwnerApi.CreateCircleWithDrive(recipient.DotYouId, "Recipient Circle",
+                await _scaffold.OldOwnerApi.CreateCircleWithDrive(recipient.OdinId, "Recipient Circle",
                     permissionKeys: new List<int>() { },
                     drive: new PermissionedDrive()
                     {
@@ -350,7 +350,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                         Permission = DrivePermission.ReadWrite
                     });
 
-            await _scaffold.OldOwnerApi.CreateConnection(sender.DotYouId, recipient.DotYouId,
+            await _scaffold.OldOwnerApi.CreateConnection(sender.OdinId, recipient.OdinId,
                 createConnectionOptions: new CreateConnectionOptions()
                 {
                     CircleIdsGrantedToRecipient = new List<GuidId>() { senderCircleDef.Id },
@@ -371,7 +371,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
                 TransitOptions = new TransitOptions()
                 {
-                    Recipients = new List<string>() { recipient.DotYouId },
+                    Recipients = new List<string>() { recipient.OdinId },
                     Schedule = ScheduleOptions.SendNowAwaitResponse
                 }
             };
@@ -594,7 +594,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             keyHeader.AesKey.Wipe();
             key.Wipe();
 
-            await _scaffold.OldOwnerApi.DisconnectIdentities(sender.DotYouId, recipientContext.Identity);
+            await _scaffold.OldOwnerApi.DisconnectIdentities(sender.OdinId, recipientContext.Identity);
         }
 
         [Test(Description = "")]
@@ -611,7 +611,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             Guid fileTag = Guid.NewGuid();
 
             var senderCircleDef =
-                await _scaffold.OldOwnerApi.CreateCircleWithDrive(sender.DotYouId, "Sender Circle",
+                await _scaffold.OldOwnerApi.CreateCircleWithDrive(sender.OdinId, "Sender Circle",
                     permissionKeys: new List<int>() { },
                     drive: new PermissionedDrive()
                     {
@@ -620,7 +620,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     });
 
             var recipientCircleDef =
-                await _scaffold.OldOwnerApi.CreateCircleWithDrive(recipient.DotYouId, "Recipient Circle",
+                await _scaffold.OldOwnerApi.CreateCircleWithDrive(recipient.OdinId, "Recipient Circle",
                     permissionKeys: new List<int>() { },
                     drive: new PermissionedDrive()
                     {
@@ -628,7 +628,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                         Permission = DrivePermission.ReadWrite
                     });
 
-            await _scaffold.OldOwnerApi.CreateConnection(sender.DotYouId, recipient.DotYouId,
+            await _scaffold.OldOwnerApi.CreateConnection(sender.OdinId, recipient.OdinId,
                 createConnectionOptions: new CreateConnectionOptions()
                 {
                     CircleIdsGrantedToRecipient = new List<GuidId>() { senderCircleDef.Id },
@@ -649,7 +649,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
                 TransitOptions = new TransitOptions()
                 {
-                    Recipients = new List<string>() { recipient.DotYouId }
+                    Recipients = new List<string>() { recipient.OdinId }
                 }
             };
 
@@ -729,7 +729,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 }
             }
 
-            await _scaffold.OldOwnerApi.ProcessOutbox(sender.DotYouId);
+            await _scaffold.OldOwnerApi.ProcessOutbox(sender.OdinId);
 
             using (var client = _scaffold.AppApi.CreateAppApiHttpClient(recipientContext))
             {
@@ -874,7 +874,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             keyHeader.AesKey.Wipe();
             key.Wipe();
 
-            await _scaffold.OldOwnerApi.DisconnectIdentities(sender.DotYouId, recipientContext.Identity);
+            await _scaffold.OldOwnerApi.DisconnectIdentities(sender.OdinId, recipientContext.Identity);
         }
 
         // [Test(Description = "Updates a thumbnail")]

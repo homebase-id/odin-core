@@ -44,7 +44,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         [HttpPost("pending/single")]
         public async Task<ConnectionRequestResponse> GetPendingRequest([FromBody] DotYouIdRequest sender)
         {
-            var result = await _requestService.GetPendingRequest((DotYouIdentity)sender.DotYouId);
+            var result = await _requestService.GetPendingRequest((OdinId)sender.DotYouId);
 
             if (result == null)
             {
@@ -77,7 +77,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         [HttpPost("pending/delete")]
         public async Task<bool> DeletePendingRequest([FromBody] DotYouIdRequest sender)
         {
-            await _requestService.DeletePendingRequest((DotYouIdentity)sender.DotYouId);
+            await _requestService.DeletePendingRequest((OdinId)sender.DotYouId);
             return true;
         }
 
@@ -105,7 +105,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         [HttpPost("sent/single")]
         public async Task<ConnectionRequestResponse> GetSentRequest([FromBody] DotYouIdRequest recipient)
         {
-            var result = await _requestService.GetSentRequest((DotYouIdentity)recipient.DotYouId);
+            var result = await _requestService.GetSentRequest((OdinId)recipient.DotYouId);
             if (result == null)
             {
                 this.HttpContext.Response.StatusCode = (int)HttpStatusCode.NotFound;
@@ -124,7 +124,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         [HttpPost("sent/delete")]
         public async Task<bool> DeleteSentRequest([FromBody] DotYouIdRequest recipient)
         {
-            await _requestService.DeleteSentRequest((DotYouIdentity)recipient.DotYouId);
+            await _requestService.DeleteSentRequest((OdinId)recipient.DotYouId);
             return true;
         }
 

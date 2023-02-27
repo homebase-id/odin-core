@@ -73,7 +73,7 @@ namespace Youverse.Core.Services.Registry
         /// <param name="registryId"></param>
         /// <param name="dotYouId"></param>
         /// <returns></returns>
-        public static X509Certificate2 GetSslCertificate(string rootPath, Guid registryId, DotYouIdentity dotYouId)
+        public static X509Certificate2 GetSslCertificate(string rootPath, Guid registryId, OdinId dotYouId)
         {
             if (!TestCertificateMemoryCache.TryGetCertificate(dotYouId, out var certificate))
             {
@@ -170,7 +170,7 @@ namespace Youverse.Core.Services.Registry
         //     }
         // }
 
-        public static Guid CalculateDomainId(DotYouIdentity input)
+        public static Guid CalculateDomainId(OdinId input)
         {
             return HashUtil.ReduceSHA256Hash(input);
         }

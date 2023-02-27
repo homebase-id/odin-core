@@ -15,7 +15,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         private const string root_path = OwnerApiPathConstants.CirclesV1 + "/connections";
 
         [Post(root_path + "/circles/list")]
-        Task<ApiResponse<IEnumerable<DotYouIdentity>>> GetCircleMembers([Body] GetCircleMembersRequest circleId);
+        Task<ApiResponse<IEnumerable<OdinId>>> GetCircleMembers([Body] GetCircleMembersRequest circleId);
         
         [Post(root_path + "/circles/add")]
         Task<ApiResponse<bool>> AddCircle([Body] AddCircleMembershipRequest request);

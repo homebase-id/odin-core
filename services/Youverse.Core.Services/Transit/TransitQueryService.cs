@@ -34,7 +34,7 @@ public class TransitQueryService
         _contextAccessor = contextAccessor;
     }
 
-    public async Task<QueryBatchResult> GetBatch(DotYouIdentity dotYouId, QueryBatchRequest request)
+    public async Task<QueryBatchResult> GetBatch(OdinId dotYouId, QueryBatchRequest request)
     {
         var (icr, httpClient) = await CreateClient(dotYouId);
         var queryBatchResponse = await httpClient.QueryBatch(request);
@@ -50,7 +50,7 @@ public class TransitQueryService
         };
     }
 
-    public async Task<SharedSecretEncryptedFileHeader> GetFileHeader(DotYouIdentity dotYouId, ExternalFileIdentifier file)
+    public async Task<SharedSecretEncryptedFileHeader> GetFileHeader(OdinId dotYouId, ExternalFileIdentifier file)
     {
         var (icr, httpClient) = await CreateClient(dotYouId);
         var response = await httpClient.GetFileHeader(file);
@@ -66,7 +66,7 @@ public class TransitQueryService
         return header;
     }
 
-    public async Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, bool payloadIsEncrypted, string decryptedContentType, Stream payload)> GetPayloadStream(DotYouIdentity dotYouId,
+    public async Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, bool payloadIsEncrypted, string decryptedContentType, Stream payload)> GetPayloadStream(OdinId dotYouId,
         ExternalFileIdentifier file)
     {
         var (icr, httpClient) = await CreateClient(dotYouId);
@@ -99,7 +99,7 @@ public class TransitQueryService
         return (ownerSharedSecretEncryptedKeyHeader, payloadIsEncrypted, decryptedContentType, stream);
     }
 
-    public async Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, bool payloadIsEncrypted, string decryptedContentType, Stream thumbnail)> GetThumbnail(DotYouIdentity dotYouId,
+    public async Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, bool payloadIsEncrypted, string decryptedContentType, Stream thumbnail)> GetThumbnail(OdinId dotYouId,
         ExternalFileIdentifier file,
         int width, int height)
     {
@@ -139,7 +139,7 @@ public class TransitQueryService
         return (ownerSharedSecretEncryptedKeyHeader, payloadIsEncrypted, decryptedContentType, stream);
     }
 
-    public async Task<IEnumerable<PerimeterDriveData>> GetDrivesByType(DotYouIdentity dotYouId, Guid driveType)
+    public async Task<IEnumerable<PerimeterDriveData>> GetDrivesByType(OdinId dotYouId, Guid driveType)
     {
         var (icr, httpClient) = await CreateClient(dotYouId);
         var response = await httpClient.GetDrives(new GetDrivesByTypeRequest()
@@ -156,7 +156,7 @@ public class TransitQueryService
         return response.Content;
     }
 
-    private async Task<(IdentityConnectionRegistration, ITransitHostHttpClient)> CreateClient(DotYouIdentity dotYouId)
+    private async Task<(IdentityConnectionRegistration, ITransitHostHttpClient)> CreateClient(OdinId dotYouId)
     {
         var icr = await _circleNetworkService.GetIdentityConnectionRegistration(dotYouId);
         var httpClient = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(dotYouId, icr.CreateClientAuthToken());

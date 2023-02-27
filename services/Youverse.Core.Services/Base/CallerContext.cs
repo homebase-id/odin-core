@@ -15,7 +15,7 @@ namespace Youverse.Core.Services.Base
     {
         private readonly SensitiveByteArray _masterKey;
 
-        public CallerContext(DotYouIdentity dotYouId, SensitiveByteArray masterKey, SecurityGroupType securityLevel, List<GuidId> circleIds = null, ClientTokenType tokenType = ClientTokenType.Other)
+        public CallerContext(OdinId? dotYouId, SensitiveByteArray masterKey, SecurityGroupType securityLevel, List<GuidId> circleIds = null, ClientTokenType tokenType = ClientTokenType.Other)
         {
             this.DotYouId = dotYouId;
             this._masterKey = masterKey;
@@ -34,9 +34,9 @@ namespace Youverse.Core.Services.Base
         public IEnumerable<GuidId> Circles { get; set; }
 
         /// <summary>
-        /// Specifies the <see cref="DotYouIdentity"/> of the individual calling the API
+        /// Specifies the <see cref="OdinId"/> of the individual calling the API
         /// </summary>
-        public DotYouIdentity DotYouId { get; }
+        public OdinId? DotYouId { get; }
 
         public bool HasMasterKey
         {

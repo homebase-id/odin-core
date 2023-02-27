@@ -7,7 +7,7 @@ namespace Youverse.Core.Services.Transit
 {
     public class SendResult
     {
-        public DotYouIdentity Recipient { get; set; }
+        public OdinId Recipient { get; set; }
         public bool Success { get; set; }
 
         /// <summary>

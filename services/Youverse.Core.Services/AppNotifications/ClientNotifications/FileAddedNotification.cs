@@ -8,7 +8,7 @@ namespace Youverse.Core.Services.AppNotifications.ClientNotifications
     {
         public ClientNotificationType NotificationType { get; } = ClientNotificationType.FileAdded;
 
-        public DotYouIdentity Sender { get; set; }
+        public OdinId Sender { get; set; }
 
         public ExternalFileIdentifier TempFile { get; set; }
 

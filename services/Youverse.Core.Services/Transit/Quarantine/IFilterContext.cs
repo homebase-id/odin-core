@@ -8,7 +8,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
     /// </summary>
     public interface IFilterContext
     {
-        DotYouIdentity Sender { get; init; }
+        OdinId Sender { get; init; }
         
         //TODO: what else is needed here?
     }

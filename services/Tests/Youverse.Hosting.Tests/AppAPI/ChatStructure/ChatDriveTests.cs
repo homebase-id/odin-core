@@ -32,8 +32,8 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
         [Test]
         public void CanXorMatchTwoIdentitiesRegardlessOfWhichStartsChat()
         {
-            var frodoBytes = TestIdentities.Frodo.DotYouId.ToGuidIdentifier().ToByteArray();
-            var samBytes = TestIdentities.Samwise.DotYouId.ToGuidIdentifier().ToByteArray();
+            var frodoBytes = TestIdentities.Frodo.OdinId.ToHashId().ToByteArray();
+            var samBytes = TestIdentities.Samwise.OdinId.ToHashId().ToByteArray();
 
             var frodoFirst = ByteArrayUtil.EquiByteArrayXor(frodoBytes, samBytes);
             var samFirst = ByteArrayUtil.EquiByteArrayXor(samBytes, frodoBytes);
@@ -53,8 +53,8 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
         {
             var chatApps = await this.InitializeApps();
 
-            var samwiseChatApp = chatApps[TestIdentities.Samwise.DotYouId];
-            var merryChatApp = chatApps[TestIdentities.Merry.DotYouId];
+            var samwiseChatApp = chatApps[TestIdentities.Samwise.OdinId];
+            var merryChatApp = chatApps[TestIdentities.Merry.OdinId];
 
             const string firstMessageFromSam = "Prancing pony time, lezzgo! 🍺🍺🍺";
             const string firstReplyFromMerry = "Only if they have South Farthing to go with 😶‍🤫";
@@ -62,7 +62,7 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
             const string merryReaction = "💨";
 
             // Conversation started by sam
-            var samAndMerryConversation = await samwiseChatApp.ConversationDefinitionService.StartConversation((DotYouIdentity)merryChatApp.Identity);
+            var samAndMerryConversation = await samwiseChatApp.ConversationDefinitionService.StartConversation((OdinId)merryChatApp.Identity);
 
             //
             // Validate sam has conversation file

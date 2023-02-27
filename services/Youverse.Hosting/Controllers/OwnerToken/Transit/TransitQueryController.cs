@@ -45,7 +45,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         [HttpPost("batch")]
         public async Task<QueryBatchResponse> QueryBatch([FromBody] TransitQueryBatchRequest request)
         {
-            var batch = await _transitQueryService.GetBatch((DotYouIdentity)request.DotYouId, request);
+            var batch = await _transitQueryService.GetBatch((OdinId)request.DotYouId, request);
             return QueryBatchResponse.FromResult(batch);
         }
 
@@ -56,7 +56,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         [HttpPost("header")]
         public async Task<IActionResult> GetFileHeader([FromBody] TransitExternalFileIdentifier request)
         {
-            SharedSecretEncryptedFileHeader result = await _transitQueryService.GetFileHeader((DotYouIdentity)request.DotYouId, request.File);
+            SharedSecretEncryptedFileHeader result = await _transitQueryService.GetFileHeader((OdinId)request.DotYouId, request.File);
 
             if (null == result)
             {
@@ -80,7 +80,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         [HttpPost("payload")]
         public async Task<IActionResult> GetPayloadStream([FromBody] TransitExternalFileIdentifier request)
         {
-            var (encryptedKeyHeader, payloadIsEncrypted, decryptedContentType, payload) = await _transitQueryService.GetPayloadStream((DotYouIdentity)request.DotYouId, request.File);
+            var (encryptedKeyHeader, payloadIsEncrypted, decryptedContentType, payload) = await _transitQueryService.GetPayloadStream((OdinId)request.DotYouId, request.File);
 
             if (payload == Stream.Null)
             {
@@ -108,7 +108,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         public async Task<IActionResult> GetThumbnail([FromBody] TransitGetThumbRequest request)
         {
             var (encryptedKeyHeader, payloadIsEncrypted, decryptedContentType, thumb) =
-                await _transitQueryService.GetThumbnail((DotYouIdentity)request.DotYouId, request.File, request.Width, request.Height);
+                await _transitQueryService.GetThumbnail((OdinId)request.DotYouId, request.File, request.Width, request.Height);
 
             if (thumb == Stream.Null)
             {
@@ -125,7 +125,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         [HttpPost("metadata/type")]
         public async Task<PagedResult<ClientDriveData>> GetDrivesByType([FromBody] TransitGetDrivesByTypeRequest request)
         {
-            var drives = await _transitQueryService.GetDrivesByType((DotYouIdentity)request.DotYouId, request.DriveType);
+            var drives = await _transitQueryService.GetDrivesByType((OdinId)request.DotYouId, request.DriveType);
             var clientDriveData = drives.Select(drive =>
                 new ClientDriveData()
                 {

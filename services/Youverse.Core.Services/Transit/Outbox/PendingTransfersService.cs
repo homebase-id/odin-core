@@ -34,7 +34,7 @@ namespace Youverse.Core.Services.Transit.Outbox
             _db?.Dispose();
         }
 
-        public void EnsureIdentityIsPending(DotYouIdentity sender)
+        public void EnsureIdentityIsPending(OdinId sender)
         {
             //Note: I use sender here because boxId has a unique constraint; and we only a sender in this table once.
             //I swallow the exception because there's no direct way to see if a record exists for this sender already
@@ -43,7 +43,7 @@ namespace Youverse.Core.Services.Transit.Outbox
             try
             {
                 // _db.tblOutbox.InsertRow(sender.ToGuidIdentifier().ToByteArray(), fileId, 0, sender.Id.ToLower().ToUtf8ByteArray());
-                _db.tblOutbox.Insert(new OutboxItem() { boxId = sender.ToGuidIdentifier(), fileId = fileId, recipient = sender.Id.ToLower(), priority = 0, value = sender.Id.ToLower().ToUtf8ByteArray() });
+                _db.tblOutbox.Insert(new OutboxItem() { boxId = sender.ToHashId(), fileId = fileId, recipient = sender.Id.ToLower(), priority = 0, value = sender.Id.ToLower().ToUtf8ByteArray() });
             }
             catch (System.Data.SQLite.SQLiteException ex)
             {
@@ -56,11 +56,11 @@ namespace Youverse.Core.Services.Transit.Outbox
             }
         }
 
-        public async Task<(IEnumerable<DotYouIdentity>, Guid marker)> GetIdentities()
+        public async Task<(IEnumerable<OdinId>, Guid marker)> GetIdentities()
         {
             var records = _db.tblOutbox.PopAll(out var marker);
 
-            var senders = records.Select(item => new DotYouIdentity(item.value.ToStringFromUtf8Bytes())).ToList();
+            var senders = records.Select(item => new OdinId(item.value.ToStringFromUtf8Bytes())).ToList();
 
             return (senders, marker);
         }

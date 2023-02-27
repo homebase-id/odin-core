@@ -126,7 +126,7 @@ namespace Youverse.Core.Services.Transit.Outbox
                 var state = DotYouSystemSerializer.Deserialize<OutboxItemState>(r.value.ToStringFromUtf8Bytes());
                 return new TransitOutboxItem()
                 {
-                    Recipient = (DotYouIdentity)state!.Recipient,
+                    Recipient = (OdinId)state!.Recipient,
                     IsTransientFile = state!.IsTransientFile,
                     Priority = (int)r.priority,
                     AddedTimestamp = r.timeStamp.seconds,
@@ -145,7 +145,7 @@ namespace Youverse.Core.Services.Transit.Outbox
             return items.ToList();
         }
 
-        public Task Remove(DotYouIdentity recipient, InternalDriveFileId file)
+        public Task Remove(OdinId recipient, InternalDriveFileId file)
         {
             //TODO: need to make a better queue here
             throw new NotImplementedException("Sqllite outbox needs ability to query by recipient");

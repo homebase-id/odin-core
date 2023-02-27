@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Youverse.Core.Cryptography;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
@@ -37,7 +38,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Notification
             }
         }
 
-        public async Task<SendNotificationResult> SendNotification(DotYouIdentity recipient, CircleNetworkNotification notification)
+        public async Task<SendNotificationResult> SendNotification(OdinId recipient, CircleNetworkNotification notification)
         {
             var payload = await this.Encrypt(recipient, notification);
 
@@ -50,10 +51,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Notification
                 Status = status
             };
         }
-        
+
         public async Task ReceiveNotification(SharedSecretEncryptedNotification encryptedNotification)
         {
-            var sender = _contextAccessor.GetCurrent().Caller.DotYouId;
+            var sender = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
 
             var notification = await this.Decrypt(sender, encryptedNotification);
 
@@ -73,16 +74,16 @@ namespace Youverse.Core.Services.Contacts.Circle.Notification
             }
         }
 
-        private async Task<CircleNetworkNotification> Decrypt(DotYouIdentity sender, SharedSecretEncryptedNotification encryptedNotification)
+        private async Task<CircleNetworkNotification> Decrypt(OdinId sender, SharedSecretEncryptedNotification encryptedNotification)
         {
             var sharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
-            
+
             var jsonBytes = Cryptography.Crypto.AesCbc.Decrypt(encryptedNotification.Data, ref sharedSecret, encryptedNotification.InitializationVector);
             var json = jsonBytes.ToStringFromUtf8Bytes();
             return DotYouSystemSerializer.Deserialize<CircleNetworkNotification>(json);
         }
 
-        private async Task<SharedSecretEncryptedNotification> Encrypt(DotYouIdentity recipient, object notification)
+        private async Task<SharedSecretEncryptedNotification> Encrypt(OdinId recipient, object notification)
         {
             var identityReg = await _circleNetworkService.GetIdentityConnectionRegistration(recipient);
             var sharedSecret = identityReg.ClientAccessTokenSharedSecret.ToSensitiveByteArray();

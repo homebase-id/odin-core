@@ -14,7 +14,7 @@ namespace Youverse.Core.Services.Base
         /// <summary>
         /// Specifies the DotYouId of the host
         /// </summary>
-        public DotYouIdentity HostDotYouId { get; private set; }
+        public OdinId HostDotYouId { get; private set; }
 
         /// <summary>
         /// The root path for data
@@ -56,7 +56,7 @@ namespace Youverse.Core.Services.Base
         public void Update(Guid registrationId, string tenantHostName, string rootPath, CertificateRenewalConfig certificateRenewalConfig, Guid? firstRunToken, bool isPreconfigured)
         {
             this.DotYouRegistryId = registrationId;
-            this.HostDotYouId = (DotYouIdentity)tenantHostName;
+            this.HostDotYouId = (OdinId)tenantHostName;
 
             this.CertificateRenewalConfig = certificateRenewalConfig;
             this.DataRoot = Path.Combine(rootPath, DotYouRegistryId.ToString());

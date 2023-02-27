@@ -40,7 +40,7 @@ namespace Youverse.Core.Services.Drives.Base
             AssertCanReadDrive(driveId);
             if (TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
-                var (updatedCursor, fileIdList) = await queryManager.GetModified(ContextAccessor.GetCurrent().Caller, GetFileSystemType(), qp, options);
+                var (updatedCursor, fileIdList) = await queryManager.GetModified(ContextAccessor.GetCurrent(), GetFileSystemType(), qp, options);
                 var headers = await CreateClientFileHeaders(driveId, fileIdList, options);
 
                 //TODO: can we put a stop cursor and update time on this too?  does that make any sense? probably not
@@ -61,7 +61,7 @@ namespace Youverse.Core.Services.Drives.Base
 
             if (TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
-                var (cursor, fileIdList) = await queryManager.GetBatch(ContextAccessor.GetCurrent().Caller,
+                var (cursor, fileIdList) = await queryManager.GetBatch(ContextAccessor.GetCurrent(),
                     GetFileSystemType(),
                     qp,
                     options);

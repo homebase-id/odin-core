@@ -106,7 +106,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
     public class RedactedIdentityConnectionRegistration
     {
-        public DotYouIdentity DotYouId { get; set; }
+        public OdinId DotYouId { get; set; }
 
         public ConnectionStatus Status { get; set; }
 

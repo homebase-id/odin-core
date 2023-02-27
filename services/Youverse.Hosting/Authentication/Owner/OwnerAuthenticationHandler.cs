@@ -94,7 +94,7 @@ namespace Youverse.Hosting.Authentication.Owner
             // this is justified because we're heading down the owner api path
             // just below this, we check to see if the token was good.  if not, the call fails.
             dotYouContext.Caller = new CallerContext(
-                dotYouId:(DotYouIdentity) Request.Host.Host,
+                dotYouId:(OdinId) Request.Host.Host,
                 masterKey: null,
                 securityLevel: SecurityGroupType.Owner);
             

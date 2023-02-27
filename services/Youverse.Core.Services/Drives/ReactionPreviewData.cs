@@ -7,6 +7,8 @@ public class ReactionPreviewData
     public List<EmojiReactionPreview> Reactions { get; set; } = new();
 
     public List<CommentPreview> Comments { get; set; } = new();
+    
+    public int TotalCommentCount { get; set; }
 }
 
 public class EmojiReactionPreview
@@ -20,5 +22,8 @@ public class CommentPreview
     public string DotYouId { get; set; }
     
     public string JsonContent { get; set; }
+    
     public List<EmojiReactionPreview> Reactions { get; set; } = new();
+    public ulong Created { get; set; }
+    public ulong Updated { get; set; }
 }

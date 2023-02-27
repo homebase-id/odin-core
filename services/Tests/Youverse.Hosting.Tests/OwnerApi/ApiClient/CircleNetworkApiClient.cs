@@ -81,7 +81,7 @@ public class CircleNetworkApiClient
 
             var header = new AcceptRequestHeader()
             {
-                Sender = sender.DotYouId,
+                Sender = sender.OdinId,
                 CircleIds = circleIdsGrantedToSender,
                 ContactData = _identity.ContactData
             };
@@ -93,7 +93,7 @@ public class CircleNetworkApiClient
 
     public async Task SendConnectionRequest(TestIdentity recipient, IEnumerable<GuidId> circlesGrantedToRecipient)
     {
-        if (!TestIdentities.All.TryGetValue(recipient.DotYouId, out var recipientIdentity))
+        if (!TestIdentities.All.TryGetValue(recipient.OdinId, out var recipientIdentity))
         {
             throw new NotImplementedException("need to add your recipient to the list of identities");
         }
@@ -107,7 +107,7 @@ public class CircleNetworkApiClient
             var requestHeader = new ConnectionRequestHeader()
             {
                 Id = id,
-                Recipient = recipient.DotYouId,
+                Recipient = recipient.OdinId,
                 Message = "Please add me",
                 ContactData = recipientIdentity.ContactData,
                 CircleIds = circlesGrantedToRecipient.ToList()
@@ -125,9 +125,9 @@ public class CircleNetworkApiClient
         using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
         {
             var disconnectResponse = await RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret)
-                .Disconnect(new DotYouIdRequest() { DotYouId = recipient.DotYouId });
+                .Disconnect(new DotYouIdRequest() { DotYouId = recipient.OdinId });
             Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
-            await AssertConnectionStatus(client, ownerSharedSecret, recipient.DotYouId, ConnectionStatus.None);
+            await AssertConnectionStatus(client, ownerSharedSecret, recipient.OdinId, ConnectionStatus.None);
         }
     }
 
@@ -136,7 +136,7 @@ public class CircleNetworkApiClient
         using (var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
         {
             var connectionsService = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
-            var existingConnectionInfo = await connectionsService.GetConnectionInfo(new DotYouIdRequest() { DotYouId = recipient.DotYouId });
+            var existingConnectionInfo = await connectionsService.GetConnectionInfo(new DotYouIdRequest() { DotYouId = recipient.OdinId });
             if (existingConnectionInfo.IsSuccessStatusCode && existingConnectionInfo.Content != null && existingConnectionInfo.Content.Status == ConnectionStatus.Connected)
             {
                 return true;
@@ -154,7 +154,7 @@ public class CircleNetworkApiClient
             var apiResponse = await svc.AddCircle(new AddCircleMembershipRequest()
             {
                 CircleId = circleId,
-                DotYouId = recipient.DotYouId
+                DotYouId = recipient.OdinId
             });
 
             Assert.IsTrue(apiResponse.IsSuccessStatusCode, $"Actual status code {apiResponse.StatusCode}");
@@ -169,7 +169,7 @@ public class CircleNetworkApiClient
             var apiResponse = await svc.RevokeCircle(new RevokeCircleMembershipRequest()
             {
                 CircleId = circleId,
-                DotYouId = recipient.DotYouId
+                DotYouId = recipient.OdinId
             });
 
             Assert.IsTrue(apiResponse.IsSuccessStatusCode, $"Actual status code {apiResponse.StatusCode}");
@@ -194,10 +194,10 @@ public class CircleNetworkApiClient
         using (var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
         {
             var connectionsService = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
-            var apiResponse = await connectionsService.GetConnectionInfo(new DotYouIdRequest() { DotYouId = recipient.DotYouId });
+            var apiResponse = await connectionsService.GetConnectionInfo(new DotYouIdRequest() { DotYouId = recipient.OdinId });
 
-            Assert.IsTrue(apiResponse.IsSuccessStatusCode, $"Failed to get status for {recipient.DotYouId}.  Status code was {apiResponse.StatusCode}");
-            Assert.IsNotNull(apiResponse.Content, $"No status for {recipient.DotYouId} found");
+            Assert.IsTrue(apiResponse.IsSuccessStatusCode, $"Failed to get status for {recipient.OdinId}.  Status code was {apiResponse.StatusCode}");
+            Assert.IsNotNull(apiResponse.Content, $"No status for {recipient.OdinId} found");
             return apiResponse.Content;
         }
     }

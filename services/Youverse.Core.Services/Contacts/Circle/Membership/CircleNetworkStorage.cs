@@ -31,7 +31,7 @@ public class CircleNetworkStorage : IDisposable
         _storage = new SingleKeyValueStorage(_db.tblKeyValue);
     }
 
-    public IdentityConnectionRegistration Get(DotYouIdentity dotYouId)
+    public IdentityConnectionRegistration Get(OdinId dotYouId)
     {
         var list = this.GetDictionary().Values;
         return list.SingleOrDefault(icr => icr.DotYouId == dotYouId);
@@ -43,7 +43,7 @@ public class CircleNetworkStorage : IDisposable
 
         lock (_sync)
         {
-            var id64 = icr.DotYouId.ToGuidIdentifier().ToByteArray().ToBase64();
+            var id64 = icr.DotYouId.ToHashId().ToByteArray().ToBase64();
             if (!list.TryAdd(id64, icr))
             {
                 list[id64] = icr;

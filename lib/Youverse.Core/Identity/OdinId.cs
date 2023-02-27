@@ -8,8 +8,8 @@ namespace Youverse.Core.Identity
     /// <summary>
     /// Holds the identity for an individual using the dotYou platform
     /// </summary>
-    [JsonConverter(typeof(DotYouIdentityConverter))]
-    public readonly struct DotYouIdentity
+    [JsonConverter(typeof(OdinIdConverter))]
+    public readonly struct OdinId
     {
         private readonly string _identifier;
         private readonly Guid _hash;
@@ -19,13 +19,13 @@ namespace Youverse.Core.Identity
         /// </summary>
         /// <param name="identifier">The domain name (ASCII 127) as per the RFC</param>
         /// <exception cref="ArgumentNullException"></exception>
-        public DotYouIdentity(string identifier)
+        public OdinId(string identifier)
         {
             if (identifier == null) 
                 throw new ArgumentNullException(nameof(identifier));
 
             var s = identifier?.ToLower().Trim();
-            DomainNameValidator.TryValidateDomain(s);
+            DomainNameValidator.AssertValidDomain(s);
 
             _identifier = s;
 
@@ -39,31 +39,31 @@ namespace Youverse.Core.Identity
         {
             return this._hash != Guid.Empty;
         }
-        public static bool operator ==(DotYouIdentity d1, DotYouIdentity d2)
+        public static bool operator ==(OdinId d1, OdinId d2)
         {
-            return d1.ToGuidIdentifier() == d2.ToGuidIdentifier();
+            return d1.ToHashId() == d2.ToHashId();
         }
 
-        public static bool operator !=(DotYouIdentity d1, DotYouIdentity d2) => !(d1 == d2);
+        public static bool operator !=(OdinId d1, OdinId d2) => !(d1 == d2);
 
-        public static implicit operator string(DotYouIdentity dy)
+        public static implicit operator string(OdinId dy)
         {
             return dy._identifier;
         }
 
-        public static explicit operator DotYouIdentity(string id)
+        public static explicit operator OdinId(string id)
         {
-            return new DotYouIdentity(id);
+            return new OdinId(id);
         }
 
-        public static implicit operator Guid(DotYouIdentity dotYouId)
+        public static implicit operator Guid(OdinId dotYouId)
         {
-            return dotYouId.ToGuidIdentifier();
+            return dotYouId.ToHashId();
         }
 
         public override bool Equals(object obj)
         {
-            var d2 = (DotYouIdentity)obj;
+            var d2 = (OdinId)obj;
             return this == d2;
         }
 
@@ -81,7 +81,7 @@ namespace Youverse.Core.Identity
         /// Returns an UniqueId of this DotYouIdentity using a hash to converted to a Guid.  The value is converted to lower case before calculating the hash.
         /// </summary>
         /// <returns></returns>
-        public Guid ToGuidIdentifier()
+        public Guid ToHashId()
         {
             return this._hash;
         }
@@ -92,14 +92,14 @@ namespace Youverse.Core.Identity
             return key;
         }
 
-        public static DotYouIdentity FromByteArray(byte[] id)
+        public static OdinId FromByteArray(byte[] id)
         {
-            return new DotYouIdentity(id.ToStringFromUtf8Bytes());
+            return new OdinId(id.ToStringFromUtf8Bytes());
         }
 
         public static void Validate(string dotYouId)
         {
-            DomainNameValidator.TryValidateDomain(dotYouId);
+            DomainNameValidator.AssertValidDomain(dotYouId);
         }
     }
 }

@@ -58,7 +58,7 @@ public class NotificationsTest
         // Create a device use the app
         //
         var (deviceClientAuthToken, deviceSharedSecret) =
-            await _scaffold.OldOwnerApi.AddAppClient(identity.DotYouId, appId);
+            await _scaffold.OldOwnerApi.AddAppClient(identity.OdinId, appId);
 
         // Connect the drive to websockets
         // use the client auth token
@@ -66,14 +66,14 @@ public class NotificationsTest
         socket.Options.Cookies = new CookieContainer();
 
         var cookie = new Cookie(ClientTokenConstants.ClientAuthTokenCookieName, deviceClientAuthToken.ToString());
-        cookie.Domain = identity.DotYouId;
+        cookie.Domain = identity.OdinId;
         socket.Options.Cookies.Add(cookie);
         CancellationTokenSource tokenSource = new CancellationTokenSource();
 
         //
         // Connect to the socket
         //
-        var uri = new Uri($"wss://{identity.DotYouId}{AppApiPathConstants.NotificationsV1}/ws");
+        var uri = new Uri($"wss://{identity.OdinId}{AppApiPathConstants.NotificationsV1}/ws");
         await socket.ConnectAsync(uri, tokenSource.Token);
 
         //
@@ -126,7 +126,7 @@ public class NotificationsTest
         // Create a device use the app
         //
         var (deviceClientAuthToken, deviceSharedSecret) =
-            await _scaffold.OldOwnerApi.AddAppClient(identity.DotYouId, appId);
+            await _scaffold.OldOwnerApi.AddAppClient(identity.OdinId, appId);
 
         // Connect the drive to websockets
         // use the client auth token
@@ -134,14 +134,14 @@ public class NotificationsTest
         socket.Options.Cookies = new CookieContainer();
 
         var cookie = new Cookie(ClientTokenConstants.ClientAuthTokenCookieName, deviceClientAuthToken.ToString());
-        cookie.Domain = identity.DotYouId;
+        cookie.Domain = identity.OdinId;
         socket.Options.Cookies.Add(cookie);
         CancellationTokenSource tokenSource = new CancellationTokenSource();
 
         //
         // Connect to the socket
         //
-        var uri = new Uri($"wss://{identity.DotYouId}{AppApiPathConstants.NotificationsV1}/ws");
+        var uri = new Uri($"wss://{identity.OdinId}{AppApiPathConstants.NotificationsV1}/ws");
         await socket.ConnectAsync(uri, tokenSource.Token);
 
         //

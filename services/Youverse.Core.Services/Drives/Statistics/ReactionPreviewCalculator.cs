@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
@@ -50,7 +51,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
         //         throw new ArgumentOutOfRangeException();
         // }
         //
-        
+
         //TODO: handle when the reference file is deleted
         // therefore I need a way to determine all files that reference this one.
 
@@ -67,16 +68,18 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
 
         //TODO: handle encrypted content?
 
+        //Always increment even if we don't store the contents
+        reactionPreview.TotalCommentCount += 1;
+
         if (reactionPreview.Comments.Count > 3)
         {
             return;
         }
-
-        //TODO: Build in limits, etc.
-
-
+        
         reactionPreview.Comments.Add(new CommentPreview()
         {
+            Created = serverFileHeader.FileMetadata.Created,
+            Updated = serverFileHeader.FileMetadata.Updated,
             DotYouId = _contextAccessor.GetCurrent().Caller.DotYouId,
             JsonContent = serverFileHeader.FileMetadata.AppData.JsonContent,
             Reactions = new List<EmojiReactionPreview>()
