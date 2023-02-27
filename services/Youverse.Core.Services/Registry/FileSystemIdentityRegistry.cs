@@ -118,7 +118,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         }
 
         //the other option here is to load the certs via the registry, which i dont like
-        var svc = SystemHttpClient.CreateHttps<ICertificateStatusHttpClient>((OdinId)registration.PrimaryDomainName);
+        var svc = SystemHttpClient.CreateHttps<ICertificateStatusHttpClient>((DotYouIdentity)registration.PrimaryDomainName);
         try
         {
             var certsValidResponse = await svc.VerifyCertificatesValid();
@@ -178,7 +178,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     {
         try
         {
-            var svc = SystemHttpClient.CreateHttps<ICertificateStatusHttpClient>((OdinId)domain);
+            var svc = SystemHttpClient.CreateHttps<ICertificateStatusHttpClient>((DotYouIdentity)domain);
             var response = await svc.EnsureValidCertificates();
             await response.EnsureSuccessStatusCodeAsync();
         }
@@ -283,7 +283,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     {
         try
         {
-            var svc = SystemHttpClient.CreateHttp<ICertificateStatusHttpClient>((OdinId)domain);
+            var svc = SystemHttpClient.CreateHttp<ICertificateStatusHttpClient>((DotYouIdentity)domain);
             var response = await svc.InitializeCertificate();
             await response.EnsureSuccessStatusCodeAsync();
         }

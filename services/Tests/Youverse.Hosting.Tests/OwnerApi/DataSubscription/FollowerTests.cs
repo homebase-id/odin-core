@@ -39,7 +39,7 @@ public class FollowerTests
         // Frodo should have sam
         var frodoFollows = await frodoOwnerClient.Follower.GetIdentitiesIFollow(string.Empty);
         Assert.IsTrue(frodoFollows.Results.Count() == 1, "frodo should only follow sam");
-        Assert.IsTrue(new OdinId(frodoFollows.Results.Single()) == samOwnerClient.Identity.DotYouId);
+        Assert.IsTrue(new DotYouIdentity(frodoFollows.Results.Single()) == samOwnerClient.Identity.DotYouId);
 
         var followingFrodo = await frodoOwnerClient.Follower.GetIdentitiesFollowingMe(string.Empty);
         Assert.IsTrue(!followingFrodo.Results.Any());
@@ -47,7 +47,7 @@ public class FollowerTests
         //sam should have frodo
         var followingSam = await samOwnerClient.Follower.GetIdentitiesFollowingMe(string.Empty);
         Assert.IsTrue(followingSam.Results.Count() == 1, "Sam should have one follower; frodo");
-        Assert.IsTrue(new OdinId(followingSam.Results.Single()) == frodoOwnerClient.Identity.DotYouId);
+        Assert.IsTrue(new DotYouIdentity(followingSam.Results.Single()) == frodoOwnerClient.Identity.DotYouId);
 
         var samFollows = await samOwnerClient.Follower.GetIdentitiesIFollow(string.Empty);
         Assert.IsTrue(!samFollows.Results.Any(), "Sam should not be following anyone");
@@ -68,7 +68,7 @@ public class FollowerTests
         // Frodo should follow sam
         var frodoFollows = await frodoOwnerClient.Follower.GetIdentitiesIFollow(string.Empty);
         Assert.IsTrue(frodoFollows.Results.Count() == 1, "frodo should only follow sam");
-        Assert.IsTrue(new OdinId(frodoFollows.Results.Single()) == samOwnerClient.Identity.DotYouId);
+        Assert.IsTrue(new DotYouIdentity(frodoFollows.Results.Single()) == samOwnerClient.Identity.DotYouId);
 
         var followingFrodo = await frodoOwnerClient.Follower.GetIdentitiesFollowingMe(string.Empty);
         Assert.IsTrue(!followingFrodo.Results.Any());
@@ -76,7 +76,7 @@ public class FollowerTests
         //sam should have frodo as follow
         var followingSam = await samOwnerClient.Follower.GetIdentitiesFollowingMe(string.Empty);
         Assert.IsTrue(followingSam.Results.Count() == 1, "Sam should have one follower; frodo");
-        Assert.IsTrue(new OdinId(followingSam.Results.Single()) == frodoOwnerClient.Identity.DotYouId);
+        Assert.IsTrue(new DotYouIdentity(followingSam.Results.Single()) == frodoOwnerClient.Identity.DotYouId);
 
         //
         // Frodo to unfollow sam
@@ -85,11 +85,11 @@ public class FollowerTests
 
         //Frodo should follow no one
         var updatedFrodoFollows = await frodoOwnerClient.Follower.GetIdentitiesIFollow(string.Empty);
-        Assert.IsTrue(updatedFrodoFollows.Results.All(f => ((OdinId)f) == samOwnerClient.Identity.DotYouId), "Frodo should not follow Sam");
+        Assert.IsTrue(updatedFrodoFollows.Results.All(f => ((DotYouIdentity)f) == samOwnerClient.Identity.DotYouId), "Frodo should not follow Sam");
 
         //Sam should have no followers
         var updatedFollowingSam = await samOwnerClient.Follower.GetIdentitiesFollowingMe(string.Empty);
-        Assert.IsTrue(updatedFollowingSam.Results.All(f => ((OdinId)f) != frodoOwnerClient.Identity.DotYouId), "Sam should not follow Frodo");
+        Assert.IsTrue(updatedFollowingSam.Results.All(f => ((DotYouIdentity)f) != frodoOwnerClient.Identity.DotYouId), "Sam should not follow Frodo");
 
         //All done
         await frodoOwnerClient.Follower.UnfollowIdentity(samOwnerClient.Identity);
@@ -110,14 +110,14 @@ public class FollowerTests
         var pippinFollows = await pippinOwnerClient.Follower.GetIdentitiesIFollow(string.Empty);
 
         Assert.IsTrue(pippinFollows.Results.Count() == 2);
-        Assert.IsNotNull(pippinFollows.Results.SingleOrDefault(ident => ((OdinId)ident) == frodoOwnerClient.Identity.DotYouId), "Pippin should follow frodo");
-        Assert.IsNotNull(pippinFollows.Results.SingleOrDefault(ident => ((OdinId)ident) == samOwnerClient.Identity.DotYouId), "Pippin should follow Sam");
+        Assert.IsNotNull(pippinFollows.Results.SingleOrDefault(ident => ((DotYouIdentity)ident) == frodoOwnerClient.Identity.DotYouId), "Pippin should follow frodo");
+        Assert.IsNotNull(pippinFollows.Results.SingleOrDefault(ident => ((DotYouIdentity)ident) == samOwnerClient.Identity.DotYouId), "Pippin should follow Sam");
 
         var frodoFollows = await frodoOwnerClient.Follower.GetIdentitiesIFollow(string.Empty);
-        Assert.IsNull(frodoFollows.Results.SingleOrDefault(ident => ((OdinId)ident) == pippinOwnerClient.Identity.DotYouId), "Frodo should not follow Pippin");
+        Assert.IsNull(frodoFollows.Results.SingleOrDefault(ident => ((DotYouIdentity)ident) == pippinOwnerClient.Identity.DotYouId), "Frodo should not follow Pippin");
 
         var samFollows = await frodoOwnerClient.Follower.GetIdentitiesIFollow(string.Empty);
-        Assert.IsNull(samFollows.Results.SingleOrDefault(ident => ((OdinId)ident) == pippinOwnerClient.Identity.DotYouId), "Frodo should not follow Pippin");
+        Assert.IsNull(samFollows.Results.SingleOrDefault(ident => ((DotYouIdentity)ident) == pippinOwnerClient.Identity.DotYouId), "Frodo should not follow Pippin");
 
         // All done
         await pippinOwnerClient.Follower.UnfollowIdentity(frodoOwnerClient.Identity);
@@ -138,18 +138,18 @@ public class FollowerTests
         var pippinFollows = await pippinOwnerClient.Follower.GetIdentitiesFollowingMe(string.Empty);
 
         Assert.IsTrue(pippinFollows.Results.Count() == 2);
-        Assert.IsNotNull(pippinFollows.Results.SingleOrDefault(ident => ((OdinId)ident) == frodoOwnerClient.Identity.DotYouId), "Pippin should follow frodo");
-        Assert.IsNotNull(pippinFollows.Results.SingleOrDefault(ident => ((OdinId)ident) == samOwnerClient.Identity.DotYouId), "Pippin should follow Sam");
+        Assert.IsNotNull(pippinFollows.Results.SingleOrDefault(ident => ((DotYouIdentity)ident) == frodoOwnerClient.Identity.DotYouId), "Pippin should follow frodo");
+        Assert.IsNotNull(pippinFollows.Results.SingleOrDefault(ident => ((DotYouIdentity)ident) == samOwnerClient.Identity.DotYouId), "Pippin should follow Sam");
 
         var frodoFollows = await frodoOwnerClient.Follower.GetIdentitiesIFollow(string.Empty);
-        Assert.IsNotNull(frodoFollows.Results.SingleOrDefault(ident => ((OdinId)ident) == pippinOwnerClient.Identity.DotYouId), "Frodo should follow Pippin");
+        Assert.IsNotNull(frodoFollows.Results.SingleOrDefault(ident => ((DotYouIdentity)ident) == pippinOwnerClient.Identity.DotYouId), "Frodo should follow Pippin");
 
         var frodoFollowsPippin = await frodoOwnerClient.Follower.GetIdentityIFollow(pippinOwnerClient.Identity);
         Assert.IsNotNull(frodoFollowsPippin);
         Assert.IsTrue(frodoFollowsPippin.DotYouId == pippinOwnerClient.Identity.DotYouId);
 
         var samFollows = await frodoOwnerClient.Follower.GetIdentitiesIFollow(string.Empty);
-        Assert.IsNotNull(samFollows.Results.SingleOrDefault(ident => ((OdinId)ident) == pippinOwnerClient.Identity.DotYouId), "Sam should follow Pippin");
+        Assert.IsNotNull(samFollows.Results.SingleOrDefault(ident => ((DotYouIdentity)ident) == pippinOwnerClient.Identity.DotYouId), "Sam should follow Pippin");
 
         // All done
         await frodoOwnerClient.Follower.UnfollowIdentity(pippinOwnerClient.Identity);

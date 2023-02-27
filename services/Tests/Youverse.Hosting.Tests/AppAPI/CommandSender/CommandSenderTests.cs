@@ -50,7 +50,7 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
             var senderTestContext = scenarioCtx.AppContexts[TestIdentities.Frodo.DotYouId];
 
             //Setup the app on all recipient DIs
-            var recipientContexts = new Dictionary<OdinId, TestAppContext>()
+            var recipientContexts = new Dictionary<DotYouIdentity, TestAppContext>()
             {
                 { TestIdentities.Samwise.DotYouId, scenarioCtx.AppContexts[TestIdentities.Samwise.DotYouId] },
                 { TestIdentities.Merry.DotYouId, scenarioCtx.AppContexts[TestIdentities.Merry.DotYouId] },
@@ -149,7 +149,7 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
             await _scaffold.OldOwnerApi.DisconnectIdentities(TestIdentities.Pippin.DotYouId, TestIdentities.Merry.DotYouId);
         }
 
-        private async Task AssertCommandReceived(TestAppContext recipientAppContext, CommandMessage command, AppTransitTestUtilsContext originalFileSendResult, OdinId sender)
+        private async Task AssertCommandReceived(TestAppContext recipientAppContext, CommandMessage command, AppTransitTestUtilsContext originalFileSendResult, DotYouIdentity sender)
         {
             var drive = originalFileSendResult.UploadedFile.TargetDrive;
 
@@ -175,7 +175,7 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
                 Assert.IsFalse(receivedCommand.Id == Guid.Empty);
                 Assert.IsTrue(receivedCommand.ClientJsonMessage == command.JsonMessage, "received json message should match the sent message");
                 Assert.IsTrue(receivedCommand.ClientCode == command.Code);
-                Assert.IsTrue(((OdinId)receivedCommand.Sender) == sender);
+                Assert.IsTrue(((DotYouIdentity)receivedCommand.Sender) == sender);
                 var gtid = receivedCommand.GlobalTransitIdList.SingleOrDefault();
                 Assert.IsNotNull(gtid, "There should be only 1 GlobalTransitId returned");
                 Assert.IsTrue(gtid == originalFileSendResult.GlobalTransitId);

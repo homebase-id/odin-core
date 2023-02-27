@@ -75,7 +75,7 @@ namespace Youverse.Hosting.Tests.YouAuthApi.Drive
             }
         }
 
-        private async Task<UploadTestUtilsContext> UploadFile(OdinId identity, Guid tag, SecurityGroupType requiredSecurityGroup)
+        private async Task<UploadTestUtilsContext> UploadFile(DotYouIdentity identity, Guid tag, SecurityGroupType requiredSecurityGroup)
         {
             List<Guid> tags = new List<Guid>() { tag };
 

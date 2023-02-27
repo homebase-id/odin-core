@@ -18,11 +18,11 @@ public class DotYouContextCache
     private readonly int _ttlSeconds;
     private readonly IAppCache _dotYouContextCache;
     private readonly CancellationTokenSource _expiryTokenSource = new();
-    private readonly List<OdinId> _identitiesRequiringReset;
+    private readonly List<DotYouIdentity> _identitiesRequiringReset;
 
     public DotYouContextCache(int ttlSeconds = 60)
     {
-        _identitiesRequiringReset = new List<OdinId>();
+        _identitiesRequiringReset = new List<DotYouIdentity>();
         this._ttlSeconds = ttlSeconds;
         _dotYouContextCache = new CachingService();
     }
@@ -60,7 +60,7 @@ public class DotYouContextCache
         _expiryTokenSource.Cancel();
     }
 
-    public void EnqueueIdentityForReset(OdinId identity)
+    public void EnqueueIdentityForReset(DotYouIdentity identity)
     {
         throw new NotImplementedException();
         //todo: locking

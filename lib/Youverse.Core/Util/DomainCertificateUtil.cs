@@ -21,12 +21,12 @@ namespace Youverse.Core.Util
             ParseCertificate();
         }
 
-        public OdinId DotYouId { get; set; }
+        public DotYouIdentity DotYouId { get; set; }
 
         private void ParseCertificate()
         {
             using var cert = new X509Certificate2(Convert.FromBase64String(_certData));
-            this.DotYouId = (OdinId) CertificateUtils.GetDomainFromCommonName(cert.Subject);
+            this.DotYouId = (DotYouIdentity) CertificateUtils.GetDomainFromCommonName(cert.Subject);
         }
     }
 }

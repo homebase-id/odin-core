@@ -165,7 +165,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             return (result, ownerAuthenticationResult.SharedSecret.ToSensitiveByteArray());
         }
 
-        private async Task<OwnerAuthTokenContext> GetOwnerAuthContext(OdinId identity)
+        private async Task<OwnerAuthTokenContext> GetOwnerAuthContext(DotYouIdentity identity)
         {
             if (_ownerLoginTokens.TryGetValue(identity, out var context))
             {
@@ -175,7 +175,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             throw new Exception($"No token found for {identity}");
         }
 
-        public async Task SetupOwnerAccount(OdinId identity, bool initializeIdentity)
+        public async Task SetupOwnerAccount(DotYouIdentity identity, bool initializeIdentity)
         {
             const string password = "EnSøienØ";
             await this.ForceNewPassword(identity, password);
@@ -206,7 +206,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             return this.CreateOwnerApiHttpClient(identity.DotYouId, out sharedSecret, fileSystemType);
         }
 
-        public HttpClient CreateOwnerApiHttpClient(OdinId identity, out SensitiveByteArray sharedSecret, FileSystemType fileSystemType = FileSystemType.Standard)
+        public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity, out SensitiveByteArray sharedSecret, FileSystemType fileSystemType = FileSystemType.Standard)
         {
             var token = GetOwnerAuthContext(identity).ConfigureAwait(false).GetAwaiter().GetResult();
             var client = CreateOwnerApiHttpClient(identity, token.AuthenticationResult, token.SharedSecret, fileSystemType);
@@ -214,7 +214,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             return client;
         }
 
-        public HttpClient CreateOwnerApiHttpClient(OdinId identity, ClientAuthenticationToken token, SensitiveByteArray sharedSecret, FileSystemType fileSystemType)
+        public HttpClient CreateOwnerApiHttpClient(DotYouIdentity identity, ClientAuthenticationToken token, SensitiveByteArray sharedSecret, FileSystemType fileSystemType)
         {
             var cookieJar = new CookieContainer();
             cookieJar.Add(new Cookie(OwnerAuthConstants.CookieName, token.ToString(), null, identity));
@@ -232,7 +232,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             return client;
         }
 
-        public async Task<RedactedAppRegistration> AddAppWithAllDrivePermissions(OdinId identity,
+        public async Task<RedactedAppRegistration> AddAppWithAllDrivePermissions(DotYouIdentity identity,
             Guid appId,
             TargetDrive targetDrive,
             bool createDrive = false,
@@ -312,7 +312,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             }
         }
 
-        public async Task<(ClientAuthenticationToken clientAuthToken, byte[] sharedSecret)> AddAppClient(OdinId identity, Guid appId)
+        public async Task<(ClientAuthenticationToken clientAuthToken, byte[] sharedSecret)> AddAppClient(DotYouIdentity identity, Guid appId)
         {
             var rsa = new RsaFullKeyData(ref RsaKeyListManagement.zeroSensitiveKey, 1); // TODO
 
@@ -351,7 +351,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             }
         }
 
-        public async Task RevokeSampleApp(OdinId identity, Guid appId)
+        public async Task RevokeSampleApp(DotYouIdentity identity, Guid appId)
         {
             using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
@@ -361,7 +361,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             }
         }
 
-        public async Task UpdateAppAuthorizedCircles(OdinId identity, Guid appId, List<Guid> authorizedCircles, PermissionSetGrantRequest grant)
+        public async Task UpdateAppAuthorizedCircles(DotYouIdentity identity, Guid appId, List<Guid> authorizedCircles, PermissionSetGrantRequest grant)
         {
             using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
@@ -376,7 +376,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             }
         }
 
-        public async Task UpdateAppPermissions(OdinId identity, Guid appId, PermissionSetGrantRequest grant)
+        public async Task UpdateAppPermissions(DotYouIdentity identity, Guid appId, PermissionSetGrantRequest grant)
         {
             using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
@@ -434,7 +434,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
         /// Transfers a file using default file metadata
         /// </summary>
         /// <returns></returns>
-        public async Task<TransitTestUtilsContext> TransferFile(OdinId sender, List<string> recipients, TransitTestUtilsOptions options = null)
+        public async Task<TransitTestUtilsContext> TransferFile(DotYouIdentity sender, List<string> recipients, TransitTestUtilsOptions options = null)
         {
             // var transferIv = ByteArrayUtil.GetRndByteArray(16);
             //
@@ -517,7 +517,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
         {
         }
 
-        public async Task DisconnectIdentities(OdinId dotYouId1, OdinId dotYouId2)
+        public async Task DisconnectIdentities(DotYouIdentity dotYouId1, DotYouIdentity dotYouId2)
         {
             using (var client = this.CreateOwnerApiHttpClient(dotYouId1, out var ownerSharedSecret))
             {
@@ -534,7 +534,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             }
         }
 
-        public async Task ProcessOutbox(OdinId sender, int batchSize = 1)
+        public async Task ProcessOutbox(DotYouIdentity sender, int batchSize = 1)
         {
             using (var client = CreateOwnerApiHttpClient(sender, out var ownerSharedSecret))
             {
@@ -555,7 +555,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             Assert.IsTrue(response.Content.Status == expected, $"{dotYouId} status does not match {expected}");
         }
 
-        public async Task CreateConnection(OdinId sender, OdinId recipient, CreateConnectionOptions createConnectionOptions = null)
+        public async Task CreateConnection(DotYouIdentity sender, DotYouIdentity recipient, CreateConnectionOptions createConnectionOptions = null)
         {
             if (!TestIdentities.All.TryGetValue(sender, out var senderIdentity))
             {
@@ -605,7 +605,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             }
         }
 
-        public async Task<bool> IsConnected(OdinId sender, OdinId recipient)
+        public async Task<bool> IsConnected(DotYouIdentity sender, DotYouIdentity recipient)
         {
             using (var client = this.CreateOwnerApiHttpClient(sender, out var ownerSharedSecret))
             {
@@ -620,7 +620,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             return false;
         }
 
-        public async Task CreateDrive(OdinId identity, TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads, bool ownerOnly = false)
+        public async Task CreateDrive(DotYouIdentity identity, TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads, bool ownerOnly = false)
         {
             using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
@@ -653,7 +653,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             }
         }
 
-        public async Task EnsureDriveExists(OdinId identity, TargetDrive targetDrive, bool allowAnonymousReads)
+        public async Task EnsureDriveExists(DotYouIdentity identity, TargetDrive targetDrive, bool allowAnonymousReads)
         {
             using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {
@@ -671,7 +671,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             }
         }
 
-        public async Task<UploadTestUtilsContext> Upload(OdinId identity, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options = null)
+        public async Task<UploadTestUtilsContext> Upload(DotYouIdentity identity, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options = null)
         {
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var targetDrive = new TargetDrive()
@@ -694,7 +694,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             return await TransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
         }
 
-        public async Task<UploadTestUtilsContext> UploadFile(OdinId identity, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, string payloadData,
+        public async Task<UploadTestUtilsContext> UploadFile(DotYouIdentity identity, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, string payloadData,
             bool encryptPayload = true, ImageDataContent thumbnail = null, KeyHeader keyHeader = null)
         {
             Assert.IsNull(instructionSet.TransitOptions?.Recipients, "This method will not send transfers; please ensure recipients are null");
@@ -757,7 +757,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             }
         }
 
-        private async Task<UploadTestUtilsContext> TransferFile(OdinId sender, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
+        private async Task<UploadTestUtilsContext> TransferFile(DotYouIdentity sender, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
         {
             var recipients = instructionSet.TransitOptions?.Recipients ?? new List<string>();
 
@@ -779,7 +779,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             //Setup the drives on all recipient DIs
             foreach (var r in recipients)
             {
-                var recipient = (OdinId)r;
+                var recipient = (DotYouIdentity)r;
                 await this.EnsureDriveExists(recipient, targetDrive, options.DriveAllowAnonymousReads);
                 //Note: this connection needs access to write to the targetDrive on the recipient server
                 await this.CreateConnection(sender, recipient);
@@ -850,7 +850,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                     foreach (var recipient in recipients)
                     {
                         //TODO: this should be a create app http client but it works because the path on ITransitTestAppHttpClient is /apps
-                        using (var rClient = CreateOwnerApiHttpClient((OdinId)recipient, out var _))
+                        using (var rClient = CreateOwnerApiHttpClient((DotYouIdentity)recipient, out var _))
                         {
                             var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
                             rClient.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
@@ -873,12 +873,12 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             }
         }
 
-        public async Task<CircleDefinition> CreateCircleWithDrive(OdinId identity, string circleName, IEnumerable<int> permissionKeys, PermissionedDrive drive)
+        public async Task<CircleDefinition> CreateCircleWithDrive(DotYouIdentity identity, string circleName, IEnumerable<int> permissionKeys, PermissionedDrive drive)
         {
             return await this.CreateCircleWithDrive(identity, circleName, permissionKeys, new List<PermissionedDrive>() { drive });
         }
 
-        public async Task<CircleDefinition> CreateCircleWithDrive(OdinId identity, string circleName, IEnumerable<int> permissionKeys, List<PermissionedDrive> drives)
+        public async Task<CircleDefinition> CreateCircleWithDrive(DotYouIdentity identity, string circleName, IEnumerable<int> permissionKeys, List<PermissionedDrive> drives)
         {
             using (var client = CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {

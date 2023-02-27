@@ -10,7 +10,7 @@ namespace Youverse.Core.Services.Base;
 /// </summary>
 public static class SystemHttpClient
 {
-    public static T CreateHttps<T>(OdinId dotYouId)
+    public static T CreateHttps<T>(DotYouIdentity dotYouId)
     {
         //TODO: add a certificate for the stoker
         // var handler = new HttpClientHandler();
@@ -28,7 +28,7 @@ public static class SystemHttpClient
         return RestService.For<T>(client);
     }
     
-    public static T CreateHttp<T>(OdinId dotYouId)
+    public static T CreateHttp<T>(DotYouIdentity dotYouId)
     {
         var handler = new HttpClientHandler();
         handler.AllowAutoRedirect = false;

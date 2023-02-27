@@ -7,7 +7,7 @@ namespace Youverse.Core.Services.Registry
 {
     public class IdentityRegistrationRequest
     {
-        public OdinId DotYouId { get; set; }
+        public DotYouIdentity DotYouId { get; set; }
         public bool IsCertificateManaged { get; set; }
         
         /// <summary>

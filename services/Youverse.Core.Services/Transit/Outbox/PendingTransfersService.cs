@@ -34,7 +34,7 @@ namespace Youverse.Core.Services.Transit.Outbox
             _db?.Dispose();
         }
 
-        public void EnsureIdentityIsPending(OdinId sender)
+        public void EnsureIdentityIsPending(DotYouIdentity sender)
         {
             //Note: I use sender here because boxId has a unique constraint; and we only a sender in this table once.
             //I swallow the exception because there's no direct way to see if a record exists for this sender already
@@ -55,11 +55,11 @@ namespace Youverse.Core.Services.Transit.Outbox
             }
         }
 
-        public async Task<(IEnumerable<OdinId>, byte[] marker)> GetIdentities()
+        public async Task<(IEnumerable<DotYouIdentity>, byte[] marker)> GetIdentities()
         {
             var records = _db.tblOutbox.PopAll(out var marker);
 
-            var senders = records.Select(item => new OdinId(item.value.ToStringFromUtf8Bytes())).ToList();
+            var senders = records.Select(item => new DotYouIdentity(item.value.ToStringFromUtf8Bytes())).ToList();
 
             return (senders, marker);
         }

@@ -31,7 +31,7 @@ public class CircleNetworkStorage : IDisposable
         _storage = new SingleKeyValueStorage(_db.tblKeyValue);
     }
 
-    public IdentityConnectionRegistration Get(OdinId dotYouId)
+    public IdentityConnectionRegistration Get(DotYouIdentity dotYouId)
     {
         var list = this.GetDictionary().Values;
         return list.SingleOrDefault(icr => icr.DotYouId == dotYouId);

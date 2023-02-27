@@ -10,7 +10,7 @@ using Youverse.Core.Services.Base;
 namespace Youverse.Core.Services.Authentication.YouAuth
 {
     /// <summary>
-    /// Manages the registered <see cref="OdinId"/>'s  who are 'logged in' to this Identity
+    /// Manages the registered <see cref="DotYouIdentity"/>'s  who are 'logged in' to this Identity
     /// </summary>
     public interface IYouAuthRegistrationService : INotificationHandler<IdentityConnectionRegistrationChangedNotification>
     {

@@ -48,7 +48,7 @@ namespace Youverse.Core.Services.Workers.Transit
             _pendingTransfers.MarkComplete(marker);
         }
 
-        private async Task StokeOutbox(OdinId identity)
+        private async Task StokeOutbox(DotYouIdentity identity)
         {
             _logger.LogInformation($"Stoke running for {identity}");
 

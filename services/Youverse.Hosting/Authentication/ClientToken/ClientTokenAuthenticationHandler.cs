@@ -169,7 +169,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
             };
 
             dotYouContext.Caller = new CallerContext(
-                dotYouId: (OdinId)string.Empty,
+                dotYouId: (DotYouIdentity)string.Empty,
                 securityLevel: SecurityGroupType.Anonymous,
                 masterKey: null
             );

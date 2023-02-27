@@ -12,11 +12,11 @@ namespace Youverse.Core.Services.Transit.Outbox
     public interface IPendingTransfersService : IDisposable
     {
         /// <summary>
-        /// Adds the <see cref="OdinId"/> to the pending transfer queue to be processed by the background job
+        /// Adds the <see cref="DotYouIdentity"/> to the pending transfer queue to be processed by the background job
         /// </summary>
-        public void EnsureIdentityIsPending(OdinId sender);
+        public void EnsureIdentityIsPending(DotYouIdentity sender);
 
-        public Task<(IEnumerable<OdinId>, byte[] marker)> GetIdentities();
+        public Task<(IEnumerable<DotYouIdentity>, byte[] marker)> GetIdentities();
 
         public void MarkComplete(byte[] marker);
         public void MarkFailure(byte[] marker);

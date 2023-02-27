@@ -882,7 +882,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             }
         }
 
-        private async Task AssertIdentityIsInCircle(HttpClient client, SensitiveByteArray ownerSharedSecret, GuidId circleId, OdinId expectedIdentity)
+        private async Task AssertIdentityIsInCircle(HttpClient client, SensitiveByteArray ownerSharedSecret, GuidId circleId, DotYouIdentity expectedIdentity)
         {
             var circleMemberSvc = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
             var getCircleMemberResponse = await circleMemberSvc.GetCircleMembers(new GetCircleMembersRequest() { CircleId = circleId });
@@ -1052,7 +1052,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             }
         }
 
-        private async Task<CircleDefinition> CreateCircleWith2Drives(OdinId identity, string name, IEnumerable<int> permissionKeys)
+        private async Task<CircleDefinition> CreateCircleWith2Drives(DotYouIdentity identity, string name, IEnumerable<int> permissionKeys)
         {
             var targetDrive1 = TargetDrive.NewTargetDrive();
             var targetDrive2 = TargetDrive.NewTargetDrive();

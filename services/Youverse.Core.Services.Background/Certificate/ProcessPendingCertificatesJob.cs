@@ -44,7 +44,7 @@ namespace Youverse.Core.Services.Workers.Certificate
             }
         }
 
-        private async Task<CertificateOrderStatus> GenerateCertificate(OdinId identity)
+        private async Task<CertificateOrderStatus> GenerateCertificate(DotYouIdentity identity)
         {
             _logger.LogInformation($"Checking certificate creation status for {identity.Id}");
 

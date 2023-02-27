@@ -62,7 +62,7 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
             const string merryReaction = "💨";
 
             // Conversation started by sam
-            var samAndMerryConversation = await samwiseChatApp.ConversationDefinitionService.StartConversation((OdinId)merryChatApp.Identity);
+            var samAndMerryConversation = await samwiseChatApp.ConversationDefinitionService.StartConversation((DotYouIdentity)merryChatApp.Identity);
 
             //
             // Validate sam has conversation file

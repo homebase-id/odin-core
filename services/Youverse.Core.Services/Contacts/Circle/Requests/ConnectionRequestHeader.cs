@@ -10,7 +10,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
         public Guid Id
         {
-            get => (OdinId)_recipient;
+            get => (DotYouIdentity)_recipient;
             set
             {
                 //TODO: review

@@ -35,7 +35,7 @@ namespace Youverse.Hosting._dev
                 var (sourcePublicKeyPath, sourcePrivateKeyPath) = GetSourceDomainPath(domain, youverseConfiguration);
                 var registrationRequest = new IdentityRegistrationRequest()
                 {
-                    DotYouId = (OdinId)domain,
+                    DotYouId = (DotYouIdentity)domain,
                     OptionalCertificatePemContent = new CertificatePemContent()
                     {
                         PublicKeyCertificate = File.ReadAllText(sourcePublicKeyPath),

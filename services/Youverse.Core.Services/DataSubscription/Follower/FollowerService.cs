@@ -47,7 +47,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-            if (_contextAccessor.GetCurrent().Caller.DotYouId == (OdinId)request.DotYouId)
+            if (_contextAccessor.GetCurrent().Caller.DotYouId == (DotYouIdentity)request.DotYouId)
             {
                 throw new YouverseClientException("Cannot follow yourself; at least not in this dimension because that would be like chasing your own tail", YouverseClientErrorCode.InvalidRecipient);
             }
@@ -72,13 +72,13 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             // var payloadBytes = DotYouSystemSerializer.Serialize(followRequest).ToUtf8ByteArray();
             var json = DotYouSystemSerializer.Serialize(followRequest);
             var rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(request.DotYouId, json.ToUtf8ByteArray());
-            var client = CreateClient((OdinId)request.DotYouId);
+            var client = CreateClient((DotYouIdentity)request.DotYouId);
             var response = await client.Follow(rsaEncryptedPayload);
 
             if (response.IsSuccessStatusCode == false)
             {
                 //public key might be invalid, destroy the cache item
-                await _rsaPublicKeyService.InvalidatePublicKey((OdinId)request.DotYouId);
+                await _rsaPublicKeyService.InvalidatePublicKey((DotYouIdentity)request.DotYouId);
 
                 rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(request.DotYouId, json.ToUtf8ByteArray());
                 response = await client.Follow(rsaEncryptedPayload);
@@ -111,7 +111,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
         /// Notifies the recipient you are no longer following them.  This means they
         /// should no longer send you updates/notifications
         /// </summary>
-        public async Task Unfollow(OdinId recipient)
+        public async Task Unfollow(DotYouIdentity recipient)
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
@@ -126,7 +126,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             _tenantStorage.WhoIFollow.DeleteFollower(recipient);
         }
 
-        public async Task<FollowerDefinition> GetFollower(OdinId dotYouId)
+        public async Task<FollowerDefinition> GetFollower(DotYouIdentity dotYouId)
         {
             _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadWhoIFollow);
 
@@ -138,7 +138,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
                 return null;
             }
 
-            if (dbRecords!.Any(f => dotYouId != (OdinId)f.identity))
+            if (dbRecords!.Any(f => dotYouId != (DotYouIdentity)f.identity))
             {
                 throw new YouverseSystemException($"Follower data for [{dotYouId}] is corrupt");
             }
@@ -176,7 +176,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
         /// <summary>
         /// Gets the details (channels, etc.) of an identity that you follow.
         /// </summary>
-        public Task<FollowerDefinition> GetIdentityIFollow(OdinId dotYouId)
+        public Task<FollowerDefinition> GetIdentityIFollow(DotYouIdentity dotYouId)
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
             return GetIdentityIFollowInternal(dotYouId);
@@ -331,7 +331,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             return (result, nextCursor);
         }
 
-        public async Task<PermissionContext> CreatePermissionContext(OdinId dotYouId, ClientAuthenticationToken token)
+        public async Task<PermissionContext> CreatePermissionContext(DotYouIdentity dotYouId, ClientAuthenticationToken token)
         {
             //Note: this check here is basically a replacement for the token
             // meaning - it is required to be an owner to follow an identity
@@ -369,13 +369,13 @@ namespace Youverse.Core.Services.DataSubscription.Follower
         }
 
         ///
-        private IFollowerHttpClient CreateClient(OdinId dotYouId)
+        private IFollowerHttpClient CreateClient(DotYouIdentity dotYouId)
         {
-            var httpClient = _httpClientFactory.CreateClient<IFollowerHttpClient>((OdinId)dotYouId);
+            var httpClient = _httpClientFactory.CreateClient<IFollowerHttpClient>((DotYouIdentity)dotYouId);
             return httpClient;
         }
 
-        private Task<FollowerDefinition> GetIdentityIFollowInternal(OdinId dotYouId)
+        private Task<FollowerDefinition> GetIdentityIFollowInternal(DotYouIdentity dotYouId)
         {
             Guard.Argument(dotYouId, nameof(dotYouId)).Require(d => d.HasValue());
 
@@ -385,7 +385,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
                 return null;
             }
 
-            if (dbRecords!.Any(f => dotYouId != (OdinId)f.identity))
+            if (dbRecords!.Any(f => dotYouId != (DotYouIdentity)f.identity))
             {
                 throw new YouverseSystemException($"Follower data for [{dotYouId}] is corrupt");
             }

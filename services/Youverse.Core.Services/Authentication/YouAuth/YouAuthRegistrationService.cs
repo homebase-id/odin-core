@@ -171,7 +171,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             }
 
             var (accessRegistration, cat) = _exchangeGrantService.CreateClientAccessToken(emptyKey, ClientTokenType.YouAuth).GetAwaiter().GetResult();
-            var client = new YouAuthClient(accessRegistration.Id, (OdinId)dotYouId, accessRegistration);
+            var client = new YouAuthClient(accessRegistration.Id, (DotYouIdentity)dotYouId, accessRegistration);
             _youAuthRegistrationStorage.SaveClient(client);
 
             clientAccessToken = cat;

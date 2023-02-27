@@ -25,7 +25,7 @@ public class DataProviderAuthenticationService
     /// <summary>
     /// Gets the <see cref="GetDotYouContext"/> for the specified token from cache or disk.
     /// </summary>
-    public async Task<DotYouContext> GetDotYouContext(OdinId callerDotYouId, ClientAuthenticationToken token)
+    public async Task<DotYouContext> GetDotYouContext(DotYouIdentity callerDotYouId, ClientAuthenticationToken token)
     {
         //Note: there's no CAT for alpha as we're supporting just feeds
         // for authentication, we manually check against the list of people I follow
@@ -59,7 +59,7 @@ public class DataProviderAuthenticationService
         return await _cache.GetOrAddContext(tempToken, creator);
     }
 
-    private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContext(OdinId callerDotYouId, ClientAuthenticationToken token)
+    private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContext(DotYouIdentity callerDotYouId, ClientAuthenticationToken token)
     {
         var permissionContext = await _followerService.CreatePermissionContext(callerDotYouId, token);
         var cc = new CallerContext(

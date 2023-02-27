@@ -56,7 +56,7 @@ namespace Youverse.Hosting.Authentication.System
 
                     var dotYouContext = Context.RequestServices.GetRequiredService<DotYouContext>();
                     dotYouContext.Caller = new CallerContext(
-                        dotYouId: (OdinId)domain,
+                        dotYouId: (DotYouIdentity)domain,
                         masterKey: null,
                         securityLevel: SecurityGroupType.System);
                     

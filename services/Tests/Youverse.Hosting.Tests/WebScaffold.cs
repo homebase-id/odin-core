@@ -90,7 +90,7 @@ namespace Youverse.Hosting.Tests
 
             foreach (var dotYouId in TestIdentities.All.Keys)
             {
-                _oldOwnerApi.SetupOwnerAccount((OdinId)dotYouId, initializeIdentity).GetAwaiter().GetResult();
+                _oldOwnerApi.SetupOwnerAccount((DotYouIdentity)dotYouId, initializeIdentity).GetAwaiter().GetResult();
             }
 
             _appApi = new AppApiTestUtils(_oldOwnerApi);
@@ -123,7 +123,7 @@ namespace Youverse.Hosting.Tests
         /// Creates an http client that has a cookie jar but no authentication tokens.  This is useful for testing token exchanges.
         /// </summary>
         /// <returns></returns>
-        public HttpClient CreateAnonymousApiHttpClient(OdinId identity, FileSystemType fileSystemType = FileSystemType.Standard)
+        public HttpClient CreateAnonymousApiHttpClient(DotYouIdentity identity, FileSystemType fileSystemType = FileSystemType.Standard)
         {
             var cookieJar = new CookieContainer();
             HttpMessageHandler handler = new HttpClientHandler()

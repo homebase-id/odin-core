@@ -9,7 +9,7 @@ namespace Youverse.Hosting.Tests
     /// </summary>
     public class TransitTestUtilsContext : UploadTestUtilsContext
     {
-        public Dictionary<OdinId, TestAppContext> RecipientContexts { get; set; }
+        public Dictionary<DotYouIdentity, TestAppContext> RecipientContexts { get; set; }
 
         public Guid? GlobalTransitId { get; set; }
     }

@@ -9,7 +9,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower;
 /// <summary/>
 public class FollowerDefinition
 {
-    public OdinId DotYouId { get; set; }
+    public DotYouIdentity DotYouId { get; set; }
 
     public FollowerNotificationType NotificationType { get; set; }
     public IEnumerable<TargetDrive> Channels { get; set; }

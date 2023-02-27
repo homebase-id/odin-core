@@ -41,7 +41,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         /// Gets a connection request sent to the specified recipient
         /// </summary>
         /// <returns>Returns the <see cref="ConnectionRequest"/> if one exists, otherwise null</returns>
-        Task<ConnectionRequest> GetSentRequest(OdinId recipient);
+        Task<ConnectionRequest> GetSentRequest(DotYouIdentity recipient);
 
         /// <summary>
         /// Gets a list of requests awaiting approval.
@@ -53,7 +53,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         /// Gets a pending request by its sender
         /// </summary>
         /// <returns></returns>
-        Task<ConnectionRequest> GetPendingRequest(OdinId sender);
+        Task<ConnectionRequest> GetPendingRequest(DotYouIdentity sender);
 
         /// <summary>
         /// Deletes the sent request record.  If the recipient accepts the request
@@ -63,7 +63,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         /// </summary>
         /// <param name="recipient"></param>
         /// <returns></returns>
-        Task DeleteSentRequest(OdinId recipient);
+        Task DeleteSentRequest(DotYouIdentity recipient);
 
         /// <summary>
         /// Stores an new incoming request that is not yet accepted.
@@ -75,6 +75,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         /// <summary>
         /// Deletes a pending request.  This is useful if the user decides to ignore a request.
         /// </summary>
-        Task DeletePendingRequest(OdinId sender);
+        Task DeletePendingRequest(DotYouIdentity sender);
     }
 }

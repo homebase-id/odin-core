@@ -4,7 +4,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Notification
 {
     public class SendNotificationResult
     {
-        public OdinId Recipient { get; set; }
+        public DotYouIdentity Recipient { get; set; }
 
         public SendNotificationStatus Status { get; set; }
     }

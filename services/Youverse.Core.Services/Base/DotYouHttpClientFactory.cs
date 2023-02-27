@@ -26,7 +26,7 @@ namespace Youverse.Core.Services.Base
             _tenantContext = tenantContext;
         }
 
-        public T CreateClientUsingAccessToken<T>(OdinId dotYouId, ClientAuthenticationToken clientAuthenticationToken)
+        public T CreateClientUsingAccessToken<T>(DotYouIdentity dotYouId, ClientAuthenticationToken clientAuthenticationToken)
         {
             Guard.Argument(clientAuthenticationToken, nameof(clientAuthenticationToken)).NotNull();
             Guard.Argument(clientAuthenticationToken.Id, nameof(clientAuthenticationToken.Id)).Require(x => x != Guid.Empty);
@@ -36,13 +36,13 @@ namespace Youverse.Core.Services.Base
             return this.CreateClientInternal<T>(dotYouId, clientAuthenticationToken);
         }
 
-        public T CreateClient<T>(OdinId dotYouId)
+        public T CreateClient<T>(DotYouIdentity dotYouId)
         {
             return this.CreateClientInternal<T>(dotYouId, null);
         }
 
         ///
-        private T CreateClientInternal<T>(OdinId dotYouId, ClientAuthenticationToken clientAuthenticationToken)
+        private T CreateClientInternal<T>(DotYouIdentity dotYouId, ClientAuthenticationToken clientAuthenticationToken)
         {
             Guard.Argument(dotYouId.Id, nameof(dotYouId)).NotNull();
 
