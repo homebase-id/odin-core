@@ -78,7 +78,7 @@ namespace Youverse.Core.Identity
         }
 
         /// <summary>
-        /// Returns an UniqueId of this DotYouIdentity using a hash to converted to a Guid.  The value is converted to lower case before calculating the hash.
+        /// Returns an UniqueId of this OdinId using a hash to converted to a Guid.  The value is converted to lower case before calculating the hash.
         /// </summary>
         /// <returns></returns>
         public Guid ToHashId()
