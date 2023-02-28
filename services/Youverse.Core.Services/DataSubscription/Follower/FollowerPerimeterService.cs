@@ -1,6 +1,7 @@
 ﻿using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
@@ -34,39 +35,50 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             // Guard.Argument(request.PortableClientAuthToken, nameof(request.PortableClientAuthToken)).NotNull().NotEmpty();
             // var clientAccessToken = ClientAccessToken.FromPortableBytes(request.PortableClientAuthToken);
             // Guard.Argument(clientAccessToken, nameof(clientAccessToken)).NotNull().Require(cat => cat.IsValid());
-            
+
             //
             //TODO: where to store the request.ClientAuthToken ??
             // 
-            
+
             if (request.NotificationType == FollowerNotificationType.AllNotifications)
             {
                 _tenantStorage.Followers.DeleteFollower(request.OdinId);
                 _tenantStorage.Followers.Insert(new FollowsMeItem() { identity = request.OdinId, driveId = System.Guid.Empty });
             }
 
-            
-            //Issue with select channels
-            // we need to look up the driveId but it's not available in the permission context
-            // because the caller is totally public.
             if (request.NotificationType == FollowerNotificationType.SelectedChannels)
             {
                 Guard.Argument(request.Channels, nameof(request.Channels)).NotNull().NotEmpty().Require(channels => channels.All(c => c.Type == SystemDriveConstants.ChannelDriveType));
 
-                var driveIdList = request.Channels.Select(chan => _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(chan));
+                //Valid the caller has access to the requested channels
+                try
+                {
+                    //use try/catch since GetDriveId will throw an exception
+                    //TODO: update PermissionContext with a better method
+                    var drives = request.Channels.Select(chan => _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(chan));
+                    var allHaveReadAccess = drives.All(driveId => _contextAccessor.GetCurrent().PermissionsContext.HasDrivePermission(driveId, DrivePermission.Read));
+                    if (!allHaveReadAccess)
+                    {
+                        throw new YouverseSecurityException("Caller does not have read access to one or more channels");
+                    }
+                }
+                catch
+                {
+                    throw new YouverseSecurityException("Caller does not have read access to one or more channels");
+                }
 
-               using( _tenantStorage.CreateCommitUnitOfWork())
-               {
-                   _tenantStorage.Followers.DeleteFollower(request.OdinId);
-                   foreach (var driveId in driveIdList)
-                   {
-                       _tenantStorage.Followers.Insert(new FollowsMeItem() { identity = request.OdinId, driveId = driveId });
-                   }
-               }
+                using (_tenantStorage.CreateCommitUnitOfWork())
+                {
+                    _tenantStorage.Followers.DeleteFollower(request.OdinId);
+                    foreach (var channel in request.Channels)
+                    {
+                        _tenantStorage.Followers.Insert(new FollowsMeItem() { identity = request.OdinId, driveId = channel.Alias });
+                    }
+                }
 
                 return Task.CompletedTask;
             }
-            
+
             return Task.CompletedTask;
         }
 

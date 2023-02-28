@@ -6,7 +6,6 @@ using Dawn;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
-using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
@@ -26,7 +25,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
         private readonly IPublicKeyService _rsaPublicKeyService;
         private readonly TenantContext _tenantContext;
         private readonly DotYouContextAccessor _contextAccessor;
-        
+
         public FollowerService(ITenantSystemStorage tenantStorage, DriveManager driveManager, IDotYouHttpClientFactory httpClientFactory, IPublicKeyService rsaPublicKeyService,
             TenantContext tenantContext, DotYouContextAccessor contextAccessor)
         {
@@ -98,10 +97,10 @@ namespace Youverse.Core.Services.DataSubscription.Follower
                         throw new YouverseClientException("Only drives of type channel can be followed", YouverseClientErrorCode.InvalidTargetDrive);
                     }
 
+                    //use the alias because we don't most likely will not have the channel on the callers identity
                     foreach (var channel in request.Channels)
                     {
-                        var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(channel);
-                        _tenantStorage.WhoIFollow.Insert(new ImFollowingItem() { identity = request.OdinId, driveId = driveId });
+                        _tenantStorage.WhoIFollow.Insert(new ImFollowingItem() { identity = request.OdinId, driveId = channel.Alias });
                     }
                 }
             }
@@ -157,19 +156,15 @@ namespace Youverse.Core.Services.DataSubscription.Follower
                 };
             }
 
-            //convert driveId to target drives
-            var channels = new List<TargetDrive>();
-            foreach (var record in dbRecords)
-            {
-                var td = _contextAccessor.GetCurrent().PermissionsContext.GetTargetDrive(record.driveId);
-                channels.Add(td);
-            }
-
             return new FollowerDefinition()
             {
                 OdinId = odinId,
                 NotificationType = FollowerNotificationType.SelectedChannels,
-                Channels = channels
+                Channels = dbRecords.Select(record => new TargetDrive()
+                {
+                    Alias = record.driveId,
+                    Type = SystemDriveConstants.ChannelDriveType
+                }).ToList()
             };
         }
 
@@ -210,7 +205,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             var dbResults = _tenantStorage.Followers.GetFollowers(DefaultMax(max), driveId, cursor, out var nextCursor);
             var result = new CursoredResult<string>()
             {
-                Cursor = dbResults.LastOrDefault(),
+                Cursor = nextCursor,
                 Results = dbResults
             };
 
@@ -231,7 +226,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
                 Results = dbResults
             };
         }
-        
+
         /// <summary>
         /// Gets a list of identities I follow
         /// </summary>
@@ -247,25 +242,22 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             };
         }
 
-        public async Task<(CursoredResult<string>, string)> GetIdentitiesIFollow(Guid driveId, string cursor)
+        public async Task<CursoredResult<string>> GetIdentitiesIFollow(Guid driveAlias, int max, string cursor)
         {
             _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadWhoIFollow);
 
-            var drive = await _driveManager.GetDrive(driveId, true);
+            var drive = await _driveManager.GetDrive(driveAlias, true);
             if (drive.TargetDriveInfo.Type != SystemDriveConstants.ChannelDriveType)
             {
                 throw new YouverseClientException("Invalid Drive Type", YouverseClientErrorCode.InvalidTargetDrive);
             }
 
-            var count = 10000;
-            var dbResults = _tenantStorage.WhoIFollow.GetFollowers(count, driveId, cursor, out var nextCursor);
-            var result = new CursoredResult<string>()
+            var dbResults = _tenantStorage.WhoIFollow.GetFollowers(DefaultMax(max), driveAlias, cursor, out var nextCursor);
+            return new CursoredResult<string>()
             {
-                Cursor = dbResults.LastOrDefault(),
+                Cursor = nextCursor,
                 Results = dbResults
             };
-
-            return (result, nextCursor);
         }
 
         public async Task<PermissionContext> CreatePermissionContext(OdinId odinId, ClientAuthenticationToken token)
@@ -306,7 +298,6 @@ namespace Youverse.Core.Services.DataSubscription.Follower
         }
 
         ///
-        
         private int DefaultMax(int max)
         {
             return Math.Max(max, 10);
@@ -347,19 +338,15 @@ namespace Youverse.Core.Services.DataSubscription.Follower
                 });
             }
 
-            //convert to target drives
-            var channels = new List<TargetDrive>();
-            foreach (var record in dbRecords)
-            {
-                var td = _contextAccessor.GetCurrent().PermissionsContext.GetTargetDrive(record.driveId);
-                channels.Add(td);
-            }
-
             return Task.FromResult(new FollowerDefinition()
             {
                 OdinId = odinId,
                 NotificationType = FollowerNotificationType.SelectedChannels,
-                Channels = channels
+                Channels = dbRecords.Select(record => new TargetDrive()
+                {
+                    Alias = record.driveId,
+                    Type = SystemDriveConstants.ChannelDriveType
+                }).ToList()
             });
         }
     }

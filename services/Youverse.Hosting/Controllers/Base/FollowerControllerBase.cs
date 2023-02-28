@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Refit;
 using Youverse.Core;
@@ -26,6 +27,17 @@ namespace Youverse.Hosting.Controllers.Base
             var result = await _followerService.GetIdentitiesIFollow(max, cursor);
             return result;
         }
+
+
+        /// <summary>
+        /// Gets a list of identities I follow
+        /// </summary>
+        protected async Task<CursoredResult<string>> GetWhoIFollowByDrive(Guid driveAlias, int max, string cursor)
+        {
+            var result = await _followerService.GetIdentitiesIFollow(driveAlias, max, cursor);
+            return result;
+        }
+
 
         /// <summary>
         /// Gets a list of identities following me
