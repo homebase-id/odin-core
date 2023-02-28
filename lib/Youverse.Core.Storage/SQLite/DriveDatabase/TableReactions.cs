@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data.Entity;
 using System.Data.SQLite;
+using Youverse.Core.Identity;
 
 namespace Youverse.Core.Storage.SQLite.DriveDatabase
 {
@@ -57,15 +58,8 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
         /// <param name="identity"></param>
         /// <param name="postId"></param>
         /// <exception cref="Exception"></exception>
-        public void DeleteAllReactions(string identity, Guid postId)
+        public void DeleteAllReactions(OdinId identity, Guid postId)
         {
-            // Assign to throw exceptions, it's kind of bizarre :-)
-            var item = new ReactionsItem()
-            {
-                identity = identity,
-                postId = postId
-            };
-
             lock (_deleteLock)
             {
                 // Make sure we only prep once 
@@ -84,7 +78,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     _deleteCommand.Prepare();
                 }
 
-                _delparam1.Value = identity;
+                _delparam1.Value = identity.Id;
                 _delparam2.Value = postId.ToByteArray();
 
                 _database.BeginTransaction();
@@ -92,15 +86,8 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             }
         }
 
-        public int GetIdentityPostReactions(string identity, Guid postId)
+        public int GetIdentityPostReactions(OdinId identity, Guid postId)
         {
-            // Assign to throw exceptions, it's kind of bizarre :-)
-            var item = new ReactionsItem()
-            {
-                identity = identity,
-                postId = postId
-            };
-
             lock (_select2Lock)
             {
                 if (_select2Command == null)
@@ -121,7 +108,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 }
 
                 _s2param1.Value = postId;
-                _s2param2.Value = identity;
+                _s2param2.Value = identity.Id;
 
                 using (SQLiteDataReader rdr = _select2Command.ExecuteReader(System.Data.CommandBehavior.Default))
                 {
@@ -135,12 +122,6 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
         public (List<string>, int) GetPostReactions(Guid postId)
         {
-            // Assign to throw exceptions, it's kind of bizarre :-)
-            var item = new ReactionsItem()
-            {
-                postId = postId
-            };
-
             lock (_selectLock)
             {
                 if (_selectCommand == null)
@@ -184,6 +165,48 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
         } //
 
 
+        public (List<string>, List<int>, int) GetPostReactionsWithDetails(Guid postId)
+        {
+            lock (_selectLock)
+            {
+                if (_selectCommand == null)
+                {
+                    _selectCommand = _database.CreateCommand();
+                    _selectCommand.CommandText =
+                        $"SELECT singleReaction, COUNT(singleReaction) as reactioncount FROM reactions WHERE postId=$postId GROUP BY singleReaction ORDER BY reactioncount DESC;";
+
+                    _sparam1 = _selectCommand.CreateParameter();
+                    _sparam1.ParameterName = "$postId";
+                    _selectCommand.Parameters.Add(_sparam1);
+
+                    _selectCommand.Prepare();
+                }
+
+                _sparam1.Value = postId;
+
+                using (SQLiteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.Default))
+                {
+                    var result = new List<string>();
+                    var iresult = new List<int>();
+                    int totalCount = 0;
+
+                    while (rdr.Read())
+                    {
+                        string s = rdr.GetString(0);
+                        result.Add(s);
+
+                        int count = rdr.GetInt32(1);
+                        iresult.Add(count);
+
+                        totalCount += count;
+                    }
+
+                    return (result, iresult, totalCount);
+                }
+            }
+        } //
+
+
         // Copied and modified from CRUD
         public List<ReactionsItem> PagingByRowid(int count, Int32? inCursor, out Int32? nextCursor, Guid postIdFilter)
         {
@@ -197,7 +220,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 if (_getPaging0Command == null)
                 {
                     _getPaging0Command = _database.CreateCommand();
-                    _getPaging0Command.CommandText = "SELECT rowid,identity,postId,singleReaction,created,modified FROM reactions " +
+                    _getPaging0Command.CommandText = "SELECT rowid,identity,postId,singleReaction FROM reactions " +
                                                  "WHERE postId == $postId AND rowid > $rowid ORDER BY rowid ASC LIMIT $_count;";
                     _getPaging0Param1 = _getPaging0Command.CreateParameter();
                     _getPaging0Command.Parameters.Add(_getPaging0Param1);
@@ -236,7 +259,8 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
-                            item.identity = rdr.GetString(1);
+                            var s = rdr.GetString(1);
+                            item.identity = new OdinId(s);
                         }
 
                         if (rdr.IsDBNull(2))
@@ -256,21 +280,6 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                             item.singleReaction = rdr.GetString(3);
                         }
 
-                        if (rdr.IsDBNull(4))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.created = new UnixTimeUtcUnique((UInt64)rdr.GetInt64(4));
-                        }
-
-                        if (rdr.IsDBNull(5))
-                        {
-                            item.modified = null;
-                        }
-                        else
-                        {
-                            item.modified = new UnixTimeUtcUnique((UInt64)rdr.GetInt64(5));
-                        }
                         result.Add(item);
                     } // while
                     if ((n > 0) && rdr.HasRows)

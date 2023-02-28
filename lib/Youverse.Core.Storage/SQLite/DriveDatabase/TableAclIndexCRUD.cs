@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data.SQLite;
-
+using Youverse.Core.Identity;
 
 namespace Youverse.Core.Storage.SQLite.DriveDatabase
 {
