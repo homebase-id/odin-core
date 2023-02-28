@@ -49,21 +49,21 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Follow
         /// <summary>
         /// Returns the details of an identity that follows you
         /// </summary>
-        /// <param name="dotYouId"></param>
+        /// <param name="odinId"></param>
         /// <returns></returns>
         [HttpGet("follower")]
-        public async Task<FollowerDefinition> GetFollower(string dotYouId)
+        public async Task<FollowerDefinition> GetFollower(string odinId)
         {
-            return await _followerService.GetFollower(new OdinId(dotYouId));
+            return await _followerService.GetFollower(new OdinId(odinId));
         }
         
         /// <summary>
         /// Returns the details of an identity you're following
         /// </summary>
         [HttpGet("IdentityIFollow")]
-        public async Task<FollowerDefinition> GetIdentityIFollow(string dotYouId)
+        public async Task<FollowerDefinition> GetIdentityIFollow(string odinId)
         {
-            return await _followerService.GetIdentityIFollow(new OdinId(dotYouId));
+            return await _followerService.GetIdentityIFollow(new OdinId(odinId));
         }
 
         /// <summary>
@@ -83,7 +83,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Follow
         [HttpPost("unfollow")]
         public async Task<IActionResult> Unfollow([Body] UnfollowRequest request)
         {
-            await _followerService.Unfollow(new OdinId(request.DotYouId));
+            await _followerService.Unfollow(new OdinId(request.OdinId));
             return Ok();
         }
     }

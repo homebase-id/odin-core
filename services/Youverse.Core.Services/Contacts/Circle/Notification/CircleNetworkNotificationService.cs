@@ -33,7 +33,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Notification
 
             foreach (var connection in connections.Results)
             {
-                var recipient = connection.DotYouId;
+                var recipient = connection.OdinId;
                 this.SendNotification(recipient, notification);
             }
         }

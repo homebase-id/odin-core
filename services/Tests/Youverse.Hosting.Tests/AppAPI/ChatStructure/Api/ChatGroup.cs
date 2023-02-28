@@ -11,7 +11,7 @@ public class ChatGroup
     
     public string Title { get; set; }
     
-    public string AdminDotYouId { get; set; }
+    public string AdminOdinId { get; set; }
     
     public List<string> Members { get; set; }
 }

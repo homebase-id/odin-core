@@ -87,7 +87,7 @@ public static class Utility
             PayloadSize = fileMetadata.PayloadSize,
             OriginalRecipientList = fileMetadata.OriginalRecipientList,
             PayloadIsEncrypted = fileMetadata.PayloadIsEncrypted,
-            SenderDotYouId = fileMetadata.SenderDotYouId,
+            SenderOdinId = fileMetadata.SenderOdinId,
             ReferencedFile = fileMetadata.ReferencedFile
         };
         return clientFile;

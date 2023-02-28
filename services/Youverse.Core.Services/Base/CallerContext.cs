@@ -9,15 +9,15 @@ using Youverse.Core.Services.Authorization.ExchangeGrants;
 namespace Youverse.Core.Services.Base
 {
     /// <summary>
-    /// Contains information about the DotYouId calling a given service
+    /// Contains information about the OdinId calling a given service
     /// </summary>
     public class CallerContext
     {
         private readonly SensitiveByteArray _masterKey;
 
-        public CallerContext(OdinId? dotYouId, SensitiveByteArray masterKey, SecurityGroupType securityLevel, List<GuidId> circleIds = null, ClientTokenType tokenType = ClientTokenType.Other)
+        public CallerContext(OdinId? odinId, SensitiveByteArray masterKey, SecurityGroupType securityLevel, List<GuidId> circleIds = null, ClientTokenType tokenType = ClientTokenType.Other)
         {
-            this.DotYouId = dotYouId;
+            this.OdinId = odinId;
             this._masterKey = masterKey;
             this.SecurityLevel = securityLevel;
             this.Circles = circleIds ?? new List<GuidId>();
@@ -34,9 +34,9 @@ namespace Youverse.Core.Services.Base
         public IEnumerable<GuidId> Circles { get; set; }
 
         /// <summary>
-        /// Specifies the <see cref="OdinId"/> of the individual calling the API
+        /// Specifies the <see cref="Identity.OdinId"/> of the individual calling the API
         /// </summary>
-        public OdinId? DotYouId { get; }
+        public OdinId? OdinId { get; }
 
         public bool HasMasterKey
         {
@@ -44,7 +44,7 @@ namespace Youverse.Core.Services.Base
         }
 
         /// <summary>
-        /// Specifies if the caller to the service is the owner of the DotYouId being acted upon.
+        /// Specifies if the caller to the service is the owner of the OdinId being acted upon.
         /// </summary>
         public bool IsOwner => this.SecurityLevel == SecurityGroupType.Owner;
 

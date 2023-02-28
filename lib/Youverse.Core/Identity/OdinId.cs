@@ -56,9 +56,9 @@ namespace Youverse.Core.Identity
             return new OdinId(id);
         }
 
-        public static implicit operator Guid(OdinId dotYouId)
+        public static implicit operator Guid(OdinId odinId)
         {
-            return dotYouId.ToHashId();
+            return odinId.ToHashId();
         }
 
         public override bool Equals(object obj)
@@ -97,9 +97,9 @@ namespace Youverse.Core.Identity
             return new OdinId(id.ToStringFromUtf8Bytes());
         }
 
-        public static void Validate(string dotYouId)
+        public static void Validate(string odinId)
         {
-            DomainNameValidator.AssertValidDomain(dotYouId);
+            DomainNameValidator.AssertValidDomain(odinId);
         }
     }
 }

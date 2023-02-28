@@ -186,7 +186,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 Assert.IsTrue(firstResult.FileMetadata.AppData.DataType == uploadFileMetadata.AppData.DataType);
                 Assert.IsTrue(firstResult.FileMetadata.AppData.UserDate == uploadFileMetadata.AppData.UserDate);
                 Assert.IsTrue(firstResult.FileMetadata.ContentType == uploadFileMetadata.ContentType);
-                Assert.IsTrue(string.IsNullOrEmpty(firstResult.FileMetadata.SenderDotYouId));
+                Assert.IsTrue(string.IsNullOrEmpty(firstResult.FileMetadata.SenderOdinId));
 
                 //must be ordered correctly
                 //TODO: How to test this with a fileId?

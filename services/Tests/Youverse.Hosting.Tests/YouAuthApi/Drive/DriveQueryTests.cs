@@ -214,7 +214,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 Assert.IsTrue(firstResult.FileMetadata.AppData.DataType == uploadContext.UploadFileMetadata.AppData.DataType);
                 Assert.IsTrue(firstResult.FileMetadata.AppData.UserDate == uploadContext.UploadFileMetadata.AppData.UserDate);
                 Assert.IsTrue(firstResult.FileMetadata.ContentType == uploadContext.UploadFileMetadata.ContentType);
-                Assert.IsTrue(string.IsNullOrEmpty(firstResult.FileMetadata.SenderDotYouId));
+                Assert.IsTrue(string.IsNullOrEmpty(firstResult.FileMetadata.SenderOdinId));
 
                 //must be ordered correctly
                 //TODO: How to test this with a fileId?

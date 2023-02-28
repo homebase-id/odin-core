@@ -7,11 +7,11 @@ namespace Youverse.Core.Services.Registry
 {
     public class IdentityRegistrationRequest
     {
-        public OdinId DotYouId { get; set; }
+        public OdinId OdinId { get; set; }
         public bool IsCertificateManaged { get; set; }
         
         /// <summary>
-        /// Optional certificates to match the <see cref="IdentityRegistrationRequest.DotYouId"/>
+        /// Optional certificates to match the <see cref="OdinId"/>
         /// </summary>
         public CertificatePemContent OptionalCertificatePemContent { get; set; }
     }

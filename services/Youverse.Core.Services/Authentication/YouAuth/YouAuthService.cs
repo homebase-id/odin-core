@@ -58,9 +58,9 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             // var request = new HttpRequestMessage(HttpMethod.Get, url);
             // var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseContentRead);
 
-            var dotYouId = new OdinId(subject);
+            var odinId = new OdinId(subject);
             var response = await _dotYouHttpClientFactory
-                .CreateClient<IYouAuthPerimeterHttpClient>(dotYouId)
+                .CreateClient<IYouAuthPerimeterHttpClient>(odinId)
                 .ValidateAuthorizationCodeResponse(initiator, authorizationCode);
 
             //NOTE: this is option #2 in YouAuth - DI Host to DI Host, returns caller remote key to unlock xtoken
@@ -96,8 +96,8 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             byte[] clientAuthTokenBytes = Array.Empty<byte>();
             if (isValid)
             {
-                string dotYouId = initiator;
-                var info = await _circleNetwork.GetIdentityConnectionRegistration((OdinId)dotYouId, isValid);
+                string odinId = initiator;
+                var info = await _circleNetwork.GetIdentityConnectionRegistration((OdinId)odinId, isValid);
                 if (info.IsConnected())
                 {
                     //TODO: RSA Encrypt or used shared secret?
@@ -110,9 +110,9 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         //
 
-        public async ValueTask<ClientAccessToken> RegisterBrowserAccess(string dotYouId, ClientAuthenticationToken? remoteIcrClientAuthToken)
+        public async ValueTask<ClientAccessToken> RegisterBrowserAccess(string odinId, ClientAuthenticationToken? remoteIcrClientAuthToken)
         {
-            var browserClientAccessToken = await _registrationService.RegisterYouAuthAccess(dotYouId, remoteIcrClientAuthToken);
+            var browserClientAccessToken = await _registrationService.RegisterYouAuthAccess(odinId, remoteIcrClientAuthToken);
             return browserClientAccessToken;
         }
 

@@ -23,7 +23,7 @@ public class EmojiReactionPreview
 
 public class CommentPreview
 {
-    public string DotYouId { get; set; }
+    public string OdinId { get; set; }
 
     public string JsonContent { get; set; }
 

@@ -6,8 +6,8 @@ namespace Youverse.Core.Services.Base
 {
     public interface IDotYouHttpClientFactory
     {
-        T CreateClientUsingAccessToken<T>(OdinId dotYouId, ClientAuthenticationToken clientAuthenticationToken);
+        T CreateClientUsingAccessToken<T>(OdinId odinId, ClientAuthenticationToken clientAuthenticationToken);
 
-        T CreateClient<T>(OdinId dotYouId);
+        T CreateClient<T>(OdinId odinId);
     }
 }

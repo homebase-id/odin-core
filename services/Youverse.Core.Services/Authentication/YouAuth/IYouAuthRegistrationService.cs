@@ -15,9 +15,9 @@ namespace Youverse.Core.Services.Authentication.YouAuth
     public interface IYouAuthRegistrationService : INotificationHandler<IdentityConnectionRegistrationChangedNotification>
     {
         /// <summary>
-        /// Grants access to the <see cref="dotYouId"/>
+        /// Grants access to the <see cref="odinId"/>
         /// </summary>
-        ValueTask<ClientAccessToken> RegisterYouAuthAccess(string dotYouId, ClientAuthenticationToken remoteIcrClientAuthToken);
+        ValueTask<ClientAccessToken> RegisterYouAuthAccess(string odinId, ClientAuthenticationToken remoteIcrClientAuthToken);
 
         // ValueTask<YouAuthRegistration?> LoadFromId(Guid id);
         ValueTask<YouAuthRegistration?> LoadFromSubject(string subject);

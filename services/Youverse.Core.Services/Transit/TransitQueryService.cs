@@ -34,9 +34,9 @@ public class TransitQueryService
         _contextAccessor = contextAccessor;
     }
 
-    public async Task<QueryBatchResult> GetBatch(OdinId dotYouId, QueryBatchRequest request)
+    public async Task<QueryBatchResult> GetBatch(OdinId odinId, QueryBatchRequest request)
     {
-        var (icr, httpClient) = await CreateClient(dotYouId);
+        var (icr, httpClient) = await CreateClient(odinId);
         var queryBatchResponse = await httpClient.QueryBatch(request);
 
         AssertValidResponse(queryBatchResponse);
@@ -50,9 +50,9 @@ public class TransitQueryService
         };
     }
 
-    public async Task<SharedSecretEncryptedFileHeader> GetFileHeader(OdinId dotYouId, ExternalFileIdentifier file)
+    public async Task<SharedSecretEncryptedFileHeader> GetFileHeader(OdinId odinId, ExternalFileIdentifier file)
     {
-        var (icr, httpClient) = await CreateClient(dotYouId);
+        var (icr, httpClient) = await CreateClient(odinId);
         var response = await httpClient.GetFileHeader(file);
 
         if (response.StatusCode == HttpStatusCode.NotFound)
@@ -66,10 +66,10 @@ public class TransitQueryService
         return header;
     }
 
-    public async Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, bool payloadIsEncrypted, string decryptedContentType, Stream payload)> GetPayloadStream(OdinId dotYouId,
+    public async Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, bool payloadIsEncrypted, string decryptedContentType, Stream payload)> GetPayloadStream(OdinId odinId,
         ExternalFileIdentifier file)
     {
-        var (icr, httpClient) = await CreateClient(dotYouId);
+        var (icr, httpClient) = await CreateClient(odinId);
         var response = await httpClient.GetPayloadStream(file);
 
         if (response.StatusCode == HttpStatusCode.NotFound)
@@ -99,11 +99,11 @@ public class TransitQueryService
         return (ownerSharedSecretEncryptedKeyHeader, payloadIsEncrypted, decryptedContentType, stream);
     }
 
-    public async Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, bool payloadIsEncrypted, string decryptedContentType, Stream thumbnail)> GetThumbnail(OdinId dotYouId,
+    public async Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, bool payloadIsEncrypted, string decryptedContentType, Stream thumbnail)> GetThumbnail(OdinId odinId,
         ExternalFileIdentifier file,
         int width, int height)
     {
-        var (icr, httpClient) = await CreateClient(dotYouId);
+        var (icr, httpClient) = await CreateClient(odinId);
 
         var response = await httpClient.GetThumbnailStream(new GetThumbnailRequest()
         {
@@ -139,9 +139,9 @@ public class TransitQueryService
         return (ownerSharedSecretEncryptedKeyHeader, payloadIsEncrypted, decryptedContentType, stream);
     }
 
-    public async Task<IEnumerable<PerimeterDriveData>> GetDrivesByType(OdinId dotYouId, Guid driveType)
+    public async Task<IEnumerable<PerimeterDriveData>> GetDrivesByType(OdinId odinId, Guid driveType)
     {
-        var (icr, httpClient) = await CreateClient(dotYouId);
+        var (icr, httpClient) = await CreateClient(odinId);
         var response = await httpClient.GetDrives(new GetDrivesByTypeRequest()
         {
             DriveType = driveType
@@ -156,10 +156,10 @@ public class TransitQueryService
         return response.Content;
     }
 
-    private async Task<(IdentityConnectionRegistration, ITransitHostHttpClient)> CreateClient(OdinId dotYouId)
+    private async Task<(IdentityConnectionRegistration, ITransitHostHttpClient)> CreateClient(OdinId odinId)
     {
-        var icr = await _circleNetworkService.GetIdentityConnectionRegistration(dotYouId);
-        var httpClient = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(dotYouId, icr.CreateClientAuthToken());
+        var icr = await _circleNetworkService.GetIdentityConnectionRegistration(odinId);
+        var httpClient = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(odinId, icr.CreateClientAuthToken());
 
         return (icr, httpClient);
     }

@@ -13,7 +13,7 @@ namespace Youverse.Core.Services.Base
 
         public OdinId GetCallerOdinIdOrFail()
         {
-            return Caller.DotYouId ?? throw new YouverseSystemException("Invalid Caller");
+            return Caller.OdinId ?? throw new YouverseSystemException("Invalid Caller");
         }
 
         public PermissionContext PermissionsContext

@@ -59,11 +59,11 @@ namespace Youverse.Core.Services.Drives.DriveCore.Query
 
         void EnsureIndexDataCommitted();
 
-        void AddReaction(OdinId dotYouId, Guid fileId, string reaction);
+        void AddReaction(OdinId odinId, Guid fileId, string reaction);
 
-        void DeleteReactions(OdinId dotYouId, Guid fileId);
+        void DeleteReactions(OdinId odinId, Guid fileId);
 
-        void DeleteReaction(OdinId dotYouId, Guid fileId, string reaction);
+        void DeleteReaction(OdinId odinId, Guid fileId, string reaction);
 
         (List<string>, int) GetReactions(Guid fileId);
 

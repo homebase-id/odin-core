@@ -12,9 +12,9 @@ namespace Youverse.Core.Services.Base
         public Guid DotYouRegistryId { get; private set; }
 
         /// <summary>
-        /// Specifies the DotYouId of the host
+        /// Specifies the OdinId of the host
         /// </summary>
-        public OdinId HostDotYouId { get; private set; }
+        public OdinId HostOdinId { get; private set; }
 
         /// <summary>
         /// The root path for data
@@ -34,7 +34,7 @@ namespace Youverse.Core.Services.Base
         public string StaticFileDataRoot => Path.Combine(this.TempDataRoot, "static");
 
         /// <summary>
-        /// Specifies the storage locations for various pieces of data for this <see cref="HostDotYouId"/>.
+        /// Specifies the storage locations for various pieces of data for this <see cref="HostOdinId"/>.
         /// </summary>
         public TenantStorageConfig StorageConfig { get; private set; }
 
@@ -56,7 +56,7 @@ namespace Youverse.Core.Services.Base
         public void Update(Guid registrationId, string tenantHostName, string rootPath, CertificateRenewalConfig certificateRenewalConfig, Guid? firstRunToken, bool isPreconfigured)
         {
             this.DotYouRegistryId = registrationId;
-            this.HostDotYouId = (OdinId)tenantHostName;
+            this.HostOdinId = (OdinId)tenantHostName;
 
             this.CertificateRenewalConfig = certificateRenewalConfig;
             this.DataRoot = Path.Combine(rootPath, DotYouRegistryId.ToString());

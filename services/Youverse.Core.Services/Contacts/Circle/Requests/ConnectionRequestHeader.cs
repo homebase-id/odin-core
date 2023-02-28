@@ -14,7 +14,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             set
             {
                 //TODO: review
-                //no-op as the Id is based on the dotYouId of the recipient.  this is wierd
+                //no-op as the Id is based on the odinId of the recipient.  this is wierd
             }
         }
         

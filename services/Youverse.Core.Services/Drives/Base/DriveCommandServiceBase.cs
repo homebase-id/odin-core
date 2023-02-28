@@ -55,7 +55,7 @@ public abstract class DriveCommandServiceBase : RequirePermissionsBase
             result.Add(new ReceivedCommand()
             {
                 Id = commandFileHeader.FileId, //TODO: should this be the ID?
-                Sender = commandFileHeader.FileMetadata.SenderDotYouId,
+                Sender = commandFileHeader.FileMetadata.SenderOdinId,
                 ClientCode = commandFileHeader.FileMetadata.AppData.DataType,
                 ClientJsonMessage = command.ClientJsonMessage,
                 GlobalTransitIdList = command!.GlobalTransitIdList

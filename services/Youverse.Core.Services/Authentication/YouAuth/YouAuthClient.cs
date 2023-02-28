@@ -7,10 +7,10 @@ namespace Youverse.Core.Services.Authentication.YouAuth;
 
 public sealed class YouAuthClient
 {
-    public YouAuthClient(Guid id, OdinId dotYouId, AccessRegistration accessReg)
+    public YouAuthClient(Guid id, OdinId odinId, AccessRegistration accessReg)
     {
         this.Id = id;
-        this.DotYouId = dotYouId;
+        this.OdinId = odinId;
         this.AccessRegistration = accessReg;
     }
 
@@ -21,7 +21,7 @@ public sealed class YouAuthClient
 
     public Guid Id { get; init; }
 
-    public OdinId DotYouId { get; init; }
+    public OdinId OdinId { get; init; }
 
     public AccessRegistration AccessRegistration { get; init; }
 }

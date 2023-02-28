@@ -5,7 +5,7 @@ namespace Youverse.Hosting.Controllers;
 
 public class ConnectionRequestResponse : ConnectionRequestHeader
 {
-    public string SenderDotYouId { get; set; }
+    public string SenderOdinId { get; set; }
 
     public Int64 ReceivedTimestampMilliseconds { get; set; }
 
@@ -15,7 +15,7 @@ public class ConnectionRequestResponse : ConnectionRequestHeader
         {
             Id = arg.Id,
             ContactData = arg.ContactData,
-            SenderDotYouId = arg.SenderDotYouId,
+            SenderOdinId = arg.SenderOdinId,
             CircleIds = arg.CircleIds,
             Message = arg.Message,
             ReceivedTimestampMilliseconds = arg.ReceivedTimestampMilliseconds,

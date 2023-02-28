@@ -42,19 +42,19 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         //
 
-        public ValueTask<ClientAccessToken> RegisterYouAuthAccess(string dotYouId, ClientAuthenticationToken remoteIcrClientAuthToken)
+        public ValueTask<ClientAccessToken> RegisterYouAuthAccess(string odinId, ClientAuthenticationToken remoteIcrClientAuthToken)
         {
-            if (string.IsNullOrWhiteSpace(dotYouId))
+            if (string.IsNullOrWhiteSpace(odinId))
             {
                 throw new YouAuthClientException("Invalid subject");
             }
 
-            if (_circleNetworkService.TryCreateIdentityConnectionClient(dotYouId, remoteIcrClientAuthToken, out var icrClientAccessToken).GetAwaiter().GetResult())
+            if (_circleNetworkService.TryCreateIdentityConnectionClient(odinId, remoteIcrClientAuthToken, out var icrClientAccessToken).GetAwaiter().GetResult())
             {
                 return new ValueTask<ClientAccessToken>(icrClientAccessToken);
             }
 
-            if (TryCreateAuthenticatedYouAuthClient(dotYouId, out ClientAccessToken youAuthClientAccessToken))
+            if (TryCreateAuthenticatedYouAuthClient(odinId, out ClientAccessToken youAuthClientAccessToken))
             {
                 return new ValueTask<ClientAccessToken>(youAuthClientAccessToken);
             }
@@ -141,7 +141,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                 }
 
                 var cc = new CallerContext(
-                    dotYouId: client.DotYouId,
+                    odinId: client.OdinId,
                     securityLevel: SecurityGroupType.Authenticated,
                     masterKey: null,
                     circleIds: null
@@ -159,19 +159,19 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         /// <summary>
         /// Creates a YouAuth Client for an Identity that is not connected. (will show as authenticated)
         /// </summary>
-        private bool TryCreateAuthenticatedYouAuthClient(string dotYouId, out ClientAccessToken clientAccessToken)
+        private bool TryCreateAuthenticatedYouAuthClient(string odinId, out ClientAccessToken clientAccessToken)
         {
-            YouAuthRegistration registration = _youAuthRegistrationStorage.LoadFromSubject(dotYouId);
+            YouAuthRegistration registration = _youAuthRegistrationStorage.LoadFromSubject(odinId);
 
             var emptyKey = Guid.Empty.ToByteArray().ToSensitiveByteArray();
             if (null == registration)
             {
-                registration = new YouAuthRegistration(dotYouId, new Dictionary<string, CircleGrant>());
+                registration = new YouAuthRegistration(odinId, new Dictionary<string, CircleGrant>());
                 _youAuthRegistrationStorage.Save(registration);
             }
 
             var (accessRegistration, cat) = _exchangeGrantService.CreateClientAccessToken(emptyKey, ClientTokenType.YouAuth).GetAwaiter().GetResult();
-            var client = new YouAuthClient(accessRegistration.Id, (OdinId)dotYouId, accessRegistration);
+            var client = new YouAuthClient(accessRegistration.Id, (OdinId)odinId, accessRegistration);
             _youAuthRegistrationStorage.SaveClient(client);
 
             clientAccessToken = cat;
@@ -220,7 +220,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
             accessReg.AssertValidRemoteKey(authToken.AccessTokenHalfKey);
 
-            registration = _youAuthRegistrationStorage.LoadFromSubject(client.DotYouId);
+            registration = _youAuthRegistrationStorage.LoadFromSubject(client.OdinId);
             if (null == registration)
             {
                 return false;
@@ -231,7 +231,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         public Task Handle(IdentityConnectionRegistrationChangedNotification notification, CancellationToken cancellationToken)
         {
-            _cache.EnqueueIdentityForReset(notification.DotYouId);
+            _cache.EnqueueIdentityForReset(notification.OdinId);
             return Task.CompletedTask;
         }
     }

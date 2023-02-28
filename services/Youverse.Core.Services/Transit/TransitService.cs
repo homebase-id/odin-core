@@ -82,7 +82,7 @@ namespace Youverse.Core.Services.Transit
         {
             Guard.Argument(options, nameof(options)).NotNull()
                 .Require(o => o.Recipients?.Any() ?? false)
-                .Require(o => o.Recipients.TrueForAll(r => r != _tenantContext.HostDotYouId));
+                .Require(o => o.Recipients.TrueForAll(r => r != _tenantContext.HostOdinId));
 
             var sfo = new SendFileOptions()
             {
@@ -300,7 +300,7 @@ namespace Youverse.Core.Services.Transit
                     PayloadIsEncrypted = metadata.PayloadIsEncrypted,
                     ContentType = metadata.ContentType,
                     GlobalTransitId = metadata.GlobalTransitId,
-                    SenderDotYouId = string.Empty,
+                    SenderOdinId = string.Empty,
                     OriginalRecipientList = null,
                 };
 
@@ -386,7 +386,7 @@ namespace Youverse.Core.Services.Transit
             var transferStatus = new Dictionary<string, TransferStatus>();
             var outboxItems = new List<TransitOutboxItem>();
 
-            if (options.Recipients?.Contains(_tenantContext.HostDotYouId) ?? false)
+            if (options.Recipients?.Contains(_tenantContext.HostOdinId) ?? false)
             {
                 throw new YouverseClientException("Cannot transfer a file to the sender; what's the point?", YouverseClientErrorCode.InvalidRecipient);
             }
@@ -466,7 +466,7 @@ namespace Youverse.Core.Services.Transit
         {
             Guard.Argument(options, nameof(options)).NotNull()
                 .Require(o => o.Recipients?.Any() ?? false)
-                .Require(o => o.Recipients.TrueForAll(r => r != _tenantContext.HostDotYouId));
+                .Require(o => o.Recipients.TrueForAll(r => r != _tenantContext.HostOdinId));
 
             //Since the owner is online (in this request) we can prepare a transfer key.  the outbox processor
             //will read the transfer key during the background send process
@@ -481,7 +481,7 @@ namespace Youverse.Core.Services.Transit
         {
             Guard.Argument(transitOptions, nameof(transitOptions)).NotNull()
                 .Require(o => o.Recipients?.Any() ?? false)
-                .Require(o => o.Recipients.TrueForAll(r => r != _tenantContext.HostDotYouId));
+                .Require(o => o.Recipients.TrueForAll(r => r != _tenantContext.HostOdinId));
 
             var (transferStatus, outboxItems) = await CreateOutboxItems(internalFile, transitOptions, sendFileOptions);
             var sendResults = await this.SendBatchNow(outboxItems);

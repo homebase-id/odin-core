@@ -129,7 +129,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
             var uploadContext = await _scaffold.AppApi.CreateAppAndUploadFileMetadata(identity, uploadFileMetadata, options);
 
-            //using (var client = _scaffold.AppApi.CreateAppApiHttpClient(identity.DotYouId, uploadContext.TestAppContext.ClientAuthenticationToken))
+            //using (var client = _scaffold.AppApi.CreateAppApiHttpClient(identity.OdinId, uploadContext.TestAppContext.ClientAuthenticationToken))
             using (var client = _scaffold.AppApi.CreateAppApiHttpClient(uploadContext.TestAppContext))
             {
                 var svc = _scaffold.RestServiceFor<IDriveTestHttpClientForApps>(client, uploadContext.TestAppContext.SharedSecret);
@@ -172,7 +172,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.IsTrue(firstResult.FileMetadata.AppData.DataType == uploadFileMetadata.AppData.DataType);
                 Assert.IsTrue(firstResult.FileMetadata.AppData.UserDate == uploadFileMetadata.AppData.UserDate);
                 Assert.IsTrue(firstResult.FileMetadata.ContentType == uploadFileMetadata.ContentType);
-                Assert.IsTrue(string.IsNullOrEmpty(firstResult.FileMetadata.SenderDotYouId));
+                Assert.IsTrue(string.IsNullOrEmpty(firstResult.FileMetadata.SenderOdinId));
 
                 //must be ordered correctly
                 //TODO: How to test this with a fileId?

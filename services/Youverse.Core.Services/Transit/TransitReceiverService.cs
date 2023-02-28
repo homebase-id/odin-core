@@ -119,7 +119,7 @@ namespace Youverse.Core.Services.Transit
                 }
             };
 
-            metadata!.SenderDotYouId = item.Sender;
+            metadata!.SenderOdinId = item.Sender;
 
             switch (transferInstructionSet.TransferFileType)
             {
@@ -224,7 +224,7 @@ namespace Youverse.Core.Services.Transit
                 }
 
                 existingFileBySharedSecretEncryptedUniqueId.AssertFileIsActive();
-                existingFileBySharedSecretEncryptedUniqueId.AssertOriginalSender((OdinId)metadata.SenderDotYouId, $"Sender does not match original sender");
+                existingFileBySharedSecretEncryptedUniqueId.AssertOriginalSender((OdinId)metadata.SenderOdinId, $"Sender does not match original sender");
 
                 //Update existing file
                 var targetFile = new InternalDriveFileId()
@@ -253,7 +253,7 @@ namespace Youverse.Core.Services.Transit
                 }
 
                 existingFileBySharedSecretEncryptedUniqueId.AssertFileIsActive();
-                existingFileBySharedSecretEncryptedUniqueId.AssertOriginalSender((OdinId)metadata.SenderDotYouId, $"Sender does not match original sender");
+                existingFileBySharedSecretEncryptedUniqueId.AssertOriginalSender((OdinId)metadata.SenderOdinId, $"Sender does not match original sender");
 
                 //Update existing file
                 var targetFile = new InternalDriveFileId()
@@ -282,7 +282,7 @@ namespace Youverse.Core.Services.Transit
                 }
 
                 existingFileByGlobalTransitId.AssertFileIsActive();
-                existingFileByGlobalTransitId.AssertOriginalSender((OdinId)metadata.SenderDotYouId, $"Sender does not match original sender");
+                existingFileByGlobalTransitId.AssertOriginalSender((OdinId)metadata.SenderOdinId, $"Sender does not match original sender");
 
                 //Update existing file
                 var targetFile = new InternalDriveFileId()

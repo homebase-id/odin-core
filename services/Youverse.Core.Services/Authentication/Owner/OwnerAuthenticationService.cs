@@ -174,7 +174,7 @@ namespace Youverse.Core.Services.Authentication.Owner
                 dotYouContext.SetPermissionContext(permissionContext);
 
                 dotYouContext.Caller = new CallerContext(
-                    dotYouId: _tenantContext.HostDotYouId, //TODO: this works because we only have one identity per host.  this must be updated when i can have multiple identities for a single host
+                    odinId: _tenantContext.HostOdinId, //TODO: this works because we only have one identity per host.  this must be updated when i can have multiple identities for a single host
                     masterKey: masterKey,
                     securityLevel: SecurityGroupType.Owner);
 

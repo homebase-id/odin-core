@@ -7,13 +7,13 @@ public class NewFollowerNotification : IClientNotification
 {
     public ClientNotificationType NotificationType { get; }=ClientNotificationType.NewFollower;
         
-    public OdinId DotYouId { get; set; }
+    public OdinId OdinId { get; set; }
         
     public string GetClientData()
     {
         return DotYouSystemSerializer.Serialize(new
         {
-            Sender = this.DotYouId.Id
+            Sender = this.OdinId.Id
         });
     }
 }

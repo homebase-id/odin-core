@@ -20,9 +20,9 @@ namespace Youverse.Core.Services.Authorization.Acl
         public List<Guid> CircleIdList { get; set; }
 
         /// <summary>
-        /// The list of DotYouIdentities allowed access the file.
+        /// The list of OdinId allowed access the file.
         /// </summary>
-        public List<string> DotYouIdentityList { get; set; }
+        public List<string> OdinIdList { get; set; }
 
         /// <summary>
         /// Returns the list of Circles that can access the file when the RequiredSecurityGroup is SecurityGroupType.CircleConnected
@@ -52,14 +52,14 @@ namespace Youverse.Core.Services.Authorization.Acl
                 return Array.Empty<string>();
             }
 
-            return (IEnumerable<string>)this.DotYouIdentityList ?? Array.Empty<string>();
+            return (IEnumerable<string>)this.OdinIdList ?? Array.Empty<string>();
         }
 
         public void Validate()
         {
             if (RequiredSecurityGroup == SecurityGroupType.Anonymous || RequiredSecurityGroup == SecurityGroupType.Owner)
             {
-                if ((this.CircleIdList?.Count() ?? 0) > 0 || (this.DotYouIdentityList?.Count() ?? 0) > 0)
+                if ((this.CircleIdList?.Count() ?? 0) > 0 || (this.OdinIdList?.Count() ?? 0) > 0)
                 {
                     throw new YouverseClientException("Cannot specify circle or identity list when required security group is anonymous or owner", YouverseClientErrorCode.CannotAllowCirclesOrIdentitiesOnAnonymousOrOwnerOnly);
                 }

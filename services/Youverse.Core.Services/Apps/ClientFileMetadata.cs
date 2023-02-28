@@ -27,9 +27,9 @@ public class ClientFileMetadata
     public bool PayloadIsEncrypted { get; set; }
         
     /// <summary>
-    /// The DotYouId of the DI that sent this file.  If null, the file was uploaded by the owner.
+    /// The OdinId of the DI that sent this file.  If null, the file was uploaded by the owner.
     /// </summary>
-    public string SenderDotYouId { get; set; }
+    public string SenderOdinId { get; set; }
 
     /// <summary>
     /// The size of the payload on disk

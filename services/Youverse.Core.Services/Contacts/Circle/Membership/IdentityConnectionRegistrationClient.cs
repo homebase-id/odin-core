@@ -8,7 +8,7 @@ public class IdentityConnectionRegistrationClient
 {
     public Guid Id { get; init; }
 
-    public OdinId DotYouId { get; init; }
+    public OdinId OdinId { get; init; }
 
     public AccessRegistration AccessRegistration { get; init; }
 }

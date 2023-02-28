@@ -277,7 +277,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
 
                 var queryBatchResponse = await svc.GetBatch(new TransitQueryBatchRequest()
                 {
-                    DotYouId = recipient.OdinId,
+                    OdinId = recipient.OdinId,
                     QueryParams = fileTagQueryParams,
                     ResultOptionsRequest = QueryBatchResultOptionsRequest.Default
                 });
@@ -556,7 +556,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                 //
                 var getTransitFileResponse = await transitQueryService.GetFileHeader(new TransitExternalFileIdentifier()
                 {
-                    DotYouId = recipient.OdinId,
+                    OdinId = recipient.OdinId,
                     File = uploadedFile
                 });
 
@@ -593,7 +593,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                 // can be decrypted using the owner shared secret encrypted key header
                 var getTransitPayloadResponse = await transitQueryService.GetPayload(new TransitExternalFileIdentifier()
                 {
-                    DotYouId = recipient.OdinId,
+                    OdinId = recipient.OdinId,
                     File = uploadedFile
                 });
 
@@ -622,7 +622,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                 // 
                 var getTransitThumbnailResponse = await transitQueryService.GetThumbnail(new TransitGetThumbRequest()
                 {
-                    DotYouId = recipient.OdinId,
+                    OdinId = recipient.OdinId,
                     File = uploadedFile,
                     Width = thumbnail1.PixelWidth,
                     Height = thumbnail1.PixelHeight
@@ -732,7 +732,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
 
                 var getTransitDrives = await transitQueryService.GetDrives(new TransitGetDrivesByTypeRequest()
                 {
-                    DotYouId = recipient.OdinId,
+                    OdinId = recipient.OdinId,
                     DriveType = targetDriveReadOnly.Type
                 });
 

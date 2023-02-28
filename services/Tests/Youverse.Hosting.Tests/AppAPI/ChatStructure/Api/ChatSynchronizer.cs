@@ -45,29 +45,7 @@ public class ChatSynchronizer
     /// </summary>
     private async Task ProcessIncomingChatMessages()
     {
-        //Get all chat files
-        // var queryParams = FileQueryParams.FromFileType(ChatApiConfig.Drive, ChatMessage.FileType);
-        // var qbr = _chatServerContext.QueryBatch(queryParams, _latestCursor).GetAwaiter().GetResult();
-        // _latestCursor = qbr.CursorState;
-        //
-        // //HACK: order oldest to newest until Michael adds core support for this
-        // var orderedResults = qbr.SearchResults.OrderBy(sr => sr.FileMetadata.Created).ToList();
-        //
-        // foreach (var clientFileHeader in orderedResults)
-        // {
-        //     string currentUser = _chatServerContext.Sender;
-        //
-        //     var appData = clientFileHeader.FileMetadata.AppData;
-        //
-        //     var msg = DotYouSystemSerializer.Deserialize<ChatMessage>(appData.JsonContent);
-        //     msg!.Sender = clientFileHeader.FileMetadata.SenderDotYouId;
-        //
-        //     _conversationService.AddMessage(
-        //         convoId: appData.GroupId,
-        //         messageId: msg.Id,
-        //         received: clientFileHeader.FileMetadata.Created,
-        //         message: msg);
-        // }
+        
     }
 
     /// <summary>

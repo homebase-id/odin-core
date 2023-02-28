@@ -8,5 +8,5 @@ public class ChatConversation
 
     public Guid Id { get; set; }
     
-    public string RecipientDotYouId { get; set; }
+    public string RecipientOdinId { get; set; }
 }

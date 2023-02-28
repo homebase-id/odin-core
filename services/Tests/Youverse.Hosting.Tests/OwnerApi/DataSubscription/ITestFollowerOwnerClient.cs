@@ -18,10 +18,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Follower
         Task<ApiResponse<CursoredResult<string>>> GetIdentitiesFollowingMe(string cursor);
         
         [Get(RootPath + "/follower")]
-        Task<ApiResponse<FollowerDefinition>> GetFollower(string dotYouId);
+        Task<ApiResponse<FollowerDefinition>> GetFollower(string odinId);
         
         [Get(RootPath + "/IdentityIFollow")]
-        Task<ApiResponse<FollowerDefinition>> GetIdentityIFollow(string dotYouId);
+        Task<ApiResponse<FollowerDefinition>> GetIdentityIFollow(string odinId);
         
         [Post(RootPath + "/follow")]
         Task<ApiResponse<HttpContent>> Follow([Body] FollowRequest request);

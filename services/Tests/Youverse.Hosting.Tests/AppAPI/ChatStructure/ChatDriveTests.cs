@@ -69,7 +69,7 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
             //
             var samConvo = await samwiseChatApp.ConversationDefinitionService.GetConversation(samAndMerryConversation.Id);
             Assert.IsNotNull(samConvo);
-            Assert.IsTrue(samConvo.RecipientDotYouId == merryChatApp.Identity);
+            Assert.IsTrue(samConvo.RecipientOdinId == merryChatApp.Identity);
 
             //
             // Sam sends a message
@@ -99,7 +99,7 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
             //
             var merrysConvo = await merryChatApp.ConversationDefinitionService.GetConversation(samAndMerryConversation.Id);
             Assert.IsNotNull(merrysConvo);
-            Assert.IsTrue(merrysConvo.RecipientDotYouId == samwiseChatApp.Identity);
+            Assert.IsTrue(merrysConvo.RecipientOdinId == samwiseChatApp.Identity);
 
             //
             // Valid date merry has received message
@@ -218,14 +218,7 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
                 var chatApp = new ChatApp(testAppContext.Value, _scaffold);
                 apps.Add(testAppContext.Key, chatApp);
             }
-
-            // foreach (var (dotYouId, identity) in TestIdentities.All)
-            // {
-            // var testAppContext = await _scaffold.OwnerApi.SetupTestSampleApp(ChatApiConfig.AppId, identity, canReadConnections: true, ChatApiConfig.Drive, driveAllowAnonymousReads: false);
-            // var chatApp = new ChatApp(testAppContext, _scaffold);
-            // apps.Add(dotYouId, chatApp);
-            // }
-
+            
             return apps;
         }
     }

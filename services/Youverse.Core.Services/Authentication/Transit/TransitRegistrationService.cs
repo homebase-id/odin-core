@@ -28,12 +28,12 @@ public class TransitRegistrationService : INotificationHandler<IdentityConnectio
     /// <summary>
     /// Gets the <see cref="GetDotYouContext"/> for the specified token from cache or disk.
     /// </summary>
-    public async Task<DotYouContext> GetDotYouContext(OdinId callerDotYouId, ClientAuthenticationToken token)
+    public async Task<DotYouContext> GetDotYouContext(OdinId callerOdinId, ClientAuthenticationToken token)
     {
         var creator = new Func<Task<DotYouContext>>(async delegate
         {
             var dotYouContext = new DotYouContext();
-            var (callerContext, permissionContext) = await GetPermissionContext(callerDotYouId, token);
+            var (callerContext, permissionContext) = await GetPermissionContext(callerOdinId, token);
 
             if (null == permissionContext || callerContext == null)
             {
@@ -49,11 +49,11 @@ public class TransitRegistrationService : INotificationHandler<IdentityConnectio
         return await _cache.GetOrAddContext(token, creator);
     }
 
-    private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContext(OdinId callerDotYouId, ClientAuthenticationToken token)
+    private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContext(OdinId callerOdinId, ClientAuthenticationToken token)
     {
-        var (permissionContext, circleIds) = await _circleNetworkService.CreateTransitPermissionContext(callerDotYouId, token);
+        var (permissionContext, circleIds) = await _circleNetworkService.CreateTransitPermissionContext(callerOdinId, token);
         var cc = new CallerContext(
-            dotYouId: callerDotYouId,
+            odinId: callerOdinId,
             masterKey: null,
             securityLevel: SecurityGroupType.Connected,
             circleIds: circleIds);
@@ -63,7 +63,7 @@ public class TransitRegistrationService : INotificationHandler<IdentityConnectio
 
     public Task Handle(IdentityConnectionRegistrationChangedNotification notification, CancellationToken cancellationToken)
     {
-        _cache.EnqueueIdentityForReset(notification.DotYouId);
+        _cache.EnqueueIdentityForReset(notification.OdinId);
         return Task.CompletedTask;
     }
 }

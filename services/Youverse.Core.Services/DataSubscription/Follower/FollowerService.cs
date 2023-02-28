@@ -47,7 +47,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-            if (_contextAccessor.GetCurrent().Caller.DotYouId == (OdinId)request.DotYouId)
+            if (_contextAccessor.GetCurrent().Caller.OdinId == (OdinId)request.OdinId)
             {
                 throw new YouverseClientException("Cannot follow yourself; at least not in this dimension because that would be like chasing your own tail", YouverseClientErrorCode.InvalidRecipient);
             }
@@ -59,11 +59,11 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             }
 
             //TODO: use the exchange grant service to create the access reg and CAT 
-            // var accessToken = await _appRegistrationService.RegisterClientRaw(SystemAppConstants.FeedAppId, $"Feed App Client for {request.DotYouId}");
+            // var accessToken = await _appRegistrationService.RegisterClientRaw(SystemAppConstants.FeedAppId, $"Feed App Client for {request.OdinId}");
             
             var followRequest = new PerimterFollowRequest()
             {
-                DotYouId = _tenantContext.HostDotYouId,
+                OdinId = _tenantContext.HostOdinId,
                 NotificationType = request.NotificationType,
                 Channels = request.Channels,
                 // PortableClientAuthToken = accessToken.ToPortableBytes()
@@ -71,16 +71,16 @@ namespace Youverse.Core.Services.DataSubscription.Follower
 
             // var payloadBytes = DotYouSystemSerializer.Serialize(followRequest).ToUtf8ByteArray();
             var json = DotYouSystemSerializer.Serialize(followRequest);
-            var rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(request.DotYouId, json.ToUtf8ByteArray());
-            var client = CreateClient((OdinId)request.DotYouId);
+            var rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(request.OdinId, json.ToUtf8ByteArray());
+            var client = CreateClient((OdinId)request.OdinId);
             var response = await client.Follow(rsaEncryptedPayload);
 
             if (response.IsSuccessStatusCode == false)
             {
                 //public key might be invalid, destroy the cache item
-                await _rsaPublicKeyService.InvalidatePublicKey((OdinId)request.DotYouId);
+                await _rsaPublicKeyService.InvalidatePublicKey((OdinId)request.OdinId);
 
-                rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(request.DotYouId, json.ToUtf8ByteArray());
+                rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(request.OdinId, json.ToUtf8ByteArray());
                 response = await client.Follow(rsaEncryptedPayload);
 
                 //round 2, fail all together
@@ -90,10 +90,10 @@ namespace Youverse.Core.Services.DataSubscription.Follower
                 }
             }
 
-            _tenantStorage.WhoIFollow.DeleteFollower(request.DotYouId);
+            _tenantStorage.WhoIFollow.DeleteFollower(request.OdinId);
             if (request.NotificationType == FollowerNotificationType.AllNotifications)
             {
-                _tenantStorage.WhoIFollow.Insert(new Storage.SQLite.IdentityDatabase.ImFollowingItem() { identity = request.DotYouId, driveId = Guid.Empty });
+                _tenantStorage.WhoIFollow.Insert(new Storage.SQLite.IdentityDatabase.ImFollowingItem() { identity = request.OdinId, driveId = Guid.Empty });
             }
             // MS: I changed null -> guid.empty. Databases behave very oddly with "NULL". In the database
             // if we do = NULL it fails (it's supposed to), you have to do "IS NULL". That doesn't work with
@@ -106,7 +106,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             //     {
             //         //TODO: im using alias here beacuse driveid on the follower's identity does make sense
             //         //this works because all drives must be of type :channel
-            //         _tenantStorage.WhoIFollow.InsertFollower(request.DotYouId, channel.Alias);
+            //         _tenantStorage.WhoIFollow.InsertFollower(request.OdinId, channel.Alias);
             //     }
             // }
         }
@@ -130,33 +130,33 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             _tenantStorage.WhoIFollow.DeleteFollower(recipient);
         }
 
-        public async Task<FollowerDefinition> GetFollower(OdinId dotYouId)
+        public async Task<FollowerDefinition> GetFollower(OdinId odinId)
         {
             _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadWhoIFollow);
 
-            Guard.Argument(dotYouId, nameof(dotYouId)).Require(d => d.HasValue());
+            Guard.Argument(odinId, nameof(odinId)).Require(d => d.HasValue());
 
-            var dbRecords = _tenantStorage.Followers.Get(dotYouId);
+            var dbRecords = _tenantStorage.Followers.Get(odinId);
             if (!dbRecords?.Any() ?? false)
             {
                 return null;
             }
 
-            if (dbRecords!.Any(f => dotYouId != (OdinId)f.identity))
+            if (dbRecords!.Any(f => odinId != (OdinId)f.identity))
             {
-                throw new YouverseSystemException($"Follower data for [{dotYouId}] is corrupt");
+                throw new YouverseSystemException($"Follower data for [{odinId}] is corrupt");
             }
 
             if (dbRecords.Any(r => r.driveId == Guid.Empty) && dbRecords.Count > 1)
             {
-                throw new YouverseSystemException($"Follower data for [{dotYouId}] is corrupt");
+                throw new YouverseSystemException($"Follower data for [{odinId}] is corrupt");
             }
             
             if (dbRecords.All(r => r.driveId == Guid.Empty))
             {
                 return new FollowerDefinition()
                 {
-                    DotYouId = dotYouId,
+                    OdinId = odinId,
                     NotificationType = FollowerNotificationType.AllNotifications
                 };
             }
@@ -171,7 +171,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
 
             return new FollowerDefinition()
             {
-                DotYouId = dotYouId,
+                OdinId = odinId,
                 NotificationType = dbRecords.Count > 1 ? FollowerNotificationType.SelectedChannels : FollowerNotificationType.AllNotifications,
                 Channels = channels
             };
@@ -180,10 +180,10 @@ namespace Youverse.Core.Services.DataSubscription.Follower
         /// <summary>
         /// Gets the details (channels, etc.) of an identity that you follow.
         /// </summary>
-        public Task<FollowerDefinition> GetIdentityIFollow(OdinId dotYouId)
+        public Task<FollowerDefinition> GetIdentityIFollow(OdinId odinId)
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-            return GetIdentityIFollowInternal(dotYouId);
+            return GetIdentityIFollowInternal(odinId);
         }
 
         public async Task<(CursoredResult<string>, string)> GetFollowers(string cursor)
@@ -335,15 +335,15 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             return (result, nextCursor);
         }
 
-        public async Task<PermissionContext> CreatePermissionContext(OdinId dotYouId, ClientAuthenticationToken token)
+        public async Task<PermissionContext> CreatePermissionContext(OdinId odinId, ClientAuthenticationToken token)
         {
             //Note: this check here is basically a replacement for the token
             // meaning - it is required to be an owner to follow an identity
             // so they will only be in the list if the owner added them
-            var definition = await GetIdentityIFollowInternal(dotYouId);
+            var definition = await GetIdentityIFollowInternal(odinId);
             if (null == definition)
             {
-                throw new YouverseSecurityException($"Not following {dotYouId}");
+                throw new YouverseSecurityException($"Not following {odinId}");
             }
 
             var targetDrive = SystemDriveConstants.FeedDrive;
@@ -373,37 +373,37 @@ namespace Youverse.Core.Services.DataSubscription.Follower
         }
 
         ///
-        private IFollowerHttpClient CreateClient(OdinId dotYouId)
+        private IFollowerHttpClient CreateClient(OdinId odinId)
         {
-            var httpClient = _httpClientFactory.CreateClient<IFollowerHttpClient>((OdinId)dotYouId);
+            var httpClient = _httpClientFactory.CreateClient<IFollowerHttpClient>((OdinId)odinId);
             return httpClient;
         }
 
-        private Task<FollowerDefinition> GetIdentityIFollowInternal(OdinId dotYouId)
+        private Task<FollowerDefinition> GetIdentityIFollowInternal(OdinId odinId)
         {
-            Guard.Argument(dotYouId, nameof(dotYouId)).Require(d => d.HasValue());
+            Guard.Argument(odinId, nameof(odinId)).Require(d => d.HasValue());
 
-            var dbRecords = _tenantStorage.WhoIFollow.Get(dotYouId);
+            var dbRecords = _tenantStorage.WhoIFollow.Get(odinId);
             if (!dbRecords?.Any() ?? false)
             {
                 return null;
             }
 
-            if (dbRecords!.Any(f => dotYouId != (OdinId)f.identity))
+            if (dbRecords!.Any(f => odinId != (OdinId)f.identity))
             {
-                throw new YouverseSystemException($"Follower data for [{dotYouId}] is corrupt");
+                throw new YouverseSystemException($"Follower data for [{odinId}] is corrupt");
             }
 
             if (dbRecords.Any(r => r.driveId == Guid.Empty) && dbRecords.Count > 1)
             {
-                throw new YouverseSystemException($"Follower data for [{dotYouId}] is corrupt");
+                throw new YouverseSystemException($"Follower data for [{odinId}] is corrupt");
             }
             
             if (dbRecords.All(r => r.driveId == Guid.Empty))
             {
                 return Task.FromResult(new FollowerDefinition()
                 {
-                    DotYouId = dotYouId,
+                    OdinId = odinId,
                     NotificationType = FollowerNotificationType.AllNotifications
                 });
             }
@@ -418,7 +418,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
 
             return Task.FromResult(new FollowerDefinition()
             {
-                DotYouId = dotYouId,
+                OdinId = odinId,
                 NotificationType = dbRecords.Count > 1 ? FollowerNotificationType.SelectedChannels : FollowerNotificationType.AllNotifications,
                 Channels = channels
             });

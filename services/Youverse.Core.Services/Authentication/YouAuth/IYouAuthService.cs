@@ -15,7 +15,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         /// Creates an <see cref="AccessRegistration"/> for the browser and <see cref="ClientAccessToken"/> for use with the YouAuth Protocol
         /// </summary>
         /// <returns></returns>
-        ValueTask<ClientAccessToken> RegisterBrowserAccess(string dotYouId, ClientAuthenticationToken? remoteIcrClientAuthToken);
+        ValueTask<ClientAccessToken> RegisterBrowserAccess(string odinId, ClientAuthenticationToken? remoteIcrClientAuthToken);
 
         ValueTask DeleteSession(string subject);
     }

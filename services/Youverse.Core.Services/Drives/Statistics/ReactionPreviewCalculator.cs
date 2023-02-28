@@ -79,7 +79,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
         {
             Created = updatedFileHeader.FileMetadata.Created,
             Updated = updatedFileHeader.FileMetadata.Updated,
-            DotYouId = _contextAccessor.GetCurrent().Caller.DotYouId,
+            OdinId = _contextAccessor.GetCurrent().Caller.OdinId,
             JsonContent = updatedFileHeader.FileMetadata.AppData.JsonContent,
             Reactions = new List<EmojiReactionPreview>()
         });

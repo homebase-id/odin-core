@@ -15,8 +15,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         /// <summary>
         /// Individual who sent the invite
         /// </summary>
-        // public DotYouIdentity SenderDotYouId { get; set; }
-        public string SenderDotYouId { get; set; }
+        public string SenderOdinId { get; set; }
 
         public Int64 ReceivedTimestampMilliseconds { get; set; }
 
@@ -34,7 +33,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         /// </summary>
         public virtual void Validate()
         {
-            Guard.Argument(SenderDotYouId, nameof(SenderDotYouId)).NotEmpty().NotNull();
+            Guard.Argument(SenderOdinId, nameof(SenderOdinId)).NotEmpty().NotNull();
             Guard.Argument(Recipient, nameof(Recipient)).NotEmpty().NotNull();
             Guard.Argument(Id, nameof(Id)).NotEqual(Guid.Empty);
             Guard.Argument(ContactData, nameof(ContactData)).NotNull();

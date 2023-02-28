@@ -80,8 +80,8 @@ namespace Youverse.Hosting.Middleware
                 
                 var user = httpContext.User;
                 var transitRegService = httpContext.RequestServices.GetRequiredService<TransitRegistrationService>();
-                var callerDotYouId = (OdinId)user.Identity!.Name;
-                var ctx = await transitRegService.GetDotYouContext(callerDotYouId, clientAuthToken);
+                var callerOdinId = (OdinId)user.Identity!.Name;
+                var ctx = await transitRegService.GetDotYouContext(callerOdinId, clientAuthToken);
 
                 if (ctx != null)
                 {
@@ -101,8 +101,8 @@ namespace Youverse.Hosting.Middleware
             {
                 var user = httpContext.User;
                 var authService = httpContext.RequestServices.GetRequiredService<DataProviderAuthenticationService>();
-                var callerDotYouId = (OdinId)user.Identity!.Name;
-                var ctx = await authService.GetDotYouContext(callerDotYouId, clientAuthToken);
+                var odinId = (OdinId)user.Identity!.Name;
+                var ctx = await authService.GetDotYouContext(odinId, clientAuthToken);
                 if (ctx != null)
                 {
                     dotYouContext.Caller = ctx.Caller;
@@ -127,10 +127,10 @@ namespace Youverse.Hosting.Middleware
              */
 
             var user = httpContext.User;
-            var callerDotYouId = (OdinId)user.Identity!.Name;
+            var odinId = (OdinId)user.Identity!.Name;
 
             dotYouContext.Caller = new CallerContext(
-                dotYouId: callerDotYouId, //note: this will need to come from a claim: re: best buy/3rd party scenario
+                odinId: odinId, //note: this will need to come from a claim: re: best buy/3rd party scenario
                 masterKey: null,
                 securityLevel: SecurityGroupType.Authenticated);
 
