@@ -1,8 +1,6 @@
 ﻿using System;
-using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drives.FileSystem;
 
-namespace Youverse.Core.Services.Drives.Base.Upload
+namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
 {
     /// <summary>
     /// Defines the options for storage

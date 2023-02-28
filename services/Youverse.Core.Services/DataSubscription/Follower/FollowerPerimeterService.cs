@@ -5,7 +5,7 @@ using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives;
 using Youverse.Core.Storage;
 using Youverse.Core.Storage.SQLite.IdentityDatabase;
 

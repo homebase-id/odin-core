@@ -2,7 +2,6 @@
 using System.Threading.Tasks;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Contacts.Circle.Requests
 {

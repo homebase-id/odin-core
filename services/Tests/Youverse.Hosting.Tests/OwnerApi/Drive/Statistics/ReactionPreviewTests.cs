@@ -5,10 +5,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Core.Query;
-using Youverse.Core.Services.Drives.Base.Upload;
+using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.FileSystem;
+using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Storage;
 using Youverse.Hosting.Tests.OwnerApi.ApiClient;
@@ -115,7 +114,7 @@ public class ReactionPreviewTests
         var blogPostHeader = await frodoOwnerClient.Drive.GetFileHeader(FileSystemType.Standard, uploadedContentResult.File);
 
         Assert.IsTrue(blogPostHeader.ReactionPreview.Comments.Count == 3);
-        Assert.IsTrue(blogPostHeader.ReactionPreview.Reactions2.Count == 0);
+        Assert.IsTrue(blogPostHeader.ReactionPreview.Reactions.Count == 0);
         Assert.IsTrue(blogPostHeader.ReactionPreview.TotalCommentCount == 3);
 
         Assert.NotNull(blogPostHeader.ReactionPreview.Comments.SingleOrDefault(x => x.JsonContent == commentFile1.AppData.JsonContent));

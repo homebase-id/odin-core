@@ -11,7 +11,8 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
-using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Storage;
 

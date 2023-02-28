@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
-using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives.Management;
 
 namespace Youverse.Core.Services.Configuration;
 

@@ -8,9 +8,7 @@ using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Core.Query;
-using Youverse.Core.Services.Drive.Core.Storage;
+using Youverse.Core.Services.Drives.DriveCore.Storage;
 using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Storage;
 using Youverse.Core.Storage.SQLite.DriveDatabase;
@@ -261,9 +259,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
                     DriveId = Drive.Id
                 },
                 OdinId = item.identity,
-                ReactionContent = item.singleReaction,
-                Created = item.created,
-            }
+                ReactionContent = item.singleReaction            }
         ).ToList();
 
         return (results, nextCursor);

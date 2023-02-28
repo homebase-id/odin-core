@@ -1,8 +1,7 @@
-using Youverse.Core.Services.Drive.Core.Query;
-using Youverse.Core.Storage.SQLite;
+using Youverse.Core.Services.Drives.DriveCore.Query;
 using Youverse.Core.Storage.SQLite.DriveDatabase;
 
-namespace Youverse.Core.Services.Drive;
+namespace Youverse.Core.Services.Drives;
 
 public class QueryBatchResultOptionsRequest
 {

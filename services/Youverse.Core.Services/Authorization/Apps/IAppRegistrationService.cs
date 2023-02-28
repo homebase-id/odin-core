@@ -5,7 +5,6 @@ using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
-using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {

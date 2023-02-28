@@ -7,10 +7,10 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.DataSubscription.Follower;
-using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.Upload;
 using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.DataSubscription

@@ -1,9 +1,7 @@
 using System;
 using Dawn;
-using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drives.Base.Upload;
 
-namespace Youverse.Hosting.Controllers.Base.Upload
+namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
 {
     /// <summary>
     /// A package/parcel to be send to a set of recipients

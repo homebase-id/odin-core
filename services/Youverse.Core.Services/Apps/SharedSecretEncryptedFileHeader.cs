@@ -1,8 +1,8 @@
 using System;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Drive.Core.Storage;
 using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Drives.DriveCore.Storage;
 using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Storage;

@@ -1,5 +1,4 @@
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drives.Reactions;
 
 namespace Youverse.Hosting.Controllers.Base;
@@ -34,15 +33,10 @@ public class DriveEmojiReactionControllerBase : YouverseControllerBase
     {
         _emojiReactionService.DeleteReactions(MapToInternalFile(request.File));
     }
-
+    
     /// <summary />
-    protected GetReactionsResponse GetReactions(ExternalFileIdentifier file)
+    protected GetReactionsResponse GetReactions(GetReactionsRequest request)
     {
-        return _emojiReactionService.GetReactions(MapToInternalFile(file));
-    }
-
-    protected GetReactionsResponse2 GetReactions2(GetReactionsRequest request)
-    {
-        return _emojiReactionService.GetReactions2(MapToInternalFile(request.File), cursor: request.Cursor, maxCount: request.MaxRecords);
+        return _emojiReactionService.GetReactions(MapToInternalFile(request.File), cursor: request.Cursor, maxCount: request.MaxRecords);
     }
 }

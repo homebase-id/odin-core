@@ -1,7 +1,6 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core.Services.Configuration;
-using Youverse.Core.Services.Drive;
 using Youverse.Hosting.Controllers.Anonymous;
 
 namespace Youverse.Hosting.Controllers.ClientToken.Configuration;

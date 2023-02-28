@@ -1,6 +1,6 @@
 ﻿using System;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives;
 
 namespace Youverse.Core.Services.AppNotifications.ClientNotifications
 {

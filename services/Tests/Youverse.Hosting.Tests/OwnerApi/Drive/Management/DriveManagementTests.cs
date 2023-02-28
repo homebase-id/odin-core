@@ -2,7 +2,8 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers.OwnerToken.Drive;
 

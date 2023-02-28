@@ -4,8 +4,6 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
-using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drives.Base.Upload;
 using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Hosting.Tests.DriveApi.YouAuth;
 

@@ -5,7 +5,7 @@ using NUnit.Framework;
 using Refit;
 using Youverse.Core;
 using Youverse.Core.Services.DataSubscription.Follower;
-using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives;
 using Youverse.Hosting.Tests.OwnerApi.Follower;
 using Youverse.Hosting.Tests.OwnerApi.Utils;
 

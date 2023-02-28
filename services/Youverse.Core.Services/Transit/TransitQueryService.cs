@@ -10,7 +10,7 @@ using Youverse.Core.Identity;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership;
-using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Quarantine;
 using Youverse.Core.Storage.SQLite;

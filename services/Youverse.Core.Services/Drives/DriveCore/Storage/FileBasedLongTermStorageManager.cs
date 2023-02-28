@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
 
-namespace Youverse.Core.Services.Drive.Core.Storage
+namespace Youverse.Core.Services.Drives.DriveCore.Storage
 {
     public class FileBasedLongTermStorageManager : ILongTermStorageManager
     {

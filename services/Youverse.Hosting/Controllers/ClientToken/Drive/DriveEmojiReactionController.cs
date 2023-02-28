@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drives.Reactions;
 using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers.Anonymous;
@@ -59,22 +58,13 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             return Ok();
         }
         
-        /// <summary>
-        /// Adds an emoji reaction for a given file
-        /// </summary>
-        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
-        [HttpPost("list")]
-        public GetReactionsResponse GetAllReactions([FromBody] ExternalFileIdentifier file)
-        {
-            return base.GetReactions(file);
-        }
-        
+
         /// <summary />
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
-        [HttpPost("list2")]
-        public GetReactionsResponse2 GetAllReactions2([FromBody] GetReactionsRequest request)
+        [HttpPost("list")]
+        public GetReactionsResponse GetAllReactions2([FromBody] GetReactionsRequest request)
         {
-            return base.GetReactions2(request);
+            return base.GetReactions(request);
         }
     }
     

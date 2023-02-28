@@ -12,7 +12,7 @@ using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
-using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives;
 using Youverse.Hosting.Controllers.OwnerToken.Circles;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Circle;

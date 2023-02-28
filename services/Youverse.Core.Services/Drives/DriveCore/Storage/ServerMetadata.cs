@@ -1,8 +1,7 @@
 ﻿using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Storage;
 
-namespace Youverse.Core.Services.Drive.Core.Storage
+namespace Youverse.Core.Services.Drives.DriveCore.Storage
 {
     public class ServerMetadata
     {

@@ -3,10 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using Dawn;
 using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Transit.Upload;
+using Youverse.Core.Services.Transit;
 
-namespace Youverse.Core.Services.Drives.Base.Upload
+namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
 {
     /// <summary>
     /// Specifies how an upload should be handled

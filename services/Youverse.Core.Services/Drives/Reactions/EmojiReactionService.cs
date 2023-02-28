@@ -1,28 +1,11 @@
-using System;
 using MediatR;
 using Youverse.Core.Exceptions;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.AppNotifications;
-using Youverse.Core.Services.AppNotifications.ClientNotifications;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drives.DriveCore.Query.Sqlite;
 
 namespace Youverse.Core.Services.Drives.Reactions;
 
 //TODO: need to determine if I want to validate if the file exists.  file exist calls are expensive 
-
-public class EmojiReactionAddedNotification : EventArgs, IClientNotification
-{
-    public Reaction Reaction { get; set; }
-    
-    public ClientNotificationType NotificationType { get; } = ClientNotificationType.EmojiReactionAdded;
-
-    public string GetClientData()
-    {
-        return DotYouSystemSerializer.Serialize(this.Reaction);
-    }
-}
 
 /// <summary>
 /// Manages emoji reactions to files
@@ -83,26 +66,9 @@ public class EmojiReactionService
             manager.DeleteReactions(context.GetCallerOdinIdOrFail(), file.FileId);
         }
     }
+    
 
-    public GetReactionsResponse GetReactions(InternalDriveFileId file)
-    {
-        _contextAccessor.GetCurrent().PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
-
-        if (_driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId, out var manager))
-        {
-            var (list, count) = manager.GetReactions(file.FileId);
-
-            return new GetReactionsResponse()
-            {
-                Reactions = list,
-                TotalCount = count
-            };
-        }
-
-        throw new YouverseSystemException($"Invalid query manager instance for drive {file.DriveId}");
-    }
-
-    public GetReactionsResponse2 GetReactions2(InternalDriveFileId file, int cursor, int maxCount)
+    public GetReactionsResponse GetReactions(InternalDriveFileId file, int cursor, int maxCount)
     {
         _contextAccessor.GetCurrent().PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
 
@@ -110,7 +76,7 @@ public class EmojiReactionService
         {
             var (list, nextCursor) = manager.GetReactionsByFile(fileId: file.FileId, cursor: cursor, maxCount: maxCount);
 
-            return new GetReactionsResponse2()
+            return new GetReactionsResponse()
             {
                 Reactions = list,
                 Cursor = nextCursor
