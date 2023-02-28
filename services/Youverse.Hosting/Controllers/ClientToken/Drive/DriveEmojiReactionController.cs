@@ -21,7 +21,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         public DriveEmojiReactionController(EmojiReactionService emojiReactionService) : base(emojiReactionService)
         {
         }
-        
+
         /// <summary>
         /// Adds an emoji reaction for a given file
         /// </summary>
@@ -31,7 +31,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         public IActionResult AddEmojiReaction([FromBody] AddReactionReqeust request)
         {
             base.AddReaction(request);
-            return Ok();
+            return NoContent();
         }
 
         /// <summary>
@@ -43,9 +43,9 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         public IActionResult DeleteEmojiReaction([FromBody] DeleteReactionRequest request)
         {
             base.DeleteReaction(request);
-            return Ok();
+            return NoContent();
         }
-        
+
         /// <summary>
         /// Adds an emoji reaction for a given file
         /// </summary>
@@ -55,17 +55,26 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         public IActionResult DeleteAllReactionsOnFile([FromBody] DeleteReactionRequest request)
         {
             base.DeleteAllReactions(request);
-            return Ok();
+            return NoContent();
         }
-        
+
 
         /// <summary />
-        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("list")]
-        public GetReactionsResponse GetAllReactions2([FromBody] GetReactionsRequest request)
+        public GetReactionsResponse GetAllReactions([FromBody] GetReactionsRequest request)
         {
             return base.GetReactions(request);
         }
+
+        /// <summary>
+        /// Gets a summary of reactions for the file.  The cursor and max parameters are ignored
+        /// </summary>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpPost("summary")]
+        public GetReactionCountsResponse GetReactionCountsByFile([FromBody] GetReactionsRequest request)
+        {
+            return base.GetReactionCounts(request);
+        }
     }
-    
 }

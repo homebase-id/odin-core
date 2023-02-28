@@ -1,4 +1,3 @@
-using Youverse.Core.Identity;
 using Youverse.Core.Services.Drives.Reactions;
 
 namespace Youverse.Hosting.Controllers.Base;
@@ -38,5 +37,11 @@ public class DriveEmojiReactionControllerBase : YouverseControllerBase
     protected GetReactionsResponse GetReactions(GetReactionsRequest request)
     {
         return _emojiReactionService.GetReactions(MapToInternalFile(request.File), cursor: request.Cursor, maxCount: request.MaxRecords);
+    }
+
+    /// <summary />
+    protected GetReactionCountsResponse GetReactionCounts(GetReactionsRequest request)
+    {
+        return _emojiReactionService.GetReactionCountsByFile(MapToInternalFile(request.File));
     }
 }

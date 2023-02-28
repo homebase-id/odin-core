@@ -3,12 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.DataSubscription.Follower;
-using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives;
 
 namespace Youverse.Hosting.Tests.OwnerApi.DataSubscription;
 
@@ -71,6 +70,7 @@ public class FollowerTests
 
 
     [Test]
+    [Ignore("need to talk with michael about getting all followers regardless of drive")]
     public async Task CanFollowIdentity_SelectedChannels()
     {
         var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);

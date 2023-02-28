@@ -24,7 +24,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         public IActionResult AddEmojiReaction([FromBody] AddReactionReqeust request)
         {
             base.AddReaction(request);
-            return Ok();
+            return NoContent();
         }
 
         /// <summary />
@@ -33,7 +33,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         public IActionResult DeleteEmojiReaction([FromBody] DeleteReactionRequest request)
         {
             base.DeleteReaction(request);
-            return Ok();
+            return NoContent();
         }
 
         /// <summary />
@@ -42,7 +42,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         public IActionResult DeleteAllReactionsOnFile([FromBody] DeleteReactionRequest request)
         {
             base.DeleteAllReactions(request);
-            return Ok();
+            return NoContent();
         }
 
         /// <summary />
@@ -51,6 +51,16 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         public GetReactionsResponse GetAllReactions2([FromBody] GetReactionsRequest request)
         {
             return base.GetReactions(request);
+        }
+        
+        /// <summary>
+        /// Gets a summary of reactions for the file.  The cursor and max parameters are ignored.
+        /// </summary>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        [HttpPost("summary")]
+        public GetReactionCountsResponse GetReactionCountsByFile([FromBody] GetReactionsRequest request)
+        {
+            return base.GetReactionCounts(request);
         }
     }
 }

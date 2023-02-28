@@ -12,7 +12,8 @@ using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.DataSubscription;
-using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Services.Tenant;
 using Youverse.Hosting.Authentication.Perimeter;
 
