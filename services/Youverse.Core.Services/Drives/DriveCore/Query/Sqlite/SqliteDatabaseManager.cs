@@ -121,7 +121,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         {
             if (exists) // clean up if the flag was changed after it was indexed
             {
-                _db.TblMainIndex.DeleteRow(metadata.File.FileId);
+                _db.TblMainIndex.Delete(metadata.File.FileId);
             }
 
             return Task.CompletedTask;

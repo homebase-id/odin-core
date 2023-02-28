@@ -10,16 +10,8 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
         public UnixTimeUtc timestamp;
     }
 
-    public class TableCommandMessageQueue : TableBase
+    public class TableCommandMessageQueue : TableCommandMessageQueueCRUD
     {
-        private SQLiteCommand _insertCommand = null;
-        private SQLiteParameter _iparam1 = null;
-        private Object _insertLock = new Object();
-
-        private SQLiteCommand _deleteCommand = null;
-        private SQLiteParameter _dparam1 = null;
-        private Object _deleteLock = new Object();
-
         private SQLiteCommand _selectCommand = null;
         private Object _selectLock = new Object();
 
@@ -34,31 +26,10 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
         public override void Dispose()
         {
-            _insertCommand?.Dispose();
-            _insertCommand = null;
-
-            _deleteCommand?.Dispose();
-            _deleteCommand = null;
-
             _selectCommand?.Dispose();
             _selectCommand = null;
-        }
 
-        public override void EnsureTableExists(bool dropExisting = false)
-        {
-            using (var cmd = _database.CreateCommand())
-            {
-                if (dropExisting)
-                {
-                    cmd.CommandText = "DROP TABLE IF EXISTS commandmessages;";
-                    cmd.ExecuteNonQuery();
-                }
-
-                cmd.CommandText = @"CREATE TABLE if not exists commandmessages(fileid BLOB NOT NULL, timestamp INT NOT NULL, UNIQUE(fileid));"
-                                  + "CREATE INDEX if not exists FileIdIdx ON commandmessages(fileid);";
-
-                cmd.ExecuteNonQuery();
-            }
+            base.Dispose();
         }
 
 
@@ -69,21 +40,24 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             {
                 using (_selectCommand = _database.CreateCommand())
                 {
-                    _selectCommand.CommandText = $"SELECT fileid,timestamp FROM commandmessages ORDER BY fileid ASC LIMIT {count}";
+                    _selectCommand.CommandText = $"SELECT fileid,timestamp FROM commandMessageQueue ORDER BY fileid ASC LIMIT {count}";
 
                     using (SQLiteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.SingleResult))
                     {
                         int i = 0;
+                        long n;
                         var queue = new List<CommandMessage>();
-                        byte[] bytes = new byte[16];
+                        byte[] _guid = new byte[16];
                         Int64 ts;
 
                         while (rdr.Read())
                         {
-                            rdr.GetBytes(0, 0, bytes, 0, 16);
+                            n = rdr.GetBytes(0, 0, _guid, 0, 16);
+                            if (n != 16)
+                                throw new Exception("Not a guid");
                             ts = rdr.GetInt64(1);
 
-                            queue.Add(new CommandMessage { fileId = new Guid(bytes), timestamp = new UnixTimeUtc((UInt64)ts) });
+                            queue.Add(new CommandMessage { fileId = new Guid(_guid), timestamp = new UnixTimeUtc((UInt64)ts) });
                             i++;
                         }
 
@@ -101,29 +75,14 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             if (fileId == null)
                 return;
 
-            lock (_insertLock)
+            // Since we are writing multiple rows we do a logic unit here
+            using (_database.CreateCommitUnitOfWork())
             {
-                // Make sure we only prep once - I wish I had been able to use local static vars
-                // rather then class members
-                if (_insertCommand == null)
+                var item = new CommandMessageQueueItem() { timeStamp = new UnixTimeUtc(0) };
+                for (int i = 0; i < fileId.Count; i++)
                 {
-                    _insertCommand = _database.CreateCommand();
-                    _insertCommand.CommandText = @"INSERT INTO commandmessages(fileid, timestamp) VALUES($fileid, 0)";
-                    _iparam1 = _insertCommand.CreateParameter();
-                    _iparam1.ParameterName = "$fileid";
-                    _insertCommand.Parameters.Add(_iparam1);
-                }
-
-                _database.BeginTransaction();
-
-                // Since we are writing multiple rows we do a logic unit here
-                using (_database.CreateCommitUnitOfWork())
-                {
-                    for (int i = 0; i < fileId.Count; i++)
-                    {
-                        _iparam1.Value = fileId[i];
-                        _insertCommand.ExecuteNonQuery();
-                    }
+                    item.fileId = fileId[i];
+                    Insert(item);
                 }
             }
         }
@@ -133,29 +92,12 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             if (fileId == null)
                 return;
 
-            lock (_deleteLock)
+            // Since we are deletign multiple rows we do a logic unit here
+            using (_database.CreateCommitUnitOfWork())
             {
-                // Make sure we only prep once - I wish I had been able to use local static vars
-                // rather then class members
-                if (_deleteCommand == null)
+                for (int i = 0; i < fileId.Count; i++)
                 {
-                    _deleteCommand = _database.CreateCommand();
-                    _deleteCommand.CommandText = @"DELETE FROM commandmessages WHERE fileid=$fileid";
-                    _dparam1 = _deleteCommand.CreateParameter();
-                    _dparam1.ParameterName = "$fileid";
-                    _deleteCommand.Parameters.Add(_dparam1);
-                }
-
-                _database.BeginTransaction();
-
-                // Since we are deletign multiple rows we do a logic unit here
-                using (_database.CreateCommitUnitOfWork())
-                {
-                    for (int i = 0; i < fileId.Count; i++)
-                    {
-                        _dparam1.Value = fileId[i];
-                        _deleteCommand.ExecuteNonQuery();
-                    }
+                    Delete(fileId[i]);
                 }
             }
         }

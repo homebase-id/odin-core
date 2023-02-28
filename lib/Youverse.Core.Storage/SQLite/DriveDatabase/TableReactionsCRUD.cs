@@ -53,8 +53,8 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                   _created = value;
                }
         }
-        private UnixTimeUtc _modified;
-        public UnixTimeUtc modified
+        private UnixTimeUtcUnique? _modified;
+        public UnixTimeUtcUnique? modified
         {
            get {
                    return _modified;
@@ -139,7 +139,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                      +"postId BLOB NOT NULL, "
                      +"singleReaction STRING NOT NULL, "
                      +"created INT NOT NULL, "
-                     +"modified INT NOT NULL "
+                     +"modified INT  "
                      +", PRIMARY KEY (identity,postId,singleReaction)"
                      +");"
                      ;
@@ -177,7 +177,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 _insertParam2.Value = item.postId;
                 _insertParam3.Value = item.singleReaction;
                 _insertParam4.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _insertParam5.Value = UnixTimeUtc.Now().milliseconds;
+                _insertParam5.Value = null;
                 _database.BeginTransaction();
                 return _insertCommand.ExecuteNonQuery();
             } // Lock
@@ -215,7 +215,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 _upsertParam2.Value = item.postId;
                 _upsertParam3.Value = item.singleReaction;
                 _upsertParam4.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _upsertParam5.Value = UnixTimeUtc.Now().milliseconds;
+                _upsertParam5.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _database.BeginTransaction();
                 return _upsertCommand.ExecuteNonQuery();
             } // Lock
@@ -252,7 +252,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 _updateParam2.Value = item.postId;
                 _updateParam3.Value = item.singleReaction;
                 _updateParam4.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _updateParam5.Value = UnixTimeUtc.Now().milliseconds;
+                _updateParam5.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _database.BeginTransaction();
                 return _updateCommand.ExecuteNonQuery();
             } // Lock
@@ -318,6 +318,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     item.postId = postId;
                     item.singleReaction = singleReaction;
                     byte[] _tmpbuf = new byte[65535+1];
+                    long bytesRead;
                     var _guid = new byte[16];
 
                     if (rdr.IsDBNull(0))
@@ -328,10 +329,10 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     }
 
                     if (rdr.IsDBNull(1))
-                        throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        item.modified = null;
                     else
                     {
-                        item.modified = new UnixTimeUtc((UInt64) rdr.GetInt64(1));
+                        item.modified = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(1));
                     }
 
                     return item;

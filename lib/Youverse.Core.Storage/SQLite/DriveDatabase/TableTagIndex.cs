@@ -4,18 +4,8 @@ using System.Data.SQLite;
 
 namespace Youverse.Core.Storage.SQLite.DriveDatabase
 {
-    public class TableTagIndex : TableBase
+    public class TableTagIndex : TableTagIndexCRUD
     {
-        private SQLiteCommand _insertCommand = null;
-        private SQLiteParameter _iparam1 = null;
-        private SQLiteParameter _iparam2 = null;
-        private Object _insertLock = new Object();
-
-        private SQLiteCommand _deleteCommand = null;
-        private SQLiteParameter _dparam1 = null;
-        private SQLiteParameter _dparam2 = null;
-        private Object _deleteLock = new Object();
-
         private SQLiteCommand _deleteAllCommand = null;
         private SQLiteParameter _dallparam1 = null;
         private Object _deleteAllLock = new Object();
@@ -34,34 +24,13 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
         public override void Dispose()
         {
-            _insertCommand?.Dispose();
-            _insertCommand = null;
-
-            _deleteCommand?.Dispose();
-            _deleteCommand = null;
-
             _deleteAllCommand?.Dispose();
             _deleteAllCommand = null;
 
             _selectCommand?.Dispose();
             _selectCommand = null;
-        }
 
-        public override void EnsureTableExists(bool dropExisting = false)
-        {
-            using (var cmd = _database.CreateCommand())
-            {
-                if (dropExisting)
-                {
-                    cmd.CommandText = "DROP TABLE IF EXISTS tagindex;";
-                    cmd.ExecuteNonQuery();
-                }
-
-                cmd.CommandText = @"CREATE TABLE if not exists tagindex(fileid BLOB NOT NULL, tagid BLOB NOT NULL, UNIQUE(fileid,tagid));"
-                                  + "CREATE INDEX if not exists TagIdx ON tagindex(tagid);";
-
-                cmd.ExecuteNonQuery();
-            }
+            base.Dispose();
         }
 
         // Hm is it better to return an empty List<Guid> rather than null for an empty set?
@@ -107,32 +76,14 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             if (TagIdList == null)
                 return;
 
-            lock (_insertLock)
+            using (_database.CreateCommitUnitOfWork())
             {
-                // Make sure we only prep once - I wish I had been able to use local static vars
-                // rather then class members
-                if (_insertCommand == null)
-                {
-                    _insertCommand = _database.CreateCommand();
-                    _insertCommand.CommandText = @"INSERT INTO tagindex(fileid, tagid) VALUES($fileid, $tagid)";
-                    _iparam1 = _insertCommand.CreateParameter();
-                    _iparam1.ParameterName = "$fileid";
-                    _iparam2 = _insertCommand.CreateParameter();
-                    _iparam2.ParameterName = "$tagid";
-                    _insertCommand.Parameters.Add(_iparam1);
-                    _insertCommand.Parameters.Add(_iparam2);
-                }
+                var item = new TagIndexItem() { fileId = FileId };
 
-                _database.BeginTransaction();
-
-                using (_database.CreateCommitUnitOfWork())
+                for (int i = 0; i < TagIdList.Count; i++)
                 {
-                    _iparam1.Value = FileId;
-                    for (int i = 0; i < TagIdList.Count; i++)
-                    {
-                        _iparam2.Value = TagIdList[i];
-                        _insertCommand.ExecuteNonQuery();
-                    }
+                    item.tagId = TagIdList[i];
+                    Insert(item);
                 }
             }
         }
@@ -142,32 +93,11 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             if (TagIdList == null)
                 return;
 
-            lock (_deleteLock)
+            using (_database.CreateCommitUnitOfWork())
             {
-                // Make sure we only prep once - I wish I had been able to use local static vars
-                // rather then class members
-                if (_deleteCommand == null)
+                for (int i = 0; i < TagIdList.Count; i++)
                 {
-                    _deleteCommand = _database.CreateCommand();
-                    _deleteCommand.CommandText = @"DELETE FROM tagindex WHERE fileid=$fileid AND tagid=$tagid";
-                    _dparam1 = _deleteCommand.CreateParameter();
-                    _dparam1.ParameterName = "$fileid";
-                    _dparam2 = _deleteCommand.CreateParameter();
-                    _dparam2.ParameterName = "$tagid";
-                    _deleteCommand.Parameters.Add(_dparam1);
-                    _deleteCommand.Parameters.Add(_dparam2);
-                }
-
-                _database.BeginTransaction();
-
-                using (_database.CreateCommitUnitOfWork())
-                {
-                    for (int i = 0; i < TagIdList.Count; i++)
-                    {
-                        _dparam1.Value = FileId;
-                        _dparam2.Value = TagIdList[i];
-                        _deleteCommand.ExecuteNonQuery();
-                    }
+                    Delete(FileId, TagIdList[i]);
                 }
             }
         }

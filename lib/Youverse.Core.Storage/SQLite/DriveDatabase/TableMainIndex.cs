@@ -3,12 +3,12 @@ using System.Data.SQLite;
 
 namespace Youverse.Core.Storage.SQLite.DriveDatabase
 {
-    public class TableMainIndexData
+/*    public class TableMainIndexData
     {
         public Guid FileId;
         public Guid? GlobalTransitId;
         public UnixTimeUtc CreatedTimeStamp; // We might want to delete this parameter?
-        public UnixTimeUtcUnique UpdatedTimeStamp;
+        public UnixTimeUtcUnique modified;
         public Int32 FileType;
         public Int32 DataType;
         public byte[] SenderId;
@@ -18,31 +18,10 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
         public bool IsArchived;
         public bool IsHistory;
         public Int32 RequiredSecurityGroup;
-    };
+    };*/
 
-    public class TableMainIndex : TableBase
+    public class TableMainIndex : TableMainIndexCRUD
     {
-        private SQLiteCommand _insertCommand = null;
-        private SQLiteParameter _param1 = null;
-        private SQLiteParameter _param2 = null;
-        private SQLiteParameter _param3 = null;
-        private SQLiteParameter _param4 = null;
-        private SQLiteParameter _param5 = null;
-        private SQLiteParameter _param6 = null;
-        private SQLiteParameter _param7 = null;
-        private SQLiteParameter _param8 = null;
-        private SQLiteParameter _param9 = null;
-        private SQLiteParameter _param10 = null;
-        private SQLiteParameter _param11 = null;
-        private SQLiteParameter _param12 = null;
-        private SQLiteParameter _param13 = null;
-        private SQLiteParameter _param14 = null;
-        private Object _insertLock = new Object();
-
-        private SQLiteCommand _deleteCommand = null;
-        private SQLiteParameter _dparam1 = null;
-        private Object _deleteLock = new Object();
-
         private SQLiteCommand _updateCommand = null;
         private SQLiteParameter _uparam1 = null;
         private SQLiteParameter _uparam2 = null;
@@ -61,10 +40,6 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
         private SQLiteParameter _tparam2 = null;
         private Object _touchLock = new Object();
 
-        private SQLiteCommand _selectCommand = null;
-        private SQLiteParameter _sparam1 = null;
-        private Object _selectLock = new Object();
-
         public TableMainIndex(DriveDatabase db) : base(db)
         {
         }
@@ -77,59 +52,20 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
         public override void Dispose()
         {
-            _insertCommand?.Dispose();
-            _insertCommand = null;
-
-            _deleteCommand?.Dispose();
-            _deleteCommand = null;
-
             _updateCommand?.Dispose();
             _updateCommand = null;
 
             _touchCommand?.Dispose();
             _touchCommand = null;
 
-            _selectCommand?.Dispose();
-            _selectCommand = null;
+            base.Dispose();
         }
 
 
-        public override void EnsureTableExists(bool dropExisting = false)
-        {
-            using (var cmd = _database.CreateCommand())
-            {
-                if(dropExisting)
-                {
-                    cmd.CommandText = "DROP TABLE IF EXISTS mainindex;";
-                    cmd.ExecuteNonQuery();
-                }
-                
-                cmd.CommandText =
-                    @"CREATE TABLE if not exists mainindex(
-                     fileid BLOB UNIQUE PRIMARY KEY NOT NULL,
-                     globaltransitid BLOB,
-                     createdtimestamp INTEGER NOT NULL,
-                     updatedtimestamp INTEGER UNIQUE,
-                     userdate INTEGER NOT NULL,
-                     filetype INTEGER NOT NULL,
-                     datatype INTEGER NOT NULL,
-                     isArchived INTEGER NOT NULL,
-                     isHistory INTEGER NOT NULL,
-                     senderid BLOB,
-                     groupId BLOB,
-                     uniqueid BLOB,
-                     requiredSecurityGroup INTEGER NOT NULL,
-                     fileSystemType INTEGER NOT NULL); "
-                    + "CREATE INDEX if not exists idxupdatedtimestamp ON mainindex(updatedtimestamp); "
-                    + "CREATE INDEX if not exists idxglobaltransitid ON mainindex(globaltransitid);";
-
-                cmd.ExecuteNonQuery();
-            }
-        }
-
+        /*
         // Presently only needed for testing / validation. Not expecting we should need this
         // Runtime.
-        public TableMainIndexData Get(Guid fileId)
+        public MainIndexItem Get(Guid fileId)
         {
             lock (_selectLock)
             {
@@ -138,7 +74,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 {
                     _selectCommand = _database.CreateCommand();
                     _selectCommand.CommandText =
-                        $"SELECT createdtimestamp, updatedtimestamp, filetype, datatype, senderid, groupId, userdate, isArchived, isHistory, requiredSecurityGroup, globaltransitid, uniqueid FROM mainindex WHERE fileid=$fileid";
+                        $"SELECT created, modified, filetype, datatype, senderid, groupId, userdate, isArchived, isHistory, requiredSecurityGroup, globaltransitid, uniqueid FROM mainindex WHERE fileid=$fileid";
                     _sparam1 = _selectCommand.CreateParameter();
                     _sparam1.ParameterName = "$fileid";
                     _selectCommand.Parameters.Add(_sparam1);
@@ -159,7 +95,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
                         // type = rdr.GetDataTypeName(1);
                         if (!rdr.IsDBNull(1))
-                            md.UpdatedTimeStamp = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(1));
+                            md.modified = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(1));
 
                         md.FileType = rdr.GetInt32(2);
                         md.DataType = rdr.GetInt32(3);
@@ -358,6 +294,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 _deleteCommand.ExecuteNonQuery();
             }
         }
+        */
 
 
         /// <summary>
@@ -374,14 +311,14 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     _touchCommand = _database.CreateCommand();
 
                     _touchCommand.CommandText =
-                        $"UPDATE mainindex SET updatedtimestamp=$updatedtimestamp WHERE fileid = $fileid;";
+                        $"UPDATE mainindex SET modified=$modified WHERE fileid = $fileid;";
 
                     _tparam1 = _touchCommand.CreateParameter();
                     _tparam1.ParameterName = "$fileid";
                     _touchCommand.Parameters.Add(_tparam1);
 
                     _tparam2 = _touchCommand.CreateParameter();
-                    _tparam2.ParameterName = "$updatedtimestamp";
+                    _tparam2.ParameterName = "$modified";
                     _touchCommand.Parameters.Add(_tparam2);
                 }
 
@@ -391,6 +328,11 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 _database.BeginTransaction();
                 _touchCommand.ExecuteNonQuery();
             }
+        }
+
+        public override int Update(MainIndexItem item)
+        {
+            throw new Exception("can't use");
         }
 
         // It is not allowed to update the GlobalTransitId
@@ -421,7 +363,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     _uparam9 = _updateCommand.CreateParameter();
                     _uparam10 = _updateCommand.CreateParameter();
 
-                    _uparam1.ParameterName = "$updatedtimestamp";
+                    _uparam1.ParameterName = "modified";
                     _updateCommand.Parameters.Add(_uparam1);
 
                     _uparam2.ParameterName = "$filetype";
@@ -454,7 +396,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
                 string stm;
 
-                stm = "updatedtimestamp = $updatedtimestamp ";
+                stm = "modified = $modified";
 
 
                 if (fileType != null)

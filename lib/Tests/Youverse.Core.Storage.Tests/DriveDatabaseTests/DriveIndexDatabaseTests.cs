@@ -725,7 +725,7 @@ namespace DriveDatabaseTests
             Debug.Assert(result.Count == 1);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f1) == 0);
             var data = _testDatabase.TblMainIndex.Get(f1);
-            Debug.Assert(ByteArrayUtil.muidcmp(data.GlobalTransitId, g1) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g1) == 0);
         }
 
         [Test]
@@ -750,11 +750,11 @@ namespace DriveDatabaseTests
             Debug.Assert(result.Count == 2);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f2) == 0);
             var data = _testDatabase.TblMainIndex.Get(f2);
-            Debug.Assert(ByteArrayUtil.muidcmp(data.GlobalTransitId, g2) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g2) == 0);
 
             Debug.Assert(ByteArrayUtil.muidcmp(result[1], f1) == 0);
             data = _testDatabase.TblMainIndex.Get(f1);
-            Debug.Assert(ByteArrayUtil.muidcmp(data.GlobalTransitId, g1) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g1) == 0);
         }
 
 
@@ -803,7 +803,7 @@ namespace DriveDatabaseTests
             Debug.Assert(result.Count == 1);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f1) == 0);
             var data = _testDatabase.TblMainIndex.Get(f1);
-            Debug.Assert(data.GlobalTransitId == null);
+            Debug.Assert(data.globalTransitId == null);
         }
 
 
@@ -855,15 +855,15 @@ namespace DriveDatabaseTests
             _testDatabase.AddEntry(f1, g1, 1, 1, s1, t1, null, 0, 1, null, null);
 
             var data = _testDatabase.TblMainIndex.Get(f1);
-            Debug.Assert(ByteArrayUtil.muidcmp(data.GlobalTransitId, g1) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g1) == 0);
 
             _testDatabase.UpdateEntry(f1, globalTransitId: g2);
             data = _testDatabase.TblMainIndex.Get(f1);
-            Debug.Assert(ByteArrayUtil.muidcmp(data.GlobalTransitId, g2) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g2) == 0);
 
             _testDatabase.UpdateEntryZapZap(f1, globalTransitId: g3);
             data = _testDatabase.TblMainIndex.Get(f1);
-            Debug.Assert(ByteArrayUtil.muidcmp(data.GlobalTransitId, g3) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g3) == 0);
         }
 
 
@@ -1139,11 +1139,11 @@ namespace DriveDatabaseTests
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], fileId[420]) == 0);
 
             md = testDatabase.TblMainIndex.Get(fileId[420]);
-            Debug.Assert(md.FileType == 5);
-            Debug.Assert(md.DataType == 6);
-            Debug.Assert(md.UserDate == 42);
+            Debug.Assert(md.fileType == 5);
+            Debug.Assert(md.dataType == 6);
+            Debug.Assert(md.userDate == 42);
 
-            Assert.True(md.RequiredSecurityGroup == 333);
+            Assert.True(md.requiredSecurityGroup == 333);
 
             // UInt64 tmpCursor = UnixTime.UnixTimeMillisecondsUnique();
             // Now check that we can't find the one modified item with a newer cursor 

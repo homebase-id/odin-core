@@ -264,10 +264,12 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                         }
 
                         if (rdr.IsDBNull(5))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        {
+                            item.modified = null;
+                        }
                         else
                         {
-                            item.modified = new UnixTimeUtc((UInt64)rdr.GetInt64(5));
+                            item.modified = new UnixTimeUtcUnique((UInt64)rdr.GetInt64(5));
                         }
                         result.Add(item);
                     } // while

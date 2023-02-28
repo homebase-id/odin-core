@@ -75,8 +75,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                   _created = value;
                }
         }
-        private UnixTimeUtc _modified;
-        public UnixTimeUtc modified
+        private UnixTimeUtcUnique? _modified;
+        public UnixTimeUtcUnique? modified
         {
            get {
                    return _modified;
@@ -177,7 +177,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                      +"accessIsRevoked INT NOT NULL, "
                      +"data BLOB , "
                      +"created INT NOT NULL, "
-                     +"modified INT NOT NULL "
+                     +"modified INT  "
                      +", PRIMARY KEY (identity)"
                      +");"
                      +"CREATE INDEX IF NOT EXISTS Idx0TableConnectionsCRUD ON connections(identity);"
@@ -225,7 +225,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _insertParam4.Value = item.accessIsRevoked;
                 _insertParam5.Value = item.data;
                 _insertParam6.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _insertParam7.Value = UnixTimeUtc.Now().milliseconds;
+                _insertParam7.Value = null;
                 _database.BeginTransaction();
                 return _insertCommand.ExecuteNonQuery();
             } // Lock
@@ -271,7 +271,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam4.Value = item.accessIsRevoked;
                 _upsertParam5.Value = item.data;
                 _upsertParam6.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _upsertParam7.Value = UnixTimeUtc.Now().milliseconds;
+                _upsertParam7.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _database.BeginTransaction();
                 return _upsertCommand.ExecuteNonQuery();
             } // Lock
@@ -316,7 +316,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _updateParam4.Value = item.accessIsRevoked;
                 _updateParam5.Value = item.data;
                 _updateParam6.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _updateParam7.Value = UnixTimeUtc.Now().milliseconds;
+                _updateParam7.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _database.BeginTransaction();
                 return _updateCommand.ExecuteNonQuery();
             } // Lock
@@ -412,10 +412,10 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     }
 
                     if (rdr.IsDBNull(5))
-                        throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        item.modified = null;
                     else
                     {
-                        item.modified = new UnixTimeUtc((UInt64) rdr.GetInt64(5));
+                        item.modified = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(5));
                     }
 
                     return item;
@@ -515,10 +515,10 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                         }
 
                         if (rdr.IsDBNull(7))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                            item.modified = null;
                         else
                         {
-                            item.modified = new UnixTimeUtc((UInt64) rdr.GetInt64(7));
+                            item.modified = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(7));
                         }
                         result.Add(item);
                     } // while
@@ -628,10 +628,10 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                         }
 
                         if (rdr.IsDBNull(7))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                            item.modified = null;
                         else
                         {
-                            item.modified = new UnixTimeUtc((UInt64) rdr.GetInt64(7));
+                            item.modified = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(7));
                         }
                         result.Add(item);
                     } // while

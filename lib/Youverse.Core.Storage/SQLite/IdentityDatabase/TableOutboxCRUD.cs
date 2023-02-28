@@ -92,8 +92,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                   _created = value;
                }
         }
-        private UnixTimeUtc _modified;
-        public UnixTimeUtc modified
+        private UnixTimeUtcUnique? _modified;
+        public UnixTimeUtcUnique? modified
         {
            get {
                    return _modified;
@@ -192,7 +192,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                      +"value BLOB , "
                      +"popStamp BLOB , "
                      +"created INT NOT NULL, "
-                     +"modified INT NOT NULL "
+                     +"modified INT  "
                      +", PRIMARY KEY (fileId,recipient)"
                      +");"
                      +"CREATE INDEX IF NOT EXISTS Idx0TableOutboxCRUD ON outbox(timeStamp);"
@@ -249,7 +249,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _insertParam6.Value = item.value;
                 _insertParam7.Value = item.popStamp;
                 _insertParam8.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _insertParam9.Value = UnixTimeUtc.Now().milliseconds;
+                _insertParam9.Value = null;
                 _database.BeginTransaction();
                 return _insertCommand.ExecuteNonQuery();
             } // Lock
@@ -303,7 +303,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam6.Value = item.value;
                 _upsertParam7.Value = item.popStamp;
                 _upsertParam8.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _upsertParam9.Value = UnixTimeUtc.Now().milliseconds;
+                _upsertParam9.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _database.BeginTransaction();
                 return _upsertCommand.ExecuteNonQuery();
             } // Lock
@@ -356,7 +356,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _updateParam6.Value = item.value;
                 _updateParam7.Value = item.popStamp;
                 _updateParam8.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _updateParam9.Value = UnixTimeUtc.Now().milliseconds;
+                _updateParam9.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _database.BeginTransaction();
                 return _updateCommand.ExecuteNonQuery();
             } // Lock
@@ -474,10 +474,10 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     }
 
                     if (rdr.IsDBNull(6))
-                        throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        item.modified = null;
                     else
                     {
-                        item.modified = new UnixTimeUtc((UInt64) rdr.GetInt64(6));
+                        item.modified = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(6));
                     }
 
                     return item;

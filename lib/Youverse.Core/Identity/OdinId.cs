@@ -99,6 +99,7 @@ namespace Youverse.Core.Identity
 
         public static void Validate(string odinId)
         {
+            // Will always return true
             DomainNameValidator.AssertValidDomain(odinId);
         }
     }

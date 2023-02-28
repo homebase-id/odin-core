@@ -40,8 +40,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                   _created = value;
                }
         }
-        private UnixTimeUtc _modified;
-        public UnixTimeUtc modified
+        private UnixTimeUtcUnique? _modified;
+        public UnixTimeUtcUnique? modified
         {
            get {
                    return _modified;
@@ -120,7 +120,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                      +"identity STRING NOT NULL, "
                      +"driveId BLOB NOT NULL, "
                      +"created INT NOT NULL, "
-                     +"modified INT NOT NULL "
+                     +"modified INT  "
                      +", PRIMARY KEY (identity,driveId)"
                      +");"
                      +"CREATE INDEX IF NOT EXISTS Idx0TableFollowsMeCRUD ON followsMe(identity);"
@@ -155,7 +155,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _insertParam1.Value = item.identity;
                 _insertParam2.Value = item.driveId;
                 _insertParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _insertParam4.Value = UnixTimeUtc.Now().milliseconds;
+                _insertParam4.Value = null;
                 _database.BeginTransaction();
                 return _insertCommand.ExecuteNonQuery();
             } // Lock
@@ -189,7 +189,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam1.Value = item.identity;
                 _upsertParam2.Value = item.driveId;
                 _upsertParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _upsertParam4.Value = UnixTimeUtc.Now().milliseconds;
+                _upsertParam4.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _database.BeginTransaction();
                 return _upsertCommand.ExecuteNonQuery();
             } // Lock
@@ -222,7 +222,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _updateParam1.Value = item.identity;
                 _updateParam2.Value = item.driveId;
                 _updateParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _updateParam4.Value = UnixTimeUtc.Now().milliseconds;
+                _updateParam4.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _database.BeginTransaction();
                 return _updateCommand.ExecuteNonQuery();
             } // Lock
@@ -279,6 +279,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     item.identity = identity;
                     item.driveId = driveId;
                     byte[] _tmpbuf = new byte[65535+1];
+                    long bytesRead;
                     var _guid = new byte[16];
 
                     if (rdr.IsDBNull(0))
@@ -289,10 +290,10 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     }
 
                     if (rdr.IsDBNull(1))
-                        throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        item.modified = null;
                     else
                     {
-                        item.modified = new UnixTimeUtc((UInt64) rdr.GetInt64(1));
+                        item.modified = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(1));
                     }
 
                     return item;

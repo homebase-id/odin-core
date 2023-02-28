@@ -139,7 +139,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
             using (CreateCommitUnitOfWork())
             {
-                TblMainIndex.InsertRow(fileId, globalTransitId, UnixTimeUtc.Now(), fileType, dataType, senderId, groupId, uniqueId, userDate, false, false, requiredSecurityGroup, fileSystemType);
+                TblMainIndex.Insert(new MainIndexItem() { fileId = fileId, globalTransitId = globalTransitId, userDate = (Int64) userDate,  fileType = fileType,  dataType = dataType, senderId = senderId.ToString(), groupId = groupId, uniqueId = uniqueId, isArchived = 0, isHistory = 0, requiredSecurityGroup = requiredSecurityGroup, fileSystemType = fileSystemType });
                 TblAclIndex.InsertRows(fileId, accessControlList);
                 TblTagIndex.InsertRows(fileId, tagIdList);
             }
@@ -153,7 +153,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             {
                 TblAclIndex.DeleteAllRows(fileId);
                 TblTagIndex.DeleteAllRows(fileId);
-                TblMainIndex.DeleteRow(fileId);
+                TblMainIndex.Delete(fileId);
             }
         }
 
@@ -299,7 +299,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             else
             {
                 strWhere += $"((requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) OR ";
-                strWhere += $"(fileid IN (SELECT DISTINCT fileid FROM aclindex WHERE aclmember IN ({HexList(aclAnyOf)})))) ";
+                strWhere += $"(fileid IN (SELECT DISTINCT fileid FROM aclindex WHERE aclmemberid IN ({HexList(aclAnyOf)})))) ";
             }
 
             if (IsSet(globalTransitIdAnyOf))
@@ -556,11 +556,11 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             
             stopWatch.Start();
             
-            strWhere += $"updatedtimestamp > {cursor.uniqueTime} ";
+            strWhere += $"modified > {cursor.uniqueTime} ";
 
             if (stopAtModifiedUnixTimeSeconds.uniqueTime > 0)
             {
-                strWhere += $"AND updatedtimestamp >= {stopAtModifiedUnixTimeSeconds.uniqueTime} ";
+                strWhere += $"AND modified >= {stopAtModifiedUnixTimeSeconds.uniqueTime} ";
             }
 
             if (strWhere != "")
@@ -625,7 +625,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
             if (IsSet(aclAnyOf))
             {
-                strWhere += $"AND fileid IN (SELECT DISTINCT fileid FROM aclindex WHERE aclmember IN ({HexList(aclAnyOf)})) ";
+                strWhere += $"AND fileid IN (SELECT DISTINCT fileid FROM aclindex WHERE aclmemberid IN ({HexList(aclAnyOf)})) ";
             }
 
             if (IsSet(tagsAllOf))
@@ -639,7 +639,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 strWhere = "WHERE " + strWhere;
             }
 
-            stm = $"SELECT fileid, updatedtimestamp FROM mainindex " + strWhere + $"ORDER BY updatedtimestamp ASC LIMIT {noOfItems}";
+            stm = $"SELECT fileid, modified FROM mainindex " + strWhere + $"ORDER BY modified ASC LIMIT {noOfItems}";
 
             var cmd = new SQLiteCommand(stm, con);
             var rdr = cmd.ExecuteReader();

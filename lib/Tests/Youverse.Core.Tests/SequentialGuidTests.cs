@@ -8,6 +8,21 @@ namespace Youverse.Core.Tests
     public class SequentialGuidTests
     {
         [Test]
+        public void GuidSeqeunceTest()
+        {
+            var ba = new byte[16] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+            var g = new Guid(ba);
+            Assert.IsTrue(g.ToString() == "04030201-0605-0807-090a-0b0c0d0e0f10");
+
+            // Creating a guid in this sequence will output the right sequence.
+            ba = new byte[16] { 4, 3, 2, 1, 6, 5, 8, 7, 9, 10, 11, 12, 13, 14, 15, 16 };
+            g = new Guid(ba);
+            Assert.IsTrue(g.ToString() == "01020304-0506-0708-090a-0b0c0d0e0f10");
+        }
+
+
+
+        [Test]
         public void SequentialGuid01()
         {
             var t1 = new UnixTimeUtc();
