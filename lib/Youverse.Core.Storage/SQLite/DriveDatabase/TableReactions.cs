@@ -165,6 +165,48 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
         } //
 
 
+        public (List<string>, List<int>, int) GetPostReactionsWithDetails(Guid postId)
+        {
+            lock (_selectLock)
+            {
+                if (_selectCommand == null)
+                {
+                    _selectCommand = _database.CreateCommand();
+                    _selectCommand.CommandText =
+                        $"SELECT singleReaction, COUNT(singleReaction) as reactioncount FROM reactions WHERE postId=$postId GROUP BY singleReaction ORDER BY reactioncount DESC;";
+
+                    _sparam1 = _selectCommand.CreateParameter();
+                    _sparam1.ParameterName = "$postId";
+                    _selectCommand.Parameters.Add(_sparam1);
+
+                    _selectCommand.Prepare();
+                }
+
+                _sparam1.Value = postId;
+
+                using (SQLiteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.Default))
+                {
+                    var result = new List<string>();
+                    var iresult = new List<int>();
+                    int totalCount = 0;
+
+                    while (rdr.Read())
+                    {
+                        string s = rdr.GetString(0);
+                        result.Add(s);
+
+                        int count = rdr.GetInt32(1);
+                        iresult.Add(count);
+
+                        totalCount += count;
+                    }
+
+                    return (result, iresult, totalCount);
+                }
+            }
+        } //
+
+
         // Copied and modified from CRUD
         public List<ReactionsItem> PagingByRowid(int count, Int32? inCursor, out Int32? nextCursor, Guid postIdFilter)
         {
