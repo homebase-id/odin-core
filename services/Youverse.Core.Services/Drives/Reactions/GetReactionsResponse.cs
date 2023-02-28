@@ -1,17 +1,10 @@
 using System.Collections.Generic;
-using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drives.DriveCore.Query.Sqlite;
 
 namespace Youverse.Core.Services.Drives.Reactions;
 
-public class GetReactionsResponse
-{
-    public List<string> Reactions { get; set; }
-        
-    public int TotalCount { get; set; }
-}
 
-public class GetReactionsResponse2
+public class GetReactionsResponse
 {
     public List<Reaction> Reactions { get; set; }
         

@@ -4,25 +4,18 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Dawn;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Core.Storage;
-using Youverse.Core.Services.Drives.FileSystem;
-using Youverse.Core.Services.Drives.FileSystem.Comment;
-using Youverse.Core.Services.Drives.FileSystem.Standard;
+using Youverse.Core.Services.Drives.DriveCore.Storage;
+using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Services.Transit.Upload;
-using Youverse.Hosting.Controllers.Base.Upload;
 
-namespace Youverse.Core.Services.Drives.Base.Upload;
+namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 
 /// <summary>
 /// Enables the writing of file streams from external sources and

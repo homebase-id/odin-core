@@ -1,6 +1,6 @@
 using System;
 
-namespace Youverse.Core.Services.Drive
+namespace Youverse.Core.Services.Drives
 {
     /// <summary>
     /// A specifier for a file being written to a drive

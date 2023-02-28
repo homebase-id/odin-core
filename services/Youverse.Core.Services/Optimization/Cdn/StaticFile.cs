@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Drive.Core.Storage;
+using Youverse.Core.Services.Drives.DriveCore.Storage;
 
 namespace Youverse.Core.Services.Optimization.Cdn;
 

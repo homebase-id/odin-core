@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives;
 
 namespace Youverse.Core.Services.Contacts.Circle;
 

@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core;
-using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers.Anonymous;
 using Youverse.Hosting.Controllers.ClientToken;

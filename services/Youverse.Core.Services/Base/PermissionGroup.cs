@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives;
 
 namespace Youverse.Core.Services.Base;
 

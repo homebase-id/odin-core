@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
-namespace Youverse.Core.Services.Drive.Core.Storage
+namespace Youverse.Core.Services.Drives.DriveCore.Storage
 {
     /// <summary>
     /// Handles the storage, retrieval, and management of data storage for a single <see cref="StorageDrive"/>.

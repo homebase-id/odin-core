@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Youverse.Core.Services.Drive;
+namespace Youverse.Core.Services.Drives;
 
 public class QueryBatchCollectionRequest
 {

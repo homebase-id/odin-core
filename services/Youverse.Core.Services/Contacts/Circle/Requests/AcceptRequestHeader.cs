@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using Dawn;
 using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Contacts.Circle.Requests;
 

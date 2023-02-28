@@ -6,9 +6,8 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Services.Transit.Upload;
 using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Transit.Outbox

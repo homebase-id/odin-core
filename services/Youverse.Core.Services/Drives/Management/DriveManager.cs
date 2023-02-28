@@ -6,17 +6,15 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using MediatR;
-using Microsoft.Extensions.Logging;
 using Serilog;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Storage;
 
-namespace Youverse.Core.Services.Drive;
+namespace Youverse.Core.Services.Drives.Management;
 
 // Note: drive storage using the ThreeKey KeyValueDatabase
 // key1 = drive id

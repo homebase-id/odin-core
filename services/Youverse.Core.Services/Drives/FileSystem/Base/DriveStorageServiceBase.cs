@@ -12,15 +12,13 @@ using Youverse.Core.Serialization;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Core;
-using Youverse.Core.Services.Drive.Core.Storage;
-using Youverse.Core.Services.Drives.FileSystem;
+using Youverse.Core.Services.Drives.DriveCore.Storage;
+using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Storage;
 
-namespace Youverse.Core.Services.Drives.Base
+namespace Youverse.Core.Services.Drives.FileSystem.Base
 {
     public abstract class DriveStorageServiceBase : RequirePermissionsBase
     {

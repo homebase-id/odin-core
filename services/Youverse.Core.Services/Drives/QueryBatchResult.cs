@@ -1,10 +1,9 @@
 using System;
 using System.Collections.Generic;
 using Youverse.Core.Services.Apps;
-using Youverse.Core.Storage.SQLite;
 using Youverse.Core.Storage.SQLite.DriveDatabase;
 
-namespace Youverse.Core.Services.Drive;
+namespace Youverse.Core.Services.Drives;
 
 public class QueryBatchResult
 {

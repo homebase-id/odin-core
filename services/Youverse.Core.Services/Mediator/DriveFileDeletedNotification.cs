@@ -2,8 +2,8 @@ using System;
 using MediatR;
 using Youverse.Core.Services.AppNotifications;
 using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Core.Storage;
+using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Drives.DriveCore.Storage;
 
 namespace Youverse.Core.Services.Mediator;
 

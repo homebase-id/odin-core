@@ -4,7 +4,7 @@ using System.Linq;
 using NUnit.Framework;
 using Youverse.Core;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives;
 
 namespace Youverse.Hosting.Tests.DriveApi
 {

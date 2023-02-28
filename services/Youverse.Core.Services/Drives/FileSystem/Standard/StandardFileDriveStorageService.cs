@@ -3,8 +3,8 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drives.Base;
+using Youverse.Core.Services.Drives.FileSystem.Base;
+using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Drives.FileSystem.Standard

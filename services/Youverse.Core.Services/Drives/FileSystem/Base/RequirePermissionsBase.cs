@@ -1,8 +1,8 @@
 using System;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives.Management;
 
-namespace Youverse.Core.Services.Drives.Base;
+namespace Youverse.Core.Services.Drives.FileSystem.Base;
 
 public abstract class RequirePermissionsBase
 {

@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
-using Youverse.Core.Services.Drive;
 using Youverse.Core.Services.Drives.Reactions;
 using Youverse.Hosting.Controllers.Anonymous;
 using Youverse.Hosting.Controllers.Base;
@@ -49,17 +48,9 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         /// <summary />
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("list")]
-        public GetReactionsResponse GetAllReactions([FromBody] ExternalFileIdentifier file)
+        public GetReactionsResponse GetAllReactions2([FromBody] GetReactionsRequest request)
         {
-            return base.GetReactions(file);
-        }
-        
-        /// <summary />
-        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
-        [HttpPost("list2")]
-        public GetReactionsResponse2 GetAllReactions2([FromBody] GetReactionsRequest request)
-        {
-            return base.GetReactions2(request);
+            return base.GetReactions(request);
         }
     }
 }

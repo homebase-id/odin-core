@@ -1,6 +1,5 @@
 using System;
 using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Authorization.ExchangeGrants
 {

@@ -1,6 +1,6 @@
 using System;
 using MediatR;
-using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives;
 
 namespace Youverse.Core.Services.Mediator;
 

@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using Youverse.Core.Services.Drive.Core.Storage;
+using Youverse.Core.Services.Drives.DriveCore.Storage;
 
-namespace Youverse.Core.Services.Drives.Base.Upload
+namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
 {
     public class UploadAppFileMetaData : IAppFileMetaData
     {

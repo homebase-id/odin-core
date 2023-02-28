@@ -1,7 +1,6 @@
 ﻿using System.IO;
-using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drives.Base.Upload;
-using Youverse.Core.Services.Transit.Upload;
+using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 
 namespace Youverse.Hosting.Tests
 {

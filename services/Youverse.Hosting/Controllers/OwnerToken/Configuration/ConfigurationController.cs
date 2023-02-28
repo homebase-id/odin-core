@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Refit;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Configuration;
-using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Registry.Registration;
 

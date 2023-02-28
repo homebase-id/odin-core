@@ -1,14 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
-using Youverse.Core.Services.AppNotifications;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Core.Storage;
-using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Drives.Reactions;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Util;
@@ -86,8 +81,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
 
         await fs.Storage.UpdateStatistics(targetFile, reactionPreview);
     }
-
-
+    
     public Task Handle(EmojiReactionAddedNotification notification, CancellationToken cancellationToken)
     {
         var targetFile = notification.Reaction.FileId;
@@ -95,7 +89,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
         var header = fs.Storage.GetServerFileHeader(targetFile).GetAwaiter().GetResult();
         var preview = header.ReactionPreview ?? new ReactionPreviewData();
         
-        var dict = preview.Reactions2;
+        var dict = preview.Reactions ?? new Dictionary<Guid, EmojiReactionPreview>();
         
         var key = HashUtil.ReduceSHA256Hash(notification.Reaction.ReactionContent);
         if (!dict.TryGetValue(key, out EmojiReactionPreview emojiPreview))
@@ -109,8 +103,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
 
         dict[key] = emojiPreview;
 
-        preview.Reactions2 = dict;
-        preview.Reactions = dict.Values.ToList();
+        preview.Reactions = dict;
         
         fs.Storage.UpdateStatistics(targetFile, preview).GetAwaiter().GetResult();
         return Task.CompletedTask;
