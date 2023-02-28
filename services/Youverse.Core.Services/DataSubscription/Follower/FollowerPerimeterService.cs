@@ -39,27 +39,34 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             //TODO: where to store the request.ClientAuthToken ??
             // 
             
-            if (request.NotificationType == FollowerNotificationType.SelectedChannels)
-            {
-                Guard.Argument(request.Channels, nameof(request.Channels)).NotNull().NotEmpty().Require(channels => channels.All(c => c.Type == SystemDriveConstants.ChannelDriveType));
-
-                var driveIdList = request.Channels.Select(chan => _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(chan));
-
-                _tenantStorage.Followers.DeleteFollower(request.OdinId);
-                foreach (var driveId in driveIdList)
-                {
-                    _tenantStorage.Followers.Insert(new FollowsMeItem() { identity = request.OdinId, driveId = driveId });
-                }
-
-                return Task.CompletedTask;
-            }
-
             if (request.NotificationType == FollowerNotificationType.AllNotifications)
             {
                 _tenantStorage.Followers.DeleteFollower(request.OdinId);
                 _tenantStorage.Followers.Insert(new FollowsMeItem() { identity = request.OdinId, driveId = System.Guid.Empty });
             }
 
+            
+            //Issue with select channels
+            // we need to look up the driveId but it's not available in the permission context
+            // because the caller is totally public.
+            if (request.NotificationType == FollowerNotificationType.SelectedChannels)
+            {
+                Guard.Argument(request.Channels, nameof(request.Channels)).NotNull().NotEmpty().Require(channels => channels.All(c => c.Type == SystemDriveConstants.ChannelDriveType));
+
+                var driveIdList = request.Channels.Select(chan => _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(chan));
+
+               using( _tenantStorage.CreateCommitUnitOfWork())
+               {
+                   _tenantStorage.Followers.DeleteFollower(request.OdinId);
+                   foreach (var driveId in driveIdList)
+                   {
+                       _tenantStorage.Followers.Insert(new FollowsMeItem() { identity = request.OdinId, driveId = driveId });
+                   }
+               }
+
+                return Task.CompletedTask;
+            }
+            
             return Task.CompletedTask;
         }
 

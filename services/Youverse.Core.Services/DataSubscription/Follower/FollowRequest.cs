@@ -5,10 +5,6 @@ namespace Youverse.Core.Services.DataSubscription.Follower;
 
 public class FollowRequest
 {
-    public FollowRequest()
-    {
-    }
-
     /// <summary>
     /// The identity subscribing
     /// </summary>

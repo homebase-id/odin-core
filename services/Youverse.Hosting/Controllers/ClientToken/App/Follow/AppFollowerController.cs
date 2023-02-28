@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
 using Youverse.Core.Services.DataSubscription.Follower;
+using Youverse.Hosting.Controllers.Base;
 
 namespace Youverse.Hosting.Controllers.ClientToken.App.Follow
 {
@@ -9,22 +10,18 @@ namespace Youverse.Hosting.Controllers.ClientToken.App.Follow
     [ApiController]
     [Route(AppApiPathConstants.CirclesV1 + "/followers")]
     [AuthorizeValidAppExchangeGrant]
-    public class AppFollowerController : ControllerBase
+    public class AppFollowerController : FollowerControllerBase
     {
-        private readonly FollowerService _followerService;
-
         /// <summary />
-        public AppFollowerController(FollowerService fs)
+        public AppFollowerController(FollowerService fs) : base(fs)
         {
-            _followerService = fs;
         }
 
         /// <summary />
         [HttpGet("IdentitiesIFollow")]
-        public async Task<CursoredResult<string>> GetIdentitiesIFollow(string cursor)
+        public async Task<CursoredResult<string>> GetIdentitiesIFollow(int max, string cursor)
         {
-            var (result, nextCursor) = await _followerService.GetIdentitiesIFollow(cursor);
-            // TODO You need to do something with the cursor here.
+            var result = await base.GetWhoIFollow(max, cursor);
             return result;
         }
     }

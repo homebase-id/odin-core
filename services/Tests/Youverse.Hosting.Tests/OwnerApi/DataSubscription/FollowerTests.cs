@@ -1,10 +1,14 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.DataSubscription.Follower;
+using Youverse.Core.Services.Drive;
 
 namespace Youverse.Hosting.Tests.OwnerApi.DataSubscription;
 
@@ -36,26 +40,96 @@ public class FollowerTests
 
         await frodoOwnerClient.Follower.FollowIdentity(samOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
 
-        // Frodo should have sam
+        // Frodo should follow Sam
         var frodoFollows = await frodoOwnerClient.Follower.GetIdentitiesIFollow(string.Empty);
         Assert.IsTrue(frodoFollows.Results.Count() == 1, "frodo should only follow sam");
         Assert.IsTrue(new OdinId(frodoFollows.Results.Single()) == samOwnerClient.Identity.OdinId);
 
         var followingFrodo = await frodoOwnerClient.Follower.GetIdentitiesFollowingMe(string.Empty);
-        Assert.IsTrue(!followingFrodo.Results.Any());
+        Assert.IsFalse(followingFrodo.Results.Any());
+
+        var frodoRecordOfFollowingSam = await frodoOwnerClient.Follower.GetIdentityIFollow(samOwnerClient.Identity);
+        Assert.IsTrue(frodoRecordOfFollowingSam.NotificationType == FollowerNotificationType.AllNotifications);
+        Assert.IsNull(frodoRecordOfFollowingSam.Channels, "there should be no channels when notification type is all notifications");
 
         //sam should have frodo
         var followingSam = await samOwnerClient.Follower.GetIdentitiesFollowingMe(string.Empty);
         Assert.IsTrue(followingSam.Results.Count() == 1, "Sam should have one follower; frodo");
         Assert.IsTrue(new OdinId(followingSam.Results.Single()) == frodoOwnerClient.Identity.OdinId);
 
+        var samRecordOfFrodoFollowingHim = await samOwnerClient.Follower.GetFollower(frodoOwnerClient.Identity);
+        Assert.IsTrue(samRecordOfFrodoFollowingHim.NotificationType == FollowerNotificationType.AllNotifications);
+        Assert.IsNull(samRecordOfFrodoFollowingHim.Channels, "there should be no channels when notification type is all notifications");
+
         var samFollows = await samOwnerClient.Follower.GetIdentitiesIFollow(string.Empty);
-        Assert.IsTrue(!samFollows.Results.Any(), "Sam should not be following anyone");
+        Assert.IsFalse(samFollows.Results.Any(), "Sam should not be following anyone");
 
         //All done
         await frodoOwnerClient.Follower.UnfollowIdentity(samOwnerClient.Identity);
         await samOwnerClient.Follower.UnfollowIdentity(frodoOwnerClient.Identity);
     }
+
+
+    [Test]
+    public async Task CanFollowIdentity_SelectedChannels()
+    {
+        var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
+        var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
+
+        //create some channels for Sam
+        var channel1Drive = await samOwnerClient.Drive.CreateDrive(new TargetDrive()
+        {
+            Alias = Guid.NewGuid(),
+            Type = SystemDriveConstants.ChannelDriveType
+        }, "Channel 1", "", true, false, true);
+
+        var channel2Drive = await samOwnerClient.Drive.CreateDrive(new TargetDrive()
+        {
+            Alias = Guid.NewGuid(),
+            Type = SystemDriveConstants.ChannelDriveType
+        }, "Channel 2", "", true, false, true);
+
+        //Frodo will follow Sam
+        await frodoOwnerClient.Follower.FollowIdentity(samOwnerClient.Identity, FollowerNotificationType.SelectedChannels, new List<TargetDrive>()
+        {
+            channel1Drive.TargetDriveInfo,
+            channel2Drive.TargetDriveInfo
+        });
+
+        // Frodo should follow Sam
+        var frodoFollows = await frodoOwnerClient.Follower.GetIdentitiesIFollow(string.Empty);
+        Assert.IsTrue(frodoFollows.Results.Count() == 1, "frodo should only follow sam");
+        Assert.IsTrue(new OdinId(frodoFollows.Results.Single()) == samOwnerClient.Identity.OdinId);
+
+        var followingFrodo = await frodoOwnerClient.Follower.GetIdentitiesFollowingMe(string.Empty);
+        Assert.IsFalse(followingFrodo.Results.Any(), "Frodo should have no followers");
+
+        var frodoRecordOfFollowingSam = await frodoOwnerClient.Follower.GetIdentityIFollow(samOwnerClient.Identity);
+        Assert.IsTrue(frodoRecordOfFollowingSam.NotificationType == FollowerNotificationType.SelectedChannels);
+        Assert.IsTrue(frodoRecordOfFollowingSam.Channels.Count() == 2, "Frodo should follow 2 of Sam's channels");
+        Assert.IsNotNull(frodoRecordOfFollowingSam.Channels.SingleOrDefault(c => c == channel1Drive.TargetDriveInfo), $"Frodo should have only one record of {nameof(channel1Drive)}");
+        Assert.IsNotNull(frodoRecordOfFollowingSam.Channels.SingleOrDefault(c => c == channel2Drive.TargetDriveInfo), $"Frodo should have only one record of {nameof(channel2Drive)}");
+
+        //sam should have frodo as a follower
+        var followingSam = await samOwnerClient.Follower.GetIdentitiesFollowingMe(string.Empty);
+        Assert.IsTrue(followingSam.Results.Count() == 1, "Sam should have one follower; frodo");
+        Assert.IsTrue(new OdinId(followingSam.Results.Single()) == frodoOwnerClient.Identity.OdinId);
+
+        var samRecordOfFrodoFollowingHim = await samOwnerClient.Follower.GetFollower(frodoOwnerClient.Identity);
+        Assert.IsTrue(samRecordOfFrodoFollowingHim.NotificationType == FollowerNotificationType.AllNotifications);
+       
+        Assert.IsTrue(samRecordOfFrodoFollowingHim.Channels.Count() == 2, "Frodo should follow 2 of Sam's channels");
+        Assert.IsNotNull(samRecordOfFrodoFollowingHim.Channels.SingleOrDefault(c => c == channel1Drive.TargetDriveInfo), $"Frodo should have only one record of {nameof(channel1Drive)}");
+        Assert.IsNotNull(samRecordOfFrodoFollowingHim.Channels.SingleOrDefault(c => c == channel2Drive.TargetDriveInfo), $"Frodo should have only one record of {nameof(channel2Drive)}");
+
+        var samFollows = await samOwnerClient.Follower.GetIdentitiesIFollow(string.Empty);
+        Assert.IsFalse(samFollows.Results.Any(), "Sam should not be following anyone");
+
+        //All done
+        await frodoOwnerClient.Follower.UnfollowIdentity(samOwnerClient.Identity);
+        await samOwnerClient.Follower.UnfollowIdentity(frodoOwnerClient.Identity);
+    }
+
 
     [Test]
     public async Task CanUnfollowIdentity()
@@ -178,7 +252,7 @@ public class FollowerTests
     //     await frodoOwnerClient.Follower.UnfollowIdentity(samOwnerClient.Identity);
     //     await samOwnerClient.Follower.UnfollowIdentity(frodoOwnerClient.Identity);
     // }
-    
+
     //Test Permissions for Tenant Settings
     //Test that following only works for drives of type channel
 }

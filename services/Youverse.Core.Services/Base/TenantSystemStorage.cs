@@ -2,6 +2,7 @@
 using System.IO;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Storage;
+using Youverse.Core.Storage.SQLite;
 using Youverse.Core.Storage.SQLite.IdentityDatabase;
 using Youverse.Core.Util;
 
@@ -63,6 +64,11 @@ namespace Youverse.Core.Services.Base
         public ThreeKeyValueStorage IcrClientStorage { get; }
 
         public TableCircleMember CircleMemberStorage { get; }
+
+        public DatabaseBase.LogicCommitUnit CreateCommitUnitOfWork()
+        {
+            return _db.CreateCommitUnitOfWork();
+        }
 
         public void Dispose()
         {

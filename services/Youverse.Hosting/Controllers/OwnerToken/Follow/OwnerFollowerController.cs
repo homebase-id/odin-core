@@ -4,6 +4,7 @@ using Refit;
 using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.DataSubscription.Follower;
+using Youverse.Hosting.Controllers.Base;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Follow
 {
@@ -11,27 +12,20 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Follow
     [ApiController]
     [Route(OwnerApiPathConstants.FollowersV1)]
     [AuthorizeValidOwnerToken]
-    public class OwnerFollowerController : ControllerBase
+    public class OwnerFollowerController : FollowerControllerBase
     {
-        private readonly FollowerService _followerService;
-
         /// <summary />
-        public OwnerFollowerController(FollowerService fs)
+        public OwnerFollowerController(FollowerService fs) : base(fs)
         {
-            _followerService = fs;
         }
 
         /// <summary>
         /// Gets a list of identities I follow
         /// </summary>
-        /// <param name="cursor"></param>
-        /// <returns></returns>
         [HttpGet("IdentitiesIFollow")]
-        public async Task<CursoredResult<string>> GetIdentitiesIFollow(string cursor)
+        public async Task<CursoredResult<string>> GetIdentitiesIFollow(int max, string cursor)
         {
-            var (result, nextCursor) = await _followerService.GetIdentitiesIFollow(cursor);
-            // TODO: You need to do something with the cursor here
-            return result;
+            return await base.GetWhoIFollow(max, cursor);
         }
 
         /// <summary>
@@ -39,11 +33,9 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Follow
         /// </summary>
         /// <returns></returns>
         [HttpGet("followingme")]
-        public async Task<CursoredResult<string>> GetIdentitiesFollowingMe(string cursor)
+        public async Task<CursoredResult<string>> GetIdentitiesFollowingMe(int max, string cursor)
         {
-            var (result, nextCursor) = await _followerService.GetFollowers(cursor);
-            // TODO: You need to do something with the cursor here
-            return result;
+            return await base.GetFollowers(max, cursor);
         }
 
         /// <summary>
@@ -54,16 +46,16 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Follow
         [HttpGet("follower")]
         public async Task<FollowerDefinition> GetFollower(string odinId)
         {
-            return await _followerService.GetFollower(new OdinId(odinId));
+            return await base.GetFollower(new OdinId(odinId));
         }
-        
+
         /// <summary>
         /// Returns the details of an identity you're following
         /// </summary>
         [HttpGet("IdentityIFollow")]
         public async Task<FollowerDefinition> GetIdentityIFollow(string odinId)
         {
-            return await _followerService.GetIdentityIFollow(new OdinId(odinId));
+            return await base.GetIdentityIFollow(new OdinId(odinId));
         }
 
         /// <summary>
@@ -73,8 +65,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Follow
         [HttpPost("follow")]
         public async Task<IActionResult> Follow([Body] FollowRequest request)
         {
-            await _followerService.Follow(request);
-            return Ok();
+            return await base.Follow(request);
         }
 
         /// <summary>
@@ -83,8 +74,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Follow
         [HttpPost("unfollow")]
         public async Task<IActionResult> Unfollow([Body] UnfollowRequest request)
         {
-            await _followerService.Unfollow(new OdinId(request.OdinId));
-            return Ok();
+            return await base.Unfollow(request);
         }
     }
 }

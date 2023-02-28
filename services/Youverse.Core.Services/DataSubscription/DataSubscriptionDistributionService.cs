@@ -39,17 +39,16 @@ namespace Youverse.Core.Services.DataSubscription
 
             //TODO: move this to a background thread or use ScheduleOptions.SendLater so the original call can finish
             //TODO: first store on this identities feed drive.
-            //then send from their feed drive
-            var (driveFollowers, nextCursor1) = await _followerService.GetFollowers(notification.File.DriveId, cursor: "");
-            var (allDriveFollowers, nextCursor2) = await _followerService.GetFollowersOfAllNotifications(cursor: "");
+            //then send from their feed drive?
 
-            // TODO: You need to do something with the two cursors here, don't you?
-
+            int maxRecords = 10000; //TODO: cursor thru batches instead
+            var driveFollowers = await _followerService.GetFollowers(notification.File.DriveId, maxRecords, cursor: "");
+            var allDriveFollowers = await _followerService.GetFollowersOfAllNotifications(maxRecords, cursor: "");
+            
             var recipients = new List<string>();
-            recipients!.AddRange(driveFollowers.Results);
+            recipients.AddRange(driveFollowers.Results);
             recipients.AddRange(allDriveFollowers.Results.Except(driveFollowers.Results));
-
-
+            
             // Don't handle if there are no recipients
             if (!recipients.Any())
             {
@@ -71,11 +70,6 @@ namespace Youverse.Core.Services.DataSubscription
             //TODO: in order to send over transit like this, the sender needs access to the feed drive
             await _transitService.SendFile(notification.File, options, TransferFileType.Normal, notification.ServerFileHeader.ServerMetadata.FileSystemType, ClientAccessTokenSource.DataSubscription);
         }
-
-        private static readonly List<Guid> DriveTypesSupportingSubscription = new List<Guid>()
-        {
-            SystemDriveConstants.ChannelDriveType
-        };
 
         private async Task<bool> SupportsSubscription(Guid driveId)
         {
