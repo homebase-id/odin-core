@@ -10,7 +10,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
     /// <summary>
     /// Specifies that an identity shares a connection with another identity (i.e. friend request)
     /// </summary>
-    public class IdentityConnectionRegistration : DotYouIdBase
+    public class IdentityConnectionRegistration : OdinIdBase
     {
         private ConnectionStatus _status;
 
@@ -35,18 +35,18 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         public AccessExchangeGrant AccessGrant { get; set; }
 
         /// <summary>
-        /// The Id of the <see cref="ClientAccessToken"/> to be sent when communicating with this DotYouId's host
+        /// The Id of the <see cref="ClientAccessToken"/> to be sent when communicating with this OdinId's host
         /// </summary>
         public Guid ClientAccessTokenId { get; set; }
 
         /// <summary>
-        /// The AccessTokenHalfKey of the <see cref="ClientAccessToken"/> to be sent when communicating with this DotYouId's host
+        /// The AccessTokenHalfKey of the <see cref="ClientAccessToken"/> to be sent when communicating with this OdinId's host
         /// </summary>
         public byte[] ClientAccessTokenHalfKey { get; set; }
 
         /// <summary>
         /// The SharedSecret of the <see cref="ClientAccessToken"/> used to encrypt payloads when
-        /// communicating with this DotYouId's host.  This is never sent over the wire.
+        /// communicating with this OdinId's host.  This is never sent over the wire.
         /// </summary>
         public byte[] ClientAccessTokenSharedSecret { get; set; } //TODO: this needs to be encrypted when stored; 
 
@@ -89,7 +89,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         {
             return new RedactedIdentityConnectionRegistration()
             {
-                DotYouId = this.DotYouId,
+                OdinId = this.OdinId,
                 Status = this.Status,
                 Created = this.Created,
                 LastUpdated = this.LastUpdated,
@@ -106,7 +106,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
     public class RedactedIdentityConnectionRegistration
     {
-        public OdinId DotYouId { get; set; }
+        public OdinId OdinId { get; set; }
 
         public ConnectionStatus Status { get; set; }
 

@@ -146,7 +146,7 @@ public class FollowerTests
 
         var frodoFollowsPippin = await frodoOwnerClient.Follower.GetIdentityIFollow(pippinOwnerClient.Identity);
         Assert.IsNotNull(frodoFollowsPippin);
-        Assert.IsTrue(frodoFollowsPippin.DotYouId == pippinOwnerClient.Identity.OdinId);
+        Assert.IsTrue(frodoFollowsPippin.OdinId == pippinOwnerClient.Identity.OdinId);
 
         var samFollows = await frodoOwnerClient.Follower.GetIdentitiesIFollow(string.Empty);
         Assert.IsNotNull(samFollows.Results.SingleOrDefault(ident => ((OdinId)ident) == pippinOwnerClient.Identity.OdinId), "Sam should follow Pippin");

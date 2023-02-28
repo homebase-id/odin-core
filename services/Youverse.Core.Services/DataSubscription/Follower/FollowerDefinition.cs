@@ -9,7 +9,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower;
 /// <summary/>
 public class FollowerDefinition
 {
-    public OdinId DotYouId { get; set; }
+    public OdinId OdinId { get; set; }
 
     public FollowerNotificationType NotificationType { get; set; }
     public IEnumerable<TargetDrive> Channels { get; set; }
@@ -17,7 +17,7 @@ public class FollowerDefinition
     public ClientAccessToken CreateClientAccessToken()
     {
         //HACK: shim for follower support
-        var guidId = DotYouId.ToHashId();
+        var guidId = OdinId.ToHashId();
         return new ClientAccessToken()
         {
             Id = guidId,

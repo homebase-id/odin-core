@@ -25,14 +25,14 @@ public class DataProviderAuthenticationService
     /// <summary>
     /// Gets the <see cref="GetDotYouContext"/> for the specified token from cache or disk.
     /// </summary>
-    public async Task<DotYouContext> GetDotYouContext(OdinId callerDotYouId, ClientAuthenticationToken token)
+    public async Task<DotYouContext> GetDotYouContext(OdinId callerOdinId, ClientAuthenticationToken token)
     {
         //Note: there's no CAT for alpha as we're supporting just feeds
         // for authentication, we manually check against the list of people I follow
         // therefore, just fabricate a token
         
         //TODO: i still dont think this is secure.  hmm let me think
-        var guidId = callerDotYouId.ToHashId();
+        var guidId = callerOdinId.ToHashId();
         var tempToken = new ClientAuthenticationToken()
         {
             Id = guidId,
@@ -43,7 +43,7 @@ public class DataProviderAuthenticationService
         var creator = new Func<Task<DotYouContext>>(async delegate
         {
             var dotYouContext = new DotYouContext();
-            var (callerContext, permissionContext) = await GetPermissionContext(callerDotYouId, tempToken);
+            var (callerContext, permissionContext) = await GetPermissionContext(callerOdinId, tempToken);
 
             if (null == permissionContext || callerContext == null)
             {
@@ -59,11 +59,11 @@ public class DataProviderAuthenticationService
         return await _cache.GetOrAddContext(tempToken, creator);
     }
 
-    private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContext(OdinId callerDotYouId, ClientAuthenticationToken token)
+    private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContext(OdinId callerOdinId, ClientAuthenticationToken token)
     {
-        var permissionContext = await _followerService.CreatePermissionContext(callerDotYouId, token);
+        var permissionContext = await _followerService.CreatePermissionContext(callerOdinId, token);
         var cc = new CallerContext(
-            dotYouId: callerDotYouId,
+            odinId: callerOdinId,
             masterKey: null,
             securityLevel: SecurityGroupType.Authenticated,
             circleIds: null,
@@ -74,7 +74,7 @@ public class DataProviderAuthenticationService
 
     public Task Handle(IdentityConnectionRegistrationChangedNotification notification, CancellationToken cancellationToken)
     {
-        _cache.EnqueueIdentityForReset(notification.DotYouId);
+        _cache.EnqueueIdentityForReset(notification.OdinId);
         return Task.CompletedTask;
     }
 }

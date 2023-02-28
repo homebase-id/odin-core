@@ -26,32 +26,32 @@ namespace Youverse.Core.Services.Base
             _tenantContext = tenantContext;
         }
 
-        public T CreateClientUsingAccessToken<T>(OdinId dotYouId, ClientAuthenticationToken clientAuthenticationToken)
+        public T CreateClientUsingAccessToken<T>(OdinId odinId, ClientAuthenticationToken clientAuthenticationToken)
         {
             Guard.Argument(clientAuthenticationToken, nameof(clientAuthenticationToken)).NotNull();
             Guard.Argument(clientAuthenticationToken.Id, nameof(clientAuthenticationToken.Id)).Require(x => x != Guid.Empty);
             Guard.Argument(clientAuthenticationToken.AccessTokenHalfKey, nameof(clientAuthenticationToken.AccessTokenHalfKey)).Require(x => x.IsSet());
             Guard.Argument(clientAuthenticationToken, nameof(clientAuthenticationToken)).NotNull();
 
-            return this.CreateClientInternal<T>(dotYouId, clientAuthenticationToken);
+            return this.CreateClientInternal<T>(odinId, clientAuthenticationToken);
         }
 
-        public T CreateClient<T>(OdinId dotYouId)
+        public T CreateClient<T>(OdinId odinId)
         {
-            return this.CreateClientInternal<T>(dotYouId, null);
+            return this.CreateClientInternal<T>(odinId, null);
         }
 
         ///
-        private T CreateClientInternal<T>(OdinId dotYouId, ClientAuthenticationToken clientAuthenticationToken)
+        private T CreateClientInternal<T>(OdinId odinId, ClientAuthenticationToken clientAuthenticationToken)
         {
-            Guard.Argument(dotYouId.Id, nameof(dotYouId)).NotNull();
+            Guard.Argument(odinId.Id, nameof(odinId)).NotNull();
 
             var handler = new HttpClientHandler();
 
-            var cert = _tenantCertificateService.GetSslCertificate(_tenantContext.HostDotYouId);
+            var cert = _tenantCertificateService.GetSslCertificate(_tenantContext.HostOdinId);
             if (null == cert)
             {
-                throw new YouverseSystemException($"No certificate configured for {_tenantContext.HostDotYouId}");
+                throw new YouverseSystemException($"No certificate configured for {_tenantContext.HostOdinId}");
             }
 
             handler.ClientCertificates.Add(cert);
@@ -64,7 +64,7 @@ namespace Youverse.Core.Services.Base
                 BaseAddress = new UriBuilder()
                 {
                     Scheme = "https",
-                    Host = dotYouId
+                    Host = odinId
                 }.Uri
             };
 
@@ -84,7 +84,7 @@ namespace Youverse.Core.Services.Base
 #if DEBUG
             if (cert.Subject.Contains("*.youfoundation.id"))
             {
-                client.DefaultRequestHeaders.Add("dns_hack", _tenantContext.HostDotYouId);
+                client.DefaultRequestHeaders.Add("dns_hack", _tenantContext.HostOdinId);
             }
 #endif
 // end hack

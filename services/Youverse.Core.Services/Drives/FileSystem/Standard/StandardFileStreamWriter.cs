@@ -106,7 +106,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
 
             PayloadIsEncrypted = uploadDescriptor.FileMetadata.PayloadIsEncrypted,
             OriginalRecipientList = package.InstructionSet.TransitOptions?.Recipients,
-            SenderDotYouId = "" //Note: in this case, this is who uploaded the file therefore should be empty; until we support youauth uploads
+            SenderOdinId = "" //Note: in this case, this is who uploaded the file therefore should be empty; until we support youauth uploads
         };
 
         return Task.FromResult(metadata);

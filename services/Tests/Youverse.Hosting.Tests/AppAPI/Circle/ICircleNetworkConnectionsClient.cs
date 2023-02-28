@@ -14,16 +14,13 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
         private const string root_path = AppApiPathConstants.CirclesV1 + "/connections";
 
         [Post(root_path + "/unblock")]
-        Task<ApiResponse<bool>> Unblock([Body]DotYouIdRequest request);
+        Task<ApiResponse<bool>> Unblock([Body]OdinIdRequest request);
 
         [Post(root_path + "/block")]
-        Task<ApiResponse<bool>> Block([Body]DotYouIdRequest request);
+        Task<ApiResponse<bool>> Block([Body]OdinIdRequest request);
 
         [Post(root_path + "/disconnect")]
-        Task<ApiResponse<bool>> Disconnect([Body]DotYouIdRequest request);
-
-        // [Post(root_path + "/status")]
-        // Task<ApiResponse<IdentityConnectionRegistration>> GetStatus([Body]DotYouIdRequest request);
+        Task<ApiResponse<bool>> Disconnect([Body]OdinIdRequest request);
 
         [Get(root_path + "/connected")]
         Task<ApiResponse<PagedResult<RedactedIdentityConnectionRegistration>>> GetConnectedProfiles(int pageNumber, int pageSize);

@@ -5,7 +5,7 @@ namespace Youverse.Core.Services.Registry
     public interface ICertificateResolver
     {
         /// <summary>
-        /// Returns the SSL certificate for the current DotYouIdentity
+        /// Returns the SSL certificate for the current OdinId
         /// </summary>
         /// <returns></returns>
         public X509Certificate2 GetSslCertificate();

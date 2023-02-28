@@ -12,13 +12,13 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
         public ContactRequestData ContactData { get; set; }
 
-        public string SenderDotYouId { get; set; }
+        public string SenderOdinId { get; set; }
 
         public long ReceivedTimestampMilliseconds { get; set; }
 
         public void Validate()
         {
-            Guard.Argument(SenderDotYouId.ToString(), nameof(SenderDotYouId)).NotEmpty().NotNull();
+            Guard.Argument(SenderOdinId.ToString(), nameof(SenderOdinId)).NotEmpty().NotNull();
             Guard.Argument(ContactData.Name, nameof(ContactData.Name)).NotEmpty().NotNull();
         }
     }

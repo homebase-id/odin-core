@@ -63,7 +63,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var registration = new IdentityRegistration()
         {
             Id = Guid.NewGuid(),
-            PrimaryDomainName = request.DotYouId,
+            PrimaryDomainName = request.OdinId,
             IsCertificateManaged = request.IsCertificateManaged,
             FirstRunToken = Guid.NewGuid()
         };
@@ -72,8 +72,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         if (request.OptionalCertificatePemContent == null)
         {
-            await this.InitializeCertificate(request.DotYouId);
-            // var ctx = TenantContext.Create(registration.Id, request.DotYouId, _tenantDataRootPath, _certificateRenewalConfig);
+            await this.InitializeCertificate(request.OdinId);
+            // var ctx = TenantContext.Create(registration.Id, request.OdinId, _tenantDataRootPath, _certificateRenewalConfig);
             // ITenantCertificateService tenantCertificateService = new TenantCertificateService(ctx);
             // var logger = new NullLoggerFactory().CreateLogger<LetsEncryptTenantCertificateRenewalService>()
             // ITenantCertificateRenewalService renewalService = new LetsEncryptTenantCertificateRenewalService(logger, ctx, tenantCertificateService, , ctx.)
@@ -82,8 +82,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         {
             //optionally, let an ssl certificate be provided 
             //TODO: is there a way to pull a specific tenant's service config from Autofac?
-            ITenantCertificateService tc = new TenantCertificateService(TenantContext.Create(registration.Id, request.DotYouId, _tenantDataRootPath, _certificateRenewalConfig));
-            await tc.SaveSslCertificate(registration.Id, request.DotYouId.Id, request.OptionalCertificatePemContent);
+            ITenantCertificateService tc = new TenantCertificateService(TenantContext.Create(registration.Id, request.OdinId, _tenantDataRootPath, _certificateRenewalConfig));
+            await tc.SaveSslCertificate(registration.Id, request.OdinId.Id, request.OptionalCertificatePemContent);
         }
 
         return registration.FirstRunToken.GetValueOrDefault();

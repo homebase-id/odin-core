@@ -205,7 +205,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 var dotYouContext = new DotYouContext()
                 {
                     Caller = new CallerContext(
-                        dotYouId: _tenantContext.HostDotYouId,
+                        odinId: _tenantContext.HostOdinId,
                         masterKey: null,
                         securityLevel: SecurityGroupType.Owner)
                 };

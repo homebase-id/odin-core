@@ -61,7 +61,7 @@ namespace Youverse.Hosting.Authentication.Owner
 
                 var claims = new List<Claim>()
                 {
-                    new Claim(ClaimTypes.Name, dotYouContext.Caller.DotYouId, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
+                    new Claim(ClaimTypes.Name, dotYouContext.Caller.OdinId, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
                     new Claim(DotYouClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
                     new Claim(DotYouClaimTypes.IsIdentityOwner, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
                 };
@@ -94,7 +94,7 @@ namespace Youverse.Hosting.Authentication.Owner
             // this is justified because we're heading down the owner api path
             // just below this, we check to see if the token was good.  if not, the call fails.
             dotYouContext.Caller = new CallerContext(
-                dotYouId:(OdinId) Request.Host.Host,
+                odinId:(OdinId) Request.Host.Host,
                 masterKey: null,
                 securityLevel: SecurityGroupType.Owner);
             

@@ -63,7 +63,7 @@ namespace Youverse.Core.Services.Certificate.Renewal
         {
             var records = _db.tblOutbox.PopAll(out var marker);
             
-            //see Add method.  fileId = dotYouId
+            //see Add method.  fileId = odinId
             var senders = records.Select(item => new OdinId(item.value.ToStringFromUtf8Bytes())).ToList();
             return (senders, marker);
         }

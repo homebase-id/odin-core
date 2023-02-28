@@ -81,7 +81,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
             dotYouContext.SetPermissionContext(ctx.PermissionsContext);
 
             var claims = new List<Claim>();
-            claims.Add(new Claim(ClaimTypes.Name, dotYouContext.Caller.DotYouId)); //caller is this owner
+            claims.Add(new Claim(ClaimTypes.Name, dotYouContext.Caller.OdinId)); //caller is this owner
             claims.Add(new Claim(DotYouClaimTypes.IsAuthorizedApp, true.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
             claims.Add(new Claim(DotYouClaimTypes.IsAuthenticated, true.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
             claims.Add(new Claim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
@@ -109,7 +109,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
             dotYouContext.SetPermissionContext(ctx.PermissionsContext);
 
             var claims = new List<Claim>();
-            claims.Add(new Claim(ClaimTypes.Name, dotYouContext.Caller.DotYouId));
+            claims.Add(new Claim(ClaimTypes.Name, dotYouContext.Caller.OdinId));
             claims.Add(new Claim(DotYouClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
             claims.Add(new Claim(DotYouClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
 
@@ -169,7 +169,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
             };
 
             dotYouContext.Caller = new CallerContext(
-                dotYouId: null,
+                odinId: null,
                 securityLevel: SecurityGroupType.Anonymous,
                 masterKey: null
             );

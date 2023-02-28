@@ -60,7 +60,7 @@ public abstract class FileSystemStreamWriterBase
         Guard.Argument(instructionSet, nameof(instructionSet)).NotNull();
         instructionSet?.AssertIsValid();
 
-        if (instructionSet!.TransitOptions?.Recipients?.Contains(_tenantContext.HostDotYouId) ?? false)
+        if (instructionSet!.TransitOptions?.Recipients?.Contains(_tenantContext.HostOdinId) ?? false)
         {
             throw new YouverseClientException("Cannot transfer to yourself; what's the point?", YouverseClientErrorCode.InvalidRecipient);
         }

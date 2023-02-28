@@ -27,7 +27,7 @@ public static class DotYouTestAssertions
         Assert.IsTrue(fileHeader.FileMetadata.Created == default);
         Assert.IsTrue(fileHeader.FileMetadata.PayloadSize == default);
         Assert.IsTrue(string.IsNullOrEmpty(fileHeader.FileMetadata.ContentType));
-        Assert.IsTrue(string.IsNullOrEmpty(fileHeader.FileMetadata.SenderDotYouId));
+        Assert.IsTrue(string.IsNullOrEmpty(fileHeader.FileMetadata.SenderOdinId));
         Assert.IsTrue(fileHeader.FileMetadata.OriginalRecipientList == null);
         Assert.IsTrue(fileHeader.FileMetadata.PayloadIsEncrypted == default);
 

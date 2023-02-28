@@ -35,9 +35,9 @@ namespace Youverse.Core.Services.Apps
             }
         }
 
-        public void AssertOriginalSender(OdinId dotYouId, string message)
+        public void AssertOriginalSender(OdinId odinId, string message)
         {
-            if (new OdinId(this.FileMetadata.SenderDotYouId) != dotYouId)
+            if (new OdinId(this.FileMetadata.SenderOdinId) != odinId)
             {
                 throw new YouverseSecurityException(message);
             }

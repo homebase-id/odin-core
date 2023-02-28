@@ -127,12 +127,12 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
             return Task.CompletedTask;
         }
 
-        var sender = string.IsNullOrEmpty(metadata.SenderDotYouId) ? Array.Empty<byte>() : ((OdinId)metadata.SenderDotYouId).ToByteArray();
+        var sender = string.IsNullOrEmpty(metadata.SenderOdinId) ? Array.Empty<byte>() : ((OdinId)metadata.SenderOdinId).ToByteArray();
         var acl = new List<Guid>();
 
         acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles());
-        var ids = header.ServerMetadata.AccessControlList.GetRequiredIdentities().Select(dotYouId =>
-            ((OdinId)dotYouId).ToHashId()
+        var ids = header.ServerMetadata.AccessControlList.GetRequiredIdentities().Select(odinId =>
+            ((OdinId)odinId).ToHashId()
         );
         acl.AddRange(ids.ToList());
 
@@ -223,19 +223,19 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         _db.Dispose();
     }
 
-    public void AddReaction(OdinId dotYouId, Guid fileId, string reaction)
+    public void AddReaction(OdinId odinId, Guid fileId, string reaction)
     {
-        _db.TblReactions.Insert(new ReactionsItem() { identity = dotYouId, postId = fileId, singleReaction = reaction });
+        _db.TblReactions.Insert(new ReactionsItem() { identity = odinId, postId = fileId, singleReaction = reaction });
     }
 
-    public void DeleteReactions(OdinId dotYouId, Guid fileId)
+    public void DeleteReactions(OdinId odinId, Guid fileId)
     {
-        _db.TblReactions.DeleteAllReactions(dotYouId, fileId);
+        _db.TblReactions.DeleteAllReactions(odinId, fileId);
     }
 
-    public void DeleteReaction(OdinId dotYouId, Guid fileId, string reaction)
+    public void DeleteReaction(OdinId odinId, Guid fileId, string reaction)
     {
-        _db.TblReactions.Delete(dotYouId, fileId, reaction);
+        _db.TblReactions.Delete(odinId, fileId, reaction);
     }
 
     public (List<string>, int) GetReactions(Guid fileId)

@@ -23,18 +23,18 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         Task<ApiResponse<PagedResult<ConnectionRequestResponse>>> GetSentRequestList([Query] PageOptions pageRequest);
 
         [Post(SentPathRoot+ "/single")]
-        Task<ApiResponse<ConnectionRequestResponse>> GetSentRequest([Body] DotYouIdRequest request);
+        Task<ApiResponse<ConnectionRequestResponse>> GetSentRequest([Body] OdinIdRequest request);
 
         [Post(SentPathRoot + "/delete")]
-        Task<ApiResponse<bool>> DeleteSentRequest([Body] DotYouIdRequest request);
+        Task<ApiResponse<bool>> DeleteSentRequest([Body] OdinIdRequest request);
 
         [Get(PendingPathRoot + "/list")]
         Task<ApiResponse<PagedResult<ConnectionRequestResponse>>> GetPendingRequestList([Query] PageOptions pageRequest);
 
         [Post(PendingPathRoot+ "/single")]
-        Task<ApiResponse<ConnectionRequestResponse>> GetPendingRequest([Body] DotYouIdRequest request);
+        Task<ApiResponse<ConnectionRequestResponse>> GetPendingRequest([Body] OdinIdRequest request);
 
         [Post(PendingPathRoot + "/delete")]
-        Task<ApiResponse<bool>> DeletePendingRequest([Body] DotYouIdRequest request);
+        Task<ApiResponse<bool>> DeletePendingRequest([Body] OdinIdRequest request);
     }
 }

@@ -39,12 +39,12 @@ public class DotYouContextCache
         var result = await _dotYouContextCache.GetOrAddAsync<DotYouContext>(key, dotYouContextFactory, policy);
 
         //TODO: Need some locking on _identitiesRequiringReset
-        // var rebuildContext = _identitiesRequiringReset.Contains(result.Caller.DotYouId);
+        // var rebuildContext = _identitiesRequiringReset.Contains(result.Caller.OdinId);
         // if (rebuildContext)
         // {
         //     _dotYouContextCache.Remove(key);
         //     result = await _dotYouContextCache.GetOrAddAsync<DotYouContext>(key, dotYouContextFactory, policy);
-        //     _identitiesRequiringReset.Remove(result.Caller.DotYouId);
+        //     _identitiesRequiringReset.Remove(result.Caller.OdinId);
         //     
         // }
 

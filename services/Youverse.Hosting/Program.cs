@@ -206,10 +206,10 @@ namespace Youverse.Hosting
             {
                 //TODO: add caching of loaded certificates
                 Guid registryId = _registry.ResolveId(hostName);
-                OdinId dotYouId = (OdinId)hostName;
+                OdinId odinId = (OdinId)hostName;
 
-                ITenantCertificateService tc = new TenantCertificateService(TenantContext.Create(registryId, dotYouId, config.Host.TenantDataRootPath, null));
-                var cert = tc.ResolveCertificate(dotYouId);
+                ITenantCertificateService tc = new TenantCertificateService(TenantContext.Create(registryId, odinId, config.Host.TenantDataRootPath, null));
+                var cert = tc.ResolveCertificate(odinId);
 
                 if (null == cert)
                 {

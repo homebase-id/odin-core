@@ -40,7 +40,7 @@ public class ConversationDefinitionService
         var convo = new ChatConversation()
         {
             Id = new Guid(ByteArrayUtil.EquiByteArrayXor(senderBytes, recipientBytes)),
-            RecipientDotYouId = recipient
+            RecipientOdinId = recipient
         };
 
         await CreateConversationFileOnServer(convo);
@@ -62,13 +62,10 @@ public class ConversationDefinitionService
     /// </summary>
     public async Task JoinConversation(Guid convoId, string sender)
     {
-        // var meBytes = ((DotYouIdentity)_serverContext.Sender).ToGuidIdentifier().ToByteArray();
-        // var senderBytes = ((DotYouIdentity)sender).ToGuidIdentifier().ToByteArray();
-
         var convo = new ChatConversation()
         {
             Id = convoId,
-            RecipientDotYouId = sender
+            RecipientOdinId = sender
         };
 
         await this.CreateConversationFileOnServer(convo);

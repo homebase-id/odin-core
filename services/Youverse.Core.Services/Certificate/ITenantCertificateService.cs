@@ -8,7 +8,7 @@ namespace Youverse.Core.Services.Certificate
     public interface ITenantCertificateService
     {
         /// <summary>
-        /// Returns the SSL certificate for the current DotYouIdentity
+        /// Returns the SSL certificate for the current OdinId
         /// </summary>
         /// <param name="domain"></param>
         /// <returns></returns>

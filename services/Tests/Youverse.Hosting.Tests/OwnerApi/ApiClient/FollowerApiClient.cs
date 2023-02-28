@@ -30,7 +30,7 @@ public class FollowerApiClient
 
             var request = new FollowRequest()
             {
-                DotYouId = identity.OdinId,
+                OdinId = identity.OdinId,
                 NotificationType = notificationType,
                 Channels = channels
             };
@@ -53,7 +53,7 @@ public class FollowerApiClient
 
             var request = new UnfollowRequest()
             {
-                DotYouId = identity.OdinId,
+                OdinId = identity.OdinId,
             };
 
             var apiResponse = await svc.Unfollow(request);

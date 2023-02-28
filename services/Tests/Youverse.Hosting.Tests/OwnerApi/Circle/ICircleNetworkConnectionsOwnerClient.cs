@@ -24,16 +24,16 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         Task<ApiResponse<bool>> RevokeCircle([Body] RevokeCircleMembershipRequest request);
 
         [Post(root_path + "/unblock")]
-        Task<ApiResponse<bool>> Unblock([Body] DotYouIdRequest request);
+        Task<ApiResponse<bool>> Unblock([Body] OdinIdRequest request);
 
         [Post(root_path + "/block")]
-        Task<ApiResponse<bool>> Block([Body] DotYouIdRequest request);
+        Task<ApiResponse<bool>> Block([Body] OdinIdRequest request);
 
         [Post(root_path + "/disconnect")]
-        Task<ApiResponse<bool>> Disconnect([Body] DotYouIdRequest request);
+        Task<ApiResponse<bool>> Disconnect([Body] OdinIdRequest request);
 
         [Post(root_path + "/status")]
-        Task<ApiResponse<RedactedIdentityConnectionRegistration>> GetConnectionInfo([Body] DotYouIdRequest request, bool omitContactData = true);
+        Task<ApiResponse<RedactedIdentityConnectionRegistration>> GetConnectionInfo([Body] OdinIdRequest request, bool omitContactData = true);
 
         [Post(root_path + "/connected")]
         Task<ApiResponse<PagedResult<RedactedIdentityConnectionRegistration>>> GetConnectedProfiles(int pageNumber, int pageSize, bool omitContactData = true);

@@ -29,8 +29,8 @@ namespace Youverse.Core.Services.DataSubscription.Follower
         public Task AcceptFollower(PerimterFollowRequest request)
         {
             Guard.Argument(request, nameof(request)).NotNull();
-            Guard.Argument(request.DotYouId, nameof(request.DotYouId)).NotNull().NotEmpty();
-            OdinId.Validate(request.DotYouId);
+            Guard.Argument(request.OdinId, nameof(request.OdinId)).NotNull().NotEmpty();
+            OdinId.Validate(request.OdinId);
             // Guard.Argument(request.PortableClientAuthToken, nameof(request.PortableClientAuthToken)).NotNull().NotEmpty();
             // var clientAccessToken = ClientAccessToken.FromPortableBytes(request.PortableClientAuthToken);
             // Guard.Argument(clientAccessToken, nameof(clientAccessToken)).NotNull().Require(cat => cat.IsValid());
@@ -45,10 +45,10 @@ namespace Youverse.Core.Services.DataSubscription.Follower
 
                 var driveIdList = request.Channels.Select(chan => _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(chan));
 
-                _tenantStorage.Followers.DeleteFollower(request.DotYouId);
+                _tenantStorage.Followers.DeleteFollower(request.OdinId);
                 foreach (var driveId in driveIdList)
                 {
-                    _tenantStorage.Followers.Insert(new FollowsMeItem() { identity = request.DotYouId, driveId = driveId });
+                    _tenantStorage.Followers.Insert(new FollowsMeItem() { identity = request.OdinId, driveId = driveId });
                 }
 
                 return Task.CompletedTask;
@@ -56,8 +56,8 @@ namespace Youverse.Core.Services.DataSubscription.Follower
 
             if (request.NotificationType == FollowerNotificationType.AllNotifications)
             {
-                _tenantStorage.Followers.DeleteFollower(request.DotYouId);
-                _tenantStorage.Followers.Insert(new FollowsMeItem() { identity = request.DotYouId, driveId = System.Guid.Empty });
+                _tenantStorage.Followers.DeleteFollower(request.OdinId);
+                _tenantStorage.Followers.Insert(new FollowsMeItem() { identity = request.OdinId, driveId = System.Guid.Empty });
             }
 
             return Task.CompletedTask;
@@ -69,7 +69,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
         /// <returns></returns>
         public Task AcceptUnfollowRequest()
         {
-            var follower = _contextAccessor.GetCurrent().Caller.DotYouId;
+            var follower = _contextAccessor.GetCurrent().Caller.OdinId;
             _tenantStorage.Followers.DeleteFollower(follower);
             return Task.CompletedTask;
         }

@@ -20,28 +20,28 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// Gets the <see cref="ClientAuthenticationToken"/> for a given connection
         /// </summary>
         /// <returns></returns>
-        Task<ClientAuthenticationToken> GetConnectionAuthToken(OdinId dotYouId, bool failIfNotConnected = true, bool overrideHack = false);
+        Task<ClientAuthenticationToken> GetConnectionAuthToken(OdinId odinId, bool failIfNotConnected = true, bool overrideHack = false);
 
         /// <summary>
         /// Disconnects you from the specified <see cref="OdinId"/>
         /// </summary>
-        /// <param name="dotYouId"></param>
+        /// <param name="odinId"></param>
         /// <returns></returns>
-        Task<bool> Disconnect(OdinId dotYouId);
+        Task<bool> Disconnect(OdinId odinId);
 
         /// <summary>
         /// Blocks the specified <see cref="OdinId"/> from your network
         /// </summary>
-        /// <param name="dotYouId"></param>
+        /// <param name="odinId"></param>
         /// <returns></returns>
-        Task<bool> Block(OdinId dotYouId);
+        Task<bool> Block(OdinId odinId);
 
         /// <summary>
         /// Unblocks the specified <see cref="OdinId"/> from your network
         /// </summary>
-        /// <param name="dotYouId"></param>
+        /// <param name="odinId"></param>
         /// <returns></returns>
-        Task<bool> Unblock(OdinId dotYouId);
+        Task<bool> Unblock(OdinId odinId);
 
         /// <summary>
         /// Returns a list of identities which are connected to this DI
@@ -52,48 +52,48 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <summary>
         /// Gets the current connection info
         /// </summary>
-        /// <param name="dotYouId"></param>
+        /// <param name="odinId"></param>
         /// <returns></returns>
-        Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(OdinId dotYouId, bool overrideHack = false);
+        Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(OdinId odinId, bool overrideHack = false);
 
         /// <summary>
         /// Gets the connection info if the specified <param name="remoteClientAuthenticationToken">xtoken half key</param> is valid
         /// </summary>
-        /// <param name="dotYouId"></param>
+        /// <param name="odinId"></param>
         /// <param name="remoteClientAuthenticationToken"></param>
         /// <returns></returns>
-        Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(OdinId dotYouId, ClientAuthenticationToken remoteClientAuthenticationToken);
+        Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(OdinId odinId, ClientAuthenticationToken remoteClientAuthenticationToken);
 
         /// <summary>
-        /// Determines if the specified dotYouId is connected 
+        /// Determines if the specified odinId is connected 
         /// </summary>
-        /// <param name="dotYouId"></param>
+        /// <param name="odinId"></param>
         /// <returns></returns>
-        Task<bool> IsConnected(OdinId dotYouId);
+        Task<bool> IsConnected(OdinId odinId);
 
         /// <summary>
-        /// Throws an exception if the dotYouId is blocked.
+        /// Throws an exception if the odinId is blocked.
         /// </summary>
-        /// <param name="dotYouId"></param>
+        /// <param name="odinId"></param>
         /// <returns></returns>
-        Task AssertConnectionIsNoneOrValid(OdinId dotYouId);
+        Task AssertConnectionIsNoneOrValid(OdinId odinId);
 
         /// <summary>
-        /// Throws an exception if the dotYouId is blocked.
+        /// Throws an exception if the odinId is blocked.
         /// </summary>
         /// <param name="registration">The connection info to be checked</param>
         /// <returns></returns>
         void AssertConnectionIsNoneOrValid(IdentityConnectionRegistration registration);
 
         /// <summary>
-        /// Adds the specified dotYouId to your network
+        /// Adds the specified odinId to your network
         /// </summary>
-        /// <param name="dotYouId">The public key certificate containing the domain name which will be connected</param>
+        /// <param name="odinIdentity">The public key certificate containing the domain name which will be connected</param>
         /// <param name="accessGrant">The access to be given to this connection</param>
         /// <param name="remoteClientAccessToken">The keys used when accessing the remote identity</param>
         /// <param name="handshakeResponseContactData"></param>
         /// <returns></returns>
-        Task Connect(string dotYouId, AccessExchangeGrant accessGrant, ClientAccessToken remoteClientAccessToken, ContactRequestData handshakeResponseContactData);
+        Task Connect(string odinIdentity, AccessExchangeGrant accessGrant, ClientAccessToken remoteClientAccessToken, ContactRequestData handshakeResponseContactData);
 
         /// <summary>
         /// Gets profiles that have been marked as <see cref="ConnectionStatus.Blocked"/>
@@ -103,23 +103,23 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         Task<PagedResult<IdentityConnectionRegistration>> GetBlockedProfiles(PageOptions req);
 
         /// <summary>
-        /// Gets the access registration granted to the <param name="dotYouId"></param>
+        /// Gets the access registration granted to the <param name="odinId"></param>
         /// </summary>
-        /// <param name="dotYouId"></param>
+        /// <param name="odinId"></param>
         /// <param name="remoteIdentityConnectionKey"></param>
         /// <returns></returns>
-        Task<AccessRegistration> GetIdentityConnectionAccessRegistration(OdinId dotYouId, SensitiveByteArray remoteIdentityConnectionKey);
+        Task<AccessRegistration> GetIdentityConnectionAccessRegistration(OdinId odinId, SensitiveByteArray remoteIdentityConnectionKey);
 
         /// <summary>
         /// Handles the incoming notification.
         /// </summary>
-        Task HandleNotification(OdinId senderDotYouId, CircleNetworkNotification notification);
+        Task HandleNotification(OdinId senderOdinId, CircleNetworkNotification notification);
 
         /// <summary>
         /// Creates a <see cref="PermissionContext"/> for the specified caller based on their access
         /// </summary>
         /// <returns></returns>
-        Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreateTransitPermissionContext(OdinId dotYouId, ClientAuthenticationToken clientAuthToken);
+        Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreateTransitPermissionContext(OdinId odinId, ClientAuthenticationToken clientAuthToken);
 
 
         /// <summary>
@@ -128,14 +128,14 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         Task<(CallerContext callerContext, PermissionContext permissionContext)> CreateConnectedClientContext(ClientAuthenticationToken authToken);
 
         /// <summary>
-        /// Grants the dotYouId access to the drives and permissions of the specified circle
+        /// Grants the odinId access to the drives and permissions of the specified circle
         /// </summary>
-        Task GrantCircle(GuidId circleId, OdinId dotYouId);
+        Task GrantCircle(GuidId circleId, OdinId odinId);
 
         /// <summary>
-        /// Removes drives and permissions of the specified circle from the dotYouId
+        /// Removes drives and permissions of the specified circle from the odinId
         /// </summary>
-        Task RevokeCircleAccess(GuidId circleId, OdinId dotYouId);
+        Task RevokeCircleAccess(GuidId circleId, OdinId odinId);
 
         Task<IEnumerable<OdinId>> GetCircleMembers(GuidId circleId);
 
@@ -193,7 +193,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// Creates a client for the IdentityConnectionRegistration
         /// </summary>
         /// <returns></returns>
-        Task<bool> TryCreateIdentityConnectionClient(string dotYouId, ClientAuthenticationToken remoteIcrClientAuthToken, out ClientAccessToken clientAccessToken);
+        Task<bool> TryCreateIdentityConnectionClient(string odinId, ClientAuthenticationToken remoteIcrClientAuthToken, out ClientAccessToken clientAccessToken);
 
         /// <summary>
         /// Returns the <see cref="IdentityConnectionRegistrationClient"/> 

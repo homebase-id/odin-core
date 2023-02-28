@@ -75,7 +75,7 @@ namespace Youverse.Core.Services.Transit.Outbox
                 priority = item.Priority,
                 value = state });
 
-            _pendingTransfers.EnsureIdentityIsPending(_tenantContext.HostDotYouId);
+            _pendingTransfers.EnsureIdentityIsPending(_tenantContext.HostOdinId);
             return Task.CompletedTask;
         }
 

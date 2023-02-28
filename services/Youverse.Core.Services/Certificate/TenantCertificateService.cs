@@ -129,7 +129,7 @@ namespace Youverse.Core.Services.Certificate
 
         private IdentityCertificateDefinition GetPrimaryDomainCert()
         {
-            string domain = _tenantContext.HostDotYouId;
+            string domain = _tenantContext.HostOdinId;
             return new IdentityCertificateDefinition()
             {
                 Domain = domain,

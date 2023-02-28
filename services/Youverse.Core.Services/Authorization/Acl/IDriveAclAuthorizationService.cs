@@ -14,7 +14,7 @@ namespace Youverse.Core.Services.Authorization.Acl
 
         Task<bool> CallerIsInYouverseNetwork();
 
-        Task<bool> CallerIsInList(List<string> dotYouIdList);
+        Task<bool> CallerIsInList(List<string> odinIdList);
 
     }
 }

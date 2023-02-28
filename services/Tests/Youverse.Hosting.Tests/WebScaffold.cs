@@ -88,9 +88,9 @@ namespace Youverse.Hosting.Tests
             _webserver = Program.CreateHostBuilder(Array.Empty<string>()).Build();
             _webserver.Start();
 
-            foreach (var dotYouId in TestIdentities.All.Keys)
+            foreach (var odinId in TestIdentities.All.Keys)
             {
-                _oldOwnerApi.SetupOwnerAccount((OdinId)dotYouId, initializeIdentity).GetAwaiter().GetResult();
+                _oldOwnerApi.SetupOwnerAccount((OdinId)odinId, initializeIdentity).GetAwaiter().GetResult();
             }
 
             _appApi = new AppApiTestUtils(_oldOwnerApi);

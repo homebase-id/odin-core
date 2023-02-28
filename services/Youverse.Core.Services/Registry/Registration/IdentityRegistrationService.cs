@@ -46,7 +46,7 @@ namespace Youverse.Core.Services.Registry.Registration
 
             var request = new IdentityRegistrationRequest()
             {
-                DotYouId = (OdinId)reservation.Domain,
+                OdinId = (OdinId)reservation.Domain,
                 IsCertificateManaged = false, //TODO
             };
 

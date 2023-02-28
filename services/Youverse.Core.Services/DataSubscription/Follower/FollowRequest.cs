@@ -12,7 +12,7 @@ public class FollowRequest
     /// <summary>
     /// The identity subscribing
     /// </summary>
-    public string DotYouId { get; set; }
+    public string OdinId { get; set; }
 
     /// <summary>
     /// How the identity wants to be notified
@@ -35,5 +35,5 @@ public class PerimterFollowRequest : FollowRequest
 
 public class UnfollowRequest
 {
-    public string DotYouId { get; set; }
+    public string OdinId { get; set; }
 }

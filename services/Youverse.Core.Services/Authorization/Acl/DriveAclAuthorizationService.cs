@@ -84,9 +84,9 @@ namespace Youverse.Core.Services.Authorization.Acl
             return Task.FromResult(_contextAccessor.GetCurrent().Caller.IsInYouverseNetwork);
         }
 
-        public Task<bool> CallerIsInList(List<string> dotYouIdList)
+        public Task<bool> CallerIsInList(List<string> odinIdList)
         {
-            var inList = dotYouIdList.Any(s => s.Equals(_contextAccessor.GetCurrent().GetCallerOdinIdOrFail().Id, StringComparison.InvariantCultureIgnoreCase));
+            var inList = odinIdList.Any(s => s.Equals(_contextAccessor.GetCurrent().GetCallerOdinIdOrFail().Id, StringComparison.InvariantCultureIgnoreCase));
             return Task.FromResult(inList);
         }
 

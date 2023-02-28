@@ -26,23 +26,23 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         }
 
         [HttpPost("unblock")]
-        public async Task<bool> Unblock([FromBody] DotYouIdRequest request)
+        public async Task<bool> Unblock([FromBody] OdinIdRequest request)
         {
-            var result = await _circleNetwork.Unblock((OdinId)request.DotYouId);
+            var result = await _circleNetwork.Unblock((OdinId)request.OdinId);
             return result;
         }
 
         [HttpPost("block")]
-        public async Task<bool> Block([FromBody] DotYouIdRequest request)
+        public async Task<bool> Block([FromBody] OdinIdRequest request)
         {
-            var result = await _circleNetwork.Block((OdinId)request.DotYouId);
+            var result = await _circleNetwork.Block((OdinId)request.OdinId);
             return result;
         }
 
         [HttpPost("disconnect")]
-        public async Task<bool> Disconnect([FromBody] DotYouIdRequest request)
+        public async Task<bool> Disconnect([FromBody] OdinIdRequest request)
         {
-            var result = await _circleNetwork.Disconnect((OdinId)request.DotYouId);
+            var result = await _circleNetwork.Disconnect((OdinId)request.OdinId);
             return result;
         }
 
@@ -54,9 +54,9 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         // }
 
         [HttpPost("status")]
-        public async Task<RedactedIdentityConnectionRegistration> GetConnectionInfo([FromBody] DotYouIdRequest request, bool omitContactData = true)
+        public async Task<RedactedIdentityConnectionRegistration> GetConnectionInfo([FromBody] OdinIdRequest request, bool omitContactData = true)
         {
-            var result = await _circleNetwork.GetIdentityConnectionRegistration((OdinId)request.DotYouId);
+            var result = await _circleNetwork.GetIdentityConnectionRegistration((OdinId)request.OdinId);
             return result?.Redacted(omitContactData);
         }
 
@@ -84,14 +84,14 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         [HttpPost("circles/add")]
         public async Task<bool> GrantCircle([FromBody] AddCircleMembershipRequest request)
         {
-            await _circleNetwork.GrantCircle(request.CircleId, new OdinId(request.DotYouId));
+            await _circleNetwork.GrantCircle(request.CircleId, new OdinId(request.OdinId));
             return true;
         }
 
         [HttpPost("circles/revoke")]
         public async Task<bool> RevokeCircle([FromBody] RevokeCircleMembershipRequest request)
         {
-            await _circleNetwork.RevokeCircleAccess(request.CircleId, new OdinId(request.DotYouId));
+            await _circleNetwork.RevokeCircleAccess(request.CircleId, new OdinId(request.OdinId));
             return true;
         }
 

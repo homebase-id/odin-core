@@ -6,17 +6,17 @@ namespace Youverse.Hosting.Controllers;
 
 public class TransitGetThumbRequest : GetThumbnailRequest
 {
-    public string DotYouId { get; set; }
+    public string OdinId { get; set; }
 }
 
 public class TransitExternalFileIdentifier
 {
-    public string DotYouId { get; set; }
+    public string OdinId { get; set; }
 
     public ExternalFileIdentifier File { get; set; }
 }
 
 public class TransitGetDrivesByTypeRequest : GetDrivesByTypeRequest
 {
-    public string DotYouId { get; set; }
+    public string OdinId { get; set; }
 }

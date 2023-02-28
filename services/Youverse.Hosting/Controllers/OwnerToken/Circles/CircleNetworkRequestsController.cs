@@ -42,9 +42,9 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         /// <returns></returns>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
         [HttpPost("pending/single")]
-        public async Task<ConnectionRequestResponse> GetPendingRequest([FromBody] DotYouIdRequest sender)
+        public async Task<ConnectionRequestResponse> GetPendingRequest([FromBody] OdinIdRequest sender)
         {
-            var result = await _requestService.GetPendingRequest((OdinId)sender.DotYouId);
+            var result = await _requestService.GetPendingRequest((OdinId)sender.OdinId);
 
             if (result == null)
             {
@@ -75,9 +75,9 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         /// <returns></returns>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
         [HttpPost("pending/delete")]
-        public async Task<bool> DeletePendingRequest([FromBody] DotYouIdRequest sender)
+        public async Task<bool> DeletePendingRequest([FromBody] OdinIdRequest sender)
         {
-            await _requestService.DeletePendingRequest((OdinId)sender.DotYouId);
+            await _requestService.DeletePendingRequest((OdinId)sender.OdinId);
             return true;
         }
 
@@ -103,9 +103,9 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         /// <returns></returns>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
         [HttpPost("sent/single")]
-        public async Task<ConnectionRequestResponse> GetSentRequest([FromBody] DotYouIdRequest recipient)
+        public async Task<ConnectionRequestResponse> GetSentRequest([FromBody] OdinIdRequest recipient)
         {
-            var result = await _requestService.GetSentRequest((OdinId)recipient.DotYouId);
+            var result = await _requestService.GetSentRequest((OdinId)recipient.OdinId);
             if (result == null)
             {
                 this.HttpContext.Response.StatusCode = (int)HttpStatusCode.NotFound;
@@ -122,9 +122,9 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         /// <returns></returns>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
         [HttpPost("sent/delete")]
-        public async Task<bool> DeleteSentRequest([FromBody] DotYouIdRequest recipient)
+        public async Task<bool> DeleteSentRequest([FromBody] OdinIdRequest recipient)
         {
-            await _requestService.DeleteSentRequest((OdinId)recipient.DotYouId);
+            await _requestService.DeleteSentRequest((OdinId)recipient.OdinId);
             return true;
         }
 

@@ -45,7 +45,7 @@ public class ChatMessageFileService
             ReadReceipts = new List<ReadReceipt>()
         };
 
-        await this.UploadFile(message, convo.RecipientDotYouId);
+        await this.UploadFile(message, convo.RecipientOdinId);
     }
 
     public async Task UpdateMessage(ChatMessage message)
@@ -94,7 +94,7 @@ public class ChatMessageFileService
             MessageId = messageId,
             ConversationId = conversationId,
             ReactionCode = reactionCode,
-            Recipients = new List<string>() { conversation.RecipientDotYouId }
+            Recipients = new List<string>() { conversation.RecipientOdinId }
         });
     }
 
@@ -106,7 +106,7 @@ public class ChatMessageFileService
         {
             MessageId = messageId,
             ConversationId = conversationId,
-            Recipients = new List<string>() { conversation.RecipientDotYouId },
+            Recipients = new List<string>() { conversation.RecipientOdinId },
             Timestamp = UnixTimeUtc.Now()
         });
     }
@@ -147,7 +147,7 @@ public class ChatMessageFileService
         // if appData.GroupId != message.ConversationId
         // if message is null or did not deserialize correctly
 
-        message!.Sender = string.IsNullOrEmpty(sharedSecretEncryptedFileHeader.FileMetadata.SenderDotYouId) ? _serverContext.Sender : sharedSecretEncryptedFileHeader.FileMetadata.SenderDotYouId;
+        message!.Sender = string.IsNullOrEmpty(sharedSecretEncryptedFileHeader.FileMetadata.SenderOdinId) ? _serverContext.Sender : sharedSecretEncryptedFileHeader.FileMetadata.SenderOdinId;
         message!.ReceivedTimestamp = sharedSecretEncryptedFileHeader.FileMetadata.Created; //TODO: determine if this makes the most sense
         return message;
     }

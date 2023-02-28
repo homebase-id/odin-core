@@ -53,13 +53,13 @@ namespace Youverse.Core.Services.Registry
 
         public X509Certificate2 GetSslCertificate()
         {
-            Guid domainId = CalculateDomainId(_tenantContext.HostDotYouId);
+            Guid domainId = CalculateDomainId(_tenantContext.HostOdinId);
 
-            if (!TestCertificateMemoryCache.TryGetCertificate(_tenantContext.HostDotYouId, out var certificate))
+            if (!TestCertificateMemoryCache.TryGetCertificate(_tenantContext.HostOdinId, out var certificate))
             {
                 string certificatePath = Path.Combine(_tenantContext.DataRoot, "ssl", domainId.ToString(), "certificate.crt");
                 string privateKeyPath = Path.Combine(_tenantContext.DataRoot, "ssl", domainId.ToString(), "private.key");
-                return LoadCertificate(_tenantContext.HostDotYouId, certificatePath, privateKeyPath);
+                return LoadCertificate(_tenantContext.HostOdinId, certificatePath, privateKeyPath);
             }
 
             return certificate;
@@ -67,20 +67,20 @@ namespace Youverse.Core.Services.Registry
         
 
         /// <summary>
-        /// Loads and returns a certificate for the given dotYouId
+        /// Loads and returns a certificate for the given odinId
         /// </summary>
         /// <param name="rootPath"></param>
         /// <param name="registryId"></param>
-        /// <param name="dotYouId"></param>
+        /// <param name="odinId"></param>
         /// <returns></returns>
-        public static X509Certificate2 GetSslCertificate(string rootPath, Guid registryId, OdinId dotYouId)
+        public static X509Certificate2 GetSslCertificate(string rootPath, Guid registryId, OdinId odinId)
         {
-            if (!TestCertificateMemoryCache.TryGetCertificate(dotYouId, out var certificate))
+            if (!TestCertificateMemoryCache.TryGetCertificate(odinId, out var certificate))
             {
-                Guid domainId = CalculateDomainId(dotYouId);
+                Guid domainId = CalculateDomainId(odinId);
                 string certificatePath = PathUtil.Combine(rootPath, registryId.ToString(), "ssl", domainId.ToString(), "certificate.crt");
                 string privateKeyPath = PathUtil.Combine(rootPath, registryId.ToString(), "ssl", domainId.ToString(), "private.key");
-                return LoadCertificate(dotYouId, certificatePath, privateKeyPath);
+                return LoadCertificate(odinId, certificatePath, privateKeyPath);
             }
             return certificate;
         }

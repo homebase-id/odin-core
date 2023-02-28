@@ -10,7 +10,7 @@ namespace Youverse.Core.Services.Base;
 /// </summary>
 public static class SystemHttpClient
 {
-    public static T CreateHttps<T>(OdinId dotYouId)
+    public static T CreateHttps<T>(OdinId odinId)
     {
         //TODO: add a certificate for the stoker
         // var handler = new HttpClientHandler();
@@ -20,7 +20,7 @@ public static class SystemHttpClient
         //handler.SslProtocols = SslProtocols.None;// | SslProtocols.Tls13;
 
         var client = new HttpClient();
-        client.BaseAddress = new UriBuilder() { Scheme = "https", Host = dotYouId }.Uri;
+        client.BaseAddress = new UriBuilder() { Scheme = "https", Host = odinId }.Uri;
 
         var token = Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e"); //TODO: read from config
         client.DefaultRequestHeaders.Add("SY4829", token.ToString());
@@ -28,13 +28,13 @@ public static class SystemHttpClient
         return RestService.For<T>(client);
     }
     
-    public static T CreateHttp<T>(OdinId dotYouId)
+    public static T CreateHttp<T>(OdinId odinId)
     {
         var handler = new HttpClientHandler();
         handler.AllowAutoRedirect = false;
         var client = new HttpClient(handler);
         
-        client.BaseAddress = new UriBuilder() { Scheme = "http", Host = dotYouId }.Uri;
+        client.BaseAddress = new UriBuilder() { Scheme = "http", Host = odinId }.Uri;
         //TODO: need to handle the fact this is over http 
         var token = Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e"); //TODO: read from config
         client.DefaultRequestHeaders.Add("SY4829", token.ToString());

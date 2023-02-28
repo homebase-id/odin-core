@@ -428,65 +428,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 TargetDrive = targetDrive
             };
         }
-
-
-        /// <summary>
-        /// Transfers a file using default file metadata
-        /// </summary>
-        /// <returns></returns>
-        public async Task<TransitTestUtilsContext> TransferFile(OdinId sender, List<string> recipients, TransitTestUtilsOptions options = null)
-        {
-            // var transferIv = ByteArrayUtil.GetRndByteArray(16);
-            //
-            // var instructionSet = new UploadInstructionSet()
-            // {
-            //     TransferIv = transferIv,
-            //     StorageOptions = new StorageOptions()
-            //     {
-            //         Drive = TargetDrive.NewTargetDrive(),
-            //         OverwriteFileId = null,
-            //         ExpiresTimestamp = null,
-            //     },
-            //
-            //     TransitOptions = new TransitOptions()
-            //     {
-            //         Recipients = recipients
-            //     }
-            // };
-            //
-            // List<Guid> tags = null;
-            // if (options?.AppDataCategoryId != null)
-            // {
-            //     tags = new List<Guid>() { options.AppDataCategoryId };
-            // }
-            //
-            // var fileMetadata = new UploadFileMetadata()
-            // {
-            //     ContentType = "application/json",
-            //     PayloadIsEncrypted = true,
-            //     AppData = new()
-            //     {
-            //         Tags = tags,
-            //         ContentIsComplete = true,
-            //         JsonContent = options?.AppDataJsonContent ?? DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
-            //     }
-            // };
-            //
-            // var o = options ?? TransitTestUtilsOptions.Default;
-            //
-            // var result = await TransferFile(sender, instructionSet, fileMetadata, o);
-            //
-            // if (o.DisconnectIdentitiesAfterTransfer)
-            // {
-            //     foreach (var recipient in recipients)
-            //     {
-            //         await this.DisconnectIdentities(sender, (DotYouIdentity)recipient);
-            //     }
-            // }
-            //
-            // return result;
-            return null;
-        }
+        
 
         public async Task InitializeIdentity(TestIdentity identity, InitialSetupRequest setupConfig)
         {
@@ -517,18 +459,18 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
         {
         }
 
-        public async Task DisconnectIdentities(OdinId dotYouId1, OdinId dotYouId2)
+        public async Task DisconnectIdentities(OdinId odinId1, OdinId odinId2)
         {
-            using (var client = this.CreateOwnerApiHttpClient(dotYouId1, out var ownerSharedSecret))
+            using (var client = this.CreateOwnerApiHttpClient(odinId1, out var ownerSharedSecret))
             {
-                var disconnectResponse = await RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret).Disconnect(new DotYouIdRequest() { DotYouId = dotYouId2 });
+                var disconnectResponse = await RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret).Disconnect(new OdinIdRequest() { OdinId = odinId2 });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
                 await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Samwise.OdinId, ConnectionStatus.None);
             }
 
-            using (var client = this.CreateOwnerApiHttpClient(dotYouId2, out var ownerSharedSecret))
+            using (var client = this.CreateOwnerApiHttpClient(odinId2, out var ownerSharedSecret))
             {
-                var disconnectResponse = await RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret).Disconnect(new DotYouIdRequest() { DotYouId = dotYouId1 });
+                var disconnectResponse = await RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret).Disconnect(new OdinIdRequest() { OdinId = odinId1 });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
                 await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Frodo.OdinId, ConnectionStatus.None);
             }
@@ -545,14 +487,14 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             }
         }
 
-        private async Task AssertConnectionStatus(HttpClient client, SensitiveByteArray ownerSharedSecret, string dotYouId, ConnectionStatus expected)
+        private async Task AssertConnectionStatus(HttpClient client, SensitiveByteArray ownerSharedSecret, string odinId, ConnectionStatus expected)
         {
             var svc = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
-            var response = await svc.GetConnectionInfo(new DotYouIdRequest() { DotYouId = dotYouId });
+            var response = await svc.GetConnectionInfo(new OdinIdRequest() { OdinId = odinId });
 
-            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {dotYouId}.  Status code was {response.StatusCode}");
-            Assert.IsNotNull(response.Content, $"No status for {dotYouId} found");
-            Assert.IsTrue(response.Content.Status == expected, $"{dotYouId} status does not match {expected}");
+            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to get status for {odinId}.  Status code was {response.StatusCode}");
+            Assert.IsNotNull(response.Content, $"No status for {odinId} found");
+            Assert.IsTrue(response.Content.Status == expected, $"{odinId} status does not match {expected}");
         }
 
         public async Task CreateConnection(OdinId sender, OdinId recipient, CreateConnectionOptions createConnectionOptions = null)
@@ -610,7 +552,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             using (var client = this.CreateOwnerApiHttpClient(sender, out var ownerSharedSecret))
             {
                 var connectionsService = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
-                var existingConnectionInfo = await connectionsService.GetConnectionInfo(new DotYouIdRequest() { DotYouId = recipient });
+                var existingConnectionInfo = await connectionsService.GetConnectionInfo(new OdinIdRequest() { OdinId = recipient });
                 if (existingConnectionInfo.IsSuccessStatusCode && existingConnectionInfo.Content != null && existingConnectionInfo.Content.Status == ConnectionStatus.Connected)
                 {
                     return true;
