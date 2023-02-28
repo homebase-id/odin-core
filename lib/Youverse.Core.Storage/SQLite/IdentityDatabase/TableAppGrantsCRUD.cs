@@ -5,54 +5,53 @@ using Youverse.Core.Identity;
 
 namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 {
-    public class ImFollowingItem
+    public class AppGrantsItem
     {
-        private string _identity;
-        public string identity
+        private Guid _odinHashId;
+        public Guid odinHashId
         {
            get {
-                   return _identity;
+                   return _odinHashId;
                }
            set {
-                  if (value == null) throw new Exception("Cannot be null");
-                  if (value?.Length < 3) throw new Exception("Too short");
-                  if (value?.Length > 255) throw new Exception("Too long");
-                  _identity = value;
+                  _odinHashId = value;
                }
         }
-        private Guid _driveId;
-        public Guid driveId
+        private Guid _appId;
+        public Guid appId
         {
            get {
-                   return _driveId;
+                   return _appId;
                }
            set {
-                  _driveId = value;
+                  _appId = value;
                }
         }
-        private UnixTimeUtcUnique _created;
-        public UnixTimeUtcUnique created
+        private Guid _circleId;
+        public Guid circleId
         {
            get {
-                   return _created;
+                   return _circleId;
                }
            set {
-                  _created = value;
+                  _circleId = value;
                }
         }
-        private UnixTimeUtcUnique? _modified;
-        public UnixTimeUtcUnique? modified
+        private byte[] _data;
+        public byte[] data
         {
            get {
-                   return _modified;
+                   return _data;
                }
            set {
-                  _modified = value;
+                  if (value?.Length < 0) throw new Exception("Too short");
+                  if (value?.Length > 65535) throw new Exception("Too long");
+                  _data = value;
                }
         }
-    } // End of class ImFollowingItem
+    } // End of class AppGrantsItem
 
-    public class TableImFollowingCRUD : TableBase
+    public class TableAppGrantsCRUD : TableBase
     {
         private bool _disposed = false;
         private SQLiteCommand _insertCommand = null;
@@ -76,19 +75,17 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteCommand _deleteCommand = null;
         private static Object _deleteLock = new Object();
         private SQLiteParameter _deleteParam1 = null;
-        private SQLiteParameter _deleteParam2 = null;
         private SQLiteCommand _getCommand = null;
         private static Object _getLock = new Object();
         private SQLiteParameter _getParam1 = null;
-        private SQLiteParameter _getParam2 = null;
 
-        public TableImFollowingCRUD(IdentityDatabase db) : base(db)
+        public TableAppGrantsCRUD(IdentityDatabase db) : base(db)
         {
         }
 
-        ~TableImFollowingCRUD()
+        ~TableAppGrantsCRUD()
         {
-            if (_disposed == false) throw new Exception("TableImFollowingCRUD Not disposed properly");
+            if (_disposed == false) throw new Exception("TableAppGrantsCRUD Not disposed properly");
         }
 
         public override void Dispose()
@@ -112,172 +109,162 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             {
                 if (dropExisting)
                 {
-                    cmd.CommandText = "DROP TABLE IF EXISTS imFollowing;";
+                    cmd.CommandText = "DROP TABLE IF EXISTS appGrants;";
                     cmd.ExecuteNonQuery();
                 }
                 cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS imFollowing("
-                     +"identity STRING NOT NULL, "
-                     +"driveId BLOB NOT NULL, "
-                     +"created INT NOT NULL, "
-                     +"modified INT  "
-                     +", PRIMARY KEY (identity,driveId)"
+                    "CREATE TABLE IF NOT EXISTS appGrants("
+                     +"odinHashId BLOB NOT NULL, "
+                     +"appId BLOB NOT NULL, "
+                     +"circleId BLOB NOT NULL, "
+                     +"data BLOB  "
+                     +", PRIMARY KEY (odinHashId)"
                      +");"
-                     +"CREATE INDEX IF NOT EXISTS Idx0TableImFollowingCRUD ON imFollowing(identity);"
                      ;
                 cmd.ExecuteNonQuery();
             }
         }
 
-        public virtual int Insert(ImFollowingItem item)
+        public virtual int Insert(AppGrantsItem item)
         {
             lock (_insertLock)
             {
                 if (_insertCommand == null)
                 {
                     _insertCommand = _database.CreateCommand();
-                    _insertCommand.CommandText = "INSERT INTO imFollowing (identity,driveId,created,modified) " +
-                                                 "VALUES ($identity,$driveId,$created,$modified)";
+                    _insertCommand.CommandText = "INSERT INTO appGrants (odinHashId,appId,circleId,data) " +
+                                                 "VALUES ($odinHashId,$appId,$circleId,$data)";
                     _insertParam1 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam1);
-                    _insertParam1.ParameterName = "$identity";
+                    _insertParam1.ParameterName = "$odinHashId";
                     _insertParam2 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam2);
-                    _insertParam2.ParameterName = "$driveId";
+                    _insertParam2.ParameterName = "$appId";
                     _insertParam3 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam3);
-                    _insertParam3.ParameterName = "$created";
+                    _insertParam3.ParameterName = "$circleId";
                     _insertParam4 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam4);
-                    _insertParam4.ParameterName = "$modified";
+                    _insertParam4.ParameterName = "$data";
                     _insertCommand.Prepare();
                 }
-                _insertParam1.Value = item.identity;
-                _insertParam2.Value = item.driveId;
-                _insertParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _insertParam4.Value = null;
+                _insertParam1.Value = item.odinHashId;
+                _insertParam2.Value = item.appId;
+                _insertParam3.Value = item.circleId;
+                _insertParam4.Value = item.data;
                 _database.BeginTransaction();
                 return _insertCommand.ExecuteNonQuery();
             } // Lock
         }
 
-        public virtual int Upsert(ImFollowingItem item)
+        public virtual int Upsert(AppGrantsItem item)
         {
             lock (_upsertLock)
             {
                 if (_upsertCommand == null)
                 {
                     _upsertCommand = _database.CreateCommand();
-                    _upsertCommand.CommandText = "INSERT INTO imFollowing (identity,driveId,created,modified) " +
-                                                 "VALUES ($identity,$driveId,$created,$modified)"+
-                                                 "ON CONFLICT (identity,driveId) DO UPDATE "+
-                                                 "SET modified = $modified;";
+                    _upsertCommand.CommandText = "INSERT INTO appGrants (odinHashId,appId,circleId,data) " +
+                                                 "VALUES ($odinHashId,$appId,$circleId,$data)"+
+                                                 "ON CONFLICT (odinHashId) DO UPDATE "+
+                                                 "SET appId = $appId,circleId = $circleId,data = $data;";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
-                    _upsertParam1.ParameterName = "$identity";
+                    _upsertParam1.ParameterName = "$odinHashId";
                     _upsertParam2 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam2);
-                    _upsertParam2.ParameterName = "$driveId";
+                    _upsertParam2.ParameterName = "$appId";
                     _upsertParam3 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam3);
-                    _upsertParam3.ParameterName = "$created";
+                    _upsertParam3.ParameterName = "$circleId";
                     _upsertParam4 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam4);
-                    _upsertParam4.ParameterName = "$modified";
+                    _upsertParam4.ParameterName = "$data";
                     _upsertCommand.Prepare();
                 }
-                _upsertParam1.Value = item.identity;
-                _upsertParam2.Value = item.driveId;
-                _upsertParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _upsertParam4.Value = UnixTimeUtcUnique.Now().uniqueTime;
+                _upsertParam1.Value = item.odinHashId;
+                _upsertParam2.Value = item.appId;
+                _upsertParam3.Value = item.circleId;
+                _upsertParam4.Value = item.data;
                 _database.BeginTransaction();
                 return _upsertCommand.ExecuteNonQuery();
             } // Lock
         }
 
-        public virtual int Update(ImFollowingItem item)
+        public virtual int Update(AppGrantsItem item)
         {
             lock (_updateLock)
             {
                 if (_updateCommand == null)
                 {
                     _updateCommand = _database.CreateCommand();
-                    _updateCommand.CommandText = "UPDATE imFollowing " +
-                                                 "SET modified = $modified "+
-                                                 "WHERE (identity = $identity,driveId = $driveId)";
+                    _updateCommand.CommandText = "UPDATE appGrants " +
+                                                 "SET appId = $appId,circleId = $circleId,data = $data "+
+                                                 "WHERE (odinHashId = $odinHashId)";
                     _updateParam1 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam1);
-                    _updateParam1.ParameterName = "$identity";
+                    _updateParam1.ParameterName = "$odinHashId";
                     _updateParam2 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam2);
-                    _updateParam2.ParameterName = "$driveId";
+                    _updateParam2.ParameterName = "$appId";
                     _updateParam3 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam3);
-                    _updateParam3.ParameterName = "$created";
+                    _updateParam3.ParameterName = "$circleId";
                     _updateParam4 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam4);
-                    _updateParam4.ParameterName = "$modified";
+                    _updateParam4.ParameterName = "$data";
                     _updateCommand.Prepare();
                 }
-                _updateParam1.Value = item.identity;
-                _updateParam2.Value = item.driveId;
-                _updateParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _updateParam4.Value = UnixTimeUtcUnique.Now().uniqueTime;
+                _updateParam1.Value = item.odinHashId;
+                _updateParam2.Value = item.appId;
+                _updateParam3.Value = item.circleId;
+                _updateParam4.Value = item.data;
                 _database.BeginTransaction();
                 return _updateCommand.ExecuteNonQuery();
             } // Lock
         }
 
-        public int Delete(string identity,Guid driveId)
+        public int Delete(Guid odinHashId)
         {
             lock (_deleteLock)
             {
                 if (_deleteCommand == null)
                 {
                     _deleteCommand = _database.CreateCommand();
-                    _deleteCommand.CommandText = "DELETE FROM imFollowing " +
-                                                 "WHERE identity = $identity AND driveId = $driveId";
+                    _deleteCommand.CommandText = "DELETE FROM appGrants " +
+                                                 "WHERE odinHashId = $odinHashId";
                     _deleteParam1 = _deleteCommand.CreateParameter();
                     _deleteCommand.Parameters.Add(_deleteParam1);
-                    _deleteParam1.ParameterName = "$identity";
-                    _deleteParam2 = _deleteCommand.CreateParameter();
-                    _deleteCommand.Parameters.Add(_deleteParam2);
-                    _deleteParam2.ParameterName = "$driveId";
+                    _deleteParam1.ParameterName = "$odinHashId";
                     _deleteCommand.Prepare();
                 }
-                _deleteParam1.Value = identity;
-                _deleteParam2.Value = driveId;
+                _deleteParam1.Value = odinHashId;
                 _database.BeginTransaction();
                 return _deleteCommand.ExecuteNonQuery();
             } // Lock
         }
 
-        public ImFollowingItem Get(string identity,Guid driveId)
+        public AppGrantsItem Get(Guid odinHashId)
         {
             lock (_getLock)
             {
                 if (_getCommand == null)
                 {
                     _getCommand = _database.CreateCommand();
-                    _getCommand.CommandText = "SELECT created,modified FROM imFollowing " +
-                                                 "WHERE identity = $identity AND driveId = $driveId;";
+                    _getCommand.CommandText = "SELECT appId,circleId,data FROM appGrants " +
+                                                 "WHERE odinHashId = $odinHashId;";
                     _getParam1 = _getCommand.CreateParameter();
                     _getCommand.Parameters.Add(_getParam1);
-                    _getParam1.ParameterName = "$identity";
-                    _getParam2 = _getCommand.CreateParameter();
-                    _getCommand.Parameters.Add(_getParam2);
-                    _getParam2.ParameterName = "$driveId";
+                    _getParam1.ParameterName = "$odinHashId";
                     _getCommand.Prepare();
                 }
-                _getParam1.Value = identity;
-                _getParam2.Value = driveId;
+                _getParam1.Value = odinHashId;
                 using (SQLiteDataReader rdr = _getCommand.ExecuteReader(System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                         return null;
-                    var item = new ImFollowingItem();
-                    item.identity = identity;
-                    item.driveId = driveId;
+                    var item = new AppGrantsItem();
+                    item.odinHashId = odinHashId;
                     byte[] _tmpbuf = new byte[65535+1];
                     long bytesRead;
                     var _guid = new byte[16];
@@ -286,14 +273,36 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                         throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                     else
                     {
-                        item.created = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(0));
+                        bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                        if (bytesRead != 16)
+                            throw new Exception("Not a GUID in appId...");
+                        item.appId = new Guid(_guid);
                     }
 
                     if (rdr.IsDBNull(1))
-                        item.modified = null;
+                        throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                     else
                     {
-                        item.modified = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(1));
+                        bytesRead = rdr.GetBytes(1, 0, _guid, 0, 16);
+                        if (bytesRead != 16)
+                            throw new Exception("Not a GUID in circleId...");
+                        item.circleId = new Guid(_guid);
+                    }
+
+                    if (rdr.IsDBNull(2))
+                        item.data = null;
+                    else
+                    {
+                        bytesRead = rdr.GetBytes(2, 0, _tmpbuf, 0, 65535+1);
+                        if (bytesRead > 65535)
+                            throw new Exception("Too much data in data...");
+                        if (bytesRead < 0)
+                            throw new Exception("Too little data in data...");
+                        if (bytesRead > 0)
+                        {
+                            item.data = new byte[bytesRead];
+                            Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+                        }
                     }
 
                     return item;

@@ -261,9 +261,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
                     DriveId = Drive.Id
                 },
                 OdinId = item.identity,
-                ReactionContent = item.singleReaction,
-                Created = item.created,
-            }
+                ReactionContent = item.singleReaction            }
         ).ToList();
 
         return (results, nextCursor);
