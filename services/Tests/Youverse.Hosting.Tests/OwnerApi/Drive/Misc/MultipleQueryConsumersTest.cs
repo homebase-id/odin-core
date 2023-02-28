@@ -3,10 +3,10 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Youverse.Core.Serialization;
-using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Core.Query;
-using Youverse.Core.Services.Drives.Base.Upload;
+using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Drives.DriveCore.Query;
 using Youverse.Core.Services.Drives.FileSystem;
+using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 using Youverse.Core.Storage;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Drive.Misc

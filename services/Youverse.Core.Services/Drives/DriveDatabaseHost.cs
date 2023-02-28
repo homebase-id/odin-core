@@ -4,10 +4,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Core.Query;
 using Youverse.Core.Services.Drives.DriveCore.Query;
 using Youverse.Core.Services.Drives.DriveCore.Query.Sqlite;
+using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Services.Mediator;
 
 namespace Youverse.Core.Services.Drives

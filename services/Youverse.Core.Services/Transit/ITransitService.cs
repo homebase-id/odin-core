@@ -3,10 +3,9 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Transit.Outbox;
-using Youverse.Core.Services.Transit.Upload;
 using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Transit

@@ -4,7 +4,7 @@ using NUnit.Framework;
 using System.Reflection;
 using System.Threading.Tasks;
 using Youverse.Core.Services.Authentication;
-using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives;
 using Youverse.Hosting.Tests.OwnerApi.Authentication;
 
 namespace Youverse.Hosting.Tests.AppAPI.Authentication

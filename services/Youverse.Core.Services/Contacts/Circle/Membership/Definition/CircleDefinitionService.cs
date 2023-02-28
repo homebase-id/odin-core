@@ -6,7 +6,7 @@ using Dawn;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition

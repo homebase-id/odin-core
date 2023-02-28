@@ -3,9 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Contacts.Circle.Membership;
-using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Services.Transit.Upload;
 
 namespace Youverse.Core.Services.Transit.Outbox
 {

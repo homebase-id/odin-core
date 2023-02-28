@@ -1,6 +1,6 @@
 using Youverse.Core.Storage.SQLite.DriveDatabase;
 
-namespace Youverse.Core.Services.Drive.Core.Query;
+namespace Youverse.Core.Services.Drives.DriveCore.Query;
 
 public class QueryBatchResultOptions : ResultOptions
 {

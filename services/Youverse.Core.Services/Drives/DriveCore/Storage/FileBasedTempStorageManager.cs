@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
 
-namespace Youverse.Core.Services.Drive.Core.Storage
+namespace Youverse.Core.Services.Drives.DriveCore.Storage
 {
     public class FileBasedTempStorageManager : ITempStorageManager
     {

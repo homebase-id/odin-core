@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Refit;
 using Youverse.Core.Services.Configuration;
-using Youverse.Core.Services.Drive;
 using Youverse.Hosting.Controllers.OwnerToken;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Configuration

@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Connections;
 using NUnit.Framework;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Drive.Core.Storage;
+using Youverse.Core.Services.Drives.DriveCore.Storage;
 
 namespace Youverse.Hosting.Tests;
 

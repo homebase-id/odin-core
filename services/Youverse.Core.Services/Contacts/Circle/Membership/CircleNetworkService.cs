@@ -18,7 +18,7 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Contacts.Circle.Notification;
 using Youverse.Core.Services.Contacts.Circle.Requests;
-using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Storage;
 using Youverse.Core.Storage.SQLite.IdentityDatabase;

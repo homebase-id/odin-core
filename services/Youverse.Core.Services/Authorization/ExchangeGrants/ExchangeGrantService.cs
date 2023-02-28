@@ -10,7 +10,8 @@ using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
-using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Drives.Management;
 
 namespace Youverse.Core.Services.Authorization.ExchangeGrants
 {

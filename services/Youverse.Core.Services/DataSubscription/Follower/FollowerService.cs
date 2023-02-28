@@ -10,7 +10,8 @@ using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Storage;
 

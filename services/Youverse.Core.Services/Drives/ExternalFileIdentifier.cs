@@ -1,6 +1,6 @@
 using System;
 
-namespace Youverse.Core.Services.Drive
+namespace Youverse.Core.Services.Drives
 {
     /// <summary>
     /// Drive and file info which identifies a file to be used externally to the host. i.e. you can send this to the client

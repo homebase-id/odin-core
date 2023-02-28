@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Drive;
 
 namespace Youverse.Core.Services.Authorization.Acl
 {

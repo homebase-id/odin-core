@@ -5,8 +5,7 @@ namespace Youverse.Core.Services.Drives;
 
 public class ReactionPreviewData
 {
-    public Dictionary<Guid, EmojiReactionPreview> Reactions2 { get; set; } = new();
-    public List<EmojiReactionPreview> Reactions { get; set; } = new();
+    public Dictionary<Guid, EmojiReactionPreview> Reactions { get; set; } = new();
 
     public List<CommentPreview> Comments { get; set; } = new();
 

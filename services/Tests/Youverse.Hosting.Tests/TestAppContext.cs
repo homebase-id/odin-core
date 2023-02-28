@@ -2,7 +2,7 @@
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Contacts.Circle.Requests;
-using Youverse.Core.Services.Drive;
+using Youverse.Core.Services.Drives;
 
 namespace Youverse.Hosting.Tests
 {

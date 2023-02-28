@@ -1,7 +1,7 @@
 using System;
 using Youverse.Core.Exceptions;
 
-namespace Youverse.Core.Services.Drive
+namespace Youverse.Core.Services.Drives
 {
     public class InvalidDriveClientException : YouverseClientException
     {

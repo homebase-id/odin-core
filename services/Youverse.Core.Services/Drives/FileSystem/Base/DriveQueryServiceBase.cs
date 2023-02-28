@@ -4,14 +4,11 @@ using System.Linq;
 using System.Threading.Tasks;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drive;
-using Youverse.Core.Services.Drive.Core;
-using Youverse.Core.Services.Drive.Core.Query;
 using Youverse.Core.Services.Drives.DriveCore.Query;
-using Youverse.Core.Services.Drives.FileSystem;
+using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Storage;
 
-namespace Youverse.Core.Services.Drives.Base
+namespace Youverse.Core.Services.Drives.FileSystem.Base
 {
     public abstract class DriveQueryServiceBase : RequirePermissionsBase
     {
