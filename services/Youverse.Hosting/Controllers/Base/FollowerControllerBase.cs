@@ -44,7 +44,7 @@ namespace Youverse.Hosting.Controllers.Base
         /// </summary>
         protected async Task<CursoredResult<string>> GetFollowers(int max, string cursor)
         {
-            var result = await _followerService.GetFollowers(max, cursor);
+            var result = await _followerService.GetAllFollowers(max, cursor);
             return result;
         }
 

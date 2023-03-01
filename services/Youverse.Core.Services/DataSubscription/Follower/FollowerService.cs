@@ -178,11 +178,12 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             return GetIdentityIFollowInternal(odinId);
         }
 
-        public async Task<CursoredResult<string>> GetFollowers(int max, string cursor)
+        public async Task<CursoredResult<string>> GetAllFollowers(int max, string cursor)
         {
             _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadMyFollowers);
-
-            var dbResults = _tenantStorage.Followers.GetFollowers(DefaultMax(max), Guid.Empty, cursor, out var nextCursor);
+            
+            var dbResults = _tenantStorage.Followers.GetAllFollowers(DefaultMax(max), cursor, out var nextCursor);
+            
             return new CursoredResult<string>()
             {
                 Cursor = nextCursor,
@@ -235,7 +236,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
         {
             _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadWhoIFollow);
 
-            var dbResults = _tenantStorage.WhoIFollow.GetFollowers(DefaultMax(max), Guid.Empty, cursor, out var nextCursor);
+            var dbResults = _tenantStorage.WhoIFollow.GetAllFollowers(DefaultMax(max), cursor, out var nextCursor);
             return new CursoredResult<string>()
             {
                 Cursor = nextCursor,

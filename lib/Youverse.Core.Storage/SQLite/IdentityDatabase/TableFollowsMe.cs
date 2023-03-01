@@ -101,6 +101,74 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             }
         }
 
+        
+        /// <summary>
+        /// Return pages of identities that follow me; up to count size.
+        /// Optionally supply a cursor to indicate the last identity processed (sorted ascending)
+        /// </summary>
+        /// <param name="count">Maximum number of identities per page</param>
+        /// <param name="inCursor">If supplied then pick the next page after the supplied identity.</param>
+        /// <returns>A sorted list of identities. If list size is smaller than count then you're finished</returns>
+        /// <exception cref="Exception"></exception>
+        public List<string> GetAllFollowers(int count, string inCursor, out string nextCursor)
+        {
+            if (count < 1)
+                throw new Exception("Count must be at least 1.");
+
+            if (inCursor == null)
+                inCursor = "";
+
+            lock (_select2Lock)
+            {
+                // Make sure we only prep once 
+                if (_select2Command == null)
+                {
+                    _select2Command = _database.CreateCommand();
+                    _select2Command.CommandText =
+                        $"SELECT DISTINCT identity FROM followsme WHERE identity > $cursor ORDER BY identity ASC LIMIT $count;";
+
+                    _s2param1 = _select2Command.CreateParameter();
+                    _s2param1.ParameterName = "$cursor";
+                    _select2Command.Parameters.Add(_s2param1);
+
+                    _s2param2 = _select2Command.CreateParameter();
+                    _s2param2.ParameterName = "$count";
+                    _select2Command.Parameters.Add(_s2param2);
+
+                    _select2Command.Prepare();
+                }
+
+                _s2param1.Value = inCursor;
+                _s2param2.Value = count + 1;
+
+                using (SQLiteDataReader rdr = _select2Command.ExecuteReader(System.Data.CommandBehavior.Default))
+                {
+                    var result = new List<string>();
+
+                    int n = 0;
+
+                    while ((n < count) && rdr.Read())
+                    {
+                        n++;
+                        var s = rdr.GetString(0);
+                        if (s.Length < 1)
+                            throw new Exception("Empty string");
+                        result.Add(s);
+                    }
+
+                    if ((n > 0) && rdr.HasRows)
+                    {
+                        nextCursor = result[n-1];
+                    }
+                    else
+                    { 
+                        nextCursor = null; 
+                    }
+
+                    return result;
+                }
+            }
+        }
 
         /// <summary>
         /// Return pages of identities, following driveId, up to count size.

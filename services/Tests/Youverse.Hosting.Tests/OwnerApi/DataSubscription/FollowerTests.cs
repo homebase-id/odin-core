@@ -70,7 +70,6 @@ public class FollowerTests
 
 
     [Test]
-    [Ignore("need to talk with michael about getting all followers regardless of drive")]
     public async Task CanFollowIdentity_SelectedChannels()
     {
         var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
@@ -116,7 +115,7 @@ public class FollowerTests
         Assert.IsTrue(new OdinId(followingSam.Results.Single()) == frodoOwnerClient.Identity.OdinId);
 
         var samRecordOfFrodoFollowingHim = await samOwnerClient.Follower.GetFollower(frodoOwnerClient.Identity);
-        Assert.IsTrue(samRecordOfFrodoFollowingHim.NotificationType == FollowerNotificationType.AllNotifications);
+        Assert.IsTrue(samRecordOfFrodoFollowingHim.NotificationType == FollowerNotificationType.SelectedChannels);
        
         Assert.IsTrue(samRecordOfFrodoFollowingHim.Channels.Count() == 2, "Frodo should follow 2 of Sam's channels");
         Assert.IsNotNull(samRecordOfFrodoFollowingHim.Channels.SingleOrDefault(c => c == channel1Drive.TargetDriveInfo), $"Frodo should have only one record of {nameof(channel1Drive)}");
