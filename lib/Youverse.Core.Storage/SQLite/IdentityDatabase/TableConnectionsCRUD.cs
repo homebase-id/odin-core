@@ -7,16 +7,13 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 {
     public class ConnectionsItem
     {
-        private string _identity;
-        public string identity
+        private OdinId _identity;
+        public OdinId identity
         {
            get {
                    return _identity;
                }
            set {
-                  if (value == null) throw new Exception("Cannot be null");
-                  if (value?.Length < 3) throw new Exception("Too short");
-                  if (value?.Length > 255) throw new Exception("Too long");
                   _identity = value;
                }
         }
@@ -171,7 +168,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 }
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS connections("
-                     +"identity STRING NOT NULL UNIQUE, "
+                     +"identity BLOB NOT NULL UNIQUE, "
                      +"displayName STRING NOT NULL, "
                      +"status INT NOT NULL, "
                      +"accessIsRevoked INT NOT NULL, "
@@ -322,7 +319,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public int Delete(string identity)
+        public int Delete(OdinId identity)
         {
             lock (_deleteLock)
             {
@@ -342,7 +339,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public ConnectionsItem Get(string identity)
+        public ConnectionsItem Get(OdinId identity)
         {
             lock (_getLock)
             {
@@ -423,12 +420,12 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             } // lock
         }
 
-        public List<ConnectionsItem> PagingByIdentity(int count, string inCursor, out string nextCursor)
+        public List<ConnectionsItem> PagingByIdentity(int count, OdinId? inCursor, out OdinId? nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
             if (inCursor == null)
-                inCursor = "";
+                inCursor = new OdinId("a.a");
 
             lock (_getPaging1Lock)
             {
@@ -467,7 +464,6 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
-                            item.identity = rdr.GetString(1);
                         }
 
                         if (rdr.IsDBNull(2))
@@ -580,7 +576,6 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
-                            item.identity = rdr.GetString(1);
                         }
 
                         if (rdr.IsDBNull(2))
