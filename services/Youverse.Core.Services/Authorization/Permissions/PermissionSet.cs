@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Dawn;
+using SQLitePCL;
 
 namespace Youverse.Core.Services.Authorization.Permissions
 {
@@ -12,6 +13,7 @@ namespace Youverse.Core.Services.Authorization.Permissions
 
         public PermissionSet()
         {
+            Keys = new List<int>();
         }
 
         public PermissionSet(IEnumerable<int> permissionKeys)

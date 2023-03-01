@@ -56,6 +56,24 @@ public class EmojiReactionService
         }
     }
 
+    public GetReactionCountsResponse GetReactionCountsByFile(InternalDriveFileId file)
+    {
+        _contextAccessor.GetCurrent().PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
+
+        if (_driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId, out var manager))
+        {
+            var (reactions, total) = manager.GetReactionSummaryByFile(file.FileId);
+
+            return new GetReactionCountsResponse()
+            {
+                Reactions = reactions,
+                Total = total
+            };
+        }
+
+        throw new YouverseSystemException($"Invalid query manager instance for drive {file.DriveId}");
+    }
+
     public void DeleteReactions(InternalDriveFileId file)
     {
         var context = _contextAccessor.GetCurrent();
@@ -66,7 +84,7 @@ public class EmojiReactionService
             manager.DeleteReactions(context.GetCallerOdinIdOrFail(), file.FileId);
         }
     }
-    
+
 
     public GetReactionsResponse GetReactions(InternalDriveFileId file, int cursor, int maxCount)
     {

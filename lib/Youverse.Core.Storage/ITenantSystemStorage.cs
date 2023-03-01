@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using Youverse.Core.Storage.SQLite;
 using Youverse.Core.Storage.SQLite.IdentityDatabase;
 
 namespace Youverse.Core.Storage
@@ -24,5 +25,7 @@ namespace Youverse.Core.Storage
         public ThreeKeyValueStorage IcrClientStorage { get; }
 
         public TableCircleMember CircleMemberStorage { get; }
+
+        public DatabaseBase.LogicCommitUnit CreateCommitUnitOfWork();
     }
 }

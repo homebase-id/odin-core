@@ -241,6 +241,24 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         return _db.TblReactions.GetPostReactions(fileId);
     }
 
+    public (List<ReactionCount> reactions, int total) GetReactionSummaryByFile(Guid fileId)
+    {
+        var (reactionContentList, countByEmojiList, total) = _db.TblReactions.GetPostReactionsWithDetails(fileId);
+
+        var results = new List<ReactionCount>();
+
+        for (int i = 0; i < reactionContentList.Count; i++)
+        {
+            results.Add(new ReactionCount()
+            {
+                ReactionContent = reactionContentList[i],
+                Count = countByEmojiList[i]
+            });
+        }
+
+        return (results, total);
+    }
+
     public int GetReactionCountByIdentity(OdinId odinId, Guid fileId)
     {
         return _db.TblReactions.GetIdentityPostReactions(odinId, fileId);
@@ -259,9 +277,16 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
                     DriveId = Drive.Id
                 },
                 OdinId = item.identity,
-                ReactionContent = item.singleReaction            }
+                ReactionContent = item.singleReaction
+            }
         ).ToList();
 
         return (results, nextCursor);
     }
+}
+
+public class ReactionCount
+{
+    public string ReactionContent { get; set; }
+    public int Count { get; set; }
 }

@@ -1,29 +1,38 @@
-﻿using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Youverse.Core;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authentication.Transit;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.DataSubscription;
+using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Services.Tenant;
 using Youverse.Hosting.Authentication.Perimeter;
 
 namespace Youverse.Hosting.Middleware
 {
+    /// <summary/>
     public class DotYouContextMiddleware
     {
         private readonly RequestDelegate _next;
         private readonly ITenantProvider _tenantProvider;
 
+        /// <summary/>
         public DotYouContextMiddleware(RequestDelegate next, ITenantProvider tenantProvider)
         {
             _next = next;
             _tenantProvider = tenantProvider;
         }
 
+        /// <summary/>
         public async Task Invoke(HttpContext httpContext, DotYouContext dotYouContext)
         {
             var tenant = _tenantProvider.GetCurrentTenant();
@@ -116,28 +125,46 @@ namespace Youverse.Hosting.Middleware
             throw new YouverseSecurityException("Cannot load context");
         }
 
-        private Task LoadPublicTransitContext(HttpContext httpContext, DotYouContext dotYouContext)
+        private async Task LoadPublicTransitContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
-            /*
-             * handle these requests only -
-             * Connection Requests Management
-                give one permission to add a request
-                give no drive permission
-             * transit public key request (offline)
-             */
 
             var user = httpContext.User;
             var odinId = (OdinId)user.Identity!.Name;
 
             dotYouContext.Caller = new CallerContext(
-                odinId: odinId, //note: this will need to come from a claim: re: best buy/3rd party scenario
+                odinId: odinId,
                 masterKey: null,
                 securityLevel: SecurityGroupType.Authenticated);
 
-            //No permissions allowed
-            dotYouContext.SetPermissionContext(null);
+            var driveManager = httpContext.RequestServices.GetRequiredService<DriveManager>();
+            var anonymousDrives = await driveManager.GetAnonymousDrives(PageOptions.All);
 
-            return Task.CompletedTask;
+            if (!anonymousDrives.Results.Any())
+            {
+                throw new YouverseClientException("No anonymous drives configured.  There should be at least one; be sure you accessed /owner to initialize them.",
+                    YouverseClientErrorCode.NotInitialized);
+            }
+
+            var anonDriveGrants = anonymousDrives.Results.Select(d => new DriveGrant()
+            {
+                DriveId = d.Id,
+                PermissionedDrive = new PermissionedDrive()
+                {
+                    Drive = d.TargetDriveInfo,
+                    Permission = DrivePermission.Read
+                }
+            }).ToList();
+            
+            var permissionGroupMap = new Dictionary<string, PermissionGroup>
+            {
+                { "read_anonymous_drives", new PermissionGroup(new PermissionSet(), anonDriveGrants, null) },
+            };
+
+            dotYouContext.SetPermissionContext(
+                new PermissionContext(
+                    permissionGroupMap,
+                    sharedSecretKey: null
+                ));
         }
     }
 }
