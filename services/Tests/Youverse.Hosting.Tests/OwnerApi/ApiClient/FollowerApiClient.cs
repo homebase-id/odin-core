@@ -6,7 +6,7 @@ using Refit;
 using Youverse.Core;
 using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Core.Services.Drives;
-using Youverse.Hosting.Tests.OwnerApi.Follower;
+using Youverse.Hosting.Tests.OwnerApi.DataSubscription.Follower;
 using Youverse.Hosting.Tests.OwnerApi.Utils;
 
 namespace Youverse.Hosting.Tests.OwnerApi.ApiClient;

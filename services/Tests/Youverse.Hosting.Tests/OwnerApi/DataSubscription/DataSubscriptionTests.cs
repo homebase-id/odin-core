@@ -52,14 +52,14 @@ public class DataSubscriptionTests
             Type = SystemDriveConstants.ChannelDriveType
         };
 
-        await frodoOwnerClient.Drive.CreateDrive(frodoChannelDrive, "A Channel Drive", "", false, false);
+        await frodoOwnerClient.Drive.CreateDrive(frodoChannelDrive, "A Channel Drive", "", allowAnonymousReads: false, ownerOnly: false, allowSubscriptions: true);
 
         // Sam to follow everything from frodo
         await samOwnerClient.Follower.FollowIdentity(frodoOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
 
         // Frodo uploads content to channel drive
         var uploadedContent = "I'm Mr. Underhill";
-        var uploadResult = await UploadStandardFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent);
+        var uploadResult = await UploadStandardFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, 101);
 
         // Sam should have the same content on his feed drive
         await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
@@ -67,6 +67,7 @@ public class DataSubscriptionTests
         var qp = new FileQueryParams()
         {
             TargetDrive = SystemDriveConstants.FeedDrive,
+            FileType = new List<int>() { 101 }
         };
 
         var batch = await samOwnerClient.Drive.QueryBatch(FileSystemType.Standard, qp);
@@ -100,15 +101,15 @@ public class DataSubscriptionTests
 
         // Frodo uploads content to channel drive
         var uploadedContent = "I'm Mr. Underhill";
-        var standardFileUploadResult = await UploadStandardFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent);
-        
+        var standardFileUploadResult = await UploadStandardFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, 277);
+
         // Sam should have the same content on his feed drive
         await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
-        
+
         var qp = new FileQueryParams()
         {
             TargetDrive = SystemDriveConstants.FeedDrive,
-            FileType = new List<int>() { 200 }
+            FileType = new List<int>() { 277 }
         };
 
         // Sma should have the blog post
@@ -119,7 +120,6 @@ public class DataSubscriptionTests
         Assert.IsTrue(theFile.FileMetadata.AppData.JsonContent == uploadedContent);
         Assert.IsTrue(theFile.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
 
-        
         var commentFile = new UploadFileMetadata()
         {
             AllowDistribution = true,
@@ -138,16 +138,16 @@ public class DataSubscriptionTests
         };
 
         var commentFileUploadResult = await frodoOwnerClient.Drive.UploadFile(FileSystemType.Comment, frodoChannelDrive, commentFile, "");
-        
+
         var qp2 = new FileQueryParams()
         {
             TargetDrive = SystemDriveConstants.FeedDrive,
             FileType = new List<int>() { 909 }
         };
-        
+
         await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
-        
-        // Sma should have the comment
+
+        // Sam should have the comment
         var commentBatch = await samOwnerClient.Drive.QueryBatch(FileSystemType.Comment, qp2);
         Assert.IsTrue(commentBatch.SearchResults.Count() == 1);
         var theCommentFile = commentBatch.SearchResults.First();
@@ -160,7 +160,7 @@ public class DataSubscriptionTests
         await samOwnerClient.Follower.UnfollowIdentity(frodoOwnerClient.Identity);
     }
 
-    private async Task<UploadResult> UploadStandardFileToChannel(OwnerApiClient client, TargetDrive targetDrive, string uploadedContent)
+    private async Task<UploadResult> UploadStandardFileToChannel(OwnerApiClient client, TargetDrive targetDrive, string uploadedContent, int fileType)
     {
         var fileMetadata = new UploadFileMetadata()
         {
@@ -171,7 +171,7 @@ public class DataSubscriptionTests
             {
                 ContentIsComplete = true,
                 JsonContent = uploadedContent,
-                FileType = 200,
+                FileType = fileType,
                 GroupId = default,
                 Tags = default
             },

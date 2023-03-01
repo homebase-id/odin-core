@@ -5,7 +5,7 @@ using Youverse.Core;
 using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Hosting.Controllers.OwnerToken;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Follower
+namespace Youverse.Hosting.Tests.OwnerApi.DataSubscription.Follower
 {
     public interface ITestFollowerOwnerClient
     {
