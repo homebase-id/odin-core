@@ -7,16 +7,13 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 {
     public class ImFollowingItem
     {
-        private string _identity;
-        public string identity
+        private OdinId _identity;
+        public OdinId identity
         {
            get {
                    return _identity;
                }
            set {
-                  if (value == null) throw new Exception("Cannot be null");
-                  if (value?.Length < 3) throw new Exception("Too short");
-                  if (value?.Length > 255) throw new Exception("Too long");
                   _identity = value;
                }
         }
@@ -117,7 +114,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 }
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS imFollowing("
-                     +"identity STRING NOT NULL, "
+                     +"identity BLOB NOT NULL, "
                      +"driveId BLOB NOT NULL, "
                      +"created INT NOT NULL, "
                      +"modified INT  "
@@ -228,7 +225,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public int Delete(string identity,Guid driveId)
+        public int Delete(OdinId identity,Guid driveId)
         {
             lock (_deleteLock)
             {
@@ -252,7 +249,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             } // Lock
         }
 
-        public ImFollowingItem Get(string identity,Guid driveId)
+        public ImFollowingItem Get(OdinId identity,Guid driveId)
         {
             lock (_getLock)
             {

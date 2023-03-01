@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.SQLite;
+using Youverse.Core.Identity;
 
 //
 // ImFollowing - this class stores all the people that follow me.
@@ -64,11 +65,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         /// <param name="identity">The identity following you</param>
         /// <returns>List of driveIds (possibly includinig Guid.Empty for 'follow all')</returns>
         /// <exception cref="Exception"></exception>
-        public List<ImFollowingItem> Get(string identity)
+        public List<ImFollowingItem> Get(OdinId identity)
         {
-            if (identity == null || identity.Length < 1)
-                throw new Exception("identity cannot be NULL or empty.");
-
             lock (_selectLock)
             {
                 // Make sure we only prep once 
@@ -264,11 +262,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         /// </summary>
         /// <param name="identity">The identity following you</param>
         /// <exception cref="Exception"></exception>
-        public void DeleteFollower(string identity)
+        public void DeleteFollower(OdinId identity)
         {
-            if (identity == null || identity.Length < 1)
-                throw new Exception("identity cannot be NULL or empty");
-
             lock (_deleteLock)
             {
                 // Make sure we only prep once 

@@ -85,10 +85,10 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             using (_tenantStorage.CreateCommitUnitOfWork())
             {
                 //delete all records and update according to the latest follow request.
-                _tenantStorage.WhoIFollow.DeleteFollower(request.OdinId);
+                _tenantStorage.WhoIFollow.DeleteFollower(new OdinId(request.OdinId));
                 if (request.NotificationType == FollowerNotificationType.AllNotifications)
                 {
-                    _tenantStorage.WhoIFollow.Insert(new ImFollowingItem() { identity = request.OdinId, driveId = Guid.Empty });
+                    _tenantStorage.WhoIFollow.Insert(new ImFollowingItem() { identity = new OdinId(request.OdinId), driveId = Guid.Empty });
                 }
 
                 if (request.NotificationType == FollowerNotificationType.SelectedChannels)
@@ -101,7 +101,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
                     //use the alias because we don't most likely will not have the channel on the callers identity
                     foreach (var channel in request.Channels)
                     {
-                        _tenantStorage.WhoIFollow.Insert(new ImFollowingItem() { identity = request.OdinId, driveId = channel.Alias });
+                        _tenantStorage.WhoIFollow.Insert(new ImFollowingItem() { identity = new OdinId(request.OdinId), driveId = channel.Alias });
                     }
                 }
             }
