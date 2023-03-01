@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using NUnit.Framework;
 using Youverse.Core;
 using Youverse.Core.Identity;
@@ -69,6 +70,32 @@ namespace DriveDatabaseTests
             db.TblReactions.Insert(new ReactionsItem { identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":wink:" });
             db.TblReactions.Insert(new ReactionsItem { identity = new OdinId("bilbo.baggins.me"), postId = k1, singleReaction = ":lol:" });
         }
+
+
+        [Test]
+        // Test we can insert rows as expected
+        public void IdentityPostDetailsTest()
+        {
+            using var db = new DriveDatabase("URI=file:.\\tblReactions-42.db", DatabaseIndexKind.Random);
+            db.CreateDatabase();
+
+            var k1 = Guid.NewGuid();
+            var a1 = new List<Guid>();
+            a1.Add(Guid.NewGuid());
+
+            db.TblReactions.Insert(new ReactionsItem { identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":lol:" });
+            db.TblReactions.Insert(new ReactionsItem { identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":wink:" });
+            db.TblReactions.Insert(new ReactionsItem { identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":smile:" });
+
+            string[] array = { ":lol:", ":wink:", ":smile:" };
+            var rs = db.TblReactions.GetIdentityPostReactionDetails(new OdinId("frodo.baggins.me"), k1);
+            Assert.IsTrue(array.Contains(rs[0]));
+            Assert.IsTrue(array.Contains(rs[1]));
+            Assert.IsTrue(array.Contains(rs[2]));
+            Assert.IsTrue(rs[0] != rs[1]);
+            Assert.IsTrue(rs[1] != rs[2]);
+        }
+
 
 
         [Test]

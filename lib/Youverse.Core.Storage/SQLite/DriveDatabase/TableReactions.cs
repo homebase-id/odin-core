@@ -86,6 +86,13 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             }
         }
 
+
+        /// <summary>
+        /// Get the number of reactions  made by the identity on a given post.
+        /// </summary>
+        /// <param name="identity"></param>
+        /// <param name="postId"></param>
+        /// <returns></returns>
         public int GetIdentityPostReactions(OdinId identity, Guid postId)
         {
             lock (_select2Lock)
@@ -119,6 +126,53 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 }
             }
         }
+
+
+        /// <summary>
+        /// Get the number of reactions  made by the identity on a given post.
+        /// </summary>
+        /// <param name="identity"></param>
+        /// <param name="postId"></param>
+        /// <returns></returns>
+        public List<string> GetIdentityPostReactionDetails(OdinId identity, Guid postId)
+        {
+            lock (_select2Lock)
+            {
+                if (_select2Command == null)
+                {
+                    _select2Command = _database.CreateCommand();
+                    _select2Command.CommandText =
+                        $"SELECT singleReaction as reactioncount FROM reactions WHERE identity=$identity AND postId=$postId;";
+
+                    _s2param1 = _select2Command.CreateParameter();
+                    _s2param1.ParameterName = "$postId";
+                    _select2Command.Parameters.Add(_s2param1);
+
+                    _s2param2 = _select2Command.CreateParameter();
+                    _s2param2.ParameterName = "$identity";
+                    _select2Command.Parameters.Add(_s2param2);
+
+                    _select2Command.Prepare();
+                }
+
+                _s2param1.Value = postId;
+                _s2param2.Value = identity.Id;
+
+                using (SQLiteDataReader rdr = _select2Command.ExecuteReader(System.Data.CommandBehavior.Default))
+                {
+                    var rs = new List<string>();
+
+                    while (rdr.Read())
+                    {
+                        string s = rdr.GetString(0);
+                        rs.Add(s);
+                    }
+
+                    return rs;
+                }
+            }
+        }
+
 
         public (List<string>, int) GetPostReactions(Guid postId)
         {
