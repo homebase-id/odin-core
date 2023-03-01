@@ -420,12 +420,12 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             } // lock
         }
 
-        public List<ConnectionsItem> PagingByIdentity(int count, OdinId? inCursor, out OdinId? nextCursor)
+        public List<ConnectionsItem> PagingByIdentity(int count, string? inCursor, out string? nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
             if (inCursor == null)
-                inCursor = new OdinId("a.a");
+                inCursor = "";
 
             lock (_getPaging1Lock)
             {
@@ -464,6 +464,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
+                            item.identity = new OdinId(rdr.GetString(1));
                         }
 
                         if (rdr.IsDBNull(2))
@@ -576,6 +577,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
+                            item.identity = new OdinId(rdr.GetString(1));
                         }
 
                         if (rdr.IsDBNull(2))
