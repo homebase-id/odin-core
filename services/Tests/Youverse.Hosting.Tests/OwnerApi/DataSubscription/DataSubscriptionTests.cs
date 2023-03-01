@@ -52,7 +52,7 @@ public class DataSubscriptionTests
             Type = SystemDriveConstants.ChannelDriveType
         };
 
-        await frodoOwnerClient.Drive.CreateDrive(frodoChannelDrive, "A Channel Drive", "", false, false);
+        await frodoOwnerClient.Drive.CreateDrive(frodoChannelDrive, "A Channel Drive", "", allowAnonymousReads: false, ownerOnly: false, allowSubscriptions: true);
 
         // Sam to follow everything from frodo
         await samOwnerClient.Follower.FollowIdentity(frodoOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
@@ -101,10 +101,10 @@ public class DataSubscriptionTests
         // Frodo uploads content to channel drive
         var uploadedContent = "I'm Mr. Underhill";
         var standardFileUploadResult = await UploadStandardFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent);
-        
+
         // Sam should have the same content on his feed drive
         await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
-        
+
         var qp = new FileQueryParams()
         {
             TargetDrive = SystemDriveConstants.FeedDrive,
@@ -119,7 +119,7 @@ public class DataSubscriptionTests
         Assert.IsTrue(theFile.FileMetadata.AppData.JsonContent == uploadedContent);
         Assert.IsTrue(theFile.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
 
-        
+
         var commentFile = new UploadFileMetadata()
         {
             AllowDistribution = true,
@@ -138,16 +138,16 @@ public class DataSubscriptionTests
         };
 
         var commentFileUploadResult = await frodoOwnerClient.Drive.UploadFile(FileSystemType.Comment, frodoChannelDrive, commentFile, "");
-        
+
         var qp2 = new FileQueryParams()
         {
             TargetDrive = SystemDriveConstants.FeedDrive,
             FileType = new List<int>() { 909 }
         };
-        
+
         await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
-        
-        // Sma should have the comment
+
+        // Sam should have the comment
         var commentBatch = await samOwnerClient.Drive.QueryBatch(FileSystemType.Comment, qp2);
         Assert.IsTrue(commentBatch.SearchResults.Count() == 1);
         var theCommentFile = commentBatch.SearchResults.First();

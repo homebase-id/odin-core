@@ -73,7 +73,6 @@ namespace Youverse.Core.Services.DataSubscription
 
         private async Task<bool> SupportsSubscription(Guid driveId)
         {
-            //TODO: make this a property of the drive
             var drive = await _driveManager.GetDrive(driveId, false);
             return drive.AllowSubscriptions;
         }

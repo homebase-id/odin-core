@@ -26,6 +26,12 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteParameter _s2param2 = null;
         private SQLiteParameter _s2param3 = null;
         private static object _select2Lock = new object();
+        
+        private SQLiteCommand _select3Command = null;
+        private SQLiteParameter _s3param1 = null;
+        private SQLiteParameter _s3param2 = null;
+        private static object _select3Lock = new object();
+        
 
         public TableFollowsMe(IdentityDatabase db) : base(db)
         {
@@ -118,30 +124,30 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             if (inCursor == null)
                 inCursor = "";
 
-            lock (_select2Lock)
+            lock (_select3Lock)
             {
                 // Make sure we only prep once 
-                if (_select2Command == null)
+                if (_select3Command == null)
                 {
-                    _select2Command = _database.CreateCommand();
-                    _select2Command.CommandText =
+                    _select3Command = _database.CreateCommand();
+                    _select3Command.CommandText =
                         $"SELECT DISTINCT identity FROM followsme WHERE identity > $cursor ORDER BY identity ASC LIMIT $count;";
 
-                    _s2param1 = _select2Command.CreateParameter();
-                    _s2param1.ParameterName = "$cursor";
-                    _select2Command.Parameters.Add(_s2param1);
+                    _s3param1 = _select3Command.CreateParameter();
+                    _s3param1.ParameterName = "$cursor";
+                    _select3Command.Parameters.Add(_s3param1);
 
-                    _s2param2 = _select2Command.CreateParameter();
-                    _s2param2.ParameterName = "$count";
-                    _select2Command.Parameters.Add(_s2param2);
+                    _s3param2 = _select3Command.CreateParameter();
+                    _s3param2.ParameterName = "$count";
+                    _select3Command.Parameters.Add(_s3param2);
 
-                    _select2Command.Prepare();
+                    _select3Command.Prepare();
                 }
 
-                _s2param1.Value = inCursor;
-                _s2param2.Value = count + 1;
+                _s3param1.Value = inCursor;
+                _s3param2.Value = count + 1;
 
-                using (SQLiteDataReader rdr = _select2Command.ExecuteReader(System.Data.CommandBehavior.Default))
+                using (SQLiteDataReader rdr = _select3Command.ExecuteReader(System.Data.CommandBehavior.Default))
                 {
                     var result = new List<string>();
 
