@@ -31,7 +31,7 @@ namespace Youverse.Hosting.Middleware
         private readonly List<string> _ignoredPathsForRequests;
 
         /// <summary>
-        /// Paths that should not have their responses encrypted 
+        /// Paths that should not have their responses encrypted
         /// </summary>
         private readonly List<string> _ignoredPathsForResponses;
         //
@@ -51,7 +51,6 @@ namespace Youverse.Hosting.Middleware
                 // "/api/owner/v1/notify",
                 "/api/owner/v1/transit/outbox/processor",
                 "/api/apps/v1/transit/app/process", //TODO: why is this here??
-                "/api/owner/v1/transit/inbox/processor/process", //TODO: why is this here??
                 "/api/perimeter", //TODO: temporarily allowing all perimeter traffic not use shared secret
                 "/api/owner/v1/drive/files/upload",
                 "/api/apps/v1/drive/files/upload",
@@ -72,7 +71,7 @@ namespace Youverse.Hosting.Middleware
                 "/api/apps/v1/drive/files/thumb",
                 "/api/youauth/v1/drive/files/thumb",
                 "/cdn",
-                //"/api/owner/v1/notify/ws" //TODO: should 
+                //"/api/owner/v1/notify/ws" //TODO: should
             };
 
             _ignoredPathsForResponses.AddRange(_ignoredPathsForRequests);
@@ -191,13 +190,13 @@ namespace Youverse.Hosting.Middleware
             };
 
             var finalBytes = JsonSerializer.SerializeToUtf8Bytes(encryptedPayload, encryptedPayload.GetType(), DotYouSystemSerializer.JsonSerializerOptions);
-            
+
             // HttpResponseWritingExtensions.WriteAsync(...)
             // originalBody.WriteAsync(finalBytes)
             context.Response.Headers.Add("X-SSE", "1");
             context.Response.ContentLength = finalBytes.Length;
             await new MemoryStream(finalBytes).CopyToAsync(originalBody);
-            
+
             context.Response.Body = originalBody;
         }
 
