@@ -29,19 +29,6 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
         }
 
 
-        // I cannot decide if no result should return null or an empty list...
-        public new virtual List<Guid> Get(Guid fileId)
-        {
-            var r = base.Get(fileId);
-
-            // The services layer does not handle null for now
-            if (r == null)
-                r = new List<Guid>();
-
-            return r;
-        }
-
-
         public void InsertRows(Guid FileId, List<Guid> AccessControlList)
         {
             if (AccessControlList == null)
