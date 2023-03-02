@@ -17,10 +17,6 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteParameter _dparam1 = null;
         private static object _deleteLock = new object();
 
-        private SQLiteCommand _selectCommand = null;
-        private SQLiteParameter _sparam1 = null;
-        private static object _selectLock = new object();
-
         private SQLiteCommand _select2Command = null;
         private SQLiteParameter _s2param1 = null;
         private SQLiteParameter _s2param2 = null;
@@ -40,9 +36,6 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             _deleteCommand?.Dispose();
             _deleteCommand = null;
 
-            _selectCommand?.Dispose();
-            _selectCommand = null;
-
             _select2Command?.Dispose();
             _select2Command = null;
 
@@ -56,49 +49,14 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         /// <param name="identity">The identity following you</param>
         /// <returns>List of driveIds (possibly includinig Guid.Empty for 'follow all')</returns>
         /// <exception cref="Exception"></exception>
-        public List<FollowsMeItem> Get(string identity)
+        public new virtual List<FollowsMeItem> Get(string identity)
         {
-            if (identity == null || identity.Length < 1)
-                throw new Exception("identity cannot be NULL or empty.");
+            var r = base.Get(identity);
 
-            lock (_selectLock)
-            {
-                // Make sure we only prep once 
-                if (_selectCommand == null)
-                {
-                    _selectCommand = _database.CreateCommand();
-                    _selectCommand.CommandText =
-                        $"SELECT driveId, created FROM followsme WHERE identity=$identity";
-                    _sparam1 = _selectCommand.CreateParameter();
-                    _sparam1.ParameterName = "$identity";
-                    _selectCommand.Parameters.Add(_sparam1);
-                    _selectCommand.Prepare();
-                }
+            if (r == null)
+                r = new List<FollowsMeItem>();
 
-                _sparam1.Value = identity;
-
-                using (SQLiteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.Default))
-                {
-                    var result = new List<FollowsMeItem>();
-                    byte[] _tmpbuf = new byte[16];
-                    var fi = new FollowsMeItem();
-
-                    while (rdr.Read())
-                    {
-                        var n = rdr.GetBytes(0, 0, _tmpbuf, 0, 16);
-                        if (n != GUID_SIZE)
-                            throw new Exception("Not a GUID");
-                        var d = rdr.GetInt64(1);
-                        var f = new FollowsMeItem();
-                        f.identity = identity;
-                        f.created = new UnixTimeUtcUnique((ulong) d);
-                        f.driveId = new Guid(_tmpbuf);
-                        result.Add(f);
-                    }
-
-                    return result;
-                }
-            }
+            return r;
         }
 
 

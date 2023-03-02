@@ -78,6 +78,9 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private static Object _get0Lock = new Object();
         private SQLiteParameter _get0Param1 = null;
         private SQLiteParameter _get0Param2 = null;
+        private SQLiteCommand _get1Command = null;
+        private static Object _get1Lock = new Object();
+        private SQLiteParameter _get1Param1 = null;
 
         public TableImFollowingCRUD(IdentityDatabase db) : base(db)
         {
@@ -100,6 +103,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             _deleteCommand = null;
             _get0Command?.Dispose();
             _get0Command = null;
+            _get1Command?.Dispose();
+            _get1Command = null;
             _disposed = true;
         }
 
@@ -296,6 +301,68 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                             item.modified = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(1));
                         }
                     return item;
+                } // using
+            } // lock
+        }
+
+        public List<ImFollowingItem> Get(OdinId identity)
+        {
+            lock (_get1Lock)
+            {
+                if (_get1Command == null)
+                {
+                    _get1Command = _database.CreateCommand();
+                    _get1Command.CommandText = "SELECT driveId,created,modified FROM imFollowing " +
+                                                 "WHERE identity = $identity;";
+                    _get1Param1 = _get1Command.CreateParameter();
+                    _get1Command.Parameters.Add(_get1Param1);
+                    _get1Param1.ParameterName = "$identity";
+                    _get1Command.Prepare();
+                }
+                _get1Param1.Value = identity;
+                using (SQLiteDataReader rdr = _get1Command.ExecuteReader(System.Data.CommandBehavior.Default))
+                {
+                    var result = new List<ImFollowingItem>();
+                    if (!rdr.Read())
+                        return null;
+                    byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+                    long bytesRead;
+#pragma warning restore CS0168
+                    var _guid = new byte[16];
+                    while (true)
+                    {
+                        var item = new ImFollowingItem();
+                        item.identity = identity;
+
+                        if (rdr.IsDBNull(0))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                            if (bytesRead != 16)
+                                throw new Exception("Not a GUID in driveId...");
+                            item.driveId = new Guid(_guid);
+                        }
+
+                        if (rdr.IsDBNull(1))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            item.created = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(1));
+                        }
+
+                        if (rdr.IsDBNull(2))
+                            item.modified = null;
+                        else
+                        {
+                            item.modified = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(2));
+                        }
+                        result.Add(item);
+                        if (!rdr.Read())
+                           break;
+                    } // while
+                    return result;
                 } // using
             } // lock
         }

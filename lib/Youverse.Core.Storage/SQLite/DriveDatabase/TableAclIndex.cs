@@ -11,10 +11,6 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
         private Object _deleteAllLock = new Object();
 
 
-        private SQLiteCommand _selectCommand = null;
-        private SQLiteParameter _sparam1 = null;
-        private  Object _selectLock = new Object();
-
         public TableAclIndex(DriveDatabase db) : base(db)
         {
         }
@@ -26,9 +22,6 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
         public override void Dispose()
         {
-            _selectCommand?.Dispose();
-            _selectCommand = null;
-
             _deleteAllCommand?.Dispose();
             _deleteAllCommand = null;
 
@@ -37,41 +30,15 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
 
         // I cannot decide if no result should return null or an empty list...
-        public List<Guid> Get(Guid fileId)
+        public new virtual List<Guid> Get(Guid fileId)
         {
-            lock (_selectLock)
-            {
-                // Make sure we only prep once 
-                if (_selectCommand == null)
-                {
-                    _selectCommand = _database.CreateCommand();
-                    _selectCommand.CommandText = @"SELECT aclmemberid FROM aclindex WHERE fileid=$fileid";
-                    _sparam1 = _selectCommand.CreateParameter();
-                    _sparam1.ParameterName = "$fileid";
-                    _selectCommand.Parameters.Add(_sparam1);
-                }
+            var r = base.Get(fileId);
 
-                _sparam1.Value = fileId;
+            // The services layer does not handle null for now
+            if (r == null)
+                r = new List<Guid>();
 
-                using (SQLiteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.SingleResult))
-                {
-                    int i = 0;
-                    List<Guid> acl = new List<Guid>();
-                    byte[] bytes = new byte[16];
-
-                    while (rdr.Read())
-                    {
-                        rdr.GetBytes(0, 0, bytes, 0, 16);
-                        acl.Add(new Guid(bytes));
-                        i++;
-                    }
-
-                    if (i < 1)
-                        return null;
-                    else
-                        return acl;
-                }
-            }
+            return r;
         }
 
 

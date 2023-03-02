@@ -20,7 +20,6 @@ namespace Youverse.Core.Tests
             Task[] tasks = new Task[MAXTHREADS];
             List<long[]> timers = new List<long[]>();
 
-
             var sw = new Stopwatch();
             sw.Reset();
             sw.Start();

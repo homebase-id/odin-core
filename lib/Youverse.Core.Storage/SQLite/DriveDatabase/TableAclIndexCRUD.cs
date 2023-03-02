@@ -52,6 +52,9 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
         private static Object _get0Lock = new Object();
         private SQLiteParameter _get0Param1 = null;
         private SQLiteParameter _get0Param2 = null;
+        private SQLiteCommand _get1Command = null;
+        private static Object _get1Lock = new Object();
+        private SQLiteParameter _get1Param1 = null;
 
         public TableAclIndexCRUD(DriveDatabase db) : base(db)
         {
@@ -74,6 +77,8 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             _deleteCommand = null;
             _get0Command?.Dispose();
             _get0Command = null;
+            _get1Command?.Dispose();
+            _get1Command = null;
             _disposed = true;
         }
 
@@ -230,6 +235,51 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                         item.fileId = fileId;
                         item.aclMemberId = aclMemberId;
                     return item;
+                } // using
+            } // lock
+        }
+
+        public List<Guid> Get(Guid fileId)
+        {
+            lock (_get1Lock)
+            {
+                if (_get1Command == null)
+                {
+                    _get1Command = _database.CreateCommand();
+                    _get1Command.CommandText = "SELECT aclMemberId FROM aclIndex " +
+                                                 "WHERE fileId = $fileId;";
+                    _get1Param1 = _get1Command.CreateParameter();
+                    _get1Command.Parameters.Add(_get1Param1);
+                    _get1Param1.ParameterName = "$fileId";
+                    _get1Command.Prepare();
+                }
+                _get1Param1.Value = fileId;
+                using (SQLiteDataReader rdr = _get1Command.ExecuteReader(System.Data.CommandBehavior.Default))
+                {
+                    var result0 = new List<Guid>();
+                    if (!rdr.Read())
+                        return null;
+                    byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+                    long bytesRead;
+#pragma warning restore CS0168
+                    var _guid = new byte[16];
+                    while (true)
+                    {
+
+                        if (rdr.IsDBNull(0))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                            if (bytesRead != 16)
+                                throw new Exception("Not a GUID in aclMemberId...");
+                            result0.Add(new Guid(_guid));
+                        }
+                        if (!rdr.Read())
+                           break;
+                    } // while
+                    return result0;
                 } // using
             } // lock
         }

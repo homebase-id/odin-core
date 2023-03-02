@@ -422,7 +422,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             } // lock
         }
 
-        public List<ConnectionsItem> PagingByIdentity(int count, string? inCursor, out string? nextCursor)
+        public List<ConnectionsItem> PagingByIdentity(int count, string inCursor, out string nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
