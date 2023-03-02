@@ -83,7 +83,7 @@ namespace Youverse.Hosting.Tests.YouAuthApi.Drive
             {
                 ContentType = "application/json",
                 PayloadIsEncrypted = false,
-                AllowDistribution = true,
+                AllowDistribution = false,
                 AppData = new()
                 {
                     ContentIsComplete = false,
