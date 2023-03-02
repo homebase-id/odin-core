@@ -50,7 +50,7 @@ namespace Youverse.Core.Services.Base
         /// </summary>
         public Guid? FirstRunToken { get; private set; }
 
-        [Obsolete("temporary measure for auto-provisioning of development domains; need a better solution")]
+        // TODO:TODD temporary measure for auto-provisioning of development domains; need a better solution"
         public bool IsPreconfigured { get; private set; }
 
         public void Update(Guid registrationId, string tenantHostName, string rootPath, CertificateRenewalConfig certificateRenewalConfig, Guid? firstRunToken, bool isPreconfigured)
