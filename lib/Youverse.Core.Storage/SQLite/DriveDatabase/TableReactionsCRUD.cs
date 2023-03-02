@@ -65,11 +65,11 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
         private SQLiteParameter _deleteParam1 = null;
         private SQLiteParameter _deleteParam2 = null;
         private SQLiteParameter _deleteParam3 = null;
-        private SQLiteCommand _getCommand = null;
-        private static Object _getLock = new Object();
-        private SQLiteParameter _getParam1 = null;
-        private SQLiteParameter _getParam2 = null;
-        private SQLiteParameter _getParam3 = null;
+        private SQLiteCommand _get0Command = null;
+        private static Object _get0Lock = new Object();
+        private SQLiteParameter _get0Param1 = null;
+        private SQLiteParameter _get0Param2 = null;
+        private SQLiteParameter _get0Param3 = null;
 
         public TableReactionsCRUD(DriveDatabase db) : base(db)
         {
@@ -90,8 +90,8 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             _upsertCommand = null;
             _deleteCommand?.Dispose();
             _deleteCommand = null;
-            _getCommand?.Dispose();
-            _getCommand = null;
+            _get0Command?.Dispose();
+            _get0Command = null;
             _disposed = true;
         }
 
@@ -233,39 +233,41 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
         public ReactionsItem Get(OdinId identity,Guid postId,string singleReaction)
         {
-            lock (_getLock)
+            lock (_get0Lock)
             {
-                if (_getCommand == null)
+                if (_get0Command == null)
                 {
-                    _getCommand = _database.CreateCommand();
-                    _getCommand.CommandText = "SELECT  FROM reactions " +
-                                                 "WHERE identity = $identity AND postId = $postId AND singleReaction = $singleReaction;";
-                    _getParam1 = _getCommand.CreateParameter();
-                    _getCommand.Parameters.Add(_getParam1);
-                    _getParam1.ParameterName = "$identity";
-                    _getParam2 = _getCommand.CreateParameter();
-                    _getCommand.Parameters.Add(_getParam2);
-                    _getParam2.ParameterName = "$postId";
-                    _getParam3 = _getCommand.CreateParameter();
-                    _getCommand.Parameters.Add(_getParam3);
-                    _getParam3.ParameterName = "$singleReaction";
-                    _getCommand.Prepare();
+                    _get0Command = _database.CreateCommand();
+                    _get0Command.CommandText = "SELECT  FROM reactions " +
+                                                 "WHERE identity = $identity AND postId = $postId AND singleReaction = $singleReaction LIMIT 1;";
+                    _get0Param1 = _get0Command.CreateParameter();
+                    _get0Command.Parameters.Add(_get0Param1);
+                    _get0Param1.ParameterName = "$identity";
+                    _get0Param2 = _get0Command.CreateParameter();
+                    _get0Command.Parameters.Add(_get0Param2);
+                    _get0Param2.ParameterName = "$postId";
+                    _get0Param3 = _get0Command.CreateParameter();
+                    _get0Command.Parameters.Add(_get0Param3);
+                    _get0Param3.ParameterName = "$singleReaction";
+                    _get0Command.Prepare();
                 }
-                _getParam1.Value = identity;
-                _getParam2.Value = postId;
-                _getParam3.Value = singleReaction;
-                using (SQLiteDataReader rdr = _getCommand.ExecuteReader(System.Data.CommandBehavior.SingleRow))
+                _get0Param1.Value = identity;
+                _get0Param2.Value = postId;
+                _get0Param3.Value = singleReaction;
+                using (SQLiteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow))
                 {
+                    var result = new ReactionsItem();
                     if (!rdr.Read())
                         return null;
-                    var item = new ReactionsItem();
-                    item.identity = identity;
-                    item.postId = postId;
-                    item.singleReaction = singleReaction;
                     byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
                     long bytesRead;
+#pragma warning restore CS0168
                     var _guid = new byte[16];
-
+                        var item = new ReactionsItem();
+                        item.identity = identity;
+                        item.postId = postId;
+                        item.singleReaction = singleReaction;
                     return item;
                 } // using
             } // lock

@@ -142,10 +142,10 @@ namespace Youverse.Core.Storage.SQLite.ServerDatabase
         private static Object _deleteLock = new Object();
         private SQLiteParameter _deleteParam1 = null;
         private SQLiteParameter _deleteParam2 = null;
-        private SQLiteCommand _getCommand = null;
-        private static Object _getLock = new Object();
-        private SQLiteParameter _getParam1 = null;
-        private SQLiteParameter _getParam2 = null;
+        private SQLiteCommand _get0Command = null;
+        private static Object _get0Lock = new Object();
+        private SQLiteParameter _get0Param1 = null;
+        private SQLiteParameter _get0Param2 = null;
 
         public TableCronCRUD(ServerDatabase db) : base(db)
         {
@@ -166,8 +166,8 @@ namespace Youverse.Core.Storage.SQLite.ServerDatabase
             _upsertCommand = null;
             _deleteCommand?.Dispose();
             _deleteCommand = null;
-            _getCommand?.Dispose();
-            _getCommand = null;
+            _get0Command?.Dispose();
+            _get0Command = null;
             _disposed = true;
         }
 
@@ -384,95 +384,97 @@ namespace Youverse.Core.Storage.SQLite.ServerDatabase
 
         public CronItem Get(Guid identityId,Int32 type)
         {
-            lock (_getLock)
+            lock (_get0Lock)
             {
-                if (_getCommand == null)
+                if (_get0Command == null)
                 {
-                    _getCommand = _database.CreateCommand();
-                    _getCommand.CommandText = "SELECT data,runCount,nextRun,lastRun,popStamp,created,modified FROM cron " +
-                                                 "WHERE identityId = $identityId AND type = $type;";
-                    _getParam1 = _getCommand.CreateParameter();
-                    _getCommand.Parameters.Add(_getParam1);
-                    _getParam1.ParameterName = "$identityId";
-                    _getParam2 = _getCommand.CreateParameter();
-                    _getCommand.Parameters.Add(_getParam2);
-                    _getParam2.ParameterName = "$type";
-                    _getCommand.Prepare();
+                    _get0Command = _database.CreateCommand();
+                    _get0Command.CommandText = "SELECT data,runCount,nextRun,lastRun,popStamp,created,modified FROM cron " +
+                                                 "WHERE identityId = $identityId AND type = $type LIMIT 1;";
+                    _get0Param1 = _get0Command.CreateParameter();
+                    _get0Command.Parameters.Add(_get0Param1);
+                    _get0Param1.ParameterName = "$identityId";
+                    _get0Param2 = _get0Command.CreateParameter();
+                    _get0Command.Parameters.Add(_get0Param2);
+                    _get0Param2.ParameterName = "$type";
+                    _get0Command.Prepare();
                 }
-                _getParam1.Value = identityId;
-                _getParam2.Value = type;
-                using (SQLiteDataReader rdr = _getCommand.ExecuteReader(System.Data.CommandBehavior.SingleRow))
+                _get0Param1.Value = identityId;
+                _get0Param2.Value = type;
+                using (SQLiteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow))
                 {
+                    var result = new CronItem();
                     if (!rdr.Read())
                         return null;
-                    var item = new CronItem();
-                    item.identityId = identityId;
-                    item.type = type;
                     byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
                     long bytesRead;
+#pragma warning restore CS0168
                     var _guid = new byte[16];
+                        var item = new CronItem();
+                        item.identityId = identityId;
+                        item.type = type;
 
-                    if (rdr.IsDBNull(0))
-                        throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                    else
-                    {
-                        bytesRead = rdr.GetBytes(0, 0, _tmpbuf, 0, 65535+1);
-                        if (bytesRead > 65535)
-                            throw new Exception("Too much data in data...");
-                        if (bytesRead < 0)
-                            throw new Exception("Too little data in data...");
-                        if (bytesRead > 0)
+                        if (rdr.IsDBNull(0))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
                         {
-                            item.data = new byte[bytesRead];
-                            Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+                            bytesRead = rdr.GetBytes(0, 0, _tmpbuf, 0, 65535+1);
+                            if (bytesRead > 65535)
+                                throw new Exception("Too much data in data...");
+                            if (bytesRead < 0)
+                                throw new Exception("Too little data in data...");
+                            if (bytesRead > 0)
+                            {
+                                item.data = new byte[bytesRead];
+                                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+                            }
                         }
-                    }
 
-                    if (rdr.IsDBNull(1))
-                        throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                    else
-                    {
-                        item.runCount = rdr.GetInt32(1);
-                    }
+                        if (rdr.IsDBNull(1))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            item.runCount = rdr.GetInt32(1);
+                        }
 
-                    if (rdr.IsDBNull(2))
-                        throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                    else
-                    {
-                        item.nextRun = new UnixTimeUtc((UInt64) rdr.GetInt64(2));
-                    }
+                        if (rdr.IsDBNull(2))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            item.nextRun = new UnixTimeUtc((UInt64) rdr.GetInt64(2));
+                        }
 
-                    if (rdr.IsDBNull(3))
-                        throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                    else
-                    {
-                        item.lastRun = new UnixTimeUtc((UInt64) rdr.GetInt64(3));
-                    }
+                        if (rdr.IsDBNull(3))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            item.lastRun = new UnixTimeUtc((UInt64) rdr.GetInt64(3));
+                        }
 
-                    if (rdr.IsDBNull(4))
-                        item.popStamp = null;
-                    else
-                    {
-                        bytesRead = rdr.GetBytes(4, 0, _guid, 0, 16);
-                        if (bytesRead != 16)
-                            throw new Exception("Not a GUID in popStamp...");
-                        item.popStamp = new Guid(_guid);
-                    }
+                        if (rdr.IsDBNull(4))
+                            item.popStamp = null;
+                        else
+                        {
+                            bytesRead = rdr.GetBytes(4, 0, _guid, 0, 16);
+                            if (bytesRead != 16)
+                                throw new Exception("Not a GUID in popStamp...");
+                            item.popStamp = new Guid(_guid);
+                        }
 
-                    if (rdr.IsDBNull(5))
-                        throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                    else
-                    {
-                        item.created = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(5));
-                    }
+                        if (rdr.IsDBNull(5))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            item.created = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(5));
+                        }
 
-                    if (rdr.IsDBNull(6))
-                        item.modified = null;
-                    else
-                    {
-                        item.modified = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(6));
-                    }
-
+                        if (rdr.IsDBNull(6))
+                            item.modified = null;
+                        else
+                        {
+                            item.modified = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(6));
+                        }
                     return item;
                 } // using
             } // lock

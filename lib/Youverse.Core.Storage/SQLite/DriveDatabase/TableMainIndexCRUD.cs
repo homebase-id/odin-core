@@ -205,9 +205,9 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
         private SQLiteCommand _deleteCommand = null;
         private static Object _deleteLock = new Object();
         private SQLiteParameter _deleteParam1 = null;
-        private SQLiteCommand _getCommand = null;
-        private static Object _getLock = new Object();
-        private SQLiteParameter _getParam1 = null;
+        private SQLiteCommand _get0Command = null;
+        private static Object _get0Lock = new Object();
+        private SQLiteParameter _get0Param1 = null;
 
         public TableMainIndexCRUD(DriveDatabase db) : base(db)
         {
@@ -228,8 +228,8 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             _upsertCommand = null;
             _deleteCommand?.Dispose();
             _deleteCommand = null;
-            _getCommand?.Dispose();
-            _getCommand = null;
+            _get0Command?.Dispose();
+            _get0Command = null;
             _disposed = true;
         }
 
@@ -508,129 +508,131 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
         public MainIndexItem Get(Guid fileId)
         {
-            lock (_getLock)
+            lock (_get0Lock)
             {
-                if (_getCommand == null)
+                if (_get0Command == null)
                 {
-                    _getCommand = _database.CreateCommand();
-                    _getCommand.CommandText = "SELECT globalTransitId,userDate,fileType,dataType,isArchived,isHistory,senderId,groupId,uniqueId,requiredSecurityGroup,fileSystemType,created,modified FROM mainIndex " +
-                                                 "WHERE fileId = $fileId;";
-                    _getParam1 = _getCommand.CreateParameter();
-                    _getCommand.Parameters.Add(_getParam1);
-                    _getParam1.ParameterName = "$fileId";
-                    _getCommand.Prepare();
+                    _get0Command = _database.CreateCommand();
+                    _get0Command.CommandText = "SELECT globalTransitId,userDate,fileType,dataType,isArchived,isHistory,senderId,groupId,uniqueId,requiredSecurityGroup,fileSystemType,created,modified FROM mainIndex " +
+                                                 "WHERE fileId = $fileId LIMIT 1;";
+                    _get0Param1 = _get0Command.CreateParameter();
+                    _get0Command.Parameters.Add(_get0Param1);
+                    _get0Param1.ParameterName = "$fileId";
+                    _get0Command.Prepare();
                 }
-                _getParam1.Value = fileId;
-                using (SQLiteDataReader rdr = _getCommand.ExecuteReader(System.Data.CommandBehavior.SingleRow))
+                _get0Param1.Value = fileId;
+                using (SQLiteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow))
                 {
+                    var result = new MainIndexItem();
                     if (!rdr.Read())
                         return null;
-                    var item = new MainIndexItem();
-                    item.fileId = fileId;
                     byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
                     long bytesRead;
+#pragma warning restore CS0168
                     var _guid = new byte[16];
+                        var item = new MainIndexItem();
+                        item.fileId = fileId;
 
-                    if (rdr.IsDBNull(0))
-                        item.globalTransitId = null;
-                    else
-                    {
-                        bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
-                        if (bytesRead != 16)
-                            throw new Exception("Not a GUID in globalTransitId...");
-                        item.globalTransitId = new Guid(_guid);
-                    }
+                        if (rdr.IsDBNull(0))
+                            item.globalTransitId = null;
+                        else
+                        {
+                            bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                            if (bytesRead != 16)
+                                throw new Exception("Not a GUID in globalTransitId...");
+                            item.globalTransitId = new Guid(_guid);
+                        }
 
-                    if (rdr.IsDBNull(1))
-                        throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                    else
-                    {
-                        item.userDate = rdr.GetInt64(1);
-                    }
+                        if (rdr.IsDBNull(1))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            item.userDate = rdr.GetInt64(1);
+                        }
 
-                    if (rdr.IsDBNull(2))
-                        throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                    else
-                    {
-                        item.fileType = rdr.GetInt32(2);
-                    }
+                        if (rdr.IsDBNull(2))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            item.fileType = rdr.GetInt32(2);
+                        }
 
-                    if (rdr.IsDBNull(3))
-                        throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                    else
-                    {
-                        item.dataType = rdr.GetInt32(3);
-                    }
+                        if (rdr.IsDBNull(3))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            item.dataType = rdr.GetInt32(3);
+                        }
 
-                    if (rdr.IsDBNull(4))
-                        throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                    else
-                    {
-                        item.isArchived = rdr.GetInt32(4);
-                    }
+                        if (rdr.IsDBNull(4))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            item.isArchived = rdr.GetInt32(4);
+                        }
 
-                    if (rdr.IsDBNull(5))
-                        throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                    else
-                    {
-                        item.isHistory = rdr.GetInt32(5);
-                    }
+                        if (rdr.IsDBNull(5))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            item.isHistory = rdr.GetInt32(5);
+                        }
 
-                    if (rdr.IsDBNull(6))
-                        item.senderId = null;
-                    else
-                    {
-                        item.senderId = rdr.GetString(6);
-                    }
+                        if (rdr.IsDBNull(6))
+                            item.senderId = null;
+                        else
+                        {
+                            item.senderId = rdr.GetString(6);
+                        }
 
-                    if (rdr.IsDBNull(7))
-                        item.groupId = null;
-                    else
-                    {
-                        bytesRead = rdr.GetBytes(7, 0, _guid, 0, 16);
-                        if (bytesRead != 16)
-                            throw new Exception("Not a GUID in groupId...");
-                        item.groupId = new Guid(_guid);
-                    }
+                        if (rdr.IsDBNull(7))
+                            item.groupId = null;
+                        else
+                        {
+                            bytesRead = rdr.GetBytes(7, 0, _guid, 0, 16);
+                            if (bytesRead != 16)
+                                throw new Exception("Not a GUID in groupId...");
+                            item.groupId = new Guid(_guid);
+                        }
 
-                    if (rdr.IsDBNull(8))
-                        item.uniqueId = null;
-                    else
-                    {
-                        bytesRead = rdr.GetBytes(8, 0, _guid, 0, 16);
-                        if (bytesRead != 16)
-                            throw new Exception("Not a GUID in uniqueId...");
-                        item.uniqueId = new Guid(_guid);
-                    }
+                        if (rdr.IsDBNull(8))
+                            item.uniqueId = null;
+                        else
+                        {
+                            bytesRead = rdr.GetBytes(8, 0, _guid, 0, 16);
+                            if (bytesRead != 16)
+                                throw new Exception("Not a GUID in uniqueId...");
+                            item.uniqueId = new Guid(_guid);
+                        }
 
-                    if (rdr.IsDBNull(9))
-                        throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                    else
-                    {
-                        item.requiredSecurityGroup = rdr.GetInt32(9);
-                    }
+                        if (rdr.IsDBNull(9))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            item.requiredSecurityGroup = rdr.GetInt32(9);
+                        }
 
-                    if (rdr.IsDBNull(10))
-                        throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                    else
-                    {
-                        item.fileSystemType = rdr.GetInt32(10);
-                    }
+                        if (rdr.IsDBNull(10))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            item.fileSystemType = rdr.GetInt32(10);
+                        }
 
-                    if (rdr.IsDBNull(11))
-                        throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                    else
-                    {
-                        item.created = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(11));
-                    }
+                        if (rdr.IsDBNull(11))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            item.created = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(11));
+                        }
 
-                    if (rdr.IsDBNull(12))
-                        item.modified = null;
-                    else
-                    {
-                        item.modified = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(12));
-                    }
-
+                        if (rdr.IsDBNull(12))
+                            item.modified = null;
+                        else
+                        {
+                            item.modified = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(12));
+                        }
                     return item;
                 } // using
             } // lock

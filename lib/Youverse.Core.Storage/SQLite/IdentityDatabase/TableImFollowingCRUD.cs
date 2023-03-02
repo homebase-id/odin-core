@@ -74,10 +74,10 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private static Object _deleteLock = new Object();
         private SQLiteParameter _deleteParam1 = null;
         private SQLiteParameter _deleteParam2 = null;
-        private SQLiteCommand _getCommand = null;
-        private static Object _getLock = new Object();
-        private SQLiteParameter _getParam1 = null;
-        private SQLiteParameter _getParam2 = null;
+        private SQLiteCommand _get0Command = null;
+        private static Object _get0Lock = new Object();
+        private SQLiteParameter _get0Param1 = null;
+        private SQLiteParameter _get0Param2 = null;
 
         public TableImFollowingCRUD(IdentityDatabase db) : base(db)
         {
@@ -98,8 +98,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             _upsertCommand = null;
             _deleteCommand?.Dispose();
             _deleteCommand = null;
-            _getCommand?.Dispose();
-            _getCommand = null;
+            _get0Command?.Dispose();
+            _get0Command = null;
             _disposed = true;
         }
 
@@ -251,48 +251,50 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
         public ImFollowingItem Get(OdinId identity,Guid driveId)
         {
-            lock (_getLock)
+            lock (_get0Lock)
             {
-                if (_getCommand == null)
+                if (_get0Command == null)
                 {
-                    _getCommand = _database.CreateCommand();
-                    _getCommand.CommandText = "SELECT created,modified FROM imFollowing " +
-                                                 "WHERE identity = $identity AND driveId = $driveId;";
-                    _getParam1 = _getCommand.CreateParameter();
-                    _getCommand.Parameters.Add(_getParam1);
-                    _getParam1.ParameterName = "$identity";
-                    _getParam2 = _getCommand.CreateParameter();
-                    _getCommand.Parameters.Add(_getParam2);
-                    _getParam2.ParameterName = "$driveId";
-                    _getCommand.Prepare();
+                    _get0Command = _database.CreateCommand();
+                    _get0Command.CommandText = "SELECT created,modified FROM imFollowing " +
+                                                 "WHERE identity = $identity AND driveId = $driveId LIMIT 1;";
+                    _get0Param1 = _get0Command.CreateParameter();
+                    _get0Command.Parameters.Add(_get0Param1);
+                    _get0Param1.ParameterName = "$identity";
+                    _get0Param2 = _get0Command.CreateParameter();
+                    _get0Command.Parameters.Add(_get0Param2);
+                    _get0Param2.ParameterName = "$driveId";
+                    _get0Command.Prepare();
                 }
-                _getParam1.Value = identity;
-                _getParam2.Value = driveId;
-                using (SQLiteDataReader rdr = _getCommand.ExecuteReader(System.Data.CommandBehavior.SingleRow))
+                _get0Param1.Value = identity;
+                _get0Param2.Value = driveId;
+                using (SQLiteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow))
                 {
+                    var result = new ImFollowingItem();
                     if (!rdr.Read())
                         return null;
-                    var item = new ImFollowingItem();
-                    item.identity = identity;
-                    item.driveId = driveId;
                     byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
                     long bytesRead;
+#pragma warning restore CS0168
                     var _guid = new byte[16];
+                        var item = new ImFollowingItem();
+                        item.identity = identity;
+                        item.driveId = driveId;
 
-                    if (rdr.IsDBNull(0))
-                        throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                    else
-                    {
-                        item.created = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(0));
-                    }
+                        if (rdr.IsDBNull(0))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            item.created = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(0));
+                        }
 
-                    if (rdr.IsDBNull(1))
-                        item.modified = null;
-                    else
-                    {
-                        item.modified = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(1));
-                    }
-
+                        if (rdr.IsDBNull(1))
+                            item.modified = null;
+                        else
+                        {
+                            item.modified = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(1));
+                        }
                     return item;
                 } // using
             } // lock
