@@ -21,7 +21,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 /// Enables the writing of file streams from external sources and
 /// rule enforcement specific to the type of file system
 /// </summary>
-public abstract class FileSystemStreamWriterBase 
+public abstract class FileSystemStreamWriterBase
 {
     private readonly TenantContext _tenantContext;
     private readonly DotYouContextAccessor _contextAccessor;
@@ -262,6 +262,12 @@ public abstract class FileSystemStreamWriterBase
         }
 
         KeyHeader keyHeader = uploadDescriptor.FileMetadata.PayloadIsEncrypted ? transferEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret) : KeyHeader.Empty();
+
+        bool usesGlobalTransitId = package.InstructionSet.TransitOptions?.UseGlobalTransitId ?? false;
+        if (uploadDescriptor.FileMetadata.AllowDistribution && usesGlobalTransitId == false)
+        {
+            throw new YouverseClientException("UseGlobalTransitId must be true when AllowDistribution is true. (Yes, yes I know, i could just do it for you but then you would be all - htf is this GlobalTransitId getting set.. ooommmggg?!  Then you would hunt through the code and we would end up with long debate in the issue list.  #aintnobodygottimeforthat <3.  just love me and set the param", YouverseClientErrorCode.InvalidTransitOptions);
+        }
 
         await ValidateUploadDescriptor(uploadDescriptor);
 

@@ -101,7 +101,8 @@ public class DriveApiClient
         }
     }
 
-    public async Task<UploadResult> UploadFile(FileSystemType fileSystemType, TargetDrive targetDrive, UploadFileMetadata fileMetadata, string payloadData = "", ImageDataContent thumbnail = null)
+    public async Task<UploadResult> UploadFile(FileSystemType fileSystemType, TargetDrive targetDrive, UploadFileMetadata fileMetadata, string payloadData = "", ImageDataContent thumbnail = null,
+        Guid? overwriteFileId = null)
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
@@ -111,7 +112,12 @@ public class DriveApiClient
             TransferIv = transferIv,
             StorageOptions = new()
             {
-                Drive = targetDrive
+                Drive = targetDrive,
+                OverwriteFileId = overwriteFileId
+            },
+            TransitOptions = new TransitOptions()
+            {
+                UseGlobalTransitId = true
             }
         };
 
@@ -230,6 +236,21 @@ public class DriveApiClient
             // var apiResponse = await svc.GetFileHeader(file.FileId, file.TargetDrive.Alias, file.TargetDrive.Type);
             var apiResponse = await svc.GetFileHeaderAsPost(file);
             return apiResponse.Content;
+        }
+    }
+
+    public async Task DeleteFile(FileSystemType fileSystemType, ExternalFileIdentifier file, List<string> recipients = null)
+    {
+        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType))
+        {
+            //wth - refit is not sending headers when you do GET request - why not!?
+            var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, sharedSecret);
+            // var apiResponse = await svc.GetFileHeader(file.FileId, file.TargetDrive.Alias, file.TargetDrive.Type);
+            var apiResponse = await svc.DeleteFile(new DeleteFileRequest()
+            {
+                File = file,
+                Recipients = recipients
+            });
         }
     }
 }

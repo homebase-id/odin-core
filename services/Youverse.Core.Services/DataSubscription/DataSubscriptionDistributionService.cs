@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Services.AppNotifications;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Core.Services.Drives;
@@ -15,7 +16,7 @@ using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.DataSubscription
 {
-    public class DataSubscriptionDistributionService : INotificationHandler<DriveFileAddedNotification>
+    public class DataSubscriptionDistributionService : INotificationHandler<IDriveNotification>
     {
         private readonly FollowerService _followerService;
         private readonly DriveManager _driveManager;
@@ -30,16 +31,18 @@ namespace Youverse.Core.Services.DataSubscription
             _driveManager = driveManager;
         }
 
-        public async Task Handle(DriveFileAddedNotification notification, CancellationToken cancellationToken)
+        public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
+            //TODO: move this to a background thread or use ScheduleOptions.SendLater so the original call can finish
+            //this will come into play when someone has a huge number of subscribers
+
+            //TODO: first store on this identities feed drive.
+            //then send from their feed drive?
+
             if (!await SupportsSubscription(notification.File.DriveId))
             {
                 return;
             }
-
-            //TODO: move this to a background thread or use ScheduleOptions.SendLater so the original call can finish
-            //TODO: first store on this identities feed drive.
-            //then send from their feed drive?
 
             int maxRecords = 10000; //TODO: cursor thru batches instead
             var driveFollowers = await _followerService.GetFollowers(notification.File.DriveId, maxRecords, cursor: "");
@@ -49,12 +52,53 @@ namespace Youverse.Core.Services.DataSubscription
             recipients.AddRange(driveFollowers.Results);
             recipients.AddRange(allDriveFollowers.Results.Except(driveFollowers.Results));
 
-            // Don't handle if there are no recipients
             if (!recipients.Any())
             {
                 return;
             }
 
+            if (notification.DriveNotificationType == DriveNotificationType.FileDeleted)
+            {
+                await HandleFileDeleted(notification, recipients);
+            }
+
+            await HandleFileAddOrUpdate(notification, recipients);
+        }
+
+        private async Task HandleFileDeleted(IDriveNotification notification, List<string> recipients)
+        {
+            var header = notification.ServerFileHeader;
+
+            if (header.FileMetadata.GlobalTransitId.HasValue)
+            {
+                //send the deleted file
+                var map = await _transitService.SendDeleteLinkedFileRequest(
+                    driveId: notification.File.DriveId,
+                    header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
+                    header.ServerMetadata.FileSystemType,
+                    recipients);
+
+                //TODO: Handle issues/results 
+                // foreach (var (key, value) in map)
+                // {
+                //     switch (value)
+                //     {
+                //         case TransitResponseCode.Accepted:
+                //             break;
+                //
+                //         case TransitResponseCode.Rejected:
+                //         case TransitResponseCode.QuarantinedPayload:
+                //         case TransitResponseCode.QuarantinedSenderNotConnected:
+                //             break;
+                //
+                //         default:
+                //     }
+                // }
+            }
+        }
+
+        private async Task HandleFileAddOrUpdate(IDriveNotification notification, List<string> recipients)
+        {
             //use transit? to send like normal?
             var options = new TransitOptions()
             {
@@ -68,9 +112,12 @@ namespace Youverse.Core.Services.DataSubscription
 
             //
             //TODO: in order to send over transit like this, the sender needs access to the feed drive
-            var result = await _transitService.SendFile(notification.File, options, TransferFileType.Normal, notification.ServerFileHeader.ServerMetadata.FileSystemType,
+            var _ = await _transitService.SendFile(
+                notification.File,
+                options,
+                TransferFileType.Normal,
+                notification.ServerFileHeader.ServerMetadata.FileSystemType,
                 ClientAccessTokenSource.DataSubscription);
-            
         }
 
         private async Task<bool> SupportsSubscription(Guid driveId)

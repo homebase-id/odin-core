@@ -12,7 +12,9 @@ namespace Youverse.Core.Services.Mediator
     public class DriveFileChangedNotification : EventArgs, INotification, IDriveNotification
     {
         public ClientNotificationType NotificationType { get; } = ClientNotificationType.FileModified;
-
+        
+        public DriveNotificationType DriveNotificationType { get; } = DriveNotificationType.FileModified;
+        
         public InternalDriveFileId File { get; set; }
         public ServerFileHeader ServerFileHeader { get; set; }
         

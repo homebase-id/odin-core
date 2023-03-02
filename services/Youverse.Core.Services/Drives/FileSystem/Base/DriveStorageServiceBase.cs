@@ -237,7 +237,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
 
             return header;
         }
-        
+
         /// <summary>
         /// Gets the <see cref="FileSystemType"/> of the target file and only enforces the Read
         /// permission; allowing you to determine the file system type when you don't have it.
@@ -247,7 +247,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             var header = await GetServerFileHeaderInternal(file);
             return header.ServerMetadata.FileSystemType;
         }
-        
+
         private async Task<ServerFileHeader> GetServerFileHeaderInternal(InternalDriveFileId file)
         {
             this.AssertCanReadDrive(file.DriveId);
@@ -260,7 +260,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             }
 
             await _driveAclAuthorizationService.AssertCallerHasPermission(header.ServerMetadata.AccessControlList);
-            
+
             return header;
         }
 
@@ -311,6 +311,13 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
 
             await this.WriteFileHeaderInternal(deletedServerFileHeader);
             await GetLongTermStorageManager(file.DriveId).SoftDelete(file.FileId);
+
+            await _mediator.Publish(new DriveFileDeletedNotification()
+            {
+                File = file,
+                ServerFileHeader = deletedServerFileHeader,
+                SharedSecretEncryptedFileHeader = null
+            });
         }
 
         public Task HardDeleteLongTermFile(InternalDriveFileId file)
@@ -319,12 +326,12 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
 
             var result = GetLongTermStorageManager(file.DriveId).HardDelete(file.FileId);
 
-            var notification = new DriveFileDeletedNotification()
+            _mediator.Publish(new DriveFileDeletedNotification()
             {
-                File = file
-            };
-
-            _mediator.Publish(notification);
+                File = file,
+                ServerFileHeader = null,
+                SharedSecretEncryptedFileHeader = null
+            });
 
             return result;
         }
@@ -451,7 +458,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
         public async Task UpdateStatistics(InternalDriveFileId targetFile, ReactionPreviewData previewData)
         {
             ContextAccessor.GetCurrent().PermissionsContext.AssertHasDrivePermission(targetFile.DriveId, DrivePermission.WriteReactionsAndComments);
-                
+
             var existingHeader = await GetLongTermStorageManager(targetFile.DriveId).GetServerFileHeader(targetFile.FileId);
             existingHeader.ReactionPreview = previewData;
 

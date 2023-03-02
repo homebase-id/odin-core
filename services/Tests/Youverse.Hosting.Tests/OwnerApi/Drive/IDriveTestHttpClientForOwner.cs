@@ -8,6 +8,7 @@ using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Controllers.OwnerToken;
+using Youverse.Hosting.Controllers.OwnerToken.Drive;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Drive
 {
@@ -26,6 +27,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
         [Multipart]
         [Post(RootStorageEndpoint + "/upload")]
         Task<ApiResponse<UploadResult>> UploadStream(StreamPart[] thumbnail);
+
+        [Post(RootStorageEndpoint + "/delete")]
+        Task<ApiResponse<DeleteLinkedFileResult>> DeleteFile([Body] DeleteFileRequest file);
 
         [Post(RootStorageEndpoint + "/header")]
         Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderAsPost(ExternalFileIdentifier file);
@@ -50,6 +54,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive
 
         [Post(RootQueryEndpoint + "/batch")]
         Task<ApiResponse<QueryBatchResponse>> GetBatch(QueryBatchRequest request);
+        
 
         [Post(RootQueryEndpoint + "/batchcollection")]
         Task<ApiResponse<QueryBatchCollectionResponse>> GetBatchCollection(QueryBatchCollectionRequest request);
