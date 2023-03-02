@@ -12,14 +12,6 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteParameter _delparam1 = null;
         private static Object _deleteLock = new Object();
 
-        private SQLiteCommand _selectCommand = null;
-        private SQLiteParameter _sparam1 = null;
-        private static Object _selectLock = new Object();
-
-        private SQLiteCommand _select2Command = null;
-        private SQLiteParameter _s2param1 = null;
-        private static Object _select2Lock = new Object();
-
         public TableCircleMember(IdentityDatabase db) : base(db)
         {
         }
@@ -33,74 +25,19 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             _deleteCommand?.Dispose();
             _deleteCommand = null;
 
-            _selectCommand?.Dispose();
-            _selectCommand = null;
-
-            _select2Command?.Dispose();
-            _select2Command = null;
-
             base.Dispose();
         }
 
-        /// <summary>
-        /// Returns all members of the given circle (the data, aka exchange grants not returned)
-        /// </summary>
-        /// <param name="circleId"></param>
-        /// <returns></returns>
-        /// <exception cref="Exception"></exception>
-        public List<CircleMemberItem> GetCircleMembers(Guid circleId)
+
+        public new virtual List<CircleMemberItem> GetCircleMembers(Guid circleId)
         {
-            lock (_selectLock)
-            {
-                if (_selectCommand == null)
-                {
-                    _selectCommand = _database.CreateCommand();
-                    _selectCommand.CommandText =
-                        $"SELECT memberid, data FROM circlemember WHERE circleid=$circleid";
+            var r = base.GetCircleMembers(circleId);
 
-                    _sparam1 = _selectCommand.CreateParameter();
-                    _sparam1.ParameterName = "$circleid";
-                    _selectCommand.Parameters.Add(_sparam1);
+            // The services code doesn't handle null, so I've made this override
+            if (r == null)
+                r = new List<CircleMemberItem>();
 
-                    _selectCommand.Prepare();
-                }
-
-                _sparam1.Value = circleId;
-
-                using (SQLiteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.Default))
-                {
-                    var result = new List<CircleMemberItem>();
-
-                    byte[] _tmpbuf = new byte[MAX_DATA_LENGTH];
-                    byte[] g = new byte[16];
-
-                    while (rdr.Read())
-                    {
-                        var item = new CircleMemberItem();
-
-                        item.circleId = circleId;
-                        long n = rdr.GetBytes(0, 0, g, 0, 16);
-                        if (n != 16)
-                            throw new Exception("Not a GUID");
-                        item.memberId = new Guid(g);
-
-                        n = rdr.GetBytes(1, 0, _tmpbuf, 0, MAX_DATA_LENGTH);
-                        if (n > 0)
-                        {
-                            item.data = new byte[n];
-                            Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int)n);
-                        }
-                        else
-                        {
-                            item.data = null;
-                        }
-
-                        result.Add(item);
-                    }
-
-                    return result;
-                }
-            }
+            return r;
         }
 
 
@@ -110,59 +47,15 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         /// <param name="circleId"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public List<CircleMemberItem> GetMemberCirclesAndData(Guid memberId)
+        public new virtual List<CircleMemberItem> GetMemberCirclesAndData(Guid memberId)
         {
-            lock (_select2Lock)
-            {
-                if (_select2Command == null)
-                {
-                    _select2Command = _database.CreateCommand();
-                    _select2Command.CommandText =
-                        $"SELECT circleid, data FROM circlemember WHERE memberid=$memberid";
+            var r = base.GetMemberCirclesAndData(memberId);
 
-                    _s2param1 = _select2Command.CreateParameter();
-                    _s2param1.ParameterName = "$memberid";
-                    _select2Command.Parameters.Add(_s2param1);
+            // The services code doesn't handle null, so I've made this override
+            if (r == null)
+                r = new List<CircleMemberItem>();
 
-                    _select2Command.Prepare();
-                }
-
-                _s2param1.Value = memberId;
-
-                using (SQLiteDataReader rdr = _select2Command.ExecuteReader(System.Data.CommandBehavior.Default))
-                {
-                    var result = new List<CircleMemberItem>();
-
-                    byte[] _tmpbuf = new byte[MAX_DATA_LENGTH];
-                    byte[] g = new byte[16];
-
-                    while (rdr.Read())
-                    {
-                        var item = new CircleMemberItem();
-                        item.memberId = memberId;
-
-                        long n = rdr.GetBytes(0, 0, g, 0, 16);
-                        if (n != 16)
-                            throw new Exception("Not a GUID");
-                        item.circleId = new Guid(g);
-
-                        n = rdr.GetBytes(1, 0, _tmpbuf, 0, MAX_DATA_LENGTH);
-                        if (n > 0)
-                        {
-                            item.data = new byte[n];
-                            Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int)n);
-                        }
-                        else
-                        {
-                            item.data = null;
-                        }
-
-                        result.Add(item);
-                    }
-
-                    return result;
-                }
-            }
+            return r;
         }
 
 

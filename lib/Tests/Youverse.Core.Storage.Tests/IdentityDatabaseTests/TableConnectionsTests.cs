@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using NUnit.Framework;
 using Youverse.Core;
+using Youverse.Core.Identity;
 using Youverse.Core.Storage.SQLite.IdentityDatabase;
 
 namespace IdentityDatabaseTests
@@ -20,7 +21,7 @@ namespace IdentityDatabaseTests
 
             var item1 = new ConnectionsItem()
             {
-                identity = "frodo.baggins.me",
+                identity = new OdinId("frodo.baggins.me"),
                 displayName = "Frodo",
                 status = 42,
                 accessIsRevoked = 1,
@@ -30,7 +31,7 @@ namespace IdentityDatabaseTests
 
             var item2 = new ConnectionsItem()
             {
-                identity = "samwise.gamgee.me",
+                identity = new OdinId("samwise.gamgee.me"),
                 displayName = "Sam",
                 status = 43,
                 accessIsRevoked = 0,
@@ -40,7 +41,7 @@ namespace IdentityDatabaseTests
 
             var item3 = new ConnectionsItem()
             {
-                identity = "gandalf.white.me",
+                identity = new OdinId("gandalf.white.me"),
                 displayName = "G",
                 status = 44,
                 accessIsRevoked = 0,
@@ -70,7 +71,7 @@ namespace IdentityDatabaseTests
             // This is OK {odin.vahalla.com, driveid}
             var item = new ConnectionsItem()
             {
-                identity = "frodo.baggins.me",
+                identity = new OdinId("frodo.baggins.me"),
                 displayName = "Frodo Baggins",
                 status = 42,
                 accessIsRevoked = 0,
@@ -79,7 +80,7 @@ namespace IdentityDatabaseTests
 
             db.tblConnections.Upsert(item);
 
-            var r = db.tblConnections.Get("frodo.baggins.me");
+            var r = db.tblConnections.Get(new OdinId("frodo.baggins.me"));
             Debug.Assert(r.identity == "frodo.baggins.me");
             Debug.Assert(r.displayName == "Frodo Baggins");
             Debug.Assert(r.status == 42);
@@ -99,17 +100,17 @@ namespace IdentityDatabaseTests
             // This is OK {odin.vahalla.com, driveid}
             var item = new ConnectionsItem()
             {
-                identity = "frodo.baggins.me",
+                identity = new OdinId("frodo.baggins.me"),
                 displayName = "",
                 status = 42,
                 accessIsRevoked = 1,
                 data = g1.ToByteArray()
             };
 
-            var r = db.tblConnections.Get("frodo.baggins.me");
+            var r = db.tblConnections.Get(new OdinId("frodo.baggins.me"));
             Debug.Assert(r == null);
             db.tblConnections.Upsert(item);
-            r = db.tblConnections.Get("frodo.baggins.me");
+            r = db.tblConnections.Get(new OdinId("frodo.baggins.me"));
             Debug.Assert(r.identity == "frodo.baggins.me");
             Debug.Assert(r.displayName == "");
             Debug.Assert(r.status == 42);
@@ -130,7 +131,7 @@ namespace IdentityDatabaseTests
 
             var item1 = new ConnectionsItem()
             {
-                identity = "frodo.baggins.me",
+                identity = new OdinId("frodo.baggins.me"),
                 displayName = "Frodo",
                 status = 42,
                 accessIsRevoked = 1,
@@ -140,7 +141,7 @@ namespace IdentityDatabaseTests
 
             var item2 = new ConnectionsItem()
             {
-                identity = "samwise.gamgee.me",
+                identity = new OdinId("samwise.gamgee.me"),
                 displayName = "Sam",
                 status = 43,
                 accessIsRevoked = 0,
@@ -150,7 +151,7 @@ namespace IdentityDatabaseTests
 
             var item3 = new ConnectionsItem()
             {
-                identity = "gandalf.white.me",
+                identity = new OdinId("gandalf.white.me"),
                 displayName = "G",
                 status = 44,
                 accessIsRevoked = 0,

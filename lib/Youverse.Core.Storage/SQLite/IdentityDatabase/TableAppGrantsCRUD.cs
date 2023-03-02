@@ -75,9 +75,9 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteCommand _deleteCommand = null;
         private static Object _deleteLock = new Object();
         private SQLiteParameter _deleteParam1 = null;
-        private SQLiteCommand _getCommand = null;
-        private static Object _getLock = new Object();
-        private SQLiteParameter _getParam1 = null;
+        private SQLiteCommand _get0Command = null;
+        private static Object _get0Lock = new Object();
+        private SQLiteParameter _get0Param1 = null;
 
         public TableAppGrantsCRUD(IdentityDatabase db) : base(db)
         {
@@ -98,8 +98,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             _upsertCommand = null;
             _deleteCommand?.Dispose();
             _deleteCommand = null;
-            _getCommand?.Dispose();
-            _getCommand = null;
+            _get0Command?.Dispose();
+            _get0Command = null;
             _disposed = true;
         }
 
@@ -246,65 +246,67 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
         public AppGrantsItem Get(Guid odinHashId)
         {
-            lock (_getLock)
+            lock (_get0Lock)
             {
-                if (_getCommand == null)
+                if (_get0Command == null)
                 {
-                    _getCommand = _database.CreateCommand();
-                    _getCommand.CommandText = "SELECT appId,circleId,data FROM appGrants " +
-                                                 "WHERE odinHashId = $odinHashId;";
-                    _getParam1 = _getCommand.CreateParameter();
-                    _getCommand.Parameters.Add(_getParam1);
-                    _getParam1.ParameterName = "$odinHashId";
-                    _getCommand.Prepare();
+                    _get0Command = _database.CreateCommand();
+                    _get0Command.CommandText = "SELECT appId,circleId,data FROM appGrants " +
+                                                 "WHERE odinHashId = $odinHashId LIMIT 1;";
+                    _get0Param1 = _get0Command.CreateParameter();
+                    _get0Command.Parameters.Add(_get0Param1);
+                    _get0Param1.ParameterName = "$odinHashId";
+                    _get0Command.Prepare();
                 }
-                _getParam1.Value = odinHashId;
-                using (SQLiteDataReader rdr = _getCommand.ExecuteReader(System.Data.CommandBehavior.SingleRow))
+                _get0Param1.Value = odinHashId;
+                using (SQLiteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow))
                 {
+                    var result = new AppGrantsItem();
                     if (!rdr.Read())
                         return null;
-                    var item = new AppGrantsItem();
-                    item.odinHashId = odinHashId;
                     byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
                     long bytesRead;
+#pragma warning restore CS0168
                     var _guid = new byte[16];
+                        var item = new AppGrantsItem();
+                        item.odinHashId = odinHashId;
 
-                    if (rdr.IsDBNull(0))
-                        throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                    else
-                    {
-                        bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
-                        if (bytesRead != 16)
-                            throw new Exception("Not a GUID in appId...");
-                        item.appId = new Guid(_guid);
-                    }
-
-                    if (rdr.IsDBNull(1))
-                        throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                    else
-                    {
-                        bytesRead = rdr.GetBytes(1, 0, _guid, 0, 16);
-                        if (bytesRead != 16)
-                            throw new Exception("Not a GUID in circleId...");
-                        item.circleId = new Guid(_guid);
-                    }
-
-                    if (rdr.IsDBNull(2))
-                        item.data = null;
-                    else
-                    {
-                        bytesRead = rdr.GetBytes(2, 0, _tmpbuf, 0, 65535+1);
-                        if (bytesRead > 65535)
-                            throw new Exception("Too much data in data...");
-                        if (bytesRead < 0)
-                            throw new Exception("Too little data in data...");
-                        if (bytesRead > 0)
+                        if (rdr.IsDBNull(0))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
                         {
-                            item.data = new byte[bytesRead];
-                            Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+                            bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                            if (bytesRead != 16)
+                                throw new Exception("Not a GUID in appId...");
+                            item.appId = new Guid(_guid);
                         }
-                    }
 
+                        if (rdr.IsDBNull(1))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            bytesRead = rdr.GetBytes(1, 0, _guid, 0, 16);
+                            if (bytesRead != 16)
+                                throw new Exception("Not a GUID in circleId...");
+                            item.circleId = new Guid(_guid);
+                        }
+
+                        if (rdr.IsDBNull(2))
+                            item.data = null;
+                        else
+                        {
+                            bytesRead = rdr.GetBytes(2, 0, _tmpbuf, 0, 65535+1);
+                            if (bytesRead > 65535)
+                                throw new Exception("Too much data in data...");
+                            if (bytesRead < 0)
+                                throw new Exception("Too little data in data...");
+                            if (bytesRead > 0)
+                            {
+                                item.data = new byte[bytesRead];
+                                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+                            }
+                        }
                     return item;
                 } // using
             } // lock

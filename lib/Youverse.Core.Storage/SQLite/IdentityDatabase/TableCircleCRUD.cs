@@ -65,9 +65,9 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteCommand _deleteCommand = null;
         private static Object _deleteLock = new Object();
         private SQLiteParameter _deleteParam1 = null;
-        private SQLiteCommand _getCommand = null;
-        private static Object _getLock = new Object();
-        private SQLiteParameter _getParam1 = null;
+        private SQLiteCommand _get0Command = null;
+        private static Object _get0Lock = new Object();
+        private SQLiteParameter _get0Param1 = null;
         private SQLiteCommand _getPaging2Command = null;
         private static Object _getPaging2Lock = new Object();
         private SQLiteParameter _getPaging2Param1 = null;
@@ -92,8 +92,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             _upsertCommand = null;
             _deleteCommand?.Dispose();
             _deleteCommand = null;
-            _getCommand?.Dispose();
-            _getCommand = null;
+            _get0Command?.Dispose();
+            _get0Command = null;
             _getPaging2Command?.Dispose();
             _getPaging2Command = null;
             _disposed = true;
@@ -229,52 +229,54 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
         public CircleItem Get(Guid circleId)
         {
-            lock (_getLock)
+            lock (_get0Lock)
             {
-                if (_getCommand == null)
+                if (_get0Command == null)
                 {
-                    _getCommand = _database.CreateCommand();
-                    _getCommand.CommandText = "SELECT circleName,data FROM circle " +
-                                                 "WHERE circleId = $circleId;";
-                    _getParam1 = _getCommand.CreateParameter();
-                    _getCommand.Parameters.Add(_getParam1);
-                    _getParam1.ParameterName = "$circleId";
-                    _getCommand.Prepare();
+                    _get0Command = _database.CreateCommand();
+                    _get0Command.CommandText = "SELECT circleName,data FROM circle " +
+                                                 "WHERE circleId = $circleId LIMIT 1;";
+                    _get0Param1 = _get0Command.CreateParameter();
+                    _get0Command.Parameters.Add(_get0Param1);
+                    _get0Param1.ParameterName = "$circleId";
+                    _get0Command.Prepare();
                 }
-                _getParam1.Value = circleId;
-                using (SQLiteDataReader rdr = _getCommand.ExecuteReader(System.Data.CommandBehavior.SingleRow))
+                _get0Param1.Value = circleId;
+                using (SQLiteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow))
                 {
+                    var result = new CircleItem();
                     if (!rdr.Read())
                         return null;
-                    var item = new CircleItem();
-                    item.circleId = circleId;
                     byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
                     long bytesRead;
+#pragma warning restore CS0168
                     var _guid = new byte[16];
+                        var item = new CircleItem();
+                        item.circleId = circleId;
 
-                    if (rdr.IsDBNull(0))
-                        throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                    else
-                    {
-                        item.circleName = rdr.GetString(0);
-                    }
-
-                    if (rdr.IsDBNull(1))
-                        item.data = null;
-                    else
-                    {
-                        bytesRead = rdr.GetBytes(1, 0, _tmpbuf, 0, 65000+1);
-                        if (bytesRead > 65000)
-                            throw new Exception("Too much data in data...");
-                        if (bytesRead < 0)
-                            throw new Exception("Too little data in data...");
-                        if (bytesRead > 0)
+                        if (rdr.IsDBNull(0))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
                         {
-                            item.data = new byte[bytesRead];
-                            Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+                            item.circleName = rdr.GetString(0);
                         }
-                    }
 
+                        if (rdr.IsDBNull(1))
+                            item.data = null;
+                        else
+                        {
+                            bytesRead = rdr.GetBytes(1, 0, _tmpbuf, 0, 65000+1);
+                            if (bytesRead > 65000)
+                                throw new Exception("Too much data in data...");
+                            if (bytesRead < 0)
+                                throw new Exception("Too little data in data...");
+                            if (bytesRead > 0)
+                            {
+                                item.data = new byte[bytesRead];
+                                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+                            }
+                        }
                     return item;
                 } // using
             } // lock
