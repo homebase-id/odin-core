@@ -1,5 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+    <Import Project="$(ProjectDir)../../lib/CommonProjectConfig.targets"/>
+
     <PropertyGroup>
         <TargetFramework>net6.0</TargetFramework>
         <RuntimeIdentifiers>win-x64;linux-x64;osx-x64</RuntimeIdentifiers>
