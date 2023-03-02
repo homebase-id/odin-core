@@ -63,10 +63,16 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private static Object _deleteLock = new Object();
         private SQLiteParameter _deleteParam1 = null;
         private SQLiteParameter _deleteParam2 = null;
-        private SQLiteCommand _getCommand = null;
-        private static Object _getLock = new Object();
-        private SQLiteParameter _getParam1 = null;
-        private SQLiteParameter _getParam2 = null;
+        private SQLiteCommand _get0Command = null;
+        private static Object _get0Lock = new Object();
+        private SQLiteParameter _get0Param1 = null;
+        private SQLiteParameter _get0Param2 = null;
+        private SQLiteCommand _get1Command = null;
+        private static Object _get1Lock = new Object();
+        private SQLiteParameter _get1Param1 = null;
+        private SQLiteCommand _get2Command = null;
+        private static Object _get2Lock = new Object();
+        private SQLiteParameter _get2Param1 = null;
 
         public TableCircleMemberCRUD(IdentityDatabase db) : base(db)
         {
@@ -87,8 +93,12 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             _upsertCommand = null;
             _deleteCommand?.Dispose();
             _deleteCommand = null;
-            _getCommand?.Dispose();
-            _getCommand = null;
+            _get0Command?.Dispose();
+            _get0Command = null;
+            _get1Command?.Dispose();
+            _get1Command = null;
+            _get2Command?.Dispose();
+            _get2Command = null;
             _disposed = true;
         }
 
@@ -226,51 +236,181 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
         public CircleMemberItem Get(Guid circleId,Guid memberId)
         {
-            lock (_getLock)
+            lock (_get0Lock)
             {
-                if (_getCommand == null)
+                if (_get0Command == null)
                 {
-                    _getCommand = _database.CreateCommand();
-                    _getCommand.CommandText = "SELECT data FROM circleMember " +
-                                                 "WHERE circleId = $circleId AND memberId = $memberId;";
-                    _getParam1 = _getCommand.CreateParameter();
-                    _getCommand.Parameters.Add(_getParam1);
-                    _getParam1.ParameterName = "$circleId";
-                    _getParam2 = _getCommand.CreateParameter();
-                    _getCommand.Parameters.Add(_getParam2);
-                    _getParam2.ParameterName = "$memberId";
-                    _getCommand.Prepare();
+                    _get0Command = _database.CreateCommand();
+                    _get0Command.CommandText = "SELECT data FROM circleMember " +
+                                                 "WHERE circleId = $circleId AND memberId = $memberId LIMIT 1;";
+                    _get0Param1 = _get0Command.CreateParameter();
+                    _get0Command.Parameters.Add(_get0Param1);
+                    _get0Param1.ParameterName = "$circleId";
+                    _get0Param2 = _get0Command.CreateParameter();
+                    _get0Command.Parameters.Add(_get0Param2);
+                    _get0Param2.ParameterName = "$memberId";
+                    _get0Command.Prepare();
                 }
-                _getParam1.Value = circleId;
-                _getParam2.Value = memberId;
-                using (SQLiteDataReader rdr = _getCommand.ExecuteReader(System.Data.CommandBehavior.SingleRow))
+                _get0Param1.Value = circleId;
+                _get0Param2.Value = memberId;
+                using (SQLiteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow))
                 {
+                    var result = new CircleMemberItem();
                     if (!rdr.Read())
                         return null;
-                    var item = new CircleMemberItem();
-                    item.circleId = circleId;
-                    item.memberId = memberId;
                     byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
                     long bytesRead;
+#pragma warning restore CS0168
                     var _guid = new byte[16];
+                        var item = new CircleMemberItem();
+                        item.circleId = circleId;
+                        item.memberId = memberId;
 
-                    if (rdr.IsDBNull(0))
-                        item.data = null;
-                    else
-                    {
-                        bytesRead = rdr.GetBytes(0, 0, _tmpbuf, 0, 65535+1);
-                        if (bytesRead > 65535)
-                            throw new Exception("Too much data in data...");
-                        if (bytesRead < 0)
-                            throw new Exception("Too little data in data...");
-                        if (bytesRead > 0)
+                        if (rdr.IsDBNull(0))
+                            item.data = null;
+                        else
                         {
-                            item.data = new byte[bytesRead];
-                            Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+                            bytesRead = rdr.GetBytes(0, 0, _tmpbuf, 0, 65535+1);
+                            if (bytesRead > 65535)
+                                throw new Exception("Too much data in data...");
+                            if (bytesRead < 0)
+                                throw new Exception("Too little data in data...");
+                            if (bytesRead > 0)
+                            {
+                                item.data = new byte[bytesRead];
+                                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+                            }
                         }
-                    }
-
                     return item;
+                } // using
+            } // lock
+        }
+
+        public List<CircleMemberItem> GetCircleMembers(Guid circleId)
+        {
+            lock (_get1Lock)
+            {
+                if (_get1Command == null)
+                {
+                    _get1Command = _database.CreateCommand();
+                    _get1Command.CommandText = "SELECT memberId,data FROM circleMember " +
+                                                 "WHERE circleId = $circleId;";
+                    _get1Param1 = _get1Command.CreateParameter();
+                    _get1Command.Parameters.Add(_get1Param1);
+                    _get1Param1.ParameterName = "$circleId";
+                    _get1Command.Prepare();
+                }
+                _get1Param1.Value = circleId;
+                using (SQLiteDataReader rdr = _get1Command.ExecuteReader(System.Data.CommandBehavior.Default))
+                {
+                    var result = new List<CircleMemberItem>();
+                    if (!rdr.Read())
+                        return null;
+                    byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+                    long bytesRead;
+#pragma warning restore CS0168
+                    var _guid = new byte[16];
+                    while (true)
+                    {
+                        var item = new CircleMemberItem();
+                        item.circleId = circleId;
+
+                        if (rdr.IsDBNull(0))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                            if (bytesRead != 16)
+                                throw new Exception("Not a GUID in memberId...");
+                            item.memberId = new Guid(_guid);
+                        }
+
+                        if (rdr.IsDBNull(1))
+                            item.data = null;
+                        else
+                        {
+                            bytesRead = rdr.GetBytes(1, 0, _tmpbuf, 0, 65535+1);
+                            if (bytesRead > 65535)
+                                throw new Exception("Too much data in data...");
+                            if (bytesRead < 0)
+                                throw new Exception("Too little data in data...");
+                            if (bytesRead > 0)
+                            {
+                                item.data = new byte[bytesRead];
+                                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+                            }
+                        }
+                        result.Add(item);
+                        if (!rdr.Read())
+                           break;
+                    } // while
+                    return result;
+                } // using
+            } // lock
+        }
+
+        public List<CircleMemberItem> GetMemberCirclesAndData(Guid memberId)
+        {
+            lock (_get2Lock)
+            {
+                if (_get2Command == null)
+                {
+                    _get2Command = _database.CreateCommand();
+                    _get2Command.CommandText = "SELECT circleId,data FROM circleMember " +
+                                                 "WHERE memberId = $memberId;";
+                    _get2Param1 = _get2Command.CreateParameter();
+                    _get2Command.Parameters.Add(_get2Param1);
+                    _get2Param1.ParameterName = "$memberId";
+                    _get2Command.Prepare();
+                }
+                _get2Param1.Value = memberId;
+                using (SQLiteDataReader rdr = _get2Command.ExecuteReader(System.Data.CommandBehavior.Default))
+                {
+                    var result = new List<CircleMemberItem>();
+                    if (!rdr.Read())
+                        return null;
+                    byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+                    long bytesRead;
+#pragma warning restore CS0168
+                    var _guid = new byte[16];
+                    while (true)
+                    {
+                        var item = new CircleMemberItem();
+                        item.memberId = memberId;
+
+                        if (rdr.IsDBNull(0))
+                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+                        else
+                        {
+                            bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                            if (bytesRead != 16)
+                                throw new Exception("Not a GUID in circleId...");
+                            item.circleId = new Guid(_guid);
+                        }
+
+                        if (rdr.IsDBNull(1))
+                            item.data = null;
+                        else
+                        {
+                            bytesRead = rdr.GetBytes(1, 0, _tmpbuf, 0, 65535+1);
+                            if (bytesRead > 65535)
+                                throw new Exception("Too much data in data...");
+                            if (bytesRead < 0)
+                                throw new Exception("Too little data in data...");
+                            if (bytesRead > 0)
+                            {
+                                item.data = new byte[bytesRead];
+                                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+                            }
+                        }
+                        result.Add(item);
+                        if (!rdr.Read())
+                           break;
+                    } // while
+                    return result;
                 } // using
             } // lock
         }
