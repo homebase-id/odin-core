@@ -311,12 +311,13 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
 
             await this.WriteFileHeaderInternal(deletedServerFileHeader);
             await GetLongTermStorageManager(file.DriveId).SoftDelete(file.FileId);
-
+            
             await _mediator.Publish(new DriveFileDeletedNotification()
             {
+                IsHardDelete = false,
                 File = file,
                 ServerFileHeader = deletedServerFileHeader,
-                SharedSecretEncryptedFileHeader = null
+                SharedSecretEncryptedFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(deletedServerFileHeader, ContextAccessor)
             });
         }
 
@@ -328,6 +329,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
 
             _mediator.Publish(new DriveFileDeletedNotification()
             {
+                IsHardDelete = true,
                 File = file,
                 ServerFileHeader = null,
                 SharedSecretEncryptedFileHeader = null

@@ -53,7 +53,13 @@ namespace Youverse.Core.Services.Drives
         public Task Handle(DriveFileDeletedNotification notification, CancellationToken cancellationToken)
         {
             this.TryGetOrLoadQueryManager(notification.File.DriveId, out var manager);
-            return manager.RemoveFromCurrentIndex(notification.File);
+
+            if (notification.IsHardDelete)
+            {
+                return manager.RemoveFromCurrentIndex(notification.File);
+            }
+
+            return manager.UpdateCurrentIndex(notification.ServerFileHeader);
         }
 
         public Task Handle(DriveFileAddedNotification notification, CancellationToken cancellationToken)

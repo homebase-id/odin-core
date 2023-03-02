@@ -263,12 +263,6 @@ public abstract class FileSystemStreamWriterBase
 
         KeyHeader keyHeader = uploadDescriptor.FileMetadata.PayloadIsEncrypted ? transferEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret) : KeyHeader.Empty();
 
-        bool usesGlobalTransitId = package.InstructionSet.TransitOptions?.UseGlobalTransitId ?? false;
-        if (uploadDescriptor.FileMetadata.AllowDistribution && usesGlobalTransitId == false)
-        {
-            throw new YouverseClientException("UseGlobalTransitId must be true when AllowDistribution is true. (Yes, yes I know, i could just do it for you but then you would be all - htf is this GlobalTransitId getting set.. ooommmggg?!  Then you would hunt through the code and we would end up with long debate in the issue list.  #aintnobodygottimeforthat <3.  just love me and set the param", YouverseClientErrorCode.InvalidTransitOptions);
-        }
-
         await ValidateUploadDescriptor(uploadDescriptor);
 
         var metadata = await MapUploadToMetadata(package, uploadDescriptor);
@@ -326,6 +320,19 @@ public abstract class FileSystemStreamWriterBase
             if (ByteArrayUtil.IsStrongKey(keyHeader.Iv) == false || ByteArrayUtil.IsStrongKey(keyHeader.AesKey.GetKey()) == false)
             {
                 throw new YouverseClientException("Payload is set as encrypted but the encryption key is too simple", code: YouverseClientErrorCode.InvalidKeyHeader);
+            }
+        }
+        
+        //if a new file, we need to ensure the global transit is set correct.  for existing files, the system
+        // uses the existing global transit id
+        if(!package.IsUpdateOperation)
+        {
+            bool usesGlobalTransitId = package.InstructionSet.TransitOptions?.UseGlobalTransitId ?? false;
+            if (serverMetadata.AllowDistribution && usesGlobalTransitId == false)
+            {
+                throw new YouverseClientException(
+                    "UseGlobalTransitId must be true when AllowDistribution is true. (Yes, yes I know, i could just do it for you but then you would be all - htf is this GlobalTransitId getting set.. ooommmggg?!  Then you would hunt through the code and we would end up with long debate in the issue list.  #aintnobodygottimeforthat <3.  just love me and set the param",
+                    YouverseClientErrorCode.InvalidTransitOptions);
             }
         }
     }
