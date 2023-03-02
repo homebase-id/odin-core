@@ -8,6 +8,8 @@ public class ReactionPreviewData
     public Dictionary<Guid, EmojiReactionPreview> Reactions { get; set; } = new();
 
     public List<CommentPreview> Comments { get; set; } = new();
+    
+    //    public Dictionary<Guid, CommentPreview> Comments { get; set; } = new();
 
     public int TotalCommentCount { get; set; }
 }
@@ -22,6 +24,11 @@ public class EmojiReactionPreview
 
 public class CommentPreview
 {
+    /// <summary>
+    /// The fileId of the comment.  Note: file references must be on the same drive
+    /// as the file referencing them so we only need the fileId 
+    /// </summary>
+    public Guid FileId { get; set; }
     public string OdinId { get; set; }
 
     public string JsonContent { get; set; }

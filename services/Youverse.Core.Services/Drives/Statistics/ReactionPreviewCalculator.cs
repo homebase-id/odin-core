@@ -7,6 +7,7 @@ using MediatR;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives.DriveCore.Storage;
 using Youverse.Core.Services.Drives.FileSystem;
+using Youverse.Core.Services.Drives.FileSystem.Base;
 using Youverse.Core.Services.Drives.Reactions;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Util;
@@ -46,67 +47,66 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
 
         var fs = _fileSystemResolver.ResolveFileSystem(targetFile);
         var targetFileHeader = await fs.Storage.GetServerFileHeader(targetFile);
-        var reactionPreview = targetFileHeader.ReactionPreview ?? new ReactionPreviewData();
+        var targetFileReactionPreview = targetFileHeader.ReactionPreview ?? new ReactionPreviewData();
 
         if (notification.DriveNotificationType == DriveNotificationType.FileAdded)
         {
-            HandleFileAdded(updatedFileHeader, ref reactionPreview);
+            HandleFileAdded(updatedFileHeader, ref targetFileReactionPreview);
         }
 
         if (notification.DriveNotificationType == DriveNotificationType.FileModified)
         {
-            HandleFileModified(updatedFileHeader, ref reactionPreview);
+            HandleFileModified(updatedFileHeader, ref targetFileReactionPreview);
         }
 
         if (notification.DriveNotificationType == DriveNotificationType.FileDeleted)
         {
-            HandleFileDeleted(updatedFileHeader, ref reactionPreview);
+            HandleFileDeleted(updatedFileHeader, ref targetFileReactionPreview);
         }
 
-        await fs.Storage.UpdateStatistics(targetFile, reactionPreview);
+        await fs.Storage.UpdateStatistics(targetFile, targetFileReactionPreview);
     }
 
-    private void HandleFileDeleted(ServerFileHeader updatedFileHeader, ref ReactionPreviewData reactionPreview)
+    private void HandleFileDeleted(ServerFileHeader updatedFileHeader, ref ReactionPreviewData targetFileReactionPreview)
     {
-        //Always increment even if we don't store the contents
-        reactionPreview.TotalCommentCount--;
-
-        // reactionPreview.Comments.Where(c=>c.)
-        // reactionPreview.Comments.Add(new CommentPreview()
-        // {
-        //     Created = updatedFileHeader.FileMetadata.Created,
-        //     Updated = updatedFileHeader.FileMetadata.Updated,
-        //     OdinId = _contextAccessor.GetCurrent().Caller.OdinId,
-        //     JsonContent = updatedFileHeader.FileMetadata.AppData.JsonContent,
-        //     Reactions = new List<EmojiReactionPreview>()
-        // });
-    }
-
-    private void HandleFileModified(ServerFileHeader updatedFileHeader, ref ReactionPreviewData reactionPreview)
-    {
-        //find file in the list, update the comment if the file is in the preview
-        reactionPreview.Comments.Add(new CommentPreview()
+        targetFileReactionPreview.TotalCommentCount--;
+        var idx = targetFileReactionPreview.Comments.FindIndex(c => c.FileId == updatedFileHeader.FileMetadata.File.FileId);
+        if (idx > -1)
         {
-            Created = updatedFileHeader.FileMetadata.Created,
-            Updated = updatedFileHeader.FileMetadata.Updated,
-            OdinId = _contextAccessor.GetCurrent().Caller.OdinId,
-            JsonContent = updatedFileHeader.FileMetadata.AppData.JsonContent,
-            Reactions = new List<EmojiReactionPreview>()
-        });
+            targetFileReactionPreview.Comments.RemoveAt(idx);
+        }
     }
 
-    private void HandleFileAdded(ServerFileHeader updatedFileHeader, ref ReactionPreviewData reactionPreview)
+    private void HandleFileModified(ServerFileHeader updatedFileHeader, ref ReactionPreviewData targetFileReactionPreview)
+    {
+        var idx = targetFileReactionPreview.Comments.FindIndex(c => c.FileId == updatedFileHeader.FileMetadata.File.FileId);
+
+        if(idx >-1)
+        {
+            targetFileReactionPreview.Comments[idx] = new CommentPreview()
+            {
+                Created = updatedFileHeader.FileMetadata.Created,
+                Updated = updatedFileHeader.FileMetadata.Updated,
+                OdinId = _contextAccessor.GetCurrent().Caller.OdinId,
+                JsonContent = updatedFileHeader.FileMetadata.AppData.JsonContent,
+                Reactions = new List<EmojiReactionPreview>()
+            };
+        }
+    }
+
+    private void HandleFileAdded(ServerFileHeader updatedFileHeader, ref ReactionPreviewData targetFileReactionPreview)
     {
         //Always increment even if we don't store the contents
-        reactionPreview.TotalCommentCount++;
+        targetFileReactionPreview.TotalCommentCount++;
 
-        if (reactionPreview.Comments.Count > 3) //TODO: add to config
+        if (targetFileReactionPreview.Comments.Count > 3) //TODO: add to config
         {
             return;
         }
 
-        reactionPreview.Comments.Add(new CommentPreview()
+        targetFileReactionPreview.Comments.Add(new CommentPreview()
         {
+            FileId = updatedFileHeader.FileMetadata.File.FileId,
             Created = updatedFileHeader.FileMetadata.Created,
             Updated = updatedFileHeader.FileMetadata.Updated,
             OdinId = _contextAccessor.GetCurrent().Caller.OdinId,
