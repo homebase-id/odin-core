@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drives.DriveCore.Storage;
+using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Drives.Reactions;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Util;
@@ -34,40 +37,82 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
             return;
         }
 
+        var referenceFileDriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(updatedFileHeader.FileMetadata.ReferencedFile!.TargetDrive);
+        var targetFile = new InternalDriveFileId()
+        {
+            DriveId = referenceFileDriveId,
+            FileId = updatedFileHeader.FileMetadata.ReferencedFile.FileId
+        };
+
+        var fs = _fileSystemResolver.ResolveFileSystem(targetFile);
+        var targetFileHeader = await fs.Storage.GetServerFileHeader(targetFile);
+        var reactionPreview = targetFileHeader.ReactionPreview ?? new ReactionPreviewData();
+
         if (notification.DriveNotificationType == DriveNotificationType.FileAdded)
         {
-            var referenceFileDriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(updatedFileHeader.FileMetadata.ReferencedFile!.TargetDrive);
-            var targetFile = new InternalDriveFileId()
-            {
-                DriveId = referenceFileDriveId,
-                FileId = updatedFileHeader.FileMetadata.ReferencedFile.FileId
-            };
-
-            var fs = _fileSystemResolver.ResolveFileSystem(targetFile);
-            var targetFileHeader = await fs.Storage.GetServerFileHeader(targetFile);
-            var reactionPreview = targetFileHeader.ReactionPreview ?? new ReactionPreviewData();
-
-            // await HandleFileAdded();
-
-            //Always increment even if we don't store the contents
-            reactionPreview.TotalCommentCount++;
-
-            if (reactionPreview.Comments.Count > 3) //TODO: add to config
-            {
-                return;
-            }
-
-            reactionPreview.Comments.Add(new CommentPreview()
-            {
-                Created = updatedFileHeader.FileMetadata.Created,
-                Updated = updatedFileHeader.FileMetadata.Updated,
-                OdinId = _contextAccessor.GetCurrent().Caller.OdinId,
-                JsonContent = updatedFileHeader.FileMetadata.AppData.JsonContent,
-                Reactions = new List<EmojiReactionPreview>()
-            });
-
-            await fs.Storage.UpdateStatistics(targetFile, reactionPreview);
+            HandleFileAdded(updatedFileHeader, ref reactionPreview);
         }
+
+        if (notification.DriveNotificationType == DriveNotificationType.FileModified)
+        {
+            HandleFileModified(updatedFileHeader, ref reactionPreview);
+        }
+
+        if (notification.DriveNotificationType == DriveNotificationType.FileDeleted)
+        {
+            HandleFileDeleted(updatedFileHeader, ref reactionPreview);
+        }
+
+        await fs.Storage.UpdateStatistics(targetFile, reactionPreview);
+    }
+
+    private void HandleFileDeleted(ServerFileHeader updatedFileHeader, ref ReactionPreviewData reactionPreview)
+    {
+        //Always increment even if we don't store the contents
+        reactionPreview.TotalCommentCount--;
+
+        // reactionPreview.Comments.Where(c=>c.)
+        // reactionPreview.Comments.Add(new CommentPreview()
+        // {
+        //     Created = updatedFileHeader.FileMetadata.Created,
+        //     Updated = updatedFileHeader.FileMetadata.Updated,
+        //     OdinId = _contextAccessor.GetCurrent().Caller.OdinId,
+        //     JsonContent = updatedFileHeader.FileMetadata.AppData.JsonContent,
+        //     Reactions = new List<EmojiReactionPreview>()
+        // });
+    }
+
+    private void HandleFileModified(ServerFileHeader updatedFileHeader, ref ReactionPreviewData reactionPreview)
+    {
+        //find file in the list, update the comment if the file is in the preview
+        reactionPreview.Comments.Add(new CommentPreview()
+        {
+            Created = updatedFileHeader.FileMetadata.Created,
+            Updated = updatedFileHeader.FileMetadata.Updated,
+            OdinId = _contextAccessor.GetCurrent().Caller.OdinId,
+            JsonContent = updatedFileHeader.FileMetadata.AppData.JsonContent,
+            Reactions = new List<EmojiReactionPreview>()
+        });
+    }
+
+    private void HandleFileAdded(ServerFileHeader updatedFileHeader, ref ReactionPreviewData reactionPreview)
+    {
+        //Always increment even if we don't store the contents
+        reactionPreview.TotalCommentCount++;
+
+        if (reactionPreview.Comments.Count > 3) //TODO: add to config
+        {
+            return;
+        }
+
+        reactionPreview.Comments.Add(new CommentPreview()
+        {
+            Created = updatedFileHeader.FileMetadata.Created,
+            Updated = updatedFileHeader.FileMetadata.Updated,
+            OdinId = _contextAccessor.GetCurrent().Caller.OdinId,
+            JsonContent = updatedFileHeader.FileMetadata.AppData.JsonContent,
+            Reactions = new List<EmojiReactionPreview>()
+        });
     }
 
     public Task Handle(EmojiReactionAddedNotification notification, CancellationToken cancellationToken)
