@@ -82,6 +82,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             // processing them here means they're going to be called using the senderDI's context
 
             throw new YouverseClientException($"Unknown notification Id {notification.NotificationId}", YouverseClientErrorCode.UnknownNotificationId);
+            
+            await Task.CompletedTask;
         }
 
         public async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreateTransitPermissionContext(OdinId odinId, ClientAuthenticationToken authToken)
@@ -300,7 +302,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             //Note: this list is a cache of members for a circle.  the source of truth is the IdentityConnectionRegistration.AccessExchangeGrant.CircleGrants property for each OdinId
             var memberBytesList = _circleMemberStorage.GetCircleMembers(circleId);
-            return memberBytesList.Select(item => OdinId.FromByteArray(DeserializeCircleMemberItemStorage(item).DotYouName));
+            var result = memberBytesList.Select(item => OdinId.FromByteArray(DeserializeCircleMemberItemStorage(item).DotYouName));
+            return await Task.FromResult(result);
         }
 
         public async Task AssertConnectionIsNoneOrValid(OdinId odinId)
@@ -816,7 +819,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 accessReg: accessReg,
                 additionalPermissionKeys: permissionKeys);
 
-            return (permissionCtx, enabledCircles);
+            var result = (permissionCtx, enabledCircles);
+            return await Task.FromResult(result);
         }
 
 
@@ -825,7 +829,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnections);
 
             var list = _storage.GetList().Where(icr => icr.Status == status);
-            return new PagedResult<IdentityConnectionRegistration>(req, 1, list.ToList());
+            var result = new PagedResult<IdentityConnectionRegistration>(req, 1, list.ToList());
+            return await Task.FromResult(result);
         }
 
         private async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistrationInternal(OdinId odinId)
@@ -842,7 +847,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 };
             }
 
-            return info;
+            return await Task.FromResult(info);
         }
 
         private void SaveIcr(IdentityConnectionRegistration icr)

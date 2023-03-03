@@ -160,7 +160,7 @@ public class ReactionTests
 
     [Test]
     [Ignore("waiting for endpoint")]
-    public async Task CanSendEmojiReaction()
+    public void CanSendEmojiReaction()
     {
         // var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
         //

@@ -76,7 +76,7 @@ namespace Youverse.Core.Services.Authorization.Acl
         public async Task<bool> CallerIsConnected()
         {
             //TODO: cache result - 
-            return _contextAccessor.GetCurrent().Caller.IsConnected;
+            return await Task.FromResult(_contextAccessor.GetCurrent().Caller.IsConnected);
         }
 
         public Task<bool> CallerIsInYouverseNetwork()

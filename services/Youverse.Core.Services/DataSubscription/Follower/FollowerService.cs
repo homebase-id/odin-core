@@ -157,7 +157,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
                 };
             }
 
-            return new FollowerDefinition()
+            var result = new FollowerDefinition()
             {
                 OdinId = odinId,
                 NotificationType = FollowerNotificationType.SelectedChannels,
@@ -167,6 +167,8 @@ namespace Youverse.Core.Services.DataSubscription.Follower
                     Type = SystemDriveConstants.ChannelDriveType
                 }).ToList()
             };
+
+            return await Task.FromResult(result);
         }
 
         /// <summary>
@@ -184,11 +186,13 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             
             var dbResults = _tenantStorage.Followers.GetAllFollowers(DefaultMax(max), cursor, out var nextCursor);
             
-            return new CursoredResult<string>()
+            var result = new CursoredResult<string>()
             {
                 Cursor = nextCursor,
                 Results = dbResults
             };
+
+            return await Task.FromResult(result);
         }
 
         /// <summary>
@@ -222,11 +226,14 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadMyFollowers);
 
             var dbResults = _tenantStorage.Followers.GetFollowers(DefaultMax(max), Guid.Empty, cursor, out var nextCursor);
-            return new CursoredResult<string>()
+            
+            var result = new CursoredResult<string>()
             {
                 Cursor = nextCursor,
                 Results = dbResults
             };
+
+            return await Task.FromResult(result);
         }
 
         /// <summary>
@@ -237,11 +244,12 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadWhoIFollow);
 
             var dbResults = _tenantStorage.WhoIFollow.GetAllFollowers(DefaultMax(max), cursor, out var nextCursor);
-            return new CursoredResult<string>()
+            var result = new CursoredResult<string>()
             {
                 Cursor = nextCursor,
                 Results = dbResults
             };
+            return await Task.FromResult(result);
         }
 
         public async Task<CursoredResult<string>> GetIdentitiesIFollow(Guid driveAlias, int max, string cursor)

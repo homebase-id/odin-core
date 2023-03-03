@@ -54,7 +54,7 @@ namespace Youverse.Core.Services.Transit.Incoming
                 return item;
             }).ToList();
 
-            return items;
+            return await Task.FromResult(items);
         }
 
         public Task MarkComplete(Guid driveId, byte[] marker)

@@ -134,7 +134,7 @@ public abstract class FileSystemStreamWriterBase
             return package;
         }
 
-        return null;
+        return await Task.FromResult<UploadPackage>(null);
     }
 
     /// <summary>

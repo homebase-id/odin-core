@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.AspNetCore.Http;
@@ -119,6 +120,7 @@ namespace Youverse.Core.Services.Registry.Registration
         public async Task CancelReservation(Guid reservationId)
         {
             _reservationStorage.Delete(reservationId);
+            await Task.CompletedTask;
         }
 
         public Task<List<string>> GetManagedDomains()

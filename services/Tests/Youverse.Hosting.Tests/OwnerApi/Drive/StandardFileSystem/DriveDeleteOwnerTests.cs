@@ -24,13 +24,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
         
         [Test]
         [Ignore("TODO")]
-        public async Task CanSoftDeleteFile()
+        public void CanSoftDeleteFile()
         {
         }
 
         [Test]
         [Ignore("TODO")]
-        public async Task CanHardDeleteFile()
+        public void CanHardDeleteFile()
         {
             
         }

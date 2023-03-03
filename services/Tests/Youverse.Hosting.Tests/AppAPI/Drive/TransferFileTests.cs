@@ -867,13 +867,13 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         }
 
         // [Test(Description = "Updates a thumbnail")]
-        public async Task UpdateThumbnail()
+        public void UpdateThumbnail()
         {
             //upload a file with a thumbnail
         }
 
         // [Test(Description = "Updates a thumbnail; and transfer it")]
-        public async Task UpdateThumbnailWithTransfer()
+        public void UpdateThumbnailWithTransfer()
         {
             //upload a file with a thumbnail
 
@@ -887,7 +887,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         }
 
         //[Test(Description = "")]
-        public async Task RecipientCanGetReceivedTransferFromDriveAndIsSearchable()
+        public void RecipientCanGetReceivedTransferFromDriveAndIsSearchable()
         {
             Assert.Inconclusive("TODO");
         }

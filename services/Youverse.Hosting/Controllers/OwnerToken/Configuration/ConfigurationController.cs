@@ -62,7 +62,7 @@ public class ConfigurationController : Controller
         _tenantConfigService.UpdateSystemFlag(request);
 
         //todo: map to all the various flags
-        return false;
+        return await Task.FromResult(false);
     }
 
     /// <summary>
@@ -100,7 +100,7 @@ public class ConfigurationController : Controller
     public async Task<bool> UpdateOwnerAppSetting([FromBody] OwnerAppSettings settings)
     {
         _tenantConfigService.UpdateOwnerAppSettings(settings);
-        return true;
+        return await Task.FromResult(true);
     }
 
     /// <summary>
@@ -121,7 +121,7 @@ public class ConfigurationController : Controller
     public async Task<IActionResult> Finalize(Guid frid)
     {
         //TODO: how do i finalize from here with teh first run token?
-        return Ok();
+        return await Task.FromResult(Ok());
     }
     
 }
