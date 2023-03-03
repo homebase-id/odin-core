@@ -37,14 +37,14 @@ namespace DriveDatabaseTests
             db.TblCmdMsgQueue.InsertRows(a1);
 
             // Now we get the oldest fileId from the queue
-            var md = db.TblCmdMsgQueue.GetATestOnlyIWonder(1);
+            var md = db.TblCmdMsgQueue.Get(1);
             Debug.Assert(md != null);
             Debug.Assert(md.Count == 1);
             if (ByteArrayUtil.muidcmp(md[0].fileId, t1) != 0)
                 Assert.Fail();
 
             // We get the same one again, and it's still the same
-            md = db.TblCmdMsgQueue.GetATestOnlyIWonder(1);
+            md = db.TblCmdMsgQueue.Get(1);
             Debug.Assert(md != null);
             Debug.Assert(md.Count == 1);
             if (ByteArrayUtil.muidcmp(md[0].fileId, t1) != 0)
@@ -54,7 +54,7 @@ namespace DriveDatabaseTests
             db.TblCmdMsgQueue.DeleteRow(new List<Guid>() { t1 });
 
             // We get all the rest
-            md = db.TblCmdMsgQueue.GetATestOnlyIWonder(10);
+            md = db.TblCmdMsgQueue.Get(10);
             Debug.Assert(md != null);
             Debug.Assert(md.Count == 4);
             Debug.Assert(ByteArrayUtil.muidcmp(md[0].fileId, t2) == 0);
@@ -77,14 +77,14 @@ namespace DriveDatabaseTests
             var a1 = new List<Guid>();
             a1.Add(Guid.NewGuid());
 
-            var md = db.TblCmdMsgQueue.GetATestOnlyIWonder(1);
+            var md = db.TblCmdMsgQueue.Get(1);
 
             if (md != null)
                 Assert.Fail();
 
             db.TblCmdMsgQueue.InsertRows(a1);
 
-            md = db.TblCmdMsgQueue.GetATestOnlyIWonder(1);
+            md = db.TblCmdMsgQueue.Get(1);
 
             if (md == null)
                 Assert.Fail();
@@ -111,7 +111,7 @@ namespace DriveDatabaseTests
 
             db.TblCmdMsgQueue.InsertRows(a1);
 
-            var md = db.TblCmdMsgQueue.GetATestOnlyIWonder(5);
+            var md = db.TblCmdMsgQueue.Get(5);
 
             if (md == null)
                 Assert.Fail();
@@ -212,7 +212,7 @@ namespace DriveDatabaseTests
             db.TblCmdMsgQueue.DeleteRow(a1);
 
             // Check that k1 is now gone
-            var md = db.TblCmdMsgQueue.GetATestOnlyIWonder(10);
+            var md = db.TblCmdMsgQueue.Get(10);
             if (md != null)
                 Assert.Fail();
         }

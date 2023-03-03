@@ -63,6 +63,9 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private static Object _delete0Lock = new Object();
         private SQLiteParameter _delete0Param1 = null;
         private SQLiteParameter _delete0Param2 = null;
+        private SQLiteCommand _delete1Command = null;
+        private static Object _delete1Lock = new Object();
+        private SQLiteParameter _delete1Param1 = null;
         private SQLiteCommand _get0Command = null;
         private static Object _get0Lock = new Object();
         private SQLiteParameter _get0Param1 = null;
@@ -93,6 +96,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             _upsertCommand = null;
             _delete0Command?.Dispose();
             _delete0Command = null;
+            _delete1Command?.Dispose();
+            _delete1Command = null;
             _get0Command?.Dispose();
             _get0Command = null;
             _get1Command?.Dispose();
@@ -231,6 +236,26 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _delete0Param2.Value = memberId;
                 _database.BeginTransaction();
                 return _delete0Command.ExecuteNonQuery();
+            } // Lock
+        }
+
+        public int DeleteByCircleMember(Guid memberId)
+        {
+            lock (_delete1Lock)
+            {
+                if (_delete1Command == null)
+                {
+                    _delete1Command = _database.CreateCommand();
+                    _delete1Command.CommandText = "DELETE FROM circleMember " +
+                                                 "WHERE memberId = $memberId";
+                    _delete1Param1 = _delete1Command.CreateParameter();
+                    _delete1Command.Parameters.Add(_delete1Param1);
+                    _delete1Param1.ParameterName = "$memberId";
+                    _delete1Command.Prepare();
+                }
+                _delete1Param1.Value = memberId;
+                _database.BeginTransaction();
+                return _delete1Command.ExecuteNonQuery();
             } // Lock
         }
 
