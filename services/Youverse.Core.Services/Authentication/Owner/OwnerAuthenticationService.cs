@@ -105,7 +105,7 @@ namespace Youverse.Core.Services.Authentication.Owner
         {
             //TODO: need to add some sort of validation that this deviceUid has not been rejected/blocked
             var entry = _tenantSystemStorage.SingleKeyValueStorage.Get<OwnerConsoleToken>(sessionToken);
-            return IsAuthTokenEntryValid(entry);
+            return await Task.FromResult(IsAuthTokenEntryValid(entry));
         }
 
         public async Task<(SensitiveByteArray, SensitiveByteArray)> GetMasterKey(Guid sessionToken, SensitiveByteArray clientSecret)

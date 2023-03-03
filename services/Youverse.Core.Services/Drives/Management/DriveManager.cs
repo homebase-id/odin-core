@@ -181,7 +181,7 @@ public class DriveManager
         }
 
         var drive = ToStorageDrive(sdb);
-        return drive;
+        return await Task.FromResult(drive);
     }
 
     public async Task<Guid?> GetDriveIdByAlias(TargetDrive targetDrive, bool failIfInvalid = false)
@@ -205,7 +205,7 @@ public class DriveManager
         }
 
         var drive = ToStorageDrive(drives.Single());
-        return drive.Id;
+        return await Task.FromResult(drive.Id);
     }
 
     public async Task<PagedResult<StorageDrive>> GetDrives(PageOptions pageOptions)
@@ -282,7 +282,8 @@ public class DriveManager
             }
         }
 
-        return new PagedResult<StorageDrive>(pageOptions, 1, allDrives.Where(predicate).Select(ToStorageDrive).ToList());
+        var result = new PagedResult<StorageDrive>(pageOptions, 1, allDrives.Where(predicate).Select(ToStorageDrive).ToList());
+        return await Task.FromResult(result);
     }
 
     private StorageDrive ToStorageDrive(StorageDriveBase sdb)

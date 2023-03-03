@@ -169,7 +169,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
         {
             if (_ownerLoginTokens.TryGetValue(identity, out var context))
             {
-                return context;
+                return await Task.FromResult(context);
             }
 
             throw new Exception($"No token found for {identity}");
@@ -414,10 +414,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 };
             }
 
-            this.AddAppWithAllDrivePermissions(identity.OdinId, appId, targetDrive, true, canReadConnections, driveAllowAnonymousReads, ownerOnlyDrive, authorizedCircles, circleMemberGrantRequest)
-                .GetAwaiter().GetResult();
+            await this.AddAppWithAllDrivePermissions(identity.OdinId, appId, targetDrive, true, canReadConnections, driveAllowAnonymousReads, ownerOnlyDrive, authorizedCircles, circleMemberGrantRequest);
 
-            var (authResult, sharedSecret) = this.AddAppClient(identity.OdinId, appId).GetAwaiter().GetResult();
+            var (authResult, sharedSecret) = await this.AddAppClient(identity.OdinId, appId);
             return new TestAppContext()
             {
                 Identity = identity.OdinId,
@@ -455,7 +454,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             return await this.SetupTestSampleApp(appId, identity, false, targetDrive, ownerOnlyDrive: ownerOnlyDrive);
         }
 
-        public async Task SetupTestSampleApp(TestIdentity identity, InitialSetupRequest setupConfig)
+        public void SetupTestSampleApp(TestIdentity identity, InitialSetupRequest setupConfig)
         {
         }
 

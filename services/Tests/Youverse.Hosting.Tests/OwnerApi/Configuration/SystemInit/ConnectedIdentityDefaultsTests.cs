@@ -28,19 +28,19 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
 
         [Test]
         [Ignore("cannot automatically test until we have a login process for youauth")]
-        public async Task SystemDefault_ConnectedContactsCannotViewConnections()
+        public void SystemDefault_ConnectedContactsCannotViewConnections()
         {
         }
 
         [Test]
         [Ignore("cannot automatically test until we have a login process for youauth")]
-        public async Task CanAllowConnectedContactsToViewConnections()
+        public void CanAllowConnectedContactsToViewConnections()
         {
         }
 
         [Test]
         [Ignore("cannot automatically test until we have a login process for youauth")]
-        public async Task CanBlockConnectedContactsFromViewingConnectionsUnlessInCircle()
+        public void CanBlockConnectedContactsFromViewingConnectionsUnlessInCircle()
         {
             Assert.Inconclusive("TODO");
         }

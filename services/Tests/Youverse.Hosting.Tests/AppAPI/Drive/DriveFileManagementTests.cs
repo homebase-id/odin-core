@@ -278,7 +278,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
         [Test(Description = "")]
         [Ignore("There is no api exposed for hard-delete for an App.")]
-        public async Task CanHardDeleteFile()
+        public void CanHardDeleteFile()
         {
         }
     }

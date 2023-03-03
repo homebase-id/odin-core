@@ -26,7 +26,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Authentication
 
         [Test]
         [Ignore("Setup additional digital identities dedicated to testing these")]
-        public async Task CanForceNewPasswordAtProvisioning()
+        public void CanForceNewPasswordAtProvisioning()
         {
             // const string password = "EnSøienØ$";
             // await _scaffold.OwnerApi.ForceNewPassword(TestIdentities.Frodo, password);
@@ -41,7 +41,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Authentication
 
         [Test]
         [Ignore("Setup additional digital identities dedicated to testing these")]
-        public async Task CanLogInAndOutOfOwnerConsole()
+        public void CanLogInAndOutOfOwnerConsole()
         {
             // const string password = "EnSøienØ$";
             // await _scaffold.OwnerApi.ForceNewPassword(TestIdentities.Frodo, password);
@@ -63,7 +63,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Authentication
 
         [Test]
         [Ignore("Setup additional digital identities dedicated to testing these")]
-        public async Task FailsWithoutDeviceUid()
+        public void FailsWithoutDeviceUid()
         {
             // const string password = "EnSøienØ$";
             // await _scaffold.OwnerApi.ForceNewPassword(TestIdentities.Frodo, password);

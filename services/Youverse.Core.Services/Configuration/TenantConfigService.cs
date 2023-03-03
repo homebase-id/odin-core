@@ -190,6 +190,7 @@ public class TenantConfigService
 
     public async Task CreateSystemApps()
     {
+        await Task.CompletedTask;
         // [Obsolete("Still Determining if we want to have the concept of system apps; but i dont want to lose this code")]
         //Feed app
         // var request = new AppRegistrationRequest()

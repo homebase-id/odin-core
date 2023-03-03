@@ -52,7 +52,7 @@ namespace Youverse.Core.Services.Transit.Quarantine
                 throw new YouverseSystemException("Invalid perimeter state item");
             }
 
-            return item;
+            return await Task.FromResult(item);
         }
 
         public async Task AcceptPart(Guid transferStateItemId, MultipartHostTransferParts part, string fileExtension, Stream data)

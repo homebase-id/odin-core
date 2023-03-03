@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Mime;
 using System.Reflection;
+using System.Threading.Tasks;
 using Autofac;
 using Dawn;
 using Microsoft.AspNetCore.Builder;
@@ -258,10 +259,14 @@ namespace Youverse.Hosting
 
                     // webSocketOptions.AllowedOrigins.Add("https://...");
                     app.UseWebSockets(webSocketOptions);  //Note: see NotificationSocketController
-
+                    
                     normalApp.UseEndpoints(endpoints =>
                     {
-                        endpoints.Map("/", async context => { context.Response.Redirect("/home"); });
+                        endpoints.MapGet("/", async context =>
+                        {
+                            context.Response.Redirect("/home");
+                            await Task.CompletedTask;
+                        });
                         endpoints.MapControllers();
                     });
 
