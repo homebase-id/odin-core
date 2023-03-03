@@ -62,9 +62,9 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
         private SQLiteParameter _upsertParam1 = null;
         private SQLiteParameter _upsertParam2 = null;
         private SQLiteParameter _upsertParam3 = null;
-        private SQLiteCommand _deleteCommand = null;
-        private static Object _deleteLock = new Object();
-        private SQLiteParameter _deleteParam1 = null;
+        private SQLiteCommand _delete0Command = null;
+        private static Object _delete0Lock = new Object();
+        private SQLiteParameter _delete0Param1 = null;
         private SQLiteCommand _get0Command = null;
         private static Object _get0Lock = new Object();
         private SQLiteParameter _get0Param1 = null;
@@ -90,8 +90,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             _updateCommand = null;
             _upsertCommand?.Dispose();
             _upsertCommand = null;
-            _deleteCommand?.Dispose();
-            _deleteCommand = null;
+            _delete0Command?.Dispose();
+            _delete0Command = null;
             _get0Command?.Dispose();
             _get0Command = null;
             _getPaging2Command?.Dispose();
@@ -209,21 +209,21 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
         public int Delete(Guid circleId)
         {
-            lock (_deleteLock)
+            lock (_delete0Lock)
             {
-                if (_deleteCommand == null)
+                if (_delete0Command == null)
                 {
-                    _deleteCommand = _database.CreateCommand();
-                    _deleteCommand.CommandText = "DELETE FROM circle " +
+                    _delete0Command = _database.CreateCommand();
+                    _delete0Command.CommandText = "DELETE FROM circle " +
                                                  "WHERE circleId = $circleId";
-                    _deleteParam1 = _deleteCommand.CreateParameter();
-                    _deleteCommand.Parameters.Add(_deleteParam1);
-                    _deleteParam1.ParameterName = "$circleId";
-                    _deleteCommand.Prepare();
+                    _delete0Param1 = _delete0Command.CreateParameter();
+                    _delete0Command.Parameters.Add(_delete0Param1);
+                    _delete0Param1.ParameterName = "$circleId";
+                    _delete0Command.Prepare();
                 }
-                _deleteParam1.Value = circleId;
+                _delete0Param1.Value = circleId;
                 _database.BeginTransaction();
-                return _deleteCommand.ExecuteNonQuery();
+                return _delete0Command.ExecuteNonQuery();
             } // Lock
         }
 

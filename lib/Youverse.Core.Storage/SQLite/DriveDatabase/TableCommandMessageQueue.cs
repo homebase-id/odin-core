@@ -34,7 +34,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
 
         // Returns up to count items
-        public List<CommandMessage> Get(int count)
+        public List<CommandMessage> GetATestOnlyIWonder(int count)
         {
             lock (_selectLock)
             {

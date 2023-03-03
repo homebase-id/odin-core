@@ -8,11 +8,6 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 {
     public class TableReactions : TableReactionsCRUD
     {
-        private SQLiteCommand _deleteCommand = null;
-        private SQLiteParameter _delparam1 = null;
-        private SQLiteParameter _delparam2 = null;
-        private static Object _deleteLock = new Object();
-
         private SQLiteCommand _selectCommand = null;
         private SQLiteParameter _sparam1 = null;
         private static Object _selectLock = new Object();
@@ -40,50 +35,16 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
         public override void Dispose()
         {
-            _deleteCommand?.Dispose();
-            _deleteCommand = null;
-
             _selectCommand?.Dispose();
             _selectCommand = null;
+
+            _select2Command?.Dispose();
+            _select2Command = null;
 
             _getPaging0Command?.Dispose();
             _getPaging0Command = null;
 
             base.Dispose();
-        }
-
-        /// <summary>
-        /// Removes all reactions from the supplied identity
-        /// </summary>
-        /// <param name="identity"></param>
-        /// <param name="postId"></param>
-        /// <exception cref="Exception"></exception>
-        public void DeleteAllReactions(OdinId identity, Guid postId)
-        {
-            lock (_deleteLock)
-            {
-                // Make sure we only prep once 
-                if (_deleteCommand == null)
-                {
-                    _deleteCommand = _database.CreateCommand();
-                    _deleteCommand.CommandText = @"DELETE FROM reactions WHERE identity=$identity AND postId=$postId;";
-
-                    _delparam1 = _deleteCommand.CreateParameter();
-                    _delparam2 = _deleteCommand.CreateParameter();
-                    _deleteCommand.Parameters.Add(_delparam1);
-                    _deleteCommand.Parameters.Add(_delparam2);
-                    _delparam1.ParameterName = "$identity";
-                    _delparam2.ParameterName = "$postId";
-
-                    _deleteCommand.Prepare();
-                }
-
-                _delparam1.Value = identity.Id;
-                _delparam2.Value = postId.ToByteArray();
-
-                _database.BeginTransaction();
-                _deleteCommand.ExecuteNonQuery();
-            }
         }
 
 
