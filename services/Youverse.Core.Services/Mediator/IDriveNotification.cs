@@ -11,7 +11,6 @@ public interface IDriveNotification : INotification
     ClientNotificationType NotificationType { get; }
     
     public DriveNotificationType DriveNotificationType { get; }
-        
     public InternalDriveFileId File { get; set; }
         
     public ServerFileHeader ServerFileHeader { get; set; }

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.Management;
@@ -12,23 +13,42 @@ using Youverse.Core.Services.Transit;
 
 namespace Youverse.Core.Services.DataSubscription
 {
-    public class DataSubscriptionDistributionService : INotificationHandler<IDriveNotification>
+    /// <summary>
+    /// Distributes files from channels to follower's feed drives (and only the feed drive)
+    /// </summary>
+    public class FeedDriveDataSubscriptionDistributionService : INotificationHandler<IDriveNotification>
     {
         private readonly FollowerService _followerService;
         private readonly DriveManager _driveManager;
         private readonly ITransitService _transitService;
+        private readonly TenantContext _tenantContext;
 
-        public DataSubscriptionDistributionService(
+        public FeedDriveDataSubscriptionDistributionService(
             FollowerService followerService,
-            ITransitService transitService, DriveManager driveManager)
+            ITransitService transitService, DriveManager driveManager, TenantContext tenantContext)
         {
             _followerService = followerService;
             _transitService = transitService;
             _driveManager = driveManager;
+            _tenantContext = tenantContext;
         }
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
+            //if the file was received from another identity, do not redistribute
+            var sender = notification.ServerFileHeader.FileMetadata.SenderOdinId;
+            var uploadedByThisIdentity = sender == _tenantContext.HostOdinId || string.IsNullOrEmpty(sender?.Trim());
+            if (!uploadedByThisIdentity)
+            {
+                return;
+            }
+            
+            if (!notification.ServerFileHeader.ServerMetadata.AllowDistribution)
+            {
+                return;
+            }
+
+
             //TODO: move this to a background thread or use ScheduleOptions.SendLater so the original call can finish
             //this will come into play when someone has a huge number of subscribers
 
@@ -67,11 +87,19 @@ namespace Youverse.Core.Services.DataSubscription
 
             if (header.FileMetadata.GlobalTransitId.HasValue)
             {
+                //in this
+                var targetDrive = await _driveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive);
+
                 //send the deleted file
                 var map = await _transitService.SendDeleteLinkedFileRequest(
-                    driveId: notification.File.DriveId,
+                    driveId: targetDrive.GetValueOrDefault(),
                     header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
-                    header.ServerMetadata.FileSystemType,
+                    new SendFileOptions()
+                    {
+                        FileSystemType = header.ServerMetadata.FileSystemType,
+                        TransferFileType = TransferFileType.Normal,
+                        ClientAccessTokenSource = ClientAccessTokenSource.DataSubscription
+                    },
                     recipients);
 
                 //TODO: Handle issues/results 
@@ -96,7 +124,7 @@ namespace Youverse.Core.Services.DataSubscription
         private async Task HandleFileAddOrUpdate(IDriveNotification notification, List<string> recipients)
         {
             //use transit? to send like normal?
-            var options = new TransitOptions()
+            var transitOptions = new TransitOptions()
             {
                 Recipients = recipients,
                 Schedule = ScheduleOptions.SendNowAwaitResponse, //hmm should send later?
@@ -110,7 +138,7 @@ namespace Youverse.Core.Services.DataSubscription
             //TODO: in order to send over transit like this, the sender needs access to the feed drive
             var _ = await _transitService.SendFile(
                 notification.File,
-                options,
+                transitOptions,
                 TransferFileType.Normal,
                 notification.ServerFileHeader.ServerMetadata.FileSystemType,
                 ClientAccessTokenSource.DataSubscription);

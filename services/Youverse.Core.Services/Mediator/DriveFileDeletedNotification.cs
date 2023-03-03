@@ -14,7 +14,6 @@ public class DriveFileDeletedNotification : EventArgs, INotification, IDriveNoti
     public DriveNotificationType DriveNotificationType { get; } = DriveNotificationType.FileDeleted;
 
     public bool IsHardDelete { get; set; }
-    
     public InternalDriveFileId File { get; set; }
 
     public ServerFileHeader ServerFileHeader { get; set; }

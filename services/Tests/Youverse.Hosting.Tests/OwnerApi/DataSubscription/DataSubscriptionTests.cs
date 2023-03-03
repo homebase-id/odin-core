@@ -43,6 +43,8 @@ public class DataSubscriptionTests
     [Test]
     public async Task CanUploadStandardFileToDriveAndDistributeToFollower()
     {
+        const int FileType = 10133;
+        
         var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
         var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
 
@@ -60,7 +62,7 @@ public class DataSubscriptionTests
 
         // Frodo uploads content to channel drive
         var uploadedContent = "I'm Mr. Underhill";
-        var uploadResult = await UploadStandardFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, 101);
+        var uploadResult = await UploadStandardFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, FileType);
 
         // Sam should have the same content on his feed drive
         await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
@@ -68,11 +70,12 @@ public class DataSubscriptionTests
         var qp = new FileQueryParams()
         {
             TargetDrive = SystemDriveConstants.FeedDrive,
-            FileType = new List<int>() { 101 }
+            FileType = new List<int>() { FileType }
+            // GlobalTransitId = new List<Guid>() { uploadResult.GlobalTransitId.GetValueOrDefault() }
         };
 
         var batch = await samOwnerClient.Drive.QueryBatch(FileSystemType.Standard, qp);
-        Assert.IsTrue(batch.SearchResults.Count() == 1);
+        Assert.IsTrue(batch.SearchResults.Count() == 1, $"Count should be 1 but was {batch.SearchResults.Count()}");
         var theFile = batch.SearchResults.First();
         Assert.IsTrue(theFile.FileState == FileState.Active);
         Assert.IsTrue(theFile.FileMetadata.AppData.JsonContent == uploadedContent);
@@ -149,7 +152,6 @@ public class DataSubscriptionTests
     }
 
     [Test]
-    [Ignore("need to support deleting linked files for followers ")]
     public async Task CanUploadStandardFileThenDeleteThenDistributeDeletion()
     {
         const int fileType = 1117;
@@ -193,15 +195,24 @@ public class DataSubscriptionTests
 
         // Sam should have the same content on his feed drive
         await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
-        
+
+        var qp2 = new FileQueryParams()
+        {
+            TargetDrive = SystemDriveConstants.FeedDrive,
+            GlobalTransitId = new List<Guid>() { standardFileUploadResult.GlobalTransitId.GetValueOrDefault() }
+        };
+
         //Sam should have the file marked as deleted
-        var deletedFile = await samOwnerClient.Drive.GetFileHeader(FileSystemType.Standard, standardFileUploadResult.File);
+        var batch2 = await samOwnerClient.Drive.QueryBatch(FileSystemType.Standard, qp2);
+        Assert.IsTrue(batch2.SearchResults.Count() == 1);
+        var deletedFile = batch2.SearchResults.First();
         Assert.IsTrue(deletedFile.FileState == FileState.Deleted, "File should be deleted");
+        Assert.IsTrue(deletedFile.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
 
         //All done
         await samOwnerClient.Follower.UnfollowIdentity(frodoOwnerClient.Identity);
     }
-    
+
     [Test]
     public async Task CanUploadCommentFileToDriveAndDistributeToFollower()
     {

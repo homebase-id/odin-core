@@ -291,7 +291,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             return GetLongTermStorageManager(file.DriveId).FileExists(file.FileId);
         }
 
-        public async Task SoftDeleteLongTermFile(InternalDriveFileId file)
+        public async Task SoftDeleteLongTermFile(InternalDriveFileId file, bool viaTransit = false)
         {
             AssertCanWriteToDrive(file.DriveId);
 
