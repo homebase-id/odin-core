@@ -336,7 +336,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                         TargetDrive = file1TargetDrive,
                         TagsMatchAtLeastOne = new[] { file1Tag }
                     },
-                    ResultOptions = new QueryBatchResultOptionsRequest()
+                    ResultOptionsRequest = new QueryBatchResultOptionsRequest()
                     {
                         MaxRecords = 10,
                         IncludeMetadataHeader = true
@@ -351,7 +351,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                         TargetDrive = file2TargetDrive,
                         TagsMatchAtLeastOne = new[] { file2Tag }
                     },
-                    ResultOptions = new QueryBatchResultOptionsRequest()
+                    ResultOptionsRequest = new QueryBatchResultOptionsRequest()
                     {
                         MaxRecords = 10,
                         IncludeMetadataHeader = true
