@@ -13,10 +13,6 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
     {
         public const int GUID_SIZE = 16; // Precisely 16 bytes for the ID key
 
-        private SQLiteCommand _deleteCommand = null;
-        private SQLiteParameter _dparam1 = null;
-        private static object _deleteLock = new object();
-
         private SQLiteCommand _select2Command = null;
         private SQLiteParameter _s2param1 = null;
         private SQLiteParameter _s2param2 = null;
@@ -39,11 +35,11 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
         public override void Dispose()
         {
-            _deleteCommand?.Dispose();
-            _deleteCommand = null;
-
             _select2Command?.Dispose();
             _select2Command = null;
+
+            _select3Command?.Dispose();
+            _select3Command = null;
 
             base.Dispose();
         }
@@ -205,39 +201,6 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
                     return result;
                 }
-            }
-        }
-
-
-
-        /// <summary>
-        /// For the identity following you, delete all follows.
-        /// </summary>
-        /// <param name="identity">The identity following you</param>
-        /// <exception cref="Exception"></exception>
-        public void DeleteFollower(string identity)
-        {
-            if (identity == null || identity.Length < 1)
-                throw new Exception("identity cannot be NULL or empty");
-
-            lock (_deleteLock)
-            {
-                // Make sure we only prep once 
-                if (_deleteCommand == null)
-                {
-                    _deleteCommand = _database.CreateCommand();
-                    _deleteCommand.CommandText = @"DELETE FROM followsme WHERE identity=$identity;";
-                    _dparam1 = _deleteCommand.CreateParameter();
-                    _deleteCommand.Parameters.Add(_dparam1);
-                    _dparam1.ParameterName = "$identity";
-
-                    _deleteCommand.Prepare();
-                }
-
-                _dparam1.Value = identity;
-
-                _database.BeginTransaction();
-                _deleteCommand.ExecuteNonQuery();
             }
         }
     }

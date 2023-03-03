@@ -138,10 +138,10 @@ namespace Youverse.Core.Storage.SQLite.ServerDatabase
         private SQLiteParameter _upsertParam7 = null;
         private SQLiteParameter _upsertParam8 = null;
         private SQLiteParameter _upsertParam9 = null;
-        private SQLiteCommand _deleteCommand = null;
-        private static Object _deleteLock = new Object();
-        private SQLiteParameter _deleteParam1 = null;
-        private SQLiteParameter _deleteParam2 = null;
+        private SQLiteCommand _delete0Command = null;
+        private static Object _delete0Lock = new Object();
+        private SQLiteParameter _delete0Param1 = null;
+        private SQLiteParameter _delete0Param2 = null;
         private SQLiteCommand _get0Command = null;
         private static Object _get0Lock = new Object();
         private SQLiteParameter _get0Param1 = null;
@@ -164,8 +164,8 @@ namespace Youverse.Core.Storage.SQLite.ServerDatabase
             _updateCommand = null;
             _upsertCommand?.Dispose();
             _upsertCommand = null;
-            _deleteCommand?.Dispose();
-            _deleteCommand = null;
+            _delete0Command?.Dispose();
+            _delete0Command = null;
             _get0Command?.Dispose();
             _get0Command = null;
             _disposed = true;
@@ -360,25 +360,25 @@ namespace Youverse.Core.Storage.SQLite.ServerDatabase
 
         public int Delete(Guid identityId,Int32 type)
         {
-            lock (_deleteLock)
+            lock (_delete0Lock)
             {
-                if (_deleteCommand == null)
+                if (_delete0Command == null)
                 {
-                    _deleteCommand = _database.CreateCommand();
-                    _deleteCommand.CommandText = "DELETE FROM cron " +
+                    _delete0Command = _database.CreateCommand();
+                    _delete0Command.CommandText = "DELETE FROM cron " +
                                                  "WHERE identityId = $identityId AND type = $type";
-                    _deleteParam1 = _deleteCommand.CreateParameter();
-                    _deleteCommand.Parameters.Add(_deleteParam1);
-                    _deleteParam1.ParameterName = "$identityId";
-                    _deleteParam2 = _deleteCommand.CreateParameter();
-                    _deleteCommand.Parameters.Add(_deleteParam2);
-                    _deleteParam2.ParameterName = "$type";
-                    _deleteCommand.Prepare();
+                    _delete0Param1 = _delete0Command.CreateParameter();
+                    _delete0Command.Parameters.Add(_delete0Param1);
+                    _delete0Param1.ParameterName = "$identityId";
+                    _delete0Param2 = _delete0Command.CreateParameter();
+                    _delete0Command.Parameters.Add(_delete0Param2);
+                    _delete0Param2.ParameterName = "$type";
+                    _delete0Command.Prepare();
                 }
-                _deleteParam1.Value = identityId;
-                _deleteParam2.Value = type;
+                _delete0Param1.Value = identityId;
+                _delete0Param2.Value = type;
                 _database.BeginTransaction();
-                return _deleteCommand.ExecuteNonQuery();
+                return _delete0Command.ExecuteNonQuery();
             } // Lock
         }
 

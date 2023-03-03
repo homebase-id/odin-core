@@ -6,11 +6,6 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 {
     public class TableAclIndex : TableAclIndexCRUD
     {
-        private SQLiteCommand _deleteAllCommand = null;
-        private SQLiteParameter _dallparam1 = null;
-        private Object _deleteAllLock = new Object();
-
-
         public TableAclIndex(DriveDatabase db) : base(db)
         {
         }
@@ -22,9 +17,6 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
         public override void Dispose()
         {
-            _deleteAllCommand?.Dispose();
-            _deleteAllCommand = null;
-
             base.Dispose();
         }
 
@@ -57,29 +49,6 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 {
                     Delete(FileId, AccessControlList[i]);
                 }
-            }
-        }
-
-
-        public void DeleteAllRows(Guid FileId)
-        {
-            lock (_deleteAllLock)
-            {
-                // Make sure we only prep once - I wish I had been able to use local static vars
-                // rather then class members
-                if (_deleteAllCommand == null)
-                {
-                    _deleteAllCommand = _database.CreateCommand();
-                    _deleteAllCommand.CommandText = @"DELETE FROM aclindex WHERE fileid=$fileid";
-                    _dallparam1 = _deleteAllCommand.CreateParameter();
-                    _dallparam1.ParameterName = "$fileid";
-                    _deleteAllCommand.Parameters.Add(_dallparam1);
-                }
-
-                _dallparam1.Value = FileId;
-
-                _database.BeginTransaction();
-                _deleteAllCommand.ExecuteNonQuery();
             }
         }
     }

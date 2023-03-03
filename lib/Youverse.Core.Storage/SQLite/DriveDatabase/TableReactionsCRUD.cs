@@ -60,11 +60,15 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
         private SQLiteParameter _upsertParam1 = null;
         private SQLiteParameter _upsertParam2 = null;
         private SQLiteParameter _upsertParam3 = null;
-        private SQLiteCommand _deleteCommand = null;
-        private static Object _deleteLock = new Object();
-        private SQLiteParameter _deleteParam1 = null;
-        private SQLiteParameter _deleteParam2 = null;
-        private SQLiteParameter _deleteParam3 = null;
+        private SQLiteCommand _delete0Command = null;
+        private static Object _delete0Lock = new Object();
+        private SQLiteParameter _delete0Param1 = null;
+        private SQLiteParameter _delete0Param2 = null;
+        private SQLiteParameter _delete0Param3 = null;
+        private SQLiteCommand _delete1Command = null;
+        private static Object _delete1Lock = new Object();
+        private SQLiteParameter _delete1Param1 = null;
+        private SQLiteParameter _delete1Param2 = null;
         private SQLiteCommand _get0Command = null;
         private static Object _get0Lock = new Object();
         private SQLiteParameter _get0Param1 = null;
@@ -88,8 +92,10 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             _updateCommand = null;
             _upsertCommand?.Dispose();
             _upsertCommand = null;
-            _deleteCommand?.Dispose();
-            _deleteCommand = null;
+            _delete0Command?.Dispose();
+            _delete0Command = null;
+            _delete1Command?.Dispose();
+            _delete1Command = null;
             _get0Command?.Dispose();
             _get0Command = null;
             _disposed = true;
@@ -205,29 +211,53 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
         public int Delete(OdinId identity,Guid postId,string singleReaction)
         {
-            lock (_deleteLock)
+            lock (_delete0Lock)
             {
-                if (_deleteCommand == null)
+                if (_delete0Command == null)
                 {
-                    _deleteCommand = _database.CreateCommand();
-                    _deleteCommand.CommandText = "DELETE FROM reactions " +
+                    _delete0Command = _database.CreateCommand();
+                    _delete0Command.CommandText = "DELETE FROM reactions " +
                                                  "WHERE identity = $identity AND postId = $postId AND singleReaction = $singleReaction";
-                    _deleteParam1 = _deleteCommand.CreateParameter();
-                    _deleteCommand.Parameters.Add(_deleteParam1);
-                    _deleteParam1.ParameterName = "$identity";
-                    _deleteParam2 = _deleteCommand.CreateParameter();
-                    _deleteCommand.Parameters.Add(_deleteParam2);
-                    _deleteParam2.ParameterName = "$postId";
-                    _deleteParam3 = _deleteCommand.CreateParameter();
-                    _deleteCommand.Parameters.Add(_deleteParam3);
-                    _deleteParam3.ParameterName = "$singleReaction";
-                    _deleteCommand.Prepare();
+                    _delete0Param1 = _delete0Command.CreateParameter();
+                    _delete0Command.Parameters.Add(_delete0Param1);
+                    _delete0Param1.ParameterName = "$identity";
+                    _delete0Param2 = _delete0Command.CreateParameter();
+                    _delete0Command.Parameters.Add(_delete0Param2);
+                    _delete0Param2.ParameterName = "$postId";
+                    _delete0Param3 = _delete0Command.CreateParameter();
+                    _delete0Command.Parameters.Add(_delete0Param3);
+                    _delete0Param3.ParameterName = "$singleReaction";
+                    _delete0Command.Prepare();
                 }
-                _deleteParam1.Value = identity;
-                _deleteParam2.Value = postId;
-                _deleteParam3.Value = singleReaction;
+                _delete0Param1.Value = identity;
+                _delete0Param2.Value = postId;
+                _delete0Param3.Value = singleReaction;
                 _database.BeginTransaction();
-                return _deleteCommand.ExecuteNonQuery();
+                return _delete0Command.ExecuteNonQuery();
+            } // Lock
+        }
+
+        public int DeleteAllReactions(OdinId identity,Guid postId)
+        {
+            lock (_delete1Lock)
+            {
+                if (_delete1Command == null)
+                {
+                    _delete1Command = _database.CreateCommand();
+                    _delete1Command.CommandText = "DELETE FROM reactions " +
+                                                 "WHERE identity = $identity AND postId = $postId";
+                    _delete1Param1 = _delete1Command.CreateParameter();
+                    _delete1Command.Parameters.Add(_delete1Param1);
+                    _delete1Param1.ParameterName = "$identity";
+                    _delete1Param2 = _delete1Command.CreateParameter();
+                    _delete1Command.Parameters.Add(_delete1Param2);
+                    _delete1Param2.ParameterName = "$postId";
+                    _delete1Command.Prepare();
+                }
+                _delete1Param1.Value = identity;
+                _delete1Param2.Value = postId;
+                _database.BeginTransaction();
+                return _delete1Command.ExecuteNonQuery();
             } // Lock
         }
 
