@@ -376,11 +376,11 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 var file1Result = batch.Results.Single(x => x.Name == file1Section.Name);
                 CollectionAssert.AreEquivalent(file1Metadata.AppData.Tags, file1Result.SearchResults.Single().FileMetadata.AppData.Tags);
 
-                Assert.IsTrue(file1Result.IncludeMetadataHeader == file1Section.ResultOptions.IncludeJsonContent);
+                Assert.IsTrue(file1Result.IncludeMetadataHeader == file1Section.ResultOptionsRequest.IncludeJsonContent);
 
                 var file2Result = batch.Results.Single(x => x.Name == file2Section.Name);
                 CollectionAssert.AreEquivalent(file2Metadata.AppData.Tags, file2Result.SearchResults.Single().FileMetadata.AppData.Tags);
-                Assert.IsTrue(file2Result.IncludeMetadataHeader == file2Section.ResultOptions.IncludeJsonContent);
+                Assert.IsTrue(file2Result.IncludeMetadataHeader == file2Section.ResultOptionsRequest.IncludeJsonContent);
             }
         }
     }
