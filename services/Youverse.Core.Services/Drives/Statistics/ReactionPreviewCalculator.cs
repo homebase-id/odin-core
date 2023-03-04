@@ -1,9 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drives.DriveCore.Storage;
+using Youverse.Core.Services.Drives.FileSystem;
+using Youverse.Core.Services.Drives.FileSystem.Base;
 using Youverse.Core.Services.Drives.Reactions;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Util;
@@ -26,6 +30,8 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
 
     public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
     {
+        //TODO: handle encrypted content?
+
         var updatedFileHeader = notification.ServerFileHeader;
         if (updatedFileHeader.FileMetadata.ReferencedFile == null)
         {
@@ -41,62 +47,89 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
 
         var fs = _fileSystemResolver.ResolveFileSystem(targetFile);
         var targetFileHeader = await fs.Storage.GetServerFileHeader(targetFile);
-        var reactionPreview = targetFileHeader.ReactionPreview ?? new ReactionPreviewData();
+        var targetFileReactionPreview = targetFileHeader.ReactionPreview ?? new ReactionPreviewData();
 
-        //TODO: handle when the reference file is deleted therefore I need a way to determine all files that reference this one.
-        //TODO: handle all variations
-        // switch (notification.NotificationType)
-        // {
-        //     case ClientNotificationType.FileAdded:
-        //         break;
-        //     case ClientNotificationType.FileDeleted:
-        //         break;
-        //     case ClientNotificationType.FileModified:
-        //         break;
-        //     case ClientNotificationType.StatisticsChanged:
-        //         break;
-        //     default:
-        //         throw new ArgumentOutOfRangeException();
-        // }
-        //
+        if (notification.DriveNotificationType == DriveNotificationType.FileAdded)
+        {
+            HandleFileAdded(updatedFileHeader, ref targetFileReactionPreview);
+        }
 
-        //TODO: handle encrypted content?
+        if (notification.DriveNotificationType == DriveNotificationType.FileModified)
+        {
+            HandleFileModified(updatedFileHeader, ref targetFileReactionPreview);
+        }
 
+        if (notification.DriveNotificationType == DriveNotificationType.FileDeleted)
+        {
+            HandleFileDeleted(updatedFileHeader, ref targetFileReactionPreview);
+        }
+
+        await fs.Storage.UpdateStatistics(targetFile, targetFileReactionPreview);
+    }
+
+    private void HandleFileDeleted(ServerFileHeader updatedFileHeader, ref ReactionPreviewData targetFileReactionPreview)
+    {
+        targetFileReactionPreview.TotalCommentCount--;
+        var idx = targetFileReactionPreview.Comments.FindIndex(c => c.FileId == updatedFileHeader.FileMetadata.File.FileId);
+        if (idx > -1)
+        {
+            targetFileReactionPreview.Comments.RemoveAt(idx);
+        }
+    }
+
+    private void HandleFileModified(ServerFileHeader updatedFileHeader, ref ReactionPreviewData targetFileReactionPreview)
+    {
+        var idx = targetFileReactionPreview.Comments.FindIndex(c => c.FileId == updatedFileHeader.FileMetadata.File.FileId);
+
+        if(idx >-1)
+        {
+            targetFileReactionPreview.Comments[idx] = new CommentPreview()
+            {
+                Created = updatedFileHeader.FileMetadata.Created,
+                Updated = updatedFileHeader.FileMetadata.Updated,
+                OdinId = _contextAccessor.GetCurrent().Caller.OdinId,
+                JsonContent = updatedFileHeader.FileMetadata.AppData.JsonContent,
+                Reactions = new List<EmojiReactionPreview>()
+            };
+        }
+    }
+
+    private void HandleFileAdded(ServerFileHeader updatedFileHeader, ref ReactionPreviewData targetFileReactionPreview)
+    {
         //Always increment even if we don't store the contents
-        reactionPreview.TotalCommentCount++;
+        targetFileReactionPreview.TotalCommentCount++;
 
-        if (reactionPreview.Comments.Count > 3) //TODO: add to config
+        if (targetFileReactionPreview.Comments.Count > 3) //TODO: add to config
         {
             return;
         }
 
-        reactionPreview.Comments.Add(new CommentPreview()
+        targetFileReactionPreview.Comments.Add(new CommentPreview()
         {
+            FileId = updatedFileHeader.FileMetadata.File.FileId,
             Created = updatedFileHeader.FileMetadata.Created,
             Updated = updatedFileHeader.FileMetadata.Updated,
             OdinId = _contextAccessor.GetCurrent().Caller.OdinId,
             JsonContent = updatedFileHeader.FileMetadata.AppData.JsonContent,
             Reactions = new List<EmojiReactionPreview>()
         });
-
-        await fs.Storage.UpdateStatistics(targetFile, reactionPreview);
     }
-    
+
     public Task Handle(EmojiReactionAddedNotification notification, CancellationToken cancellationToken)
     {
         var targetFile = notification.Reaction.FileId;
         var fs = _fileSystemResolver.ResolveFileSystem(targetFile);
         var header = fs.Storage.GetServerFileHeader(targetFile).GetAwaiter().GetResult();
         var preview = header.ReactionPreview ?? new ReactionPreviewData();
-        
+
         var dict = preview.Reactions ?? new Dictionary<Guid, EmojiReactionPreview>();
-        
+
         var key = HashUtil.ReduceSHA256Hash(notification.Reaction.ReactionContent);
         if (!dict.TryGetValue(key, out EmojiReactionPreview emojiPreview))
         {
             emojiPreview = new EmojiReactionPreview();
         }
-        
+
         emojiPreview.Count++;
         emojiPreview.ReactionContent = notification.Reaction.ReactionContent;
         emojiPreview.Key = key;
@@ -104,9 +137,8 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
         dict[key] = emojiPreview;
 
         preview.Reactions = dict;
-        
+
         fs.Storage.UpdateStatistics(targetFile, preview).GetAwaiter().GetResult();
         return Task.CompletedTask;
-        
     }
 }

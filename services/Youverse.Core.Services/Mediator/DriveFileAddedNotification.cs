@@ -11,7 +11,9 @@ namespace Youverse.Core.Services.Mediator;
 public class DriveFileAddedNotification : EventArgs, INotification, IDriveNotification
 {
     public ClientNotificationType NotificationType { get; } = ClientNotificationType.FileAdded;
-    
+
+    public DriveNotificationType DriveNotificationType { get; } = DriveNotificationType.FileAdded;
+
     public InternalDriveFileId File { get; set; }
 
     public ServerFileHeader ServerFileHeader { get; set; }
@@ -21,7 +23,9 @@ public class DriveFileAddedNotification : EventArgs, INotification, IDriveNotifi
 public class StatisticsUpdatedNotification : EventArgs, INotification, IDriveNotification
 {
     public ClientNotificationType NotificationType { get; } = ClientNotificationType.StatisticsChanged;
-    
+
+    public DriveNotificationType DriveNotificationType { get; } = DriveNotificationType.FileModified;
+
     public InternalDriveFileId File { get; set; }
 
     public ServerFileHeader ServerFileHeader { get; set; }

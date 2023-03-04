@@ -21,7 +21,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 /// Enables the writing of file streams from external sources and
 /// rule enforcement specific to the type of file system
 /// </summary>
-public abstract class FileSystemStreamWriterBase 
+public abstract class FileSystemStreamWriterBase
 {
     private readonly TenantContext _tenantContext;
     private readonly DotYouContextAccessor _contextAccessor;
@@ -320,6 +320,19 @@ public abstract class FileSystemStreamWriterBase
             if (ByteArrayUtil.IsStrongKey(keyHeader.Iv) == false || ByteArrayUtil.IsStrongKey(keyHeader.AesKey.GetKey()) == false)
             {
                 throw new YouverseClientException("Payload is set as encrypted but the encryption key is too simple", code: YouverseClientErrorCode.InvalidKeyHeader);
+            }
+        }
+        
+        //if a new file, we need to ensure the global transit is set correct.  for existing files, the system
+        // uses the existing global transit id
+        if(!package.IsUpdateOperation)
+        {
+            bool usesGlobalTransitId = package.InstructionSet.TransitOptions?.UseGlobalTransitId ?? false;
+            if (serverMetadata.AllowDistribution && usesGlobalTransitId == false)
+            {
+                throw new YouverseClientException(
+                    "UseGlobalTransitId must be true when AllowDistribution is true. (Yes, yes I know, i could just do it for you but then you would be all - htf is this GlobalTransitId getting set.. ooommmggg?!  Then you would hunt through the code and we would end up with long debate in the issue list.  #aintnobodygottimeforthat <3.  just love me and set the param",
+                    YouverseClientErrorCode.InvalidTransitOptions);
             }
         }
     }

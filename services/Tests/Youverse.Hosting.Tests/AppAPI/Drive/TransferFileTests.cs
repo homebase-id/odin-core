@@ -51,6 +51,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             int someFiletype = 3892;
             var instructionSet = UploadInstructionSet.WithRecipients(TargetDrive.NewTargetDrive(), TestIdentities.Merry.OdinId);
             instructionSet.TransitOptions.IsTransient = true;
+            instructionSet.TransitOptions.UseGlobalTransitId = true;
 
             var fileMetadata = new UploadFileMetadata()
             {
@@ -299,18 +300,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             await _scaffold.OldOwnerApi.DisconnectIdentities(senderAppContext.Identity, recipientAppContext.Identity);
         }
 
-
-        [Test(Description = "Setting both TransitOptions.IsTransient = true and TransitOptions.UseGlobalTransitId = true should fail")]
-        public async Task FailToSendTransientFile_WithGlobalTransitId()
-        {
-            var instructionSet = UploadInstructionSet.WithRecipients(TargetDrive.NewTargetDrive(), TestIdentities.Merry.OdinId);
-            instructionSet.TransitOptions.IsTransient = true;
-            instructionSet.TransitOptions.UseGlobalTransitId = true;
-
-            Assert.Throws<YouverseClientException>(() => { instructionSet.AssertIsValid(); });
-        }
-
-
         // [Test(Description = "Ensures only the original sender of a file with a global unique identifier can make changes")]
         // public async Task WillRejectChangesFromGlobalTransitIdWhenNotFromOriginalSender()
         // {
@@ -370,7 +359,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 TransitOptions = new TransitOptions()
                 {
                     Recipients = new List<string>() { recipient.OdinId },
-                    Schedule = ScheduleOptions.SendNowAwaitResponse
+                    Schedule = ScheduleOptions.SendNowAwaitResponse,
+                    UseGlobalTransitId = true
                 }
             };
 
@@ -647,7 +637,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
                 TransitOptions = new TransitOptions()
                 {
-                    Recipients = new List<string>() { recipient.OdinId }
+                    Recipients = new List<string>() { recipient.OdinId },
+                    UseGlobalTransitId = true
                 }
             };
 
