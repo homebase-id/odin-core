@@ -42,12 +42,11 @@ namespace Youverse.Core.Services.DataSubscription
             {
                 return;
             }
-            
+
             if (!notification.ServerFileHeader.ServerMetadata.AllowDistribution)
             {
                 return;
             }
-
 
             //TODO: move this to a background thread or use ScheduleOptions.SendLater so the original call can finish
             //this will come into play when someone has a huge number of subscribers
@@ -93,8 +92,8 @@ namespace Youverse.Core.Services.DataSubscription
                 //send the deleted file
                 var map = await _transitService.SendDeleteLinkedFileRequest(
                     driveId: targetDrive.GetValueOrDefault(),
-                    header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
-                    new SendFileOptions()
+                    globalTransitId: header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
+                    sendFileOptions: new SendFileOptions()
                     {
                         FileSystemType = header.ServerMetadata.FileSystemType,
                         TransferFileType = TransferFileType.Normal,

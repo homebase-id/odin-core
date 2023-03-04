@@ -117,14 +117,14 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             return collection;
         }
 
-        public Task EnsureIndexerCommits(IEnumerable<Guid> driveIdList)
+        public Task EnsureDriveDatabaseCommits(IEnumerable<Guid> driveIdList)
         {
             foreach (var driveId in driveIdList)
             {
                 AssertCanWriteToDrive(driveId);
                 if (this.TryGetOrLoadQueryManager(driveId, out var manager))
                 {
-                    manager.EnsureIndexDataCommitted();
+                    manager.EnsureDriveDatabaseCommits();
                 }
             }
 

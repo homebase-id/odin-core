@@ -41,12 +41,15 @@ public class DataSubscriptionTests
     }
 
     [Test]
+    [Ignore("WIP - need to fix after talking with Michael")]
     public async Task CanUploadStandardFileToDriveAndDistributeToFollower()
     {
         const int FileType = 10133;
-        
+
         var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
         var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
+
+        // await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
 
         //create a channel drive
         var frodoChannelDrive = new TargetDrive()

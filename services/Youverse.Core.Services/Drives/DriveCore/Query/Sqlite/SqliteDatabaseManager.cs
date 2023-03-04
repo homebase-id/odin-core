@@ -210,7 +210,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         return Task.CompletedTask;
     }
 
-    public void EnsureIndexDataCommitted()
+    public void EnsureDriveDatabaseCommits()
     {
         _db.Commit();
     }
