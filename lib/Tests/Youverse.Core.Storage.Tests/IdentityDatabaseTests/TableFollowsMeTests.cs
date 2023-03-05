@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using NUnit.Framework;
 using Youverse.Core;
-using Youverse.Core.Storage.SQLite.IdentityDatabase;
+using Youverse.Core.Storage.Sqlite.IdentityDatabase;
 
 namespace IdentityDatabaseTests
 {
@@ -11,7 +11,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void ExampleTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\follower-example-01.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             // Let's say that we're Frodo and we're followed by these 5 asir
@@ -52,7 +52,7 @@ namespace IdentityDatabaseTests
             r = db.tblFollowsMe.GetFollowers(3, d1, nextCursor, out nextCursor);
             Debug.Assert(r.Count == 1);  // We know this is the last page because 1 < 3
                                          // but if we call again anyway, we get 0 back.
-            Debug.Assert(nextCursor == null);
+            Debug.Assert(nextCursor == null, message:"rdr.HasRows is the sinner");
 
 
             // Now Frodo does a post to d2 which means Freja, Heimdal, Loke gets it
@@ -70,7 +70,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void InsertValidFollowerTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\followers-insert-01.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var i1 = "odin.valhalla.com";
@@ -101,7 +101,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void InsertInvalidFollowerTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\followers-insert-02.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var i1 = "odin.valhalla.com";
@@ -175,7 +175,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void DeleteInvalidTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\follower-delete-01.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             bool ok = false;
@@ -205,7 +205,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void DeleteTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\follower-delete-02.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var i1 = "odin.valhalla.com";
@@ -233,7 +233,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void DeleteDriveTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\follower-delete-03.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var i1 = "odin.valhalla.com";
@@ -272,7 +272,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void GetFollowersInvalidTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\follower-delete-04.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var d1 = Guid.NewGuid();
@@ -293,7 +293,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void GetFollowersTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\follower-delete-05.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var i1 = "odin.valhalla.com";
@@ -311,7 +311,7 @@ namespace IdentityDatabaseTests
             var r = db.tblFollowsMe.GetFollowers(100, d3, null, out var nextCursor);
             Debug.Assert(r.Count == 1);
             Debug.Assert(r[0] == i2);
-            Debug.Assert(nextCursor == null);
+            Debug.Assert(nextCursor == null, message:"rdr.HasRows is the sinner");
 
             // Get all d1 (and empty) drive. 
             r = db.tblFollowsMe.GetFollowers(100, d1, "", out nextCursor);
@@ -328,7 +328,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void GetFollowersPagedTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\follower-delete-06.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var i1 = "odin.valhalla.com";
@@ -361,7 +361,7 @@ namespace IdentityDatabaseTests
             r = db.tblFollowsMe.GetFollowers(2, d1, r[1], out nextCursor);
             Debug.Assert(r.Count == 1);
             Debug.Assert(r[0] == i2);
-            Debug.Assert(nextCursor == null);
+            Debug.Assert(nextCursor == null, message:"rdr.HasRows is the sinner");
 
             r = db.tblFollowsMe.GetFollowers(2, d1, r[0], out nextCursor);
             Debug.Assert(r.Count == 0);

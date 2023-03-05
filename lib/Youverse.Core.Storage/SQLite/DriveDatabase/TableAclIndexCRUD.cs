@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 using Youverse.Core.Identity;
 
-namespace Youverse.Core.Storage.SQLite.DriveDatabase
+namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 {
     public class AclIndexItem
     {
@@ -32,29 +32,32 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
     public class TableAclIndexCRUD : TableBase
     {
         private bool _disposed = false;
-        private SQLiteCommand _insertCommand = null;
+        private SqliteCommand _insertCommand = null;
         private static Object _insertLock = new Object();
-        private SQLiteParameter _insertParam1 = null;
-        private SQLiteParameter _insertParam2 = null;
-        private SQLiteCommand _updateCommand = null;
+        private SqliteParameter _insertParam1 = null;
+        private SqliteParameter _insertParam2 = null;
+        private SqliteCommand _updateCommand = null;
         private static Object _updateLock = new Object();
-        private SQLiteParameter _updateParam1 = null;
-        private SQLiteParameter _updateParam2 = null;
-        private SQLiteCommand _upsertCommand = null;
+        private SqliteParameter _updateParam1 = null;
+        private SqliteParameter _updateParam2 = null;
+        private SqliteCommand _upsertCommand = null;
         private static Object _upsertLock = new Object();
-        private SQLiteParameter _upsertParam1 = null;
-        private SQLiteParameter _upsertParam2 = null;
-        private SQLiteCommand _deleteCommand = null;
-        private static Object _deleteLock = new Object();
-        private SQLiteParameter _deleteParam1 = null;
-        private SQLiteParameter _deleteParam2 = null;
-        private SQLiteCommand _get0Command = null;
+        private SqliteParameter _upsertParam1 = null;
+        private SqliteParameter _upsertParam2 = null;
+        private SqliteCommand _delete0Command = null;
+        private static Object _delete0Lock = new Object();
+        private SqliteParameter _delete0Param1 = null;
+        private SqliteParameter _delete0Param2 = null;
+        private SqliteCommand _delete1Command = null;
+        private static Object _delete1Lock = new Object();
+        private SqliteParameter _delete1Param1 = null;
+        private SqliteCommand _get0Command = null;
         private static Object _get0Lock = new Object();
-        private SQLiteParameter _get0Param1 = null;
-        private SQLiteParameter _get0Param2 = null;
-        private SQLiteCommand _get1Command = null;
+        private SqliteParameter _get0Param1 = null;
+        private SqliteParameter _get0Param2 = null;
+        private SqliteCommand _get1Command = null;
         private static Object _get1Lock = new Object();
-        private SQLiteParameter _get1Param1 = null;
+        private SqliteParameter _get1Param1 = null;
 
         public TableAclIndexCRUD(DriveDatabase db) : base(db)
         {
@@ -73,8 +76,10 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             _updateCommand = null;
             _upsertCommand?.Dispose();
             _upsertCommand = null;
-            _deleteCommand?.Dispose();
-            _deleteCommand = null;
+            _delete0Command?.Dispose();
+            _delete0Command = null;
+            _delete1Command?.Dispose();
+            _delete1Command = null;
             _get0Command?.Dispose();
             _get0Command = null;
             _get1Command?.Dispose();
@@ -89,7 +94,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 if (dropExisting)
                 {
                     cmd.CommandText = "DROP TABLE IF EXISTS aclIndex;";
-                    cmd.ExecuteNonQuery();
+                    cmd.ExecuteNonQuery(_database);
                 }
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS aclIndex("
@@ -99,7 +104,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                      +");"
                      +"CREATE INDEX IF NOT EXISTS Idx0TableAclIndexCRUD ON aclIndex(aclMemberId);"
                      ;
-                cmd.ExecuteNonQuery();
+                cmd.ExecuteNonQuery(_database);
             }
         }
 
@@ -120,10 +125,10 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     _insertParam2.ParameterName = "$aclMemberId";
                     _insertCommand.Prepare();
                 }
-                _insertParam1.Value = item.fileId;
-                _insertParam2.Value = item.aclMemberId;
+                _insertParam1.Value = item.fileId.ToByteArray();
+                _insertParam2.Value = item.aclMemberId.ToByteArray();
                 _database.BeginTransaction();
-                return _insertCommand.ExecuteNonQuery();
+                return _insertCommand.ExecuteNonQuery(_database);
             } // Lock
         }
 
@@ -146,10 +151,10 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     _upsertParam2.ParameterName = "$aclMemberId";
                     _upsertCommand.Prepare();
                 }
-                _upsertParam1.Value = item.fileId;
-                _upsertParam2.Value = item.aclMemberId;
+                _upsertParam1.Value = item.fileId.ToByteArray();
+                _upsertParam2.Value = item.aclMemberId.ToByteArray();
                 _database.BeginTransaction();
-                return _upsertCommand.ExecuteNonQuery();
+                return _upsertCommand.ExecuteNonQuery(_database);
             } // Lock
         }
 
@@ -171,34 +176,54 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     _updateParam2.ParameterName = "$aclMemberId";
                     _updateCommand.Prepare();
                 }
-                _updateParam1.Value = item.fileId;
-                _updateParam2.Value = item.aclMemberId;
+                _updateParam1.Value = item.fileId.ToByteArray();
+                _updateParam2.Value = item.aclMemberId.ToByteArray();
                 _database.BeginTransaction();
-                return _updateCommand.ExecuteNonQuery();
+                return _updateCommand.ExecuteNonQuery(_database);
             } // Lock
         }
 
         public int Delete(Guid fileId,Guid aclMemberId)
         {
-            lock (_deleteLock)
+            lock (_delete0Lock)
             {
-                if (_deleteCommand == null)
+                if (_delete0Command == null)
                 {
-                    _deleteCommand = _database.CreateCommand();
-                    _deleteCommand.CommandText = "DELETE FROM aclIndex " +
+                    _delete0Command = _database.CreateCommand();
+                    _delete0Command.CommandText = "DELETE FROM aclIndex " +
                                                  "WHERE fileId = $fileId AND aclMemberId = $aclMemberId";
-                    _deleteParam1 = _deleteCommand.CreateParameter();
-                    _deleteCommand.Parameters.Add(_deleteParam1);
-                    _deleteParam1.ParameterName = "$fileId";
-                    _deleteParam2 = _deleteCommand.CreateParameter();
-                    _deleteCommand.Parameters.Add(_deleteParam2);
-                    _deleteParam2.ParameterName = "$aclMemberId";
-                    _deleteCommand.Prepare();
+                    _delete0Param1 = _delete0Command.CreateParameter();
+                    _delete0Command.Parameters.Add(_delete0Param1);
+                    _delete0Param1.ParameterName = "$fileId";
+                    _delete0Param2 = _delete0Command.CreateParameter();
+                    _delete0Command.Parameters.Add(_delete0Param2);
+                    _delete0Param2.ParameterName = "$aclMemberId";
+                    _delete0Command.Prepare();
                 }
-                _deleteParam1.Value = fileId;
-                _deleteParam2.Value = aclMemberId;
+                _delete0Param1.Value = fileId.ToByteArray();
+                _delete0Param2.Value = aclMemberId.ToByteArray();
                 _database.BeginTransaction();
-                return _deleteCommand.ExecuteNonQuery();
+                return _delete0Command.ExecuteNonQuery(_database);
+            } // Lock
+        }
+
+        public int DeleteAllRows(Guid fileId)
+        {
+            lock (_delete1Lock)
+            {
+                if (_delete1Command == null)
+                {
+                    _delete1Command = _database.CreateCommand();
+                    _delete1Command.CommandText = "DELETE FROM aclIndex " +
+                                                 "WHERE fileId = $fileId";
+                    _delete1Param1 = _delete1Command.CreateParameter();
+                    _delete1Command.Parameters.Add(_delete1Param1);
+                    _delete1Param1.ParameterName = "$fileId";
+                    _delete1Command.Prepare();
+                }
+                _delete1Param1.Value = fileId.ToByteArray();
+                _database.BeginTransaction();
+                return _delete1Command.ExecuteNonQuery(_database);
             } // Lock
         }
 
@@ -219,9 +244,9 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     _get0Param2.ParameterName = "$aclMemberId";
                     _get0Command.Prepare();
                 }
-                _get0Param1.Value = fileId;
-                _get0Param2.Value = aclMemberId;
-                using (SQLiteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow))
+                _get0Param1.Value = fileId.ToByteArray();
+                _get0Param2.Value = aclMemberId.ToByteArray();
+                using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
                 {
                     var result = new AclIndexItem();
                     if (!rdr.Read())
@@ -253,8 +278,8 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     _get1Param1.ParameterName = "$fileId";
                     _get1Command.Prepare();
                 }
-                _get1Param1.Value = fileId;
-                using (SQLiteDataReader rdr = _get1Command.ExecuteReader(System.Data.CommandBehavior.Default))
+                _get1Param1.Value = fileId.ToByteArray();
+                using (SqliteDataReader rdr = _get1Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {
                     var result0 = new List<Guid>();
                     if (!rdr.Read())

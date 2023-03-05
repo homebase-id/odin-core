@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using NUnit.Framework;
 using Youverse.Core;
-using Youverse.Core.Storage.SQLite.IdentityDatabase;
+using Youverse.Core.Storage.Sqlite.IdentityDatabase;
 
 namespace IdentityDatabaseTests
 {
@@ -11,7 +11,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void InsertTest()
         {   
-            using var db = new IdentityDatabase("URI=file:.\\circle-insert-02.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var c1 = SequentialGuid.CreateGuid();
@@ -24,7 +24,7 @@ namespace IdentityDatabaseTests
 
             var r = db.tblCircle.PagingByCircleId(100, null, out var nextCursor);
             Debug.Assert(r.Count == 2);
-            Debug.Assert(nextCursor == null);
+            Debug.Assert(nextCursor == null, message:"rdr.HasRows is the sinner");
 
             // Result set is ordered
             Debug.Assert(ByteArrayUtil.muidcmp(r[0].circleId, c1) == 0);
@@ -37,7 +37,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void DeleteCircleTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\circle-delete-02.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var c1 = SequentialGuid.CreateGuid();
@@ -52,7 +52,7 @@ namespace IdentityDatabaseTests
 
             var r = db.tblCircle.PagingByCircleId(100, null, out var nextCursor);
             Debug.Assert(r.Count == 1);
-            Debug.Assert(nextCursor == null);
+            Debug.Assert(nextCursor == null, message:"rdr.HasRows is the sinner");
 
             // Result set is ordered
             Debug.Assert(ByteArrayUtil.muidcmp(r[0].circleId, c1) == 0);
@@ -62,7 +62,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void GetTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\circle-get-01.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var c1 = SequentialGuid.CreateGuid();
@@ -86,7 +86,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void GetAllCirclesEmptyTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\circle-getall-01.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var r = db.tblCircle.PagingByCircleId(100, null, out var nextCursor);
@@ -98,7 +98,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void GetAllCirclesTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\circle-getall-02.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var c1 = SequentialGuid.CreateGuid();
@@ -111,7 +111,7 @@ namespace IdentityDatabaseTests
 
             var r = db.tblCircle.PagingByCircleId(100, null, out var nextCursor);
             Debug.Assert(r.Count == 2);
-            Debug.Assert(nextCursor == null);
+            Debug.Assert(nextCursor == null, message:"rdr.HasRows is the sinner");
 
             Debug.Assert(ByteArrayUtil.muidcmp(r[0].circleId, c1) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(r[0].data, d1) == 0);

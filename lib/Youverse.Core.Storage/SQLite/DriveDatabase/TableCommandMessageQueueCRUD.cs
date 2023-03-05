@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 using Youverse.Core.Identity;
 
-namespace Youverse.Core.Storage.SQLite.DriveDatabase
+namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 {
     public class CommandMessageQueueItem
     {
@@ -32,24 +32,24 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
     public class TableCommandMessageQueueCRUD : TableBase
     {
         private bool _disposed = false;
-        private SQLiteCommand _insertCommand = null;
+        private SqliteCommand _insertCommand = null;
         private static Object _insertLock = new Object();
-        private SQLiteParameter _insertParam1 = null;
-        private SQLiteParameter _insertParam2 = null;
-        private SQLiteCommand _updateCommand = null;
+        private SqliteParameter _insertParam1 = null;
+        private SqliteParameter _insertParam2 = null;
+        private SqliteCommand _updateCommand = null;
         private static Object _updateLock = new Object();
-        private SQLiteParameter _updateParam1 = null;
-        private SQLiteParameter _updateParam2 = null;
-        private SQLiteCommand _upsertCommand = null;
+        private SqliteParameter _updateParam1 = null;
+        private SqliteParameter _updateParam2 = null;
+        private SqliteCommand _upsertCommand = null;
         private static Object _upsertLock = new Object();
-        private SQLiteParameter _upsertParam1 = null;
-        private SQLiteParameter _upsertParam2 = null;
-        private SQLiteCommand _deleteCommand = null;
-        private static Object _deleteLock = new Object();
-        private SQLiteParameter _deleteParam1 = null;
-        private SQLiteCommand _get0Command = null;
+        private SqliteParameter _upsertParam1 = null;
+        private SqliteParameter _upsertParam2 = null;
+        private SqliteCommand _delete0Command = null;
+        private static Object _delete0Lock = new Object();
+        private SqliteParameter _delete0Param1 = null;
+        private SqliteCommand _get0Command = null;
         private static Object _get0Lock = new Object();
-        private SQLiteParameter _get0Param1 = null;
+        private SqliteParameter _get0Param1 = null;
 
         public TableCommandMessageQueueCRUD(DriveDatabase db) : base(db)
         {
@@ -68,8 +68,8 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             _updateCommand = null;
             _upsertCommand?.Dispose();
             _upsertCommand = null;
-            _deleteCommand?.Dispose();
-            _deleteCommand = null;
+            _delete0Command?.Dispose();
+            _delete0Command = null;
             _get0Command?.Dispose();
             _get0Command = null;
             _disposed = true;
@@ -82,7 +82,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 if (dropExisting)
                 {
                     cmd.CommandText = "DROP TABLE IF EXISTS commandMessageQueue;";
-                    cmd.ExecuteNonQuery();
+                    cmd.ExecuteNonQuery(_database);
                 }
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS commandMessageQueue("
@@ -91,7 +91,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                      +", PRIMARY KEY (fileId)"
                      +");"
                      ;
-                cmd.ExecuteNonQuery();
+                cmd.ExecuteNonQuery(_database);
             }
         }
 
@@ -112,10 +112,10 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     _insertParam2.ParameterName = "$timeStamp";
                     _insertCommand.Prepare();
                 }
-                _insertParam1.Value = item.fileId;
+                _insertParam1.Value = item.fileId.ToByteArray();
                 _insertParam2.Value = item.timeStamp.milliseconds;
                 _database.BeginTransaction();
-                return _insertCommand.ExecuteNonQuery();
+                return _insertCommand.ExecuteNonQuery(_database);
             } // Lock
         }
 
@@ -138,10 +138,10 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     _upsertParam2.ParameterName = "$timeStamp";
                     _upsertCommand.Prepare();
                 }
-                _upsertParam1.Value = item.fileId;
+                _upsertParam1.Value = item.fileId.ToByteArray();
                 _upsertParam2.Value = item.timeStamp.milliseconds;
                 _database.BeginTransaction();
-                return _upsertCommand.ExecuteNonQuery();
+                return _upsertCommand.ExecuteNonQuery(_database);
             } // Lock
         }
 
@@ -163,30 +163,30 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     _updateParam2.ParameterName = "$timeStamp";
                     _updateCommand.Prepare();
                 }
-                _updateParam1.Value = item.fileId;
+                _updateParam1.Value = item.fileId.ToByteArray();
                 _updateParam2.Value = item.timeStamp.milliseconds;
                 _database.BeginTransaction();
-                return _updateCommand.ExecuteNonQuery();
+                return _updateCommand.ExecuteNonQuery(_database);
             } // Lock
         }
 
         public int Delete(Guid fileId)
         {
-            lock (_deleteLock)
+            lock (_delete0Lock)
             {
-                if (_deleteCommand == null)
+                if (_delete0Command == null)
                 {
-                    _deleteCommand = _database.CreateCommand();
-                    _deleteCommand.CommandText = "DELETE FROM commandMessageQueue " +
+                    _delete0Command = _database.CreateCommand();
+                    _delete0Command.CommandText = "DELETE FROM commandMessageQueue " +
                                                  "WHERE fileId = $fileId";
-                    _deleteParam1 = _deleteCommand.CreateParameter();
-                    _deleteCommand.Parameters.Add(_deleteParam1);
-                    _deleteParam1.ParameterName = "$fileId";
-                    _deleteCommand.Prepare();
+                    _delete0Param1 = _delete0Command.CreateParameter();
+                    _delete0Command.Parameters.Add(_delete0Param1);
+                    _delete0Param1.ParameterName = "$fileId";
+                    _delete0Command.Prepare();
                 }
-                _deleteParam1.Value = fileId;
+                _delete0Param1.Value = fileId.ToByteArray();
                 _database.BeginTransaction();
-                return _deleteCommand.ExecuteNonQuery();
+                return _delete0Command.ExecuteNonQuery(_database);
             } // Lock
         }
 
@@ -204,8 +204,8 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     _get0Param1.ParameterName = "$fileId";
                     _get0Command.Prepare();
                 }
-                _get0Param1.Value = fileId;
-                using (SQLiteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow))
+                _get0Param1.Value = fileId.ToByteArray();
+                using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
                 {
                     var result = new CommandMessageQueueItem();
                     if (!rdr.Read())

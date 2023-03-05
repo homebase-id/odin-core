@@ -1,7 +1,7 @@
 ﻿using System;
 using NUnit.Framework;
 using Youverse.Core;
-using Youverse.Core.Storage.SQLite.DriveDatabase;
+using Youverse.Core.Storage.Sqlite.DriveDatabase;
 
 namespace DriveDatabaseTests
 {
@@ -10,7 +10,7 @@ namespace DriveDatabaseTests
         [Test]
         public void InsertRowTest()
         {
-            using var db = new DriveDatabase("URI=file:.\\tblmainindex1.db", DatabaseIndexKind.Random);
+            using var db = new DriveDatabase("", DatabaseIndexKind.Random);
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();
@@ -79,7 +79,7 @@ namespace DriveDatabaseTests
         [Test]
         public void InsertRowDuplicateTest()
         {
-            using var db = new DriveDatabase("URI=file:.\\tblmainindex2.db", DatabaseIndexKind.Random);
+            using var db = new DriveDatabase("", DatabaseIndexKind.Random);
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();
@@ -132,7 +132,7 @@ namespace DriveDatabaseTests
         [Test]
         public void UpdateRowTest()
         {
-            using var db = new DriveDatabase("URI=file:.\\tblmainindex3.db", DatabaseIndexKind.Random);
+            using var db = new DriveDatabase("", DatabaseIndexKind.Random);
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();

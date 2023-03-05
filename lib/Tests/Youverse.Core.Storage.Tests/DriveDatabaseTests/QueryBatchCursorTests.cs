@@ -1,6 +1,6 @@
 ﻿using NUnit.Framework;
 using System;
-using Youverse.Core.Storage.SQLite.DriveDatabase;
+using Youverse.Core.Storage.Sqlite.DriveDatabase;
 
 namespace DriveDatabaseTests
 {

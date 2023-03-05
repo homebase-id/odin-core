@@ -1,27 +1,27 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 
-namespace Youverse.Core.Storage.SQLite.IdentityDatabase
+namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
     public class TableInbox : TableInboxCRUD
     {
         const int MAX_VALUE_LENGTH = 65535;  // Stored value cannot be longer than this
 
-        private SQLiteCommand _popCommand = null;
-        private SQLiteParameter _pparam1 = null;
-        private SQLiteParameter _pparam2 = null;
-        private SQLiteParameter _pparam3 = null;
+        private SqliteCommand _popCommand = null;
+        private SqliteParameter _pparam1 = null;
+        private SqliteParameter _pparam2 = null;
+        private SqliteParameter _pparam3 = null;
         private static Object _popLock = new Object();
 
-        private SQLiteCommand _popCancelCommand = null;
-        private SQLiteParameter _pcancelparam1 = null;
+        private SqliteCommand _popCancelCommand = null;
+        private SqliteParameter _pcancelparam1 = null;
 
-        private SQLiteCommand _popCommitCommand = null;
-        private SQLiteParameter _pcommitparam1 = null;
+        private SqliteCommand _popCommitCommand = null;
+        private SqliteParameter _pcommitparam1 = null;
 
-        private SQLiteCommand _popRecoverCommand = null;
-        private SQLiteParameter _pcrecoverparam1 = null;
+        private SqliteCommand _popRecoverCommand = null;
+        private SqliteParameter _pcrecoverparam1 = null;
 
 
         public TableInbox(IdentityDatabase db) : base(db)
@@ -108,7 +108,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 using (_database.CreateCommitUnitOfWork())
                 {
                     List<InboxItem> result = new List<InboxItem>();
-                    using (SQLiteDataReader rdr = _popCommand.ExecuteReader(System.Data.CommandBehavior.Default))
+                    using (SqliteDataReader rdr = _popCommand.ExecuteReader(System.Data.CommandBehavior.Default))
                     {
                         InboxItem item;
 
@@ -180,7 +180,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
                 _pcancelparam1.Value = popstamp;
                 _database.BeginTransaction();
-                _popCancelCommand.ExecuteNonQuery();
+                _popCancelCommand.ExecuteNonQuery(_database);
             }
         }
 
@@ -207,7 +207,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
                 _pcommitparam1.Value = popstamp;
                 _database.BeginTransaction();
-                _popCommitCommand.ExecuteNonQuery();
+                _popCommitCommand.ExecuteNonQuery(_database);
             }
         }
 
@@ -237,7 +237,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _pcrecoverparam1.Value = SequentialGuid.CreateGuid(new UnixTimeUtc(ut)).ToByteArray(); // UnixTimeMiliseconds
 
                 _database.BeginTransaction();
-                _popRecoverCommand.ExecuteNonQuery();
+                _popRecoverCommand.ExecuteNonQuery(_database);
             }
         }
     }

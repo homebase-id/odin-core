@@ -1,13 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 
-namespace Youverse.Core.Storage.SQLite.DriveDatabase
+namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 {
     public class TableTagIndex : TableTagIndexCRUD
     {
-        private SQLiteCommand _deleteAllCommand = null;
-        private SQLiteParameter _dallparam1 = null;
+        private SqliteCommand _deleteAllCommand = null;
+        private SqliteParameter _dallparam1 = null;
         private Object _deleteAllLock = new Object();
 
         public TableTagIndex(DriveDatabase db) : base(db)
@@ -75,7 +75,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
                 _database.BeginTransaction();
                 _dallparam1.Value = FileId;
-                _deleteAllCommand.ExecuteNonQuery();
+                _deleteAllCommand.ExecuteNonQuery(_database);
             }
         }
     }

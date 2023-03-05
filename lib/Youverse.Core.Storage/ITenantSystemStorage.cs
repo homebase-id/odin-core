@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Youverse.Core.Storage.SQLite;
-using Youverse.Core.Storage.SQLite.IdentityDatabase;
+using Youverse.Core.Storage.Sqlite;
+using Youverse.Core.Storage.Sqlite.IdentityDatabase;
 
 namespace Youverse.Core.Storage
 {

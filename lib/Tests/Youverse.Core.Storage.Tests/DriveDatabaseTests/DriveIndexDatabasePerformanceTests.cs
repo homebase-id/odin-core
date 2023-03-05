@@ -4,8 +4,8 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Youverse.Core.Cryptography.Crypto;
+using Youverse.Core.Storage.Sqlite.DriveDatabase;
 using Youverse.Core.Util;
-using Youverse.Core.Storage.SQLite.DriveDatabase;
 
 namespace DriveDatabaseTests
 {
@@ -29,9 +29,9 @@ namespace DriveDatabaseTests
         {
             var stopWatch = new Stopwatch();
             var myRnd = new Random();
-            using var _testDatabase = new DriveDatabase($"URI=file:.\\performance-01", DatabaseIndexKind.TimeSeries);
+            using var _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
-
+            
             var tmpacllist = new List<Guid>();
             for (int j = 0; j < 1; j++)
             {
@@ -69,7 +69,7 @@ namespace DriveDatabaseTests
         {
             var stopWatch = new Stopwatch();
             var myRnd = new Random();
-            using var _testDatabase = new DriveDatabase($"URI=file:.\\performance-02", DatabaseIndexKind.TimeSeries);
+            using var _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var tmpacllist = new List<Guid>();
@@ -117,7 +117,7 @@ namespace DriveDatabaseTests
         public void PerformanceTest03() // Just making sure multi-threaded doesn't give worse performance
         {
             Task[] tasks = new Task[MAXTHREADS];
-            using var _testDatabase = new DriveDatabase($"URI=file:.\\performance-03", DatabaseIndexKind.TimeSeries);
+            using var _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
             var stopWatch = new Stopwatch();
 

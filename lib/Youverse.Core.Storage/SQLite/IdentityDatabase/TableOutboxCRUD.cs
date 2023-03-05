@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 using Youverse.Core.Identity;
 
-namespace Youverse.Core.Storage.SQLite.IdentityDatabase
+namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
     public class OutboxItem
     {
@@ -107,47 +107,47 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
     public class TableOutboxCRUD : TableBase
     {
         private bool _disposed = false;
-        private SQLiteCommand _insertCommand = null;
+        private SqliteCommand _insertCommand = null;
         private static Object _insertLock = new Object();
-        private SQLiteParameter _insertParam1 = null;
-        private SQLiteParameter _insertParam2 = null;
-        private SQLiteParameter _insertParam3 = null;
-        private SQLiteParameter _insertParam4 = null;
-        private SQLiteParameter _insertParam5 = null;
-        private SQLiteParameter _insertParam6 = null;
-        private SQLiteParameter _insertParam7 = null;
-        private SQLiteParameter _insertParam8 = null;
-        private SQLiteParameter _insertParam9 = null;
-        private SQLiteCommand _updateCommand = null;
+        private SqliteParameter _insertParam1 = null;
+        private SqliteParameter _insertParam2 = null;
+        private SqliteParameter _insertParam3 = null;
+        private SqliteParameter _insertParam4 = null;
+        private SqliteParameter _insertParam5 = null;
+        private SqliteParameter _insertParam6 = null;
+        private SqliteParameter _insertParam7 = null;
+        private SqliteParameter _insertParam8 = null;
+        private SqliteParameter _insertParam9 = null;
+        private SqliteCommand _updateCommand = null;
         private static Object _updateLock = new Object();
-        private SQLiteParameter _updateParam1 = null;
-        private SQLiteParameter _updateParam2 = null;
-        private SQLiteParameter _updateParam3 = null;
-        private SQLiteParameter _updateParam4 = null;
-        private SQLiteParameter _updateParam5 = null;
-        private SQLiteParameter _updateParam6 = null;
-        private SQLiteParameter _updateParam7 = null;
-        private SQLiteParameter _updateParam8 = null;
-        private SQLiteParameter _updateParam9 = null;
-        private SQLiteCommand _upsertCommand = null;
+        private SqliteParameter _updateParam1 = null;
+        private SqliteParameter _updateParam2 = null;
+        private SqliteParameter _updateParam3 = null;
+        private SqliteParameter _updateParam4 = null;
+        private SqliteParameter _updateParam5 = null;
+        private SqliteParameter _updateParam6 = null;
+        private SqliteParameter _updateParam7 = null;
+        private SqliteParameter _updateParam8 = null;
+        private SqliteParameter _updateParam9 = null;
+        private SqliteCommand _upsertCommand = null;
         private static Object _upsertLock = new Object();
-        private SQLiteParameter _upsertParam1 = null;
-        private SQLiteParameter _upsertParam2 = null;
-        private SQLiteParameter _upsertParam3 = null;
-        private SQLiteParameter _upsertParam4 = null;
-        private SQLiteParameter _upsertParam5 = null;
-        private SQLiteParameter _upsertParam6 = null;
-        private SQLiteParameter _upsertParam7 = null;
-        private SQLiteParameter _upsertParam8 = null;
-        private SQLiteParameter _upsertParam9 = null;
-        private SQLiteCommand _deleteCommand = null;
-        private static Object _deleteLock = new Object();
-        private SQLiteParameter _deleteParam1 = null;
-        private SQLiteParameter _deleteParam2 = null;
-        private SQLiteCommand _get0Command = null;
+        private SqliteParameter _upsertParam1 = null;
+        private SqliteParameter _upsertParam2 = null;
+        private SqliteParameter _upsertParam3 = null;
+        private SqliteParameter _upsertParam4 = null;
+        private SqliteParameter _upsertParam5 = null;
+        private SqliteParameter _upsertParam6 = null;
+        private SqliteParameter _upsertParam7 = null;
+        private SqliteParameter _upsertParam8 = null;
+        private SqliteParameter _upsertParam9 = null;
+        private SqliteCommand _delete0Command = null;
+        private static Object _delete0Lock = new Object();
+        private SqliteParameter _delete0Param1 = null;
+        private SqliteParameter _delete0Param2 = null;
+        private SqliteCommand _get0Command = null;
         private static Object _get0Lock = new Object();
-        private SQLiteParameter _get0Param1 = null;
-        private SQLiteParameter _get0Param2 = null;
+        private SqliteParameter _get0Param1 = null;
+        private SqliteParameter _get0Param2 = null;
 
         public TableOutboxCRUD(IdentityDatabase db) : base(db)
         {
@@ -166,8 +166,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             _updateCommand = null;
             _upsertCommand?.Dispose();
             _upsertCommand = null;
-            _deleteCommand?.Dispose();
-            _deleteCommand = null;
+            _delete0Command?.Dispose();
+            _delete0Command = null;
             _get0Command?.Dispose();
             _get0Command = null;
             _disposed = true;
@@ -180,7 +180,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (dropExisting)
                 {
                     cmd.CommandText = "DROP TABLE IF EXISTS outbox;";
-                    cmd.ExecuteNonQuery();
+                    cmd.ExecuteNonQuery(_database);
                 }
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS outbox("
@@ -199,7 +199,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                      +"CREATE INDEX IF NOT EXISTS Idx1TableOutboxCRUD ON outbox(boxId);"
                      +"CREATE INDEX IF NOT EXISTS Idx2TableOutboxCRUD ON outbox(popStamp);"
                      ;
-                cmd.ExecuteNonQuery();
+                cmd.ExecuteNonQuery(_database);
             }
         }
 
@@ -241,17 +241,17 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _insertParam9.ParameterName = "$modified";
                     _insertCommand.Prepare();
                 }
-                _insertParam1.Value = item.fileId;
+                _insertParam1.Value = item.fileId.ToByteArray();
                 _insertParam2.Value = item.recipient;
-                _insertParam3.Value = item.boxId;
+                _insertParam3.Value = item.boxId.ToByteArray();
                 _insertParam4.Value = item.priority;
                 _insertParam5.Value = item.timeStamp.milliseconds;
-                _insertParam6.Value = item.value;
-                _insertParam7.Value = item.popStamp;
+                _insertParam6.Value = item.value ?? (object)DBNull.Value;
+                _insertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 _insertParam8.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _insertParam9.Value = null;
+                _insertParam9.Value = DBNull.Value;
                 _database.BeginTransaction();
-                return _insertCommand.ExecuteNonQuery();
+                return _insertCommand.ExecuteNonQuery(_database);
             } // Lock
         }
 
@@ -295,17 +295,17 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _upsertParam9.ParameterName = "$modified";
                     _upsertCommand.Prepare();
                 }
-                _upsertParam1.Value = item.fileId;
+                _upsertParam1.Value = item.fileId.ToByteArray();
                 _upsertParam2.Value = item.recipient;
-                _upsertParam3.Value = item.boxId;
+                _upsertParam3.Value = item.boxId.ToByteArray();
                 _upsertParam4.Value = item.priority;
                 _upsertParam5.Value = item.timeStamp.milliseconds;
-                _upsertParam6.Value = item.value;
-                _upsertParam7.Value = item.popStamp;
+                _upsertParam6.Value = item.value ?? (object)DBNull.Value;
+                _upsertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 _upsertParam8.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _upsertParam9.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _database.BeginTransaction();
-                return _upsertCommand.ExecuteNonQuery();
+                return _upsertCommand.ExecuteNonQuery(_database);
             } // Lock
         }
 
@@ -348,41 +348,41 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _updateParam9.ParameterName = "$modified";
                     _updateCommand.Prepare();
                 }
-                _updateParam1.Value = item.fileId;
+                _updateParam1.Value = item.fileId.ToByteArray();
                 _updateParam2.Value = item.recipient;
-                _updateParam3.Value = item.boxId;
+                _updateParam3.Value = item.boxId.ToByteArray();
                 _updateParam4.Value = item.priority;
                 _updateParam5.Value = item.timeStamp.milliseconds;
-                _updateParam6.Value = item.value;
-                _updateParam7.Value = item.popStamp;
+                _updateParam6.Value = item.value ?? (object)DBNull.Value;
+                _updateParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 _updateParam8.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _updateParam9.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _database.BeginTransaction();
-                return _updateCommand.ExecuteNonQuery();
+                return _updateCommand.ExecuteNonQuery(_database);
             } // Lock
         }
 
         public int Delete(Guid fileId,string recipient)
         {
-            lock (_deleteLock)
+            lock (_delete0Lock)
             {
-                if (_deleteCommand == null)
+                if (_delete0Command == null)
                 {
-                    _deleteCommand = _database.CreateCommand();
-                    _deleteCommand.CommandText = "DELETE FROM outbox " +
+                    _delete0Command = _database.CreateCommand();
+                    _delete0Command.CommandText = "DELETE FROM outbox " +
                                                  "WHERE fileId = $fileId AND recipient = $recipient";
-                    _deleteParam1 = _deleteCommand.CreateParameter();
-                    _deleteCommand.Parameters.Add(_deleteParam1);
-                    _deleteParam1.ParameterName = "$fileId";
-                    _deleteParam2 = _deleteCommand.CreateParameter();
-                    _deleteCommand.Parameters.Add(_deleteParam2);
-                    _deleteParam2.ParameterName = "$recipient";
-                    _deleteCommand.Prepare();
+                    _delete0Param1 = _delete0Command.CreateParameter();
+                    _delete0Command.Parameters.Add(_delete0Param1);
+                    _delete0Param1.ParameterName = "$fileId";
+                    _delete0Param2 = _delete0Command.CreateParameter();
+                    _delete0Command.Parameters.Add(_delete0Param2);
+                    _delete0Param2.ParameterName = "$recipient";
+                    _delete0Command.Prepare();
                 }
-                _deleteParam1.Value = fileId;
-                _deleteParam2.Value = recipient;
+                _delete0Param1.Value = fileId.ToByteArray();
+                _delete0Param2.Value = recipient;
                 _database.BeginTransaction();
-                return _deleteCommand.ExecuteNonQuery();
+                return _delete0Command.ExecuteNonQuery(_database);
             } // Lock
         }
 
@@ -403,9 +403,9 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _get0Param2.ParameterName = "$recipient";
                     _get0Command.Prepare();
                 }
-                _get0Param1.Value = fileId;
+                _get0Param1.Value = fileId.ToByteArray();
                 _get0Param2.Value = recipient;
-                using (SQLiteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
                 {
                     var result = new OutboxItem();
                     if (!rdr.Read())

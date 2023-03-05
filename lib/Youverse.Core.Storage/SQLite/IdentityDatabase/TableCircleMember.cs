@@ -1,15 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 
-namespace Youverse.Core.Storage.SQLite.IdentityDatabase
+namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
     public class TableCircleMember : TableCircleMemberCRUD
     {
         public const int MAX_DATA_LENGTH = 65000;  // Some max value for the data
 
-        private SQLiteCommand _deleteCommand = null;
-        private SQLiteParameter _delparam1 = null;
+        private SqliteCommand _deleteCommand = null;
+        private SqliteParameter _delparam1 = null;
         private static Object _deleteLock = new Object();
 
         public TableCircleMember(IdentityDatabase db) : base(db)
@@ -128,7 +128,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     for (int i = 0; i < members.Count; i++)
                     {
                         _delparam1.Value = members[i].ToByteArray();
-                        _deleteCommand.ExecuteNonQuery();
+                        _deleteCommand.ExecuteNonQuery(_database);
                     }
                 }
             }

@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 
-namespace Youverse.Core.Storage.SQLite.DriveDatabase
+namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 {
     public class CommandMessage
     {
@@ -12,7 +12,8 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
     public class TableCommandMessageQueue : TableCommandMessageQueueCRUD
     {
-        private SQLiteCommand _selectCommand = null;
+        private SqliteCommand _selectCommand = null;
+        
         private Object _selectLock = new Object();
 
 
@@ -42,7 +43,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 {
                     _selectCommand.CommandText = $"SELECT fileid,timestamp FROM commandMessageQueue ORDER BY fileid ASC LIMIT {count}";
 
-                    using (SQLiteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.SingleResult))
+                    using (SqliteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.SingleResult, _database))
                     {
                         int i = 0;
                         long n;

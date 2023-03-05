@@ -1,31 +1,31 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 
 //
 // FollowsMe - this class stores all the people that follow me.
 // I.e. the people I need to notify when I update some content.
 //
 
-namespace Youverse.Core.Storage.SQLite.IdentityDatabase
+namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
     public class TableFollowsMe : TableFollowsMeCRUD
     {
         public const int GUID_SIZE = 16; // Precisely 16 bytes for the ID key
 
-        private SQLiteCommand _deleteCommand = null;
-        private SQLiteParameter _dparam1 = null;
+        private SqliteCommand _deleteCommand = null;
+        private SqliteParameter _dparam1 = null;
         private static object _deleteLock = new object();
 
-        private SQLiteCommand _select2Command = null;
-        private SQLiteParameter _s2param1 = null;
-        private SQLiteParameter _s2param2 = null;
-        private SQLiteParameter _s2param3 = null;
+        private SqliteCommand _select2Command = null;
+        private SqliteParameter _s2param1 = null;
+        private SqliteParameter _s2param2 = null;
+        private SqliteParameter _s2param3 = null;
         private static object _select2Lock = new object();
         
-        private SQLiteCommand _select3Command = null;
-        private SQLiteParameter _s3param1 = null;
-        private SQLiteParameter _s3param2 = null;
+        private SqliteCommand _select3Command = null;
+        private SqliteParameter _s3param1 = null;
+        private SqliteParameter _s3param2 = null;
         private static object _select3Lock = new object();
         
 
@@ -105,7 +105,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _s3param1.Value = inCursor;
                 _s3param2.Value = count + 1;
 
-                using (SQLiteDataReader rdr = _select3Command.ExecuteReader(System.Data.CommandBehavior.Default))
+                using (SqliteDataReader rdr = _select3Command.ExecuteReader(System.Data.CommandBehavior.Default))
                 {
                     var result = new List<string>();
 
@@ -175,11 +175,11 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _select2Command.Prepare();
                 }
 
-                _s2param1.Value = driveId;
+                _s2param1.Value = driveId.ToByteArray();
                 _s2param2.Value = inCursor;
                 _s2param3.Value = count + 1;
 
-                using (SQLiteDataReader rdr = _select2Command.ExecuteReader(System.Data.CommandBehavior.Default))
+                using (SqliteDataReader rdr = _select2Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {
                     var result = new List<string>();
 
@@ -237,7 +237,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _dparam1.Value = identity;
 
                 _database.BeginTransaction();
-                _deleteCommand.ExecuteNonQuery();
+                _deleteCommand.ExecuteNonQuery(_database);
             }
         }
     }

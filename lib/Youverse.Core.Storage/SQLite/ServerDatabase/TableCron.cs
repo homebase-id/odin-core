@@ -1,30 +1,30 @@
-﻿using SQLitePCL;
+﻿// using SqlitePCL;
 using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 using Youverse.Core.Util;
 
-namespace Youverse.Core.Storage.SQLite.ServerDatabase
+namespace Youverse.Core.Storage.Sqlite.ServerDatabase
 {
     public class TableCron: TableCronCRUD
     {
         const int MAX_DATA_LENGTH = 65535;  // Stored data value cannot be longer than this
 
-        private SQLiteCommand _popCommand = null;
-        private SQLiteParameter _pparam1 = null;
-        private SQLiteParameter _pparam2 = null;
+        private SqliteCommand _popCommand = null;
+        private SqliteParameter _pparam1 = null;
+        private SqliteParameter _pparam2 = null;
         private static Object _popLock = new Object();
 
-        private SQLiteCommand _popCancelListCommand = null;
-        private SQLiteParameter _pcancellistparam1 = null;
+        private SqliteCommand _popCancelListCommand = null;
+        private SqliteParameter _pcancellistparam1 = null;
         private static Object _popCancelListLock = new Object();
 
-        private SQLiteCommand _popCommitListCommand = null;
-        private SQLiteParameter _pcommitlistparam1 = null;
+        private SqliteCommand _popCommitListCommand = null;
+        private SqliteParameter _pcommitlistparam1 = null;
         private static Object _popCommitListLock = new Object();
 
-        private SQLiteCommand _popRecoverCommand = null;
-        private SQLiteParameter _pcrecoverparam1 = null;
+        private SqliteCommand _popRecoverCommand = null;
+        private SqliteParameter _pcrecoverparam1 = null;
 
         public TableCron(ServerDatabase db) : base(db)
         {
@@ -117,7 +117,7 @@ namespace Youverse.Core.Storage.SQLite.ServerDatabase
 
                 _database.BeginTransaction();
 
-                using (SQLiteDataReader rdr = _popCommand.ExecuteReader(System.Data.CommandBehavior.Default))
+                using (SqliteDataReader rdr = _popCommand.ExecuteReader(System.Data.CommandBehavior.Default))
                 {
                     CronItem item;
                     byte[] _tmpbuf = new byte[MAX_DATA_LENGTH];
@@ -193,7 +193,7 @@ namespace Youverse.Core.Storage.SQLite.ServerDatabase
                     for (int i = 0; i < listIdentityId.Count; i++)
                     {
                         _pcancellistparam1.Value = listIdentityId[i];
-                        _popCancelListCommand.ExecuteNonQuery();
+                        _popCancelListCommand.ExecuteNonQuery(_database);
                     }
                 }
             }
@@ -228,7 +228,7 @@ namespace Youverse.Core.Storage.SQLite.ServerDatabase
                     for (int i = 0; i < listIdentityId.Count; i++)
                     {
                         _pcommitlistparam1.Value = listIdentityId[i];
-                        _popCommitListCommand.ExecuteNonQuery();
+                        _popCommitListCommand.ExecuteNonQuery(_database);
                     }
                 }
             }
@@ -260,7 +260,7 @@ namespace Youverse.Core.Storage.SQLite.ServerDatabase
                 _pcrecoverparam1.Value = SequentialGuid.CreateGuid(t).ToByteArray();
 
                 _database.BeginTransaction();
-                _popRecoverCommand.ExecuteNonQuery();
+                _popRecoverCommand.ExecuteNonQuery(_database);
             }
         }
     }

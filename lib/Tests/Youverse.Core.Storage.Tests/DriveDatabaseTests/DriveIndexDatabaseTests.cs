@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading;
 using NUnit.Framework;
 using Youverse.Core;
-using Youverse.Core.Storage.SQLite.DriveDatabase;
+using Youverse.Core.Storage.Sqlite.DriveDatabase;
 using Youverse.Core.Util;
 
 namespace DriveDatabaseTests
@@ -20,7 +21,7 @@ namespace DriveDatabaseTests
         [Test]
         public void CursorsEmpty01Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"URI=file:.\\driveIndexDB-cursor-01.db", DatabaseIndexKind.TimeSeries);
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             QueryBatchCursor cursor = null;
@@ -56,7 +57,7 @@ namespace DriveDatabaseTests
         [Test]
         public void CursorsBatch02Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"URI=file:.\\driveIndexDB-cursor-02.db", DatabaseIndexKind.TimeSeries);
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid(); // Oldest chat item
@@ -108,7 +109,7 @@ namespace DriveDatabaseTests
         [Test]
         public void CursorsBatch03Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"URI=file:.\\driveIndexDB-cursor-03.db", DatabaseIndexKind.TimeSeries);
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -163,7 +164,7 @@ namespace DriveDatabaseTests
         [Test]
         public void CursorsBatch04Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"URI=file:.\\driveIndexDB-cursor-04.db", DatabaseIndexKind.TimeSeries);
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -227,7 +228,7 @@ namespace DriveDatabaseTests
         [Test]
         public void CursorsBatch05Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"URI=file:.\\driveIndexDB-cursor-05.db", DatabaseIndexKind.TimeSeries);
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -301,7 +302,7 @@ namespace DriveDatabaseTests
         [Test]
         public void CursorsBatch06Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"URI=file:.\\driveIndexDB-cursor-06.db", DatabaseIndexKind.TimeSeries);
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -363,7 +364,7 @@ namespace DriveDatabaseTests
         [Test]
         public void CursorsBatch07Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"URI=file:.\\driveIndexDB-cursor-07.db", DatabaseIndexKind.TimeSeries);
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -460,7 +461,7 @@ namespace DriveDatabaseTests
         [Test]
         public void CursorsModified01Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"URI=file:.\\driveIndexDB-modified-01.db", DatabaseIndexKind.TimeSeries);
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -495,7 +496,7 @@ namespace DriveDatabaseTests
         [Test]
         public void CursorsModified02Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"URI=file:.\\driveIndexDB-modified-06.db", DatabaseIndexKind.TimeSeries);
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -534,7 +535,7 @@ namespace DriveDatabaseTests
         [Test]
         public void RequiredSecurityGroupBatch01Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"URI=file:.\\driveIndexDB-rsg-01.db", DatabaseIndexKind.TimeSeries);
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
 
@@ -587,7 +588,7 @@ namespace DriveDatabaseTests
         [Test]
         public void RequiredSecurityGroupModified02Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"URI=file:.\\driveIndexDB-rsg-02.db", DatabaseIndexKind.Random);
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.Random);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -643,7 +644,7 @@ namespace DriveDatabaseTests
         [Test]
         public void SecurityGroupAndAclBatch01Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"URI=file:.\\driveIndexDB-sgacl-01.db", DatabaseIndexKind.TimeSeries);
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -709,7 +710,7 @@ namespace DriveDatabaseTests
         // Test we can add one and retrieve it
         public void GlobalTransitId01Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"URI=file:.\\driveIndexDB-gtri-01.db", DatabaseIndexKind.TimeSeries);
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -732,7 +733,7 @@ namespace DriveDatabaseTests
         // Test we can add two and retrieve them
         public void GlobalTransitId02Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"URI=file:.\\driveIndexDB-gtri-02.db", DatabaseIndexKind.TimeSeries);
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -762,7 +763,7 @@ namespace DriveDatabaseTests
         // Test that we cannot add a duplicate
         public void GlobalTransitId03Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"URI=file:.\\driveIndexDB-gtri-03.db", DatabaseIndexKind.TimeSeries);
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -788,7 +789,7 @@ namespace DriveDatabaseTests
         // Test we can handle NULL
         public void GlobalTransitId04Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"URI=file:.\\driveIndexDB-gtri-04.db", DatabaseIndexKind.TimeSeries);
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -811,7 +812,7 @@ namespace DriveDatabaseTests
         // Test we can add one and retrieve it searching for a specific GTID guid
         public void GlobalTransitId05Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"URI=file:.\\driveIndexDB-gtri-05.db", DatabaseIndexKind.TimeSeries);
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -842,7 +843,7 @@ namespace DriveDatabaseTests
         // Test we can modify the global transit guid with both update versions
         public void GlobalTransitId06Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"URI=file:.\\driveIndexDB-gtri-06.db", DatabaseIndexKind.TimeSeries);
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -872,7 +873,7 @@ namespace DriveDatabaseTests
         // Test we can add one and retrieve it
         public void UniqueId01Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"URI=file:.\\driveIndexDB-uqid-01.db", DatabaseIndexKind.TimeSeries);
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -895,7 +896,7 @@ namespace DriveDatabaseTests
         // Test we can add two and retrieve them
         public void UniqueId02Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"URI=file:.\\driveIndexDB-uqid-02.db", DatabaseIndexKind.TimeSeries);
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -925,7 +926,7 @@ namespace DriveDatabaseTests
         // Test that we cannot add a duplicate
         public void UniqueId03Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"URI=file:.\\driveIndexDB-uqid-03.db", DatabaseIndexKind.TimeSeries);
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -951,7 +952,7 @@ namespace DriveDatabaseTests
         // Test we can handle NULL
         public void UniqueId04Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"URI=file:.\\driveIndexDB-uqid-04.db", DatabaseIndexKind.TimeSeries);
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -974,7 +975,7 @@ namespace DriveDatabaseTests
         // Test we can add one and retrieve it searching for a specific GTID guid
         public void UniqueId05Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"URI=file:.\\driveIndexDB-uqid-05.db", DatabaseIndexKind.TimeSeries);
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -1005,7 +1006,7 @@ namespace DriveDatabaseTests
         // Test we can modify the global transit guid with both update versions
         public void UniqueId06Test()
         {
-            using DriveDatabase _testDatabase = new DriveDatabase($"URI=file:.\\driveIndexDB-uqid-06.db", DatabaseIndexKind.TimeSeries);
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -1271,7 +1272,7 @@ namespace DriveDatabaseTests
             Utils.DummyTypes(aclMembers, 1000);
             Utils.DummyTypes(tags, 1000);
 
-            DriveDatabase _testDatabase = new DriveDatabase($"URI=file:.\\{filename}", DatabaseIndexKind.TimeSeries);
+            DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
 
             Random myRnd = new Random();
