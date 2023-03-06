@@ -10,6 +10,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
         private SqliteCommand _deleteCommand = null;
         private SqliteParameter _delparam1 = null;
+        private static object _deleteLock = new object();
 
         public TableCircleMember(IdentityDatabase db) : base(db)
         {
