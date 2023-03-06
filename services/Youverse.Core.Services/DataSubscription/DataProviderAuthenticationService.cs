@@ -16,7 +16,7 @@ public class DataProviderAuthenticationService
     private readonly DotYouContextCache _cache;
     private readonly FollowerService _followerService;
 
-    public DataProviderAuthenticationService( YouverseConfiguration config, FollowerService followerService)
+    public DataProviderAuthenticationService(YouverseConfiguration config, FollowerService followerService)
     {
         _followerService = followerService;
         _cache = new DotYouContextCache(config.Host.CacheSlidingExpirationSeconds);
@@ -30,7 +30,7 @@ public class DataProviderAuthenticationService
         //Note: there's no CAT for alpha as we're supporting just feeds
         // for authentication, we manually check against the list of people I follow
         // therefore, just fabricate a token
-        
+
         //TODO: i still dont think this is secure.  hmm let me think
         var guidId = callerOdinId.ToHashId();
         var tempToken = new ClientAuthenticationToken()

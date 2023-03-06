@@ -47,7 +47,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             var uploadFileMetadata = new UploadFileMetadata()
             {
                 ContentType = "application/json",
-                AllowDistribution = true,
+                AllowDistribution = false,
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
@@ -110,7 +110,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             var uploadFileMetadata = new UploadFileMetadata()
             {
                 ContentType = "application/json",
-                AllowDistribution = true,
+                AllowDistribution = false,
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
@@ -178,7 +178,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
 
                 var firstResult = batch.SearchResults.First();
 
-                //ensure file content was sent 
+                //ensure file content was sent
                 Assert.NotNull(firstResult.FileMetadata.AppData.JsonContent);
                 Assert.IsNotEmpty(firstResult.FileMetadata.AppData.JsonContent);
 
@@ -201,7 +201,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             var uploadFileMetadata = new UploadFileMetadata()
             {
                 ContentType = "application/json",
-                AllowDistribution = true,
+                AllowDistribution = false,
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
@@ -264,7 +264,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             var file1Metadata = new UploadFileMetadata()
             {
                 ContentType = "application/json",
-                AllowDistribution = true,
+                AllowDistribution = false,
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
@@ -306,7 +306,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             var file2Metadata = new UploadFileMetadata()
             {
                 ContentType = "application/json",
-                AllowDistribution = true,
+                AllowDistribution = false,
                 PayloadIsEncrypted = false,
                 AppData = new()
                 {
@@ -336,10 +336,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                         TargetDrive = file1TargetDrive,
                         TagsMatchAtLeastOne = new[] { file1Tag }
                     },
-                    ResultOptions = new QueryBatchResultOptions()
+                    ResultOptionsRequest = new QueryBatchResultOptionsRequest()
                     {
                         MaxRecords = 10,
-                        IncludeJsonContent = true
+                        IncludeMetadataHeader = true
                     }
                 };
 
@@ -351,10 +351,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                         TargetDrive = file2TargetDrive,
                         TagsMatchAtLeastOne = new[] { file2Tag }
                     },
-                    ResultOptions = new QueryBatchResultOptions()
+                    ResultOptionsRequest = new QueryBatchResultOptionsRequest()
                     {
                         MaxRecords = 10,
-                        IncludeJsonContent = true
+                        IncludeMetadataHeader = true
                     }
                 };
 
@@ -376,11 +376,11 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 var file1Result = batch.Results.Single(x => x.Name == file1Section.Name);
                 CollectionAssert.AreEquivalent(file1Metadata.AppData.Tags, file1Result.SearchResults.Single().FileMetadata.AppData.Tags);
 
-                Assert.IsTrue(file1Result.IncludeMetadataHeader == file1Section.ResultOptions.IncludeJsonContent);
-                
+                Assert.IsTrue(file1Result.IncludeMetadataHeader == file1Section.ResultOptionsRequest.IncludeMetadataHeader);
+
                 var file2Result = batch.Results.Single(x => x.Name == file2Section.Name);
                 CollectionAssert.AreEquivalent(file2Metadata.AppData.Tags, file2Result.SearchResults.Single().FileMetadata.AppData.Tags);
-                Assert.IsTrue(file2Result.IncludeMetadataHeader == file2Section.ResultOptions.IncludeJsonContent);
+                Assert.IsTrue(file2Result.IncludeMetadataHeader == file2Section.ResultOptionsRequest.IncludeMetadataHeader);
             }
         }
     }

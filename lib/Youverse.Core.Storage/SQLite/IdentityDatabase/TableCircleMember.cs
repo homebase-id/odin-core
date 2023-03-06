@@ -10,7 +10,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
         private SqliteCommand _deleteCommand = null;
         private SqliteParameter _delparam1 = null;
-        private static Object _deleteLock = new Object();
 
         public TableCircleMember(IdentityDatabase db) : base(db)
         {
@@ -22,9 +21,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
         public override void Dispose()
         {
-            _deleteCommand?.Dispose();
-            _deleteCommand = null;
-
             base.Dispose();
         }
 
@@ -69,8 +65,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             if ((CircleMemberItemList == null) || (CircleMemberItemList.Count < 1))
                 throw new Exception("No members supplied (null or empty)");
 
-            _database.BeginTransaction();
-
             using (_database.CreateCommitUnitOfWork())
                 for (int i = 0; i < CircleMemberItemList.Count; i++)
                     Insert(CircleMemberItemList[i]);
@@ -87,8 +81,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         {
             if ((members == null) || (members.Count < 1))
                 throw new Exception("No members supplied (null or empty)");
-
-            _database.BeginTransaction();
 
             using (_database.CreateCommitUnitOfWork())
                 for (int i = 0; i < members.Count; i++)

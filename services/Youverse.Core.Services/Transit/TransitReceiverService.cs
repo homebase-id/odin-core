@@ -24,7 +24,6 @@ namespace Youverse.Core.Services.Transit
         private readonly IPublicKeyService _publicKeyService;
         private readonly FileSystemResolver _fileSystemResolver;
 
-
         public TransitReceiverService(DotYouContextAccessor contextAccessor, TransitInboxBoxStorage transitInboxBoxStorage, IPublicKeyService publicKeyService, FileSystemResolver fileSystemResolver)
         {
             _contextAccessor = contextAccessor;
@@ -43,13 +42,15 @@ namespace Youverse.Core.Services.Transit
             {
                 try
                 {
+                    var fs = _fileSystemResolver.ResolveFileSystem(item.FileSystemType);
+
                     if (item.InstructionType == TransferInstructionType.SaveFile)
                     {
-                        await HandleFile(item);
+                        await HandleFile(fs,item);
                     }
                     else if (item.InstructionType == TransferInstructionType.DeleteLinkedFile)
                     {
-                        await DeleteFile(item);
+                        await DeleteFile(fs, item);
                     }
                     else if (item.InstructionType == TransferInstructionType.None)
                     {
@@ -62,18 +63,30 @@ namespace Youverse.Core.Services.Transit
 
                     await _transitInboxBoxStorage.MarkComplete(item.DriveId, item.Marker);
                     // drivesNeedingACommit.Add(item.DriveId);
+                    await fs.Query.EnsureDriveDatabaseCommits(new List<Guid>() { item.DriveId });
+                    
+                    // var items2 = await GetAcceptedItems(drive);
+                    //
+                    // if (items2.Count > 0)
+                    // {
+                    //     string x = "";
+                    // }
+
+
                 }
                 catch (Exception e)
                 {
                     await _transitInboxBoxStorage.MarkFailure(item.DriveId, item.Marker);
                 }
             }
+
+            // foreach (var x in drivesNeedingACommit)
+            // {
+            // }
         }
 
-        private async Task HandleFile(TransferBoxItem item)
+        private async Task HandleFile(IDriveFileSystem fs, TransferBoxItem item)
         {
-            var fs = _fileSystemResolver.ResolveFileSystem(item.FileSystemType);
-
             var tempFile = new InternalDriveFileId()
             {
                 DriveId = item.DriveId,
@@ -111,6 +124,9 @@ namespace Youverse.Core.Services.Transit
 
             var serverMetadata = new ServerMetadata()
             {
+                FileSystemType = item.FileSystemType,
+                AllowDistribution = false,
+
                 //files coming from other systems are only accessible to the owner so
                 //the owner can use the UI to pass the file along
                 AccessControlList = new AccessControlList()
@@ -136,7 +152,7 @@ namespace Youverse.Core.Services.Transit
                         YouverseClientErrorCode.InvalidTransferFileType);
             }
 
-            await fs.Query.EnsureIndexerCommits(new List<Guid>() { item.DriveId });
+            await fs.Query.EnsureDriveDatabaseCommits(new List<Guid>() { item.DriveId });
         }
 
         public Task<PagedResult<TransferBoxItem>> GetQuarantinedItems(PageOptions pageOptions)
@@ -150,9 +166,8 @@ namespace Youverse.Core.Services.Transit
             return list;
         }
 
-        private async Task DeleteFile(TransferBoxItem item)
+        private async Task DeleteFile(IDriveFileSystem fs, TransferBoxItem item)
         {
-            var fs = _fileSystemResolver.ResolveFileSystem(item.FileSystemType);
             var clientFileHeader = await GetFileByGlobalTransitId(fs, item.DriveId, item.GlobalTransitId);
             var file = new InternalDriveFileId()
             {

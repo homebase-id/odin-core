@@ -55,7 +55,7 @@ namespace Youverse.Core.Services.Drives.DriveCore.Query
 
         Task MarkCommandsCompleted(List<Guid> fileIds);
 
-        void EnsureIndexDataCommitted();
+        void EnsureDriveDatabaseCommits();
 
         void AddReaction(OdinId odinId, Guid fileId, string reaction);
 

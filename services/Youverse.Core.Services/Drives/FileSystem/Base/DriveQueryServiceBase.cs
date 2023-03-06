@@ -107,7 +107,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             foreach (var query in request.Queries)
             {
                 var driveId = (await DriveManager.GetDriveIdByAlias(query.QueryParams.TargetDrive, true)).GetValueOrDefault();
-                var result = await this.GetBatch(driveId, query.QueryParams, query.ResultOptions);
+                var result = await this.GetBatch(driveId, query.QueryParams, query.ResultOptionsRequest.ToQueryBatchResultOptions());
 
                 var response = QueryBatchResponse.FromResult(result);
                 response.Name = query.Name;
@@ -117,14 +117,14 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             return collection;
         }
 
-        public Task EnsureIndexerCommits(IEnumerable<Guid> driveIdList)
+        public Task EnsureDriveDatabaseCommits(IEnumerable<Guid> driveIdList)
         {
             foreach (var driveId in driveIdList)
             {
                 AssertCanWriteToDrive(driveId);
                 if (this.TryGetOrLoadQueryManager(driveId, out var manager))
                 {
-                    manager.EnsureIndexDataCommitted();
+                    manager.EnsureDriveDatabaseCommits();
                 }
             }
 

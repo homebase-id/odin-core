@@ -100,7 +100,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
 
                 TransitOptions = new TransitOptions()
                 {
-                    Recipients = new List<string>() { recipient.OdinId }
+                    Recipients = new List<string>() { recipient.OdinId },
+                    UseGlobalTransitId = true
                 }
             };
 
@@ -262,6 +263,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
                 Drive = uploadedFile.TargetDrive
             };
 
+            descriptor.FileMetadata.AllowDistribution = false;
             instructionSet.TransitOptions = null;
 
             await _scaffold.OldOwnerApi.UploadFile(recipient.OdinId, instructionSet, descriptor.FileMetadata, payloadData, true);
@@ -347,7 +349,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
 
                 TransitOptions = new TransitOptions()
                 {
-                    Recipients = new List<string>() { recipient.OdinId }
+                    Recipients = new List<string>() { recipient.OdinId },
+                    UseGlobalTransitId = true
                 }
             };
 
@@ -534,6 +537,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit
             };
 
             instructionSet.TransitOptions = null;
+            descriptor.FileMetadata.AllowDistribution = false;
 
             var reuploadedContext = await _scaffold.OldOwnerApi.UploadFile(recipient.OdinId, instructionSet, descriptor.FileMetadata, originalPayloadData, true, new ImageDataContent()
             {

@@ -49,6 +49,7 @@ namespace Youverse.Core.Services.Transit.Incoming
                 item.AddedTimestamp = r.timeStamp;
                 item.DriveId = r.boxId;
                 item.FileId = r.fileId;
+                item.Marker = marker;
 
                 return item;
             }).ToList();
@@ -59,6 +60,7 @@ namespace Youverse.Core.Services.Transit.Incoming
         public Task MarkComplete(Guid driveId, byte[] marker)
         {
             _tenantSystemStorage.Inbox.PopCommit(marker);
+            _tenantSystemStorage.CommitOutstandingTransactions();
             return Task.CompletedTask;
         }
 

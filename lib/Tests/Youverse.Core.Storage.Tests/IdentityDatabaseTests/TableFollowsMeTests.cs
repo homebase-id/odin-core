@@ -174,27 +174,11 @@ namespace IdentityDatabaseTests
             using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
-            bool ok = false;
-            try
-            {
-                db.tblFollowsMe.DeleteFollower(null);
-            }
-            catch
-            {
-                ok = true;
-            }
-            Debug.Assert(ok);
+            int i = db.tblFollowsMe.DeleteFollower(null);
+            Debug.Assert(i == 0);
 
-            var hi = new byte[3];
-            try
-            {
-                db.tblFollowsMe.DeleteFollower("");
-            }
-            catch
-            {
-                ok = true;
-            }
-            Debug.Assert(ok);
+            i = db.tblFollowsMe.DeleteFollower("");
+            Debug.Assert(i == 0);
         }
 
 

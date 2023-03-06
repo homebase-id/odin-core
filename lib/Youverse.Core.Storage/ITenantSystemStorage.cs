@@ -22,10 +22,12 @@ namespace Youverse.Core.Storage
 
         TableFollowsMe Followers { get; }
 
-        public ThreeKeyValueStorage IcrClientStorage { get; }
+        ThreeKeyValueStorage IcrClientStorage { get; }
 
-        public TableCircleMember CircleMemberStorage { get; }
+        TableCircleMember CircleMemberStorage { get; }
 
-        public DatabaseBase.LogicCommitUnit CreateCommitUnitOfWork();
+        DatabaseBase.LogicCommitUnit CreateCommitUnitOfWork();
+
+        void CommitOutstandingTransactions();
     }
 }

@@ -19,15 +19,13 @@ using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.DriveCore.Storage;
 using Youverse.Core.Services.Drives.FileSystem;
-using Youverse.Core.Services.Drives.FileSystem.Standard;
 using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Services.EncryptionKeyService;
-using Youverse.Core.Services.Transit.Incoming;
 using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Transit
 {
-    internal class SendFileOptions
+    public class SendFileOptions
     {
         public TransferFileType TransferFileType { get; set; }
         public ClientAccessTokenSource ClientAccessTokenSource { get; set; }
@@ -158,9 +156,9 @@ namespace Youverse.Core.Services.Transit
                 //was the batch successful?
             }
         }
-
+        
         public async Task<Dictionary<string, TransitResponseCode>> SendDeleteLinkedFileRequest(Guid driveId,
-            Guid globalTransitId, FileSystemType fileSystemType, IEnumerable<string> recipients)
+            Guid globalTransitId, SendFileOptions sendFileOptions, IEnumerable<string> recipients)
         {
             Dictionary<string, TransitResponseCode> result = new Dictionary<string, TransitResponseCode>();
 
@@ -168,15 +166,17 @@ namespace Youverse.Core.Services.Transit
             foreach (var recipient in recipients)
             {
                 var r = (OdinId)recipient;
-                var clientAuthToken = _circleNetworkService.GetConnectionAuthToken(r).GetAwaiter().GetResult();
-                var client = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(r, clientAuthToken);
+                
+                var clientAccessToken = await ResolveClientAccessToken(r, sendFileOptions.ClientAccessTokenSource);
+
+                var client = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(r, clientAccessToken.ToAuthenticationToken());
 
                 //TODO: change to accept a request object that has targetDrive and global transit id
                 var httpResponse = await client.DeleteLinkedFile(new DeleteLinkedFileTransitRequest()
                 {
                     TargetDrive = targetDrive,
                     GlobalTransitId = globalTransitId,
-                    FileSystemType = fileSystemType
+                    FileSystemType = sendFileOptions.FileSystemType
                 });
 
                 if (httpResponse.IsSuccessStatusCode)

@@ -381,7 +381,7 @@ namespace Youverse.Hosting.Tests.Performance
                     FileMetadata = new()
                     {
                         ContentType = "application/json",
-                        AllowDistribution = true,
+                        AllowDistribution = false,
                         PayloadIsEncrypted = false,
                         AppData = new()
                         {

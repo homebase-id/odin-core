@@ -67,11 +67,12 @@ public enum YouverseClientErrorCode
     RemoteServerReturnedForbidden = 7403,
     RemoteServerReturnedInternalServerError = 7500,
     RemoteServerTransitRejected = 7900,
-
+    InvalidTransitOptions = 7901,
+    
     RegistrationStatusNotReadyForFinalization = 8001,
 
     // System Errors 90xx
     InvalidFlagName = 9001,
     NotInitialized = 9002,
-    UnknownFlagName = 9003,
+    UnknownFlagName = 9003
 }

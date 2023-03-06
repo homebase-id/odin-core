@@ -63,7 +63,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 FileMetadata = new()
                 {
                     ContentType = "application/json",
-                    AllowDistribution = true,
+                    AllowDistribution = false,
                     PayloadIsEncrypted = true,
                     AppData = new()
                     {

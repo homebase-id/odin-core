@@ -37,6 +37,9 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             _selectCommand?.Dispose();
             _selectCommand = null;
 
+            _select2Command?.Dispose();
+            _select2Command = null;
+
             _getPaging0Command?.Dispose();
             _getPaging0Command = null;
 

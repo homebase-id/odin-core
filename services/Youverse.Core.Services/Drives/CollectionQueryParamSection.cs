@@ -9,8 +9,8 @@ public class CollectionQueryParamSection
 
     public FileQueryParams QueryParams { get; set; }
 
-    public QueryBatchResultOptions ResultOptions { get; set; }
-    
+    public QueryBatchResultOptionsRequest ResultOptionsRequest { get; set; }
+
     public void AssertIsValid()
     {
         Guard.Argument(this.Name, nameof(this.Name)).NotEmpty().NotNull();
