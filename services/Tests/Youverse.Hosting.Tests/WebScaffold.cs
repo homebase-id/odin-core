@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Http;
@@ -162,6 +163,8 @@ namespace Youverse.Hosting.Tests
 
             Directory.CreateDirectory(TestDataPath);
 
+            Exec($"chmod -R +rw {TestDataPath}");
+
             if (Directory.Exists(TempDataPath))
             {
                 Console.WriteLine($"Removing data in [{TempDataPath}]");
@@ -169,6 +172,30 @@ namespace Youverse.Hosting.Tests
             }
 
             Directory.CreateDirectory(TempDataPath);
+            
+            Exec($"chmod -R +rw {TempDataPath}");
+
+        }
+        
+        public static void Exec(string cmd)
+        {
+            var escapedArgs = cmd.Replace("\"", "\\\"");
+        
+            using var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WindowStyle = ProcessWindowStyle.Hidden,
+                    FileName = "/bin/bash",
+                    Arguments = $"-c \"{escapedArgs}\""
+                }
+            };
+
+            process.Start();
+            process.WaitForExit();
         }
 
         private void DeleteLogs()

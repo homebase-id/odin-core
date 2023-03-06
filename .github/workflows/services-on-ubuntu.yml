@@ -20,10 +20,9 @@ jobs:
       - name: Checkout dotyoucore
         uses: actions/checkout@v3
 
-      - name: Set folder permissions
+      - name: Set folder permissions (RW required for SqLite)
         run: |
             chmod -R +rw ./
-            ls -al
 
       - name: Restore dependencies
         #working-directory: dotyoucore
