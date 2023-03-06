@@ -24,7 +24,7 @@ public class CircleNetworkStorage : IDisposable
             Directory.CreateDirectory(dbPath!);
         }
         
-        string finalPath = PathUtil.Combine(dbPath, $"{dbName}.db");
+        string finalPath = PathUtil.Combine(dbPath, $"{dbName}");
         _db = new IdentityDatabase($"Data Source={finalPath}");
         _db.CreateDatabase(false);
 
