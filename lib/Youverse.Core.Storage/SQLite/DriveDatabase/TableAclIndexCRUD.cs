@@ -200,7 +200,6 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     _delete0Param2.ParameterName = "$aclMemberId";
                     _delete0Command.Prepare();
                 }
-
                 _delete0Param1.Value = fileId.ToByteArray();
                 _delete0Param2.Value = aclMemberId.ToByteArray();
                 _database.BeginTransaction();
