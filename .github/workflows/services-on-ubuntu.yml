@@ -20,6 +20,9 @@ jobs:
       - name: Checkout dotyoucore
         uses: actions/checkout@v3
 
+      - name: Set folder permissions
+        run: chmod -R +rw services
+
       - name: Restore dependencies
         #working-directory: dotyoucore
         run: dotnet restore services/dotyoucore.sln
