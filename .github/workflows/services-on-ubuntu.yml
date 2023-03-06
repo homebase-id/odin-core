@@ -22,8 +22,8 @@ jobs:
 
       - name: Set folder permissions
         run: |
-            chmod -R +rw services
-            ls -al ./services
+            chmod -R +rw ./
+            ls -al
 
       - name: Restore dependencies
         #working-directory: dotyoucore
