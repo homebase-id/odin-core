@@ -80,7 +80,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 if (_popCommand == null)
                 {
                     _popCommand = _database.CreateCommand();
-                    _popCommand.CommandText = "UPDATE inbox SET popstamp=$popstamp WHERE boxid=$boxid AND popstamp IS NULL ORDER BY timeStamp ASC LIMIT $count; " +
+                    //_popCommand.CommandText = "UPDATE inbox SET popstamp=$popstamp WHERE boxid=$boxid AND popstamp IS NULL ORDER BY timeStamp ASC LIMIT $count; " +
+                    //                          "SELECT fileid, priority, timeStamp, value from inbox WHERE popstamp=$popstamp";
+
+                    _popCommand.CommandText = "UPDATE inbox SET popstamp=$popstamp WHERE rowid IN (SELECT rowid FROM inbox WHERE boxid=$boxid AND popstamp IS NULL ORDER BY timeStamp ASC LIMIT $count); " +
                                               "SELECT fileid, priority, timeStamp, value from inbox WHERE popstamp=$popstamp";
 
                     _pparam1 = _popCommand.CreateParameter();
@@ -99,11 +102,13 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 }
 
                 popStamp = SequentialGuid.CreateGuid().ToByteArray();
-                _pparam1.Value = popStamp;
+                _pparam1.Value = popStamp ?? (object) DBNull.Value;
                 _pparam2.Value = count;
-                _pparam3.Value = boxId;
+                _pparam3.Value = boxId.ToByteArray();
 
                 _database.BeginTransaction();
+                _popCommand.Transaction = _database.Transaction;
+
 
                 using (_database.CreateCommitUnitOfWork())
                 {
@@ -178,7 +183,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _popCancelCommand.Prepare();
                 }
 
-                _pcancelparam1.Value = popstamp;
+                _pcancelparam1.Value = popstamp ?? (object) DBNull.Value;
                 _database.BeginTransaction();
                 _popCancelCommand.ExecuteNonQuery(_database);
             }
@@ -205,7 +210,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _popCommitCommand.Prepare();
                 }
 
-                _pcommitparam1.Value = popstamp;
+                _pcommitparam1.Value = popstamp ?? (object) DBNull.Value;
                 _database.BeginTransaction();
                 _popCommitCommand.ExecuteNonQuery(_database);
             }

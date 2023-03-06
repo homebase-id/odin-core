@@ -25,7 +25,7 @@ namespace Youverse.Core.Services.Transit.Incoming
 
             var state = DotYouSystemSerializer.Serialize(item).ToUtf8ByteArray();
             // XXX MS Did I do that right?
-            _tenantSystemStorage.Inbox.Insert(new Storage.SQLite.IdentityDatabase.InboxItem() { boxId = item.DriveId, fileId = item.FileId, priority = 1, value = state });
+            _tenantSystemStorage.Inbox.Insert(new Storage.Sqlite.IdentityDatabase.InboxItem() { boxId = item.DriveId, fileId = item.FileId, priority = 1, value = state });
             
             return Task.CompletedTask;
         }

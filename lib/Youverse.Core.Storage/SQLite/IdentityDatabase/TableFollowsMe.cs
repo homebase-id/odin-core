@@ -13,10 +13,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
     {
         public const int GUID_SIZE = 16; // Precisely 16 bytes for the ID key
 
-        private SqliteCommand _deleteCommand = null;
-        private SqliteParameter _dparam1 = null;
-        private static object _deleteLock = new object();
-
         private SqliteCommand _select2Command = null;
         private SqliteParameter _s2param1 = null;
         private SqliteParameter _s2param2 = null;
@@ -39,11 +35,11 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
         public override void Dispose()
         {
-            _deleteCommand?.Dispose();
-            _deleteCommand = null;
-
             _select2Command?.Dispose();
             _select2Command = null;
+
+            _select3Command?.Dispose();
+            _select3Command = null;
 
             base.Dispose();
         }
@@ -105,7 +101,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _s3param1.Value = inCursor;
                 _s3param2.Value = count + 1;
 
-                using (SqliteDataReader rdr = _select3Command.ExecuteReader(System.Data.CommandBehavior.Default))
+                _select3Command.Transaction = _database.Transaction;
+
+                using (SqliteDataReader rdr = _select3Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {
                     var result = new List<string>();
 
@@ -194,7 +192,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                         result.Add(s);
                     }
 
-                    if ((n > 0) && rdr.HasRows)
+                    if ((n > 0) && rdr.Read())
                     {
                         nextCursor = result[n-1];
                     }
@@ -205,39 +203,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
                     return result;
                 }
-            }
-        }
-
-
-
-        /// <summary>
-        /// For the identity following you, delete all follows.
-        /// </summary>
-        /// <param name="identity">The identity following you</param>
-        /// <exception cref="Exception"></exception>
-        public void DeleteFollower(string identity)
-        {
-            if (identity == null || identity.Length < 1)
-                throw new Exception("identity cannot be NULL or empty");
-
-            lock (_deleteLock)
-            {
-                // Make sure we only prep once 
-                if (_deleteCommand == null)
-                {
-                    _deleteCommand = _database.CreateCommand();
-                    _deleteCommand.CommandText = @"DELETE FROM followsme WHERE identity=$identity;";
-                    _dparam1 = _deleteCommand.CreateParameter();
-                    _deleteCommand.Parameters.Add(_dparam1);
-                    _dparam1.ParameterName = "$identity";
-
-                    _deleteCommand.Prepare();
-                }
-
-                _dparam1.Value = identity;
-
-                _database.BeginTransaction();
-                _deleteCommand.ExecuteNonQuery(_database);
             }
         }
     }

@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using Youverse.Core.Storage;
-using Youverse.Core.Storage.SQLite.IdentityDatabase;
+using Youverse.Core.Storage.Sqlite.IdentityDatabase;
 using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Registry.Registration;
@@ -23,7 +23,7 @@ public class ReservationStorage
         }
 
         string finalPath = PathUtil.Combine(dbPath, $"{dbName}");
-        _db = new IdentityDatabase($"URI=file:{finalPath}");
+        _db = new IdentityDatabase($"Data Source={finalPath}");
         _db.CreateDatabase(false);
 
         // _storage = new SingleKeyValueStorage(_db.tblKeyValue);

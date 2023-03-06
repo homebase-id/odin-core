@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Youverse.Core.Services.Apps;
-using Youverse.Core.Storage.SQLite.DriveDatabase;
+using Youverse.Core.Storage.Sqlite.DriveDatabase;
 
 namespace Youverse.Core.Services.Drives;
 

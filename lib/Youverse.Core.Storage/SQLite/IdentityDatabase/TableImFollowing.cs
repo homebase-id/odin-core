@@ -14,10 +14,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
     {
         public const int GUID_SIZE = 16; // Precisely 16 bytes for the ID key
 
-        private SqliteCommand _deleteCommand = null;
-        private SqliteParameter _dparam1 = null;
-        private static object _deleteLock = new object();
-
         private SqliteCommand _select2Command = null;
         private SqliteParameter _s2param1 = null;
         private SqliteParameter _s2param2 = null;
@@ -39,9 +35,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
         public override void Dispose()
         {
-            _deleteCommand?.Dispose();
-            _deleteCommand = null;
-
             _select2Command?.Dispose();
             _select2Command = null;
 
@@ -122,7 +115,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                         result.Add(s);
                     }
 
-                    if ((n > 0) && rdr.HasRows)
+                    if ((n > 0) && rdr.Read())
                     {
                         nextCursor = result[n - 1];
                     }
@@ -178,7 +171,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _select2Command.Prepare();
                 }
 
-                _s2param1.Value = driveId;
+                _s2param1.Value = driveId.ToByteArray();
                 _s2param2.Value = inCursor;
                 _s2param3.Value = count + 1;                    // +1 to check for EOD on nextCursor
 
@@ -197,7 +190,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                         result.Add(s);
                     }
 
-                    if ((n > 0) && rdr.HasRows)
+                    if ((n > 0) && rdr.Read())
                     {
                         nextCursor = result[n - 1];
                     }
@@ -208,36 +201,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
                     return result;
                 }
-            }
-        }
-
-
-
-        /// <summary>
-        /// For the identity following you, delete all follows.
-        /// </summary>
-        /// <param name="identity">The identity following you</param>
-        /// <exception cref="Exception"></exception>
-        public void DeleteFollower(OdinId identity)
-        {
-            lock (_deleteLock)
-            {
-                // Make sure we only prep once 
-                if (_deleteCommand == null)
-                {
-                    _deleteCommand = _database.CreateCommand();
-                    _deleteCommand.CommandText = @"DELETE FROM imfollowing WHERE identity=$identity;";
-                    _dparam1 = _deleteCommand.CreateParameter();
-                    _deleteCommand.Parameters.Add(_dparam1);
-                    _dparam1.ParameterName = "$identity";
-
-                    _deleteCommand.Prepare();
-                }
-
-                _dparam1.Value = identity.ToByteArray();
-
-                _database.BeginTransaction();
-                _deleteCommand.ExecuteNonQuery(_database);
             }
         }
     }

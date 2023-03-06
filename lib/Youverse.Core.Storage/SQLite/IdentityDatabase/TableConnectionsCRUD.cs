@@ -216,7 +216,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _insertParam7.ParameterName = "$modified";
                     _insertCommand.Prepare();
                 }
-                _insertParam1.Value = item.identity.ToByteArray();
+                _insertParam1.Value = item.identity.Id;
                 _insertParam2.Value = item.displayName;
                 _insertParam3.Value = item.status;
                 _insertParam4.Value = item.accessIsRevoked;
@@ -262,7 +262,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _upsertParam7.ParameterName = "$modified";
                     _upsertCommand.Prepare();
                 }
-                _upsertParam1.Value = item.identity.ToByteArray();
+                _upsertParam1.Value = item.identity.Id;
                 _upsertParam2.Value = item.displayName;
                 _upsertParam3.Value = item.status;
                 _upsertParam4.Value = item.accessIsRevoked;
@@ -307,7 +307,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _updateParam7.ParameterName = "$modified";
                     _updateCommand.Prepare();
                 }
-                _updateParam1.Value = item.identity.ToByteArray();
+                _updateParam1.Value = item.identity.Id;
                 _updateParam2.Value = item.displayName;
                 _updateParam3.Value = item.status;
                 _updateParam4.Value = item.accessIsRevoked;
@@ -333,7 +333,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _delete0Param1.ParameterName = "$identity";
                     _delete0Command.Prepare();
                 }
-                _delete0Param1.Value = identity.ToByteArray();
+                _delete0Param1.Value = identity.Id;
                 _database.BeginTransaction();
                 return _delete0Command.ExecuteNonQuery(_database);
             } // Lock
@@ -353,7 +353,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _get0Param1.ParameterName = "$identity";
                     _get0Command.Prepare();
                 }
-                _get0Param1.Value = identity.ToByteArray();
+                _get0Param1.Value = identity.Id;
                 using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
                 {
                     var result = new ConnectionsItem();
@@ -446,13 +446,14 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 }
                 _getPaging1Param1.Value = inCursor;
                 _getPaging1Param2.Value = count+1;
+                _getPaging1Command.Transaction = _database.Transaction;
 
                 using (SqliteDataReader rdr = _getPaging1Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {
                     var result = new List<ConnectionsItem>();
                     int n = 0;
                     int rowid = 0;
-                    while (rdr.Read() && (n < count))
+                    while ((n < count) && rdr.Read())
                     {
                         n++;
                         var item = new ConnectionsItem();
@@ -521,7 +522,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                         }
                         result.Add(item);
                     } // while
-                    if ((n > 0) && rdr.HasRows)
+                    if ((n > 0) && rdr.Read())
                     {
                             nextCursor = result[n - 1].identity;
                     }
@@ -559,13 +560,14 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 }
                 _getPaging6Param1.Value = inCursor?.uniqueTime;
                 _getPaging6Param2.Value = count+1;
+                _getPaging6Command.Transaction = _database.Transaction;
 
                 using (SqliteDataReader rdr = _getPaging6Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {
                     var result = new List<ConnectionsItem>();
                     int n = 0;
                     int rowid = 0;
-                    while (rdr.Read() && (n < count))
+                    while ((n < count) && rdr.Read())
                     {
                         n++;
                         var item = new ConnectionsItem();
@@ -634,7 +636,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                         }
                         result.Add(item);
                     } // while
-                    if ((n > 0) && rdr.HasRows)
+                    if ((n > 0) && rdr.Read())
                     {
                             nextCursor = result[n - 1].created;
                     }

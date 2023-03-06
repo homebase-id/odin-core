@@ -44,7 +44,7 @@ namespace IdentityDatabaseTests
 
             // Now Frodo makes a new post to d1, which means we shouold get
             // everyone except Heimdal. Let's do a page size of 3
-            //
+            // Get freja, loke, odin back. Still missing Thor
             var r = db.tblImFollowing.GetFollowers(3, d1, null, out var nextCursor);
             Debug.Assert(r.Count == 3, message:"rdr.HasRows is the sinner");
             Debug.Assert(nextCursor == r[2]);
@@ -60,10 +60,6 @@ namespace IdentityDatabaseTests
             //
             r = db.tblImFollowing.GetFollowers(3, d2, null, out nextCursor);
             Debug.Assert(r.Count == 3);
-            Debug.Assert(nextCursor == r[2]);
-
-            r = db.tblImFollowing.GetFollowers(3, d2, nextCursor, out nextCursor);
-            Debug.Assert(r.Count == 0);
             Debug.Assert(nextCursor == null);
         }
 

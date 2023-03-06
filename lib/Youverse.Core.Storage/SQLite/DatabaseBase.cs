@@ -105,13 +105,13 @@ namespace Youverse.Core.Storage.Sqlite
         {
             RsaKeyManagement.noDBClosed++;
 
-// #if DEBUG
-//             if (!_wasDisposed)
-//                 throw new Exception("Was not disposed: " + _connectionString);
-// #else
-//             if (!_wasDisposed)
-//                Log.Error("Was not disposed: " + _connectionString);
-// #endif
+#if DEBUG
+            if (!_wasDisposed)
+                throw new Exception("Was not disposed: " + _connectionString);
+#else
+            if (!_wasDisposed)
+               Log.Error("Was not disposed: " + _connectionString);
+#endif
         }
 
 

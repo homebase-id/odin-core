@@ -306,13 +306,14 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 }
                 _getPaging2Param1.Value = inCursor?.ToByteArray();
                 _getPaging2Param2.Value = count+1;
+                _getPaging2Command.Transaction = _database.Transaction;
 
                 using (SqliteDataReader rdr = _getPaging2Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {
                     var result = new List<CircleItem>();
                     int n = 0;
                     int rowid = 0;
-                    while (rdr.Read() && (n < count))
+                    while ((n < count) && rdr.Read())
                     {
                         n++;
                         var item = new CircleItem();
@@ -356,7 +357,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                         }
                         result.Add(item);
                     } // while
-                    if ((n > 0) && rdr.HasRows)
+                    if ((n > 0) && rdr.Read())
                     {
                             nextCursor = result[n - 1].circleId;
                     }

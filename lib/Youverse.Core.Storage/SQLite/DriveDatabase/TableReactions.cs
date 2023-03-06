@@ -7,11 +7,6 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 {
     public class TableReactions : TableReactionsCRUD
     {
-        private SqliteCommand _deleteCommand = null;
-        private SqliteParameter _delparam1 = null;
-        private SqliteParameter _delparam2 = null;
-        private static Object _deleteLock = new Object();
-
         private SqliteCommand _selectCommand = null;
         private SqliteParameter _sparam1 = null;
         private static Object _selectLock = new Object();
@@ -39,9 +34,6 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 
         public override void Dispose()
         {
-            _deleteCommand?.Dispose();
-            _deleteCommand = null;
-
             _selectCommand?.Dispose();
             _selectCommand = null;
 
@@ -49,40 +41,6 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             _getPaging0Command = null;
 
             base.Dispose();
-        }
-
-        /// <summary>
-        /// Removes all reactions from the supplied identity
-        /// </summary>
-        /// <param name="identity"></param>
-        /// <param name="postId"></param>
-        /// <exception cref="Exception"></exception>
-        public void DeleteAllReactions(OdinId identity, Guid postId)
-        {
-            lock (_deleteLock)
-            {
-                // Make sure we only prep once 
-                if (_deleteCommand == null)
-                {
-                    _deleteCommand = _database.CreateCommand();
-                    _deleteCommand.CommandText = @"DELETE FROM reactions WHERE identity=$identity AND postId=$postId;";
-
-                    _delparam1 = _deleteCommand.CreateParameter();
-                    _delparam2 = _deleteCommand.CreateParameter();
-                    _deleteCommand.Parameters.Add(_delparam1);
-                    _deleteCommand.Parameters.Add(_delparam2);
-                    _delparam1.ParameterName = "$identity";
-                    _delparam2.ParameterName = "$postId";
-
-                    _deleteCommand.Prepare();
-                }
-
-                _delparam1.Value = identity.ToByteArray();
-                _delparam2.Value = postId.ToByteArray();
-
-                _database.BeginTransaction();
-                _deleteCommand.ExecuteNonQuery(_database);
-            }
         }
 
 
@@ -114,7 +72,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 }
 
                 _s2param1.Value = postId.ToByteArray();
-                _s2param2.Value = identity.ToByteArray();
+                _s2param2.Value = identity.Id;
 
                 using (SqliteDataReader rdr = _select2Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {
@@ -155,7 +113,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 }
 
                 _s2param1.Value = postId.ToByteArray();
-                _s2param2.Value = identity.ToByteArray();
+                _s2param2.Value = identity.Id;
 
                 using (SqliteDataReader rdr = _select2Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {
@@ -298,7 +256,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     var result = new List<ReactionsItem>();
                     int n = 0;
                     int rowid = 0;
-                    while (rdr.Read() && (n < count))
+                    while ((n < count) && rdr.Read())
                     {
                         n++;
                         var item = new ReactionsItem();
@@ -335,7 +293,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 
                         result.Add(item);
                     } // while
-                    if ((n > 0) && rdr.HasRows)
+                    if ((n > 0) && rdr.Read())
                     {
                         nextCursor = rowid;
                     }

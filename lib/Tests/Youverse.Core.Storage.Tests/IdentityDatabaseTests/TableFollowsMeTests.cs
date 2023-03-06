@@ -56,13 +56,9 @@ namespace IdentityDatabaseTests
 
 
             // Now Frodo does a post to d2 which means Freja, Heimdal, Loke gets it
-            // So first page is all the data
+            // So first page is all the data, and there is no more data
             r = db.tblFollowsMe.GetFollowers(3, d2, null, out nextCursor);
             Debug.Assert(r.Count == 3);
-            Debug.Assert(nextCursor == r[2]);
-
-            r = db.tblFollowsMe.GetFollowers(3, d2, nextCursor, out nextCursor);
-            Debug.Assert(r.Count == 0);
             Debug.Assert(nextCursor == null);
         }
 

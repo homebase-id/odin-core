@@ -1,5 +1,5 @@
 using Youverse.Core.Services.Drives.DriveCore.Query;
-using Youverse.Core.Storage.SQLite.DriveDatabase;
+using Youverse.Core.Storage.Sqlite.DriveDatabase;
 
 namespace Youverse.Core.Services.Drives;
 

@@ -9,9 +9,8 @@ using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives.DriveCore.Storage;
-using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Storage;
-using Youverse.Core.Storage.SQLite.DriveDatabase;
+using Youverse.Core.Storage.Sqlite.DriveDatabase;
 
 namespace Youverse.Core.Services.Drives.DriveCore.Query.Sqlite;
 
@@ -26,7 +25,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         Drive = drive;
         _logger = logger;
 
-        var connectionString = $"URI=file:{drive.GetIndexPath()}\\index.db";
+        var connectionString = $"Data Source={drive.GetIndexPath()}/index.db";
         _db = new DriveDatabase(connectionString, DatabaseIndexKind.TimeSeries);
     }
 

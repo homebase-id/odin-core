@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
-using Youverse.Core.Storage.SQLite.IdentityDatabase;
+using Youverse.Core.Storage.Sqlite.IdentityDatabase;
 using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Transit.Outbox
@@ -25,7 +25,7 @@ namespace Youverse.Core.Services.Transit.Outbox
                 Directory.CreateDirectory(finalPath!);
             }
             var filePath = PathUtil.OsIfy($"{dataPath}\\xfer.db");
-            _db = new IdentityDatabase($"URI=file:{filePath}");
+            _db = new IdentityDatabase($"Data Source={filePath}");
             _db.CreateDatabase(false);
         }
 
@@ -45,7 +45,7 @@ namespace Youverse.Core.Services.Transit.Outbox
                 // _db.tblOutbox.InsertRow(sender.ToGuidIdentifier().ToByteArray(), fileId, 0, sender.Id.ToLower().ToUtf8ByteArray());
                 _db.tblOutbox.Insert(new OutboxItem() { boxId = sender.ToHashId(), fileId = fileId, recipient = sender.Id.ToLower(), priority = 0, value = sender.Id.ToLower().ToUtf8ByteArray() });
             }
-            catch (System.Data.SQLite.SQLiteException ex)
+            catch (Microsoft.Data.Sqlite.SqliteException ex)
             {
                 //ignore constraint error code as it just means we tried to insert the sender twice.
                 //it's only needed once

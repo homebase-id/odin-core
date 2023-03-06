@@ -5,7 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using Youverse.Core.Identity;
-using Youverse.Core.Storage.SQLite.IdentityDatabase;
+using Youverse.Core.Storage.Sqlite.IdentityDatabase;
 using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Certificate.Renewal
@@ -28,7 +28,7 @@ namespace Youverse.Core.Services.Certificate.Renewal
             }
 
             var filePath = PathUtil.OsIfy($"{dataPath}\\cert.db");
-            _db = new IdentityDatabase($"URI=file:{filePath}");
+            _db = new IdentityDatabase($"Data Source={filePath}");
             _db.CreateDatabase(false);
         }
 
@@ -45,7 +45,7 @@ namespace Youverse.Core.Services.Certificate.Renewal
                 // _db.tblOutbox.InsertRow(boxId, fileId, 0, identity.Id.ToLower().ToUtf8ByteArray());
                 _db.tblOutbox.Insert(new OutboxItem() { boxId = boxId, recipient = identity.Id, fileId = fileId, priority = 0, value = identity.Id.ToLower().ToUtf8ByteArray() });
             }
-            catch (System.Data.SQLite.SQLiteException ex)
+            catch (Microsoft.Data.Sqlite.SqliteException ex)
             {
                 //ignore constraint error code as it just means we tried to insert the sender twice.
                 //it's only needed once

@@ -93,11 +93,21 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
                     //    "WHERE id IN (SELECT id FROM cron ORDER BY nextrun ASC LIMIT 10); " +
                     //    "SELECT identityid, type, data, runcount, lastrun, nextrun FROM cron WHERE popstamp=$popstamp";
 
-                    _popCommand.CommandText =
+                    /* _popCommand.CommandText =
                         "UPDATE cron SET popstamp=$popstamp, runcount=runcount+1, nextRun = 1000*(60 * power(2, min(runcount, 10)) + unixepoch()) " +
                         "WHERE (popstamp IS NULL) ORDER BY nextrun ASC LIMIT $count; " +
-                        "SELECT identityid, type, data, runcount, lastrun, nextrun FROM cron WHERE popstamp=$popstamp";
+                        "SELECT identityid, type, data, runcount, lastrun, nextrun FROM cron WHERE popstamp=$popstamp";*/
 
+                    /* _popCommand.CommandText =
+                        "UPDATE cron SET popstamp=$popstamp, runcount=runcount+1, nextRun = 1000*(60 * power(2, min(runcount, 10)) + unixepoch()) " +
+                        "WHERE rowid IN (SELECT rowid FROM cron WHERE (popstamp IS NULL) ORDER BY nextrun ASC LIMIT $count); " +
+                        "SELECT identityid, type, data, runcount, lastrun, nextrun FROM cron WHERE popstamp=$popstamp";*/
+
+                    _popCommand.CommandText =
+                        "UPDATE cron SET popstamp=$popstamp, runcount=runcount+1, nextRun = 1000 * (60 * (runcount+1)) + unixepoch() " +
+                        "WHERE rowid IN (SELECT rowid FROM cron WHERE (popstamp IS NULL) ORDER BY nextrun ASC LIMIT $count); " +
+                        "SELECT identityid, type, data, runcount, lastrun, nextrun FROM cron WHERE popstamp=$popstamp";
+ 
                     _pparam1 = _popCommand.CreateParameter();
                     _pparam1.ParameterName = "$popstamp";
                     _popCommand.Parameters.Add(_pparam1);
@@ -110,12 +120,14 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
                 }
 
                 popStamp = SequentialGuid.CreateGuid();
-                _pparam1.Value = popStamp;
+                _pparam1.Value = popStamp.ToByteArray();
                 _pparam2.Value = count;
+                _popCommand.Transaction = _database.Transaction;
 
                 List<CronItem> result = new List<CronItem>();
 
                 _database.BeginTransaction();
+                _popCommand.Transaction = _database.Transaction;
 
                 using (SqliteDataReader rdr = _popCommand.ExecuteReader(System.Data.CommandBehavior.Default))
                 {
@@ -192,7 +204,7 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
                     // I'd rather not do a TEXT statement, this seems safer but slower.
                     for (int i = 0; i < listIdentityId.Count; i++)
                     {
-                        _pcancellistparam1.Value = listIdentityId[i];
+                        _pcancellistparam1.Value = listIdentityId[i].ToByteArray();
                         _popCancelListCommand.ExecuteNonQuery(_database);
                     }
                 }
@@ -227,7 +239,7 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
                     // I'd rather not do a TEXT statement, this seems safer but slower.
                     for (int i = 0; i < listIdentityId.Count; i++)
                     {
-                        _pcommitlistparam1.Value = listIdentityId[i];
+                        _pcommitlistparam1.Value = listIdentityId[i].ToByteArray();
                         _popCommitListCommand.ExecuteNonQuery(_database);
                     }
                 }

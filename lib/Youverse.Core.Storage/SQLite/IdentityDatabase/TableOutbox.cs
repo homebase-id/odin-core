@@ -100,7 +100,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 if (_popCommand == null)
                 {
                     _popCommand = _database.CreateCommand();
-                    _popCommand.CommandText = "UPDATE outbox SET popStamp=$popstamp WHERE boxId=$boxid AND popStamp IS NULL ORDER BY timeStamp ASC LIMIT $count; " +
+                    _popCommand.CommandText = "UPDATE outbox SET popStamp=$popstamp WHERE rowid IN (SELECT rowid FROM outbox WHERE boxId=$boxid AND popStamp IS NULL ORDER BY timeStamp ASC LIMIT $count); " +
                                               "SELECT fileId, priority, timeStamp, value, recipient from outbox WHERE popstamp=$popstamp";
 
                     _pparam1 = _popCommand.CreateParameter();
@@ -121,11 +121,12 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 popStamp = SequentialGuid.CreateGuid();
                 _pparam1.Value = popStamp.ToByteArray();
                 _pparam2.Value = count;
-                _pparam3.Value = boxId;
+                _pparam3.Value = boxId.ToByteArray();
 
                 List<OutboxItem> result = new List<OutboxItem>();
 
                 _database.BeginTransaction();
+                _popCommand.Transaction = _database.Transaction;
 
                 using (_database.CreateCommitUnitOfWork())
                 {
@@ -194,7 +195,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 }
 
                 popStamp = SequentialGuid.CreateGuid();
-                _paparam1.Value = popStamp;
+                _paparam1.Value = popStamp.ToByteArray();
 
                 List<OutboxItem> result = new List<OutboxItem>();
 
@@ -276,7 +277,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _popCancelCommand.Prepare();
                 }
 
-                _pcancelparam1.Value = popstamp;
+                _pcancelparam1.Value = popstamp.ToByteArray();
 
                 _database.BeginTransaction();
                 _popCancelCommand.ExecuteNonQuery(_database);
@@ -304,7 +305,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _popCancelListCommand.Prepare();
                 }
 
-                _pcancellistparam1.Value = popstamp;
+                _pcancellistparam1.Value = popstamp.ToByteArray();
 
                 _database.BeginTransaction();
 
@@ -313,7 +314,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     // I'd rather not do a TEXT statement, this seems safer but slower.
                     for (int i = 0; i < listFileId.Count; i++)
                     {
-                        _pcancellistparam2.Value = listFileId[i];
+                        _pcancellistparam2.Value = listFileId[i].ToByteArray();
                         _popCancelListCommand.ExecuteNonQuery(_database);
                     }
                 }
@@ -342,7 +343,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _popCommitCommand.Prepare();
                 }
 
-                _pcommitparam1.Value = popstamp;
+                _pcommitparam1.Value = popstamp.ToByteArray();
                 _database.BeginTransaction();
                 _popCommitCommand.ExecuteNonQuery(_database);
             }
@@ -374,7 +375,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _popCommitListCommand.Prepare();
                 }
 
-                _pcommitlistparam1.Value = popstamp;
+                _pcommitlistparam1.Value = popstamp.ToByteArray();
 
                 _database.BeginTransaction();
 
@@ -383,7 +384,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     // I'd rather not do a TEXT statement, this seems safer but slower.
                     for (int i = 0; i < listFileId.Count; i++)
                     {
-                        _pcommitlistparam2.Value = listFileId[i];
+                        _pcommitlistparam2.Value = listFileId[i].ToByteArray();
                         _popCommitListCommand.ExecuteNonQuery(_database);
                     }
                 }

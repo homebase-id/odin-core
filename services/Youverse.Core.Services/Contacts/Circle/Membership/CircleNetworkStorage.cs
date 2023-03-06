@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using Youverse.Core.Identity;
 using Youverse.Core.Storage;
-using Youverse.Core.Storage.SQLite.IdentityDatabase;
+using Youverse.Core.Storage.Sqlite.IdentityDatabase;
 using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Contacts.Circle.Membership;
@@ -25,7 +25,7 @@ public class CircleNetworkStorage : IDisposable
         }
         
         string finalPath = PathUtil.Combine(dbPath, $"{dbName}.db");
-        _db = new IdentityDatabase($"URI=file:{finalPath}");
+        _db = new IdentityDatabase($"Data Source={finalPath}");
         _db.CreateDatabase(false);
 
         _storage = new SingleKeyValueStorage(_db.tblKeyValue);
