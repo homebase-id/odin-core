@@ -35,7 +35,7 @@ namespace Youverse.Core.Services.Workers.Transit
                 try
                 {
                     //TODO: do this in parallel
-                    StokeOutbox(sender);
+                    await StokeOutbox(sender);
                 }
                 catch (Exception e)
                 {
