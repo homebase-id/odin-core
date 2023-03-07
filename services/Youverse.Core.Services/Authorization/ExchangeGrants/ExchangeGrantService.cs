@@ -13,6 +13,8 @@ using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.Management;
 
+#nullable enable
+
 namespace Youverse.Core.Services.Authorization.ExchangeGrants
 {
     /// <summary>
@@ -81,7 +83,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         {
             var grantKeyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
-            var grant = await this.CreateExchangeGrant(grantKeyStoreKey, permissionSet, driveGrantRequests, masterKey);
+            var grant = await this.CreateExchangeGrant(grantKeyStoreKey, permissionSet, driveGrantRequests, masterKey!);
             grantKeyStoreKey.Wipe();
 
             return grant;
@@ -101,7 +103,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
                 throw new YouverseSecurityException("Cannot create Client Access Token for a revoked ExchangeGrant");
             }
 
-            SensitiveByteArray grantKeyStoreKey = null;
+            SensitiveByteArray? grantKeyStoreKey = null;
 
             if (masterKey != null)
             {
@@ -113,7 +115,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             return token;
         }
 
-        public async Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessToken(SensitiveByteArray grantKeyStoreKey, ClientTokenType tokenType)
+        public async Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessToken(SensitiveByteArray? grantKeyStoreKey, ClientTokenType tokenType)
         {
             var (accessReg, clientAccessToken) = await this.CreateClientAccessTokenInternal(grantKeyStoreKey, tokenType);
             return (accessReg, clientAccessToken);
@@ -177,7 +179,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
 
         //
 
-        private DriveGrant CreateDriveGrant(StorageDrive drive, DrivePermission permission, SensitiveByteArray grantKeyStoreKey, SensitiveByteArray masterKey)
+        private DriveGrant CreateDriveGrant(StorageDrive drive, DrivePermission permission, SensitiveByteArray? grantKeyStoreKey, SensitiveByteArray? masterKey)
         {
             var storageKey = masterKey == null ? null : drive.MasterKeyEncryptedStorageKey.DecryptKeyClone(ref masterKey);
 
@@ -197,7 +199,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             return dk;
         }
 
-        private Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessTokenInternal(SensitiveByteArray grantKeyStoreKey, ClientTokenType tokenType,
+        private Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessTokenInternal(SensitiveByteArray? grantKeyStoreKey, ClientTokenType tokenType,
             AccessRegistrationClientType clientType = AccessRegistrationClientType.Other)
         {
             var accessKeyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
@@ -232,7 +234,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
 
         private async Task<IEnumerable<DriveGrant>> MergeAnonymousDrives(IEnumerable<DriveGrant> driveGrants)
         {
-            var list = driveGrants?.ToList();
+            var list = driveGrants.ToList();
             Guard.Argument(list, nameof(driveGrants)).NotNull();
 
             //get the anonymous drives

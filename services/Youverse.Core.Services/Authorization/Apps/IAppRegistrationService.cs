@@ -6,6 +6,8 @@ using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle;
 
+#nullable enable
+
 namespace Youverse.Core.Services.Authorization.Apps
 {
     public interface IAppRegistrationService
