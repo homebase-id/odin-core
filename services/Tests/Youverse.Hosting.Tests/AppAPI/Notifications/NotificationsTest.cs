@@ -188,53 +188,53 @@ public class NotificationsTest
             NotificationTestUtils.RandomEncryptedFileHeaderNoPayload("contents are here", testAppContext.TargetDrive);
         await _scaffold.AppApi.UploadFile(testAppContext, instructionSet, fileMetadata, false, "payload data");
 
-        void ResponseReceived(Stream inputStream)
-        {
-            var response = DotYouSystemSerializer.Deserialize<TranslatedClientNotification>(inputStream, tokenSource.Token)
-                .GetAwaiter().GetResult();
+        // void ResponseReceived(Stream inputStream)
+        // {
+        //     var response = DotYouSystemSerializer.Deserialize<TranslatedClientNotification>(inputStream, tokenSource.Token)
+        //         .GetAwaiter().GetResult();
+        //
+        //     Assert.IsNotNull(response);
+        //     Assert.IsTrue(response.NotificationType == ClientNotificationType.FileAdded);
+        //
+        //     // inputStream.Dispose();
+        // }
 
-            Assert.IsNotNull(response);
-            Assert.IsTrue(response.NotificationType == ClientNotificationType.FileAdded);
-
-            // inputStream.Dispose();
-        }
-
-        async Task ReceiveLoop()
-        {
-            var loopToken = tokenSource.Token;
-            MemoryStream outputStream = null;
-            WebSocketReceiveResult receiveResult = null;
-            var receiveBuffer = new byte[1024];
-            try
-            {
-                while (!loopToken.IsCancellationRequested)
-                {
-                    outputStream = new MemoryStream(1024);
-                    do
-                    {
-                        receiveResult = await socket.ReceiveAsync(receiveBuffer, tokenSource.Token);
-                        if (receiveResult.MessageType != WebSocketMessageType.Close)
-                        {
-                            outputStream.Write(receiveBuffer, 0, receiveResult.Count);
-                        }
-                    } while (!receiveResult.EndOfMessage);
-
-                    if (receiveResult.MessageType == WebSocketMessageType.Close)
-                    {
-                        break;
-                    }
-
-                    outputStream.Position = 0;
-                    ResponseReceived(outputStream);
-                }
-            }
-            catch (TaskCanceledException)
-            {
-            }
-            finally
-            {
-                outputStream?.Dispose();
-            }
-        }
+        // async Task ReceiveLoop()
+        // {
+        //     var loopToken = tokenSource.Token;
+        //     MemoryStream outputStream = null;
+        //     WebSocketReceiveResult receiveResult = null;
+        //     var receiveBuffer = new byte[1024];
+        //     try
+        //     {
+        //         while (!loopToken.IsCancellationRequested)
+        //         {
+        //             outputStream = new MemoryStream(1024);
+        //             do
+        //             {
+        //                 receiveResult = await socket.ReceiveAsync(receiveBuffer, tokenSource.Token);
+        //                 if (receiveResult.MessageType != WebSocketMessageType.Close)
+        //                 {
+        //                     outputStream.Write(receiveBuffer, 0, receiveResult.Count);
+        //                 }
+        //             } while (!receiveResult.EndOfMessage);
+        //
+        //             if (receiveResult.MessageType == WebSocketMessageType.Close)
+        //             {
+        //                 break;
+        //             }
+        //
+        //             outputStream.Position = 0;
+        //             ResponseReceived(outputStream);
+        //         }
+        //     }
+        //     catch (TaskCanceledException)
+        //     {
+        //     }
+        //     finally
+        //     {
+        //         outputStream?.Dispose();
+        //     }
+        // }
     }
 }

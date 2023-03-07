@@ -7,8 +7,6 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
     /// </summary>
     public class ClientAuthenticationToken
     {
-        private static string SEPARATOR = "|";
-
         public ClientAuthenticationToken()
         {
             ClientTokenType = ClientTokenType.Other;

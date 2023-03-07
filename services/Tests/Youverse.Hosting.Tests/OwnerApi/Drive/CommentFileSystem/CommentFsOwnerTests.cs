@@ -97,7 +97,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
             {
                 var _ = await client.Drive.GetFileHeader(FileSystemType.Standard, commentUploadResult.File);
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 Assert.Pass("Exception throw as expected");
             }

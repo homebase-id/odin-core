@@ -16,7 +16,7 @@ namespace Youverse.Hosting.Controllers.Certificate
     public class EncryptionPublicKeyController : ControllerBase
     {
         private readonly IPublicKeyService _publicKeyService;
-        private Guid _stateItemId;
+        // private Guid _stateItemId;
 
         public EncryptionPublicKeyController(IPublicKeyService publicKeyService)
         {

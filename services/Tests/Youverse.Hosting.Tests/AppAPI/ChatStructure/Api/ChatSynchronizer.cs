@@ -13,7 +13,7 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure.Api;
 /// </summary>
 public class ChatSynchronizer
 {
-    private string _latestCursor;
+    // private string _latestCursor;
     private readonly ChatServerContext _chatServerContext;
     private readonly ConversationDefinitionService _conversationDefinitionService;
     private readonly ConversationService _conversationService;
