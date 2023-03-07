@@ -193,7 +193,7 @@ namespace Youverse.Hosting
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder appx, IWebHostEnvironment env, ILogger<Startup> logger)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILogger<Startup> logger)
         {
             // var config = new YouverseConfiguration(Configuration);
 
@@ -203,115 +203,104 @@ namespace Youverse.Hosting
                 return context.Request.Host.Equals(new HostString(domain ?? ""));
             }
             
-            appx.MapWhen(IsProvisioningSite, app => Provisioning.Map(app, env, logger));
-
-            appx.MapWhen(ctx => !IsProvisioningSite(ctx), app =>
+            bool IsPathUsedForCertificateCreation(HttpContext context)
             {
-                bool IsPathUsedForCertificateCreation(HttpContext context)
+                var path = context.Request.Path;
+                bool isCertificateRegistrationPath = path.StartsWithSegments("/api/owner/v1/config/certificate") ||
+                                                     path.StartsWithSegments("/.well-known/acme-challenge");
+                return isCertificateRegistrationPath && !context.Request.IsHttps;
+            }
+            
+            app.MapWhen(IsProvisioningSite, app => Provisioning.Map(app, env, logger));
+            app.MapWhen(IsPathUsedForCertificateCreation, app => Certificate.Map(app, env, logger));
+
+            app.UseLoggingMiddleware();
+            app.UseMiddleware<ExceptionHandlingMiddleware>();
+            app.UseMultiTenancy();
+
+            app.UseDefaultFiles();
+            app.UseCertificateForwarding();
+            app.UseStaticFiles();
+
+            app.UseRouting();
+            app.UseAuthentication();
+            app.UseAuthorization();
+
+            app.UseMiddleware<DotYouContextMiddleware>();
+            app.UseResponseCompression();
+            app.UseMiddleware<SharedSecretEncryptionMiddleware>();
+            app.UseMiddleware<StaticFileCachingMiddleware>();
+            app.UseHttpsRedirection();
+            
+            var webSocketOptions = new WebSocketOptions
+            {
+                KeepAliveInterval = TimeSpan.FromMinutes(2)
+            };
+
+            // webSocketOptions.AllowedOrigins.Add("https://...");
+            app.UseWebSockets(webSocketOptions);  //Note: see NotificationSocketController
+            
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapGet("/", async context =>
                 {
-                    var path = context.Request.Path;
-                    bool isCertificateRegistrationPath = path.StartsWithSegments("/api/owner/v1/config/certificate") ||
-                                                         path.StartsWithSegments("/.well-known/acme-challenge");
-                    return isCertificateRegistrationPath && !context.Request.IsHttps;
-                }
-                
-                app.UseLoggingMiddleware();
-                app.UseMiddleware<ExceptionHandlingMiddleware>();
-                app.UseMultiTenancy();
-
-                app.UseDefaultFiles();
-                app.UseCertificateForwarding();
-                app.UseStaticFiles();
-
-                app.UseRouting();
-                app.UseAuthentication();
-                app.UseAuthorization();
-
-                app.MapWhen(IsPathUsedForCertificateCreation, certificateApp =>
-                {
-                    certificateApp.UseEndpoints(endpoints => { endpoints.MapControllers(); });
+                    context.Response.Redirect("/home");
+                    await Task.CompletedTask;
                 });
+                endpoints.MapControllers();
+            });
 
-                app.MapWhen(ctx => !IsPathUsedForCertificateCreation(ctx), normalApp =>
-                {
-                    normalApp.UseMiddleware<DotYouContextMiddleware>();
-                    normalApp.UseResponseCompression();
-                    normalApp.UseMiddleware<SharedSecretEncryptionMiddleware>();
-                    normalApp.UseMiddleware<StaticFileCachingMiddleware>();
-                    normalApp.UseHttpsRedirection();
+            if (env.IsDevelopment())
+            {
+                app.UseSwagger();
+                app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "DotYouCore v1"));
 
-                    var webSocketOptions = new WebSocketOptions
+                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/home"),
+                    homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3000/home/"); }); });
+
+                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
+                    homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3001/owner/"); }); });
+            }
+            else
+            {
+                logger.LogInformation("Mapping SPA paths on local disk");
+                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
+                    ownerApp =>
                     {
-                        KeepAliveInterval = TimeSpan.FromMinutes(2)
-                    };
-
-                    // webSocketOptions.AllowedOrigins.Add("https://...");
-                    app.UseWebSockets(webSocketOptions);  //Note: see NotificationSocketController
-                    
-                    normalApp.UseEndpoints(endpoints =>
-                    {
-                        endpoints.MapGet("/", async context =>
+                        var ownerPath = Path.Combine(env.ContentRootPath, "client", "owner-app");
+                        ownerApp.UseStaticFiles(new StaticFileOptions()
                         {
-                            context.Response.Redirect("/home");
-                            await Task.CompletedTask;
+                            FileProvider = new PhysicalFileProvider(ownerPath),
+                            RequestPath = "/owner"
                         });
-                        endpoints.MapControllers();
+
+                        ownerApp.Run(async context =>
+                        {
+                            context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
+                            await context.Response.SendFileAsync(Path.Combine(ownerPath, "index.html"));
+                            return;
+                        });
                     });
 
-                    if (env.IsDevelopment())
+                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/home"),
+                    homeApp =>
                     {
-                        normalApp.UseSwagger();
-                        normalApp.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "DotYouCore v1"));
+                        var publicPath = Path.Combine(env.ContentRootPath, "client", "public-app");
 
-                        normalApp.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/home"),
-                            homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3000/home/"); }); });
+                        homeApp.UseStaticFiles(new StaticFileOptions()
+                        {
+                            FileProvider = new PhysicalFileProvider(publicPath),
+                            RequestPath = "/home"
+                        });
 
-                        normalApp.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
-                            homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3001/owner/"); }); });
-                    }
-                    else
-                    {
-                        logger.LogInformation("Mapping SPA paths on local disk");
-                        normalApp.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
-                            ownerApp =>
-                            {
-                                var ownerPath = Path.Combine(env.ContentRootPath, "client", "owner-app");
-                                ownerApp.UseStaticFiles(new StaticFileOptions()
-                                {
-                                    FileProvider = new PhysicalFileProvider(ownerPath),
-                                    RequestPath = "/owner"
-                                });
-
-                                ownerApp.Run(async context =>
-                                {
-                                    context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
-                                    await context.Response.SendFileAsync(Path.Combine(ownerPath, "index.html"));
-                                    return;
-                                });
-                            });
-
-
-                        normalApp.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/home"),
-                            homeApp =>
-                            {
-                                var publicPath = Path.Combine(env.ContentRootPath, "client", "public-app");
-
-                                homeApp.UseStaticFiles(new StaticFileOptions()
-                                {
-                                    FileProvider = new PhysicalFileProvider(publicPath),
-                                    RequestPath = "/home"
-                                });
-
-                                homeApp.Run(async context =>
-                                {
-                                    context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
-                                    await context.Response.SendFileAsync(Path.Combine(publicPath, "index.html"));
-                                    return;
-                                });
-                            });
-                    }
-                });
-            });
+                        homeApp.Run(async context =>
+                        {
+                            context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
+                            await context.Response.SendFileAsync(Path.Combine(publicPath, "index.html"));
+                            return;
+                        });
+                    });
+            }
         }
 
         private void PrepareEnvironment(YouverseConfiguration cfg)
