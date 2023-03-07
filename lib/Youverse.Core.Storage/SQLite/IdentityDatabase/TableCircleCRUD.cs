@@ -5,7 +5,7 @@ using Youverse.Core.Identity;
 
 namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
-    public class CircleItem
+    public class CircleRecord
     {
         private string _circleName;
         public string circleName
@@ -14,9 +14,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                    return _circleName;
                }
            set {
-                  if (value == null) throw new Exception("Cannot be null");
-                  if (value?.Length < 2) throw new Exception("Too short");
-                  if (value?.Length > 80) throw new Exception("Too long");
+                    if (value == null) throw new Exception("Cannot be null");
+                    if (value?.Length < 2) throw new Exception("Too short");
+                    if (value?.Length > 80) throw new Exception("Too long");
                   _circleName = value;
                }
         }
@@ -37,12 +37,12 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                    return _data;
                }
            set {
-                  if (value?.Length < 0) throw new Exception("Too short");
-                  if (value?.Length > 65000) throw new Exception("Too long");
+                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value?.Length > 65000) throw new Exception("Too long");
                   _data = value;
                }
         }
-    } // End of class CircleItem
+    } // End of class CircleRecord
 
     public class TableCircleCRUD : TableBase
     {
@@ -120,7 +120,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             }
         }
 
-        public virtual int Insert(CircleItem item)
+        public virtual int Insert(CircleRecord item)
         {
             lock (_insertLock)
             {
@@ -143,12 +143,13 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _insertParam1.Value = item.circleName;
                 _insertParam2.Value = item.circleId.ToByteArray();
                 _insertParam3.Value = item.data ?? (object)DBNull.Value;
+
                 _database.BeginTransaction();
                 return _insertCommand.ExecuteNonQuery(_database);
             } // Lock
         }
 
-        public virtual int Upsert(CircleItem item)
+        public virtual int Upsert(CircleRecord item)
         {
             lock (_upsertLock)
             {
@@ -178,7 +179,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
-        public virtual int Update(CircleItem item)
+        public virtual int Update(CircleRecord item)
         {
             lock (_updateLock)
             {
@@ -227,7 +228,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
-        public CircleItem Get(Guid circleId)
+        public CircleRecord Get(Guid circleId)
         {
             lock (_get0Lock)
             {
@@ -244,7 +245,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _get0Param1.Value = circleId.ToByteArray();
                 using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
                 {
-                    var result = new CircleItem();
+                    var result = new CircleRecord();
                     if (!rdr.Read())
                         return null;
                     byte[] _tmpbuf = new byte[65535+1];
@@ -252,7 +253,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     long bytesRead;
 #pragma warning restore CS0168
                     var _guid = new byte[16];
-                        var item = new CircleItem();
+                        var item = new CircleRecord();
                         item.circleId = circleId;
 
                         if (rdr.IsDBNull(0))
@@ -282,7 +283,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // lock
         }
 
-        public List<CircleItem> PagingByCircleId(int count, Guid? inCursor, out Guid? nextCursor)
+        public List<CircleRecord> PagingByCircleId(int count, Guid? inCursor, out Guid? nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -310,13 +311,13 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
                 using (SqliteDataReader rdr = _getPaging2Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {
-                    var result = new List<CircleItem>();
+                    var result = new List<CircleRecord>();
                     int n = 0;
                     int rowid = 0;
                     while ((n < count) && rdr.Read())
                     {
                         n++;
-                        var item = new CircleItem();
+                        var item = new CircleRecord();
                         byte[] _tmpbuf = new byte[65535+1];
                         long bytesRead;
                         var _guid = new byte[16];

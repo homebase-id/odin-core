@@ -5,7 +5,7 @@ using Youverse.Core.Identity;
 
 namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
-    public class FollowsMeItem
+    public class FollowsMeRecord
     {
         private string _identity;
         public string identity
@@ -14,9 +14,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                    return _identity;
                }
            set {
-                  if (value == null) throw new Exception("Cannot be null");
-                  if (value?.Length < 3) throw new Exception("Too short");
-                  if (value?.Length > 255) throw new Exception("Too long");
+                    if (value == null) throw new Exception("Cannot be null");
+                    if (value?.Length < 3) throw new Exception("Too short");
+                    if (value?.Length > 255) throw new Exception("Too long");
                   _identity = value;
                }
         }
@@ -50,7 +50,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                   _modified = value;
                }
         }
-    } // End of class FollowsMeItem
+    } // End of class FollowsMeRecord
 
     public class TableFollowsMeCRUD : TableBase
     {
@@ -139,7 +139,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             }
         }
 
-        public virtual int Insert(FollowsMeItem item)
+        public virtual int Insert(FollowsMeRecord item)
         {
             lock (_insertLock)
             {
@@ -171,7 +171,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
-        public virtual int Upsert(FollowsMeItem item)
+        public virtual int Upsert(FollowsMeRecord item)
         {
             lock (_upsertLock)
             {
@@ -205,7 +205,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
-        public virtual int Update(FollowsMeItem item)
+        public virtual int Update(FollowsMeRecord item)
         {
             lock (_updateLock)
             {
@@ -240,6 +240,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
         public int Delete(string identity,Guid driveId)
         {
+            if (identity == null) throw new Exception("Cannot be null");
+            if (identity?.Length < 3) throw new Exception("Too short");
+            if (identity?.Length > 255) throw new Exception("Too long");
             lock (_delete0Lock)
             {
                 if (_delete0Command == null)
@@ -264,6 +267,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
         public int DeleteFollower(string identity)
         {
+            if (identity == null) throw new Exception("Cannot be null");
+            if (identity?.Length < 3) throw new Exception("Too short");
+            if (identity?.Length > 255) throw new Exception("Too long");
             lock (_delete1Lock)
             {
                 if (_delete1Command == null)
@@ -282,8 +288,11 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
-        public FollowsMeItem Get(string identity,Guid driveId)
+        public FollowsMeRecord Get(string identity,Guid driveId)
         {
+            if (identity == null) throw new Exception("Cannot be null");
+            if (identity?.Length < 3) throw new Exception("Too short");
+            if (identity?.Length > 255) throw new Exception("Too long");
             lock (_get0Lock)
             {
                 if (_get0Command == null)
@@ -303,7 +312,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _get0Param2.Value = driveId.ToByteArray();
                 using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
                 {
-                    var result = new FollowsMeItem();
+                    var result = new FollowsMeRecord();
                     if (!rdr.Read())
                         return null;
                     byte[] _tmpbuf = new byte[65535+1];
@@ -311,7 +320,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     long bytesRead;
 #pragma warning restore CS0168
                     var _guid = new byte[16];
-                        var item = new FollowsMeItem();
+                        var item = new FollowsMeRecord();
                         item.identity = identity;
                         item.driveId = driveId;
 
@@ -333,8 +342,11 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // lock
         }
 
-        public List<FollowsMeItem> Get(string identity)
+        public List<FollowsMeRecord> Get(string identity)
         {
+            if (identity == null) throw new Exception("Cannot be null");
+            if (identity?.Length < 3) throw new Exception("Too short");
+            if (identity?.Length > 255) throw new Exception("Too long");
             lock (_get1Lock)
             {
                 if (_get1Command == null)
@@ -350,7 +362,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _get1Param1.Value = identity;
                 using (SqliteDataReader rdr = _get1Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {
-                    var result = new List<FollowsMeItem>();
+                    var result = new List<FollowsMeRecord>();
                     if (!rdr.Read())
                         return null;
                     byte[] _tmpbuf = new byte[65535+1];
@@ -360,7 +372,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     var _guid = new byte[16];
                     while (true)
                     {
-                        var item = new FollowsMeItem();
+                        var item = new FollowsMeRecord();
                         item.identity = identity;
 
                         if (rdr.IsDBNull(0))

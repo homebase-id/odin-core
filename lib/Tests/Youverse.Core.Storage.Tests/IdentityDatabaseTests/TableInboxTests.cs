@@ -20,8 +20,8 @@ namespace IdentityDatabaseTests
             var boxid = SequentialGuid.CreateGuid();
 
             var tslo = UnixTimeUtc.Now();
-            db.tblInbox.Insert(new InboxItem() { boxId = boxid, fileId = f1, priority = 0, value = v1 });
-            db.tblInbox.Insert(new InboxItem() { boxId = boxid, fileId = f2, priority = 10, value = v2 });
+            db.tblInbox.Insert(new InboxRecord() { boxId = boxid, fileId = f1, priority = 0, value = v1 });
+            db.tblInbox.Insert(new InboxRecord() { boxId = boxid, fileId = f2, priority = 10, value = v2 });
             var tshi = UnixTimeUtc.Now();
 
             var r = db.tblInbox.Get(f1);
@@ -64,11 +64,11 @@ namespace IdentityDatabaseTests
             var boxid = SequentialGuid.CreateGuid();
 
             var tslo = UnixTimeUtc.Now();
-            db.tblInbox.Insert(new InboxItem() { boxId = boxid, fileId = f1, priority = 0, value = v1 });
-            db.tblInbox.Insert(new InboxItem() { boxId = boxid, fileId = f2, priority = 1, value = v2 });
-            db.tblInbox.Insert(new InboxItem() { boxId = boxid, fileId = f3, priority = 2, value = v3 });
-            db.tblInbox.Insert(new InboxItem() { boxId = boxid, fileId = f4, priority = 3, value = v4 });
-            db.tblInbox.Insert(new InboxItem() { boxId = boxid, fileId = f5, priority = 4, value = v5 });
+            db.tblInbox.Insert(new InboxRecord() { boxId = boxid, fileId = f1, priority = 0, value = v1 });
+            db.tblInbox.Insert(new InboxRecord() { boxId = boxid, fileId = f2, priority = 1, value = v2 });
+            db.tblInbox.Insert(new InboxRecord() { boxId = boxid, fileId = f3, priority = 2, value = v3 });
+            db.tblInbox.Insert(new InboxRecord() { boxId = boxid, fileId = f4, priority = 3, value = v4 });
+            db.tblInbox.Insert(new InboxRecord() { boxId = boxid, fileId = f5, priority = 4, value = v5 });
             var tshi = UnixTimeUtc.Now();
 
             // pop one item from the inbox
@@ -151,11 +151,11 @@ namespace IdentityDatabaseTests
             var f5 = SequentialGuid.CreateGuid();
             var boxid = SequentialGuid.CreateGuid();
 
-            db.tblInbox.Insert(new InboxItem() { boxId = boxid, fileId = f1, priority = 0, value = null });
-            db.tblInbox.Insert(new InboxItem() { boxId = boxid, fileId = f2, priority = 0, value = null });
-            db.tblInbox.Insert(new InboxItem() { boxId = boxid, fileId = f3, priority = 10, value = null });
-            db.tblInbox.Insert(new InboxItem() { boxId = boxid, fileId = f4, priority = 10, value = null });
-            db.tblInbox.Insert(new InboxItem() { boxId = boxid, fileId = f5, priority = 20, value = null });
+            db.tblInbox.Insert(new InboxRecord() { boxId = boxid, fileId = f1, priority = 0, value = null });
+            db.tblInbox.Insert(new InboxRecord() { boxId = boxid, fileId = f2, priority = 0, value = null });
+            db.tblInbox.Insert(new InboxRecord() { boxId = boxid, fileId = f3, priority = 10, value = null });
+            db.tblInbox.Insert(new InboxRecord() { boxId = boxid, fileId = f4, priority = 10, value = null });
+            db.tblInbox.Insert(new InboxRecord() { boxId = boxid, fileId = f5, priority = 20, value = null });
 
             var r1 = db.tblInbox.Pop(boxid, 2, out var poptimeStamp1);
             var r2 = db.tblInbox.Pop(boxid, 3, out var poptimeStamp2);
@@ -195,11 +195,11 @@ namespace IdentityDatabaseTests
 
             var boxid = SequentialGuid.CreateGuid();
 
-            db.tblInbox.Insert(new InboxItem() { boxId = boxid, fileId = f1, priority = 0, value = null });
-            db.tblInbox.Insert(new InboxItem() { boxId = boxid, fileId = f2, priority = 0, value = null });
-            db.tblInbox.Insert(new InboxItem() { boxId = boxid, fileId = f3, priority = 10, value = null });
-            db.tblInbox.Insert(new InboxItem() { boxId = boxid, fileId = f4, priority = 10, value = null });
-            db.tblInbox.Insert(new InboxItem() { boxId = boxid, fileId = f5, priority = 20, value = null });
+            db.tblInbox.Insert(new InboxRecord() { boxId = boxid, fileId = f1, priority = 0, value = null });
+            db.tblInbox.Insert(new InboxRecord() { boxId = boxid, fileId = f2, priority = 0, value = null });
+            db.tblInbox.Insert(new InboxRecord() { boxId = boxid, fileId = f3, priority = 10, value = null });
+            db.tblInbox.Insert(new InboxRecord() { boxId = boxid, fileId = f4, priority = 10, value = null });
+            db.tblInbox.Insert(new InboxRecord() { boxId = boxid, fileId = f5, priority = 20, value = null });
 
             var r1 = db.tblInbox.Pop(boxid, 2, out var poptimeStamp1);
             db.tblInbox.PopCommit(poptimeStamp1);
@@ -224,11 +224,11 @@ namespace IdentityDatabaseTests
 
             var boxid = SequentialGuid.CreateGuid();
 
-            db.tblInbox.Insert(new InboxItem() { boxId = boxid, fileId = f1, priority = 0, value = null });
-            db.tblInbox.Insert(new InboxItem() { boxId = boxid, fileId = f2, priority = 0, value = null });
-            db.tblInbox.Insert(new InboxItem() { boxId = boxid, fileId = f3, priority = 10, value = null });
-            db.tblInbox.Insert(new InboxItem() { boxId = boxid, fileId = f4, priority = 10, value = null });
-            db.tblInbox.Insert(new InboxItem() { boxId = boxid, fileId = f5, priority = 20, value = null });
+            db.tblInbox.Insert(new InboxRecord() { boxId = boxid, fileId = f1, priority = 0, value = null });
+            db.tblInbox.Insert(new InboxRecord() { boxId = boxid, fileId = f2, priority = 0, value = null });
+            db.tblInbox.Insert(new InboxRecord() { boxId = boxid, fileId = f3, priority = 10, value = null });
+            db.tblInbox.Insert(new InboxRecord() { boxId = boxid, fileId = f4, priority = 10, value = null });
+            db.tblInbox.Insert(new InboxRecord() { boxId = boxid, fileId = f5, priority = 20, value = null });
 
             var r1 = db.tblInbox.Pop(boxid, 2, out var poptimeStamp1);
 
@@ -264,11 +264,11 @@ namespace IdentityDatabaseTests
             var b2 = SequentialGuid.CreateGuid();
 
             // Insert three records with fileId (f1), priority, and value (e.g. appId etc)
-            db.tblInbox.Insert(new InboxItem() { boxId = b1, fileId = f1, priority = 0, value = v1 });
-            db.tblInbox.Insert(new InboxItem() { boxId = b1, fileId = f2, priority = 10, value = v1 });
-            db.tblInbox.Insert(new InboxItem() { boxId = b2, fileId = f3, priority = 10, value = v1 });
-            db.tblInbox.Insert(new InboxItem() { boxId = b2, fileId = f4, priority = 10, value = v1 });
-            db.tblInbox.Insert(new InboxItem() { boxId = b2, fileId = f5, priority = 10, value = v1 });
+            db.tblInbox.Insert(new InboxRecord() { boxId = b1, fileId = f1, priority = 0, value = v1 });
+            db.tblInbox.Insert(new InboxRecord() { boxId = b1, fileId = f2, priority = 10, value = v1 });
+            db.tblInbox.Insert(new InboxRecord() { boxId = b2, fileId = f3, priority = 10, value = v1 });
+            db.tblInbox.Insert(new InboxRecord() { boxId = b2, fileId = f4, priority = 10, value = v1 });
+            db.tblInbox.Insert(new InboxRecord() { boxId = b2, fileId = f5, priority = 10, value = v1 });
 
             // Pop the oldest record from the inbox 1
             var r1 = db.tblInbox.Pop(b1, 1, out var poptimeStamp1);
@@ -320,11 +320,11 @@ namespace IdentityDatabaseTests
             // An inbox is simply a GUID. E.g. the DriveID.
             // A record has a fileId, priority and a custom value
             // The custom value could e.g. be a GUID or a JSON of { senderId, appId }
-            db.tblInbox.Insert(new InboxItem() { boxId = box1id, fileId = f1, priority = 0, value = v1 });
-            db.tblInbox.Insert(new InboxItem() { boxId = box1id, fileId = f2, priority = 10, value = v2 });
-            db.tblInbox.Insert(new InboxItem() { boxId = box1id, fileId = f3, priority = 10, value = v3 });
-            db.tblInbox.Insert(new InboxItem() { boxId = box2id, fileId = f4, priority = 10, value = v4 });
-            db.tblInbox.Insert(new InboxItem() { boxId = box2id, fileId = f5, priority = 10, value = v5 });
+            db.tblInbox.Insert(new InboxRecord() { boxId = box1id, fileId = f1, priority = 0, value = v1 });
+            db.tblInbox.Insert(new InboxRecord() { boxId = box1id, fileId = f2, priority = 10, value = v2 });
+            db.tblInbox.Insert(new InboxRecord() { boxId = box1id, fileId = f3, priority = 10, value = v3 });
+            db.tblInbox.Insert(new InboxRecord() { boxId = box2id, fileId = f4, priority = 10, value = v4 });
+            db.tblInbox.Insert(new InboxRecord() { boxId = box2id, fileId = f5, priority = 10, value = v5 });
 
             // A thread1 pops one record from inbox1 (it'll get the oldest one)
             // Popping the record "reserves it" for your thread but doesn't remove

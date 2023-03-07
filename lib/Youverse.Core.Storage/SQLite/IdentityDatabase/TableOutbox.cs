@@ -68,14 +68,14 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             base.Dispose();
         }
 
-        public override int Insert(OutboxItem item)
+        public override int Insert(OutboxRecord item)
         {
             if (item.timeStamp.milliseconds == 0)
                 item.timeStamp = UnixTimeUtc.Now();
             return base.Insert(item);
         }
 
-        public override int Upsert(OutboxItem item)
+        public override int Upsert(OutboxRecord item)
         {
             if (item.timeStamp.milliseconds == 0)
                 item.timeStamp = UnixTimeUtc.Now();
@@ -92,7 +92,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         /// <param name="count">How many items to 'pop' (reserve)</param>
         /// <param name="popStamp">The unique identifier for the items reserved for pop</param>
         /// <returns></returns>
-        public List<OutboxItem> Pop(Guid boxId, int count, out Guid popStamp)
+        public List<OutboxRecord> Pop(Guid boxId, int count, out Guid popStamp)
         {
             lock (_popLock)
             {
@@ -123,7 +123,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _pparam2.Value = count;
                 _pparam3.Value = boxId.ToByteArray();
 
-                List<OutboxItem> result = new List<OutboxItem>();
+                List<OutboxRecord> result = new List<OutboxRecord>();
 
                 _database.BeginTransaction();
                 _popCommand.Transaction = _database.Transaction;
@@ -132,14 +132,14 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 {
                     using (SqliteDataReader rdr = _popCommand.ExecuteReader(System.Data.CommandBehavior.Default))
                     {
-                        OutboxItem item;
+                        OutboxRecord item;
 
                         while (rdr.Read())
                         {
                             if (rdr.IsDBNull(0))
                                 throw new Exception("Not possible");
 
-                            item = new OutboxItem();
+                            item = new OutboxRecord();
                             item.boxId = boxId;
                             var _guid = new byte[16];
                             var n = rdr.GetBytes(0, 0, _guid, 0, 16);
@@ -176,7 +176,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             }
         }
 
-        public List<OutboxItem> PopAll(out Guid popStamp)
+        public List<OutboxRecord> PopAll(out Guid popStamp)
         {
             lock (_popAllLock)
             {
@@ -197,7 +197,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 popStamp = SequentialGuid.CreateGuid();
                 _paparam1.Value = popStamp.ToByteArray();
 
-                List<OutboxItem> result = new List<OutboxItem>();
+                List<OutboxRecord> result = new List<OutboxRecord>();
 
                 _database.BeginTransaction();
 
@@ -205,14 +205,14 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 {
                     using (SqliteDataReader rdr = _popAllCommand.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                     {
-                        OutboxItem item;
+                        OutboxRecord item;
 
                         while (rdr.Read())
                         {
                             if (rdr.IsDBNull(0))
                                 throw new Exception("Not possible");
 
-                            item = new OutboxItem();
+                            item = new OutboxRecord();
 
                             var _guid  = new byte[16];
                             var n = rdr.GetBytes(0, 0, _guid, 0, 16);

@@ -19,8 +19,8 @@ namespace IdentityDatabaseTests
             var c2 = SequentialGuid.CreateGuid();
             var d2 = Guid.NewGuid().ToByteArray();
 
-            db.tblCircle.Insert(new CircleItem() { circleName = "aiai1", circleId = c1, data = d1 });
-            db.tblCircle.Insert(new CircleItem() { circleName = "aiai2", circleId = c2, data = d2 });
+            db.tblCircle.Insert(new CircleRecord() { circleName = "aiai1", circleId = c1, data = d1 });
+            db.tblCircle.Insert(new CircleRecord() { circleName = "aiai2", circleId = c2, data = d2 });
 
             var r = db.tblCircle.PagingByCircleId(100, null, out var nextCursor);
             Debug.Assert(r.Count == 2);
@@ -45,8 +45,8 @@ namespace IdentityDatabaseTests
             var d2 = Guid.NewGuid().ToByteArray();
             var d1 = Guid.NewGuid().ToByteArray();
 
-            db.tblCircle.Insert(new CircleItem() { circleName = "aiai1", circleId = c1, data = d1 });
-            db.tblCircle.Insert(new CircleItem() { circleName = "aiai2", circleId = c2, data = d2 });
+            db.tblCircle.Insert(new CircleRecord() { circleName = "aiai1", circleId = c1, data = d1 });
+            db.tblCircle.Insert(new CircleRecord() { circleName = "aiai2", circleId = c2, data = d2 });
 
             db.tblCircle.Delete(c2);
 
@@ -70,8 +70,8 @@ namespace IdentityDatabaseTests
             var d1 = Guid.NewGuid().ToByteArray();
             var d2 = Guid.NewGuid().ToByteArray();
 
-            db.tblCircle.Insert(new CircleItem() { circleName = "aiai", circleId = c1, data = d1 });
-            db.tblCircle.Insert(new CircleItem() { circleName = "aiai", circleId = c2, data = d2 });
+            db.tblCircle.Insert(new CircleRecord() { circleName = "aiai", circleId = c1, data = d1 });
+            db.tblCircle.Insert(new CircleRecord() { circleName = "aiai", circleId = c2, data = d2 });
 
             var r = db.tblCircle.Get(c1);
             Debug.Assert(ByteArrayUtil.muidcmp(r.circleId, c1) == 0);
@@ -106,8 +106,8 @@ namespace IdentityDatabaseTests
             var d1 = Guid.NewGuid().ToByteArray();
             var d2 = Guid.NewGuid().ToByteArray();
 
-            db.tblCircle.Insert(new CircleItem() { circleName = "aiai", circleId = c1, data = d1 });
-            db.tblCircle.Insert(new CircleItem() { circleName = "aiai", circleId = c2, data = d2 });
+            db.tblCircle.Insert(new CircleRecord() { circleName = "aiai", circleId = c1, data = d1 });
+            db.tblCircle.Insert(new CircleRecord() { circleName = "aiai", circleId = c2, data = d2 });
 
             var r = db.tblCircle.PagingByCircleId(100, null, out var nextCursor);
             Debug.Assert(r.Count == 2);

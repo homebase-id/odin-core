@@ -27,7 +27,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 
             using (_database.CreateCommitUnitOfWork())
             {
-                var item = new TagIndexItem() { fileId = FileId };
+                var item = new TagIndexRecord() { fileId = FileId };
 
                 for (int i = 0; i < TagIdList.Count; i++)
                 {

@@ -5,7 +5,7 @@ using Youverse.Core.Identity;
 
 namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
-    public class CircleMemberItem
+    public class CircleMemberRecord
     {
         private Guid _circleId;
         public Guid circleId
@@ -34,12 +34,12 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                    return _data;
                }
            set {
-                  if (value?.Length < 0) throw new Exception("Too short");
-                  if (value?.Length > 65535) throw new Exception("Too long");
+                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value?.Length > 65535) throw new Exception("Too long");
                   _data = value;
                }
         }
-    } // End of class CircleMemberItem
+    } // End of class CircleMemberRecord
 
     public class TableCircleMemberCRUD : TableBase
     {
@@ -128,7 +128,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             }
         }
 
-        public virtual int Insert(CircleMemberItem item)
+        public virtual int Insert(CircleMemberRecord item)
         {
             lock (_insertLock)
             {
@@ -156,7 +156,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
-        public virtual int Upsert(CircleMemberItem item)
+        public virtual int Upsert(CircleMemberRecord item)
         {
             lock (_upsertLock)
             {
@@ -186,7 +186,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
-        public virtual int Update(CircleMemberItem item)
+        public virtual int Update(CircleMemberRecord item)
         {
             lock (_updateLock)
             {
@@ -259,7 +259,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
-        public CircleMemberItem Get(Guid circleId,Guid memberId)
+        public CircleMemberRecord Get(Guid circleId,Guid memberId)
         {
             lock (_get0Lock)
             {
@@ -280,7 +280,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _get0Param2.Value = memberId.ToByteArray();
                 using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
                 {
-                    var result = new CircleMemberItem();
+                    var result = new CircleMemberRecord();
                     if (!rdr.Read())
                         return null;
                     byte[] _tmpbuf = new byte[65535+1];
@@ -288,7 +288,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     long bytesRead;
 #pragma warning restore CS0168
                     var _guid = new byte[16];
-                        var item = new CircleMemberItem();
+                        var item = new CircleMemberRecord();
                         item.circleId = circleId;
                         item.memberId = memberId;
 
@@ -312,7 +312,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // lock
         }
 
-        public List<CircleMemberItem> GetCircleMembers(Guid circleId)
+        public List<CircleMemberRecord> GetCircleMembers(Guid circleId)
         {
             lock (_get1Lock)
             {
@@ -329,7 +329,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _get1Param1.Value = circleId.ToByteArray();
                 using (SqliteDataReader rdr = _get1Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {
-                    var result = new List<CircleMemberItem>();
+                    var result = new List<CircleMemberRecord>();
                     if (!rdr.Read())
                         return null;
                     byte[] _tmpbuf = new byte[65535+1];
@@ -339,7 +339,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     var _guid = new byte[16];
                     while (true)
                     {
-                        var item = new CircleMemberItem();
+                        var item = new CircleMemberRecord();
                         item.circleId = circleId;
 
                         if (rdr.IsDBNull(0))
@@ -376,7 +376,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // lock
         }
 
-        public List<CircleMemberItem> GetMemberCirclesAndData(Guid memberId)
+        public List<CircleMemberRecord> GetMemberCirclesAndData(Guid memberId)
         {
             lock (_get2Lock)
             {
@@ -393,7 +393,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _get2Param1.Value = memberId.ToByteArray();
                 using (SqliteDataReader rdr = _get2Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {
-                    var result = new List<CircleMemberItem>();
+                    var result = new List<CircleMemberRecord>();
                     if (!rdr.Read())
                         return null;
                     byte[] _tmpbuf = new byte[65535+1];
@@ -403,7 +403,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     var _guid = new byte[16];
                     while (true)
                     {
-                        var item = new CircleMemberItem();
+                        var item = new CircleMemberRecord();
                         item.memberId = memberId;
 
                         if (rdr.IsDBNull(0))

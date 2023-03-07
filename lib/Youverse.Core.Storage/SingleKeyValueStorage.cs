@@ -40,7 +40,7 @@ public class SingleKeyValueStorage
     public void Upsert<T>(GuidId key, T value)
     {
         var json = DotYouSystemSerializer.Serialize(value);
-        _table.Upsert(new KeyValueItem() { key = key, data = json.ToUtf8ByteArray() });
+        _table.Upsert(new KeyValueRecord() { key = key, data = json.ToUtf8ByteArray() });
     }
 
     public void Delete(GuidId key)

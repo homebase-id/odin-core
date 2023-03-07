@@ -51,12 +51,12 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         /// <param name="identity">The identity following you</param>
         /// <returns>List of driveIds (possibly includinig Guid.Empty for 'follow all')</returns>
         /// <exception cref="Exception"></exception>
-        public new virtual List<ImFollowingItem> Get(OdinId identity)
+        public new virtual List<ImFollowingRecord> Get(OdinId identity)
         {
             var r = base.Get(identity);
 
             if (r == null)
-                r = new List<ImFollowingItem>();
+                r = new List<ImFollowingRecord>();
 
             return r;
         }

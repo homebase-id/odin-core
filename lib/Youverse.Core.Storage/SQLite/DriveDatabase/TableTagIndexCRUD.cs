@@ -5,7 +5,7 @@ using Youverse.Core.Identity;
 
 namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 {
-    public class TagIndexItem
+    public class TagIndexRecord
     {
         private Guid _fileId;
         public Guid fileId
@@ -27,7 +27,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                   _tagId = value;
                }
         }
-    } // End of class TagIndexItem
+    } // End of class TagIndexRecord
 
     public class TableTagIndexCRUD : TableBase
     {
@@ -108,7 +108,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             }
         }
 
-        public virtual int Insert(TagIndexItem item)
+        public virtual int Insert(TagIndexRecord item)
         {
             lock (_insertLock)
             {
@@ -132,7 +132,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             } // Lock
         }
 
-        public virtual int Upsert(TagIndexItem item)
+        public virtual int Upsert(TagIndexRecord item)
         {
             lock (_upsertLock)
             {
@@ -158,7 +158,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             } // Lock
         }
 
-        public virtual int Update(TagIndexItem item)
+        public virtual int Update(TagIndexRecord item)
         {
             lock (_updateLock)
             {
@@ -227,7 +227,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             } // Lock
         }
 
-        public TagIndexItem Get(Guid fileId,Guid tagId)
+        public TagIndexRecord Get(Guid fileId,Guid tagId)
         {
             lock (_get0Lock)
             {
@@ -248,7 +248,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _get0Param2.Value = tagId.ToByteArray();
                 using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
                 {
-                    var result = new TagIndexItem();
+                    var result = new TagIndexRecord();
                     if (!rdr.Read())
                         return null;
                     byte[] _tmpbuf = new byte[65535+1];
@@ -256,7 +256,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     long bytesRead;
 #pragma warning restore CS0168
                     var _guid = new byte[16];
-                        var item = new TagIndexItem();
+                        var item = new TagIndexRecord();
                         item.fileId = fileId;
                         item.tagId = tagId;
                     return item;

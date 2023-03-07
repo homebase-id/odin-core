@@ -29,7 +29,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             // Since we are writing multiple rows we do a logic unit here
             using (_database.CreateCommitUnitOfWork())
             {
-                var item = new AclIndexItem() { fileId = FileId };
+                var item = new AclIndexRecord() { fileId = FileId };
                 for (int i = 0; i < AccessControlList.Count; i++)
                 {
                     item.aclMemberId = AccessControlList[i];

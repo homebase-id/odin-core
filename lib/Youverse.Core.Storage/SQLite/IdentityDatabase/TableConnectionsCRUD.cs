@@ -5,7 +5,7 @@ using Youverse.Core.Identity;
 
 namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
-    public class ConnectionsItem
+    public class ConnectionsRecord
     {
         private OdinId _identity;
         public OdinId identity
@@ -24,9 +24,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                    return _displayName;
                }
            set {
-                  if (value == null) throw new Exception("Cannot be null");
-                  if (value?.Length < 0) throw new Exception("Too short");
-                  if (value?.Length > 80) throw new Exception("Too long");
+                    if (value == null) throw new Exception("Cannot be null");
+                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value?.Length > 80) throw new Exception("Too long");
                   _displayName = value;
                }
         }
@@ -57,8 +57,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                    return _data;
                }
            set {
-                  if (value?.Length < 0) throw new Exception("Too short");
-                  if (value?.Length > 65535) throw new Exception("Too long");
+                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value?.Length > 65535) throw new Exception("Too long");
                   _data = value;
                }
         }
@@ -82,7 +82,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                   _modified = value;
                }
         }
-    } // End of class ConnectionsItem
+    } // End of class ConnectionsRecord
 
     public class TableConnectionsCRUD : TableBase
     {
@@ -184,7 +184,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             }
         }
 
-        public virtual int Insert(ConnectionsItem item)
+        public virtual int Insert(ConnectionsRecord item)
         {
             lock (_insertLock)
             {
@@ -228,7 +228,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
-        public virtual int Upsert(ConnectionsItem item)
+        public virtual int Upsert(ConnectionsRecord item)
         {
             lock (_upsertLock)
             {
@@ -274,7 +274,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
-        public virtual int Update(ConnectionsItem item)
+        public virtual int Update(ConnectionsRecord item)
         {
             lock (_updateLock)
             {
@@ -339,7 +339,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
-        public ConnectionsItem Get(OdinId identity)
+        public ConnectionsRecord Get(OdinId identity)
         {
             lock (_get0Lock)
             {
@@ -356,7 +356,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _get0Param1.Value = identity.DomainName;
                 using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
                 {
-                    var result = new ConnectionsItem();
+                    var result = new ConnectionsRecord();
                     if (!rdr.Read())
                         return null;
                     byte[] _tmpbuf = new byte[65535+1];
@@ -364,7 +364,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     long bytesRead;
 #pragma warning restore CS0168
                     var _guid = new byte[16];
-                        var item = new ConnectionsItem();
+                        var item = new ConnectionsRecord();
                         item.identity = identity;
 
                         if (rdr.IsDBNull(0))
@@ -422,7 +422,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // lock
         }
 
-        public List<ConnectionsItem> PagingByIdentity(int count, string inCursor, out string nextCursor)
+        public List<ConnectionsRecord> PagingByIdentity(int count, string inCursor, out string nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -450,13 +450,13 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
                 using (SqliteDataReader rdr = _getPaging1Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {
-                    var result = new List<ConnectionsItem>();
+                    var result = new List<ConnectionsRecord>();
                     int n = 0;
                     int rowid = 0;
                     while ((n < count) && rdr.Read())
                     {
                         n++;
-                        var item = new ConnectionsItem();
+                        var item = new ConnectionsRecord();
                         byte[] _tmpbuf = new byte[65535+1];
                         long bytesRead;
                         var _guid = new byte[16];
@@ -536,7 +536,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // lock
         } // PagingGet
 
-        public List<ConnectionsItem> PagingByCreated(int count, UnixTimeUtcUnique? inCursor, out UnixTimeUtcUnique? nextCursor)
+        public List<ConnectionsRecord> PagingByCreated(int count, UnixTimeUtcUnique? inCursor, out UnixTimeUtcUnique? nextCursor)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -564,13 +564,13 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
                 using (SqliteDataReader rdr = _getPaging6Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {
-                    var result = new List<ConnectionsItem>();
+                    var result = new List<ConnectionsRecord>();
                     int n = 0;
                     int rowid = 0;
                     while ((n < count) && rdr.Read())
                     {
                         n++;
-                        var item = new ConnectionsItem();
+                        var item = new ConnectionsRecord();
                         byte[] _tmpbuf = new byte[65535+1];
                         long bytesRead;
                         var _guid = new byte[16];

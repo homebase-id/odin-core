@@ -5,7 +5,7 @@ using Youverse.Core.Identity;
 
 namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 {
-    public class MainIndexItem
+    public class MainIndexRecord
     {
         private Guid _fileId;
         public Guid fileId
@@ -84,8 +84,8 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                    return _senderId;
                }
            set {
-                  if (value?.Length < 0) throw new Exception("Too short");
-                  if (value?.Length > 65535) throw new Exception("Too long");
+                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value?.Length > 65535) throw new Exception("Too long");
                   _senderId = value;
                }
         }
@@ -149,7 +149,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                   _modified = value;
                }
         }
-    } // End of class MainIndexItem
+    } // End of class MainIndexRecord
 
     public class TableMainIndexCRUD : TableBase
     {
@@ -267,7 +267,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             }
         }
 
-        public virtual int Insert(MainIndexItem item)
+        public virtual int Insert(MainIndexRecord item)
         {
             lock (_insertLock)
             {
@@ -339,7 +339,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             } // Lock
         }
 
-        public virtual int Upsert(MainIndexItem item)
+        public virtual int Upsert(MainIndexRecord item)
         {
             lock (_upsertLock)
             {
@@ -413,7 +413,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             } // Lock
         }
 
-        public virtual int Update(MainIndexItem item)
+        public virtual int Update(MainIndexRecord item)
         {
             lock (_updateLock)
             {
@@ -506,7 +506,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             } // Lock
         }
 
-        public MainIndexItem Get(Guid fileId)
+        public MainIndexRecord Get(Guid fileId)
         {
             lock (_get0Lock)
             {
@@ -523,7 +523,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _get0Param1.Value = fileId.ToByteArray();
                 using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
                 {
-                    var result = new MainIndexItem();
+                    var result = new MainIndexRecord();
                     if (!rdr.Read())
                         return null;
                     byte[] _tmpbuf = new byte[65535+1];
@@ -531,7 +531,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     long bytesRead;
 #pragma warning restore CS0168
                     var _guid = new byte[16];
-                        var item = new MainIndexItem();
+                        var item = new MainIndexRecord();
                         item.fileId = fileId;
 
                         if (rdr.IsDBNull(0))

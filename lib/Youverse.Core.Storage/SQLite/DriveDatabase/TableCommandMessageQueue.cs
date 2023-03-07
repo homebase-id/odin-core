@@ -79,7 +79,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             // Since we are writing multiple rows we do a logic unit here
             using (_database.CreateCommitUnitOfWork())
             {
-                var item = new CommandMessageQueueItem() { timeStamp = new UnixTimeUtc(0) };
+                var item = new CommandMessageQueueRecord() { timeStamp = new UnixTimeUtc(0) };
                 for (int i = 0; i < fileId.Count; i++)
                 {
                     item.fileId = fileId[i];

@@ -222,7 +222,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 
 
         // Copied and modified from CRUD
-        public List<ReactionsItem> PagingByRowid(int count, Int32? inCursor, out Int32? nextCursor, Guid postIdFilter)
+        public List<ReactionsRecord> PagingByRowid(int count, Int32? inCursor, out Int32? nextCursor, Guid postIdFilter)
         {
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
@@ -256,13 +256,13 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 
                 using (SqliteDataReader rdr = _getPaging0Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {
-                    var result = new List<ReactionsItem>();
+                    var result = new List<ReactionsRecord>();
                     int n = 0;
                     int rowid = 0;
                     while ((n < count) && rdr.Read())
                     {
                         n++;
-                        var item = new ReactionsItem();
+                        var item = new ReactionsRecord();
                         byte[] _tmpbuf = new byte[65535 + 1];
                         long bytesRead;
                         var _guid = new byte[16];

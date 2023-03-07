@@ -5,7 +5,7 @@ using Youverse.Core.Identity;
 
 namespace Youverse.Core.Storage.Sqlite.ServerDatabase
 {
-    public class CronItem
+    public class CronRecord
     {
         private Guid _identityId;
         public Guid identityId
@@ -34,9 +34,9 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
                    return _data;
                }
            set {
-                  if (value == null) throw new Exception("Cannot be null");
-                  if (value?.Length < 0) throw new Exception("Too short");
-                  if (value?.Length > 65535) throw new Exception("Too long");
+                    if (value == null) throw new Exception("Cannot be null");
+                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value?.Length > 65535) throw new Exception("Too long");
                   _data = value;
                }
         }
@@ -100,7 +100,7 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
                   _modified = value;
                }
         }
-    } // End of class CronItem
+    } // End of class CronRecord
 
     public class TableCronCRUD : TableBase
     {
@@ -199,7 +199,7 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
             }
         }
 
-        public virtual int Insert(CronItem item)
+        public virtual int Insert(CronRecord item)
         {
             lock (_insertLock)
             {
@@ -251,7 +251,7 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
             } // Lock
         }
 
-        public virtual int Upsert(CronItem item)
+        public virtual int Upsert(CronRecord item)
         {
             lock (_upsertLock)
             {
@@ -305,7 +305,7 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
             } // Lock
         }
 
-        public virtual int Update(CronItem item)
+        public virtual int Update(CronRecord item)
         {
             lock (_updateLock)
             {
@@ -382,7 +382,7 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
             } // Lock
         }
 
-        public CronItem Get(Guid identityId,Int32 type)
+        public CronRecord Get(Guid identityId,Int32 type)
         {
             lock (_get0Lock)
             {
@@ -403,7 +403,7 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
                 _get0Param2.Value = type;
                 using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
                 {
-                    var result = new CronItem();
+                    var result = new CronRecord();
                     if (!rdr.Read())
                         return null;
                     byte[] _tmpbuf = new byte[65535+1];
@@ -411,7 +411,7 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
                     long bytesRead;
 #pragma warning restore CS0168
                     var _guid = new byte[16];
-                        var item = new CronItem();
+                        var item = new CronRecord();
                         item.identityId = identityId;
                         item.type = type;
 

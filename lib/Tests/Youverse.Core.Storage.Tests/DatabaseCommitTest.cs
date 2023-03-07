@@ -30,7 +30,7 @@ namespace IdentityDatabaseTests
             db.CreateDatabase();
 
             // Add some data
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = "odin.valhalla.com", driveId = Guid.NewGuid() });
+            db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = "odin.valhalla.com", driveId = Guid.NewGuid() });
 
             // Pass time, way more than 250ms, so we should trigger once, not twice
             Thread.Sleep(1000);
@@ -51,7 +51,7 @@ namespace IdentityDatabaseTests
             db.CreateDatabase();
 
             // Add some data
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = "odin.valhalla.com", driveId = Guid.NewGuid() });
+            db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = "odin.valhalla.com", driveId = Guid.NewGuid() });
 
             // Pass time, so we should trigger once, not twice
             Thread.Sleep(500);
@@ -59,7 +59,7 @@ namespace IdentityDatabaseTests
             Debug.Assert(db.TimerCommitCount() == 1);
 
             // Add some more data
-            db.tblFollowsMe.Insert(new FollowsMeItem() { identity = "thor.valhalla.com", driveId = Guid.NewGuid() });
+            db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = "thor.valhalla.com", driveId = Guid.NewGuid() });
             Thread.Sleep(500);
             Debug.Assert(db.TimerCount() == 2);
             Debug.Assert(db.TimerCommitCount() == 2);
@@ -104,7 +104,7 @@ namespace IdentityDatabaseTests
             using (db.CreateCommitUnitOfWork())
             {
                 // Add some data
-                db.tblFollowsMe.Insert(new FollowsMeItem() { identity = "odin.valhalla.com", driveId = Guid.NewGuid() });
+                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = "odin.valhalla.com", driveId = Guid.NewGuid() });
 
                 // Pass time for 2 timer triggers (250+250+100), because we're in a logic commit unit, DB won't flush
                 Thread.Sleep(600);
@@ -139,7 +139,7 @@ namespace IdentityDatabaseTests
             using (db.CreateCommitUnitOfWork())
             {
                 // Add some data
-                db.tblFollowsMe.Insert(new FollowsMeItem() { identity = "odin.valhalla.com", driveId = Guid.NewGuid() });
+                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = "odin.valhalla.com", driveId = Guid.NewGuid() });
 
                 db.Commit();
                 Debug.Assert(db.CommitCallCount() == 1);
@@ -162,7 +162,7 @@ namespace IdentityDatabaseTests
             using (db.CreateCommitUnitOfWork())
             {
                 // Add some data
-                db.tblFollowsMe.Insert(new FollowsMeItem() { identity = "odin.valhalla.com", driveId = Guid.NewGuid() });
+                db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = "odin.valhalla.com", driveId = Guid.NewGuid() });
 
                 db.Commit();
                 Debug.Assert(db.CommitCallCount() == 1);

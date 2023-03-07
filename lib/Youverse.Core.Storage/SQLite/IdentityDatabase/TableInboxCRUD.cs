@@ -5,7 +5,7 @@ using Youverse.Core.Identity;
 
 namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
-    public class InboxItem
+    public class InboxRecord
     {
         private Guid _fileId;
         public Guid fileId
@@ -54,8 +54,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                    return _value;
                }
            set {
-                  if (value?.Length < 0) throw new Exception("Too short");
-                  if (value?.Length > 65535) throw new Exception("Too long");
+                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value?.Length > 65535) throw new Exception("Too long");
                   _value = value;
                }
         }
@@ -89,7 +89,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                   _modified = value;
                }
         }
-    } // End of class InboxItem
+    } // End of class InboxRecord
 
     public class TableInboxCRUD : TableBase
     {
@@ -184,7 +184,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             }
         }
 
-        public virtual int Insert(InboxItem item)
+        public virtual int Insert(InboxRecord item)
         {
             lock (_insertLock)
             {
@@ -232,7 +232,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
-        public virtual int Upsert(InboxItem item)
+        public virtual int Upsert(InboxRecord item)
         {
             lock (_upsertLock)
             {
@@ -282,7 +282,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
-        public virtual int Update(InboxItem item)
+        public virtual int Update(InboxRecord item)
         {
             lock (_updateLock)
             {
@@ -351,7 +351,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
-        public InboxItem Get(Guid fileId)
+        public InboxRecord Get(Guid fileId)
         {
             lock (_get0Lock)
             {
@@ -368,7 +368,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _get0Param1.Value = fileId.ToByteArray();
                 using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
                 {
-                    var result = new InboxItem();
+                    var result = new InboxRecord();
                     if (!rdr.Read())
                         return null;
                     byte[] _tmpbuf = new byte[65535+1];
@@ -376,7 +376,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     long bytesRead;
 #pragma warning restore CS0168
                     var _guid = new byte[16];
-                        var item = new InboxItem();
+                        var item = new InboxRecord();
                         item.fileId = fileId;
 
                         if (rdr.IsDBNull(0))

@@ -23,7 +23,7 @@ namespace Youverse.Core.Storage.Sqlite
 {
     public class DatabaseBase : IDisposable
     {
-        private readonly Object _getTransactionLock = new Object();
+        public readonly Object _transactionLock = new Object();
 
         public class IntCounter // Since I can't store a ref to an int, I make this hack.
         {
@@ -83,7 +83,7 @@ namespace Youverse.Core.Storage.Sqlite
         private int _timerCommitTriggerCount = 0;
         private int _commitCallCount = 0;
         private int _commitFlushCount = 0;
-
+        private bool _overdue = false;
 
         public DatabaseBase(string connectionString, ulong commitFrequencyMs = 5000)
         {
@@ -205,7 +205,10 @@ namespace Youverse.Core.Storage.Sqlite
         /// </summary>
         public void BeginTransaction()
         {
-            lock (_getTransactionLock)
+            if (_overdue && _counter.ReadyToCommit())
+                Commit();
+
+            lock (_transactionLock)
             {
                 if (_transaction == null)
                 {
@@ -237,14 +240,19 @@ namespace Youverse.Core.Storage.Sqlite
         /// <returns>true is data was committed to the DB, false otherwise.</returns>
         public bool Commit()
         {
-            lock (_getTransactionLock)
+            lock (_transactionLock)
             {
                 _commitCallCount++;
 
                 if (!_counter.ReadyToCommit())
+                {
+                    _overdue = true;
                     return false;
+                }
 
                 _commitTimer.Stop();
+                _overdue = false;
+
                 if (_transaction != null)
                 {
                     _commitFlushCount++;
@@ -283,6 +291,7 @@ namespace Youverse.Core.Storage.Sqlite
             _timerTriggerCount++;
             if (!_counter.ReadyToCommit())
             {
+                _overdue = true;
                 _commitTimer.Start(); // It doesn't auto-restart, kick it back to action
                 return;
             }
@@ -296,8 +305,13 @@ namespace Youverse.Core.Storage.Sqlite
     {
         public static int ExecuteNonQuery(this SqliteCommand command, DatabaseBase database)
         {
-            command.Transaction = database.Transaction;
-            return command.ExecuteNonQuery();
+            lock (database._transactionLock)
+            {
+                command.Transaction = database.Transaction;
+                var r = command.ExecuteNonQuery();
+                command.Transaction = null;
+                return r;
+            }
         }
 
         public static SqliteDataReader ExecuteReader(
@@ -305,10 +319,13 @@ namespace Youverse.Core.Storage.Sqlite
             CommandBehavior behavior,
             DatabaseBase database)
         {
-            command.Transaction = database.Transaction;
-            return command.ExecuteReader();
+            lock (database._transactionLock)
+            {
+                command.Transaction = database.Transaction;
+                var r = command.ExecuteReader();
+                command.Transaction = null;
+                return r;
+            }
         }
-        
-        
     }
 }

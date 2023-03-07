@@ -43,7 +43,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             if (request.NotificationType == FollowerNotificationType.AllNotifications)
             {
                 _tenantStorage.Followers.DeleteFollower(request.OdinId);
-                _tenantStorage.Followers.Insert(new FollowsMeItem() { identity = request.OdinId, driveId = System.Guid.Empty });
+                _tenantStorage.Followers.Insert(new FollowsMeRecord() { identity = request.OdinId, driveId = System.Guid.Empty });
             }
 
             if (request.NotificationType == FollowerNotificationType.SelectedChannels)
@@ -72,7 +72,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
                     _tenantStorage.Followers.DeleteFollower(request.OdinId);
                     foreach (var channel in request.Channels)
                     {
-                        _tenantStorage.Followers.Insert(new FollowsMeItem() { identity = request.OdinId, driveId = channel.Alias });
+                        _tenantStorage.Followers.Insert(new FollowsMeRecord() { identity = request.OdinId, driveId = channel.Alias });
                     }
                 }
 

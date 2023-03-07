@@ -49,14 +49,14 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             base.Dispose();
         }
 
-        public override int Insert(InboxItem item)
+        public override int Insert(InboxRecord item)
         {
             if (item.timeStamp.milliseconds == 0)
                 item.timeStamp = UnixTimeUtc.Now();
             return base.Insert(item);
         }
 
-        public override int Upsert(InboxItem item)
+        public override int Upsert(InboxRecord item)
         {
             if (item.timeStamp.milliseconds == 0)
                 item.timeStamp = UnixTimeUtc.Now();
@@ -72,7 +72,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         /// <param name="count">How many items to 'pop' (reserve)</param>
         /// <param name="popStamp">The unique identifier for the items reserved for pop</param>
         /// <returns></returns>
-        public List<InboxItem> Pop(Guid boxId, int count, out byte[] popStamp)
+        public List<InboxRecord> Pop(Guid boxId, int count, out byte[] popStamp)
         {
             lock (_popLock)
             {
@@ -112,17 +112,17 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
                 using (_database.CreateCommitUnitOfWork())
                 {
-                    List<InboxItem> result = new List<InboxItem>();
+                    List<InboxRecord> result = new List<InboxRecord>();
                     using (SqliteDataReader rdr = _popCommand.ExecuteReader(System.Data.CommandBehavior.Default))
                     {
-                        InboxItem item;
+                        InboxRecord item;
 
                         while (rdr.Read())
                         {
                             if (rdr.IsDBNull(0))
                                 throw new Exception("Not possible");
 
-                            item = new InboxItem();
+                            item = new InboxRecord();
                             item.boxId = boxId;
                             var _guid = new byte[16];
                             var n = rdr.GetBytes(0, 0, _guid, 0, 16);
