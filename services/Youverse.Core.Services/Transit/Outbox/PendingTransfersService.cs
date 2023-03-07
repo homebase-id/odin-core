@@ -23,6 +23,8 @@ namespace Youverse.Core.Services.Transit.Outbox
             if (!Directory.Exists(finalPath))
             {
                 Directory.CreateDirectory(finalPath!);
+                Utils.ShellExecute($"chmod -R +rw {finalPath}");
+
             }
             var filePath = PathUtil.OsIfy($"{dataPath}\\xfer.db");
             _db = new IdentityDatabase($"Data Source={filePath}");

@@ -38,5 +38,26 @@ namespace Youverse.Core.Util
                 dummyArray.Add(SequentialGuid.CreateGuid());
             }
         }
+        
+        public static void ShellExecute(string cmd)
+        {
+            var escapedArgs = cmd.Replace("\"", "\\\"");
+        
+            using var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WindowStyle = ProcessWindowStyle.Hidden,
+                    FileName = "/bin/bash",
+                    Arguments = $"-c \"{escapedArgs}\""
+                }
+            };
+
+            process.Start();
+            process.WaitForExit();
+        }
     }
 }   
