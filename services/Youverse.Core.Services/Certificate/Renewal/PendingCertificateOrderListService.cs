@@ -1,49 +1,35 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Dawn;
 using Youverse.Core.Identity;
-using Youverse.Core.Storage.Sqlite.IdentityDatabase;
-using Youverse.Core.Util;
+using Youverse.Core.Services.Base;
+using Youverse.Core.Storage.Sqlite.ServerDatabase;
 
 namespace Youverse.Core.Services.Certificate.Renewal
 {
     /// <summary>
     /// List of identities with an outstanding order to have an SSL certificate created 
     /// </summary>
-    public class PendingCertificateOrderListService:IDisposable
+    public class PendingCertificateOrderListService
     {
-        private readonly IdentityDatabase _db;
+        private readonly ServerSystemStorage _serverSystemStorage;
 
-        public PendingCertificateOrderListService(string dataPath)
+        public PendingCertificateOrderListService(ServerSystemStorage serverSystemStorage)
         {
-            Guard.Argument(dataPath, nameof(dataPath)).NotNull().NotEmpty();
-            var finalPath = PathUtil.OsIfy(dataPath);
-
-            if (!Directory.Exists(finalPath))
-            {
-                Directory.CreateDirectory(finalPath!);
-            }
-
-            var filePath = PathUtil.OsIfy($"{dataPath}\\cert.db");
-            _db = new IdentityDatabase($"Data Source={filePath}");
-            _db.CreateDatabase(false);
+            _serverSystemStorage = serverSystemStorage;
         }
 
         public void Add(OdinId identity)
         {
-            //Note: I use sender here because boxId has a unique constraint; and we only a sender in this table once.
-            //I swallow the exception because there's no direct way to see if a record exists for this sender already
-            // byte[] fileId = new byte[] { 1, 1, 2, 3, 5 };
-
-            Guid boxId = GuidId.FromString("pcol").Value;
-            Guid fileId = identity.ToHashId();
             try
             {
-                // _db.tblOutbox.InsertRow(boxId, fileId, 0, identity.Id.ToLower().ToUtf8ByteArray());
-                _db.tblOutbox.Insert(new OutboxItem() { boxId = boxId, recipient = identity.Id, fileId = fileId, priority = 0, value = identity.Id.ToLower().ToUtf8ByteArray() });
+                _serverSystemStorage.tblCron.Insert(new CronItem()
+                {
+                    identityId = identity,
+                    type = 2,
+                    data = identity.Id.ToLower().ToUtf8ByteArray()
+                });
             }
             catch (Microsoft.Data.Sqlite.SqliteException ex)
             {
@@ -61,26 +47,21 @@ namespace Youverse.Core.Services.Certificate.Renewal
         /// </summary>
         public async Task<(IEnumerable<OdinId>, Guid marker)> GetIdentities()
         {
-            var records = _db.tblOutbox.PopAll(out var marker);
-            
+            var records = _serverSystemStorage.tblCron.Pop(1, out var marker);
+
             //see Add method.  fileId = odinId
-            var senders = records.Select(item => new OdinId(item.value.ToStringFromUtf8Bytes())).ToList();
+            var senders = records.Select(item => new OdinId(item.data.ToStringFromUtf8Bytes())).ToList();
             return (senders, marker);
         }
 
         public void MarkComplete(Guid marker)
         {
-            _db.tblOutbox.PopCommit(marker);
+            _serverSystemStorage.tblCron.PopCommitList(new List<Guid>() { marker });
         }
 
         public void MarkFailure(Guid marker)
         {
-            _db.tblOutbox.PopCancel(marker);
-        }
-
-        public void Dispose()
-        {
-            _db?.Dispose();
+            _serverSystemStorage.tblCron.PopCancelList(new List<Guid>() { marker });
         }
     }
 }

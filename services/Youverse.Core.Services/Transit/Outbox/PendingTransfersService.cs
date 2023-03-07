@@ -7,6 +7,7 @@ using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Storage.Sqlite.IdentityDatabase;
 using Youverse.Core.Storage.Sqlite.ServerDatabase;
 using Youverse.Core.Util;
@@ -15,38 +16,18 @@ namespace Youverse.Core.Services.Transit.Outbox
 {
     public class PendingTransfersService : IPendingTransfersService
     {
-        private readonly ServerDatabase _db;
+        private readonly ServerSystemStorage _serverSystemStorage;
 
-        public PendingTransfersService(string dataPath)
+        public PendingTransfersService(ServerSystemStorage serverSystemStorage)
         {
-            Guard.Argument(dataPath, nameof(dataPath)).NotNull().NotEmpty();
-            var finalPath = PathUtil.OsIfy(dataPath);
-
-            if (!Directory.Exists(finalPath))
-            {
-                Directory.CreateDirectory(finalPath!);
-                // Utils.ShellExecute($"chmod -R +rw {finalPath}");
-            }
-
-            var filePath = PathUtil.OsIfy($"{dataPath}{Path.PathSeparator}xfer.db");
-
-            // Utils.ShellExecute($"chmod -R +rw {filePath}");
-
-            // _db = new IdentityDatabase($"Data Source={filePath}");
-            _db = new ServerDatabase($"Data Source={filePath}");
-            _db.CreateDatabase(false);
+            _serverSystemStorage = serverSystemStorage;
         }
-
-        public void Dispose()
-        {
-            _db?.Dispose();
-        }
-
+        
         public void EnsureIdentityIsPending(OdinId sender)
         {
             try
             {
-                _db.tblCron.Insert(new CronItem()
+                _serverSystemStorage.tblCron.Insert(new CronItem()
                 {
                     identityId = sender,
                     type = 1,
@@ -66,7 +47,7 @@ namespace Youverse.Core.Services.Transit.Outbox
 
         public async Task<(IEnumerable<OdinId>, Guid marker)> GetIdentities()
         {
-            var records = _db.tblCron.Pop(1, out var marker);
+            var records = _serverSystemStorage.tblCron.Pop(1, out var marker);
 
             var senders = records.Select(item => new OdinId(item.data.ToStringFromUtf8Bytes())).ToList();
 
@@ -75,12 +56,12 @@ namespace Youverse.Core.Services.Transit.Outbox
 
         public void MarkComplete(Guid marker)
         {
-            _db.tblCron.PopCommitList(new List<Guid>() { marker });
+            _serverSystemStorage.tblCron.PopCommitList(new List<Guid>() { marker });
         }
 
         public void MarkFailure(Guid marker)
         {
-            _db.tblCron.PopCancelList(new List<Guid>() { marker });
+            _serverSystemStorage.tblCron.PopCancelList(new List<Guid>() { marker });
         }
     }
 }
