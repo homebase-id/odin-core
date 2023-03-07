@@ -28,6 +28,7 @@ namespace Youverse.Core.Services.Workers.Certificate
 
         public async Task Execute(IJobExecutionContext context)
         {
+            //TODO: this is only getting one identity at a time. needs to be upgraded
             Dictionary<Guid, CertificateOrderStatus> statusMap = new();
             var (identities, marker) = await _certificateOrderList.GetIdentities();
             foreach (var ident in identities)
@@ -39,6 +40,10 @@ namespace Youverse.Core.Services.Workers.Certificate
             if (statusMap.Values.ToList().TrueForAll(s => s == CertificateOrderStatus.CertificateUpdateComplete))
             {
                 _certificateOrderList.MarkComplete(marker);
+            }
+            else
+            {
+                _certificateOrderList.MarkFailure(marker);
             }
         }
 

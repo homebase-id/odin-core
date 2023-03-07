@@ -162,9 +162,7 @@ namespace Youverse.Hosting.Tests
             }
 
             Directory.CreateDirectory(TestDataPath);
-
-            Utils.ShellExecute($"chmod -R +rw {TestDataPath}");
-
+            
             if (Directory.Exists(TempDataPath))
             {
                 Console.WriteLine($"Removing data in [{TempDataPath}]");
@@ -172,9 +170,6 @@ namespace Youverse.Hosting.Tests
             }
 
             Directory.CreateDirectory(TempDataPath);
-            
-            Utils.ShellExecute($"chmod -R +rw {TempDataPath}");
-
         }
 
         private void DeleteLogs()
