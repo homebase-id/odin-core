@@ -74,7 +74,7 @@ namespace Youverse.Core.Services.Transit
 
 
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                     await _transitInboxBoxStorage.MarkFailure(item.DriveId, item.Marker);
                 }

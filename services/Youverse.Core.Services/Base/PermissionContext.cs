@@ -12,7 +12,7 @@ namespace Youverse.Core.Services.Base
         private readonly Dictionary<string, PermissionGroup> _permissionGroups;
         private readonly bool _isSystem = false;
 
-        private Guid _instanceId;
+        // private Guid _instanceId;
 
         public PermissionContext(
             Dictionary<string, PermissionGroup> permissionGroups,
@@ -24,7 +24,7 @@ namespace Youverse.Core.Services.Base
             this.SharedSecretKey = sharedSecretKey;
             _permissionGroups = permissionGroups;
 
-            _instanceId = new Guid();
+            // _instanceId = new Guid();
             _isSystem = isSystem;
         }
 

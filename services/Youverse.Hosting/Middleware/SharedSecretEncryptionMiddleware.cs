@@ -159,7 +159,7 @@ namespace Youverse.Hosting.Middleware
                     request.Body = new MemoryStream(decryptedBytes);
                 }
             }
-            catch (JsonException e)
+            catch (JsonException)
             {
                 throw new YouverseClientException("Failed to decrypt shared secret payload.  Ensure you've provided a body of json formatted as SharedSecretEncryptedPayload",
                     YouverseClientErrorCode.SharedSecretEncryptionIsInvalid);

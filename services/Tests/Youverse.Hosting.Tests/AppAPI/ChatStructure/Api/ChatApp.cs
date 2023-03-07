@@ -11,11 +11,11 @@ public class ChatData
 public class ChatApp
 {
     private readonly ChatServerContext _chatServerContext;
-    private readonly ChatData _chatData;
+    // private readonly ChatData _chatData;
     private readonly ChatSynchronizer _synchronizer;
     private readonly ConversationService _conversationService;
     private readonly ConversationDefinitionService _conversationDefinitionService;
-    private string _latestCursor = "";
+    // private string _latestCursor = "";
 
     public ChatMessageFileService MessageFileService { get; }
 
