@@ -16,25 +16,25 @@ namespace IdentityDatabaseTests
             using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid().ToByteArray();
-            var k2 = Guid.NewGuid().ToByteArray();
-            var k11 = Guid.NewGuid().ToByteArray();
-            var k22 = Guid.NewGuid().ToByteArray();
+            var k1 = Guid.NewGuid();
+            var k2 = Guid.NewGuid();
+            var k11 = Guid.NewGuid();
+            var k22 = Guid.NewGuid();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
             var r = db.tblKeyTwoValue.Get(k1);
             Debug.Assert(r == null);
 
-            db.tblKeyTwoValue.InsertRow(k1, k11, v1);
-            db.tblKeyTwoValue.InsertRow(k2, k22, v2);
+            db.tblKeyTwoValue.Insert(new KeyTwoValueRecord() { key1 = k1, key2 = k11, data = v1 });
+            db.tblKeyTwoValue.Insert(new KeyTwoValueRecord() { key1 = k2, key2 = k22, data = v2 });
 
             r = db.tblKeyTwoValue.Get(k1);
-            if (ByteArrayUtil.muidcmp(r, v1) != 0)
+            if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
                 Assert.Fail();
 
             var lr = db.tblKeyTwoValue.GetByKeyTwo(k11);
-            if (ByteArrayUtil.muidcmp(lr[0], v1) != 0)
+            if (ByteArrayUtil.muidcmp(lr[0].data, v1) != 0)
                 Assert.Fail();
         }
 
@@ -46,21 +46,21 @@ namespace IdentityDatabaseTests
             using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid().ToByteArray();
-            var k11 = Guid.NewGuid().ToByteArray();
+            var k1 = Guid.NewGuid();
+            var k11 = Guid.NewGuid();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
             var r = db.tblKeyTwoValue.Get(k1);
             Debug.Assert(r == null);
 
-            db.tblKeyTwoValue.InsertRow(k1, k11, v1);
+            db.tblKeyTwoValue.Insert(new KeyTwoValueRecord() { key1 = k1, key2 = k11, data = v1 });
 
             bool ok = false;
 
             try
             {
-                db.tblKeyTwoValue.InsertRow(k1, k11, v2);
+                db.tblKeyTwoValue.Insert(new KeyTwoValueRecord() { key1 = k1, key2 = k11, data = v2 });
                 ok = true;
             }
             catch
@@ -71,7 +71,7 @@ namespace IdentityDatabaseTests
             Debug.Assert(ok == false);
 
             r = db.tblKeyTwoValue.Get(k1);
-            if (ByteArrayUtil.muidcmp(r, v1) != 0)
+            if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
                 Assert.Fail();
         }
 
@@ -82,19 +82,19 @@ namespace IdentityDatabaseTests
             using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid().ToByteArray();
-            var k11 = Guid.NewGuid().ToByteArray();
+            var k1 = Guid.NewGuid();
+            var k11 = Guid.NewGuid();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
             var r = db.tblKeyTwoValue.Get(k1);
             Debug.Assert(r == null);
 
-            db.tblKeyTwoValue.InsertRow(k1, k11, v1);
-            db.tblKeyTwoValue.UpdateRow(k1, v2);
+            db.tblKeyTwoValue.Insert(new KeyTwoValueRecord() { key1 = k1, key2 = k11, data = v1 });
+            db.tblKeyTwoValue.Update(new KeyTwoValueRecord() { key1 = k1, key2 = k11, data = v2 });
 
             r = db.tblKeyTwoValue.Get(k1);
-            if (ByteArrayUtil.muidcmp(r, v2) != 0)
+            if (ByteArrayUtil.muidcmp(r.data, v2) != 0)
                 Assert.Fail();
         }
 
@@ -106,23 +106,23 @@ namespace IdentityDatabaseTests
             using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid().ToByteArray();
-            var k2 = Guid.NewGuid().ToByteArray();
-            var k11 = Guid.NewGuid().ToByteArray();
-            var k22 = Guid.NewGuid().ToByteArray();
+            var k1 = Guid.NewGuid();
+            var k2 = Guid.NewGuid();
+            var k11 = Guid.NewGuid();
+            var k22 = Guid.NewGuid();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
             var r = db.tblKeyTwoValue.Get(k1);
             Debug.Assert(r == null);
 
-            db.tblKeyTwoValue.InsertRow(k1, k11, v1);
+            db.tblKeyTwoValue.Insert(new KeyTwoValueRecord() { key1 = k1, key2 = k11, data = v1 });
 
             bool ok = false;
 
             try
             {
-                db.tblKeyTwoValue.UpdateRow(k2, v2);
+                db.tblKeyTwoValue.Update(new KeyTwoValueRecord() { key1 = k2, data = v2 });
                 ok = true;
             }
             catch
@@ -141,24 +141,24 @@ namespace IdentityDatabaseTests
             using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid().ToByteArray();
-            var k2 = Guid.NewGuid().ToByteArray();
-            var k11 = Guid.NewGuid().ToByteArray();
-            var k22 = Guid.NewGuid().ToByteArray();
+            var k1 = Guid.NewGuid();
+            var k2 = Guid.NewGuid();
+            var k11 = Guid.NewGuid();
+            var k22 = Guid.NewGuid();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
             var r = db.tblKeyTwoValue.Get(k1);
             Debug.Assert(r == null);
 
-            db.tblKeyTwoValue.InsertRow(k1, k11, v1);
-            db.tblKeyTwoValue.InsertRow(k2, k22, v2);
+            db.tblKeyTwoValue.Insert(new KeyTwoValueRecord() { key1 = k1, key2 = k11, data = v1 });
+            db.tblKeyTwoValue.Insert(new KeyTwoValueRecord() { key1 = k2, key2 = k22, data = v2 });
 
             r = db.tblKeyTwoValue.Get(k1);
-            if (ByteArrayUtil.muidcmp(r, v1) != 0)
+            if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
                 Assert.Fail();
 
-            db.tblKeyTwoValue.DeleteRow(k1);
+            db.tblKeyTwoValue.Delete(k1);
             r = db.tblKeyTwoValue.Get(k1);
             Debug.Assert(r == null);
         }
@@ -170,10 +170,10 @@ namespace IdentityDatabaseTests
             using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid().ToByteArray();
-            var k2 = Guid.NewGuid().ToByteArray();
-            var k11 = Guid.NewGuid().ToByteArray();
-            var k22 = Guid.NewGuid().ToByteArray();
+            var k1 = Guid.NewGuid();
+            var k2 = Guid.NewGuid();
+            var k11 = Guid.NewGuid();
+            var k22 = Guid.NewGuid();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
             var v3 = Guid.NewGuid().ToByteArray();
@@ -181,21 +181,21 @@ namespace IdentityDatabaseTests
             var r = db.tblKeyTwoValue.Get(k1);
             Debug.Assert(r == null);
 
-            db.tblKeyTwoValue.UpsertRow(k1, k11, v1);
-            db.tblKeyTwoValue.UpsertRow(k2, k22, v2);
+            db.tblKeyTwoValue.Upsert(new KeyTwoValueRecord() { key1 = k1, key2 = k11, data = v1 });
+            db.tblKeyTwoValue.Upsert(new KeyTwoValueRecord() { key1 = k2, key2 = k22, data = v2 });
 
             r = db.tblKeyTwoValue.Get(k1);
-            if (ByteArrayUtil.muidcmp(r, v1) != 0)
+            if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
                 Assert.Fail();
 
             r = db.tblKeyTwoValue.Get(k2);
-            if (ByteArrayUtil.muidcmp(r, v2) != 0)
+            if (ByteArrayUtil.muidcmp(r.data, v2) != 0)
                 Assert.Fail();
 
-            db.tblKeyTwoValue.UpsertRow(k2, k22, v3);
+            db.tblKeyTwoValue.Upsert(new KeyTwoValueRecord() { key1 = k2, key2 = k22, data = v3 });
 
             r = db.tblKeyTwoValue.Get(k2);
-            if (ByteArrayUtil.muidcmp(r, v3) != 0)
+            if (ByteArrayUtil.muidcmp(r.data, v3) != 0)
                 Assert.Fail();
         }
 
@@ -208,44 +208,44 @@ namespace IdentityDatabaseTests
             using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
-            var k1 = Guid.NewGuid().ToByteArray();
-            var k2 = Guid.NewGuid().ToByteArray();
-            var i1 = Guid.NewGuid().ToByteArray();
-            var i2 = Guid.NewGuid().ToByteArray();
+            var k1 = Guid.NewGuid();
+            var k2 = Guid.NewGuid();
+            var i1 = Guid.NewGuid();
+            var i2 = Guid.NewGuid();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
-            db.tblKeyTwoValue.InsertRow(k1, i1, v1);
-            db.tblKeyTwoValue.InsertRow(k2, i1, v2);
+            db.tblKeyTwoValue.Insert(new KeyTwoValueRecord() { key1 = k1, key2 = i1, data = v1 });
+            db.tblKeyTwoValue.Insert(new KeyTwoValueRecord() { key1 = k2, key2 = i1, data = v2 });
 
             var r = db.tblKeyTwoValue.Get(k1);
             if (r == null)
                 Assert.Fail();
-            if (ByteArrayUtil.muidcmp(r, v1) != 0)
+            if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
                 Assert.Fail();
 
             var ra = db.tblKeyTwoValue.GetByKeyTwo(i1);
             if (ra.Count != 2)
                 Assert.Fail();
-            if (ByteArrayUtil.muidcmp(ra[0], v1) != 0)
+            if (ByteArrayUtil.muidcmp(ra[0].data, v1) != 0)
                 Assert.Fail();
-            if (ByteArrayUtil.muidcmp(ra[1], v2) != 0)
+            if (ByteArrayUtil.muidcmp(ra[1].data, v2) != 0)
                 Assert.Fail();
 
 
-            db.tblKeyTwoValue.UpdateRow(k1, v2);
+            db.tblKeyTwoValue.Update(new KeyTwoValueRecord() { key1 = k1, key2 = i1, data = v2 });
             r = db.tblKeyTwoValue.Get(k1);
 
             if (r == null)
                 Assert.Fail();
-            if (ByteArrayUtil.muidcmp(r, v2) != 0)
+            if (ByteArrayUtil.muidcmp(r.data, v2) != 0)
                 Assert.Fail();
 
-            db.tblKeyTwoValue.DeleteRow(k1);
+            db.tblKeyTwoValue.Delete(k1);
             ra = db.tblKeyTwoValue.GetByKeyTwo(i1);
             if (ra.Count != 1)
                 Assert.Fail();
-            if (ByteArrayUtil.muidcmp(ra[0], v2) != 0)
+            if (ByteArrayUtil.muidcmp(ra[0].data, v2) != 0)
                 Assert.Fail();
 
             r = db.tblKeyTwoValue.Get(k1);
