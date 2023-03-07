@@ -19,7 +19,7 @@ namespace IdentityDatabaseTests
             var g2 = Guid.NewGuid();
             var g3 = Guid.NewGuid();
 
-            var item1 = new ConnectionsItem()
+            var item1 = new ConnectionsRecord()
             {
                 identity = new OdinId("frodo.baggins.me"),
                 displayName = "Frodo",
@@ -29,7 +29,7 @@ namespace IdentityDatabaseTests
             };
             db.tblConnections.Upsert(item1);
 
-            var item2 = new ConnectionsItem()
+            var item2 = new ConnectionsRecord()
             {
                 identity = new OdinId("samwise.gamgee.me"),
                 displayName = "Sam",
@@ -39,7 +39,7 @@ namespace IdentityDatabaseTests
             };
             db.tblConnections.Upsert(item2);
 
-            var item3 = new ConnectionsItem()
+            var item3 = new ConnectionsRecord()
             {
                 identity = new OdinId("gandalf.white.me"),
                 displayName = "G",
@@ -69,7 +69,7 @@ namespace IdentityDatabaseTests
             var g1 = Guid.NewGuid();
 
             // This is OK {odin.vahalla.com, driveid}
-            var item = new ConnectionsItem()
+            var item = new ConnectionsRecord()
             {
                 identity = new OdinId("frodo.baggins.me"),
                 displayName = "Frodo Baggins",
@@ -98,7 +98,7 @@ namespace IdentityDatabaseTests
             var g1 = Guid.NewGuid();
 
             // This is OK {odin.vahalla.com, driveid}
-            var item = new ConnectionsItem()
+            var item = new ConnectionsRecord()
             {
                 identity = new OdinId("frodo.baggins.me"),
                 displayName = "",
@@ -129,7 +129,7 @@ namespace IdentityDatabaseTests
             var g2 = Guid.NewGuid();
             var g3 = Guid.NewGuid();
 
-            var item1 = new ConnectionsItem()
+            var item1 = new ConnectionsRecord()
             {
                 identity = new OdinId("frodo.baggins.me"),
                 displayName = "Frodo",
@@ -139,7 +139,7 @@ namespace IdentityDatabaseTests
             };
             db.tblConnections.Upsert(item1);
 
-            var item2 = new ConnectionsItem()
+            var item2 = new ConnectionsRecord()
             {
                 identity = new OdinId("samwise.gamgee.me"),
                 displayName = "Sam",
@@ -149,7 +149,7 @@ namespace IdentityDatabaseTests
             };
             db.tblConnections.Upsert(item2);
 
-            var item3 = new ConnectionsItem()
+            var item3 = new ConnectionsRecord()
             {
                 identity = new OdinId("gandalf.white.me"),
                 displayName = "G",

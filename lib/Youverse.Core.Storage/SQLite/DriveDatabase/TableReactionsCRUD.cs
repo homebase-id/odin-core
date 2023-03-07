@@ -5,7 +5,7 @@ using Youverse.Core.Identity;
 
 namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 {
-    public class ReactionsItem
+    public class ReactionsRecord
     {
         private OdinId _identity;
         public OdinId identity
@@ -34,13 +34,13 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                    return _singleReaction;
                }
            set {
-                  if (value == null) throw new Exception("Cannot be null");
-                  if (value?.Length < 3) throw new Exception("Too short");
-                  if (value?.Length > 80) throw new Exception("Too long");
+                    if (value == null) throw new Exception("Cannot be null");
+                    if (value?.Length < 3) throw new Exception("Too short");
+                    if (value?.Length > 80) throw new Exception("Too long");
                   _singleReaction = value;
                }
         }
-    } // End of class ReactionsItem
+    } // End of class ReactionsRecord
 
     public class TableReactionsCRUD : TableBase
     {
@@ -122,7 +122,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             }
         }
 
-        public virtual int Insert(ReactionsItem item)
+        public virtual int Insert(ReactionsRecord item)
         {
             lock (_insertLock)
             {
@@ -150,7 +150,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             } // Lock
         }
 
-        public virtual int Upsert(ReactionsItem item)
+        public virtual int Upsert(ReactionsRecord item)
         {
             lock (_upsertLock)
             {
@@ -180,7 +180,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             } // Lock
         }
 
-        public virtual int Update(ReactionsItem item)
+        public virtual int Update(ReactionsRecord item)
         {
             lock (_updateLock)
             {
@@ -211,6 +211,9 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 
         public int Delete(OdinId identity,Guid postId,string singleReaction)
         {
+            if (singleReaction == null) throw new Exception("Cannot be null");
+            if (singleReaction?.Length < 3) throw new Exception("Too short");
+            if (singleReaction?.Length > 80) throw new Exception("Too long");
             lock (_delete0Lock)
             {
                 if (_delete0Command == null)
@@ -261,8 +264,11 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             } // Lock
         }
 
-        public ReactionsItem Get(OdinId identity,Guid postId,string singleReaction)
+        public ReactionsRecord Get(OdinId identity,Guid postId,string singleReaction)
         {
+            if (singleReaction == null) throw new Exception("Cannot be null");
+            if (singleReaction?.Length < 3) throw new Exception("Too short");
+            if (singleReaction?.Length > 80) throw new Exception("Too long");
             lock (_get0Lock)
             {
                 if (_get0Command == null)
@@ -286,7 +292,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _get0Param3.Value = singleReaction;
                 using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
                 {
-                    var result = new ReactionsItem();
+                    var result = new ReactionsRecord();
                     if (!rdr.Read())
                         return null;
                     byte[] _tmpbuf = new byte[65535+1];
@@ -294,7 +300,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     long bytesRead;
 #pragma warning restore CS0168
                     var _guid = new byte[16];
-                        var item = new ReactionsItem();
+                        var item = new ReactionsRecord();
                         item.identity = identity;
                         item.postId = postId;
                         item.singleReaction = singleReaction;

@@ -5,7 +5,7 @@ using Youverse.Core.Identity;
 
 namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
-    public class ImFollowingItem
+    public class ImFollowingRecord
     {
         private OdinId _identity;
         public OdinId identity
@@ -47,7 +47,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                   _modified = value;
                }
         }
-    } // End of class ImFollowingItem
+    } // End of class ImFollowingRecord
 
     public class TableImFollowingCRUD : TableBase
     {
@@ -136,7 +136,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             }
         }
 
-        public virtual int Insert(ImFollowingItem item)
+        public virtual int Insert(ImFollowingRecord item)
         {
             lock (_insertLock)
             {
@@ -168,7 +168,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
-        public virtual int Upsert(ImFollowingItem item)
+        public virtual int Upsert(ImFollowingRecord item)
         {
             lock (_upsertLock)
             {
@@ -202,7 +202,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
-        public virtual int Update(ImFollowingItem item)
+        public virtual int Update(ImFollowingRecord item)
         {
             lock (_updateLock)
             {
@@ -279,7 +279,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
-        public ImFollowingItem Get(OdinId identity,Guid driveId)
+        public ImFollowingRecord Get(OdinId identity,Guid driveId)
         {
             lock (_get0Lock)
             {
@@ -300,7 +300,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _get0Param2.Value = driveId.ToByteArray();
                 using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
                 {
-                    var result = new ImFollowingItem();
+                    var result = new ImFollowingRecord();
                     if (!rdr.Read())
                         return null;
                     byte[] _tmpbuf = new byte[65535+1];
@@ -308,7 +308,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     long bytesRead;
 #pragma warning restore CS0168
                     var _guid = new byte[16];
-                        var item = new ImFollowingItem();
+                        var item = new ImFollowingRecord();
                         item.identity = identity;
                         item.driveId = driveId;
 
@@ -330,7 +330,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // lock
         }
 
-        public List<ImFollowingItem> Get(OdinId identity)
+        public List<ImFollowingRecord> Get(OdinId identity)
         {
             lock (_get1Lock)
             {
@@ -347,7 +347,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _get1Param1.Value = identity.DomainName;
                 using (SqliteDataReader rdr = _get1Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {
-                    var result = new List<ImFollowingItem>();
+                    var result = new List<ImFollowingRecord>();
                     if (!rdr.Read())
                         return null;
                     byte[] _tmpbuf = new byte[65535+1];
@@ -357,7 +357,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     var _guid = new byte[16];
                     while (true)
                     {
-                        var item = new ImFollowingItem();
+                        var item = new ImFollowingRecord();
                         item.identity = identity;
 
                         if (rdr.IsDBNull(0))

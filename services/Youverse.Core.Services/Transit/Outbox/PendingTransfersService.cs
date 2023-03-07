@@ -27,7 +27,7 @@ namespace Youverse.Core.Services.Transit.Outbox
         {
             try
             {
-                _serverSystemStorage.tblCron.Insert(new CronItem()
+                _serverSystemStorage.tblCron.Insert(new CronRecord()
                 {
                     identityId = sender,
                     type = 1,

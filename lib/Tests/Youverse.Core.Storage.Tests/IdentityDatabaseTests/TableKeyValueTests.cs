@@ -26,8 +26,8 @@ namespace IdentityDatabaseTests
             var r = db.tblKeyValue.Get(k1);
             Debug.Assert(r == null);
 
-            db.tblKeyValue.Insert(new KeyValueItem() { key = k1, data = v1 });
-            db.tblKeyValue.Insert(new KeyValueItem() { key = k2, data = v2 });
+            db.tblKeyValue.Insert(new KeyValueRecord() { key = k1, data = v1 });
+            db.tblKeyValue.Insert(new KeyValueRecord() { key = k2, data = v2 });
 
             r = db.tblKeyValue.Get(k1);
             if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
@@ -49,13 +49,13 @@ namespace IdentityDatabaseTests
             var r = db.tblKeyValue.Get(k1);
             Debug.Assert(r == null);
 
-            db.tblKeyValue.Insert(new KeyValueItem() { key = k1, data = v1 });
+            db.tblKeyValue.Insert(new KeyValueRecord() { key = k1, data = v1 });
 
             bool ok = false;
 
             try
             {
-                db.tblKeyValue.Insert(new KeyValueItem() { key = k1, data = v2 });
+                db.tblKeyValue.Insert(new KeyValueRecord() { key = k1, data = v2 });
                 ok = true;
             }
             catch
@@ -85,8 +85,8 @@ namespace IdentityDatabaseTests
             var r = db.tblKeyValue.Get(k1);
             Debug.Assert(r == null);
 
-            db.tblKeyValue.Insert(new KeyValueItem() { key = k1, data = v1 });
-            db.tblKeyValue.Update(new KeyValueItem() { key = k1, data = v2 });
+            db.tblKeyValue.Insert(new KeyValueRecord() { key = k1, data = v1 });
+            db.tblKeyValue.Update(new KeyValueRecord() { key = k1, data = v2 });
 
             r = db.tblKeyValue.Get(k1);
             if (ByteArrayUtil.muidcmp(r.data, v2) != 0)
@@ -109,13 +109,13 @@ namespace IdentityDatabaseTests
             var r = db.tblKeyValue.Get(k1);
             Debug.Assert(r == null);
 
-            db.tblKeyValue.Insert(new KeyValueItem() { key = k1, data = v1 });
+            db.tblKeyValue.Insert(new KeyValueRecord() { key = k1, data = v1 });
 
             bool ok = false;
 
             try
             {
-                db.tblKeyValue.Update(new KeyValueItem() { key = k2, data = v2 });
+                db.tblKeyValue.Update(new KeyValueRecord() { key = k2, data = v2 });
                 ok = true;
             }
             catch
@@ -142,8 +142,8 @@ namespace IdentityDatabaseTests
             var r = db.tblKeyValue.Get(k1);
             Debug.Assert(r == null);
 
-            db.tblKeyValue.Insert(new KeyValueItem() { key = k1, data = v1 });
-            db.tblKeyValue.Insert(new KeyValueItem() { key = k2, data = v2 });
+            db.tblKeyValue.Insert(new KeyValueRecord() { key = k1, data = v1 });
+            db.tblKeyValue.Insert(new KeyValueRecord() { key = k2, data = v2 });
 
             r = db.tblKeyValue.Get(k1);
             if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
@@ -170,8 +170,8 @@ namespace IdentityDatabaseTests
             var r = db.tblKeyValue.Get(k1);
             Debug.Assert(r == null);
 
-            db.tblKeyValue.Upsert(new KeyValueItem() { key = k1, data = v1 });
-            db.tblKeyValue.Upsert(new KeyValueItem() { key = k2, data = v2 });
+            db.tblKeyValue.Upsert(new KeyValueRecord() { key = k1, data = v1 });
+            db.tblKeyValue.Upsert(new KeyValueRecord() { key = k2, data = v2 });
 
             r = db.tblKeyValue.Get(k1);
             if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
@@ -181,7 +181,7 @@ namespace IdentityDatabaseTests
             if (ByteArrayUtil.muidcmp(r.data, v2) != 0)
                 Assert.Fail();
 
-            db.tblKeyValue.Upsert(new KeyValueItem() { key = k2, data = v3 });
+            db.tblKeyValue.Upsert(new KeyValueRecord() { key = k2, data = v3 });
 
             r = db.tblKeyValue.Get(k2);
             if (ByteArrayUtil.muidcmp(r.data, v3) != 0)
@@ -198,7 +198,7 @@ namespace IdentityDatabaseTests
             void writeDB(IdentityDatabase db)
             {
                 for (int i = 0; i < 100; i++)
-                    db.tblKeyValue.Update(new KeyValueItem() { key = Rows[i], data = Guid.NewGuid().ToByteArray() });
+                    db.tblKeyValue.Update(new KeyValueRecord() { key = Rows[i], data = Guid.NewGuid().ToByteArray() });
             }
 
             void readDB(IdentityDatabase db)
@@ -213,7 +213,7 @@ namespace IdentityDatabaseTests
             for (int i = 0; i < 100; i++)
             {
                 Rows.Add(Guid.NewGuid());
-                db.tblKeyValue.Insert(new KeyValueItem() { key = Rows[i], data = Guid.NewGuid().ToByteArray() });
+                db.tblKeyValue.Insert(new KeyValueRecord() { key = Rows[i], data = Guid.NewGuid().ToByteArray() });
             }
 
             Thread tw = new Thread(() => writeDB(db));
@@ -237,14 +237,14 @@ namespace IdentityDatabaseTests
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
-            db.tblKeyValue.Insert(new KeyValueItem() { key = k1, data = v1 });
+            db.tblKeyValue.Insert(new KeyValueRecord() { key = k1, data = v1 });
 
             var r = db.tblKeyValue.Get(k1);
 
             if (ByteArrayUtil.muidcmp(r.data, v1) != 0)
                 Assert.Fail();
 
-            db.tblKeyValue.Insert(new KeyValueItem() { key = k2, data = v2 });
+            db.tblKeyValue.Insert(new KeyValueRecord() { key = k2, data = v2 });
 
             r = db.tblKeyValue.Get(k1);
 
@@ -256,7 +256,7 @@ namespace IdentityDatabaseTests
             if (ByteArrayUtil.muidcmp(r.data, v2) != 0)
                 Assert.Fail();
 
-            db.tblKeyValue.Update(new KeyValueItem() { key = k2, data = v1 });
+            db.tblKeyValue.Update(new KeyValueRecord() { key = k2, data = v1 });
 
             r = db.tblKeyValue.Get(k2);
 
@@ -289,8 +289,8 @@ namespace IdentityDatabaseTests
             var r = db.tblKeyValue.Get(k1);
             if (r != null)
                 Assert.Fail();
-            db.tblKeyValue.Insert(new KeyValueItem() { key = k1, data = v1 });
-            db.tblKeyValue.Insert(new KeyValueItem() { key = k2, data = v2 });
+            db.tblKeyValue.Insert(new KeyValueRecord() { key = k1, data = v1 });
+            db.tblKeyValue.Insert(new KeyValueRecord() { key = k2, data = v2 });
             // If I query the DB here before commit for k1, I get v1.
             // Wonder if that's a bug or a feature
             db.Commit();

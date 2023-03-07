@@ -5,7 +5,7 @@ using Youverse.Core.Identity;
 
 namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
-    public class KeyValueItem
+    public class KeyValueRecord
     {
         private Guid _key;
         public Guid key
@@ -24,12 +24,12 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                    return _data;
                }
            set {
-                  if (value?.Length < 0) throw new Exception("Too short");
-                  if (value?.Length > 1048576) throw new Exception("Too long");
+                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value?.Length > 1048576) throw new Exception("Too long");
                   _data = value;
                }
         }
-    } // End of class KeyValueItem
+    } // End of class KeyValueRecord
 
     public class TableKeyValueCRUD : TableBase
     {
@@ -97,7 +97,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             }
         }
 
-        public virtual int Insert(KeyValueItem item)
+        public virtual int Insert(KeyValueRecord item)
         {
             lock (_insertLock)
             {
@@ -121,7 +121,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
-        public virtual int Upsert(KeyValueItem item)
+        public virtual int Upsert(KeyValueRecord item)
         {
             lock (_upsertLock)
             {
@@ -147,7 +147,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
-        public virtual int Update(KeyValueItem item)
+        public virtual int Update(KeyValueRecord item)
         {
             lock (_updateLock)
             {
@@ -192,7 +192,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
-        public KeyValueItem Get(Guid key)
+        public KeyValueRecord Get(Guid key)
         {
             lock (_get0Lock)
             {
@@ -209,7 +209,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _get0Param1.Value = key.ToByteArray();
                 using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
                 {
-                    var result = new KeyValueItem();
+                    var result = new KeyValueRecord();
                     if (!rdr.Read())
                         return null;
                     byte[] _tmpbuf = new byte[1048576+1];
@@ -217,7 +217,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     long bytesRead;
 #pragma warning restore CS0168
                     var _guid = new byte[16];
-                        var item = new KeyValueItem();
+                        var item = new KeyValueRecord();
                         item.key = key;
 
                         if (rdr.IsDBNull(0))

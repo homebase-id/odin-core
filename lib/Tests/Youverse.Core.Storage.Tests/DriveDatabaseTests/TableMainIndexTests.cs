@@ -24,7 +24,7 @@ namespace DriveDatabaseTests
             if (md != null)
                 Assert.Fail();
 
-            db.TblMainIndex.Insert(new MainIndexItem()
+            db.TblMainIndex.Insert(new MainIndexRecord()
             {
                 fileId = k1,
                 globalTransitId = Guid.NewGuid(),
@@ -88,7 +88,7 @@ namespace DriveDatabaseTests
             var tid1 = Guid.NewGuid();
             var ud1 = UnixTimeUtcUnique.Now();
 
-            db.TblMainIndex.Insert(new MainIndexItem()
+            db.TblMainIndex.Insert(new MainIndexRecord()
             {
                 fileId = k1,
                 globalTransitId = Guid.NewGuid(),
@@ -106,7 +106,7 @@ namespace DriveDatabaseTests
             
             try
             {
-                db.TblMainIndex.Insert(new MainIndexItem()
+                db.TblMainIndex.Insert(new MainIndexRecord()
                 {
                     fileId = k1,
                     globalTransitId = Guid.NewGuid(),
@@ -141,7 +141,7 @@ namespace DriveDatabaseTests
             var tid1 = Guid.NewGuid();
             var ud1 = UnixTimeUtc.Now().milliseconds;
 
-            db.TblMainIndex.Insert(new MainIndexItem()
+            db.TblMainIndex.Insert(new MainIndexRecord()
             {
                 fileId = k1,
                 globalTransitId = Guid.NewGuid(),

@@ -5,7 +5,7 @@ using Youverse.Core.Identity;
 
 namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 {
-    public class CommandMessageQueueItem
+    public class CommandMessageQueueRecord
     {
         private Guid _fileId;
         public Guid fileId
@@ -27,7 +27,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                   _timeStamp = value;
                }
         }
-    } // End of class CommandMessageQueueItem
+    } // End of class CommandMessageQueueRecord
 
     public class TableCommandMessageQueueCRUD : TableBase
     {
@@ -95,7 +95,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             }
         }
 
-        public virtual int Insert(CommandMessageQueueItem item)
+        public virtual int Insert(CommandMessageQueueRecord item)
         {
             lock (_insertLock)
             {
@@ -119,7 +119,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             } // Lock
         }
 
-        public virtual int Upsert(CommandMessageQueueItem item)
+        public virtual int Upsert(CommandMessageQueueRecord item)
         {
             lock (_upsertLock)
             {
@@ -145,7 +145,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             } // Lock
         }
 
-        public virtual int Update(CommandMessageQueueItem item)
+        public virtual int Update(CommandMessageQueueRecord item)
         {
             lock (_updateLock)
             {
@@ -190,7 +190,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             } // Lock
         }
 
-        public CommandMessageQueueItem Get(Guid fileId)
+        public CommandMessageQueueRecord Get(Guid fileId)
         {
             lock (_get0Lock)
             {
@@ -207,7 +207,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _get0Param1.Value = fileId.ToByteArray();
                 using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
                 {
-                    var result = new CommandMessageQueueItem();
+                    var result = new CommandMessageQueueRecord();
                     if (!rdr.Read())
                         return null;
                     byte[] _tmpbuf = new byte[65535+1];
@@ -215,7 +215,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     long bytesRead;
 #pragma warning restore CS0168
                     var _guid = new byte[16];
-                        var item = new CommandMessageQueueItem();
+                        var item = new CommandMessageQueueRecord();
                         item.fileId = fileId;
 
                         if (rdr.IsDBNull(0))

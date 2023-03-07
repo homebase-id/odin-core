@@ -140,7 +140,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 
             using (CreateCommitUnitOfWork())
             {
-                TblMainIndex.Insert(new MainIndexItem() { fileId = fileId, globalTransitId = globalTransitId, userDate = (Int64) userDate,  fileType = fileType,  dataType = dataType, senderId = senderId.ToString(), groupId = groupId, uniqueId = uniqueId, isArchived = 0, isHistory = 0, requiredSecurityGroup = requiredSecurityGroup, fileSystemType = fileSystemType });
+                TblMainIndex.Insert(new MainIndexRecord() { fileId = fileId, globalTransitId = globalTransitId, userDate = (Int64) userDate,  fileType = fileType,  dataType = dataType, senderId = senderId.ToString(), groupId = groupId, uniqueId = uniqueId, isArchived = 0, isHistory = 0, requiredSecurityGroup = requiredSecurityGroup, fileSystemType = fileSystemType });
                 TblAclIndex.InsertRows(fileId, accessControlList);
                 TblTagIndex.InsertRows(fileId, tagIdList);
             }

@@ -5,7 +5,7 @@ using Youverse.Core.Identity;
 
 namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
-    public class OutboxItem
+    public class OutboxRecord
     {
         private Guid _fileId;
         public Guid fileId
@@ -24,9 +24,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                    return _recipient;
                }
            set {
-                  if (value == null) throw new Exception("Cannot be null");
-                  if (value?.Length < 0) throw new Exception("Too short");
-                  if (value?.Length > 65535) throw new Exception("Too long");
+                    if (value == null) throw new Exception("Cannot be null");
+                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value?.Length > 65535) throw new Exception("Too long");
                   _recipient = value;
                }
         }
@@ -67,8 +67,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                    return _value;
                }
            set {
-                  if (value?.Length < 0) throw new Exception("Too short");
-                  if (value?.Length > 65535) throw new Exception("Too long");
+                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value?.Length > 65535) throw new Exception("Too long");
                   _value = value;
                }
         }
@@ -102,7 +102,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                   _modified = value;
                }
         }
-    } // End of class OutboxItem
+    } // End of class OutboxRecord
 
     public class TableOutboxCRUD : TableBase
     {
@@ -203,7 +203,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             }
         }
 
-        public virtual int Insert(OutboxItem item)
+        public virtual int Insert(OutboxRecord item)
         {
             lock (_insertLock)
             {
@@ -255,7 +255,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
-        public virtual int Upsert(OutboxItem item)
+        public virtual int Upsert(OutboxRecord item)
         {
             lock (_upsertLock)
             {
@@ -309,7 +309,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
-        public virtual int Update(OutboxItem item)
+        public virtual int Update(OutboxRecord item)
         {
             lock (_updateLock)
             {
@@ -364,6 +364,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
         public int Delete(Guid fileId,string recipient)
         {
+            if (recipient == null) throw new Exception("Cannot be null");
+            if (recipient?.Length < 0) throw new Exception("Too short");
+            if (recipient?.Length > 65535) throw new Exception("Too long");
             lock (_delete0Lock)
             {
                 if (_delete0Command == null)
@@ -386,8 +389,11 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
-        public OutboxItem Get(Guid fileId,string recipient)
+        public OutboxRecord Get(Guid fileId,string recipient)
         {
+            if (recipient == null) throw new Exception("Cannot be null");
+            if (recipient?.Length < 0) throw new Exception("Too short");
+            if (recipient?.Length > 65535) throw new Exception("Too long");
             lock (_get0Lock)
             {
                 if (_get0Command == null)
@@ -407,7 +413,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _get0Param2.Value = recipient;
                 using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
                 {
-                    var result = new OutboxItem();
+                    var result = new OutboxRecord();
                     if (!rdr.Read())
                         return null;
                     byte[] _tmpbuf = new byte[65535+1];
@@ -415,7 +421,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     long bytesRead;
 #pragma warning restore CS0168
                     var _guid = new byte[16];
-                        var item = new OutboxItem();
+                        var item = new OutboxRecord();
                         item.fileId = fileId;
                         item.recipient = recipient;
 

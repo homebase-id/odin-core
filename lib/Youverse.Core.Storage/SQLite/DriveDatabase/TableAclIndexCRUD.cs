@@ -5,7 +5,7 @@ using Youverse.Core.Identity;
 
 namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 {
-    public class AclIndexItem
+    public class AclIndexRecord
     {
         private Guid _fileId;
         public Guid fileId
@@ -27,7 +27,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                   _aclMemberId = value;
                }
         }
-    } // End of class AclIndexItem
+    } // End of class AclIndexRecord
 
     public class TableAclIndexCRUD : TableBase
     {
@@ -108,7 +108,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             }
         }
 
-        public virtual int Insert(AclIndexItem item)
+        public virtual int Insert(AclIndexRecord item)
         {
             lock (_insertLock)
             {
@@ -132,7 +132,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             } // Lock
         }
 
-        public virtual int Upsert(AclIndexItem item)
+        public virtual int Upsert(AclIndexRecord item)
         {
             lock (_upsertLock)
             {
@@ -158,7 +158,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             } // Lock
         }
 
-        public virtual int Update(AclIndexItem item)
+        public virtual int Update(AclIndexRecord item)
         {
             lock (_updateLock)
             {
@@ -227,7 +227,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             } // Lock
         }
 
-        public AclIndexItem Get(Guid fileId,Guid aclMemberId)
+        public AclIndexRecord Get(Guid fileId,Guid aclMemberId)
         {
             lock (_get0Lock)
             {
@@ -248,7 +248,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _get0Param2.Value = aclMemberId.ToByteArray();
                 using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
                 {
-                    var result = new AclIndexItem();
+                    var result = new AclIndexRecord();
                     if (!rdr.Read())
                         return null;
                     byte[] _tmpbuf = new byte[65535+1];
@@ -256,7 +256,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     long bytesRead;
 #pragma warning restore CS0168
                     var _guid = new byte[16];
-                        var item = new AclIndexItem();
+                        var item = new AclIndexRecord();
                         item.fileId = fileId;
                         item.aclMemberId = aclMemberId;
                     return item;

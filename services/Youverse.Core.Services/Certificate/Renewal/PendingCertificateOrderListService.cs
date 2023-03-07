@@ -24,7 +24,7 @@ namespace Youverse.Core.Services.Certificate.Renewal
         {
             try
             {
-                _serverSystemStorage.tblCron.Insert(new CronItem()
+                _serverSystemStorage.tblCron.Insert(new CronRecord()
                 {
                     identityId = identity,
                     type = 2,

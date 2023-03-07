@@ -26,13 +26,13 @@ namespace ServerDatabaseTests
             // The jobs are set to run immediately. Frodo will get returned
             // first
             //
-            db.tblCron.Upsert(new CronItem() { identityId = frodo, type = 1, data = d1 });
-            db.tblCron.Upsert(new CronItem() { identityId = sam, type = 1, data = d1 });
+            db.tblCron.Upsert(new CronRecord() { identityId = frodo, type = 1, data = d1 });
+            db.tblCron.Upsert(new CronRecord() { identityId = sam, type = 1, data = d1 });
 
             // If you upsert frodo with a new outbox item then it will 'cancel' any pop stamp
             // and reset all counters
             //
-            db.tblCron.Upsert(new CronItem() { identityId = frodo, type = 1, data = d1 });
+            db.tblCron.Upsert(new CronRecord() { identityId = frodo, type = 1, data = d1 });
 
 
             // Pop 10 records from the stack. 
@@ -63,7 +63,7 @@ namespace ServerDatabaseTests
             var d1 = Guid.NewGuid().ToByteArray();
 
             var t1 = new UnixTimeUtc();
-            db.tblCron.Upsert(new CronItem() { identityId = c1, type = 1, data = d1 });
+            db.tblCron.Upsert(new CronRecord() { identityId = c1, type = 1, data = d1 });
             var t2 = new UnixTimeUtc();
 
             var i = db.tblCron.Get(c1, 1);
@@ -89,7 +89,7 @@ namespace ServerDatabaseTests
             var d1 = Guid.NewGuid().ToByteArray();
 
             var t1 = new UnixTimeUtc();
-            db.tblCron.Upsert(new CronItem() { identityId = c1, type = 1, data = d1 });
+            db.tblCron.Upsert(new CronRecord() { identityId = c1, type = 1, data = d1 });
             var t2 = new UnixTimeUtc();
 
             var i = db.tblCron.Get(c1, 1);
@@ -103,7 +103,7 @@ namespace ServerDatabaseTests
 
             var d2 = Guid.NewGuid().ToByteArray();
             t1 = new UnixTimeUtc();
-            db.tblCron.Upsert(new CronItem() { identityId = c1, type = 1, data = d2 });
+            db.tblCron.Upsert(new CronRecord() { identityId = c1, type = 1, data = d2 });
             t2 = new UnixTimeUtc();
 
             i = db.tblCron.Get(c1, 1);
@@ -131,7 +131,7 @@ namespace ServerDatabaseTests
             var d1 = Guid.NewGuid().ToByteArray();
 
             var t1 = new UnixTimeUtc();
-            db.tblCron.Upsert(new CronItem() { identityId = c1, type = 1, data = d1 });
+            db.tblCron.Upsert(new CronRecord() { identityId = c1, type = 1, data = d1 });
             var t2 = new UnixTimeUtc();
 
             var il = db.tblCron.Pop(10, out var popStamp);
@@ -159,8 +159,8 @@ namespace ServerDatabaseTests
             var d1 = Guid.NewGuid().ToByteArray();
 
             var t1 = new UnixTimeUtc();
-            db.tblCron.Upsert(new CronItem() { identityId = c1, type = 1, data = d1 });
-            db.tblCron.Upsert(new CronItem() { identityId = c2, type = 1, data = d1 });
+            db.tblCron.Upsert(new CronRecord() { identityId = c1, type = 1, data = d1 });
+            db.tblCron.Upsert(new CronRecord() { identityId = c2, type = 1, data = d1 });
             var t2 = new UnixTimeUtc();
 
             var i1 = db.tblCron.Get(c1, 1);
@@ -196,8 +196,8 @@ namespace ServerDatabaseTests
             var i1 = Guid.NewGuid();
             var i2 = Guid.NewGuid();
 
-            db.tblCron.Upsert(new CronItem() { identityId = i1, type = 1, data = d1 });
-            db.tblCron.Upsert(new CronItem() { identityId = i2, type = 1, data = d1 });
+            db.tblCron.Upsert(new CronRecord() { identityId = i1, type = 1, data = d1 });
+            db.tblCron.Upsert(new CronRecord() { identityId = i2, type = 1, data = d1 });
 
             var il1 = db.tblCron.Pop(1, out var popStamp1);
             Assert.True(il1.Count == 1);
@@ -220,9 +220,9 @@ namespace ServerDatabaseTests
             var d1 = Guid.NewGuid().ToByteArray();
 
             var t1 = new UnixTimeUtc();
-            db.tblCron.Upsert(new CronItem() { identityId = Guid.NewGuid(), type = 1, data = d1 });
-            db.tblCron.Upsert(new CronItem() { identityId = Guid.NewGuid(), type = 1, data = d1 });
-            db.tblCron.Upsert(new CronItem() { identityId = Guid.NewGuid(), type = 1, data = d1 });
+            db.tblCron.Upsert(new CronRecord() { identityId = Guid.NewGuid(), type = 1, data = d1 });
+            db.tblCron.Upsert(new CronRecord() { identityId = Guid.NewGuid(), type = 1, data = d1 });
+            db.tblCron.Upsert(new CronRecord() { identityId = Guid.NewGuid(), type = 1, data = d1 });
             var t2 = new UnixTimeUtc();
 
             var il1 = db.tblCron.Pop(10, out var popStamp1);
@@ -238,8 +238,8 @@ namespace ServerDatabaseTests
             var il2 = db.tblCron.Pop(10, out var _);
             Assert.True(il2.Count == 0);
 
-            db.tblCron.Upsert(new CronItem() { identityId = Guid.NewGuid(), type = 1, data = d1 });
-            db.tblCron.Upsert(new CronItem() { identityId = Guid.NewGuid(), type = 1, data = d1 });
+            db.tblCron.Upsert(new CronRecord() { identityId = Guid.NewGuid(), type = 1, data = d1 });
+            db.tblCron.Upsert(new CronRecord() { identityId = Guid.NewGuid(), type = 1, data = d1 });
 
             il1 = db.tblCron.Pop(10, out var popStamp2);
             Assert.True(il1.Count == 2);
@@ -270,9 +270,9 @@ namespace ServerDatabaseTests
 
             var d1 = Guid.NewGuid().ToByteArray();
 
-            db.tblCron.Upsert(new CronItem() { identityId = Guid.NewGuid(), type = 1, data = d1 });
-            db.tblCron.Upsert(new CronItem() { identityId = Guid.NewGuid(), type = 1, data = d1 });
-            db.tblCron.Upsert(new CronItem() { identityId = Guid.NewGuid(), type = 1, data = d1 });
+            db.tblCron.Upsert(new CronRecord() { identityId = Guid.NewGuid(), type = 1, data = d1 });
+            db.tblCron.Upsert(new CronRecord() { identityId = Guid.NewGuid(), type = 1, data = d1 });
+            db.tblCron.Upsert(new CronRecord() { identityId = Guid.NewGuid(), type = 1, data = d1 });
 
             var il1 = db.tblCron.Pop(10, out var popStamp1);
             Assert.True(il1.Count == 3);
@@ -296,9 +296,9 @@ namespace ServerDatabaseTests
 
             var d1 = Guid.NewGuid().ToByteArray();
 
-            db.tblCron.Upsert(new CronItem() { identityId = Guid.NewGuid(), type = 1, data = d1 });
-            db.tblCron.Upsert(new CronItem() { identityId = Guid.NewGuid(), type = 1, data = d1 });
-            db.tblCron.Upsert(new CronItem() { identityId = Guid.NewGuid(), type = 1, data = d1 });
+            db.tblCron.Upsert(new CronRecord() { identityId = Guid.NewGuid(), type = 1, data = d1 });
+            db.tblCron.Upsert(new CronRecord() { identityId = Guid.NewGuid(), type = 1, data = d1 });
+            db.tblCron.Upsert(new CronRecord() { identityId = Guid.NewGuid(), type = 1, data = d1 });
 
             var il1 = db.tblCron.Pop(10, out var popStamp1);
             Assert.True(il1.Count == 3);
@@ -325,7 +325,7 @@ namespace ServerDatabaseTests
             var d1 = Guid.NewGuid().ToByteArray();
 
             var t1 = new UnixTimeUtc();
-            db.tblCron.Upsert(new CronItem() { identityId = c1, type = 1, data = d1 });
+            db.tblCron.Upsert(new CronRecord() { identityId = c1, type = 1, data = d1 });
             var t2 = new UnixTimeUtc();
 
             // Check item data

@@ -5,7 +5,7 @@ using Youverse.Core.Identity;
 
 namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
-    public class AppGrantsItem
+    public class AppGrantsRecord
     {
         private Guid _odinHashId;
         public Guid odinHashId
@@ -44,12 +44,12 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                    return _data;
                }
            set {
-                  if (value?.Length < 0) throw new Exception("Too short");
-                  if (value?.Length > 65535) throw new Exception("Too long");
+                    if (value?.Length < 0) throw new Exception("Too short");
+                    if (value?.Length > 65535) throw new Exception("Too long");
                   _data = value;
                }
         }
-    } // End of class AppGrantsItem
+    } // End of class AppGrantsRecord
 
     public class TableAppGrantsCRUD : TableBase
     {
@@ -125,7 +125,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             }
         }
 
-        public virtual int Insert(AppGrantsItem item)
+        public virtual int Insert(AppGrantsRecord item)
         {
             lock (_insertLock)
             {
@@ -157,7 +157,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
-        public virtual int Upsert(AppGrantsItem item)
+        public virtual int Upsert(AppGrantsRecord item)
         {
             lock (_upsertLock)
             {
@@ -191,7 +191,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
-        public virtual int Update(AppGrantsItem item)
+        public virtual int Update(AppGrantsRecord item)
         {
             lock (_updateLock)
             {
@@ -244,7 +244,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
-        public AppGrantsItem Get(Guid odinHashId)
+        public AppGrantsRecord Get(Guid odinHashId)
         {
             lock (_get0Lock)
             {
@@ -261,7 +261,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _get0Param1.Value = odinHashId.ToByteArray();
                 using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
                 {
-                    var result = new AppGrantsItem();
+                    var result = new AppGrantsRecord();
                     if (!rdr.Read())
                         return null;
                     byte[] _tmpbuf = new byte[65535+1];
@@ -269,7 +269,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     long bytesRead;
 #pragma warning restore CS0168
                     var _guid = new byte[16];
-                        var item = new AppGrantsItem();
+                        var item = new AppGrantsRecord();
                         item.odinHashId = odinHashId;
 
                         if (rdr.IsDBNull(0))

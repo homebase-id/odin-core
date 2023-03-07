@@ -65,7 +65,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
         /*
         // Presently only needed for testing / validation. Not expecting we should need this
         // Runtime.
-        public MainIndexItem Get(Guid fileId)
+        public MainIndexRecord Get(Guid fileId)
         {
             lock (_selectLock)
             {
@@ -330,7 +330,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             }
         }
 
-        public override int Update(MainIndexItem item)
+        public override int Update(MainIndexRecord item)
         {
             throw new Exception("can't use");
         }

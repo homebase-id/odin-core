@@ -222,7 +222,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
 
     public void AddReaction(OdinId odinId, Guid fileId, string reaction)
     {
-        _db.TblReactions.Insert(new ReactionsItem() { identity = odinId, postId = fileId, singleReaction = reaction });
+        _db.TblReactions.Insert(new ReactionsRecord() { identity = odinId, postId = fileId, singleReaction = reaction });
     }
 
     public void DeleteReactions(OdinId odinId, Guid fileId)

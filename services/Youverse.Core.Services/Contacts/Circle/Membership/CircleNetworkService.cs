@@ -300,7 +300,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             //Note: this list is a cache of members for a circle.  the source of truth is the IdentityConnectionRegistration.AccessExchangeGrant.CircleGrants property for each OdinId
             var memberBytesList = _circleMemberStorage.GetCircleMembers(circleId);
-            return memberBytesList.Select(item => OdinId.FromByteArray(DeserializeCircleMemberItemStorage(item).DotYouName));
+            return memberBytesList.Select(item => OdinId.FromByteArray(DeserializeCircleMemberRecordStorage(item).DotYouName));
         }
 
         public async Task AssertConnectionIsNoneOrValid(OdinId odinId)
@@ -357,9 +357,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 var isMember = circleMembers.Any(item => item.memberId == odinId.ToHashId());
                 if (!isMember)
                 {
-                    _circleMemberStorage.AddCircleMembers(new List<CircleMemberItem>()
+                    _circleMemberStorage.AddCircleMembers(new List<CircleMemberRecord>()
                     {
-                        CreateCircleMemberItemStorage(circleId, odinId)
+                        CreateCircleMemberRecordStorage(circleId, odinId)
                     });
                 }
             }
@@ -416,9 +416,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             keyStoreKey.Wipe();
 
-            _circleMemberStorage.AddCircleMembers(new List<CircleMemberItem>()
+            _circleMemberStorage.AddCircleMembers(new List<CircleMemberRecord>()
             {
-                CreateCircleMemberItemStorage(circleId, odinId)
+                CreateCircleMemberRecordStorage(circleId, odinId)
             });
 
             this.SaveIcr(icr);
@@ -919,7 +919,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             //
         }
 
-        private CircleMemberItem CreateCircleMemberItemStorage(GuidId circleId, OdinId odinId)
+        private CircleMemberRecord CreateCircleMemberRecordStorage(GuidId circleId, OdinId odinId)
         {
             return new()
             {
@@ -932,7 +932,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             };
         }
 
-        private CircleMemberStorageData DeserializeCircleMemberItemStorage(CircleMemberItem item)
+        private CircleMemberStorageData DeserializeCircleMemberRecordStorage(CircleMemberRecord item)
         {
             if (item.data?.Length > 0)
             {

@@ -51,7 +51,7 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
             base.Dispose();
         }
 
-        public override int Insert(CronItem item)
+        public override int Insert(CronRecord item)
         {
             // If no nextRun has been set, presume it is 'now'
             if (item.nextRun.milliseconds == 0)
@@ -59,7 +59,7 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
             return base.Upsert(item);
         }
 
-        public override int Upsert(CronItem item)
+        public override int Upsert(CronRecord item)
         {
             // If no nextRun has been set, presume it is 'now'
             if (item.nextRun.milliseconds == 0)
@@ -77,7 +77,7 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
         /// <param name="count">How many items to 'pop' (reserve)</param>
         /// <param name="popStamp">The unique identifier for the items reserved for pop</param>
         /// <returns></returns>
-        public List<CronItem> Pop(int count, out Guid popStamp)
+        public List<CronRecord> Pop(int count, out Guid popStamp)
         {
             // TODO, maybe you can also checkout a TYPE. e.g. Give me outbox items.
 
@@ -124,20 +124,20 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
                 _pparam2.Value = count;
                 _popCommand.Transaction = _database.Transaction;
 
-                List<CronItem> result = new List<CronItem>();
+                List<CronRecord> result = new List<CronRecord>();
 
                 _database.BeginTransaction();
                 _popCommand.Transaction = _database.Transaction;
 
                 using (SqliteDataReader rdr = _popCommand.ExecuteReader(System.Data.CommandBehavior.Default))
                 {
-                    CronItem item;
+                    CronRecord item;
                     byte[] _tmpbuf = new byte[MAX_DATA_LENGTH];
                     byte[] _g = new byte[16];
 
                     while (rdr.Read())
                     {
-                        item = new CronItem();
+                        item = new CronRecord();
 
                         // 0: identityId
                         var n = rdr.GetBytes(0, 0, _g, 0, _g.Length);

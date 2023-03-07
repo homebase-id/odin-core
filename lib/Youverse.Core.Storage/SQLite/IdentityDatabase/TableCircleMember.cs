@@ -26,13 +26,13 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         }
 
 
-        public new virtual List<CircleMemberItem> GetCircleMembers(Guid circleId)
+        public new virtual List<CircleMemberRecord> GetCircleMembers(Guid circleId)
         {
             var r = base.GetCircleMembers(circleId);
 
             // The services code doesn't handle null, so I've made this override
             if (r == null)
-                r = new List<CircleMemberItem>();
+                r = new List<CircleMemberRecord>();
 
             return r;
         }
@@ -44,31 +44,31 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         /// <param name="circleId"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public new virtual List<CircleMemberItem> GetMemberCirclesAndData(Guid memberId)
+        public new virtual List<CircleMemberRecord> GetMemberCirclesAndData(Guid memberId)
         {
             var r = base.GetMemberCirclesAndData(memberId);
 
             // The services code doesn't handle null, so I've made this override
             if (r == null)
-                r = new List<CircleMemberItem>();
+                r = new List<CircleMemberRecord>();
 
             return r;
         }
 
 
         /// <summary>
-        /// Adds each CircleMemberItem in the supplied list.
+        /// Adds each CircleMemberRecord in the supplied list.
         /// </summary>
-        /// <param name="CircleMemberItemList"></param>
+        /// <param name="CircleMemberRecordList"></param>
         /// <exception cref="Exception"></exception>
-        public void AddCircleMembers(List<CircleMemberItem> CircleMemberItemList)
+        public void AddCircleMembers(List<CircleMemberRecord> CircleMemberRecordList)
         {
-            if ((CircleMemberItemList == null) || (CircleMemberItemList.Count < 1))
+            if ((CircleMemberRecordList == null) || (CircleMemberRecordList.Count < 1))
                 throw new Exception("No members supplied (null or empty)");
 
             using (_database.CreateCommitUnitOfWork())
-                for (int i = 0; i < CircleMemberItemList.Count; i++)
-                    Insert(CircleMemberItemList[i]);
+                for (int i = 0; i < CircleMemberRecordList.Count; i++)
+                    Insert(CircleMemberRecordList[i]);
         }
 
 
