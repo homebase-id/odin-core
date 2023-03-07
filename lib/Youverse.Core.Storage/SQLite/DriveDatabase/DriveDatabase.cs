@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
+using System.Data;
 using System.Diagnostics;
 using System.Linq;
+using Microsoft.Data.Sqlite;
 using Youverse.Core.Exceptions;
 
 /*
@@ -18,7 +19,7 @@ https://www.sqlitetutorial.net/sqlite-index/
 */
 
 
-namespace Youverse.Core.Storage.SQLite.DriveDatabase
+namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 {
     /// <summary>
     /// Database types:
@@ -378,10 +379,10 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
             stm = $"SELECT fileid FROM mainindex " + strWhere + $"ORDER BY fileid DESC LIMIT {noOfItems + 1}";
             // +1 to detect EOD
 
-            var cmd = new SQLiteCommand(stm, con);
+            var cmd = new SqliteCommand(stm, con);
 
             // Commit();
-            var rdr = cmd.ExecuteReader();
+            var rdr = cmd.ExecuteReader(CommandBehavior.Default, this);
 
             var result = new List<Guid>();
             var fileId = new byte[16];
@@ -641,8 +642,8 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
             stm = $"SELECT fileid, modified FROM mainindex " + strWhere + $"ORDER BY modified ASC LIMIT {noOfItems}";
 
-            var cmd = new SQLiteCommand(stm, con);
-            var rdr = cmd.ExecuteReader();
+            var cmd = new SqliteCommand(stm, con);
+            var rdr = cmd.ExecuteReader(CommandBehavior.Default, this);
 
             var result = new List<Guid>();
             var fileId = new byte[16];

@@ -56,6 +56,7 @@ namespace Youverse.Hosting
         {
             RegisterMediator(ref cb);
 
+            // cb.RegisterType<ServerSystemStorage>().AsSelf().SingleInstance();
             cb.RegisterType<TenantSystemStorage>().As<ITenantSystemStorage>().SingleInstance();
 
             cb.RegisterType<AppNotificationHandler>()

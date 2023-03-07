@@ -21,7 +21,7 @@ using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Storage;
-using Youverse.Core.Storage.SQLite.IdentityDatabase;
+using Youverse.Core.Storage.Sqlite.IdentityDatabase;
 
 namespace Youverse.Core.Services.Contacts.Circle.Membership
 {
@@ -37,7 +37,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         private readonly CircleDefinitionService _circleDefinitionService;
         private readonly TableCircleMember _circleMemberStorage;
         private readonly TenantContext _tenantContext;
-        private readonly IMediator _mediator;
         private readonly IAppRegistrationService _appRegistrationService;
 
         private readonly GuidId _icrClientDataType = GuidId.FromString("__icr_client_reg");
@@ -52,10 +51,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             _exchangeGrantService = exchangeGrantService;
             _tenantContext = tenantContext;
             _circleDefinitionService = circleDefinitionService;
-            _mediator = mediator;
             _appRegistrationService = appRegistrationService;
 
-            _storage = new CircleNetworkStorage(tenantContext.StorageConfig.DataStoragePath);
+            _storage = new CircleNetworkStorage(tenantSystemStorage);
 
             _circleMemberStorage = tenantSystemStorage.CircleMemberStorage;
             _icrClientValueStorage = tenantSystemStorage.IcrClientStorage;
@@ -652,11 +650,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             }
 
             return Task.CompletedTask;
-        }
-
-        public void Dispose()
-        {
-            _storage.Dispose();
         }
 
         public async Task Handle(AppRegistrationChangedNotification notification, CancellationToken cancellationToken)

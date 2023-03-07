@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using NUnit.Framework;
 using Youverse.Core;
-using Youverse.Core.Storage.SQLite.IdentityDatabase;
+using Youverse.Core.Storage.Sqlite.IdentityDatabase;
 
 namespace IdentityDatabaseTests
 {
@@ -12,7 +12,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void InsertTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\circlemember-01.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var c1 = Guid.NewGuid();
@@ -32,7 +32,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void InsertDuplicateTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\circlemember-02.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var c1 = Guid.NewGuid();
@@ -58,7 +58,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void InsertEmptyTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\circlemember-03.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var c1 = Guid.NewGuid();
@@ -82,7 +82,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void InsertMultipleMembersTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\circlemember-04.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var c1 = Guid.NewGuid();
@@ -108,7 +108,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void InsertMultipleCirclesTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\circlemember-05.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var c1 = Guid.NewGuid();
@@ -146,7 +146,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void RemoveMembersTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\circlemember-11.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var c1 = Guid.NewGuid();
@@ -191,7 +191,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void DeleteMembersEmptyTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\circlemember-20.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             bool ok = false;
@@ -210,7 +210,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void DeleteMembersTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\circlemember-21.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var c1 = Guid.NewGuid();
@@ -251,7 +251,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void GetMembersCirclesAndDataTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\circlemember-30.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var c1 = Guid.NewGuid();

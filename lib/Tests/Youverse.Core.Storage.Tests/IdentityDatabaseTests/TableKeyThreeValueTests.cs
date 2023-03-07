@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.Linq;
 using NUnit.Framework;
 using Youverse.Core;
-using Youverse.Core.Storage.SQLite.IdentityDatabase;
+using Youverse.Core.Storage.Sqlite.IdentityDatabase;
 
 namespace IdentityDatabaseTests
 {
@@ -12,7 +12,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void InsertTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\kv3tbltest1.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid().ToByteArray();
@@ -48,7 +48,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void InsertDuplicateTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\kv3tbltest2.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid().ToByteArray();
@@ -85,7 +85,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void UpdateTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\kv3tbltest3.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid().ToByteArray();
@@ -110,7 +110,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void Update2Test()
         {
-            using var db = new IdentityDatabase("URI=file:.\\kv3tbltest4.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid().ToByteArray();
@@ -145,7 +145,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void DeleteTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\kv3tbltest5.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid().ToByteArray();
@@ -176,7 +176,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void UpsertTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\kv3tbltest6.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid().ToByteArray();
@@ -215,7 +215,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void TableKeyThreeValueTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\ctest31.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid().ToByteArray();

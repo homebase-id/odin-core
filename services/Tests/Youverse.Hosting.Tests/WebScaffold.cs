@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Http;
@@ -161,7 +162,7 @@ namespace Youverse.Hosting.Tests
             }
 
             Directory.CreateDirectory(TestDataPath);
-
+            
             if (Directory.Exists(TempDataPath))
             {
                 Console.WriteLine($"Removing data in [{TempDataPath}]");

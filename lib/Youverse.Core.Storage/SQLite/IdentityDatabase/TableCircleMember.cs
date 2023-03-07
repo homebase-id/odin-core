@@ -1,12 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 
-namespace Youverse.Core.Storage.SQLite.IdentityDatabase
+namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
     public class TableCircleMember : TableCircleMemberCRUD
     {
         public const int MAX_DATA_LENGTH = 65000;  // Some max value for the data
+
+        private SqliteCommand _deleteCommand = null;
+        private SqliteParameter _delparam1 = null;
+        private static object _deleteLock = new object();
 
         public TableCircleMember(IdentityDatabase db) : base(db)
         {
@@ -95,10 +99,32 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
             if ((members == null) || (members.Count < 1))
                 throw new Exception("No members supplied (null or empty)");
 
-            using (_database.CreateCommitUnitOfWork())
-                for (int i = 0; i < members.Count; i++)
-                    DeleteByCircleMember(members[i]);
+            lock (_deleteLock)
+            {
+                // Make sure we only prep once 
+                if (_deleteCommand == null)
+                {
+                    _deleteCommand = _database.CreateCommand();
+                    _deleteCommand.CommandText = "DELETE FROM circlemember WHERE memberid=$memberid;";
 
+                    _delparam1 = _deleteCommand.CreateParameter();
+                    _delparam1.ParameterName = "$memberid";
+                    _deleteCommand.Parameters.Add(_delparam1);
+
+                    _deleteCommand.Prepare();
+                }
+
+                _database.BeginTransaction();
+
+                using (_database.CreateCommitUnitOfWork())
+                {
+                    for (int i = 0; i < members.Count; i++)
+                    {
+                        _delparam1.Value = members[i].ToByteArray();
+                        _deleteCommand.ExecuteNonQuery(_database);
+                    }
+                }
+            }
         }
     }
 }

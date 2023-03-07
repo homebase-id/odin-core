@@ -14,13 +14,14 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
     /// <summary>
     /// Establishes connections between individuals
     /// </summary>
-    public interface ICircleNetworkService : IDisposable
+    public interface ICircleNetworkService
     {
         /// <summary>
         /// Gets the <see cref="ClientAuthenticationToken"/> for a given connection
         /// </summary>
         /// <returns></returns>
-        Task<ClientAuthenticationToken> GetConnectionAuthToken(OdinId odinId, bool failIfNotConnected = true, bool overrideHack = false);
+        Task<ClientAuthenticationToken> GetConnectionAuthToken(OdinId odinId, bool failIfNotConnected = true,
+            bool overrideHack = false);
 
         /// <summary>
         /// Disconnects you from the specified <see cref="OdinId"/>
@@ -54,7 +55,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// </summary>
         /// <param name="odinId"></param>
         /// <returns></returns>
-        Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(OdinId odinId, bool overrideHack = false);
+        Task<IdentityConnectionRegistration>
+            GetIdentityConnectionRegistration(OdinId odinId, bool overrideHack = false);
 
         /// <summary>
         /// Gets the connection info if the specified <param name="remoteClientAuthenticationToken">xtoken half key</param> is valid
@@ -62,7 +64,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <param name="odinId"></param>
         /// <param name="remoteClientAuthenticationToken"></param>
         /// <returns></returns>
-        Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(OdinId odinId, ClientAuthenticationToken remoteClientAuthenticationToken);
+        Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(OdinId odinId,
+            ClientAuthenticationToken remoteClientAuthenticationToken);
 
         /// <summary>
         /// Determines if the specified odinId is connected 
@@ -93,7 +96,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <param name="remoteClientAccessToken">The keys used when accessing the remote identity</param>
         /// <param name="handshakeResponseContactData"></param>
         /// <returns></returns>
-        Task Connect(string odinIdentity, AccessExchangeGrant accessGrant, ClientAccessToken remoteClientAccessToken, ContactRequestData handshakeResponseContactData);
+        Task Connect(string odinIdentity, AccessExchangeGrant accessGrant, ClientAccessToken remoteClientAccessToken,
+            ContactRequestData handshakeResponseContactData);
 
         /// <summary>
         /// Gets profiles that have been marked as <see cref="ConnectionStatus.Blocked"/>
@@ -108,7 +112,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <param name="odinId"></param>
         /// <param name="remoteIdentityConnectionKey"></param>
         /// <returns></returns>
-        Task<AccessRegistration> GetIdentityConnectionAccessRegistration(OdinId odinId, SensitiveByteArray remoteIdentityConnectionKey);
+        Task<AccessRegistration> GetIdentityConnectionAccessRegistration(OdinId odinId,
+            SensitiveByteArray remoteIdentityConnectionKey);
 
         /// <summary>
         /// Handles the incoming notification.
@@ -119,13 +124,15 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// Creates a <see cref="PermissionContext"/> for the specified caller based on their access
         /// </summary>
         /// <returns></returns>
-        Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreateTransitPermissionContext(OdinId odinId, ClientAuthenticationToken clientAuthToken);
+        Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreateTransitPermissionContext(
+            OdinId odinId, ClientAuthenticationToken clientAuthToken);
 
 
         /// <summary>
         /// Creates a caller and permission context for the caller based on the <see cref="IdentityConnectionRegistrationClient"/> resolved by the authToken
         /// </summary>
-        Task<(CallerContext callerContext, PermissionContext permissionContext)> CreateConnectedClientContext(ClientAuthenticationToken authToken);
+        Task<(CallerContext callerContext, PermissionContext permissionContext)> CreateConnectedClientContext(
+            ClientAuthenticationToken authToken);
 
         /// <summary>
         /// Grants the odinId access to the drives and permissions of the specified circle
@@ -139,10 +146,13 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
         Task<IEnumerable<OdinId>> GetCircleMembers(GuidId circleId);
 
-        Task<Dictionary<string, CircleGrant>> CreateCircleGrantList(List<GuidId> circleIds, SensitiveByteArray keyStoreKey);
+        Task<Dictionary<string, CircleGrant>> CreateCircleGrantList(List<GuidId> circleIds,
+            SensitiveByteArray keyStoreKey);
 
         //TODO: need to create a dedicated type for appgrants
-        Task<Dictionary<string, Dictionary<string, AppCircleGrant>>> CreateAppCircleGrantList(List<GuidId> circleIds, SensitiveByteArray keyStoreKey);
+        Task<Dictionary<string, Dictionary<string, AppCircleGrant>>> CreateAppCircleGrantList(List<GuidId> circleIds,
+            SensitiveByteArray keyStoreKey);
+
         /// <summary>
         /// Creates a circle definition
         /// </summary>
@@ -193,7 +203,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// Creates a client for the IdentityConnectionRegistration
         /// </summary>
         /// <returns></returns>
-        Task<bool> TryCreateIdentityConnectionClient(string odinId, ClientAuthenticationToken remoteIcrClientAuthToken, out ClientAccessToken clientAccessToken);
+        Task<bool> TryCreateIdentityConnectionClient(string odinId, ClientAuthenticationToken remoteIcrClientAuthToken,
+            out ClientAccessToken clientAccessToken);
 
         /// <summary>
         /// Returns the <see cref="IdentityConnectionRegistrationClient"/> 

@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 using Youverse.Core.Identity;
 
-namespace Youverse.Core.Storage.SQLite.DriveDatabase
+namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 {
     public class ReactionsItem
     {
@@ -45,35 +45,35 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
     public class TableReactionsCRUD : TableBase
     {
         private bool _disposed = false;
-        private SQLiteCommand _insertCommand = null;
+        private SqliteCommand _insertCommand = null;
         private static Object _insertLock = new Object();
-        private SQLiteParameter _insertParam1 = null;
-        private SQLiteParameter _insertParam2 = null;
-        private SQLiteParameter _insertParam3 = null;
-        private SQLiteCommand _updateCommand = null;
+        private SqliteParameter _insertParam1 = null;
+        private SqliteParameter _insertParam2 = null;
+        private SqliteParameter _insertParam3 = null;
+        private SqliteCommand _updateCommand = null;
         private static Object _updateLock = new Object();
-        private SQLiteParameter _updateParam1 = null;
-        private SQLiteParameter _updateParam2 = null;
-        private SQLiteParameter _updateParam3 = null;
-        private SQLiteCommand _upsertCommand = null;
+        private SqliteParameter _updateParam1 = null;
+        private SqliteParameter _updateParam2 = null;
+        private SqliteParameter _updateParam3 = null;
+        private SqliteCommand _upsertCommand = null;
         private static Object _upsertLock = new Object();
-        private SQLiteParameter _upsertParam1 = null;
-        private SQLiteParameter _upsertParam2 = null;
-        private SQLiteParameter _upsertParam3 = null;
-        private SQLiteCommand _delete0Command = null;
+        private SqliteParameter _upsertParam1 = null;
+        private SqliteParameter _upsertParam2 = null;
+        private SqliteParameter _upsertParam3 = null;
+        private SqliteCommand _delete0Command = null;
         private static Object _delete0Lock = new Object();
-        private SQLiteParameter _delete0Param1 = null;
-        private SQLiteParameter _delete0Param2 = null;
-        private SQLiteParameter _delete0Param3 = null;
-        private SQLiteCommand _delete1Command = null;
+        private SqliteParameter _delete0Param1 = null;
+        private SqliteParameter _delete0Param2 = null;
+        private SqliteParameter _delete0Param3 = null;
+        private SqliteCommand _delete1Command = null;
         private static Object _delete1Lock = new Object();
-        private SQLiteParameter _delete1Param1 = null;
-        private SQLiteParameter _delete1Param2 = null;
-        private SQLiteCommand _get0Command = null;
+        private SqliteParameter _delete1Param1 = null;
+        private SqliteParameter _delete1Param2 = null;
+        private SqliteCommand _get0Command = null;
         private static Object _get0Lock = new Object();
-        private SQLiteParameter _get0Param1 = null;
-        private SQLiteParameter _get0Param2 = null;
-        private SQLiteParameter _get0Param3 = null;
+        private SqliteParameter _get0Param1 = null;
+        private SqliteParameter _get0Param2 = null;
+        private SqliteParameter _get0Param3 = null;
 
         public TableReactionsCRUD(DriveDatabase db) : base(db)
         {
@@ -108,7 +108,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 if (dropExisting)
                 {
                     cmd.CommandText = "DROP TABLE IF EXISTS reactions;";
-                    cmd.ExecuteNonQuery();
+                    cmd.ExecuteNonQuery(_database);
                 }
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS reactions("
@@ -118,7 +118,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                      +", PRIMARY KEY (identity,postId,singleReaction)"
                      +");"
                      ;
-                cmd.ExecuteNonQuery();
+                cmd.ExecuteNonQuery(_database);
             }
         }
 
@@ -142,11 +142,11 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     _insertParam3.ParameterName = "$singleReaction";
                     _insertCommand.Prepare();
                 }
-                _insertParam1.Value = item.identity;
-                _insertParam2.Value = item.postId;
+                _insertParam1.Value = item.identity.Id;
+                _insertParam2.Value = item.postId.ToByteArray();
                 _insertParam3.Value = item.singleReaction;
                 _database.BeginTransaction();
-                return _insertCommand.ExecuteNonQuery();
+                return _insertCommand.ExecuteNonQuery(_database);
             } // Lock
         }
 
@@ -172,11 +172,11 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     _upsertParam3.ParameterName = "$singleReaction";
                     _upsertCommand.Prepare();
                 }
-                _upsertParam1.Value = item.identity;
-                _upsertParam2.Value = item.postId;
+                _upsertParam1.Value = item.identity.Id;
+                _upsertParam2.Value = item.postId.ToByteArray();
                 _upsertParam3.Value = item.singleReaction;
                 _database.BeginTransaction();
-                return _upsertCommand.ExecuteNonQuery();
+                return _upsertCommand.ExecuteNonQuery(_database);
             } // Lock
         }
 
@@ -201,11 +201,11 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     _updateParam3.ParameterName = "$singleReaction";
                     _updateCommand.Prepare();
                 }
-                _updateParam1.Value = item.identity;
-                _updateParam2.Value = item.postId;
+                _updateParam1.Value = item.identity.Id;
+                _updateParam2.Value = item.postId.ToByteArray();
                 _updateParam3.Value = item.singleReaction;
                 _database.BeginTransaction();
-                return _updateCommand.ExecuteNonQuery();
+                return _updateCommand.ExecuteNonQuery(_database);
             } // Lock
         }
 
@@ -229,11 +229,11 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     _delete0Param3.ParameterName = "$singleReaction";
                     _delete0Command.Prepare();
                 }
-                _delete0Param1.Value = identity;
-                _delete0Param2.Value = postId;
+                _delete0Param1.Value = identity.Id;
+                _delete0Param2.Value = postId.ToByteArray();
                 _delete0Param3.Value = singleReaction;
                 _database.BeginTransaction();
-                return _delete0Command.ExecuteNonQuery();
+                return _delete0Command.ExecuteNonQuery(_database);
             } // Lock
         }
 
@@ -254,10 +254,10 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     _delete1Param2.ParameterName = "$postId";
                     _delete1Command.Prepare();
                 }
-                _delete1Param1.Value = identity;
-                _delete1Param2.Value = postId;
+                _delete1Param1.Value = identity.Id;
+                _delete1Param2.Value = postId.ToByteArray();
                 _database.BeginTransaction();
-                return _delete1Command.ExecuteNonQuery();
+                return _delete1Command.ExecuteNonQuery(_database);
             } // Lock
         }
 
@@ -281,10 +281,10 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     _get0Param3.ParameterName = "$singleReaction";
                     _get0Command.Prepare();
                 }
-                _get0Param1.Value = identity;
-                _get0Param2.Value = postId;
+                _get0Param1.Value = identity.Id;
+                _get0Param2.Value = postId.ToByteArray();
                 _get0Param3.Value = singleReaction;
-                using (SQLiteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
                 {
                     var result = new ReactionsItem();
                     if (!rdr.Read())

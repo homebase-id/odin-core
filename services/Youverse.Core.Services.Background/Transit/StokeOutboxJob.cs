@@ -28,7 +28,6 @@ namespace Youverse.Core.Services.Workers.Transit
 
         public async Task Execute(IJobExecutionContext context)
         {
-
             _logger.LogInformation("Send Payload Job running now");
             var (senders, marker) = await _pendingTransfers.GetIdentities();
             foreach (var sender in senders)

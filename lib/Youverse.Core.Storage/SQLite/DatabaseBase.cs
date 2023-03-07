@@ -1,7 +1,8 @@
 ﻿using System;
-using System.Data.SQLite;
+using System.Data;
 using Youverse.Core.Cryptography.Crypto;
 using System.Timers;
+using Microsoft.Data.Sqlite;
 using Serilog;
 
 
@@ -18,7 +19,7 @@ https://www.sqlitetutorial.net/sqlite-index/
 */
 
 
-namespace Youverse.Core.Storage.SQLite
+namespace Youverse.Core.Storage.Sqlite
 {
     public class DatabaseBase : IDisposable
     {
@@ -68,8 +69,9 @@ namespace Youverse.Core.Storage.SQLite
         private ulong _commitFrequency; // ms
         private string _connectionString;
 
-        private SQLiteConnection _connection = null;
-        private SQLiteTransaction _transaction = null;
+        private SqliteConnection _connection = null;
+        private SqliteTransaction _transaction = null;
+        public SqliteTransaction Transaction => _transaction;
 
         private Object _getConnectionLock = new Object();
 
@@ -129,9 +131,12 @@ namespace Youverse.Core.Storage.SQLite
             _wasDisposed = true;
         }
 
-        public SQLiteCommand CreateCommand()
+        public SqliteCommand CreateCommand()
         {
-            return new SQLiteCommand(GetConnection());
+            return new SqliteCommand
+            {
+                Connection = GetConnection(),
+            };
         }
 
         public void Vacuum()
@@ -139,7 +144,7 @@ namespace Youverse.Core.Storage.SQLite
             using (var cmd = CreateCommand())
             {
                 cmd.CommandText = "VACUUM;";
-                cmd.ExecuteNonQuery();
+                cmd.ExecuteNonQuery(this);
             }
         }
 
@@ -150,13 +155,13 @@ namespace Youverse.Core.Storage.SQLite
         /// There's ONE connection per database object.
         /// </summary>
         /// <returns></returns>
-        public SQLiteConnection GetConnection()
+        public SqliteConnection GetConnection()
         {
             lock (_getConnectionLock)
             {
                 if (_connection == null)
                 {
-                    _connection = new SQLiteConnection(_connectionString);
+                    _connection = new SqliteConnection(_connectionString);
                     _connection.Open();
                 }
 
@@ -285,5 +290,25 @@ namespace Youverse.Core.Storage.SQLite
             _timerCommitTriggerCount++;
             Commit();
         }
+    }
+
+    public static class CommandExtensions
+    {
+        public static int ExecuteNonQuery(this SqliteCommand command, DatabaseBase database)
+        {
+            command.Transaction = database.Transaction;
+            return command.ExecuteNonQuery();
+        }
+
+        public static SqliteDataReader ExecuteReader(
+            this SqliteCommand command,
+            CommandBehavior behavior,
+            DatabaseBase database)
+        {
+            command.Transaction = database.Transaction;
+            return command.ExecuteReader();
+        }
+        
+        
     }
 }

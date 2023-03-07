@@ -1,41 +1,41 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 
-namespace Youverse.Core.Storage.SQLite.IdentityDatabase
+namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
     public class TableOutbox: TableOutboxCRUD
     {
         const int MAX_VALUE_LENGTH = 65535;  // Stored value cannot be longer than this
 
-        private SQLiteCommand _popCommand = null;
-        private SQLiteParameter _pparam1 = null;
-        private SQLiteParameter _pparam2 = null;
-        private SQLiteParameter _pparam3 = null;
+        private SqliteCommand _popCommand = null;
+        private SqliteParameter _pparam1 = null;
+        private SqliteParameter _pparam2 = null;
+        private SqliteParameter _pparam3 = null;
         private static Object _popLock = new Object();
 
-        private SQLiteCommand _popAllCommand = null;
-        private SQLiteParameter _paparam1 = null;
+        private SqliteCommand _popAllCommand = null;
+        private SqliteParameter _paparam1 = null;
         private static Object _popAllLock = new Object();
 
-        private SQLiteCommand _popCancelCommand = null;
-        private SQLiteParameter _pcancelparam1 = null;
+        private SqliteCommand _popCancelCommand = null;
+        private SqliteParameter _pcancelparam1 = null;
 
-        private SQLiteCommand _popCancelListCommand = null;
-        private SQLiteParameter _pcancellistparam1 = null;
-        private SQLiteParameter _pcancellistparam2 = null;
+        private SqliteCommand _popCancelListCommand = null;
+        private SqliteParameter _pcancellistparam1 = null;
+        private SqliteParameter _pcancellistparam2 = null;
         private static Object _popCancelListLock = new Object();
 
-        private SQLiteCommand _popCommitCommand = null;
-        private SQLiteParameter _pcommitparam1 = null;
+        private SqliteCommand _popCommitCommand = null;
+        private SqliteParameter _pcommitparam1 = null;
 
-        private SQLiteCommand _popCommitListCommand = null;
-        private SQLiteParameter _pcommitlistparam1 = null;
-        private SQLiteParameter _pcommitlistparam2 = null;
+        private SqliteCommand _popCommitListCommand = null;
+        private SqliteParameter _pcommitlistparam1 = null;
+        private SqliteParameter _pcommitlistparam2 = null;
         private static Object _popCommitListLock = new Object();
 
-        private SQLiteCommand _popRecoverCommand = null;
-        private SQLiteParameter _pcrecoverparam1 = null;
+        private SqliteCommand _popRecoverCommand = null;
+        private SqliteParameter _pcrecoverparam1 = null;
 
         public TableOutbox(IdentityDatabase db) : base(db)
         {
@@ -100,7 +100,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (_popCommand == null)
                 {
                     _popCommand = _database.CreateCommand();
-                    _popCommand.CommandText = "UPDATE outbox SET popStamp=$popstamp WHERE boxId=$boxid AND popStamp IS NULL ORDER BY timeStamp ASC LIMIT $count; " +
+                    _popCommand.CommandText = "UPDATE outbox SET popStamp=$popstamp WHERE rowid IN (SELECT rowid FROM outbox WHERE boxId=$boxid AND popStamp IS NULL ORDER BY timeStamp ASC LIMIT $count); " +
                                               "SELECT fileId, priority, timeStamp, value, recipient from outbox WHERE popstamp=$popstamp";
 
                     _pparam1 = _popCommand.CreateParameter();
@@ -121,15 +121,16 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 popStamp = SequentialGuid.CreateGuid();
                 _pparam1.Value = popStamp.ToByteArray();
                 _pparam2.Value = count;
-                _pparam3.Value = boxId;
+                _pparam3.Value = boxId.ToByteArray();
 
                 List<OutboxItem> result = new List<OutboxItem>();
 
                 _database.BeginTransaction();
+                _popCommand.Transaction = _database.Transaction;
 
                 using (_database.CreateCommitUnitOfWork())
                 {
-                    using (SQLiteDataReader rdr = _popCommand.ExecuteReader(System.Data.CommandBehavior.Default))
+                    using (SqliteDataReader rdr = _popCommand.ExecuteReader(System.Data.CommandBehavior.Default))
                     {
                         OutboxItem item;
 
@@ -194,7 +195,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 }
 
                 popStamp = SequentialGuid.CreateGuid();
-                _paparam1.Value = popStamp;
+                _paparam1.Value = popStamp.ToByteArray();
 
                 List<OutboxItem> result = new List<OutboxItem>();
 
@@ -202,7 +203,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
 
                 using (_database.CreateCommitUnitOfWork())
                 {
-                    using (SQLiteDataReader rdr = _popAllCommand.ExecuteReader(System.Data.CommandBehavior.Default))
+                    using (SqliteDataReader rdr = _popAllCommand.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                     {
                         OutboxItem item;
 
@@ -276,10 +277,10 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _popCancelCommand.Prepare();
                 }
 
-                _pcancelparam1.Value = popstamp;
+                _pcancelparam1.Value = popstamp.ToByteArray();
 
                 _database.BeginTransaction();
-                _popCancelCommand.ExecuteNonQuery();
+                _popCancelCommand.ExecuteNonQuery(_database);
             }
         }
 
@@ -304,7 +305,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _popCancelListCommand.Prepare();
                 }
 
-                _pcancellistparam1.Value = popstamp;
+                _pcancellistparam1.Value = popstamp.ToByteArray();
 
                 _database.BeginTransaction();
 
@@ -313,8 +314,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     // I'd rather not do a TEXT statement, this seems safer but slower.
                     for (int i = 0; i < listFileId.Count; i++)
                     {
-                        _pcancellistparam2.Value = listFileId[i];
-                        _popCancelListCommand.ExecuteNonQuery();
+                        _pcancellistparam2.Value = listFileId[i].ToByteArray();
+                        _popCancelListCommand.ExecuteNonQuery(_database);
                     }
                 }
             }
@@ -342,9 +343,9 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _popCommitCommand.Prepare();
                 }
 
-                _pcommitparam1.Value = popstamp;
+                _pcommitparam1.Value = popstamp.ToByteArray();
                 _database.BeginTransaction();
-                _popCommitCommand.ExecuteNonQuery();
+                _popCommitCommand.ExecuteNonQuery(_database);
             }
         }
 
@@ -374,7 +375,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _popCommitListCommand.Prepare();
                 }
 
-                _pcommitlistparam1.Value = popstamp;
+                _pcommitlistparam1.Value = popstamp.ToByteArray();
 
                 _database.BeginTransaction();
 
@@ -383,8 +384,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     // I'd rather not do a TEXT statement, this seems safer but slower.
                     for (int i = 0; i < listFileId.Count; i++)
                     {
-                        _pcommitlistparam2.Value = listFileId[i];
-                        _popCommitListCommand.ExecuteNonQuery();
+                        _pcommitlistparam2.Value = listFileId[i].ToByteArray();
+                        _popCommitListCommand.ExecuteNonQuery(_database);
                     }
                 }
             }
@@ -416,7 +417,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _pcrecoverparam1.Value = SequentialGuid.CreateGuid(UnixTimeSeconds).ToByteArray(); // UnixTimeMiliseconds
 
                 _database.BeginTransaction();
-                _popRecoverCommand.ExecuteNonQuery();
+                _popRecoverCommand.ExecuteNonQuery(_database);
             }
         }
     }

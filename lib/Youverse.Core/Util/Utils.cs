@@ -16,8 +16,7 @@ namespace Youverse.Core.Util
 
             return i2;
         }
-
-
+        
         public static void StopWatchStatus(string s, Stopwatch stopWatch)
         {
             TimeSpan ts = stopWatch.Elapsed;

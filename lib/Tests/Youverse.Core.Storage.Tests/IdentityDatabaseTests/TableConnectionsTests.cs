@@ -3,7 +3,7 @@ using System.Diagnostics;
 using NUnit.Framework;
 using Youverse.Core;
 using Youverse.Core.Identity;
-using Youverse.Core.Storage.SQLite.IdentityDatabase;
+using Youverse.Core.Storage.Sqlite.IdentityDatabase;
 
 namespace IdentityDatabaseTests
 {
@@ -12,7 +12,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void ExampleTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\connections-example-01.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var g1 = Guid.NewGuid();
@@ -55,7 +55,7 @@ namespace IdentityDatabaseTests
             Debug.Assert(r.Count == 2);
 
             r = db.tblConnections.PagingByIdentity(2, outCursor, out outCursor);
-            Debug.Assert(r.Count == 1);
+            Debug.Assert(r.Count == 1, message:"rdr.HasRows is the sinner");
             Debug.Assert(outCursor == null);
         }
 
@@ -63,7 +63,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void InsertValidConnectionTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\connections-insert-01.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var g1 = Guid.NewGuid();
@@ -92,7 +92,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void DeleteValidConnectionTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\connections-delete-01.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var g1 = Guid.NewGuid();
@@ -122,7 +122,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void GetConnectionsValidConnectionsTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\connections-getconn-01.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var g1 = Guid.NewGuid();
@@ -166,7 +166,7 @@ namespace IdentityDatabaseTests
             Debug.Assert(r[1].identity == "gandalf.white.me");
 
             r = db.tblConnections.PagingByIdentity(2, outCursor, out outCursor);
-            Debug.Assert(r.Count == 1);
+            Debug.Assert(r.Count == 1, message:"rdr.HasRows is the sinner");
             Debug.Assert(r[0].identity == "samwise.gamgee.me");
             Debug.Assert(outCursor == null);
 

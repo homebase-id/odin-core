@@ -1,40 +1,41 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
+using System.Data;
+using Microsoft.Data.Sqlite;
 
-namespace Youverse.Core.Storage.SQLite.IdentityDatabase
+namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
     public class TableKeyTwoValue : TableBase
     {
         const int MAX_VALUE_LENGTH = 65535;  // Stored value cannot be longer than this
 
-        private SQLiteCommand _insertCommand = null;
-        private SQLiteParameter _iparam1 = null;
-        private SQLiteParameter _iparam2 = null;
-        private SQLiteParameter _iparam3 = null;
+        private SqliteCommand _insertCommand = null;
+        private SqliteParameter _iparam1 = null;
+        private SqliteParameter _iparam2 = null;
+        private SqliteParameter _iparam3 = null;
         private  Object _insertLock = new Object();
 
-        private SQLiteCommand _upsertCommand = null;
-        private SQLiteParameter _zparam1 = null;
-        private SQLiteParameter _zparam2 = null;
-        private SQLiteParameter _zparam3 = null;
+        private SqliteCommand _upsertCommand = null;
+        private SqliteParameter _zparam1 = null;
+        private SqliteParameter _zparam2 = null;
+        private SqliteParameter _zparam3 = null;
         private  Object _upsertLock = new Object();
 
-        private SQLiteCommand _updateCommand = null;
-        private SQLiteParameter _uparam1 = null;
-        private SQLiteParameter _uparam2 = null;
+        private SqliteCommand _updateCommand = null;
+        private SqliteParameter _uparam1 = null;
+        private SqliteParameter _uparam2 = null;
         private  Object _updateLock = new Object();
 
-        private SQLiteCommand _deleteCommand = null;
-        private SQLiteParameter _dparam1 = null;
+        private SqliteCommand _deleteCommand = null;
+        private SqliteParameter _dparam1 = null;
         private  Object _deleteLock = new Object();
 
-        private SQLiteCommand _selectCommand = null;
-        private SQLiteParameter _sparam1 = null;
+        private SqliteCommand _selectCommand = null;
+        private SqliteParameter _sparam1 = null;
         private  Object _selectLock = new Object();
 
-        private SQLiteCommand _selectTwoCommand = null;
-        private SQLiteParameter _sparamTwo1 = null;
+        private SqliteCommand _selectTwoCommand = null;
+        private SqliteParameter _sparamTwo1 = null;
         private  Object _selectTwoLock = new Object();
 
         public TableKeyTwoValue(IdentityDatabase db) : base(db)
@@ -74,7 +75,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if(dropExisting)
                 {
                     cmd.CommandText = "DROP TABLE IF EXISTS keytwovalue;";
-                    cmd.ExecuteNonQuery();
+                    cmd.ExecuteNonQuery(_database);
                 }
                 
                 cmd.CommandText =
@@ -85,7 +86,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     + "CREATE INDEX if not exists idxkey1 ON keytwovalue(key1);"+
                       "CREATE INDEX if not exists idxkey2 ON keytwovalue(key2); ";
 
-                cmd.ExecuteNonQuery();
+                cmd.ExecuteNonQuery(_database);
             }
         }
 
@@ -109,7 +110,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _sparam1.Value = key1;
                 byte[] _tmpbuf = new byte[MAX_VALUE_LENGTH];
 
-                using (SQLiteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
                 {
                     if (!rdr.Read())
                         return null;
@@ -155,7 +156,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _sparamTwo1.Value = key2;
                 byte[] _tmpbuf = new byte[MAX_VALUE_LENGTH];
 
-                using (SQLiteDataReader rdr = _selectTwoCommand.ExecuteReader())
+                using (SqliteDataReader rdr = _selectTwoCommand.ExecuteReader(CommandBehavior.Default, _database))
                 {
                     List<byte[]> values = new List<byte[]>();
                     byte[] value = null;
@@ -213,7 +214,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _iparam3.Value = value;
 
                 _database.BeginTransaction();
-                _insertCommand.ExecuteNonQuery();
+                _insertCommand.ExecuteNonQuery(_database);
             }
         }
 
@@ -246,7 +247,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _uparam2.Value = value;
 
                 _database.BeginTransaction();
-                _updateCommand.ExecuteNonQuery();
+                _updateCommand.ExecuteNonQuery(_database);
             }
         }
 
@@ -283,7 +284,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _zparam3.Value = value;
 
                 _database.BeginTransaction();
-                _upsertCommand.ExecuteNonQuery();
+                _upsertCommand.ExecuteNonQuery(_database);
             }
         }
 
@@ -307,7 +308,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _dparam1.Value = key1;
 
                 _database.BeginTransaction();
-                int n = _deleteCommand.ExecuteNonQuery();
+                int n = _deleteCommand.ExecuteNonQuery(_database);
             }
         }
     }

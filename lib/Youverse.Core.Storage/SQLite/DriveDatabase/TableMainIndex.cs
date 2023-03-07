@@ -1,7 +1,7 @@
 ﻿using System;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 
-namespace Youverse.Core.Storage.SQLite.DriveDatabase
+namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 {
 /*    public class TableMainIndexData
     {
@@ -22,22 +22,22 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
     public class TableMainIndex : TableMainIndexCRUD
     {
-        private SQLiteCommand _updateCommand = null;
-        private SQLiteParameter _uparam1 = null;
-        private SQLiteParameter _uparam2 = null;
-        private SQLiteParameter _uparam3 = null;
-        private SQLiteParameter _uparam4 = null;
-        private SQLiteParameter _uparam5 = null;
-        private SQLiteParameter _uparam6 = null;
-        private SQLiteParameter _uparam7 = null;
-        private SQLiteParameter _uparam8 = null;
-        private SQLiteParameter _uparam9 = null;
-        private SQLiteParameter _uparam10 = null;
+        private SqliteCommand _updateCommand = null;
+        private SqliteParameter _uparam1 = null;
+        private SqliteParameter _uparam2 = null;
+        private SqliteParameter _uparam3 = null;
+        private SqliteParameter _uparam4 = null;
+        private SqliteParameter _uparam5 = null;
+        private SqliteParameter _uparam6 = null;
+        private SqliteParameter _uparam7 = null;
+        private SqliteParameter _uparam8 = null;
+        private SqliteParameter _uparam9 = null;
+        private SqliteParameter _uparam10 = null;
         private Object _updateLock = new Object();
 
-        private SQLiteCommand _touchCommand = null;
-        private SQLiteParameter _tparam1 = null;
-        private SQLiteParameter _tparam2 = null;
+        private SqliteCommand _touchCommand = null;
+        private SqliteParameter _tparam1 = null;
+        private SqliteParameter _tparam2 = null;
         private Object _touchLock = new Object();
 
         public TableMainIndex(DriveDatabase db) : base(db)
@@ -83,7 +83,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 _sparam1.Value = fileId;
                 var GroupId = new byte[16];
 
-                using (SQLiteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.SingleResult))
+                using (SqliteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.SingleResult))
                 {
                     TableMainIndexData md = new TableMainIndexData();
 
@@ -269,7 +269,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 _param14.Value = fileSystemType;
 
                 _database.BeginTransaction();
-                _insertCommand.ExecuteNonQuery();
+                _insertCommand.ExecuteNonQuery(_database);
             }
         }
 
@@ -291,7 +291,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 _dparam1.Value = fileId;
 
                 _database.BeginTransaction();
-                _deleteCommand.ExecuteNonQuery();
+                _deleteCommand.ExecuteNonQuery(_database);
             }
         }
         */
@@ -322,11 +322,11 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     _touchCommand.Parameters.Add(_tparam2);
                 }
 
-                _tparam1.Value = fileId;
+                _tparam1.Value = fileId.ToByteArray();
                 _tparam2.Value = UnixTimeUtcUniqueGenerator.Generator().uniqueTime;
 
                 _database.BeginTransaction();
-                _touchCommand.ExecuteNonQuery();
+                _touchCommand.ExecuteNonQuery(_database);
             }
         }
 
@@ -430,17 +430,17 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     $"UPDATE mainindex SET " + stm + $" WHERE fileid = x'{Convert.ToHexString(fileId.ToByteArray())}'";
 
                 _uparam1.Value = UnixTimeUtcUniqueGenerator.Generator().uniqueTime;
-                _uparam2.Value = fileType;
-                _uparam3.Value = dataType;
-                _uparam4.Value = senderId;
-                _uparam5.Value = groupId;
-                _uparam6.Value = uniqueId;
-                _uparam7.Value = userDate;
-                _uparam8.Value = requiredSecurityGroup;
-                _uparam9.Value = globalTransitId;
+                _uparam2.Value = fileType ?? (object)DBNull.Value;
+                _uparam3.Value = dataType ?? (object)DBNull.Value;
+                _uparam4.Value = senderId ?? (object)DBNull.Value;
+                _uparam5.Value = groupId?.ToByteArray() ?? (object)DBNull.Value;
+                _uparam6.Value = uniqueId?.ToByteArray() ?? (object)DBNull.Value;
+                _uparam7.Value = userDate ?? (object)DBNull.Value;
+                _uparam8.Value = requiredSecurityGroup ?? (object)DBNull.Value;
+                _uparam9.Value = globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
                 // _uparam10.Value = fileSystemType;
                 _database.BeginTransaction();
-                _updateCommand.ExecuteNonQuery();
+                _updateCommand.ExecuteNonQuery(_database);
             }
         }
     }

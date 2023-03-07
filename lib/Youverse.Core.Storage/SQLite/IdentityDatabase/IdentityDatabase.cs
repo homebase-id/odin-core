@@ -14,7 +14,7 @@ https://www.sqlitetutorial.net/sqlite-index/
 */
 
 
-namespace Youverse.Core.Storage.SQLite.IdentityDatabase
+namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
     public class IdentityDatabase : DatabaseBase
     {

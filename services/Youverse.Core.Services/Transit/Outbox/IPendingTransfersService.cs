@@ -9,7 +9,7 @@ namespace Youverse.Core.Services.Transit.Outbox
     /// A global queue (singleton) list of senders who need
     /// their outboxes stoked (sounds kinky =)
     /// </summary>
-    public interface IPendingTransfersService : IDisposable
+    public interface IPendingTransfersService
     {
         /// <summary>
         /// Adds the <see cref="OdinId"/> to the pending transfer queue to be processed by the background job

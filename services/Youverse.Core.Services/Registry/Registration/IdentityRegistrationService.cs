@@ -24,9 +24,7 @@ namespace Youverse.Core.Services.Registry.Registration
             _configuration = configuration;
             _registry = accessor!.HttpContext!.RequestServices!.GetRequiredService<IIdentityRegistry>();
 
-            //TODO: configure this location correctly 
-            string storagePath = "/tmp/dotyou/system";
-            _reservationStorage = new ReservationStorage(storagePath);
+            _reservationStorage = new ReservationStorage();
         }
 
         public async Task<Guid> StartRegistration(RegistrationInfo registrationInfo)

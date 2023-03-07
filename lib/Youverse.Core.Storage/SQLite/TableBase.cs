@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Youverse.Core.Storage.SQLite
+namespace Youverse.Core.Storage.Sqlite
 {
     public class TableBase : IDisposable
     {

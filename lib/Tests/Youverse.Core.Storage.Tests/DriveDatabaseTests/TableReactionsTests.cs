@@ -5,7 +5,7 @@ using System.Linq;
 using NUnit.Framework;
 using Youverse.Core;
 using Youverse.Core.Identity;
-using Youverse.Core.Storage.SQLite.DriveDatabase;
+using Youverse.Core.Storage.Sqlite.DriveDatabase;
 
 namespace DriveDatabaseTests
 {
@@ -16,7 +16,7 @@ namespace DriveDatabaseTests
         // Usage example
         public void ExampleUsageTest()
         {
-            using var db = new DriveDatabase("URI=file:.\\tblReactions-01.db", DatabaseIndexKind.Random);
+            using var db = new DriveDatabase("", DatabaseIndexKind.Random);
             db.CreateDatabase();
 
             var p1 = Guid.NewGuid();
@@ -49,7 +49,7 @@ namespace DriveDatabaseTests
 
             r2 = db.TblReactions.PagingByRowid(5, cursor, out cursor, p1);
             Debug.Assert(r2.Count == 1);
-            Debug.Assert(cursor == null);
+            Debug.Assert(cursor == null, message:"rdr.HasRows is the sinner");
 
             // As a result we had 6 in total, 3 :lol:, 2 :wink: and 1 :smiley:
         }
@@ -59,7 +59,7 @@ namespace DriveDatabaseTests
         // Test we can insert rows as expected
         public void InsertRowTest()
         {
-            using var db = new DriveDatabase("URI=file:.\\tblReactions-02.db", DatabaseIndexKind.Random);
+            using var db = new DriveDatabase("", DatabaseIndexKind.Random);
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();
@@ -76,7 +76,7 @@ namespace DriveDatabaseTests
         // Test we can insert rows as expected
         public void IdentityPostDetailsTest()
         {
-            using var db = new DriveDatabase("URI=file:.\\tblReactions-42.db", DatabaseIndexKind.Random);
+            using var db = new DriveDatabase("", DatabaseIndexKind.Random);
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();
@@ -102,7 +102,7 @@ namespace DriveDatabaseTests
         // Test we can insert and read two tagmembers
         public void InsertDuplicateFailTest()
         {
-            using var db = new DriveDatabase("URI=file:.\\tblReactions-03.db", DatabaseIndexKind.Random);
+            using var db = new DriveDatabase("", DatabaseIndexKind.Random);
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();
@@ -156,7 +156,7 @@ namespace DriveDatabaseTests
         // Test we can insert rows as expected
         public void DeleteTest()
         {
-            using var db = new DriveDatabase("URI=file:.\\tblReactions-04.db", DatabaseIndexKind.Random);
+            using var db = new DriveDatabase("", DatabaseIndexKind.Random);
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();
@@ -182,7 +182,7 @@ namespace DriveDatabaseTests
         // Test we can insert rows as expected
         public void GetPostReactionstest()
         {
-            using var db = new DriveDatabase("URI=file:.\\tblReactions-05.db", DatabaseIndexKind.Random);
+            using var db = new DriveDatabase("", DatabaseIndexKind.Random);
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();
@@ -208,7 +208,7 @@ namespace DriveDatabaseTests
         // Test we can insert rows as expected
         public void GetPostReactionsChopTest()
         {
-            using var db = new DriveDatabase("URI=file:.\\tblReactions-06.db", DatabaseIndexKind.Random);
+            using var db = new DriveDatabase("", DatabaseIndexKind.Random);
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();

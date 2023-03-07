@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 using Youverse.Core.Cryptography.Crypto;
 
 
@@ -16,7 +16,7 @@ https://www.sqlitetutorial.net/sqlite-index/
 */
 
 
-namespace Youverse.Core.Storage.SQLite.ServerDatabase
+namespace Youverse.Core.Storage.Sqlite.ServerDatabase
 {
     public class ServerDatabase : DatabaseBase
     {

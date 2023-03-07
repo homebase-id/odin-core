@@ -1,6 +1,6 @@
 ﻿using NUnit.Framework;
 using Youverse.Core;
-using Youverse.Core.Storage.SQLite.IdentityDatabase;
+using Youverse.Core.Storage.Sqlite.IdentityDatabase;
 
 namespace IdentityDatabaseTests
 {
@@ -9,7 +9,7 @@ namespace IdentityDatabaseTests
         [TestCase()]
         public void InsertRowTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\inboxtest1.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -48,7 +48,7 @@ namespace IdentityDatabaseTests
         [TestCase()]
         public void PopTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\inboxtest2.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -141,7 +141,7 @@ namespace IdentityDatabaseTests
         [TestCase()]
         public void PopCancelTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\inboxtest3.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -184,7 +184,7 @@ namespace IdentityDatabaseTests
         [TestCase()]
         public void PopCommitTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\inboxtest4.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -213,7 +213,7 @@ namespace IdentityDatabaseTests
         [TestCase()]
         public void PopRecoverDeadTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\inboxtest5.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -250,7 +250,7 @@ namespace IdentityDatabaseTests
         [TestCase()]
         public void DualBoxTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\inboxtest6.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();
@@ -298,7 +298,7 @@ namespace IdentityDatabaseTests
         [TestCase()]
         public void ExampleTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\inboxtest7.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var f1 = SequentialGuid.CreateGuid();

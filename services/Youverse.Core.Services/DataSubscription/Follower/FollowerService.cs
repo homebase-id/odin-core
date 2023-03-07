@@ -13,7 +13,7 @@ using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Storage;
-using Youverse.Core.Storage.SQLite.IdentityDatabase;
+using Youverse.Core.Storage.Sqlite.IdentityDatabase;
 
 namespace Youverse.Core.Services.DataSubscription.Follower
 {

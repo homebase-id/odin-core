@@ -18,6 +18,7 @@ using Microsoft.Extensions.Logging;
 using Serilog;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using Youverse.Core.Serialization;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Certificate.Renewal;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Transit.Outbox;
@@ -142,11 +143,12 @@ namespace Youverse.Hosting
                 CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.PublicTransitAuthScheme);
             });
 
-            //services.AddSingleton<IPendingTransfersService, PendingTransfersService>();
-            var pendingTransferService = new PendingTransfersService(config.Host.SystemDataRootPath);
+            var ss = new ServerSystemStorage(config);
+            
+            var pendingTransferService = new PendingTransfersService(ss);
             services.AddSingleton(typeof(IPendingTransfersService), pendingTransferService);
 
-            var certOrderListService = new PendingCertificateOrderListService(config.Host.SystemDataRootPath);
+            var certOrderListService = new PendingCertificateOrderListService(ss);
             services.AddSingleton(typeof(PendingCertificateOrderListService), certOrderListService);
 
             services.AddSingleton<IIdentityRegistrationService, IdentityRegistrationService>();

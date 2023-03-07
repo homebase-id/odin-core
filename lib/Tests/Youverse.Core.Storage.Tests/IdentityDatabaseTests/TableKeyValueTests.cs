@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Threading;
 using NUnit.Framework;
 using Youverse.Core;
-using Youverse.Core.Storage.SQLite.IdentityDatabase;
+using Youverse.Core.Storage.Sqlite.IdentityDatabase;
 
 namespace IdentityDatabaseTests
 
@@ -15,7 +15,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void InsertTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\kvtbltest1.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();
@@ -39,7 +39,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void InsertDuplicateTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\kvtbltest2.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();
@@ -74,7 +74,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void UpdateTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\kvtbltest3.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();
@@ -98,7 +98,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void Update2Test()
         {
-            using var db = new IdentityDatabase("URI=file:.\\kvtbltest4.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();
@@ -131,7 +131,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void DeleteTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\kvtbltest5.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();
@@ -158,7 +158,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void UpsertTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\kvtbltest6.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();
@@ -207,7 +207,7 @@ namespace IdentityDatabaseTests
                     db.tblKeyValue.Get(Rows[i]);
             }
 
-            using var db = new IdentityDatabase("URI=file:.\\kvtbltest10.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             for (int i = 0; i < 100; i++)
@@ -229,7 +229,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void CreateTableTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\kvtbltest15.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();
@@ -277,7 +277,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void CommitTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\kvtbltest22.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();

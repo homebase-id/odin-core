@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 using Youverse.Core.Identity;
 
-namespace Youverse.Core.Storage.SQLite.IdentityDatabase
+namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
     public class AppGrantsItem
     {
@@ -54,30 +54,30 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
     public class TableAppGrantsCRUD : TableBase
     {
         private bool _disposed = false;
-        private SQLiteCommand _insertCommand = null;
+        private SqliteCommand _insertCommand = null;
         private static Object _insertLock = new Object();
-        private SQLiteParameter _insertParam1 = null;
-        private SQLiteParameter _insertParam2 = null;
-        private SQLiteParameter _insertParam3 = null;
-        private SQLiteParameter _insertParam4 = null;
-        private SQLiteCommand _updateCommand = null;
+        private SqliteParameter _insertParam1 = null;
+        private SqliteParameter _insertParam2 = null;
+        private SqliteParameter _insertParam3 = null;
+        private SqliteParameter _insertParam4 = null;
+        private SqliteCommand _updateCommand = null;
         private static Object _updateLock = new Object();
-        private SQLiteParameter _updateParam1 = null;
-        private SQLiteParameter _updateParam2 = null;
-        private SQLiteParameter _updateParam3 = null;
-        private SQLiteParameter _updateParam4 = null;
-        private SQLiteCommand _upsertCommand = null;
+        private SqliteParameter _updateParam1 = null;
+        private SqliteParameter _updateParam2 = null;
+        private SqliteParameter _updateParam3 = null;
+        private SqliteParameter _updateParam4 = null;
+        private SqliteCommand _upsertCommand = null;
         private static Object _upsertLock = new Object();
-        private SQLiteParameter _upsertParam1 = null;
-        private SQLiteParameter _upsertParam2 = null;
-        private SQLiteParameter _upsertParam3 = null;
-        private SQLiteParameter _upsertParam4 = null;
-        private SQLiteCommand _delete0Command = null;
+        private SqliteParameter _upsertParam1 = null;
+        private SqliteParameter _upsertParam2 = null;
+        private SqliteParameter _upsertParam3 = null;
+        private SqliteParameter _upsertParam4 = null;
+        private SqliteCommand _delete0Command = null;
         private static Object _delete0Lock = new Object();
-        private SQLiteParameter _delete0Param1 = null;
-        private SQLiteCommand _get0Command = null;
+        private SqliteParameter _delete0Param1 = null;
+        private SqliteCommand _get0Command = null;
         private static Object _get0Lock = new Object();
-        private SQLiteParameter _get0Param1 = null;
+        private SqliteParameter _get0Param1 = null;
 
         public TableAppGrantsCRUD(IdentityDatabase db) : base(db)
         {
@@ -110,7 +110,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (dropExisting)
                 {
                     cmd.CommandText = "DROP TABLE IF EXISTS appGrants;";
-                    cmd.ExecuteNonQuery();
+                    cmd.ExecuteNonQuery(_database);
                 }
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS appGrants("
@@ -121,7 +121,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                      +", PRIMARY KEY (odinHashId)"
                      +");"
                      ;
-                cmd.ExecuteNonQuery();
+                cmd.ExecuteNonQuery(_database);
             }
         }
 
@@ -148,12 +148,12 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _insertParam4.ParameterName = "$data";
                     _insertCommand.Prepare();
                 }
-                _insertParam1.Value = item.odinHashId;
-                _insertParam2.Value = item.appId;
-                _insertParam3.Value = item.circleId;
-                _insertParam4.Value = item.data;
+                _insertParam1.Value = item.odinHashId.ToByteArray();
+                _insertParam2.Value = item.appId.ToByteArray();
+                _insertParam3.Value = item.circleId.ToByteArray();
+                _insertParam4.Value = item.data ?? (object)DBNull.Value;
                 _database.BeginTransaction();
-                return _insertCommand.ExecuteNonQuery();
+                return _insertCommand.ExecuteNonQuery(_database);
             } // Lock
         }
 
@@ -182,12 +182,12 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _upsertParam4.ParameterName = "$data";
                     _upsertCommand.Prepare();
                 }
-                _upsertParam1.Value = item.odinHashId;
-                _upsertParam2.Value = item.appId;
-                _upsertParam3.Value = item.circleId;
-                _upsertParam4.Value = item.data;
+                _upsertParam1.Value = item.odinHashId.ToByteArray();
+                _upsertParam2.Value = item.appId.ToByteArray();
+                _upsertParam3.Value = item.circleId.ToByteArray();
+                _upsertParam4.Value = item.data ?? (object)DBNull.Value;
                 _database.BeginTransaction();
-                return _upsertCommand.ExecuteNonQuery();
+                return _upsertCommand.ExecuteNonQuery(_database);
             } // Lock
         }
 
@@ -215,12 +215,12 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _updateParam4.ParameterName = "$data";
                     _updateCommand.Prepare();
                 }
-                _updateParam1.Value = item.odinHashId;
-                _updateParam2.Value = item.appId;
-                _updateParam3.Value = item.circleId;
-                _updateParam4.Value = item.data;
+                _updateParam1.Value = item.odinHashId.ToByteArray();
+                _updateParam2.Value = item.appId.ToByteArray();
+                _updateParam3.Value = item.circleId.ToByteArray();
+                _updateParam4.Value = item.data ?? (object)DBNull.Value;
                 _database.BeginTransaction();
-                return _updateCommand.ExecuteNonQuery();
+                return _updateCommand.ExecuteNonQuery(_database);
             } // Lock
         }
 
@@ -238,9 +238,9 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _delete0Param1.ParameterName = "$odinHashId";
                     _delete0Command.Prepare();
                 }
-                _delete0Param1.Value = odinHashId;
+                _delete0Param1.Value = odinHashId.ToByteArray();
                 _database.BeginTransaction();
-                return _delete0Command.ExecuteNonQuery();
+                return _delete0Command.ExecuteNonQuery(_database);
             } // Lock
         }
 
@@ -258,8 +258,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _get0Param1.ParameterName = "$odinHashId";
                     _get0Command.Prepare();
                 }
-                _get0Param1.Value = odinHashId;
-                using (SQLiteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow))
+                _get0Param1.Value = odinHashId.ToByteArray();
+                using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
                 {
                     var result = new AppGrantsItem();
                     if (!rdr.Read())

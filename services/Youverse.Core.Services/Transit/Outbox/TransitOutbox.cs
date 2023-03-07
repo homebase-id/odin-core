@@ -67,7 +67,7 @@ namespace Youverse.Core.Services.Transit.Outbox
                 item.Priority,
                 state);*/
 
-            _tenantSystemStorage.Outbox.Insert(new Storage.SQLite.IdentityDatabase.OutboxItem() {
+            _tenantSystemStorage.Outbox.Insert(new Storage.Sqlite.IdentityDatabase.OutboxItem() {
                 boxId = item.File.DriveId,
                 recipient = item.Recipient,
                 fileId = item.File.FileId,

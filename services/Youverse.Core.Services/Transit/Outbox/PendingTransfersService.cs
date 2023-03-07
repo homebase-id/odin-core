@@ -6,46 +6,35 @@ using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
-using Youverse.Core.Storage.SQLite.IdentityDatabase;
+using Youverse.Core.Serialization;
+using Youverse.Core.Services.Base;
+using Youverse.Core.Storage.Sqlite.IdentityDatabase;
+using Youverse.Core.Storage.Sqlite.ServerDatabase;
 using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Transit.Outbox
 {
     public class PendingTransfersService : IPendingTransfersService
     {
-        private IdentityDatabase _db;  // TODO: This looks incorrect, it should fetch the DB object from somewhere shouldn't it?
+        private readonly ServerSystemStorage _serverSystemStorage;
 
-        public PendingTransfersService(string dataPath)
+        public PendingTransfersService(ServerSystemStorage serverSystemStorage)
         {
-            Guard.Argument(dataPath, nameof(dataPath)).NotNull().NotEmpty();
-            var finalPath = PathUtil.OsIfy(dataPath);
-            
-            if (!Directory.Exists(finalPath))
-            {
-                Directory.CreateDirectory(finalPath!);
-            }
-            var filePath = PathUtil.OsIfy($"{dataPath}\\xfer.db");
-            _db = new IdentityDatabase($"URI=file:{filePath}");
-            _db.CreateDatabase(false);
+            _serverSystemStorage = serverSystemStorage;
         }
-
-        public void Dispose()
-        {
-            _db?.Dispose();
-        }
-
+        
         public void EnsureIdentityIsPending(OdinId sender)
         {
-            //Note: I use sender here because boxId has a unique constraint; and we only a sender in this table once.
-            //I swallow the exception because there's no direct way to see if a record exists for this sender already
-            // byte[] fileId = new byte[] { 1, 1, 2, 3, 5 };
-            Guid fileId = Guid.NewGuid();
             try
             {
-                // _db.tblOutbox.InsertRow(sender.ToGuidIdentifier().ToByteArray(), fileId, 0, sender.Id.ToLower().ToUtf8ByteArray());
-                _db.tblOutbox.Insert(new OutboxItem() { boxId = sender.ToHashId(), fileId = fileId, recipient = sender.Id.ToLower(), priority = 0, value = sender.Id.ToLower().ToUtf8ByteArray() });
+                _serverSystemStorage.tblCron.Insert(new CronItem()
+                {
+                    identityId = sender,
+                    type = 1,
+                    data = sender.Id.ToLower().ToUtf8ByteArray(),
+                });
             }
-            catch (System.Data.SQLite.SQLiteException ex)
+            catch (Microsoft.Data.Sqlite.SqliteException ex)
             {
                 //ignore constraint error code as it just means we tried to insert the sender twice.
                 //it's only needed once
@@ -58,21 +47,21 @@ namespace Youverse.Core.Services.Transit.Outbox
 
         public async Task<(IEnumerable<OdinId>, Guid marker)> GetIdentities()
         {
-            var records = _db.tblOutbox.PopAll(out var marker);
+            var records = _serverSystemStorage.tblCron.Pop(1, out var marker);
 
-            var senders = records.Select(item => new OdinId(item.value.ToStringFromUtf8Bytes())).ToList();
+            var senders = records.Select(item => new OdinId(item.data.ToStringFromUtf8Bytes())).ToList();
 
             return (senders, marker);
         }
 
         public void MarkComplete(Guid marker)
         {
-            _db.tblOutbox.PopCommit(marker);
+            _serverSystemStorage.tblCron.PopCommitList(new List<Guid>() { marker });
         }
 
         public void MarkFailure(Guid marker)
         {
-            _db.tblOutbox.PopCancel(marker);
+            _serverSystemStorage.tblCron.PopCancelList(new List<Guid>() { marker });
         }
     }
 }

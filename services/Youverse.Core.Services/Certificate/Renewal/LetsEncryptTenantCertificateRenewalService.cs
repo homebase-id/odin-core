@@ -143,7 +143,8 @@ namespace Youverse.Core.Services.Certificate.Renewal
             };
             _tenantSystemStorage.SingleKeyValueStorage.Upsert(GuidId.FromString(domain), pco);
             
-            //there's a background job that will do this as well but let's kick off a validate incaes we can knock this out quickly
+            //there's a background job that will do this as well but let's kick
+            //off a validate just in case we can knock this out quickly
             System.Threading.Thread.Sleep(1000);
             var status = await GenerateCertificateIfReady();
             if (status == CertificateOrderStatus.CertificateUpdateComplete)

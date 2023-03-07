@@ -1,68 +1,50 @@
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using Youverse.Core.Storage;
-using Youverse.Core.Storage.SQLite.IdentityDatabase;
+using Youverse.Core.Storage.Sqlite.IdentityDatabase;
 using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Registry.Registration;
 
 public class ReservationStorage
 {
-    private readonly IdentityDatabase _db;
-    // private readonly SingleKeyValueStorage _storage;
+    private readonly ConcurrentDictionary<Guid, Reservation> _reservations;
 
-    private readonly TwoKeyStorage _storage;
-
-    public ReservationStorage(string dbPath)
+    public ReservationStorage()
     {
-        string dbName = "reservations.db";
-        if (!Directory.Exists(dbPath))
-        {
-            Directory.CreateDirectory(dbPath!);
-        }
-
-        string finalPath = PathUtil.Combine(dbPath, $"{dbName}");
-        _db = new IdentityDatabase($"URI=file:{finalPath}");
-        _db.CreateDatabase(false);
-
-        // _storage = new SingleKeyValueStorage(_db.tblKeyValue);
-        _storage = new TwoKeyStorage(_db.tblKeyTwoValue);
+        _reservations = new ConcurrentDictionary<Guid, Reservation>();
     }
 
     public Reservation GetByDomain(string domain)
     {
-        return _storage.Get<Reservation>(GetDomainKey(domain));
+        var reservation = _reservations.Values.SingleOrDefault(v => v.DomainKey == GetDomainKey(domain));
+        return reservation;
     }
 
-    public Reservation? Get(Guid reservationId)
+    public Reservation Get(Guid reservationId)
     {
-        var results = _storage.GetByKey2<Reservation>(reservationId.ToByteArray());
-        return results.SingleOrDefault();
+        if (_reservations.TryGetValue(reservationId, out var reservation))
+        {
+            return reservation;
+        }
+
+        return null;
     }
 
     public void Delete(Guid reservationId)
     {
-        var r = this.Get(reservationId);
-        if(null != r)
-        {
-            _storage.Delete(GetDomainKey(r.Domain));
-        }
-    }
-    
-    public void DeleteByDomain(string domain)
-    {
-        _storage.Delete(GetDomainKey(domain));
+        var _ = _reservations.TryRemove(reservationId, out var _);
     }
 
     public void Save(Reservation reservation)
     {
-        _storage.Upsert(reservation.DomainKey.ToByteArray(), reservation.Id.ToByteArray(), reservation);
+        _reservations.AddOrUpdate(reservation.Id, reservation, (guid, existingReservation) => reservation);
     }
 
-    private byte[] GetDomainKey(string domain)
+    private Guid GetDomainKey(string domain)
     {
-        var id = HashUtil.ReduceSHA256Hash(domain);
-        return id.ToByteArray();
+        return HashUtil.ReduceSHA256Hash(domain);
     }
 }

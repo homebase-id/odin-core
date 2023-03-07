@@ -1,51 +1,52 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
+using System.Data;
+using Microsoft.Data.Sqlite;
 
-namespace Youverse.Core.Storage.SQLite.IdentityDatabase
+namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
     public class TableKeyThreeValue : TableBase
     {
         const int MAX_VALUE_LENGTH = 1024 * 1024; // Stored value cannot be longer than this
 
-        private SQLiteCommand _insertCommand = null;
-        private SQLiteParameter _iparam1 = null;
-        private SQLiteParameter _iparam2 = null;
-        private SQLiteParameter _iparam3 = null;
-        private SQLiteParameter _iparam4 = null;
+        private SqliteCommand _insertCommand = null;
+        private SqliteParameter _iparam1 = null;
+        private SqliteParameter _iparam2 = null;
+        private SqliteParameter _iparam3 = null;
+        private SqliteParameter _iparam4 = null;
         private Object _insertLock = new Object();
 
-        private SQLiteCommand _upsertCommand = null;
-        private SQLiteParameter _zparam1 = null;
-        private SQLiteParameter _zparam2 = null;
-        private SQLiteParameter _zparam3 = null;
-        private SQLiteParameter _zparam4 = null;
+        private SqliteCommand _upsertCommand = null;
+        private SqliteParameter _zparam1 = null;
+        private SqliteParameter _zparam2 = null;
+        private SqliteParameter _zparam3 = null;
+        private SqliteParameter _zparam4 = null;
         private Object _upsertLock = new Object();
 
-        private SQLiteCommand _updateCommand = null;
-        private SQLiteParameter _uparam1 = null;
-        private SQLiteParameter _uparam2 = null;
+        private SqliteCommand _updateCommand = null;
+        private SqliteParameter _uparam1 = null;
+        private SqliteParameter _uparam2 = null;
         private Object _updateLock = new Object();
 
-        private SQLiteCommand _deleteCommand = null;
-        private SQLiteParameter _dparam1 = null;
+        private SqliteCommand _deleteCommand = null;
+        private SqliteParameter _dparam1 = null;
         private Object _deleteLock = new Object();
 
-        private SQLiteCommand _selectCommand = null;
-        private SQLiteParameter _sparam1 = null;
+        private SqliteCommand _selectCommand = null;
+        private SqliteParameter _sparam1 = null;
         private Object _selectLock = new Object();
 
-        private SQLiteCommand _selectTwoCommand = null;
-        private SQLiteParameter _sparamTwo1 = null;
+        private SqliteCommand _selectTwoCommand = null;
+        private SqliteParameter _sparamTwo1 = null;
         private Object _selectTwoLock = new Object();
 
-        private SQLiteCommand _selectThreeCommand = null;
-        private SQLiteParameter _sparamThree1 = null;
+        private SqliteCommand _selectThreeCommand = null;
+        private SqliteParameter _sparamThree1 = null;
         private Object _selectThreeLock = new Object();
 
-        private SQLiteCommand _selectTwoThreeCommand = null;
-        private SQLiteParameter _sparamTwoThree1 = null;
-        private SQLiteParameter _sparamTwoThree2 = null;
+        private SqliteCommand _selectTwoThreeCommand = null;
+        private SqliteParameter _sparamTwoThree1 = null;
+        private SqliteParameter _sparamTwoThree2 = null;
         private Object _selectTwoThreeLock = new Object();
 
         public TableKeyThreeValue(IdentityDatabase db) : base(db)
@@ -91,7 +92,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (dropExisting)
                 {
                     cmd.CommandText = "DROP TABLE IF EXISTS keythreevalue;";
-                    cmd.ExecuteNonQuery();
+                    cmd.ExecuteNonQuery(_database);
                 }
 
                 cmd.CommandText =
@@ -104,7 +105,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     + "CREATE INDEX if not exists idxkeythree2 ON keythreevalue(key2); "
                     + "CREATE INDEX if not exists idxkeythree3 ON keythreevalue(key3); ";
 
-                cmd.ExecuteNonQuery();
+                cmd.ExecuteNonQuery(_database);
             }
         }
 
@@ -128,7 +129,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _sparam1.Value = key1;
                 byte[] _tmpbuf = new byte[MAX_VALUE_LENGTH];
 
-                using (SQLiteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
                 {
                     if (!rdr.Read())
                         return null;
@@ -174,7 +175,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _sparamTwo1.Value = key2;
                 byte[] _tmpbuf = new byte[MAX_VALUE_LENGTH];
 
-                using (SQLiteDataReader rdr = _selectTwoCommand.ExecuteReader())
+                using (SqliteDataReader rdr = _selectTwoCommand.ExecuteReader(CommandBehavior.Default, _database))
                 {
                     List<byte[]> values = new List<byte[]>();
                     byte[] value = null;
@@ -221,7 +222,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _sparamThree1.Value = key3;
                 byte[] _tmpbuf = new byte[MAX_VALUE_LENGTH];
 
-                using (SQLiteDataReader rdr = _selectThreeCommand.ExecuteReader())
+                using (SqliteDataReader rdr = _selectThreeCommand.ExecuteReader(CommandBehavior.Default, _database))
                 {
                     List<byte[]> values = new List<byte[]>();
                     byte[] value = null;
@@ -272,7 +273,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _sparamTwoThree2.Value = key3;
                 byte[] _tmpbuf = new byte[MAX_VALUE_LENGTH];
 
-                using (SQLiteDataReader rdr = _selectTwoThreeCommand.ExecuteReader())
+                using (SqliteDataReader rdr = _selectTwoThreeCommand.ExecuteReader(CommandBehavior.Default, _database))
                 {
                     List<byte[]> values = new List<byte[]>();
                     byte[] value = null;
@@ -335,7 +336,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _iparam4.Value = value;
 
                 _database.BeginTransaction();
-                _insertCommand.ExecuteNonQuery();
+                _insertCommand.ExecuteNonQuery(_database);
             }
         }
 
@@ -367,7 +368,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _uparam2.Value = value;
 
                 _database.BeginTransaction();
-                _updateCommand.ExecuteNonQuery();
+                _updateCommand.ExecuteNonQuery(_database);
             }
         }
 
@@ -411,7 +412,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _zparam4.Value = value;
 
                 _database.BeginTransaction();
-                _upsertCommand.ExecuteNonQuery();
+                _upsertCommand.ExecuteNonQuery(_database);
             }
         }
 
@@ -434,7 +435,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 _dparam1.Value = key1;
 
                 _database.BeginTransaction();
-                int n = _deleteCommand.ExecuteNonQuery();
+                int n = _deleteCommand.ExecuteNonQuery(_database);
             }
         }
     }

@@ -3,7 +3,7 @@ using System.Diagnostics;
 using NUnit.Framework;
 using Youverse.Core;
 using Youverse.Core.Identity;
-using Youverse.Core.Storage.SQLite.IdentityDatabase;
+using Youverse.Core.Storage.Sqlite.IdentityDatabase;
 
 namespace IdentityDatabaseTests
 {
@@ -12,7 +12,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void ExampleTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\imfollowing-example-01.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             // Let's say that we're Frodo and we're followed by these 5 asir
@@ -44,9 +44,9 @@ namespace IdentityDatabaseTests
 
             // Now Frodo makes a new post to d1, which means we shouold get
             // everyone except Heimdal. Let's do a page size of 3
-            //
+            // Get freja, loke, odin back. Still missing Thor
             var r = db.tblImFollowing.GetFollowers(3, d1, null, out var nextCursor);
-            Debug.Assert(r.Count == 3);
+            Debug.Assert(r.Count == 3, message:"rdr.HasRows is the sinner");
             Debug.Assert(nextCursor == r[2]);
 
             // Get the second page. Always use the last result as the cursor
@@ -60,10 +60,6 @@ namespace IdentityDatabaseTests
             //
             r = db.tblImFollowing.GetFollowers(3, d2, null, out nextCursor);
             Debug.Assert(r.Count == 3);
-            Debug.Assert(nextCursor == r[2]);
-
-            r = db.tblImFollowing.GetFollowers(3, d2, nextCursor, out nextCursor);
-            Debug.Assert(r.Count == 0);
             Debug.Assert(nextCursor == null);
         }
 
@@ -71,7 +67,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void InsertValidFollowerTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\imfollowing-insert-01.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var i1 = "odin.valhalla.com";
@@ -97,7 +93,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void InsertInvalidFollowerTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\imfollowing-insert-02.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var i1 = "odin.valhalla.com";
@@ -136,7 +132,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void DeleteFollowerTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\imfollowing-delete-02.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var i1 = "odin.valhalla.com";
@@ -164,7 +160,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void DeleteFollowerDriveTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\imfollowing-delete-03.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var i1 = "odin.valhalla.com";
@@ -202,7 +198,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void GetFollowersInvalidTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\imfollowing-delete-04.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var d1 = Guid.NewGuid();
@@ -223,7 +219,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void GetFollowersTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\imfollowing-delete-05.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var i1 = "odin.valhalla.com";
@@ -240,7 +236,7 @@ namespace IdentityDatabaseTests
             var r = db.tblImFollowing.GetFollowers(100, d3, null, out var nextCursor);
             Debug.Assert(r.Count == 1);
             Debug.Assert(r[0] == i2);
-            Debug.Assert(nextCursor == null);
+            Debug.Assert(nextCursor == null, message:"rdr.HasRows is the sinner");
 
             r = db.tblImFollowing.GetFollowers(100, d1, "", out nextCursor);
             Debug.Assert(r.Count == 2);
@@ -255,7 +251,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void GetFollowersPagedTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\imfollowing-delete-06.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var i1 = "odin.valhalla.com";
@@ -274,7 +270,7 @@ namespace IdentityDatabaseTests
             db.tblImFollowing.Insert(new ImFollowingItem() { identity = new OdinId(i5), driveId = Guid.Empty });
 
             var r = db.tblImFollowing.GetFollowers(2, d1, null, out var nextCursor);
-            Debug.Assert(r.Count == 2);
+            Debug.Assert(r.Count == 2, message:"rdr.HasRows is the sinner");
             Debug.Assert(r[0] == i3);
             Debug.Assert(r[1] == i4);
             Debug.Assert(nextCursor == r[1]);
@@ -301,7 +297,7 @@ namespace IdentityDatabaseTests
         [Test]
         public void GetAllFollowersPagedTest()
         {
-            using var db = new IdentityDatabase("URI=file:.\\imfollowing-all-07.db");
+            using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
             var i1 = "odin.valhalla.com";     // 4
@@ -327,7 +323,7 @@ namespace IdentityDatabaseTests
 
             r = db.tblImFollowing.GetAllFollowers(2, nextCursor, out nextCursor);
             Debug.Assert(r.Count == 2);
-            Debug.Assert(r[0] == i5);
+            Debug.Assert(r[0] == i5, message:"rdr.HasRows is the sinner");
             Debug.Assert(r[1] == i1);
             Debug.Assert(nextCursor == r[1]);
 

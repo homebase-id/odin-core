@@ -13,8 +13,8 @@ using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Quarantine;
-using Youverse.Core.Storage.SQLite;
-using Youverse.Core.Storage.SQLite.DriveDatabase;
+using Youverse.Core.Storage.Sqlite;
+using Youverse.Core.Storage.Sqlite.DriveDatabase;
 
 namespace Youverse.Core.Services.Transit;
 

@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 using Youverse.Core.Identity;
 
-namespace Youverse.Core.Storage.SQLite.IdentityDatabase
+namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
     public class ConnectionsItem
     {
@@ -87,47 +87,47 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
     public class TableConnectionsCRUD : TableBase
     {
         private bool _disposed = false;
-        private SQLiteCommand _insertCommand = null;
+        private SqliteCommand _insertCommand = null;
         private static Object _insertLock = new Object();
-        private SQLiteParameter _insertParam1 = null;
-        private SQLiteParameter _insertParam2 = null;
-        private SQLiteParameter _insertParam3 = null;
-        private SQLiteParameter _insertParam4 = null;
-        private SQLiteParameter _insertParam5 = null;
-        private SQLiteParameter _insertParam6 = null;
-        private SQLiteParameter _insertParam7 = null;
-        private SQLiteCommand _updateCommand = null;
+        private SqliteParameter _insertParam1 = null;
+        private SqliteParameter _insertParam2 = null;
+        private SqliteParameter _insertParam3 = null;
+        private SqliteParameter _insertParam4 = null;
+        private SqliteParameter _insertParam5 = null;
+        private SqliteParameter _insertParam6 = null;
+        private SqliteParameter _insertParam7 = null;
+        private SqliteCommand _updateCommand = null;
         private static Object _updateLock = new Object();
-        private SQLiteParameter _updateParam1 = null;
-        private SQLiteParameter _updateParam2 = null;
-        private SQLiteParameter _updateParam3 = null;
-        private SQLiteParameter _updateParam4 = null;
-        private SQLiteParameter _updateParam5 = null;
-        private SQLiteParameter _updateParam6 = null;
-        private SQLiteParameter _updateParam7 = null;
-        private SQLiteCommand _upsertCommand = null;
+        private SqliteParameter _updateParam1 = null;
+        private SqliteParameter _updateParam2 = null;
+        private SqliteParameter _updateParam3 = null;
+        private SqliteParameter _updateParam4 = null;
+        private SqliteParameter _updateParam5 = null;
+        private SqliteParameter _updateParam6 = null;
+        private SqliteParameter _updateParam7 = null;
+        private SqliteCommand _upsertCommand = null;
         private static Object _upsertLock = new Object();
-        private SQLiteParameter _upsertParam1 = null;
-        private SQLiteParameter _upsertParam2 = null;
-        private SQLiteParameter _upsertParam3 = null;
-        private SQLiteParameter _upsertParam4 = null;
-        private SQLiteParameter _upsertParam5 = null;
-        private SQLiteParameter _upsertParam6 = null;
-        private SQLiteParameter _upsertParam7 = null;
-        private SQLiteCommand _delete0Command = null;
+        private SqliteParameter _upsertParam1 = null;
+        private SqliteParameter _upsertParam2 = null;
+        private SqliteParameter _upsertParam3 = null;
+        private SqliteParameter _upsertParam4 = null;
+        private SqliteParameter _upsertParam5 = null;
+        private SqliteParameter _upsertParam6 = null;
+        private SqliteParameter _upsertParam7 = null;
+        private SqliteCommand _delete0Command = null;
         private static Object _delete0Lock = new Object();
-        private SQLiteParameter _delete0Param1 = null;
-        private SQLiteCommand _get0Command = null;
+        private SqliteParameter _delete0Param1 = null;
+        private SqliteCommand _get0Command = null;
         private static Object _get0Lock = new Object();
-        private SQLiteParameter _get0Param1 = null;
-        private SQLiteCommand _getPaging1Command = null;
+        private SqliteParameter _get0Param1 = null;
+        private SqliteCommand _getPaging1Command = null;
         private static Object _getPaging1Lock = new Object();
-        private SQLiteParameter _getPaging1Param1 = null;
-        private SQLiteParameter _getPaging1Param2 = null;
-        private SQLiteCommand _getPaging6Command = null;
+        private SqliteParameter _getPaging1Param1 = null;
+        private SqliteParameter _getPaging1Param2 = null;
+        private SqliteCommand _getPaging6Command = null;
         private static Object _getPaging6Lock = new Object();
-        private SQLiteParameter _getPaging6Param1 = null;
-        private SQLiteParameter _getPaging6Param2 = null;
+        private SqliteParameter _getPaging6Param1 = null;
+        private SqliteParameter _getPaging6Param2 = null;
 
         public TableConnectionsCRUD(IdentityDatabase db) : base(db)
         {
@@ -164,7 +164,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 if (dropExisting)
                 {
                     cmd.CommandText = "DROP TABLE IF EXISTS connections;";
-                    cmd.ExecuteNonQuery();
+                    cmd.ExecuteNonQuery(_database);
                 }
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS connections("
@@ -180,7 +180,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                      +"CREATE INDEX IF NOT EXISTS Idx0TableConnectionsCRUD ON connections(identity);"
                      +"CREATE INDEX IF NOT EXISTS Idx1TableConnectionsCRUD ON connections(created);"
                      ;
-                cmd.ExecuteNonQuery();
+                cmd.ExecuteNonQuery(_database);
             }
         }
 
@@ -216,15 +216,15 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _insertParam7.ParameterName = "$modified";
                     _insertCommand.Prepare();
                 }
-                _insertParam1.Value = item.identity;
+                _insertParam1.Value = item.identity.Id;
                 _insertParam2.Value = item.displayName;
                 _insertParam3.Value = item.status;
                 _insertParam4.Value = item.accessIsRevoked;
-                _insertParam5.Value = item.data;
+                _insertParam5.Value = item.data ?? (object)DBNull.Value;
                 _insertParam6.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _insertParam7.Value = null;
+                _insertParam7.Value = DBNull.Value;
                 _database.BeginTransaction();
-                return _insertCommand.ExecuteNonQuery();
+                return _insertCommand.ExecuteNonQuery(_database);
             } // Lock
         }
 
@@ -262,15 +262,15 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _upsertParam7.ParameterName = "$modified";
                     _upsertCommand.Prepare();
                 }
-                _upsertParam1.Value = item.identity;
+                _upsertParam1.Value = item.identity.Id;
                 _upsertParam2.Value = item.displayName;
                 _upsertParam3.Value = item.status;
                 _upsertParam4.Value = item.accessIsRevoked;
-                _upsertParam5.Value = item.data;
+                _upsertParam5.Value = item.data ?? (object)DBNull.Value;
                 _upsertParam6.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _upsertParam7.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _database.BeginTransaction();
-                return _upsertCommand.ExecuteNonQuery();
+                return _upsertCommand.ExecuteNonQuery(_database);
             } // Lock
         }
 
@@ -307,15 +307,15 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _updateParam7.ParameterName = "$modified";
                     _updateCommand.Prepare();
                 }
-                _updateParam1.Value = item.identity;
+                _updateParam1.Value = item.identity.Id;
                 _updateParam2.Value = item.displayName;
                 _updateParam3.Value = item.status;
                 _updateParam4.Value = item.accessIsRevoked;
-                _updateParam5.Value = item.data;
+                _updateParam5.Value = item.data ?? (object)DBNull.Value;
                 _updateParam6.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _updateParam7.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _database.BeginTransaction();
-                return _updateCommand.ExecuteNonQuery();
+                return _updateCommand.ExecuteNonQuery(_database);
             } // Lock
         }
 
@@ -333,9 +333,9 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _delete0Param1.ParameterName = "$identity";
                     _delete0Command.Prepare();
                 }
-                _delete0Param1.Value = identity;
+                _delete0Param1.Value = identity.Id;
                 _database.BeginTransaction();
-                return _delete0Command.ExecuteNonQuery();
+                return _delete0Command.ExecuteNonQuery(_database);
             } // Lock
         }
 
@@ -353,8 +353,8 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                     _get0Param1.ParameterName = "$identity";
                     _get0Command.Prepare();
                 }
-                _get0Param1.Value = identity;
-                using (SQLiteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow))
+                _get0Param1.Value = identity.Id;
+                using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
                 {
                     var result = new ConnectionsItem();
                     if (!rdr.Read())
@@ -446,13 +446,14 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 }
                 _getPaging1Param1.Value = inCursor;
                 _getPaging1Param2.Value = count+1;
+                _getPaging1Command.Transaction = _database.Transaction;
 
-                using (SQLiteDataReader rdr = _getPaging1Command.ExecuteReader(System.Data.CommandBehavior.Default))
+                using (SqliteDataReader rdr = _getPaging1Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {
                     var result = new List<ConnectionsItem>();
                     int n = 0;
                     int rowid = 0;
-                    while (rdr.Read() && (n < count))
+                    while ((n < count) && rdr.Read())
                     {
                         n++;
                         var item = new ConnectionsItem();
@@ -521,7 +522,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                         }
                         result.Add(item);
                     } // while
-                    if ((n > 0) && rdr.HasRows)
+                    if ((n > 0) && rdr.Read())
                     {
                             nextCursor = result[n - 1].identity;
                     }
@@ -559,13 +560,14 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                 }
                 _getPaging6Param1.Value = inCursor?.uniqueTime;
                 _getPaging6Param2.Value = count+1;
+                _getPaging6Command.Transaction = _database.Transaction;
 
-                using (SQLiteDataReader rdr = _getPaging6Command.ExecuteReader(System.Data.CommandBehavior.Default))
+                using (SqliteDataReader rdr = _getPaging6Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {
                     var result = new List<ConnectionsItem>();
                     int n = 0;
                     int rowid = 0;
-                    while (rdr.Read() && (n < count))
+                    while ((n < count) && rdr.Read())
                     {
                         n++;
                         var item = new ConnectionsItem();
@@ -634,7 +636,7 @@ namespace Youverse.Core.Storage.SQLite.IdentityDatabase
                         }
                         result.Add(item);
                     } // while
-                    if ((n > 0) && rdr.HasRows)
+                    if ((n > 0) && rdr.Read())
                     {
                             nextCursor = result[n - 1].created;
                     }

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Dawn;
-using SQLitePCL;
 
 namespace Youverse.Core.Services.Authorization.Permissions
 {

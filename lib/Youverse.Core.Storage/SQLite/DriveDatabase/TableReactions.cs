@@ -1,28 +1,27 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.Entity;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 using Youverse.Core.Identity;
 
-namespace Youverse.Core.Storage.SQLite.DriveDatabase
+namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 {
     public class TableReactions : TableReactionsCRUD
     {
-        private SQLiteCommand _selectCommand = null;
-        private SQLiteParameter _sparam1 = null;
+        private SqliteCommand _selectCommand = null;
+        private SqliteParameter _sparam1 = null;
         private static Object _selectLock = new Object();
 
 
-        private SQLiteCommand _select2Command = null;
-        private SQLiteParameter _s2param1 = null;
-        private SQLiteParameter _s2param2 = null;
+        private SqliteCommand _select2Command = null;
+        private SqliteParameter _s2param1 = null;
+        private SqliteParameter _s2param2 = null;
         private static Object _select2Lock = new Object();
 
-        private SQLiteCommand _getPaging0Command = null;
+        private SqliteCommand _getPaging0Command = null;
         private static Object _getPaging0Lock = new Object();
-        private SQLiteParameter _getPaging0Param1 = null;
-        private SQLiteParameter _getPaging0Param2 = null;
-        private SQLiteParameter _getPaging0Param3 = null;
+        private SqliteParameter _getPaging0Param1 = null;
+        private SqliteParameter _getPaging0Param2 = null;
+        private SqliteParameter _getPaging0Param3 = null;
 
 
         public TableReactions(DriveDatabase db) : base(db)
@@ -75,10 +74,10 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     _select2Command.Prepare();
                 }
 
-                _s2param1.Value = postId;
+                _s2param1.Value = postId.ToByteArray();
                 _s2param2.Value = identity.Id;
 
-                using (SQLiteDataReader rdr = _select2Command.ExecuteReader(System.Data.CommandBehavior.Default))
+                using (SqliteDataReader rdr = _select2Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {
                     if (rdr.Read())
                         return rdr.GetInt32(0);
@@ -116,10 +115,10 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     _select2Command.Prepare();
                 }
 
-                _s2param1.Value = postId;
+                _s2param1.Value = postId.ToByteArray();
                 _s2param2.Value = identity.Id;
 
-                using (SQLiteDataReader rdr = _select2Command.ExecuteReader(System.Data.CommandBehavior.Default))
+                using (SqliteDataReader rdr = _select2Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {
                     var rs = new List<string>();
 
@@ -152,9 +151,9 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                     _selectCommand.Prepare();
                 }
 
-                _sparam1.Value = postId;
+                _sparam1.Value = postId.ToByteArray();
 
-                using (SQLiteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.Default))
+                using (SqliteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {
                     var result = new List<string>();
                     int totalCount = 0;
@@ -199,7 +198,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
                 _sparam1.Value = postId;
 
-                using (SQLiteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.Default))
+                using (SqliteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.Default))
                 {
                     var result = new List<string>();
                     var iresult = new List<int>();
@@ -253,14 +252,14 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
                 }
                 _getPaging0Param1.Value = inCursor;
                 _getPaging0Param2.Value = count + 1;
-                _getPaging0Param3.Value = postIdFilter;
+                _getPaging0Param3.Value = postIdFilter.ToByteArray();
 
-                using (SQLiteDataReader rdr = _getPaging0Command.ExecuteReader(System.Data.CommandBehavior.Default))
+                using (SqliteDataReader rdr = _getPaging0Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {
                     var result = new List<ReactionsItem>();
                     int n = 0;
                     int rowid = 0;
-                    while (rdr.Read() && (n < count))
+                    while ((n < count) && rdr.Read())
                     {
                         n++;
                         var item = new ReactionsItem();
@@ -297,7 +296,7 @@ namespace Youverse.Core.Storage.SQLite.DriveDatabase
 
                         result.Add(item);
                     } // while
-                    if ((n > 0) && rdr.HasRows)
+                    if ((n > 0) && rdr.Read())
                     {
                         nextCursor = rowid;
                     }

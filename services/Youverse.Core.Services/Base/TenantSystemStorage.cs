@@ -2,8 +2,8 @@
 using System.IO;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Storage;
-using Youverse.Core.Storage.SQLite;
-using Youverse.Core.Storage.SQLite.IdentityDatabase;
+using Youverse.Core.Storage.Sqlite;
+using Youverse.Core.Storage.Sqlite.IdentityDatabase;
 using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Base
@@ -28,7 +28,7 @@ namespace Youverse.Core.Services.Base
             }
 
             string finalPath = PathUtil.Combine(dbPath, $"{dbName}");
-            _db = new IdentityDatabase($"URI=file:{finalPath}");
+            _db = new IdentityDatabase($"Data Source={finalPath}");
             _db.CreateDatabase(false);
             
             SingleKeyValueStorage = new SingleKeyValueStorage(_db.tblKeyValue);

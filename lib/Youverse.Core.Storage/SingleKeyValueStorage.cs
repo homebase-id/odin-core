@@ -1,6 +1,6 @@
 using Dawn;
 using Youverse.Core.Serialization;
-using Youverse.Core.Storage.SQLite.IdentityDatabase;
+using Youverse.Core.Storage.Sqlite.IdentityDatabase;
 
 namespace Youverse.Core.Storage;
 

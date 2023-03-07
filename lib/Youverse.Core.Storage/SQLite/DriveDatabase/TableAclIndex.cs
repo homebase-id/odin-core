@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
+using Microsoft.Data.Sqlite;
 
-namespace Youverse.Core.Storage.SQLite.DriveDatabase
+namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 {
     public class TableAclIndex : TableAclIndexCRUD
     {
