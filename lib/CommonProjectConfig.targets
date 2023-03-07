@@ -10,5 +10,6 @@ Usage
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <NoWarn>CS1591</NoWarn>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     </PropertyGroup>
 </Project>
