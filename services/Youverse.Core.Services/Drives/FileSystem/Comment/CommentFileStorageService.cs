@@ -36,7 +36,7 @@ public class CommentFileStorageService : DriveStorageServiceBase
         }
     }
     
-    protected override FileSystemType GetFileSystemType()
+    public override FileSystemType GetFileSystemType()
     {
         return FileSystemType.Comment;
     }
