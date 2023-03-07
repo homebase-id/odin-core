@@ -82,9 +82,6 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
 
     protected override async Task ProcessExistingFileUpload(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
     {
-        // No need to index these files as they are to be retrieved for a given post
-        serverMetadata.DoNotIndex = true;
-
         //target is same file because it's set earlier in the upload process
         //using overwrite here so we can ensure the right event is called
         var targetFile = package.InternalFile;

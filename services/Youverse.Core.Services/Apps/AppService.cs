@@ -16,12 +16,12 @@ namespace Youverse.Core.Services.Apps
     {
         private readonly ITransitService _transitService;
 
-        private readonly StandardFileSystem _fileSystem;
+        private readonly FileSystemResolver _fileSystemResolver;
 
-        public AppService(ITransitService transitService, StandardFileSystem fileSystem)
+        public AppService(ITransitService transitService, FileSystemResolver fileSystemResolver)
         {
             _transitService = transitService;
-            _fileSystem = fileSystem;
+            _fileSystemResolver = fileSystemResolver;
         }
 
         public async Task<DeleteLinkedFileResult> DeleteFile(InternalDriveFileId file, List<string> requestRecipients)
@@ -32,7 +32,9 @@ namespace Youverse.Core.Services.Apps
                 LocalFileDeleted = false
             };
 
-            var header = await _fileSystem.Storage.GetServerFileHeader(file);
+            var fs = _fileSystemResolver.ResolveFileSystem(file);
+
+            var header = await fs.Storage.GetServerFileHeader(file);
             if (header == null)
             {
                 result.LocalFileNotFound = true;
@@ -75,7 +77,7 @@ namespace Youverse.Core.Services.Apps
                 }
             }
 
-            await _fileSystem.Storage.SoftDeleteLongTermFile(file);
+            await fs.Storage.SoftDeleteLongTermFile(file);
             result.LocalFileDeleted = true;
 
             return result;
