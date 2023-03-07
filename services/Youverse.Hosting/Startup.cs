@@ -148,6 +148,8 @@ namespace Youverse.Hosting
 
             var ss = new ServerSystemStorage(config);
             
+            services.AddSingleton(typeof(ServerSystemStorage), ss);
+            
             var pendingTransferService = new PendingTransfersService(ss);
             services.AddSingleton(typeof(IPendingTransfersService), pendingTransferService);
 
