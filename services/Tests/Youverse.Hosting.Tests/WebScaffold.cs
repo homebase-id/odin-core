@@ -67,7 +67,7 @@ namespace Youverse.Hosting.Tests
 
             Environment.SetEnvironmentVariable("Quartz__EnableQuartzBackgroundService", "false");
             Environment.SetEnvironmentVariable("Quartz__BackgroundJobStartDelaySeconds", "10");
-            Environment.SetEnvironmentVariable("Quartz__ProcessOutboxIntervalSeconds", "5");
+            Environment.SetEnvironmentVariable("Quartz__CronProcessingInterval", "5");
             Environment.SetEnvironmentVariable("Quartz__EnsureCertificateProcessorIntervalSeconds", "1000");
             Environment.SetEnvironmentVariable("Quartz__ProcessPendingCertificateOrderIntervalInSeconds", "1000");
 

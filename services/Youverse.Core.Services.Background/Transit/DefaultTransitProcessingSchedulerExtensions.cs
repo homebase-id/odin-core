@@ -15,8 +15,8 @@ namespace Youverse.Core.Services.Workers.Transit
         /// <param name="quartz"></param>
         /// <param name="backgroundJobStartDelaySeconds">Number of seconds to wait before starting the outbox processing during
         ///     system startup.  This is mainly useful long initiations and unit testing.</param>
-        /// <param name="processOutboxIntervalSeconds"></param>
-        public static void UseDefaultTransitOutboxSchedule(this IServiceCollectionQuartzConfigurator quartz, int backgroundJobStartDelaySeconds, int processOutboxIntervalSeconds)
+        /// <param name="CronProcessingInterval"></param>
+        public static void UseDefaultTransitOutboxSchedule(this IServiceCollectionQuartzConfigurator quartz, int backgroundJobStartDelaySeconds, int CronProcessingInterval)
         {
             var jobKey = new JobKey(nameof(StokeOutboxJob), "Transit");
             quartz.AddJob<StokeOutboxJob>(options => { options.WithIdentity(jobKey); });
@@ -29,13 +29,13 @@ namespace Youverse.Core.Services.Workers.Transit
 
                 config.WithSimpleSchedule(schedule => schedule
                     .RepeatForever()
-                    .WithInterval(TimeSpan.FromSeconds(processOutboxIntervalSeconds))
+                    .WithInterval(TimeSpan.FromSeconds(CronProcessingInterval))
                     .WithMisfireHandlingInstructionNextWithRemainingCount());
 
                 config.StartAt(DateTimeOffset.UtcNow.Add(TimeSpan.FromSeconds(backgroundJobStartDelaySeconds)));
             });
             
-            Log.Information($"Started Quartz Transit outbox Schedule with interval of {processOutboxIntervalSeconds} seconds");
+            Log.Information($"Started Quartz Transit outbox Schedule with interval of {CronProcessingInterval} seconds");
         }
     }
 }

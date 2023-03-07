@@ -20,13 +20,13 @@ namespace Youverse.Core.Services.Workers.Cron
 
                 config.WithSimpleSchedule(schedule => schedule
                     .RepeatForever()
-                    .WithInterval(TimeSpan.FromSeconds(youverseConfig.Quartz.ProcessOutboxIntervalSeconds))
+                    .WithInterval(TimeSpan.FromSeconds(youverseConfig.Quartz.CronProcessingInterval))
                     .WithMisfireHandlingInstructionNextWithRemainingCount());
 
                 config.StartAt(DateTimeOffset.UtcNow.Add(TimeSpan.FromSeconds(youverseConfig.Quartz.BackgroundJobStartDelaySeconds)));
             });
             
-            Log.Information($"Started Quartz Transit outbox Schedule with interval of {youverseConfig.Quartz.ProcessOutboxIntervalSeconds} seconds");
+            Log.Information($"Started Quartz Transit outbox Schedule with interval of {youverseConfig.Quartz.CronProcessingInterval} seconds");
         }
     }
 }

@@ -62,17 +62,7 @@ namespace Youverse.Hosting
                 {
                     //lets use use our normal DI setup
                     q.UseMicrosoftDependencyInjectionJobFactory();
-                    // q.UseDedicatedThreadPool(options =>
-                    // {
-                    //     options.MaxConcurrency = 10; //TODO: good idea?
-                    // });
-                    
                     q.UseDefaultCronSchedule(config);
-
-                    // q.UseDefaultTransitOutboxSchedule(config.Quartz.BackgroundJobStartDelaySeconds, config.Quartz.ProcessOutboxIntervalSeconds);
-                    // q.UseDefaultCertificateRenewalSchedule(config.Quartz.BackgroundJobStartDelaySeconds,
-                    //     config.Quartz.EnsureCertificateProcessorIntervalSeconds,
-                    //     config.Quartz.ProcessPendingCertificateOrderIntervalInSeconds);
                 });
 
                 services.AddQuartzServer(options => { options.WaitForJobsToComplete = true; });
@@ -146,15 +136,19 @@ namespace Youverse.Hosting
                 CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.PublicTransitAuthScheme);
             });
 
-            var ss = new ServerSystemStorage(config);
-            
-            services.AddSingleton(typeof(ServerSystemStorage), ss);
-            
-            var pendingTransferService = new PendingTransfersService(ss);
-            services.AddSingleton(typeof(IPendingTransfersService), pendingTransferService);
+            services.AddSingleton<YouverseConfiguration>(config);
 
-            var certOrderListService = new PendingCertificateOrderListService(ss);
-            services.AddSingleton(typeof(PendingCertificateOrderListService), certOrderListService);
+            // var ss = new ServerSystemStorage(config);
+            // services.AddSingleton(typeof(ServerSystemStorage), ss).;
+            services.AddSingleton<ServerSystemStorage>();
+            services.AddSingleton<PendingTransfersService>();
+            services.AddSingleton<PendingCertificateOrderListService>();
+
+            // var pendingTransferService = new PendingTransfersService(ss);
+            // services.AddSingleton(typeof(IPendingTransfersService), pendingTransferService);
+            //
+            // var certOrderListService = new PendingCertificateOrderListService(ss);
+            // services.AddSingleton(typeof(PendingCertificateOrderListService), certOrderListService);
 
             services.AddSingleton<IIdentityRegistrationService, IdentityRegistrationService>();
 
