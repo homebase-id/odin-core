@@ -26,6 +26,7 @@ using Youverse.Core.Services.Workers.Transit;
 using Youverse.Core.Services.Logging;
 using Youverse.Core.Services.Registry.Registration;
 using Youverse.Core.Services.Workers.Certificate;
+using Youverse.Core.Services.Workers.Cron;
 using Youverse.Hosting.Authentication.ClientToken;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Authentication.Perimeter;
@@ -65,11 +66,13 @@ namespace Youverse.Hosting
                     // {
                     //     options.MaxConcurrency = 10; //TODO: good idea?
                     // });
+                    
+                    q.UseDefaultCronSchedule(config);
 
-                    q.UseDefaultTransitOutboxSchedule(config.Quartz.BackgroundJobStartDelaySeconds, config.Quartz.ProcessOutboxIntervalSeconds);
-                    q.UseDefaultCertificateRenewalSchedule(config.Quartz.BackgroundJobStartDelaySeconds,
-                        config.Quartz.EnsureCertificateProcessorIntervalSeconds,
-                        config.Quartz.ProcessPendingCertificateOrderIntervalInSeconds);
+                    // q.UseDefaultTransitOutboxSchedule(config.Quartz.BackgroundJobStartDelaySeconds, config.Quartz.ProcessOutboxIntervalSeconds);
+                    // q.UseDefaultCertificateRenewalSchedule(config.Quartz.BackgroundJobStartDelaySeconds,
+                    //     config.Quartz.EnsureCertificateProcessorIntervalSeconds,
+                    //     config.Quartz.ProcessPendingCertificateOrderIntervalInSeconds);
                 });
 
                 services.AddQuartzServer(options => { options.WaitForJobsToComplete = true; });

@@ -159,7 +159,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _insertParam4.ParameterName = "$modified";
                     _insertCommand.Prepare();
                 }
-                _insertParam1.Value = item.identity.Id;
+                _insertParam1.Value = item.identity.DomainName;
                 _insertParam2.Value = item.driveId.ToByteArray();
                 _insertParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _insertParam4.Value = DBNull.Value;
@@ -193,7 +193,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _upsertParam4.ParameterName = "$modified";
                     _upsertCommand.Prepare();
                 }
-                _upsertParam1.Value = item.identity.Id;
+                _upsertParam1.Value = item.identity.DomainName;
                 _upsertParam2.Value = item.driveId.ToByteArray();
                 _upsertParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _upsertParam4.Value = UnixTimeUtcUnique.Now().uniqueTime;
@@ -226,7 +226,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _updateParam4.ParameterName = "$modified";
                     _updateCommand.Prepare();
                 }
-                _updateParam1.Value = item.identity.Id;
+                _updateParam1.Value = item.identity.DomainName;
                 _updateParam2.Value = item.driveId.ToByteArray();
                 _updateParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _updateParam4.Value = UnixTimeUtcUnique.Now().uniqueTime;
@@ -252,7 +252,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _delete0Param2.ParameterName = "$driveId";
                     _delete0Command.Prepare();
                 }
-                _delete0Param1.Value = identity.Id;
+                _delete0Param1.Value = identity.DomainName;
                 _delete0Param2.Value = driveId.ToByteArray();
                 _database.BeginTransaction();
                 return _delete0Command.ExecuteNonQuery(_database);
@@ -273,7 +273,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _delete1Param1.ParameterName = "$identity";
                     _delete1Command.Prepare();
                 }
-                _delete1Param1.Value = identity.Id;
+                _delete1Param1.Value = identity.DomainName;
                 _database.BeginTransaction();
                 return _delete1Command.ExecuteNonQuery(_database);
             } // Lock
@@ -296,7 +296,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _get0Param2.ParameterName = "$driveId";
                     _get0Command.Prepare();
                 }
-                _get0Param1.Value = identity.Id;
+                _get0Param1.Value = identity.DomainName;
                 _get0Param2.Value = driveId.ToByteArray();
                 using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
                 {
@@ -344,7 +344,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _get1Param1.ParameterName = "$identity";
                     _get1Command.Prepare();
                 }
-                _get1Param1.Value = identity.Id;
+                _get1Param1.Value = identity.DomainName;
                 using (SqliteDataReader rdr = _get1Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {
                     var result = new List<ImFollowingItem>();

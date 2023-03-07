@@ -11,7 +11,7 @@ namespace Youverse.Core.Identity
     [JsonConverter(typeof(OdinIdConverter))]
     public readonly struct OdinId
     {
-        private readonly string _identifier;
+        private readonly string _domainName;
         private readonly Guid _hash;
 
         /// <summary>
@@ -27,13 +27,13 @@ namespace Youverse.Core.Identity
             var s = identifier?.ToLower().Trim();
             DomainNameValidator.AssertValidDomain(s);
 
-            _identifier = s;
+            _domainName = s;
 
             // I would have preferred if the HASH was evaluated lazily. But that's not possible with a RO struct.
-            _hash = new Guid(HashUtil.ReduceSHA256Hash(_identifier.ToUtf8ByteArray()));
+            _hash = new Guid(HashUtil.ReduceSHA256Hash(_domainName.ToUtf8ByteArray()));
         }
 
-        [JsonIgnore] public string Id => _identifier;
+        [JsonIgnore] public string DomainName => _domainName;
 
         public bool HasValue()
         {
@@ -48,7 +48,7 @@ namespace Youverse.Core.Identity
 
         public static implicit operator string(OdinId dy)
         {
-            return dy._identifier;
+            return dy._domainName;
         }
 
         public static explicit operator OdinId(string id)
@@ -69,12 +69,12 @@ namespace Youverse.Core.Identity
 
         public override int GetHashCode()
         {
-            return _identifier?.GetHashCode() ?? 0;
+            return _domainName?.GetHashCode() ?? 0;
         }
 
         public override string ToString()
         {
-            return _identifier;
+            return _domainName;
         }
 
         /// <summary>
@@ -88,7 +88,7 @@ namespace Youverse.Core.Identity
 
         public byte[] ToByteArray()
         {
-            var key = _identifier.ToUtf8ByteArray();
+            var key = _domainName.ToUtf8ByteArray();
             return key;
         }
 

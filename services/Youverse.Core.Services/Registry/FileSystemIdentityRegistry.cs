@@ -83,7 +83,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             //optionally, let an ssl certificate be provided 
             //TODO: is there a way to pull a specific tenant's service config from Autofac?
             ITenantCertificateService tc = new TenantCertificateService(TenantContext.Create(registration.Id, request.OdinId, _tenantDataRootPath, _certificateRenewalConfig));
-            await tc.SaveSslCertificate(registration.Id, request.OdinId.Id, request.OptionalCertificatePemContent);
+            await tc.SaveSslCertificate(registration.Id, request.OdinId.DomainName, request.OptionalCertificatePemContent);
         }
 
         return registration.FirstRunToken.GetValueOrDefault();

@@ -68,7 +68,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
 
         public async Task InvalidatePublicKey(OdinId recipient)
         {
-            _tenantSystemStorage.SingleKeyValueStorage.Delete(GuidId.FromString(recipient.Id));
+            _tenantSystemStorage.SingleKeyValueStorage.Delete(GuidId.FromString(recipient.DomainName));
         }
 
         public async Task<bool> IsValidPublicKey(UInt32 crc)
@@ -109,7 +109,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
             await _rsaPublicKeyCacheLock.WaitAsync();
             try
             {
-                var cacheItem = _tenantSystemStorage.SingleKeyValueStorage.Get<RsaPublicKeyData>(GuidId.FromString(recipient.Id));
+                var cacheItem = _tenantSystemStorage.SingleKeyValueStorage.Get<RsaPublicKeyData>(GuidId.FromString(recipient.DomainName));
 
                 if ((cacheItem == null || cacheItem.IsExpired()) && lookupIfInvalid)
                 {
@@ -130,7 +130,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
                         expiration = new UnixTimeUtc(tpkResponse.Content.Expiration)
                     };
 
-                    _tenantSystemStorage.SingleKeyValueStorage.Upsert(GuidId.FromString(recipient.Id), cacheItem);
+                    _tenantSystemStorage.SingleKeyValueStorage.Upsert(GuidId.FromString(recipient.DomainName), cacheItem);
                 }
 
                 if (null == cacheItem && failIfCannotRetrieve)

@@ -49,7 +49,7 @@ namespace Youverse.Core.Services.Workers.Certificate
 
         private async Task<CertificateOrderStatus> GenerateCertificate(OdinId identity)
         {
-            _logger.LogInformation($"Checking certificate creation status for {identity.Id}");
+            _logger.LogInformation($"Checking certificate creation status for {identity.DomainName}");
 
             var svc = SystemHttpClient.CreateHttp<ICertificateStatusHttpClient>(identity);
             var response = await svc.CheckCertificateCreationStatus();

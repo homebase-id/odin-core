@@ -13,7 +13,7 @@ namespace Youverse.Core.Services.AppNotifications.ClientNotifications
         {
             return DotYouSystemSerializer.Serialize(new
             {
-                Sender = this.Sender.Id
+                Sender = this.Sender.DomainName
             });
         }
     }

@@ -142,7 +142,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     _insertParam3.ParameterName = "$singleReaction";
                     _insertCommand.Prepare();
                 }
-                _insertParam1.Value = item.identity.Id;
+                _insertParam1.Value = item.identity.DomainName;
                 _insertParam2.Value = item.postId.ToByteArray();
                 _insertParam3.Value = item.singleReaction;
                 _database.BeginTransaction();
@@ -172,7 +172,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     _upsertParam3.ParameterName = "$singleReaction";
                     _upsertCommand.Prepare();
                 }
-                _upsertParam1.Value = item.identity.Id;
+                _upsertParam1.Value = item.identity.DomainName;
                 _upsertParam2.Value = item.postId.ToByteArray();
                 _upsertParam3.Value = item.singleReaction;
                 _database.BeginTransaction();
@@ -201,7 +201,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     _updateParam3.ParameterName = "$singleReaction";
                     _updateCommand.Prepare();
                 }
-                _updateParam1.Value = item.identity.Id;
+                _updateParam1.Value = item.identity.DomainName;
                 _updateParam2.Value = item.postId.ToByteArray();
                 _updateParam3.Value = item.singleReaction;
                 _database.BeginTransaction();
@@ -229,7 +229,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     _delete0Param3.ParameterName = "$singleReaction";
                     _delete0Command.Prepare();
                 }
-                _delete0Param1.Value = identity.Id;
+                _delete0Param1.Value = identity.DomainName;
                 _delete0Param2.Value = postId.ToByteArray();
                 _delete0Param3.Value = singleReaction;
                 _database.BeginTransaction();
@@ -254,7 +254,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     _delete1Param2.ParameterName = "$postId";
                     _delete1Command.Prepare();
                 }
-                _delete1Param1.Value = identity.Id;
+                _delete1Param1.Value = identity.DomainName;
                 _delete1Param2.Value = postId.ToByteArray();
                 _database.BeginTransaction();
                 return _delete1Command.ExecuteNonQuery(_database);
@@ -281,7 +281,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     _get0Param3.ParameterName = "$singleReaction";
                     _get0Command.Prepare();
                 }
-                _get0Param1.Value = identity.Id;
+                _get0Param1.Value = identity.DomainName;
                 _get0Param2.Value = postId.ToByteArray();
                 _get0Param3.Value = singleReaction;
                 using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))

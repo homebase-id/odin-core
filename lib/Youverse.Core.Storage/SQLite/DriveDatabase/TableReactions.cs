@@ -75,7 +75,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 }
 
                 _s2param1.Value = postId.ToByteArray();
-                _s2param2.Value = identity.Id;
+                _s2param2.Value = identity.DomainName;
 
                 using (SqliteDataReader rdr = _select2Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {
@@ -116,7 +116,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 }
 
                 _s2param1.Value = postId.ToByteArray();
-                _s2param2.Value = identity.Id;
+                _s2param2.Value = identity.DomainName;
 
                 using (SqliteDataReader rdr = _select2Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {

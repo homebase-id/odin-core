@@ -44,7 +44,7 @@ namespace Youverse.Core.Services.Base
         ///
         private T CreateClientInternal<T>(OdinId odinId, ClientAuthenticationToken clientAuthenticationToken)
         {
-            Guard.Argument(odinId.Id, nameof(odinId)).NotNull();
+            Guard.Argument(odinId.DomainName, nameof(odinId)).NotNull();
 
             var handler = new HttpClientHandler();
 
