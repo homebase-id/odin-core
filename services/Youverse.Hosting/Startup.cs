@@ -76,22 +76,36 @@ namespace Youverse.Hosting
                         options.JsonSerializerOptions.Converters.Add(c);
                     }
 
-                    options.JsonSerializerOptions.IncludeFields = DotYouSystemSerializer.JsonSerializerOptions.IncludeFields;
+                    options.JsonSerializerOptions.IncludeFields =
+                        DotYouSystemSerializer.JsonSerializerOptions.IncludeFields;
                     options.JsonSerializerOptions.Encoder = DotYouSystemSerializer.JsonSerializerOptions.Encoder;
                     options.JsonSerializerOptions.MaxDepth = DotYouSystemSerializer.JsonSerializerOptions.MaxDepth;
-                    options.JsonSerializerOptions.NumberHandling = DotYouSystemSerializer.JsonSerializerOptions.NumberHandling;
-                    options.JsonSerializerOptions.ReferenceHandler = DotYouSystemSerializer.JsonSerializerOptions.ReferenceHandler;
-                    options.JsonSerializerOptions.WriteIndented = DotYouSystemSerializer.JsonSerializerOptions.WriteIndented;
-                    options.JsonSerializerOptions.AllowTrailingCommas = DotYouSystemSerializer.JsonSerializerOptions.AllowTrailingCommas;
-                    options.JsonSerializerOptions.DefaultBufferSize = DotYouSystemSerializer.JsonSerializerOptions.DefaultBufferSize;
-                    options.JsonSerializerOptions.DefaultIgnoreCondition = DotYouSystemSerializer.JsonSerializerOptions.DefaultIgnoreCondition;
-                    options.JsonSerializerOptions.DictionaryKeyPolicy = DotYouSystemSerializer.JsonSerializerOptions.DictionaryKeyPolicy;
-                    options.JsonSerializerOptions.PropertyNamingPolicy = DotYouSystemSerializer.JsonSerializerOptions.PropertyNamingPolicy;
-                    options.JsonSerializerOptions.ReadCommentHandling = DotYouSystemSerializer.JsonSerializerOptions.ReadCommentHandling;
-                    options.JsonSerializerOptions.UnknownTypeHandling = DotYouSystemSerializer.JsonSerializerOptions.UnknownTypeHandling;
-                    options.JsonSerializerOptions.IgnoreReadOnlyFields = DotYouSystemSerializer.JsonSerializerOptions.IgnoreReadOnlyFields;
-                    options.JsonSerializerOptions.IgnoreReadOnlyProperties = DotYouSystemSerializer.JsonSerializerOptions.IgnoreReadOnlyProperties;
-                    options.JsonSerializerOptions.PropertyNameCaseInsensitive = DotYouSystemSerializer.JsonSerializerOptions.PropertyNameCaseInsensitive;
+                    options.JsonSerializerOptions.NumberHandling =
+                        DotYouSystemSerializer.JsonSerializerOptions.NumberHandling;
+                    options.JsonSerializerOptions.ReferenceHandler =
+                        DotYouSystemSerializer.JsonSerializerOptions.ReferenceHandler;
+                    options.JsonSerializerOptions.WriteIndented =
+                        DotYouSystemSerializer.JsonSerializerOptions.WriteIndented;
+                    options.JsonSerializerOptions.AllowTrailingCommas =
+                        DotYouSystemSerializer.JsonSerializerOptions.AllowTrailingCommas;
+                    options.JsonSerializerOptions.DefaultBufferSize =
+                        DotYouSystemSerializer.JsonSerializerOptions.DefaultBufferSize;
+                    options.JsonSerializerOptions.DefaultIgnoreCondition =
+                        DotYouSystemSerializer.JsonSerializerOptions.DefaultIgnoreCondition;
+                    options.JsonSerializerOptions.DictionaryKeyPolicy =
+                        DotYouSystemSerializer.JsonSerializerOptions.DictionaryKeyPolicy;
+                    options.JsonSerializerOptions.PropertyNamingPolicy =
+                        DotYouSystemSerializer.JsonSerializerOptions.PropertyNamingPolicy;
+                    options.JsonSerializerOptions.ReadCommentHandling =
+                        DotYouSystemSerializer.JsonSerializerOptions.ReadCommentHandling;
+                    options.JsonSerializerOptions.UnknownTypeHandling =
+                        DotYouSystemSerializer.JsonSerializerOptions.UnknownTypeHandling;
+                    options.JsonSerializerOptions.IgnoreReadOnlyFields =
+                        DotYouSystemSerializer.JsonSerializerOptions.IgnoreReadOnlyFields;
+                    options.JsonSerializerOptions.IgnoreReadOnlyProperties =
+                        DotYouSystemSerializer.JsonSerializerOptions.IgnoreReadOnlyProperties;
+                    options.JsonSerializerOptions.PropertyNameCaseInsensitive =
+                        DotYouSystemSerializer.JsonSerializerOptions.PropertyNameCaseInsensitive;
                 });
 
             //services.AddRazorPages(options => { options.RootDirectory = "/Views"; });
@@ -111,7 +125,8 @@ namespace Youverse.Hosting
                 c.IgnoreObsoleteActions();
                 c.IgnoreObsoleteProperties();
                 c.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
-                c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, $"{Assembly.GetExecutingAssembly().GetName().Name}.xml"));
+                c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory,
+                    $"{Assembly.GetExecutingAssembly().GetName().Name}.xml"));
                 c.EnableAnnotations();
                 c.SwaggerDoc("v1", new()
                 {
@@ -137,19 +152,9 @@ namespace Youverse.Hosting
             });
 
             services.AddSingleton<YouverseConfiguration>(config);
-
-            // var ss = new ServerSystemStorage(config);
-            // services.AddSingleton(typeof(ServerSystemStorage), ss).;
             services.AddSingleton<ServerSystemStorage>();
-            services.AddSingleton<PendingTransfersService>();
+            services.AddSingleton<IPendingTransfersService, PendingTransfersService>();
             services.AddSingleton<PendingCertificateOrderListService>();
-
-            // var pendingTransferService = new PendingTransfersService(ss);
-            // services.AddSingleton(typeof(IPendingTransfersService), pendingTransferService);
-            //
-            // var certOrderListService = new PendingCertificateOrderListService(ss);
-            // services.AddSingleton(typeof(PendingCertificateOrderListService), certOrderListService);
-
             services.AddSingleton<IIdentityRegistrationService, IdentityRegistrationService>();
 
             // In production, the React files will be served from this directory
@@ -197,7 +202,7 @@ namespace Youverse.Hosting
                 var domain = context.RequestServices.GetService<YouverseConfiguration>()?.Registry.ProvisioningDomain;
                 return context.Request.Host.Equals(new HostString(domain ?? ""));
             }
-            
+
             appx.MapWhen(IsProvisioningSite, app => Provisioning.Map(app, env, logger));
 
             appx.MapWhen(ctx => !IsProvisioningSite(ctx), app =>
@@ -253,7 +258,7 @@ namespace Youverse.Hosting
                     };
 
                     // webSocketOptions.AllowedOrigins.Add("https://...");
-                    app.UseWebSockets(webSocketOptions);  //Note: see NotificationSocketController
+                    app.UseWebSockets(webSocketOptions); //Note: see NotificationSocketController
 
                     normalApp.UseEndpoints(endpoints =>
                     {
@@ -267,10 +272,22 @@ namespace Youverse.Hosting
                         normalApp.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "DotYouCore v1"));
 
                         normalApp.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/home"),
-                            homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3000/home/"); }); });
+                            homeApp =>
+                            {
+                                homeApp.UseSpa(spa =>
+                                {
+                                    spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3000/home/");
+                                });
+                            });
 
                         normalApp.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
-                            homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3001/owner/"); }); });
+                            homeApp =>
+                            {
+                                homeApp.UseSpa(spa =>
+                                {
+                                    spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3001/owner/");
+                                });
+                            });
                     }
                     else
                     {
@@ -327,8 +344,10 @@ namespace Youverse.Hosting
         private void AssertValidRenewalConfiguration(YouverseConfiguration.CertificateRenewalSection section)
         {
             Guard.Argument(section, nameof(section)).NotNull();
-            Guard.Argument(section.CertificateAuthorityAssociatedEmail, nameof(section.CertificateAuthorityAssociatedEmail)).NotNull().NotEmpty();
-            Guard.Argument(section.NumberOfCertificateValidationTries, nameof(section.NumberOfCertificateValidationTries)).Min(3);
+            Guard.Argument(section.CertificateAuthorityAssociatedEmail,
+                nameof(section.CertificateAuthorityAssociatedEmail)).NotNull().NotEmpty();
+            Guard.Argument(section.NumberOfCertificateValidationTries,
+                nameof(section.NumberOfCertificateValidationTries)).Min(3);
 
             Guard.Argument(section.CsrCountryName, nameof(section.CsrCountryName)).NotNull().NotEmpty();
             Guard.Argument(section.CsrState, nameof(section.CsrState)).NotNull().NotEmpty();
