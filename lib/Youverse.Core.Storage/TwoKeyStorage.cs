@@ -37,7 +37,7 @@ public class TwoKeyStorage
             return null;
         }
 
-        return list.Select(this.Deserialize<T>);
+        return list.Select(r=> this.Deserialize<T>(r.data));
     }
 
     public void Upsert<T>(Guid key1, Guid key2, T value)
@@ -51,7 +51,7 @@ public class TwoKeyStorage
         _db.Delete(id);
     }
 
-    private T Deserialize<T>(Guid bytes)
+    private T Deserialize<T>(byte[] bytes)
     {
         return DotYouSystemSerializer.Deserialize<T>(bytes.ToStringFromUtf8Bytes());
     }
