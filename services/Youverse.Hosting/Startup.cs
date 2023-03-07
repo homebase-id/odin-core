@@ -214,38 +214,26 @@ namespace Youverse.Hosting
                                                          path.StartsWithSegments("/.well-known/acme-challenge");
                     return isCertificateRegistrationPath && !context.Request.IsHttps;
                 }
+                
+                app.UseLoggingMiddleware();
+                app.UseMiddleware<ExceptionHandlingMiddleware>();
+                app.UseMultiTenancy();
+
+                app.UseDefaultFiles();
+                app.UseCertificateForwarding();
+                app.UseStaticFiles();
+
+                app.UseRouting();
+                app.UseAuthentication();
+                app.UseAuthorization();
 
                 app.MapWhen(IsPathUsedForCertificateCreation, certificateApp =>
                 {
-                    certificateApp.UseLoggingMiddleware();
-                    certificateApp.UseMiddleware<ExceptionHandlingMiddleware>();
-                    certificateApp.UseMultiTenancy();
-
-                    certificateApp.UseDefaultFiles();
-                    certificateApp.UseCertificateForwarding();
-                    certificateApp.UseStaticFiles();
-
-                    certificateApp.UseRouting();
-                    certificateApp.UseAuthentication();
-                    certificateApp.UseAuthorization();
-
                     certificateApp.UseEndpoints(endpoints => { endpoints.MapControllers(); });
                 });
 
                 app.MapWhen(ctx => !IsPathUsedForCertificateCreation(ctx), normalApp =>
                 {
-                    normalApp.UseLoggingMiddleware();
-                    normalApp.UseMiddleware<ExceptionHandlingMiddleware>();
-                    normalApp.UseMultiTenancy();
-
-                    normalApp.UseDefaultFiles();
-                    normalApp.UseCertificateForwarding();
-                    normalApp.UseStaticFiles();
-
-                    normalApp.UseRouting();
-                    normalApp.UseAuthentication();
-                    normalApp.UseAuthorization();
-
                     normalApp.UseMiddleware<DotYouContextMiddleware>();
                     normalApp.UseResponseCompression();
                     normalApp.UseMiddleware<SharedSecretEncryptionMiddleware>();
