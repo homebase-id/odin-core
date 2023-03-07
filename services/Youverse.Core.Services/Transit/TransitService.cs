@@ -490,7 +490,7 @@ namespace Youverse.Core.Services.Transit
             {
                 if (result.Success)
                 {
-                    transferStatus[result.Recipient.Id] = TransferStatus.Delivered;
+                    transferStatus[result.Recipient.DomainName] = TransferStatus.Delivered;
                 }
                 else
                 {
@@ -502,17 +502,17 @@ namespace Youverse.Core.Services.Transit
                         case TransferFailureReason.EncryptedTransferInstructionSetNotAvailable:
                             //enqueue the failures into the outbox
                             await _transitOutbox.Add(result.OutboxItem);
-                            transferStatus[result.Recipient.Id] = TransferStatus.PendingRetry;
+                            transferStatus[result.Recipient.DomainName] = TransferStatus.PendingRetry;
                             break;
 
                         case TransferFailureReason.RecipientServerError:
                         case TransferFailureReason.UnknownError:
                         case TransferFailureReason.RecipientServerRejected:
-                            transferStatus[result.Recipient.Id] = TransferStatus.TotalRejectionClientShouldRetry;
+                            transferStatus[result.Recipient.DomainName] = TransferStatus.TotalRejectionClientShouldRetry;
                             break;
 
                         case TransferFailureReason.FileDoesNotAllowDistribution:
-                            transferStatus[result.Recipient.Id] = TransferStatus.FileDoesNotAllowDistribution;
+                            transferStatus[result.Recipient.DomainName] = TransferStatus.FileDoesNotAllowDistribution;
                             break;
 
                         default:

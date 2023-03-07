@@ -44,7 +44,7 @@ namespace Youverse.Core.Services.Certificate.Renewal
 
         public async Task<CertificateOrderStatus> GenerateCertificateIfReady()
         {
-            string domain = _tenantContext.HostOdinId.Id;
+            string domain = _tenantContext.HostOdinId.DomainName;
 
             var record = _tenantSystemStorage.SingleKeyValueStorage.Get<PendingCertificateOrder>(GuidId.FromString(domain));
             var acme = new AcmeContext(GetServer(), KeyFactory.FromPem(record.AccountPem));

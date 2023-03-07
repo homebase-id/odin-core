@@ -13,7 +13,7 @@ public class NewFollowerNotification : IClientNotification
     {
         return DotYouSystemSerializer.Serialize(new
         {
-            Sender = this.OdinId.Id
+            Sender = this.OdinId.DomainName
         });
     }
 }

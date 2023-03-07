@@ -44,7 +44,7 @@ public class ConfigurationTestUtilities
         var members = getCircleMemberResponse.Content;
         Assert.NotNull(members);
         Assert.IsTrue(members.Any());
-        Assert.IsFalse(members.SingleOrDefault(m => m == expectedIdentity).Id == null);
+        Assert.IsFalse(members.SingleOrDefault(m => m == expectedIdentity).DomainName == null);
     }
 
     public async Task AssertConnectionStatus(HttpClient client, SensitiveByteArray ownerSharedSecret, string odinId, ConnectionStatus expected)

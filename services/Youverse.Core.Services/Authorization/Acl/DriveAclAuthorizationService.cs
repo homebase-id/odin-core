@@ -86,7 +86,7 @@ namespace Youverse.Core.Services.Authorization.Acl
 
         public Task<bool> CallerIsInList(List<string> odinIdList)
         {
-            var inList = odinIdList.Any(s => s.Equals(_contextAccessor.GetCurrent().GetCallerOdinIdOrFail().Id, StringComparison.InvariantCultureIgnoreCase));
+            var inList = odinIdList.Any(s => s.Equals(_contextAccessor.GetCurrent().GetCallerOdinIdOrFail().DomainName, StringComparison.InvariantCultureIgnoreCase));
             return Task.FromResult(inList);
         }
 

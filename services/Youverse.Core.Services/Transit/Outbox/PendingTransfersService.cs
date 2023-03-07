@@ -31,7 +31,7 @@ namespace Youverse.Core.Services.Transit.Outbox
                 {
                     identityId = sender,
                     type = 1,
-                    data = sender.Id.ToLower().ToUtf8ByteArray(),
+                    data = sender.DomainName.ToLower().ToUtf8ByteArray(),
                 });
             }
             catch (Microsoft.Data.Sqlite.SqliteException ex)

@@ -216,7 +216,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _insertParam7.ParameterName = "$modified";
                     _insertCommand.Prepare();
                 }
-                _insertParam1.Value = item.identity.Id;
+                _insertParam1.Value = item.identity.DomainName;
                 _insertParam2.Value = item.displayName;
                 _insertParam3.Value = item.status;
                 _insertParam4.Value = item.accessIsRevoked;
@@ -262,7 +262,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _upsertParam7.ParameterName = "$modified";
                     _upsertCommand.Prepare();
                 }
-                _upsertParam1.Value = item.identity.Id;
+                _upsertParam1.Value = item.identity.DomainName;
                 _upsertParam2.Value = item.displayName;
                 _upsertParam3.Value = item.status;
                 _upsertParam4.Value = item.accessIsRevoked;
@@ -307,7 +307,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _updateParam7.ParameterName = "$modified";
                     _updateCommand.Prepare();
                 }
-                _updateParam1.Value = item.identity.Id;
+                _updateParam1.Value = item.identity.DomainName;
                 _updateParam2.Value = item.displayName;
                 _updateParam3.Value = item.status;
                 _updateParam4.Value = item.accessIsRevoked;
@@ -333,7 +333,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _delete0Param1.ParameterName = "$identity";
                     _delete0Command.Prepare();
                 }
-                _delete0Param1.Value = identity.Id;
+                _delete0Param1.Value = identity.DomainName;
                 _database.BeginTransaction();
                 return _delete0Command.ExecuteNonQuery(_database);
             } // Lock
@@ -353,7 +353,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _get0Param1.ParameterName = "$identity";
                     _get0Command.Prepare();
                 }
-                _get0Param1.Value = identity.Id;
+                _get0Param1.Value = identity.DomainName;
                 using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
                 {
                     var result = new ConnectionsItem();

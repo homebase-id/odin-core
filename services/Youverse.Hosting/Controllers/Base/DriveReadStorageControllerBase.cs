@@ -94,7 +94,7 @@ namespace Youverse.Hosting.Controllers.Base
         {
             if (DotYouContext.Caller.SecurityLevel != SecurityGroupType.Anonymous)
             {
-                HttpContext.Response.Headers.Add("Access-Control-Allow-Origin", DotYouContext.GetCallerOdinIdOrFail().Id);
+                HttpContext.Response.Headers.Add("Access-Control-Allow-Origin", DotYouContext.GetCallerOdinIdOrFail().DomainName);
             }
         }
     }

@@ -28,7 +28,7 @@ namespace Youverse.Core.Services.Certificate.Renewal
                 {
                     identityId = identity,
                     type = 2,
-                    data = identity.Id.ToLower().ToUtf8ByteArray()
+                    data = identity.DomainName.ToLower().ToUtf8ByteArray()
                 });
             }
             catch (Microsoft.Data.Sqlite.SqliteException ex)
