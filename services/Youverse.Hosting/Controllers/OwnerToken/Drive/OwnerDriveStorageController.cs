@@ -30,7 +30,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("header")]
-        public async Task<IActionResult> GetFileHeader([FromBody] ExternalFileIdentifier request)
+        public new async Task<IActionResult> GetFileHeader([FromBody] ExternalFileIdentifier request)
         {
             return await base.GetFileHeader(request);
         }
@@ -58,7 +58,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("payload")]
-        public async Task<IActionResult> GetPayloadStream([FromBody] ExternalFileIdentifier request)
+        public new async Task<IActionResult> GetPayloadStream([FromBody] ExternalFileIdentifier request)
         {
             return await base.GetPayloadStream(request);
         }
@@ -89,7 +89,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("thumb")]
-        public async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
+        public new async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
         {
             return await base.GetThumbnail(request);
         }

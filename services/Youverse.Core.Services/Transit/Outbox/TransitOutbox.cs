@@ -113,6 +113,8 @@ namespace Youverse.Core.Services.Transit.Outbox
             //     TransferFailureReason = reason,
             //     Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
             // });
+            
+            await Task.CompletedTask;
         }
 
         public async Task<List<TransitOutboxItem>> GetBatchForProcessing(Guid driveId, int batchSize)
@@ -141,7 +143,7 @@ namespace Youverse.Core.Services.Transit.Outbox
                 };
             });
 
-            return items.ToList();
+            return await Task.FromResult(items.ToList());
         }
 
         public Task Remove(OdinId recipient, InternalDriveFileId file)

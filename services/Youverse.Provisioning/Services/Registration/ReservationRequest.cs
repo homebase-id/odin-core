@@ -8,7 +8,7 @@ namespace Youverse.Provisioning.Services.Registration
         /// <summary>
         /// The domain name being reserved
         /// </summary>
-        public string DomainName { get; set; }
+        public string DomainName { get; set; } = "";
         
         /// <summary>
         /// Used when a user decides to change their domain name after having previously reserved another domain name. 

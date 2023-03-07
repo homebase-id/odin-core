@@ -102,7 +102,7 @@ namespace Youverse.Hosting.Controllers.Certificate
 
                 return result;
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 //TODO: break down the actual errors so we can send to the
                 //caller information about why it was rejected w/o giving away

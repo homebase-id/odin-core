@@ -25,7 +25,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         /// <returns></returns>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("modified")]
-        public  async Task<QueryModifiedResult> QueryModified([FromBody] QueryModifiedRequest request)
+        public new async Task<QueryModifiedResult> QueryModified([FromBody] QueryModifiedRequest request)
         {
             return await base.QueryModified(request);
         }
@@ -35,7 +35,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("batch")]
-        public  async Task<QueryBatchResponse> QueryBatch([FromBody] QueryBatchRequest request)
+        public new async Task<QueryBatchResponse> QueryBatch([FromBody] QueryBatchRequest request)
         {
             return await base.QueryBatch(request);
         }
@@ -47,7 +47,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         /// <returns></returns>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("batchcollection")]
-        public  async Task<QueryBatchCollectionResponse> QueryBatchCollection([FromBody] QueryBatchCollectionRequest request)
+        public new async Task<QueryBatchCollectionResponse> QueryBatchCollection([FromBody] QueryBatchCollectionRequest request)
         {
             return await base.QueryBatchCollection(request);
         }

@@ -72,14 +72,14 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
             var results = _pendingRequestValueStorage.GetByKey3<ConnectionRequest>(_pendingRequestsDataType);
-            return new PagedResult<ConnectionRequest>(pageOptions, 1, results.ToList());
+            return await Task.FromResult(new PagedResult<ConnectionRequest>(pageOptions, 1, results.ToList()));
         }
 
         public async Task<PagedResult<ConnectionRequest>> GetSentRequests(PageOptions pageOptions)
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnectionRequests);
             var results = _sentRequestValueStorage.GetByKey3<ConnectionRequest>(_sentRequestsDataType);
-            return new PagedResult<ConnectionRequest>(pageOptions, 1, results.ToList());
+            return await Task.FromResult(new PagedResult<ConnectionRequest>(pageOptions, 1, results.ToList()));
         }
 
         public async Task SendConnectionRequest(ConnectionRequestHeader header)
@@ -192,13 +192,15 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
                 Sender = sender
             });
 #pragma warning restore CS4014
+
+            await Task.CompletedTask;
         }
 
         public async Task<ConnectionRequest> GetPendingRequest(OdinId sender)
         {
             _contextAccessor.GetCurrent().AssertCanManageConnections();
             var result = _pendingRequestValueStorage.Get<ConnectionRequest>(sender.ToHashId());
-            return result;
+            return await Task.FromResult(result);
         }
 
         public async Task<ConnectionRequest> GetSentRequest(OdinId recipient)
@@ -340,7 +342,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         private async Task<ConnectionRequest> GetSentRequestInternal(OdinId recipient)
         {
             var result = _sentRequestValueStorage.Get<ConnectionRequest>(recipient.ToHashId());
-            return result;
+            return await Task.FromResult(result);
         }
 
         private string EncryptReplyExchangeCredentials(ClientAccessToken clientAccessToken, SensitiveByteArray encryptionKey)

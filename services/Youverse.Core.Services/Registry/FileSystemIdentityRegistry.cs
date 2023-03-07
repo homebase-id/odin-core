@@ -134,12 +134,12 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 }
             }
         }
-        catch (HttpRequestException hre)
+        catch (HttpRequestException)
         {
             //hre.HResult == -2146232800
             return RegistrationStatus.AwaitingCertificate;
         }
-        catch (Exception e)
+        catch (Exception)
         {
             return RegistrationStatus.Unknown;
         }

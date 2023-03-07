@@ -1,5 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+    <Import Project="$(ProjectDir)../../../lib/CommonProjectConfig.targets"/>
+
     <PropertyGroup>
         <TargetFramework>net5.0</TargetFramework>
 

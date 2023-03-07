@@ -1,9 +1,6 @@
 using System;
 using System.Collections.Concurrent;
-using System.IO;
 using System.Linq;
-using Youverse.Core.Storage;
-using Youverse.Core.Storage.Sqlite.IdentityDatabase;
 using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Registry.Registration;

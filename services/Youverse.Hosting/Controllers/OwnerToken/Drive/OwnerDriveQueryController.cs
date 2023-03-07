@@ -14,14 +14,14 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
     {
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("modified")]
-        public async Task<QueryModifiedResult> QueryModified([FromBody] QueryModifiedRequest request)
+        public override async Task<QueryModifiedResult> QueryModified([FromBody] QueryModifiedRequest request)
         {
             return await base.QueryModified(request);
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("batch")]
-        public async Task<QueryBatchResponse> QueryBatch([FromBody] QueryBatchRequest request)
+        public override async Task<QueryBatchResponse> QueryBatch([FromBody] QueryBatchRequest request)
         {
             return await base.QueryBatch(request);
         }
@@ -33,7 +33,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         /// <returns></returns>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("batchcollection")]
-        public async Task<QueryBatchCollectionResponse> QueryBatchCollection([FromBody] QueryBatchCollectionRequest request)
+        public override async Task<QueryBatchCollectionResponse> QueryBatchCollection([FromBody] QueryBatchCollectionRequest request)
         {
             return await base.QueryBatchCollection(request);
         }

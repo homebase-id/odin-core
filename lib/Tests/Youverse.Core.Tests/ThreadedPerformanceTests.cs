@@ -15,7 +15,7 @@ namespace Youverse.Core.Tests
 
 
         [Test]
-        public async Task TaskPerformanceTest()
+        public void TaskPerformanceTest()
         {
             Task[] tasks = new Task[MAXTHREADS];
             List<long[]> timers = new List<long[]>();
@@ -26,9 +26,9 @@ namespace Youverse.Core.Tests
 
             for (var i = 0; i < MAXTHREADS; i++)
             {
-                tasks[i] = Task.Run(async () =>
+                tasks[i] = Task.Run(() =>
                 {
-                    var measurements = await DoSomeWork(i);
+                    var measurements = DoSomeWork(i);
                     Debug.Assert(measurements.Length == MAXITERATIONS);
                     lock (timers) {
                         timers.Add(measurements);
@@ -59,7 +59,7 @@ namespace Youverse.Core.Tests
         }
 
 
-        public async Task<long[]> DoSomeWork(int threadNo)
+        public long[] DoSomeWork(int threadNo)
         {
             long[] timers = new long[MAXITERATIONS];
             Debug.Assert(timers.Length == MAXITERATIONS);

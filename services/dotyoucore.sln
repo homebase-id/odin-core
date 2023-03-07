@@ -30,6 +30,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core.Storage.Tests
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Provisioning", "Youverse.Provisioning\Youverse.Provisioning.csproj", "{2653E8AA-CEC9-4E6B-B56C-08AAB30A445E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core.Cryptography.Tests", "..\lib\Tests\Youverse.Core.Cryptography.Tests\Youverse.Core.Cryptography.Tests.csproj", "{F8073D0E-F016-434F-A2AB-94ECFB91A6C8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core.Tests", "..\lib\Tests\Youverse.Core.Tests\Youverse.Core.Tests.csproj", "{71BE6297-87A4-4C2B-94B6-6056DEF31664}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -76,6 +80,14 @@ Global
 		{2653E8AA-CEC9-4E6B-B56C-08AAB30A445E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2653E8AA-CEC9-4E6B-B56C-08AAB30A445E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2653E8AA-CEC9-4E6B-B56C-08AAB30A445E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F8073D0E-F016-434F-A2AB-94ECFB91A6C8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F8073D0E-F016-434F-A2AB-94ECFB91A6C8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F8073D0E-F016-434F-A2AB-94ECFB91A6C8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F8073D0E-F016-434F-A2AB-94ECFB91A6C8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{71BE6297-87A4-4C2B-94B6-6056DEF31664}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{71BE6297-87A4-4C2B-94B6-6056DEF31664}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{71BE6297-87A4-4C2B-94B6-6056DEF31664}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{71BE6297-87A4-4C2B-94B6-6056DEF31664}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -84,6 +96,8 @@ Global
 		{CD961B92-658E-4EEC-B430-85665BAC1830} = {A98EA801-5CF3-4550-920B-F48963F4C123}
 		{1F5F88D2-3F0C-4147-927F-5646AC79A65D} = {A98EA801-5CF3-4550-920B-F48963F4C123}
 		{23C12B0C-1EB3-445E-B82A-5A74BD7F1C10} = {A98EA801-5CF3-4550-920B-F48963F4C123}
+		{F8073D0E-F016-434F-A2AB-94ECFB91A6C8} = {A98EA801-5CF3-4550-920B-F48963F4C123}
+		{71BE6297-87A4-4C2B-94B6-6056DEF31664} = {A98EA801-5CF3-4550-920B-F48963F4C123}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {C1E48754-E921-4FC3-8BF2-123D1E7112F4}

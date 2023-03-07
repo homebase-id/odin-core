@@ -1,6 +1,8 @@
 using System;
 using Youverse.Core.Storage;
 
+#nullable enable
+
 namespace Youverse.Core.Services.Authentication.YouAuth
 {
     public class YouAuthRegistrationStorage : IYouAuthRegistrationStorage

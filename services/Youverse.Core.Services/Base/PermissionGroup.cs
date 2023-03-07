@@ -5,6 +5,8 @@ using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Drives;
 
+#nullable enable
+
 namespace Youverse.Core.Services.Base;
 
 /// <summary>
@@ -13,10 +15,10 @@ namespace Youverse.Core.Services.Base;
 public class PermissionGroup
 {
     private readonly PermissionSet _permissionSet;
-    private readonly IEnumerable<DriveGrant> _driveGrants;
-    private readonly SensitiveByteArray _driveDecryptionKey;
+    private readonly IEnumerable<DriveGrant>? _driveGrants;
+    private readonly SensitiveByteArray? _driveDecryptionKey;
 
-    public PermissionGroup(PermissionSet permissionSet, IEnumerable<DriveGrant> driveGrants, SensitiveByteArray driveDecryptionKey)
+    public PermissionGroup(PermissionSet permissionSet, IEnumerable<DriveGrant>? driveGrants, SensitiveByteArray? driveDecryptionKey)
     {
         _permissionSet = permissionSet;
         _driveGrants = driveGrants;
@@ -50,7 +52,7 @@ public class PermissionGroup
     /// when the owner is making an HttpRequest.
     /// </summary>
     /// <returns></returns>
-    public SensitiveByteArray GetDriveStorageKey(Guid driveId)
+    public SensitiveByteArray? GetDriveStorageKey(Guid driveId)
     {
         var grant = _driveGrants?.SingleOrDefault(g => g.DriveId == driveId);
 

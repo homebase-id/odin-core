@@ -16,7 +16,7 @@ public class ClientException : Exception
 
 public class ServerException : Exception
 {
-    public ServerException(string message, Exception inner = null) : base(message, inner)
+    public ServerException(string message, Exception? inner = null) : base(message, inner)
     {
     }
 }

@@ -47,13 +47,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
 
         [Test]
-        public async Task SystemCircleUpdatedWhenAnonymousDriveAdded()
+        public void SystemCircleUpdatedWhenAnonymousDriveAdded()
         {
             Assert.Inconclusive("TODO");
         }
 
         [Test]
-        public async Task SystemCircleUpdatedWhenAnonymousDriveRemoved()
+        public void SystemCircleUpdatedWhenAnonymousDriveRemoved()
         {
             Assert.Inconclusive("TODO");
         }

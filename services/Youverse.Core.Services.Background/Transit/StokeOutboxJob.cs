@@ -16,7 +16,7 @@ namespace Youverse.Core.Services.Workers.Transit
 //    [DisallowConcurrentExecution]
     public class StokeOutboxJob : IJob
     {
-        private HttpClient _client;
+        // private HttpClient _client;
         private readonly ILogger<StokeOutboxJob> _logger;
         private readonly IPendingTransfersService _pendingTransfers;
 
@@ -35,7 +35,7 @@ namespace Youverse.Core.Services.Workers.Transit
                 try
                 {
                     //TODO: do this in parallel
-                    StokeOutbox(sender);
+                    await StokeOutbox(sender);
                 }
                 catch (Exception e)
                 {
