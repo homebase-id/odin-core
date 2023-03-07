@@ -4,7 +4,7 @@ namespace Youverse.Provisioning.Services.Registration
     {
         public Guid Id { get; set; }
 
-        public string Domain { get; set; }
+        public string Domain { get; set; } = "";
 
         public Guid DomainKey { get; set; }
 

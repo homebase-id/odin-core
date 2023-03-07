@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Authentication.ExtendedProtection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -13,6 +14,8 @@ using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
+
+#nullable enable
 
 namespace Youverse.Core.Services.Authentication.YouAuth
 {
@@ -67,16 +70,16 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         /// </summary>
         /// <param name="token"></param>
         /// <returns></returns>
-        public async Task<DotYouContext> GetDotYouContext(ClientAuthenticationToken token)
+        public async Task<DotYouContext?> GetDotYouContext(ClientAuthenticationToken token)
         {
-            var creator = new Func<Task<DotYouContext>>(async delegate
+            var creator = new Func<Task<DotYouContext?>>(async delegate
             {
                 var dotYouContext = new DotYouContext();
                 var (callerContext, permissionContext) = await GetPermissionContext(token);
 
                 if (null == permissionContext || callerContext == null)
                 {
-                    return null;
+                    return await Task.FromResult<DotYouContext?>(null);
                 }
 
                 dotYouContext.Caller = callerContext;
@@ -112,7 +115,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             return new ValueTask();
         }
 
-        public ValueTask<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContext(ClientAuthenticationToken authToken)
+        public ValueTask<(CallerContext? callerContext, PermissionContext? permissionContext)> GetPermissionContext(ClientAuthenticationToken authToken)
         {
             /*
              * trying to determine if the icr token given was valid but was blocked
@@ -124,12 +127,12 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                 try
                 {
                     var (cc, permissionContext) = _circleNetworkService.CreateConnectedClientContext(authToken).GetAwaiter().GetResult();
-                    return new ValueTask<(CallerContext callerContext, PermissionContext permissionContext)>((cc, permissionContext));
+                    return new ValueTask<(CallerContext? callerContext, PermissionContext? permissionContext)>((cc, permissionContext));
                 }
                 catch (YouverseSecurityException)
                 {
                     //TODO: swallow the security exception and return null, otherwise the cache will keep trying to load data from the token 
-                    return new ValueTask<(CallerContext callerContext, PermissionContext permissionContext)>((null, null));
+                    return new ValueTask<(CallerContext? callerContext, PermissionContext? permissionContext)>((null, null));
                 }
             }
 
@@ -137,7 +140,12 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             {
                 if (!this.HasValidClientAuthToken(authToken, out var client, out _))
                 {
-                    return new ValueTask<(CallerContext callerContext, PermissionContext permissionContext)>((null, null));
+                    return new ValueTask<(CallerContext? callerContext, PermissionContext? permissionContext)>((null, null));
+                }
+
+                if (client == null)
+                {
+                    throw new YouverseSecurityException("Client not assigned");        
                 }
 
                 var cc = new CallerContext(
@@ -148,7 +156,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
                 );
 
                 PermissionContext permissionCtx = CreateAuthenticatedYouAuthPermissionContext(authToken, client);
-                return new ValueTask<(CallerContext callerContext, PermissionContext permissionContext)>((cc, permissionCtx));
+                return new ValueTask<(CallerContext? callerContext, PermissionContext? permissionContext)>((cc, permissionCtx));
             }
 
             throw new YouverseSecurityException("Unhandled access registration type");
@@ -161,7 +169,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         /// </summary>
         private bool TryCreateAuthenticatedYouAuthClient(string odinId, out ClientAccessToken clientAccessToken)
         {
-            YouAuthRegistration registration = _youAuthRegistrationStorage.LoadFromSubject(odinId);
+            var registration = _youAuthRegistrationStorage.LoadFromSubject(odinId);
 
             var emptyKey = Guid.Empty.ToByteArray().ToSensitiveByteArray();
             if (null == registration)
@@ -192,9 +200,9 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             }
 
             var token = authToken.AccessTokenHalfKey;
-            var accessKey = client.AccessRegistration.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(ref token);
-            var ss = client.AccessRegistration.AccessKeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(ref accessKey);
-            accessKey.Wipe();
+            var accessKey = client.AccessRegistration?.ClientAccessKeyEncryptedKeyStoreKey.DecryptKeyClone(ref token);
+            var ss = client.AccessRegistration?.AccessKeyStoreKeyEncryptedSharedSecret.DecryptKeyClone(ref accessKey);
+            accessKey?.Wipe();
 
             var permissionCtx = new PermissionContext(
                 new Dictionary<string, PermissionGroup>
@@ -207,7 +215,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             return permissionCtx;
         }
 
-        private bool HasValidClientAuthToken(ClientAuthenticationToken authToken, out YouAuthClient client, out YouAuthRegistration registration)
+        private bool HasValidClientAuthToken(ClientAuthenticationToken authToken, out YouAuthClient? client, out YouAuthRegistration? registration)
         {
             client = _youAuthRegistrationStorage.GetYouAuthClient(authToken.Id);
             registration = null;
@@ -220,6 +228,11 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
             accessReg.AssertValidRemoteKey(authToken.AccessTokenHalfKey);
 
+            if (client == null)
+            {
+                return false;
+            }
+            
             registration = _youAuthRegistrationStorage.LoadFromSubject(client.OdinId);
             if (null == registration)
             {

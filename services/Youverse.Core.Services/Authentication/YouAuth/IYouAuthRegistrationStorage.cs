@@ -1,5 +1,7 @@
 using System;
 
+#nullable enable
+
 namespace Youverse.Core.Services.Authentication.YouAuth
 {
     public interface IYouAuthRegistrationStorage

@@ -107,9 +107,9 @@ namespace Youverse.Core.Services.Configuration
 
         public class ListenEntry
         {
-            public string Ip { get; set; }
-            public int HttpsPort { get; set; }
-            public int HttpPort { get; set; }
+            public string Ip { get; set; } = "";
+            public int HttpsPort { get; set; } = 0;
+            public int HttpPort { get; set; } = 0;
 
             public IPAddress GetIp()
             {

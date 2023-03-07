@@ -112,7 +112,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 
         public async ValueTask<ClientAccessToken> RegisterBrowserAccess(string odinId, ClientAuthenticationToken? remoteIcrClientAuthToken)
         {
-            var browserClientAccessToken = await _registrationService.RegisterYouAuthAccess(odinId, remoteIcrClientAuthToken);
+            var browserClientAccessToken = await _registrationService.RegisterYouAuthAccess(odinId, remoteIcrClientAuthToken!);
             return browserClientAccessToken;
         }
 

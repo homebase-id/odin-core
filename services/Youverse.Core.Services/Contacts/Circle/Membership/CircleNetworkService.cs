@@ -73,6 +73,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
         public async Task HandleNotification(OdinId senderOdinId, CircleNetworkNotification notification)
         {
+            await Task.CompletedTask; // remove this once below code is completed
+            
             if (notification.TargetSystemApi != SystemApi.CircleNetwork)
             {
                 throw new YouverseClientException("Invalid notification type", YouverseClientErrorCode.InvalidNotificationType);
@@ -82,8 +84,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             // processing them here means they're going to be called using the senderDI's context
 
             throw new YouverseClientException($"Unknown notification Id {notification.NotificationId}", YouverseClientErrorCode.UnknownNotificationId);
-            
-            await Task.CompletedTask;
         }
 
         public async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreateTransitPermissionContext(OdinId odinId, ClientAuthenticationToken authToken)

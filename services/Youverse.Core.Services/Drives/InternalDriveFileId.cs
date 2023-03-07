@@ -1,5 +1,7 @@
 using System;
 
+#nullable enable
+
 namespace Youverse.Core.Services.Drives
 {
     /// <summary>
@@ -31,6 +33,10 @@ namespace Youverse.Core.Services.Drives
 
         public override bool Equals(object? obj)
         {
+            if (obj == null)
+            {
+                return false;
+            }
             var d2 = (InternalDriveFileId) obj;
             return this == d2;
         }

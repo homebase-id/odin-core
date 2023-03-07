@@ -6,6 +6,8 @@ using Youverse.Core.Storage;
 using Youverse.Core.Storage.Sqlite.IdentityDatabase;
 using Youverse.Core.Util;
 
+#nullable enable
+
 namespace Youverse.Core.Services.Registry.Registration;
 
 public class ReservationStorage
