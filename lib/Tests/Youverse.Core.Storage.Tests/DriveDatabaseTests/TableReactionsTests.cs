@@ -54,6 +54,23 @@ namespace DriveDatabaseTests
             // As a result we had 6 in total, 3 :lol:, 2 :wink: and 1 :smiley:
         }
 
+        [Test]
+        // Test we can insert rows as expected
+        public void TheMissingOnes()
+        {
+            using var db = new DriveDatabase("", DatabaseIndexKind.Random);
+            db.CreateDatabase();
+
+            var k1 = Guid.NewGuid();
+            var a1 = new List<Guid>();
+            a1.Add(Guid.NewGuid());
+
+            db.TblReactions.Insert(new ReactionsRecord { identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":lol:" });
+            db.TblReactions.Insert(new ReactionsRecord { identity = new OdinId("frodo.baggins.me"), postId = k1, singleReaction = ":wink:" });
+            db.TblReactions.Insert(new ReactionsRecord { identity = new OdinId("bilbo.baggins.me"), postId = k1, singleReaction = ":lol:" });
+
+            var (ra1, ra2, n) = db.TblReactions.GetPostReactionsWithDetails(k1);
+        }
 
         [Test]
         // Test we can insert rows as expected
