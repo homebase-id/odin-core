@@ -26,7 +26,7 @@ using Youverse.Core.Services.Workers.Transit;
 using Youverse.Core.Services.Logging;
 using Youverse.Core.Services.Registry.Registration;
 using Youverse.Core.Services.Workers.Certificate;
-using Youverse.Core.Services.Workers.Cron;
+using Youverse.Core.Services.Workers.DefaultCron;
 using Youverse.Hosting.Authentication.ClientToken;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Authentication.Perimeter;
@@ -63,6 +63,7 @@ namespace Youverse.Hosting
                     //lets use use our normal DI setup
                     q.UseMicrosoftDependencyInjectionJobFactory();
                     q.UseDefaultCronSchedule(config);
+                    q.UseDefaultCertificateRenewalSchedule(config);
                 });
 
                 services.AddQuartzServer(options => { options.WaitForJobsToComplete = true; });

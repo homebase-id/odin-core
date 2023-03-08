@@ -1,7 +1,7 @@
 using System.Threading.Tasks;
 using Refit;
 
-namespace Youverse.Core.Services.Workers.Cron
+namespace Youverse.Core.Services.Workers.Transit
 {
     public interface IOutboxHttpClient
     {

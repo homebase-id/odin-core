@@ -3,7 +3,7 @@ using Quartz;
 using Serilog;
 using Youverse.Core.Services.Configuration;
 
-namespace Youverse.Core.Services.Workers.Cron
+namespace Youverse.Core.Services.Workers.DefaultCron
 {
     public static class DefaultCronProcessor
     {
