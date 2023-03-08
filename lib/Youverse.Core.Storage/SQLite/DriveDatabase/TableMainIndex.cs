@@ -83,7 +83,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _sparam1.Value = fileId;
                 var GroupId = new byte[16];
 
-                using (SqliteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.SingleResult))
+                using (SqliteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.SingleResult, _database))
                 {
                     TableMainIndexData md = new TableMainIndexData();
 

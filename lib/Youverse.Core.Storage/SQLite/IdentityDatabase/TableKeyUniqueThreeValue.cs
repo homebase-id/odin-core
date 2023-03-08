@@ -128,7 +128,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _sparam1.Value = key1;
                 byte[] _tmpbuf = new byte[MAX_VALUE_LENGTH];
 
-                using (SqliteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
                 {
                     if (!rdr.Read())
                         return null;

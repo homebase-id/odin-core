@@ -198,7 +198,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 
                 _sparam1.Value = postId;
 
-                using (SqliteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.Default))
+                using (SqliteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {
                     var result = new List<string>();
                     var iresult = new List<int>();
