@@ -13,7 +13,7 @@ namespace Youverse.Hosting.Tests.AppAPI.ChatStructure.Api;
 /// </summary>
 public class ChatSynchronizer
 {
-    private string _latestCursor;
+    // private string _latestCursor;
     private readonly ChatServerContext _chatServerContext;
     private readonly ConversationDefinitionService _conversationDefinitionService;
     private readonly ConversationService _conversationService;
@@ -43,7 +43,7 @@ public class ChatSynchronizer
     /// <summary>
     /// Get chat messages from the server add them to the various conversations
     /// </summary>
-    private async Task ProcessIncomingChatMessages()
+    private void ProcessIncomingChatMessages()
     {
         
     }
@@ -128,6 +128,7 @@ public class ChatSynchronizer
 
     private async Task GetFilesForCommands(ReceivedCommandResultSet resultSet)
     {
+        await Task.CompletedTask;
         throw new NotImplementedException("just saving a bit of code for short term");
         // foreach (var command in resultSet.ReceivedCommands)
         // {

@@ -8,6 +8,6 @@ namespace Youverse.Hosting.Controllers.ClientToken.App;
 
 public class MarkCommandsCompleteRequest
 {
-    public TargetDrive TargetDrive { get; set; }
-    public IEnumerable<Guid> CommandIdList { get; set; }
+    public TargetDrive TargetDrive { get; set; } = new();
+    public IEnumerable<Guid> CommandIdList { get; set; } = Array.Empty<Guid>();
 }

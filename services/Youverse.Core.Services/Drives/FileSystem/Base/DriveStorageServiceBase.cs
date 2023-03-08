@@ -47,7 +47,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
         /// <summary>
         /// Gets the <see cref="FileSystemType"/> the inheriting class manages
         /// </summary>
-        protected abstract FileSystemType GetFileSystemType();
+        public abstract FileSystemType GetFileSystemType();
 
         public async Task<SharedSecretEncryptedFileHeader> GetSharedSecretEncryptedHeader(InternalDriveFileId file)
         {
@@ -242,7 +242,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
         /// Gets the <see cref="FileSystemType"/> of the target file and only enforces the Read
         /// permission; allowing you to determine the file system type when you don't have it.
         /// </summary>
-        public async Task<FileSystemType> GetFileSystemType(InternalDriveFileId file)
+        public async Task<FileSystemType> ResolveFileSystemType(InternalDriveFileId file)
         {
             var header = await GetServerFileHeaderInternal(file);
             return header.ServerMetadata.FileSystemType;

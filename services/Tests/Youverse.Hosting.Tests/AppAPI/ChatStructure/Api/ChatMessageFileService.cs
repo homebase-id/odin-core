@@ -81,7 +81,7 @@ public class ChatMessageFileService
             //     message: msg);
         }
 
-        return results;
+        return await Task.FromResult(results);
     }
 
     public async Task ReactToMessage(Guid conversationId, Guid messageId, string reactionCode)

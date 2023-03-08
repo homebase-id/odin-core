@@ -72,11 +72,11 @@ namespace Youverse.Hosting.Authentication.System
                     authProperties.IsPersistent = true;
 
                     var ticket = new AuthenticationTicket(principal, authProperties, SystemAuthConstants.SchemeName);
-                    return AuthenticateResult.Success(ticket);
+                    return await Task.FromResult(AuthenticateResult.Success(ticket));
                 }
             }
 
-            return AuthenticateResult.Fail("Invalid or missing token");
+            return await Task.FromResult(AuthenticateResult.Fail("Invalid or missing token"));
         }
 
         public Task SignOutAsync(AuthenticationProperties? properties)

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Exceptions;
@@ -31,11 +32,14 @@ namespace Youverse.Core.Services.Contacts.Circle.Notification
 
             var connections = await _circleNetworkService.GetConnectedIdentities(PageOptions.All);
 
+            var sendNotifications = new List<Task<SendNotificationResult>>();
             foreach (var connection in connections.Results)
             {
                 var recipient = connection.OdinId;
-                this.SendNotification(recipient, notification);
+                sendNotifications.Add(SendNotification(recipient, notification));
             }
+
+            await Task.WhenAll(sendNotifications);
         }
 
         public async Task<SendNotificationResult> SendNotification(OdinId recipient, CircleNetworkNotification notification)
@@ -80,7 +84,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Notification
 
             var jsonBytes = Cryptography.Crypto.AesCbc.Decrypt(encryptedNotification.Data, ref sharedSecret, encryptedNotification.InitializationVector);
             var json = jsonBytes.ToStringFromUtf8Bytes();
-            return DotYouSystemSerializer.Deserialize<CircleNetworkNotification>(json);
+            var result = DotYouSystemSerializer.Deserialize<CircleNetworkNotification>(json);
+            return await Task.FromResult(result);
         }
 
         private async Task<SharedSecretEncryptedNotification> Encrypt(OdinId recipient, object notification)

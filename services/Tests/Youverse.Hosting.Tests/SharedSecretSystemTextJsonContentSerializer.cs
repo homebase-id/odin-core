@@ -13,6 +13,8 @@ using Youverse.Core;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Serialization;
 
+#nullable enable
+
 namespace Youverse.Hosting.Tests;
 
 public sealed class SharedSecretSystemTextJsonContentSerializer : IHttpContentSerializer
@@ -98,7 +100,7 @@ public sealed class SharedSecretUrlParameterFormatter : IUrlParameterFormatter
         _sharedSecret = sharedSecret;
     }
 
-    public string Format(object value, ICustomAttributeProvider attributeProvider, Type type)
+    public string Format(object? value, ICustomAttributeProvider attributeProvider, Type type)
     {
         var name = ((ParameterInfo)attributeProvider).Name;
         string qs = $"{name}={value}";

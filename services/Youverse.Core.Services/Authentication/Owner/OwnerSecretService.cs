@@ -91,7 +91,7 @@ namespace Youverse.Core.Services.Authentication.Owner
             // masterKey.Wipe(); <- removed. The EncryptedDek class will zap this key on its destruction.
             serverToken.Dispose();
 
-            return masterKey;
+            return await Task.FromResult(masterKey);
         }
 
         public async Task<(uint publicKeyCrc32C, string publicKeyPem)> GetCurrentAuthenticationRsaKey()
@@ -116,11 +116,11 @@ namespace Youverse.Core.Services.Authentication.Owner
                 throw new YouverseClientException("Secrets configuration invalid. Did you initialize a password?");
             }
 
-            return new SaltsPackage()
+            return await Task.FromResult(new SaltsPackage()
             {
                 SaltKek64 = Convert.ToBase64String(pk.SaltKek),
                 SaltPassword64 = Convert.ToBase64String(pk.SaltPassword)
-            };
+            });
         }
 
         public async Task<RsaFullKeyListData> GenerateRsaKeyList()
@@ -129,11 +129,12 @@ namespace Youverse.Core.Services.Authentication.Owner
 
             var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(ref RsaKeyListManagement.zeroSensitiveKey, MAX_KEYS); // TODO
             _tenantSystemStorage.SingleKeyValueStorage.Upsert(_rsaKeyStorageId, rsaKeyList);
-            return rsaKeyList;
+            return await Task.FromResult(rsaKeyList);
         }
 
         public async Task UpdateKeyList()
         {
+            await Task.CompletedTask;
         }
 
         public async Task<RsaFullKeyListData> GetRsaKeyList()
@@ -158,6 +159,7 @@ namespace Youverse.Core.Services.Authentication.Owner
             // TODO XXX Where the heck do we validate the server has the nonce64 (prevent replay)
 
             PasswordDataManager.TryPasswordKeyMatch(pk, nonceHashedPassword64, nonce64);
+            await Task.CompletedTask;
         }
     }
 }

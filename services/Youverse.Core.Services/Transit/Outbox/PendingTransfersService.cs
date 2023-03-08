@@ -1,16 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Dawn;
-using Microsoft.Extensions.Logging;
 using Youverse.Core.Identity;
-using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Storage.Sqlite.IdentityDatabase;
 using Youverse.Core.Storage.Sqlite.ServerDatabase;
-using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Transit.Outbox
 {
@@ -51,7 +45,8 @@ namespace Youverse.Core.Services.Transit.Outbox
 
             var senders = records.Select(item => new OdinId(item.data.ToStringFromUtf8Bytes())).ToList();
 
-            return (senders, marker);
+            var result = (senders, marker);
+            return await Task.FromResult(result);
         }
 
         public void MarkComplete(Guid marker)

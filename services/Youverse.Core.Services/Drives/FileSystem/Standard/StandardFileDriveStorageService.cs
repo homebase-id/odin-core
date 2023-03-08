@@ -35,7 +35,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Standard
             }
         }
 
-        protected override FileSystemType GetFileSystemType()
+        public override FileSystemType GetFileSystemType()
         {
             return FileSystemType.Standard;
         }

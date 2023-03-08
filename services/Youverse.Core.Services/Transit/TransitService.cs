@@ -434,7 +434,7 @@ namespace Youverse.Core.Services.Transit
                             sendFileOptions.FileSystemType)
                     });
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     AddToTransferKeyEncryptionQueue(recipient, internalFile);
                     transferStatus.Add(recipient, TransferStatus.AwaitingTransferKey);

@@ -69,6 +69,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
         public async Task InvalidatePublicKey(OdinId recipient)
         {
             _tenantSystemStorage.SingleKeyValueStorage.Delete(GuidId.FromString(recipient.DomainName));
+            await Task.CompletedTask;
         }
 
         public async Task<bool> IsValidPublicKey(UInt32 crc)

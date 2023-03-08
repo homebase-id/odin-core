@@ -131,9 +131,9 @@ namespace DriveDatabaseTests
 
             for (var i = 0; i < MAXTHREADS; i++)
             {
-                tasks[i] = Task.Run(async () =>
+                tasks[i] = Task.Run(() =>
                 {
-                    var _ = await WriteRows(i, MAXITERATIONS, _testDatabase);
+                    WriteRows(i, MAXITERATIONS, _testDatabase);
                 });
             }
 
@@ -167,7 +167,7 @@ namespace DriveDatabaseTests
             GC.WaitForPendingFinalizers();
         }
 
-        public async Task<long[]> WriteRows(int threadno, int iterations, DriveDatabase db)
+        public long[] WriteRows(int threadno, int iterations, DriveDatabase db)
         {
             long[] timers = new long[iterations];
             Debug.Assert(timers.Length == iterations);

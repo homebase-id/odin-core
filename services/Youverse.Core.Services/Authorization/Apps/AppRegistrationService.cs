@@ -181,39 +181,27 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         public async Task<DotYouContext> GetAppPermissionContext(ClientAuthenticationToken token)
         {
-            var creator = new Func<Task<DotYouContext>>(async delegate
+            async Task<DotYouContext> Creator()
             {
-                var (isValid, accessReg, appReg) = this.ValidateClientAuthToken(token).GetAwaiter().GetResult();
+                var (isValid, accessReg, appReg) = await ValidateClientAuthToken(token);
 
                 if (!isValid)
                 {
                     throw new YouverseSecurityException("Invalid token");
                 }
 
-                var grantDictionary = new Dictionary<string, ExchangeGrant>
-                {
-                    { "app_exchange_grant", appReg.Grant }
-                };
+                var grantDictionary = new Dictionary<string, ExchangeGrant> { { "app_exchange_grant", appReg.Grant } };
 
                 //Note: isOwner = true because we passed ValidateClientAuthToken for an ap token above 
-                var permissionContext = _exchangeGrantService.CreatePermissionContext(token,
-                    grantDictionary,
-                    accessReg,
-                    includeAnonymousDrives: true).GetAwaiter().GetResult();
+                var permissionContext = _exchangeGrantService.CreatePermissionContext(token, grantDictionary, accessReg, includeAnonymousDrives: true).GetAwaiter().GetResult();
 
-                var dotYouContext = new DotYouContext()
-                {
-                    Caller = new CallerContext(
-                        odinId: _tenantContext.HostOdinId,
-                        masterKey: null,
-                        securityLevel: SecurityGroupType.Owner)
-                };
+                var dotYouContext = new DotYouContext() { Caller = new CallerContext(odinId: _tenantContext.HostOdinId, masterKey: null, securityLevel: SecurityGroupType.Owner) };
 
                 dotYouContext.SetPermissionContext(permissionContext);
                 return dotYouContext;
-            });
+            }
 
-            var result = await _cache.GetOrAddContext(token, creator);
+            var result = await _cache.GetOrAddContext(token, Creator);
             return result;
         }
 
@@ -282,7 +270,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 AccessRegistrationClientType = appClient.AccessRegistration.AccessRegistrationClientType
             }).ToList();
 
-            return resp;
+            return await Task.FromResult(resp);
         }
 
         public async Task RevokeClient(GuidId accessRegistrationId)
@@ -296,6 +284,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             client.AccessRegistration.IsRevoked = true;
             SaveClient(client);
+            await Task.CompletedTask;
         }
 
         public async Task AllowClient(GuidId accessRegistrationId)
@@ -309,6 +298,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             client.AccessRegistration.IsRevoked = false;
             SaveClient(client);
+            await Task.CompletedTask;
         }
 
         public async Task DeleteApp(GuidId appId)
@@ -321,6 +311,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             }
 
             _appRegistrationValueStorage.Delete(appId);
+            await Task.CompletedTask;
         }
 
         public async Task DeleteClient(GuidId accessRegistrationId)
@@ -333,19 +324,20 @@ namespace Youverse.Core.Services.Authorization.Apps
             }
 
             _appClientValueStorage.Delete(accessRegistrationId);
+            await Task.CompletedTask;
         }
 
-        public Task<List<RedactedAppRegistration>> GetRegisteredApps()
+        public async Task<List<RedactedAppRegistration>> GetRegisteredApps()
         {
             var apps = _appRegistrationValueStorage.GetByKey3<AppRegistration>(_appRegistrationDataType);
             var redactedList = apps.Select(app => app.Redacted()).ToList();
-            return Task.FromResult(redactedList);
+            return await Task.FromResult(redactedList);
         }
 
         private async Task<AppRegistration> GetAppRegistrationInternal(GuidId appId)
         {
             var appReg = _appRegistrationValueStorage.Get<AppRegistration>(appId);
-            return appReg;
+            return await Task.FromResult(appReg);
         }
 
         private async Task NotifyAppChanged(AppRegistration oldAppRegistration, AppRegistration newAppRegistration)

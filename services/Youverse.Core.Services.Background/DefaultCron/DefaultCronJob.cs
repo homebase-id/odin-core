@@ -9,9 +9,9 @@ using Youverse.Core.Services.Certificate.Renewal;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Workers.Transit;
 
-namespace Youverse.Core.Services.Workers.Cron
+namespace Youverse.Core.Services.Workers.DefaultCron
 {
-    /// <summary/>
+    /// <summary />
     [DisallowConcurrentExecution]
     public class DefaultCronJob : IJob
     {
@@ -24,17 +24,26 @@ namespace Youverse.Core.Services.Workers.Cron
 
         public async Task Execute(IJobExecutionContext context)
         {
-            int count = 100; //TODO: config
+            int count = 1; //TODO: config
             var items = _serverSystemStorage.tblCron.Pop(count, out var marker);
+            
             Dictionary<Guid, CertificateOrderStatus> statusMap = new();
             var markers = new List<Guid>() { marker };
-            
+
             foreach (var item in items)
             {
                 var identity = (OdinId)item.data.ToStringFromUtf8Bytes();
                 if (item.type == 1)
                 {
-                    await StokeOutbox(identity);
+                    var success = await StokeOutbox(identity, batchSize: 1);
+                    if (success)
+                    {
+                        _serverSystemStorage.tblCron.PopCommitList(markers);
+                    }
+                    else
+                    {
+                        _serverSystemStorage.tblCron.PopCancelList(markers);
+                    }
                 }
 
                 if (item.type == 2)
@@ -56,20 +65,13 @@ namespace Youverse.Core.Services.Workers.Cron
             }
         }
 
-        private async Task StokeOutbox(OdinId identity)
+        private async Task<bool> StokeOutbox(OdinId identity, int batchSize)
         {
             // _logger.LogInformation($"Stoke running for {identity}");
 
             var svc = SystemHttpClient.CreateHttps<IOutboxHttpClient>(identity);
-            var response = await svc.ProcessOutbox(batchSize: 1);
-
-            //TODO: needs information to determine if it should stoke again; and when
-
-            if (!response.IsSuccessStatusCode)
-            {
-                //TODO: need to log an error here and notify sys admins?
-                // _logger.LogWarning($"Background stoking for [{identity}] failed.");
-            }
+            var response = await svc.ProcessOutbox(batchSize);
+            return response.IsSuccessStatusCode;
         }
 
         private async Task<CertificateOrderStatus> GenerateCertificate(OdinId identity)

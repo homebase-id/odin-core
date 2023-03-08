@@ -107,9 +107,9 @@ namespace Youverse.Core.Services.Configuration
 
         public class ListenEntry
         {
-            public string Ip { get; set; }
-            public int HttpsPort { get; set; }
-            public int HttpPort { get; set; }
+            public string Ip { get; set; } = "";
+            public int HttpsPort { get; set; } = 0;
+            public int HttpPort { get; set; } = 0;
 
             public IPAddress GetIp()
             {
@@ -127,7 +127,7 @@ namespace Youverse.Core.Services.Configuration
             /// </summary>
             public int BackgroundJobStartDelaySeconds { get; }
 
-            public int ProcessOutboxIntervalSeconds { get; }
+            public int CronProcessingInterval { get; }
 
             public int EnsureCertificateProcessorIntervalSeconds { get; }
 
@@ -142,7 +142,7 @@ namespace Youverse.Core.Services.Configuration
             {
                 BackgroundJobStartDelaySeconds = config.Required<int>("Quartz:BackgroundJobStartDelaySeconds");
                 EnableQuartzBackgroundService = config.Required<bool>("Quartz:EnableQuartzBackgroundService");
-                ProcessOutboxIntervalSeconds = config.Required<int>("Quartz:ProcessOutboxIntervalSeconds");
+                CronProcessingInterval = config.Required<int>("Quartz:CronProcessingInterval");
                 EnsureCertificateProcessorIntervalSeconds = config.Required<int>("Quartz:EnsureCertificateProcessorIntervalSeconds");
                 ProcessPendingCertificateOrderIntervalInSeconds = config.Required<int>("Quartz:ProcessPendingCertificateOrderIntervalInSeconds");
             }

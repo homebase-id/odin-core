@@ -15,7 +15,7 @@ COPY ["services/Youverse.Core.Services.Background/Youverse.Core.Services.Backgro
 RUN dotnet restore "services/Youverse.Hosting/Youverse.Hosting.csproj"
 COPY . .
 
-RUN dotnet build "services/Youverse.Hosting/Youverse.Hosting.csproj" -c Release -o /app/build
+RUN dotnet build --warnaserror "services/Youverse.Hosting/Youverse.Hosting.csproj" -c Release -o /app/build
 
 FROM build AS publish
 #RUN dotnet publish "Youverse.Hosting/Youverse.Hosting.csproj" -c Release -o /app/publish

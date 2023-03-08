@@ -471,7 +471,7 @@ namespace Youverse.Hosting.Tests.Performance
                 // Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(thumbnail2CipherBytes, await thumbnailResponse2.Content!.ReadAsByteArrayAsync()));
                 //
                 // decryptedKeyHeader.AesKey.Wipe();
-                keyHeader.AesKey.Wipe();
+                // keyHeader.AesKey.Wipe();
 
                 //
                 // End testing that the file was correctly uploaded

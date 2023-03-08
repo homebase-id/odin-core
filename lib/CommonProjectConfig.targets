@@ -1,0 +1,14 @@
+<!--
+
+Common csproj settings
+
+Usage
+  Import this file in .csproj file. E.g.:
+    <Import Project="$(ProjectDir)../CommonProjectConfigs.targets"/>
+-->
+
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <NoWarn>CS1591</NoWarn>
+    </PropertyGroup>
+</Project>
