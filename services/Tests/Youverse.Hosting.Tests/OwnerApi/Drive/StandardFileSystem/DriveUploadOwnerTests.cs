@@ -43,7 +43,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
 
         [Test]
         [Ignore("This is tested in the app api until we determine if there are diff behaviors when transferring using the owner api")]
-        public async Task CanGetAndSetGlobalTransitId()
+        public void CanGetAndSetGlobalTransitId()
         {
         }
 

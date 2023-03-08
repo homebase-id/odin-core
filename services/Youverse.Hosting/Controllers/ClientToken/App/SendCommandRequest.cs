@@ -6,6 +6,6 @@ namespace Youverse.Hosting.Controllers.ClientToken.App;
 
 public class SendCommandRequest
 {
-    public CommandMessage Command { get; set; }
-    public TargetDrive TargetDrive { get; set; }
+    public CommandMessage Command { get; set; } = new();
+    public TargetDrive TargetDrive { get; set; } = new();
 }

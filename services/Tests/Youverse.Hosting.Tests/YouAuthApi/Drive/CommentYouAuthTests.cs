@@ -29,7 +29,7 @@ namespace Youverse.Hosting.Tests.YouAuthApi.Drive
 
         [Test]
         [Ignore("Need api to login via youauth in unit tests")]
-        public async Task CanUploadCommentFromYouAuth()
+        public void CanUploadCommentFromYouAuth()
         {
             Assert.Inconclusive("Need api to login via youauth in unit tests");
         }
@@ -37,7 +37,7 @@ namespace Youverse.Hosting.Tests.YouAuthApi.Drive
 
         [Test]
         [Ignore("Need api to login via youauth in unit tests")]
-        public async Task FailToUploadStandardFileFromYouAuth()
+        public void FailToUploadStandardFileFromYouAuth()
         {
             Assert.Inconclusive("Need api to login via youauth in unit tests");
         }

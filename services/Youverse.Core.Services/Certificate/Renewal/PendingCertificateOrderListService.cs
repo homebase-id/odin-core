@@ -51,7 +51,8 @@ namespace Youverse.Core.Services.Certificate.Renewal
 
             //see Add method.  fileId = odinId
             var senders = records.Select(item => new OdinId(item.data.ToStringFromUtf8Bytes())).ToList();
-            return (senders, marker);
+            var result = (senders, marker);
+            return await Task.FromResult(result);
         }
 
         public void MarkComplete(Guid marker)

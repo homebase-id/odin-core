@@ -51,11 +51,21 @@ namespace Youverse.Hosting.Authentication.Owner
         {
             if (GetToken(out var authResult))
             {
+                if (authResult == null)
+                {
+                    return AuthenticateResult.Fail("Empty authResult");
+                }
+                
                 var dotYouContext = Context.RequestServices.GetRequiredService<DotYouContext>();
 
                 if (!await UpdateDotYouContext(authResult, dotYouContext))
                 {
                     return AuthenticateResult.Fail("Invalid Owner Token");
+                }
+
+                if (dotYouContext.Caller.OdinId == null)
+                {
+                    return AuthenticateResult.Fail("Missing OdinId");
                 }
 
                 var claims = new List<Claim>()
@@ -111,7 +121,7 @@ namespace Youverse.Hosting.Authentication.Owner
 
         public Task SignOutAsync(AuthenticationProperties? properties)
         {
-            if (GetToken(out var result))
+            if (GetToken(out var result) && result != null)
             {
                 var authService = Context.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
                 authService.ExpireToken(result.Id);
@@ -125,7 +135,7 @@ namespace Youverse.Hosting.Authentication.Owner
             return Task.CompletedTask;
         }
 
-        private bool GetToken(out ClientAuthenticationToken authenticationResult)
+        private bool GetToken(out ClientAuthenticationToken? authenticationResult)
         {
             //TODO: can we remove some of the sensitive cookie values from memory
             var value = Context.Request.Cookies[OwnerAuthConstants.CookieName];

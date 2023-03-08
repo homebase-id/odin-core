@@ -23,5 +23,5 @@ public sealed class YouAuthClient
 
     public OdinId OdinId { get; init; }
 
-    public AccessRegistration AccessRegistration { get; init; }
+    public AccessRegistration? AccessRegistration { get; init; }
 }

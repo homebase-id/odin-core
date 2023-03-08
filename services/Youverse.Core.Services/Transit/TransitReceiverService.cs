@@ -73,7 +73,7 @@ namespace Youverse.Core.Services.Transit
                     //     string x = "";
                     // }
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                     await _transitInboxBoxStorage.MarkFailure(item.DriveId, item.Marker);
                 }

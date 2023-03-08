@@ -23,10 +23,10 @@ namespace Youverse.Hosting.Tests
     public class WebScaffold
     {
         private readonly string _folder;
-        private readonly string _password = "EnSøienØ";
+        // private readonly string _password = "EnSøienØ";
         private IHost _webserver;
         private readonly OwnerApiTestUtils _oldOwnerApi;
-        private readonly OwnerApiClient _ownerApiClient;
+        // private readonly OwnerApiClient _ownerApiClient;
         private AppApiTestUtils _appApi;
         private ScenarioBootstrapper _scenarios;
         private IIdentityRegistry _registry;

@@ -22,7 +22,6 @@ namespace Youverse.Core.Services.Certificate
         {
             _tenantContext = tenantContext;
         }
-
         public async Task<bool> AreAllCertificatesValid()
         {
             //TODO: this will scan across all domains for this identity.  for alpha = just use this domain
@@ -30,7 +29,7 @@ namespace Youverse.Core.Services.Certificate
             var paths = this.GetCertificatePaths(primaryDomainCert.Domain);
             
             var cert = DotYouCertificateLoader.LoadCertificate(paths.publicKeyPath, paths.privateKeyPath);
-            return !IsCertificateExpired(cert);
+            return await Task.FromResult(!IsCertificateExpired(cert));
         }
 
         public X509Certificate2 GetSslCertificate(string domain)

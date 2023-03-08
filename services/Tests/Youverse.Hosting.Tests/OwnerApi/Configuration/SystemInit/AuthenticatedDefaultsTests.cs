@@ -25,14 +25,14 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
 
         [Test]
         [Ignore("cannot automatically test until we have a login process for youauth")]
-        public async Task CanAllowAuthenticatedVisitorsToViewConnections()
+        public void CanAllowAuthenticatedVisitorsToViewConnections()
         {
             Assert.Inconclusive("TODO");
         }
         
         [Test]
         [Ignore("cannot automatically test until we have a login process for youauth")]
-        public async Task CanBlockAuthenticatedVisitorsFromViewingConnections()
+        public void CanBlockAuthenticatedVisitorsFromViewingConnections()
         {
             Assert.Inconclusive("TODO");
         }
