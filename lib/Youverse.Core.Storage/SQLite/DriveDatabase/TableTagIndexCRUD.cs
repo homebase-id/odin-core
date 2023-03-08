@@ -281,7 +281,8 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _get1Param1.Value = fileId.ToByteArray();
                 using (SqliteDataReader rdr = _get1Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {
-                    var result0 = new List<Guid>();
+                    Guid result0tmp;
+                    var thelistresult = new List<Guid>();
                     if (!rdr.Read())
                         return null;
                     byte[] _tmpbuf = new byte[65535+1];
@@ -299,12 +300,13 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                             bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
                             if (bytesRead != 16)
                                 throw new Exception("Not a GUID in tagId...");
-                            result0.Add(new Guid(_guid));
+                            result0tmp = new Guid(_guid);
                         }
+                        thelistresult.Add(result0tmp);
                         if (!rdr.Read())
                            break;
                     } // while
-                    return result0;
+                    return thelistresult;
                 } // using
             } // lock
         }

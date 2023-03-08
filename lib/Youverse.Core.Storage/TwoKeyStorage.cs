@@ -29,7 +29,7 @@ public class TwoKeyStorage
         return DotYouSystemSerializer.Deserialize<T>(bytes.data.ToStringFromUtf8Bytes());
     }
 
-    public IEnumerable<T> GetByKey2<T>(Guid key2) where T : class
+    public IEnumerable<T> GetByKey2<T>(byte[] key2) where T : class
     {
         var list = _db.GetByKeyTwo(key2);
         if (null == list)
@@ -40,7 +40,7 @@ public class TwoKeyStorage
         return list.Select(r=> this.Deserialize<T>(r.data));
     }
 
-    public void Upsert<T>(Guid key1, Guid key2, T value)
+    public void Upsert<T>(Guid key1, byte[] key2, T value)
     {
         var json = DotYouSystemSerializer.Serialize(value);
         _db.Upsert(new KeyTwoValueRecord() { key1 = key1, key2 = key2, data = json.ToUtf8ByteArray() });
@@ -51,7 +51,7 @@ public class TwoKeyStorage
         _db.Delete(id);
     }
 
-    private T Deserialize<T>(Guid bytes)
+    private T Deserialize<T>(byte[] bytes)
     {
         return DotYouSystemSerializer.Deserialize<T>(bytes.ToStringFromUtf8Bytes());
     }

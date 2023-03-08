@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Youverse.Core.Serialization;
@@ -25,7 +26,7 @@ public class ThreeKeyValueStorage
             return null;
         }
 
-        return DotYouSystemSerializer.Deserialize<T>(bytes.ToStringFromUtf8Bytes());
+        return DotYouSystemSerializer.Deserialize<T>(bytes.data.ToStringFromUtf8Bytes());
     }
 
     public IEnumerable<T> GetByKey2<T>(byte[] key2) where T : class
@@ -50,7 +51,7 @@ public class ThreeKeyValueStorage
         return list.Select(this.Deserialize<T>);
     }
 
-    public IEnumerable<T> GetByKey2And3<T>(byte[] key2, byte[] key3) where T : class
+    public IEnumerable<T> GetByKey2And3<T>(GuidId key2, GuidId key3) where T : class
     {
         var list = _db.GetByKeyTwoThree(key2, key3);
         if (null == list)
@@ -58,18 +59,18 @@ public class ThreeKeyValueStorage
             return null;
         }
 
-        return list.Select(this.Deserialize<T>);
+        return list.Select(r => this.Deserialize<T>(r.data));
     }
 
     public void Upsert<T>(GuidId key1, byte[] key2, byte[] key3, T value)
     {
         var json = DotYouSystemSerializer.Serialize(value);
-        _db.UpsertRow(key1, key2, key3, json.ToUtf8ByteArray());
+        _db.Upsert(new KeyThreeValueRecord() { key1 = key1, key2 = key2, key3 = key3, data = json.ToUtf8ByteArray() });
     }
 
-    public void Delete(GuidId id)
+    public void Delete(Guid id)
     {
-        _db.DeleteRow(id);
+        _db.Delete(id);
     }
 
     private T Deserialize<T>(byte[] bytes)
