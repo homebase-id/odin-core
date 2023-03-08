@@ -5,29 +5,26 @@ using Youverse.Core.Identity;
 
 namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
-    public class CircleRecord
+    public class KeyTwoValueRecord
     {
-        private string _circleName;
-        public string circleName
+        private Guid _key1;
+        public Guid key1
         {
            get {
-                   return _circleName;
+                   return _key1;
                }
            set {
-                    if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 2) throw new Exception("Too short");
-                    if (value?.Length > 80) throw new Exception("Too long");
-                  _circleName = value;
+                  _key1 = value;
                }
         }
-        private Guid _circleId;
-        public Guid circleId
+        private Guid? _key2;
+        public Guid? key2
         {
            get {
-                   return _circleId;
+                   return _key2;
                }
            set {
-                  _circleId = value;
+                  _key2 = value;
                }
         }
         private byte[] _data;
@@ -38,13 +35,13 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                }
            set {
                     if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 65000) throw new Exception("Too long");
+                    if (value?.Length > 1048576) throw new Exception("Too long");
                   _data = value;
                }
         }
-    } // End of class CircleRecord
+    } // End of class KeyTwoValueRecord
 
-    public class TableCircleCRUD : TableBase
+    public class TableKeyTwoValueCRUD : TableBase
     {
         private bool _disposed = false;
         private SqliteCommand _insertCommand = null;
@@ -68,18 +65,17 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         private SqliteCommand _get0Command = null;
         private static Object _get0Lock = new Object();
         private SqliteParameter _get0Param1 = null;
-        private SqliteCommand _getPaging2Command = null;
-        private static Object _getPaging2Lock = new Object();
-        private SqliteParameter _getPaging2Param1 = null;
-        private SqliteParameter _getPaging2Param2 = null;
+        private SqliteCommand _get1Command = null;
+        private static Object _get1Lock = new Object();
+        private SqliteParameter _get1Param1 = null;
 
-        public TableCircleCRUD(IdentityDatabase db) : base(db)
+        public TableKeyTwoValueCRUD(IdentityDatabase db) : base(db)
         {
         }
 
-        ~TableCircleCRUD()
+        ~TableKeyTwoValueCRUD()
         {
-            if (_disposed == false) throw new Exception("TableCircleCRUD Not disposed properly");
+            if (_disposed == false) throw new Exception("TableKeyTwoValueCRUD Not disposed properly");
         }
 
         public override void Dispose()
@@ -94,8 +90,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             _delete0Command = null;
             _get0Command?.Dispose();
             _get0Command = null;
-            _getPaging2Command?.Dispose();
-            _getPaging2Command = null;
+            _get1Command?.Dispose();
+            _get1Command = null;
             _disposed = true;
         }
 
@@ -105,169 +101,237 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             {
                 if (dropExisting)
                 {
-                    cmd.CommandText = "DROP TABLE IF EXISTS circle;";
+                    cmd.CommandText = "DROP TABLE IF EXISTS keyTwoValue;";
                     cmd.ExecuteNonQuery(_database);
                 }
                 cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS circle("
-                     +"circleName STRING NOT NULL, "
-                     +"circleId BLOB NOT NULL UNIQUE, "
+                    "CREATE TABLE IF NOT EXISTS keyTwoValue("
+                     +"key1 BLOB NOT NULL UNIQUE, "
+                     +"key2 BLOB , "
                      +"data BLOB  "
-                     +", PRIMARY KEY (circleId)"
+                     +", PRIMARY KEY (key1)"
                      +");"
+                     +"CREATE INDEX IF NOT EXISTS Idx0TableKeyTwoValueCRUD ON keyTwoValue(key2);"
                      ;
                 cmd.ExecuteNonQuery(_database);
             }
         }
 
-        public virtual int Insert(CircleRecord item)
+        public virtual int Insert(KeyTwoValueRecord item)
         {
             lock (_insertLock)
             {
                 if (_insertCommand == null)
                 {
                     _insertCommand = _database.CreateCommand();
-                    _insertCommand.CommandText = "INSERT INTO circle (circleName,circleId,data) " +
-                                                 "VALUES ($circleName,$circleId,$data)";
+                    _insertCommand.CommandText = "INSERT INTO keyTwoValue (key1,key2,data) " +
+                                                 "VALUES ($key1,$key2,$data)";
                     _insertParam1 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam1);
-                    _insertParam1.ParameterName = "$circleName";
+                    _insertParam1.ParameterName = "$key1";
                     _insertParam2 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam2);
-                    _insertParam2.ParameterName = "$circleId";
+                    _insertParam2.ParameterName = "$key2";
                     _insertParam3 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam3);
                     _insertParam3.ParameterName = "$data";
                     _insertCommand.Prepare();
                 }
-                _insertParam1.Value = item.circleName;
-                _insertParam2.Value = item.circleId.ToByteArray();
+                _insertParam1.Value = item.key1.ToByteArray();
+                _insertParam2.Value = item.key2?.ToByteArray() ?? (object)DBNull.Value;
                 _insertParam3.Value = item.data ?? (object)DBNull.Value;
                 _database.BeginTransaction();
                 return _insertCommand.ExecuteNonQuery(_database);
             } // Lock
         }
 
-        public virtual int Upsert(CircleRecord item)
+        public virtual int Upsert(KeyTwoValueRecord item)
         {
             lock (_upsertLock)
             {
                 if (_upsertCommand == null)
                 {
                     _upsertCommand = _database.CreateCommand();
-                    _upsertCommand.CommandText = "INSERT INTO circle (circleName,circleId,data) " +
-                                                 "VALUES ($circleName,$circleId,$data)"+
-                                                 "ON CONFLICT (circleId) DO UPDATE "+
-                                                 "SET circleName = $circleName,data = $data;";
+                    _upsertCommand.CommandText = "INSERT INTO keyTwoValue (key1,key2,data) " +
+                                                 "VALUES ($key1,$key2,$data)"+
+                                                 "ON CONFLICT (key1) DO UPDATE "+
+                                                 "SET key2 = $key2,data = $data;";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
-                    _upsertParam1.ParameterName = "$circleName";
+                    _upsertParam1.ParameterName = "$key1";
                     _upsertParam2 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam2);
-                    _upsertParam2.ParameterName = "$circleId";
+                    _upsertParam2.ParameterName = "$key2";
                     _upsertParam3 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam3);
                     _upsertParam3.ParameterName = "$data";
                     _upsertCommand.Prepare();
                 }
-                _upsertParam1.Value = item.circleName;
-                _upsertParam2.Value = item.circleId.ToByteArray();
+                _upsertParam1.Value = item.key1.ToByteArray();
+                _upsertParam2.Value = item.key2?.ToByteArray() ?? (object)DBNull.Value;
                 _upsertParam3.Value = item.data ?? (object)DBNull.Value;
                 _database.BeginTransaction();
                 return _upsertCommand.ExecuteNonQuery(_database);
             } // Lock
         }
 
-        public virtual int Update(CircleRecord item)
+        public virtual int Update(KeyTwoValueRecord item)
         {
             lock (_updateLock)
             {
                 if (_updateCommand == null)
                 {
                     _updateCommand = _database.CreateCommand();
-                    _updateCommand.CommandText = "UPDATE circle " +
-                                                 "SET circleName = $circleName,data = $data "+
-                                                 "WHERE (circleId = $circleId)";
+                    _updateCommand.CommandText = "UPDATE keyTwoValue " +
+                                                 "SET key2 = $key2,data = $data "+
+                                                 "WHERE (key1 = $key1)";
                     _updateParam1 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam1);
-                    _updateParam1.ParameterName = "$circleName";
+                    _updateParam1.ParameterName = "$key1";
                     _updateParam2 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam2);
-                    _updateParam2.ParameterName = "$circleId";
+                    _updateParam2.ParameterName = "$key2";
                     _updateParam3 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam3);
                     _updateParam3.ParameterName = "$data";
                     _updateCommand.Prepare();
                 }
-                _updateParam1.Value = item.circleName;
-                _updateParam2.Value = item.circleId.ToByteArray();
+                _updateParam1.Value = item.key1.ToByteArray();
+                _updateParam2.Value = item.key2?.ToByteArray() ?? (object)DBNull.Value;
                 _updateParam3.Value = item.data ?? (object)DBNull.Value;
                 _database.BeginTransaction();
                 return _updateCommand.ExecuteNonQuery(_database);
             } // Lock
         }
 
-        public int Delete(Guid circleId)
+        public int Delete(Guid key1)
         {
             lock (_delete0Lock)
             {
                 if (_delete0Command == null)
                 {
                     _delete0Command = _database.CreateCommand();
-                    _delete0Command.CommandText = "DELETE FROM circle " +
-                                                 "WHERE circleId = $circleId";
+                    _delete0Command.CommandText = "DELETE FROM keyTwoValue " +
+                                                 "WHERE key1 = $key1";
                     _delete0Param1 = _delete0Command.CreateParameter();
                     _delete0Command.Parameters.Add(_delete0Param1);
-                    _delete0Param1.ParameterName = "$circleId";
+                    _delete0Param1.ParameterName = "$key1";
                     _delete0Command.Prepare();
                 }
-                _delete0Param1.Value = circleId.ToByteArray();
+                _delete0Param1.Value = key1.ToByteArray();
                 _database.BeginTransaction();
                 return _delete0Command.ExecuteNonQuery(_database);
             } // Lock
         }
 
-        public CircleRecord Get(Guid circleId)
+        public List<KeyTwoValueRecord> GetByKeyTwo(Guid? key2)
         {
             lock (_get0Lock)
             {
                 if (_get0Command == null)
                 {
                     _get0Command = _database.CreateCommand();
-                    _get0Command.CommandText = "SELECT circleName,data FROM circle " +
-                                                 "WHERE circleId = $circleId LIMIT 1;";
+                    _get0Command.CommandText = "SELECT key1,data FROM keyTwoValue " +
+                                                 "WHERE key2 = $key2;";
                     _get0Param1 = _get0Command.CreateParameter();
                     _get0Command.Parameters.Add(_get0Param1);
-                    _get0Param1.ParameterName = "$circleId";
+                    _get0Param1.ParameterName = "$key2";
                     _get0Command.Prepare();
                 }
-                _get0Param1.Value = circleId.ToByteArray();
-                using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
+                _get0Param1.Value = key2?.ToByteArray() ?? (object)DBNull.Value;
+                using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {
-                    var result = new CircleRecord();
+                    var result = new List<KeyTwoValueRecord>();
                     if (!rdr.Read())
                         return null;
-                    byte[] _tmpbuf = new byte[65535+1];
+                    byte[] _tmpbuf = new byte[1048576+1];
 #pragma warning disable CS0168
                     long bytesRead;
 #pragma warning restore CS0168
                     var _guid = new byte[16];
-                        var item = new CircleRecord();
-                        item.circleId = circleId;
+                    while (true)
+                    {
+                        var item = new KeyTwoValueRecord();
+                        item.key2 = key2;
 
                         if (rdr.IsDBNull(0))
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
-                            item.circleName = rdr.GetString(0);
+                            bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                            if (bytesRead != 16)
+                                throw new Exception("Not a GUID in key1...");
+                            item.key1 = new Guid(_guid);
                         }
 
                         if (rdr.IsDBNull(1))
                             item.data = null;
                         else
                         {
-                            bytesRead = rdr.GetBytes(1, 0, _tmpbuf, 0, 65000+1);
-                            if (bytesRead > 65000)
+                            bytesRead = rdr.GetBytes(1, 0, _tmpbuf, 0, 1048576+1);
+                            if (bytesRead > 1048576)
+                                throw new Exception("Too much data in data...");
+                            if (bytesRead < 0)
+                                throw new Exception("Too little data in data...");
+                            if (bytesRead > 0)
+                            {
+                                item.data = new byte[bytesRead];
+                                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+                            }
+                        }
+                        result.Add(item);
+                        if (!rdr.Read())
+                           break;
+                    } // while
+                    return result;
+                } // using
+            } // lock
+        }
+
+        public KeyTwoValueRecord Get(Guid key1)
+        {
+            lock (_get1Lock)
+            {
+                if (_get1Command == null)
+                {
+                    _get1Command = _database.CreateCommand();
+                    _get1Command.CommandText = "SELECT key2,data FROM keyTwoValue " +
+                                                 "WHERE key1 = $key1 LIMIT 1;";
+                    _get1Param1 = _get1Command.CreateParameter();
+                    _get1Command.Parameters.Add(_get1Param1);
+                    _get1Param1.ParameterName = "$key1";
+                    _get1Command.Prepare();
+                }
+                _get1Param1.Value = key1.ToByteArray();
+                using (SqliteDataReader rdr = _get1Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
+                {
+                    var result = new KeyTwoValueRecord();
+                    if (!rdr.Read())
+                        return null;
+                    byte[] _tmpbuf = new byte[1048576+1];
+#pragma warning disable CS0168
+                    long bytesRead;
+#pragma warning restore CS0168
+                    var _guid = new byte[16];
+                        var item = new KeyTwoValueRecord();
+                        item.key1 = key1;
+
+                        if (rdr.IsDBNull(0))
+                            item.key2 = null;
+                        else
+                        {
+                            bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                            if (bytesRead != 16)
+                                throw new Exception("Not a GUID in key2...");
+                            item.key2 = new Guid(_guid);
+                        }
+
+                        if (rdr.IsDBNull(1))
+                            item.data = null;
+                        else
+                        {
+                            bytesRead = rdr.GetBytes(1, 0, _tmpbuf, 0, 1048576+1);
+                            if (bytesRead > 1048576)
                                 throw new Exception("Too much data in data...");
                             if (bytesRead < 0)
                                 throw new Exception("Too little data in data...");
@@ -281,95 +345,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 } // using
             } // lock
         }
-
-        public List<CircleRecord> PagingByCircleId(int count, Guid? inCursor, out Guid? nextCursor)
-        {
-            if (count < 1)
-                throw new Exception("Count must be at least 1.");
-            if (inCursor == null)
-                inCursor = Guid.Empty;
-
-            lock (_getPaging2Lock)
-            {
-                if (_getPaging2Command == null)
-                {
-                    _getPaging2Command = _database.CreateCommand();
-                    _getPaging2Command.CommandText = "SELECT rowid,circleName,circleId,data FROM circle " +
-                                                 "WHERE circleId > $circleId ORDER BY circleId ASC LIMIT $_count;";
-                    _getPaging2Param1 = _getPaging2Command.CreateParameter();
-                    _getPaging2Command.Parameters.Add(_getPaging2Param1);
-                    _getPaging2Param1.ParameterName = "$circleId";
-                    _getPaging2Param2 = _getPaging2Command.CreateParameter();
-                    _getPaging2Command.Parameters.Add(_getPaging2Param2);
-                    _getPaging2Param2.ParameterName = "$_count";
-                    _getPaging2Command.Prepare();
-                }
-                _getPaging2Param1.Value = inCursor?.ToByteArray();
-                _getPaging2Param2.Value = count+1;
-                _getPaging2Command.Transaction = _database.Transaction;
-
-                using (SqliteDataReader rdr = _getPaging2Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
-                {
-                    var result = new List<CircleRecord>();
-                    int n = 0;
-                    int rowid = 0;
-                    while ((n < count) && rdr.Read())
-                    {
-                        n++;
-                        var item = new CircleRecord();
-                        byte[] _tmpbuf = new byte[65535+1];
-                        long bytesRead;
-                        var _guid = new byte[16];
-
-                        rowid = rdr.GetInt32(0);
-
-                        if (rdr.IsDBNull(1))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.circleName = rdr.GetString(1);
-                        }
-
-                        if (rdr.IsDBNull(2))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            bytesRead = rdr.GetBytes(2, 0, _guid, 0, 16);
-                            if (bytesRead != 16)
-                                throw new Exception("Not a GUID in circleId...");
-                            item.circleId = new Guid(_guid);
-                        }
-
-                        if (rdr.IsDBNull(3))
-                            item.data = null;
-                        else
-                        {
-                            bytesRead = rdr.GetBytes(3, 0, _tmpbuf, 0, 65000+1);
-                            if (bytesRead > 65000)
-                                throw new Exception("Too much data in data...");
-                            if (bytesRead < 0)
-                                throw new Exception("Too little data in data...");
-                            if (bytesRead > 0)
-                            {
-                                item.data = new byte[bytesRead];
-                                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
-                            }
-                        }
-                        result.Add(item);
-                    } // while
-                    if ((n > 0) && rdr.Read())
-                    {
-                            nextCursor = result[n - 1].circleId;
-                    }
-                    else
-                    {
-                        nextCursor = null;
-                    }
-
-                    return result;
-                } // using
-            } // lock
-        } // PagingGet
 
     }
 }
