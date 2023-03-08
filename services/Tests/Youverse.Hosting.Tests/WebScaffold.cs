@@ -31,6 +31,8 @@ namespace Youverse.Hosting.Tests
         private ScenarioBootstrapper _scenarios;
         private IIdentityRegistry _registry;
 
+        private string _testInstancePrefix;
+
         public WebScaffold(string folder)
         {
             this._folder = folder;
@@ -40,6 +42,9 @@ namespace Youverse.Hosting.Tests
         [OneTimeSetUp]
         public void RunBeforeAnyTests(bool initializeIdentity = true)
         {
+
+            _testInstancePrefix = Guid.NewGuid().ToString("N");
+            
             Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
             Environment.SetEnvironmentVariable("DOTYOU_ENVIRONMENT", "Development");
 
@@ -62,7 +67,7 @@ namespace Youverse.Hosting.Tests
 
             Environment.SetEnvironmentVariable("Quartz__EnableQuartzBackgroundService", "false");
             Environment.SetEnvironmentVariable("Quartz__BackgroundJobStartDelaySeconds", "10");
-            Environment.SetEnvironmentVariable("Quartz__ProcessOutboxIntervalSeconds", "5");
+            Environment.SetEnvironmentVariable("Quartz__CronProcessingInterval", "5");
             Environment.SetEnvironmentVariable("Quartz__EnsureCertificateProcessorIntervalSeconds", "1000");
             Environment.SetEnvironmentVariable("Quartz__ProcessPendingCertificateOrderIntervalInSeconds", "1000");
 
@@ -162,7 +167,7 @@ namespace Youverse.Hosting.Tests
             }
 
             Directory.CreateDirectory(TestDataPath);
-            
+
             if (Directory.Exists(TempDataPath))
             {
                 Console.WriteLine($"Removing data in [{TempDataPath}]");
@@ -189,7 +194,8 @@ namespace Youverse.Hosting.Tests
             {
                 var p = PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "testsdata", "dotyoudata", _folder);
                 string x = isDev ? PathUtil.Combine(home, p.Substring(1)) : p;
-                return x;
+                return Path.Combine(_testInstancePrefix, x);
+                // return x;
             }
         }
 
@@ -201,7 +207,9 @@ namespace Youverse.Hosting.Tests
             get
             {
                 var p = PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "tempdata", "dotyoudata", _folder);
-                return isDev ? PathUtil.Combine(home, p.Substring(1)) : p;
+                //return isDev ? PathUtil.Combine(home, p.Substring(1)) : p;
+                string x = isDev ? PathUtil.Combine(home, p.Substring(1)) : p;
+                return Path.Combine(_testInstancePrefix, x);
             }
         }
 
@@ -210,7 +218,8 @@ namespace Youverse.Hosting.Tests
             get
             {
                 var p = PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "testsdata", "dotyoulogs", _folder);
-                return isDev ? PathUtil.Combine(home, p.Substring(1)) : p;
+                string x = isDev ? PathUtil.Combine(home, p.Substring(1)) : p;
+                return Path.Combine(_testInstancePrefix, x);
             }
         }
     }

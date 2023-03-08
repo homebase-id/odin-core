@@ -14,6 +14,7 @@ using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Incoming;
+using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Transit
 {
@@ -46,7 +47,7 @@ namespace Youverse.Core.Services.Transit
 
                     if (item.InstructionType == TransferInstructionType.SaveFile)
                     {
-                        await HandleFile(fs,item);
+                        await HandleFile(fs, item);
                     }
                     else if (item.InstructionType == TransferInstructionType.DeleteLinkedFile)
                     {
@@ -64,15 +65,13 @@ namespace Youverse.Core.Services.Transit
                     await _transitInboxBoxStorage.MarkComplete(item.DriveId, item.Marker);
                     // drivesNeedingACommit.Add(item.DriveId);
                     await fs.Query.EnsureDriveDatabaseCommits(new List<Guid>() { item.DriveId });
-                    
+
                     // var items2 = await GetAcceptedItems(drive);
                     //
                     // if (items2.Count > 0)
                     // {
                     //     string x = "";
                     // }
-
-
                 }
                 catch (Exception)
                 {
@@ -203,6 +202,7 @@ namespace Youverse.Core.Services.Transit
             //
             if (metadata.AppData.UniqueId.HasValue == false && metadata.GlobalTransitId.HasValue == false)
             {
+                //
                 await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, "payload");
                 return;
             }

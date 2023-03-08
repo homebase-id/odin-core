@@ -47,7 +47,7 @@ namespace Youverse.Core.Services.Base
             // the type, then get a new IDriveFileSystem
             
             var fs = this.ResolveFileSystem(FileSystemType.Standard);
-            var targetFsType = fs.Storage.GetFileSystemType(file).GetAwaiter().GetResult();
+            var targetFsType = fs.Storage.ResolveFileSystemType(file).GetAwaiter().GetResult();
 
             if (targetFsType != FileSystemType.Standard)
             {
