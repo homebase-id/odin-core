@@ -20,13 +20,13 @@ public class TwoKeyStorage
 
     public T Get<T>(Guid key) where T : class
     {
-        var bytes = _db.Get(key);
-        if (null == bytes)
+        var record = _db.Get(key);
+        if (null == record)
         {
             return null;
         }
 
-        return DotYouSystemSerializer.Deserialize<T>(bytes.data.ToStringFromUtf8Bytes());
+        return DotYouSystemSerializer.Deserialize<T>(record.data.ToStringFromUtf8Bytes());
     }
 
     public IEnumerable<T> GetByKey2<T>(byte[] key2) where T : class

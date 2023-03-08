@@ -20,7 +20,7 @@ public class ThreeKeyValueStorage
 
     public T Get<T>(GuidId key) where T : class
     {
-        var bytes = _db.Get(key);
+        var bytes = _db.Get(key.Value);
         if (null == bytes)
         {
             return null;
@@ -51,7 +51,7 @@ public class ThreeKeyValueStorage
         return list.Select(this.Deserialize<T>);
     }
 
-    public IEnumerable<T> GetByKey2And3<T>(GuidId key2, GuidId key3) where T : class
+    public IEnumerable<T> GetByKey2And3<T>(byte[] key2, byte[] key3) where T : class
     {
         var list = _db.GetByKeyTwoThree(key2, key3);
         if (null == list)
@@ -65,7 +65,7 @@ public class ThreeKeyValueStorage
     public void Upsert<T>(GuidId key1, byte[] key2, byte[] key3, T value)
     {
         var json = DotYouSystemSerializer.Serialize(value);
-        _db.Upsert(new KeyThreeValueRecord() { key1 = key1, key2 = key2, key3 = key3, data = json.ToUtf8ByteArray() });
+        _db.Upsert(new KeyThreeValueRecord() { key1 = key1.Value, key2 = key2, key3 = key3, data = json.ToUtf8ByteArray() });
     }
 
     public void Delete(Guid id)
