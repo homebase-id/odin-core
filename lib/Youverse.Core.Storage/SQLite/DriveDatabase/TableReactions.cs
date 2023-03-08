@@ -17,6 +17,15 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
         private SqliteParameter _s2param2 = null;
         private static Object _select2Lock = new Object();
 
+        private SqliteCommand _select3Command = null;
+        private SqliteParameter _s3param1 = null;
+        private SqliteParameter _s3param2 = null;
+        private static Object _select3Lock = new Object();
+
+        private SqliteCommand _select4Command = null;
+        private SqliteParameter _s4param1 = null;
+        private static Object _select4Lock = new Object();
+
         private SqliteCommand _getPaging0Command = null;
         private static Object _getPaging0Lock = new Object();
         private SqliteParameter _getPaging0Param1 = null;
@@ -40,11 +49,60 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             _select2Command?.Dispose();
             _select2Command = null;
 
+            _select3Command?.Dispose();
+            _select3Command = null;
+
             _getPaging0Command?.Dispose();
             _getPaging0Command = null;
 
             base.Dispose();
         }
+
+
+        public (List<string>, int) GetPostReactions(Guid postId)
+        {
+            lock (_selectLock)
+            {
+                if (_selectCommand == null)
+                {
+                    _selectCommand = _database.CreateCommand();
+                    _selectCommand.CommandText =
+                        $"SELECT singleReaction, COUNT(singleReaction) as reactioncount FROM reactions WHERE postId=$postId GROUP BY singleReaction ORDER BY reactioncount DESC;";
+
+                    _sparam1 = _selectCommand.CreateParameter();
+                    _sparam1.ParameterName = "$postId";
+                    _selectCommand.Parameters.Add(_sparam1);
+
+                    _selectCommand.Prepare();
+                }
+
+                _sparam1.Value = postId.ToByteArray();
+
+                using (SqliteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.Default, _database))
+                {
+                    var result = new List<string>();
+                    int totalCount = 0;
+                    int n = 0;
+
+                    while (rdr.Read())
+                    {
+                        // Only return the first five reactions (?)
+                        if (n < 5)
+                        {
+                            string s = rdr.GetString(0);
+                            result.Add(s);
+                        }
+
+                        int count = rdr.GetInt32(1);
+                        totalCount += count;
+                        n++;
+                    }
+
+                    return (result, totalCount);
+                }
+            }
+        } //
+
 
 
         /// <summary>
@@ -96,29 +154,29 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
         /// <returns></returns>
         public List<string> GetIdentityPostReactionDetails(OdinId identity, Guid postId)
         {
-            lock (_select2Lock)
+            lock (_select3Lock)
             {
-                if (_select2Command == null)
+                if (_select3Command == null)
                 {
-                    _select2Command = _database.CreateCommand();
-                    _select2Command.CommandText =
+                    _select3Command = _database.CreateCommand();
+                    _select3Command.CommandText =
                         $"SELECT singleReaction as reactioncount FROM reactions WHERE identity=$identity AND postId=$postId;";
 
-                    _s2param1 = _select2Command.CreateParameter();
-                    _s2param1.ParameterName = "$postId";
-                    _select2Command.Parameters.Add(_s2param1);
+                    _s3param1 = _select3Command.CreateParameter();
+                    _s3param1.ParameterName = "$postId";
+                    _select3Command.Parameters.Add(_s3param1);
 
-                    _s2param2 = _select2Command.CreateParameter();
-                    _s2param2.ParameterName = "$identity";
-                    _select2Command.Parameters.Add(_s2param2);
+                    _s3param2 = _select3Command.CreateParameter();
+                    _s3param2.ParameterName = "$identity";
+                    _select3Command.Parameters.Add(_s3param2);
 
-                    _select2Command.Prepare();
+                    _select3Command.Prepare();
                 }
 
-                _s2param1.Value = postId.ToByteArray();
-                _s2param2.Value = identity.DomainName;
+                _s3param1.Value = postId.ToByteArray();
+                _s3param2.Value = identity.DomainName;
 
-                using (SqliteDataReader rdr = _select2Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
+                using (SqliteDataReader rdr = _select3Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {
                     var rs = new List<string>();
 
@@ -134,71 +192,26 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
         }
 
 
-        public (List<string>, int) GetPostReactions(Guid postId)
-        {
-            lock (_selectLock)
-            {
-                if (_selectCommand == null)
-                {
-                    _selectCommand = _database.CreateCommand();
-                    _selectCommand.CommandText =
-                        $"SELECT singleReaction, COUNT(singleReaction) as reactioncount FROM reactions WHERE postId=$postId GROUP BY singleReaction ORDER BY reactioncount DESC;";
-
-                    _sparam1 = _selectCommand.CreateParameter();
-                    _sparam1.ParameterName = "$postId";
-                    _selectCommand.Parameters.Add(_sparam1);
-
-                    _selectCommand.Prepare();
-                }
-
-                _sparam1.Value = postId.ToByteArray();
-
-                using (SqliteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.Default, _database))
-                {
-                    var result = new List<string>();
-                    int totalCount = 0;
-                    int n = 0;
-
-                    while (rdr.Read())
-                    {
-                        // Only return the first five reactions (?)
-                        if (n < 5)
-                        {
-                            string s = rdr.GetString(0);
-                            result.Add(s);
-                        }
-
-                        int count = rdr.GetInt32(1);
-                        totalCount += count;
-                        n++;
-                    }
-
-                    return (result, totalCount);
-                }
-            }
-        } //
-
-
         public (List<string>, List<int>, int) GetPostReactionsWithDetails(Guid postId)
         {
-            lock (_selectLock)
+            lock (_select4Lock)
             {
-                if (_selectCommand == null)
+                if (_select4Command == null)
                 {
-                    _selectCommand = _database.CreateCommand();
-                    _selectCommand.CommandText =
+                    _select4Command = _database.CreateCommand();
+                    _select4Command.CommandText =
                         $"SELECT singleReaction, COUNT(singleReaction) as reactioncount FROM reactions WHERE postId=$postId GROUP BY singleReaction ORDER BY reactioncount DESC;";
 
-                    _sparam1 = _selectCommand.CreateParameter();
-                    _sparam1.ParameterName = "$postId";
-                    _selectCommand.Parameters.Add(_sparam1);
+                    _s4param1 = _select4Command.CreateParameter();
+                    _s4param1.ParameterName = "$postId";
+                    _select4Command.Parameters.Add(_s4param1);
 
-                    _selectCommand.Prepare();
+                    _select4Command.Prepare();
                 }
 
-                _sparam1.Value = postId;
+                _s4param1.Value = postId;
 
-                using (SqliteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.Default, _database))
+                using (SqliteDataReader rdr = _select4Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
                 {
                     var result = new List<string>();
                     var iresult = new List<int>();
