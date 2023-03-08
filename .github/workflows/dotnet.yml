@@ -36,7 +36,7 @@ jobs:
 
       - name: Build
         #        working-directory: ./dotyoucore
-        run: dotnet build --no-restore dotyoucore/DotYouCore.sln
+        run: dotnet build --no-restore --warnaserror dotyoucore/DotYouCore.sln
 
       - name: Test
         #        working-directory: ./dotyoucore
