@@ -34,10 +34,10 @@ public class TwoKeyStorage
         var list = _db.GetByKeyTwo(key2);
         if (null == list)
         {
-            return null;
+            return new List<T>();
         }
 
-        return list.Select(r=> this.Deserialize<T>(r.data));
+        return list.Select(r => this.Deserialize<T>(r.data));
     }
 
     public void Upsert<T>(Guid key1, byte[] key2, T value)

@@ -34,7 +34,7 @@ public class ThreeKeyValueStorage
         var list = _db.GetByKeyTwo(key2);
         if (null == list)
         {
-            return null;
+            return new List<T>();
         }
 
         return list.Select(this.Deserialize<T>);
@@ -45,7 +45,7 @@ public class ThreeKeyValueStorage
         var list = _db.GetByKeyThree(key3);
         if (null == list)
         {
-            return null;
+            return new List<T>();
         }
 
         return list.Select(this.Deserialize<T>);
@@ -56,7 +56,7 @@ public class ThreeKeyValueStorage
         var list = _db.GetByKeyTwoThree(key2, key3);
         if (null == list)
         {
-            return null;
+            return new List<T>();
         }
 
         return list.Select(r => this.Deserialize<T>(r.data));
