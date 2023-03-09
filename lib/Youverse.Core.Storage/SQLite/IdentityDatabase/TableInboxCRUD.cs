@@ -412,11 +412,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                                 throw new Exception("Too much data in value...");
                             if (bytesRead < 0)
                                 throw new Exception("Too little data in value...");
-                            if (bytesRead > 0)
-                            {
-                                item.value = new byte[bytesRead];
-                                Buffer.BlockCopy(_tmpbuf, 0, item.value, 0, (int) bytesRead);
-                            }
+                            item.value = new byte[bytesRead];
+                            Buffer.BlockCopy(_tmpbuf, 0, item.value, 0, (int) bytesRead);
                         }
 
                         if (rdr.IsDBNull(4))

@@ -18,8 +18,8 @@ namespace IdentityDatabaseTests
 
             var k1 = Guid.NewGuid();
             var k2 = Guid.NewGuid();
-            var k11 = Guid.NewGuid();
-            var k22 = Guid.NewGuid();
+            var k11 = Guid.NewGuid().ToByteArray();
+            var k22 = Guid.NewGuid().ToByteArray();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
@@ -47,7 +47,7 @@ namespace IdentityDatabaseTests
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();
-            var k11 = Guid.NewGuid();
+            var k11 = Guid.NewGuid().ToByteArray();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
@@ -83,7 +83,7 @@ namespace IdentityDatabaseTests
             db.CreateDatabase();
 
             var k1 = Guid.NewGuid();
-            var k11 = Guid.NewGuid();
+            var k11 = Guid.NewGuid().ToByteArray();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
@@ -108,8 +108,8 @@ namespace IdentityDatabaseTests
 
             var k1 = Guid.NewGuid();
             var k2 = Guid.NewGuid();
-            var k11 = Guid.NewGuid();
-            var k22 = Guid.NewGuid();
+            var k11 = Guid.NewGuid().ToByteArray();
+            var k22 = Guid.NewGuid().ToByteArray();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
@@ -143,8 +143,8 @@ namespace IdentityDatabaseTests
 
             var k1 = Guid.NewGuid();
             var k2 = Guid.NewGuid();
-            var k11 = Guid.NewGuid();
-            var k22 = Guid.NewGuid();
+            var k11 = Guid.NewGuid().ToByteArray();
+            var k22 = Guid.NewGuid().ToByteArray();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
@@ -172,8 +172,8 @@ namespace IdentityDatabaseTests
 
             var k1 = Guid.NewGuid();
             var k2 = Guid.NewGuid();
-            var k11 = Guid.NewGuid();
-            var k22 = Guid.NewGuid();
+            var k11 = Guid.NewGuid().ToByteArray();
+            var k22 = Guid.NewGuid().ToByteArray();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
             var v3 = Guid.NewGuid().ToByteArray();
@@ -210,8 +210,8 @@ namespace IdentityDatabaseTests
 
             var k1 = Guid.NewGuid();
             var k2 = Guid.NewGuid();
-            var i1 = Guid.NewGuid();
-            var i2 = Guid.NewGuid();
+            var i1 = Guid.NewGuid().ToByteArray();
+            var i2 = Guid.NewGuid().ToByteArray();
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 

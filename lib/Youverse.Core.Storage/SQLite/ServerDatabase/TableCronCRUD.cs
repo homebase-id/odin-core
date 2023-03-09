@@ -424,11 +424,8 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
                                 throw new Exception("Too much data in data...");
                             if (bytesRead < 0)
                                 throw new Exception("Too little data in data...");
-                            if (bytesRead > 0)
-                            {
-                                item.data = new byte[bytesRead];
-                                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
-                            }
+                            item.data = new byte[bytesRead];
+                            Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
                         }
 
                         if (rdr.IsDBNull(1))
