@@ -76,7 +76,8 @@ namespace Youverse.Core.Services.Transit
 
 
         public async Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile,
-            TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType, ClientAccessTokenSource tokenSource = ClientAccessTokenSource.Circle)
+            TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType,
+            ClientAccessTokenSource tokenSource = ClientAccessTokenSource.Circle)
         {
             Guard.Argument(options, nameof(options)).NotNull()
                 .Require(o => o.Recipients?.Any() ?? false)
@@ -156,7 +157,7 @@ namespace Youverse.Core.Services.Transit
                 //was the batch successful?
             }
         }
-        
+
         public async Task<Dictionary<string, TransitResponseCode>> SendDeleteLinkedFileRequest(Guid driveId,
             Guid globalTransitId, SendFileOptions sendFileOptions, IEnumerable<string> recipients)
         {
@@ -166,7 +167,7 @@ namespace Youverse.Core.Services.Transit
             foreach (var recipient in recipients)
             {
                 var r = (OdinId)recipient;
-                
+
                 var clientAccessToken = await ResolveClientAccessToken(r, sendFileOptions.ClientAccessTokenSource);
 
                 var client = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(r, clientAccessToken.ToAuthenticationToken());
@@ -300,6 +301,7 @@ namespace Youverse.Core.Services.Transit
                     PayloadIsEncrypted = metadata.PayloadIsEncrypted,
                     ContentType = metadata.ContentType,
                     GlobalTransitId = metadata.GlobalTransitId,
+                    ReactionPreview = metadata.ReactionPreview,
                     SenderOdinId = string.Empty,
                     OriginalRecipientList = null,
                 };
@@ -324,7 +326,8 @@ namespace Youverse.Core.Services.Transit
                     foreach (var thumb in redactedMetadata.AppData?.AdditionalThumbnails ?? new List<ImageDataHeader>())
                     {
                         var thumbStream = await fs.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight);
-                        additionalStreamParts.Add(new StreamPart(thumbStream, thumb.GetFilename(), thumb.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
+                        additionalStreamParts.Add(new StreamPart(thumbStream, thumb.GetFilename(), thumb.ContentType,
+                            Enum.GetName(MultipartUploadParts.Thumbnail)));
                     }
                 }
 

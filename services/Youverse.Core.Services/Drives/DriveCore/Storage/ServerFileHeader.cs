@@ -10,8 +10,6 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
         
         public ServerMetadata ServerMetadata { get; set; }
         
-        public ReactionPreviewData ReactionPreview { get; set; }
-
         public bool IsValid()
         {
             return this.EncryptedKeyHeader != null

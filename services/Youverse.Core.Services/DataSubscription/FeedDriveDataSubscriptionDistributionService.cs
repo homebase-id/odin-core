@@ -10,6 +10,7 @@ using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Transit;
+using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.DataSubscription
 {
@@ -48,11 +49,14 @@ namespace Youverse.Core.Services.DataSubscription
                 return;
             }
 
+            //We only distribute standard files to populate the feed.  Comments are retrieved by calls over transit query
+            if (notification.ServerFileHeader.ServerMetadata.FileSystemType != FileSystemType.Standard)
+            {
+                return;
+            }
+
             //TODO: move this to a background thread or use ScheduleOptions.SendLater so the original call can finish
             //this will come into play when someone has a huge number of subscribers
-
-            //TODO: first store on this identities feed drive.
-            //then send from their feed drive?
 
             if (!await SupportsSubscription(notification.File.DriveId))
             {

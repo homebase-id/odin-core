@@ -57,7 +57,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
         var referencedFile = updatedFileHeader.FileMetadata.ReferencedFile!;
         var referenceFileDriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(referencedFile.TargetDrive);
         var referencedFileHeader = await fs.Query.GetFileByGlobalTransitId(referenceFileDriveId, referencedFile.GlobalTransitId);
-        var referencedFileReactionPreview = referencedFileHeader.ReactionPreview ?? new ReactionPreviewData();
+        var referencedFileReactionPreview = referencedFileHeader.FileMetadata.ReactionPreview ?? new ReactionSummary();
 
         if (notification.DriveNotificationType == DriveNotificationType.FileAdded)
         {
@@ -83,7 +83,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
     }
 
     private void HandleFileDeleted(ServerFileHeader updatedFileHeader,
-        ref ReactionPreviewData targetFileReactionPreview)
+        ref ReactionSummary targetFileReactionPreview)
     {
         targetFileReactionPreview.TotalCommentCount--;
         var idx = targetFileReactionPreview.Comments.FindIndex(c =>
@@ -95,7 +95,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
     }
 
     private void HandleFileModified(ServerFileHeader updatedFileHeader,
-        ref ReactionPreviewData targetFileReactionPreview)
+        ref ReactionSummary targetFileReactionPreview)
     {
         var idx = targetFileReactionPreview.Comments.FindIndex(c =>
             c.FileId == updatedFileHeader.FileMetadata.File.FileId);
@@ -113,7 +113,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
         }
     }
 
-    private void HandleFileAdded(ServerFileHeader updatedFileHeader, ref ReactionPreviewData targetFileReactionPreview)
+    private void HandleFileAdded(ServerFileHeader updatedFileHeader, ref ReactionSummary targetFileReactionPreview)
     {
         //Always increment even if we don't store the contents
         targetFileReactionPreview.TotalCommentCount++;
@@ -139,7 +139,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
         var targetFile = notification.Reaction.FileId;
         var fs = _fileSystemResolver.ResolveFileSystem(targetFile);
         var header = fs.Storage.GetServerFileHeader(targetFile).GetAwaiter().GetResult();
-        var preview = header.ReactionPreview ?? new ReactionPreviewData();
+        var preview = header.FileMetadata.ReactionPreview ?? new ReactionSummary();
 
         var dict = preview.Reactions ?? new Dictionary<Guid, EmojiReactionPreview>();
 

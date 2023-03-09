@@ -107,8 +107,8 @@ public class ReactionTests
 
         var targetFileHeader = await frodoOwnerClient.Drive.GetFileHeader(FileSystemType.Standard, uploadedContentResult.File);
         Assert.IsNotNull(targetFileHeader);
-        Assert.IsNotNull(targetFileHeader.ReactionPreview);
-        Assert.IsTrue(targetFileHeader.ReactionPreview.Comments.Any(c => c.JsonContent == comment));
+        Assert.IsNotNull(targetFileHeader.FileMetadata.ReactionPreview);
+        Assert.IsTrue(targetFileHeader.FileMetadata.ReactionPreview.Comments.Any(c => c.JsonContent == comment));
     }
 
     [Test]

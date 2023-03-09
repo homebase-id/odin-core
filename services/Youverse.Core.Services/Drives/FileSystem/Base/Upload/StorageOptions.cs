@@ -17,6 +17,6 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
         /// </summary>
         public Guid? OverwriteFileId { get; set; }
         
-        public bool IgnoreMissingReferencedFile { get; set; }
+        // public bool IgnoreMissingReferencedFile { get; set; }
     }
 }
