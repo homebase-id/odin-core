@@ -43,5 +43,5 @@ public class ClientFileMetadata
         
     public AppFileMetaData AppData { get; set; }
     
-    public ExternalFileIdentifier ReferencedFile { get; set; }
+    public GlobalTransitIdFileIdentifier ReferencedFile { get; set; }
 }

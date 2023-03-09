@@ -53,7 +53,13 @@ public class ReactionTests
         // Frodo posts feedback to his post
         //
         var comment = "Indeed, Indeed I am Mr. Underhill";
-        var targetReferenceFile = uploadResult.File;
+        // var targetReferenceFile = uploadResult.File;
+        var targetReferenceFile = new GlobalTransitIdFileIdentifier()
+        {
+            GlobalTransitId = uploadResult.GlobalTransitId.GetValueOrDefault(),
+            TargetDrive = uploadResult.File.TargetDrive
+        };
+        
         var commentUploadResult = await UploadComment(frodoOwnerClient, frodoChannelDrive, targetReferenceFile, comment, false);
 
         Assert.IsTrue(uploadResult.File.TargetDrive == commentUploadResult.File.TargetDrive);
@@ -87,7 +93,7 @@ public class ReactionTests
         // Frodo posts feedback to his post
         //
         var comment = "Indeed, Indeed I am Mr. Underhill";
-        var commentUploadResult = await UploadComment(frodoOwnerClient, frodoChannelDrive, uploadedContentResult.File, comment, false);
+        var commentUploadResult = await UploadComment(frodoOwnerClient, frodoChannelDrive, uploadedContentResult.GlobalTransitIdFileIdentifier, comment, false);
 
         Assert.IsTrue(uploadedContentResult.File.TargetDrive == commentUploadResult.File.TargetDrive, "Drive for content file and reaction must match");
 
@@ -95,7 +101,7 @@ public class ReactionTests
 
         Assert.IsTrue(commentFileHeader.FileId == commentUploadResult.File.FileId);
         Assert.IsTrue(commentFileHeader.FileMetadata.AppData.JsonContent == comment);
-        Assert.IsTrue(commentFileHeader.FileMetadata.ReferencedFile == uploadedContentResult.File, "target reference file not referenced");
+        Assert.IsTrue(commentFileHeader.FileMetadata.ReferencedFile == uploadedContentResult.GlobalTransitIdFileIdentifier, "target reference file not referenced");
 
         // Get the target file and validate reaction was updated
 
@@ -124,7 +130,7 @@ public class ReactionTests
         var uploadedContent = "I'm Mr. Underhill";
         var uploadResult = await UploadToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent);
 
-        var targetReferenceFile = uploadResult.File;
+        var targetReferenceFile = uploadResult.GlobalTransitIdFileIdentifier;
 
         //
         // Frodo posts the first comment
@@ -202,7 +208,7 @@ public class ReactionTests
         return await client.Drive.UploadFile(FileSystemType.Standard, targetDrive, fileMetadata);
     }
 
-    private async Task<UploadResult> UploadComment(OwnerApiClient client, TargetDrive targetDrive, ExternalFileIdentifier referencedFile, string commentContent, bool allowDistribution)
+    private async Task<UploadResult> UploadComment(OwnerApiClient client, TargetDrive targetDrive, GlobalTransitIdFileIdentifier referencedFile, string commentContent, bool allowDistribution)
     {
         var fileMetadata = new UploadFileMetadata()
         {

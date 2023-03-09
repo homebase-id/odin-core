@@ -17,7 +17,8 @@ namespace Youverse.Core.Services.Drives.Statistics;
 /// <summary>
 /// Listens for reaction file additions/changes and updates their target's preview
 /// </summary>
-public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification>, INotificationHandler<EmojiReactionAddedNotification>
+public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification>,
+    INotificationHandler<EmojiReactionAddedNotification>
 {
     private readonly DotYouContextAccessor _contextAccessor;
     private readonly FileSystemResolver _fileSystemResolver;
@@ -38,50 +39,68 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
             return;
         }
 
-        var referenceFileDriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(updatedFileHeader.FileMetadata.ReferencedFile!.TargetDrive);
-        var targetFile = new InternalDriveFileId()
-        {
-            DriveId = referenceFileDriveId,
-            FileId = updatedFileHeader.FileMetadata.ReferencedFile.FileId
-        };
 
-        var fs = _fileSystemResolver.ResolveFileSystem(targetFile);
-        var targetFileHeader = await fs.Storage.GetServerFileHeader(targetFile);
-        var targetFileReactionPreview = targetFileHeader.ReactionPreview ?? new ReactionPreviewData();
+        //look up the fileId by  updatedFileHeader.FileMetadata.ReferencedFile.GlobalTransitId
+        var fs = _fileSystemResolver.ResolveFileSystem(updatedFileHeader.FileMetadata.ReferencedFile).GetAwaiter().GetResult();
+        if (null == fs)
+        {
+            //TODO: consider if we log this or just ignore it
+            return;
+        }
+
+        // var targetFile = new InternalDriveFileId()
+        // {
+        //     DriveId = referenceFileDriveId,
+        //     FileId = fileId
+        // };
+
+        var referencedFile = updatedFileHeader.FileMetadata.ReferencedFile!;
+        var referenceFileDriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(referencedFile.TargetDrive);
+        var referencedFileHeader = await fs.Query.GetFileByGlobalTransitId(referenceFileDriveId, referencedFile.GlobalTransitId);
+        var referencedFileReactionPreview = referencedFileHeader.ReactionPreview ?? new ReactionPreviewData();
 
         if (notification.DriveNotificationType == DriveNotificationType.FileAdded)
         {
-            HandleFileAdded(updatedFileHeader, ref targetFileReactionPreview);
+            HandleFileAdded(updatedFileHeader, ref referencedFileReactionPreview);
         }
 
         if (notification.DriveNotificationType == DriveNotificationType.FileModified)
         {
-            HandleFileModified(updatedFileHeader, ref targetFileReactionPreview);
+            HandleFileModified(updatedFileHeader, ref referencedFileReactionPreview);
         }
 
         if (notification.DriveNotificationType == DriveNotificationType.FileDeleted)
         {
-            HandleFileDeleted(updatedFileHeader, ref targetFileReactionPreview);
+            HandleFileDeleted(updatedFileHeader, ref referencedFileReactionPreview);
         }
 
-        await fs.Storage.UpdateStatistics(targetFile, targetFileReactionPreview);
+        await fs.Storage.UpdateStatistics(new InternalDriveFileId()
+            {
+                FileId = referencedFileHeader.FileId,
+                DriveId = referenceFileDriveId
+            },
+            referencedFileReactionPreview);
     }
 
-    private void HandleFileDeleted(ServerFileHeader updatedFileHeader, ref ReactionPreviewData targetFileReactionPreview)
+    private void HandleFileDeleted(ServerFileHeader updatedFileHeader,
+        ref ReactionPreviewData targetFileReactionPreview)
     {
         targetFileReactionPreview.TotalCommentCount--;
-        var idx = targetFileReactionPreview.Comments.FindIndex(c => c.FileId == updatedFileHeader.FileMetadata.File.FileId);
+        var idx = targetFileReactionPreview.Comments.FindIndex(c =>
+            c.FileId == updatedFileHeader.FileMetadata.File.FileId);
         if (idx > -1)
         {
             targetFileReactionPreview.Comments.RemoveAt(idx);
         }
     }
 
-    private void HandleFileModified(ServerFileHeader updatedFileHeader, ref ReactionPreviewData targetFileReactionPreview)
+    private void HandleFileModified(ServerFileHeader updatedFileHeader,
+        ref ReactionPreviewData targetFileReactionPreview)
     {
-        var idx = targetFileReactionPreview.Comments.FindIndex(c => c.FileId == updatedFileHeader.FileMetadata.File.FileId);
+        var idx = targetFileReactionPreview.Comments.FindIndex(c =>
+            c.FileId == updatedFileHeader.FileMetadata.File.FileId);
 
-        if(idx >-1)
+        if (idx > -1)
         {
             targetFileReactionPreview.Comments[idx] = new CommentPreview()
             {

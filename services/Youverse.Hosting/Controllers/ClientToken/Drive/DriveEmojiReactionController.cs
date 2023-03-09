@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Services.Apps;
@@ -75,6 +76,16 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         public GetReactionCountsResponse GetReactionCountsByFile([FromBody] GetReactionsRequest request)
         {
             return base.GetReactionCounts(request);
+        }
+        
+        /// <summary>
+        /// Get reactions by identity and file
+        /// </summary>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpPost("listbyidentity")]
+        public List<string> GetReactionsByIdentity([FromBody] GetReactionsByIdentityRequest request)
+        {
+            return base.GetReactionsByIdentityAndFile(request);
         }
     }
 }

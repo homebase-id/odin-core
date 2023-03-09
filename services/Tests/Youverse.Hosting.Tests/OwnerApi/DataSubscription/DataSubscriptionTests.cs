@@ -263,7 +263,7 @@ public class DataSubscriptionTests
             AllowDistribution = true,
             ContentType = "application/json",
             PayloadIsEncrypted = false,
-            ReferencedFile = standardFileUploadResult.File,
+            ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
                 ContentIsComplete = true,
@@ -345,7 +345,7 @@ public class DataSubscriptionTests
             AllowDistribution = true,
             ContentType = "application/json",
             PayloadIsEncrypted = false,
-            ReferencedFile = standardFileUploadResult.File,
+            ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
                 ContentIsComplete = true,

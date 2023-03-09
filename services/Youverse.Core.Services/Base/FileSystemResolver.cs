@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Youverse.Core.Exceptions;
@@ -18,12 +19,12 @@ namespace Youverse.Core.Services.Base
         {
             _contextAccessor = contextAccessor;
         }
-        
+
         /// <summary />
         public IDriveFileSystem ResolveFileSystem(FileSystemType fileSystemType)
         {
             var ctx = _contextAccessor.HttpContext;
-            
+
             if (fileSystemType == FileSystemType.Standard)
             {
                 return ctx!.RequestServices.GetRequiredService<StandardFileSystem>();
@@ -34,9 +35,10 @@ namespace Youverse.Core.Services.Base
                 return ctx!.RequestServices.GetRequiredService<CommentFileSystem>();
             }
 
-            throw new YouverseClientException("Invalid file system type or could not parse instruction set", YouverseClientErrorCode.InvalidFileSystemType);
+            throw new YouverseClientException("Invalid file system type or could not parse instruction set",
+                YouverseClientErrorCode.InvalidFileSystemType);
         }
-        
+
         /// <summary>
         /// Gets the file system for the specified file
         /// </summary>
@@ -45,7 +47,7 @@ namespace Youverse.Core.Services.Base
             //TODO: this sucks and is wierd.   i don't know at this point if the target file is 
             // comment or standard; so i have to get a IDriveFileSystem instance and look up
             // the type, then get a new IDriveFileSystem
-            
+
             var fs = this.ResolveFileSystem(FileSystemType.Standard);
             var targetFsType = fs.Storage.ResolveFileSystemType(file).GetAwaiter().GetResult();
 
@@ -55,6 +57,30 @@ namespace Youverse.Core.Services.Base
             }
 
             return fs;
+        }
+
+        public async Task<IDriveFileSystem> ResolveFileSystem(GlobalTransitIdFileIdentifier globalTransitFileId)
+        {
+            //TODO: this sucks and is wierd.   i don't know at this point if the target file is 
+            // comment or standard; so i have to get a IDriveFileSystem instance and look up
+            // the type, then get a new IDriveFileSystem
+
+            var fs = this.ResolveFileSystem(FileSystemType.Standard);
+            var file = await fs.Query.ResolveFileId(globalTransitFileId);
+
+            if (null == file)
+            {
+                //try by comment
+                fs = this.ResolveFileSystem(FileSystemType.Comment);
+                file = await fs.Query.ResolveFileId(globalTransitFileId);
+            }
+
+            if (null == file)
+            {
+                return null;
+            }
+
+            return this.ResolveFileSystem(file.Value);
         }
     }
 }

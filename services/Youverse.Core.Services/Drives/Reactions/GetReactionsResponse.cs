@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Youverse.Core.Identity;
 using Youverse.Core.Services.Drives.DriveCore.Query.Sqlite;
 
 namespace Youverse.Core.Services.Drives.Reactions;
@@ -24,4 +25,10 @@ public class GetReactionsRequest
     public int Cursor { get; set; }
     
     public int MaxRecords { get; set; }
+}
+
+public class GetReactionsByIdentityRequest
+{
+    public OdinId Identity { get; set; }
+    public ExternalFileIdentifier File { get; set; }
 }

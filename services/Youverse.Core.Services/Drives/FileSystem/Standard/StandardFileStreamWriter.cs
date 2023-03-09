@@ -37,7 +37,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
 
         if (uploadDescriptor.FileMetadata.ReferencedFile?.HasValue() ?? false)
         {
-            throw new YouverseClientException($"Cannot use ReferenceToFile outside of Feedback file type", YouverseClientErrorCode.CannotUseReferencedFileOnNonReactionFile);
+            throw new YouverseClientException($"{nameof(uploadDescriptor.FileMetadata.ReferencedFile)} cannot be used with standard file types", YouverseClientErrorCode.CannotUseReferencedFileOnStandardFiles);
         }
 
         return Task.CompletedTask;

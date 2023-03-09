@@ -41,36 +41,50 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         //enforce the drive permissions at this level?
         if (uploadDescriptor.FileMetadata.AppData.GroupId.HasValue)
         {
-            throw new YouverseClientException("GroupId is reserved for Text Reactions", YouverseClientErrorCode.CannotUseGroupIdInTextReactions);
+            throw new YouverseClientException("GroupId is reserved for Text Reactions",
+                YouverseClientErrorCode.CannotUseGroupIdInTextReactions);
         }
 
         if (!(uploadDescriptor.FileMetadata.ReferencedFile?.HasValue() ?? false))
         {
-            throw new YouverseClientException($"{nameof(uploadDescriptor.FileMetadata.ReferencedFile)} must be set and point to another file on the same drive",
+            throw new YouverseClientException(
+                $"{nameof(uploadDescriptor.FileMetadata.ReferencedFile)} must be set and point to another file on the same drive",
                 YouverseClientErrorCode.InvalidReferenceFile);
         }
 
         return Task.CompletedTask;
     }
 
-    protected override Task ValidateUnpackedData(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
+    protected override Task ValidateUnpackedData(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
+        ServerMetadata serverMetadata)
     {
-        var referenceFileDriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(metadata.ReferencedFile!.TargetDrive);
+        var referenceFileDriveId = _contextAccessor.GetCurrent().PermissionsContext
+            .GetDriveId(metadata.ReferencedFile!.TargetDrive);
+
         var referenceFileInternal = new InternalDriveFileId()
         {
             DriveId = referenceFileDriveId,
-            FileId = metadata.ReferencedFile.FileId
+            FileId = metadata.ReferencedFile.GlobalTransitId
         };
 
-        if (!FileSystem.Storage.FileExists(referenceFileInternal) || metadata.File.DriveId != referenceFileDriveId)
-        {
-            throw new YouverseClientException("The referenced file must exist and be on the same drive as this file", YouverseClientErrorCode.InvalidReferenceFile);
-        }
+        // if (!package.InstructionSet.StorageOptions.IgnoreMissingReferencedFile)
+        // {
+        //     var targetFile = FileSystem.Query.GetFileByGlobalTransitId(referenceFileInternal.DriveId,
+        //         referenceFileInternal.FileId).GetAwaiter().GetResult();
+        //
+        //     if (null == targetFile || metadata.File.DriveId != referenceFileDriveId)
+        //     {
+        //         throw new YouverseClientException(
+        //             "The referenced file must exist and be on the same drive as this file",
+        //             YouverseClientErrorCode.InvalidReferenceFile);
+        //     }
+        // }
 
         return Task.CompletedTask;
     }
 
-    protected override async Task ProcessNewFileUpload(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
+    protected override async Task ProcessNewFileUpload(UploadPackage package, KeyHeader keyHeader,
+        FileMetadata metadata, ServerMetadata serverMetadata)
     {
         //
         // Note: this new file is a new comment but not a new ReferenceToFile; at
@@ -80,7 +94,8 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, "payload");
     }
 
-    protected override async Task ProcessExistingFileUpload(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
+    protected override async Task ProcessExistingFileUpload(UploadPackage package, KeyHeader keyHeader,
+        FileMetadata metadata, ServerMetadata serverMetadata)
     {
         //target is same file because it's set earlier in the upload process
         //using overwrite here so we can ensure the right event is called
@@ -99,18 +114,22 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         var recipients = package.InstructionSet.TransitOptions?.Recipients;
         if (recipients?.Any() ?? false)
         {
-            recipientStatus = await _transitService.SendFile(package.InternalFile, package.InstructionSet.TransitOptions, TransferFileType.Normal, FileSystemType.Comment);
+            recipientStatus = await _transitService.SendFile(package.InternalFile,
+                package.InstructionSet.TransitOptions, TransferFileType.Normal, FileSystemType.Comment);
         }
 
         return recipientStatus;
     }
 
-    protected override Task<FileMetadata> MapUploadToMetadata(UploadPackage package, UploadFileDescriptor uploadDescriptor)
+    protected override Task<FileMetadata> MapUploadToMetadata(UploadPackage package,
+        UploadFileDescriptor uploadDescriptor)
     {
         var metadata = new FileMetadata()
         {
             File = package.InternalFile,
-            GlobalTransitId = (package.InstructionSet.TransitOptions?.UseGlobalTransitId ?? false) ? Guid.NewGuid() : null,
+            GlobalTransitId = (package.InstructionSet.TransitOptions?.UseGlobalTransitId ?? false)
+                ? Guid.NewGuid()
+                : null,
             ContentType = uploadDescriptor.FileMetadata.ContentType,
 
             ReferencedFile = uploadDescriptor.FileMetadata.ReferencedFile,
@@ -129,7 +148,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
                 AdditionalThumbnails = uploadDescriptor.FileMetadata.AppData.AdditionalThumbnails,
 
                 //Hijack the groupId by setting it to referenced file
-                GroupId = uploadDescriptor.FileMetadata.ReferencedFile.FileId,
+                GroupId = uploadDescriptor.FileMetadata.ReferencedFile.GlobalTransitId,
             },
 
             PayloadIsEncrypted = uploadDescriptor.FileMetadata.PayloadIsEncrypted,

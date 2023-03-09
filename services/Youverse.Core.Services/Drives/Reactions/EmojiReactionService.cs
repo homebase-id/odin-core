@@ -1,5 +1,8 @@
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using MediatR;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives.DriveCore.Query.Sqlite;
 
@@ -74,6 +77,19 @@ public class EmojiReactionService
         throw new YouverseSystemException($"Invalid query manager instance for drive {file.DriveId}");
     }
 
+    public List<string> GetReactionsByIdentityAndFile(OdinId identity, InternalDriveFileId file)
+    {
+        _contextAccessor.GetCurrent().PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
+
+        if (_driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId, out var manager))
+        {
+            var result = manager.GetReactionsByIdentityAndFile(identity, file.FileId);
+            return result;
+        }
+
+        throw new YouverseSystemException($"Invalid query manager instance for drive {file.DriveId}");
+    }
+
     public void DeleteReactions(InternalDriveFileId file)
     {
         var context = _contextAccessor.GetCurrent();
@@ -84,15 +100,15 @@ public class EmojiReactionService
             manager.DeleteReactions(context.GetCallerOdinIdOrFail(), file.FileId);
         }
     }
-
-
+    
     public GetReactionsResponse GetReactions(InternalDriveFileId file, int cursor, int maxCount)
     {
         _contextAccessor.GetCurrent().PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.Read);
 
         if (_driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId, out var manager))
         {
-            var (list, nextCursor) = manager.GetReactionsByFile(fileId: file.FileId, cursor: cursor, maxCount: maxCount);
+            var (list, nextCursor) =
+                manager.GetReactionsByFile(fileId: file.FileId, cursor: cursor, maxCount: maxCount);
 
             return new GetReactionsResponse()
             {

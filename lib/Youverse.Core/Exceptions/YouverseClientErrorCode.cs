@@ -49,7 +49,7 @@ public enum YouverseClientErrorCode
     InvalidPayload = 4119,
     CannotUseReservedFileType = 4120,
     InvalidReferenceFile = 4122,
-    CannotUseReferencedFileOnNonReactionFile = 4123,
+    CannotUseReferencedFileOnStandardFiles = 4123,
     CannotUseGroupIdInTextReactions = 4124,
     InvalidFileSystemType = 4125,
 
