@@ -9,14 +9,14 @@ namespace Youverse.Hosting.Controllers.Base
     /// </summary>
     public abstract class DriveQueryControllerBase : YouverseControllerBase
     {
-        public virtual async Task<QueryModifiedResult> QueryModified(QueryModifiedRequest request)
+        protected async Task<QueryModifiedResult> QueryModified(QueryModifiedRequest request)
         {
             var driveId = DotYouContext.PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
             var batch = await GetFileSystemResolver().ResolveFileSystem().Query.GetModified(driveId, request.QueryParams, request.ResultOptions);
             return batch;
         }
 
-        public virtual async Task<QueryBatchResponse> QueryBatch(QueryBatchRequest request)
+        protected async Task<QueryBatchResponse> QueryBatch(QueryBatchRequest request)
         {
             var driveId = DotYouContext.PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
             var batch = await GetFileSystemResolver().ResolveFileSystem().Query.GetBatch(driveId, request.QueryParams, request.ResultOptionsRequest.ToQueryBatchResultOptions());
@@ -24,7 +24,7 @@ namespace Youverse.Hosting.Controllers.Base
             return QueryBatchResponse.FromResult(batch);
         }
 
-        public virtual async Task<QueryBatchCollectionResponse> QueryBatchCollection(QueryBatchCollectionRequest request)
+        protected async Task<QueryBatchCollectionResponse> QueryBatchCollection(QueryBatchCollectionRequest request)
         {
             var collection = await GetFileSystemResolver().ResolveFileSystem().Query.GetBatchCollection(request);
             return collection;
