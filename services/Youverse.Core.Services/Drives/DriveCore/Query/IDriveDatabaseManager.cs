@@ -66,7 +66,9 @@ namespace Youverse.Core.Services.Drives.DriveCore.Query
         (List<string>, int) GetReactions(Guid fileId);
 
         (List<ReactionCount> reactions, int total) GetReactionSummaryByFile(Guid fileId);
-
+        
+        List<string> GetReactionsByIdentityAndFile(OdinId identity, Guid fileId);
+        
         int GetReactionCountByIdentity(OdinId odinId, Guid fileId);
 
         (List<Reaction>, Int32? cursor) GetReactionsByFile(int maxCount, int cursor, Guid fileId);

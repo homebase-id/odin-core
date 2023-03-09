@@ -58,7 +58,7 @@ public class ReactionPreviewTests
             AllowDistribution = true,
             ContentType = "application/json",
             PayloadIsEncrypted = false,
-            ReferencedFile = uploadedContentResult.File,
+            ReferencedFile = uploadedContentResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
                 ContentIsComplete = true,
@@ -77,7 +77,7 @@ public class ReactionPreviewTests
             AllowDistribution = true,
             ContentType = "application/json",
             PayloadIsEncrypted = false,
-            ReferencedFile = uploadedContentResult.File,
+            ReferencedFile = uploadedContentResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
                 ContentIsComplete = true,
@@ -96,7 +96,7 @@ public class ReactionPreviewTests
             AllowDistribution = true,
             ContentType = "application/json",
             PayloadIsEncrypted = false,
-            ReferencedFile = uploadedContentResult.File,
+            ReferencedFile = uploadedContentResult.GlobalTransitIdFileIdentifier,
             AppData = new()
             {
                 ContentIsComplete = true,

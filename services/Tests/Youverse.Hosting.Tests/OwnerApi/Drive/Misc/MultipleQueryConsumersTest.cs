@@ -60,7 +60,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.Misc
                 ContentType = "application/json",
                 AllowDistribution = true,
                 PayloadIsEncrypted = false,
-                ReferencedFile = standardFileUploadResult.File,
+                ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
                 AppData = new()
                 {
                     ContentIsComplete = false,

@@ -46,7 +46,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
 
             var commentMetadata = new UploadFileMetadata()
             {
-                ReferencedFile = blogPostUploadResult.File,
+                ReferencedFile = blogPostUploadResult.GlobalTransitIdFileIdentifier,
                 AppData = new UploadAppFileMetaData()
                 {
                     FileType = 10101,
@@ -83,7 +83,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
 
             var commentMetadata = new UploadFileMetadata()
             {
-                ReferencedFile = blogPostUploadResult.File,
+                ReferencedFile = blogPostUploadResult.GlobalTransitIdFileIdentifier,
                 AppData = new UploadAppFileMetaData()
                 {
                     FileType = 10101,

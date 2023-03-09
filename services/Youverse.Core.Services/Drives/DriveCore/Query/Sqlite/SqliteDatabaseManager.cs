@@ -31,7 +31,8 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
 
     public StorageDrive Drive { get; init; }
 
-    public Task<(ulong, IEnumerable<Guid>)> GetModified(DotYouContext dotYouContext, FileSystemType fileSystemType, FileQueryParams qp, QueryModifiedResultOptions options)
+    public Task<(ulong, IEnumerable<Guid>)> GetModified(DotYouContext dotYouContext, FileSystemType fileSystemType,
+        FileQueryParams qp, QueryModifiedResultOptions options)
     {
         Guard.Argument(dotYouContext, nameof(dotYouContext)).NotNull();
         var callerContext = dotYouContext.Caller;
@@ -60,7 +61,8 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
     }
 
 
-    public Task<(QueryBatchCursor, IEnumerable<Guid>)> GetBatch(DotYouContext dotYouContext, FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options)
+    public Task<(QueryBatchCursor, IEnumerable<Guid>)> GetBatch(DotYouContext dotYouContext,
+        FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options)
     {
         Guard.Argument(dotYouContext, nameof(dotYouContext)).NotNull();
 
@@ -124,7 +126,9 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
             return Task.CompletedTask;
         }
 
-        var sender = string.IsNullOrEmpty(metadata.SenderOdinId) ? Array.Empty<byte>() : ((OdinId)metadata.SenderOdinId).ToByteArray();
+        var sender = string.IsNullOrEmpty(metadata.SenderOdinId)
+            ? Array.Empty<byte>()
+            : ((OdinId)metadata.SenderOdinId).ToByteArray();
         var acl = new List<Guid>();
 
         acl.AddRange(header.ServerMetadata.AccessControlList.GetRequiredCircles());
@@ -222,7 +226,8 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
 
     public void AddReaction(OdinId odinId, Guid fileId, string reaction)
     {
-        _db.TblReactions.Insert(new ReactionsRecord() { identity = odinId, postId = fileId, singleReaction = reaction });
+        _db.TblReactions.Insert(new ReactionsRecord()
+            { identity = odinId, postId = fileId, singleReaction = reaction });
     }
 
     public void DeleteReactions(OdinId odinId, Guid fileId)
@@ -256,6 +261,11 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         }
 
         return (results, total);
+    }
+
+    public List<string> GetReactionsByIdentityAndFile(OdinId identity, Guid fileId)
+    {
+        return _db.TblReactions.GetIdentityPostReactionDetails(identity, fileId);
     }
 
     public int GetReactionCountByIdentity(OdinId odinId, Guid fileId)

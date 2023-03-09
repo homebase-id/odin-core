@@ -1,4 +1,5 @@
-﻿using Youverse.Core.Services.Authorization.Acl;
+﻿using System;
+using Youverse.Core.Services.Authorization.Acl;
 
 namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
 {
@@ -28,9 +29,9 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
         public virtual bool AllowDistribution { get; set; }
 
         /// <summary>
-        /// The file about which the feedback is given
+        /// The global transit id to which this file refers
         /// </summary>
-        public virtual ExternalFileIdentifier ReferencedFile { get; set; }
-
+        // public virtual ExternalFileIdentifier ReferencedFile { get; set; }
+        public virtual GlobalTransitIdFileIdentifier ReferencedFile { get; set; }
     }
 }
