@@ -15,11 +15,11 @@ namespace Youverse.Core.Services.Drives
         /// <summary>
         /// The global transit id to retrieve
         /// </summary>
-        public Guid FileId { get; set; }
+        public Guid GlobalTransitId { get; set; }
         
         public bool HasValue()
         {
-            return FileId != Guid.NewGuid() && TargetDrive.IsValid();
+            return GlobalTransitId != Guid.NewGuid() && TargetDrive.IsValid();
         }
 
         public static bool operator ==(GlobalTransitIdFileIdentifier d1, GlobalTransitIdFileIdentifier d2)
@@ -29,7 +29,7 @@ namespace Youverse.Core.Services.Drives
                 return true;
             }
 
-            return d1?.FileId == d2?.FileId && d1.TargetDrive == d2.TargetDrive;
+            return d1?.GlobalTransitId == d2?.GlobalTransitId && d1.TargetDrive == d2.TargetDrive;
         }
 
         public static bool operator !=(GlobalTransitIdFileIdentifier d1, GlobalTransitIdFileIdentifier d2)
@@ -41,7 +41,7 @@ namespace Youverse.Core.Services.Drives
         {
             if (ReferenceEquals(null, other)) return false;
             if (ReferenceEquals(this, other)) return true;
-            return Equals(TargetDrive, other.TargetDrive) && FileId.Equals(other.FileId);
+            return Equals(TargetDrive, other.TargetDrive) && GlobalTransitId.Equals(other.GlobalTransitId);
         }
 
         public override bool Equals(object obj)
@@ -54,7 +54,7 @@ namespace Youverse.Core.Services.Drives
 
         public override int GetHashCode()
         {
-            return HashCode.Combine(TargetDrive, FileId);
+            return HashCode.Combine(TargetDrive, GlobalTransitId);
         }
     }
 }

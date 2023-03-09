@@ -25,7 +25,7 @@ namespace Youverse.Core.Services.Transit
             GlobalTransitId.HasValue
                 ? new GlobalTransitIdFileIdentifier()
                 {
-                    FileId = this.GlobalTransitId.GetValueOrDefault(),
+                    GlobalTransitId = this.GlobalTransitId.GetValueOrDefault(),
                     TargetDrive = this.File.TargetDrive
                 }
                 : null;

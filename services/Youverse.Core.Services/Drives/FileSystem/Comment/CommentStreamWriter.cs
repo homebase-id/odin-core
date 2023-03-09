@@ -64,7 +64,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         var referenceFileInternal = new InternalDriveFileId()
         {
             DriveId = referenceFileDriveId,
-            FileId = metadata.ReferencedFile.FileId
+            FileId = metadata.ReferencedFile.GlobalTransitId
         };
 
         // if (!package.InstructionSet.StorageOptions.IgnoreMissingReferencedFile)
@@ -151,7 +151,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
                 AdditionalThumbnails = uploadDescriptor.FileMetadata.AppData.AdditionalThumbnails,
 
                 //Hijack the groupId by setting it to referenced file
-                GroupId = uploadDescriptor.FileMetadata.ReferencedFile.FileId,
+                GroupId = uploadDescriptor.FileMetadata.ReferencedFile.GlobalTransitId,
             },
 
             PayloadIsEncrypted = uploadDescriptor.FileMetadata.PayloadIsEncrypted,

@@ -15,7 +15,8 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
         private readonly DriveStorageServiceBase _storage;
         private readonly DriveDatabaseHost _driveDatabaseHost;
 
-        protected DriveQueryServiceBase(DotYouContextAccessor contextAccessor, DriveDatabaseHost driveDatabaseHost, DriveManager driveManager, DriveStorageServiceBase storage)
+        protected DriveQueryServiceBase(DotYouContextAccessor contextAccessor, DriveDatabaseHost driveDatabaseHost,
+            DriveManager driveManager, DriveStorageServiceBase storage)
         {
             ContextAccessor = contextAccessor;
             DriveManager = driveManager;
@@ -32,12 +33,14 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
         /// </summary>
         protected abstract FileSystemType GetFileSystemType();
 
-        public async Task<QueryModifiedResult> GetModified(Guid driveId, FileQueryParams qp, QueryModifiedResultOptions options)
+        public async Task<QueryModifiedResult> GetModified(Guid driveId, FileQueryParams qp,
+            QueryModifiedResultOptions options)
         {
             AssertCanReadDrive(driveId);
             if (TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
-                var (updatedCursor, fileIdList) = await queryManager.GetModified(ContextAccessor.GetCurrent(), GetFileSystemType(), qp, options);
+                var (updatedCursor, fileIdList) =
+                    await queryManager.GetModified(ContextAccessor.GetCurrent(), GetFileSystemType(), qp, options);
                 var headers = await CreateClientFileHeaders(driveId, fileIdList, options);
 
                 //TODO: can we put a stop cursor and update time on this too?  does that make any sense? probably not
@@ -98,7 +101,8 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
 
         public async Task<QueryBatchCollectionResponse> GetBatchCollection(QueryBatchCollectionRequest request)
         {
-            foreach (var driveId in request.Queries.Select(q => ContextAccessor.GetCurrent().PermissionsContext.GetDriveId(q.QueryParams.TargetDrive)))
+            foreach (var driveId in request.Queries.Select(q =>
+                         ContextAccessor.GetCurrent().PermissionsContext.GetDriveId(q.QueryParams.TargetDrive)))
             {
                 AssertCanReadDrive(driveId);
             }
@@ -106,8 +110,10 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             var collection = new QueryBatchCollectionResponse();
             foreach (var query in request.Queries)
             {
-                var driveId = (await DriveManager.GetDriveIdByAlias(query.QueryParams.TargetDrive, true)).GetValueOrDefault();
-                var result = await this.GetBatch(driveId, query.QueryParams, query.ResultOptionsRequest.ToQueryBatchResultOptions());
+                var driveId = (await DriveManager.GetDriveIdByAlias(query.QueryParams.TargetDrive, true))
+                    .GetValueOrDefault();
+                var result = await this.GetBatch(driveId, query.QueryParams,
+                    query.ResultOptionsRequest.ToQueryBatchResultOptions());
 
                 var response = QueryBatchResponse.FromResult(result);
                 response.Name = query.Name;
@@ -151,7 +157,8 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             return results.SearchResults.SingleOrDefault();
         }
 
-        private async Task<IEnumerable<SharedSecretEncryptedFileHeader>> CreateClientFileHeaders(Guid driveId, IEnumerable<Guid> fileIdList, ResultOptions options)
+        private async Task<IEnumerable<SharedSecretEncryptedFileHeader>> CreateClientFileHeaders(Guid driveId,
+            IEnumerable<Guid> fileIdList, ResultOptions options)
         {
             var results = new List<SharedSecretEncryptedFileHeader>();
 
@@ -184,6 +191,51 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
         private bool TryGetOrLoadQueryManager(Guid driveId, out IDriveDatabaseManager manager)
         {
             return _driveDatabaseHost.TryGetOrLoadQueryManager(driveId, out manager);
+        }
+
+        /// <summary>
+        /// Gets the file Id a file by its <see cref="GlobalTransitIdFileIdentifier"/>
+        /// </summary>
+        /// <returns>The fileId; otherwise null if the file does not exist</returns>
+        public async Task<InternalDriveFileId?> ResolveFileId(GlobalTransitIdFileIdentifier file)
+        {
+            var driveId = ContextAccessor.GetCurrent().PermissionsContext.GetDriveId(file.TargetDrive);
+            AssertCanReadDrive(driveId);
+
+            var qp = new FileQueryParams()
+            {
+                GlobalTransitId = new List<Guid>() { file.GlobalTransitId }
+            };
+
+            var options = new QueryBatchResultOptions()
+            {
+                Cursor = null,
+                MaxRecords = 10,
+                ExcludePreviewThumbnail = true
+            };
+
+            if (TryGetOrLoadQueryManager(driveId, out var queryManager))
+            {
+                var (_, fileIdList) = await queryManager.GetBatch(ContextAccessor.GetCurrent(),
+                    GetFileSystemType(),
+                    qp,
+                    options);
+
+                var fileId = fileIdList.FirstOrDefault();
+
+                if (fileId == Guid.Empty)
+                {
+                    return null;
+                }
+                
+                return new InternalDriveFileId()
+                {
+                    FileId = fileId,
+                    DriveId = driveId
+                };
+            }
+
+            throw new NoValidIndexClientException(driveId);
         }
     }
 }

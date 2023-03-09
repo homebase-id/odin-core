@@ -56,7 +56,7 @@ public class ReactionTests
         // var targetReferenceFile = uploadResult.File;
         var targetReferenceFile = new GlobalTransitIdFileIdentifier()
         {
-            FileId = uploadResult.GlobalTransitId.GetValueOrDefault(),
+            GlobalTransitId = uploadResult.GlobalTransitId.GetValueOrDefault(),
             TargetDrive = uploadResult.File.TargetDrive
         };
         
