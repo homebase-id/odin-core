@@ -123,8 +123,14 @@ namespace Youverse.Core.Storage.Sqlite
             _transaction?.Dispose();
             _transaction = null;
 
-            _connection?.Dispose();
-            _connection = null;
+            if (_connection != null)
+            {
+                // https://www.bricelam.net/2021/11/08/microsoft-data-sqlite-6.html
+                SqliteConnection.ClearPool(_connection);
+                _connection.Close();
+                _connection.Dispose();
+                _connection = null;
+            }
 
             _getConnectionLock = null;
 

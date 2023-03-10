@@ -30,16 +30,16 @@ namespace Youverse.Hosting.Tests
         private AppApiTestUtils _appApi;
         private ScenarioBootstrapper _scenarios;
         private IIdentityRegistry _registry;
-
+        private string _uniqueSubPath;
         private string _testInstancePrefix;
 
         public WebScaffold(string folder)
         {
             this._folder = folder;
+            this._uniqueSubPath = Guid.NewGuid().ToString();
             _oldOwnerApi = new OwnerApiTestUtils();
         }
 
-        [OneTimeSetUp]
         public void RunBeforeAnyTests(bool initializeIdentity = true)
         {
 
@@ -81,9 +81,8 @@ namespace Youverse.Hosting.Tests
             Environment.SetEnvironmentVariable("CertificateRenewal__CsrOrganization", "YF");
             Environment.SetEnvironmentVariable("CertificateRenewal__CsrOrganizationUnit", "Dev");
 
-            this.DeleteData();
-            this.DeleteLogs();
-
+            CreateData();
+            CreateLogs();
 
             _registry = new FileSystemIdentityRegistry(TestDataPath, null);
             _registry.Initialize();
@@ -103,15 +102,15 @@ namespace Youverse.Hosting.Tests
             _scenarios = new ScenarioBootstrapper(_oldOwnerApi, _appApi);
         }
 
-        [OneTimeTearDown]
         public void RunAfterAnyTests()
         {
             if (null != _webserver)
             {
-                Thread.Sleep(2000);
                 _webserver.StopAsync().GetAwaiter().GetResult();
                 _webserver.Dispose();
             }
+            this.DeleteData();
+            this.DeleteLogs();
         }
 
         public OwnerApiTestUtils OldOwnerApi => this._oldOwnerApi ?? throw new NullReferenceException("Check if the owner app was initialized in method RunBeforeAnyTests");
@@ -158,6 +157,12 @@ namespace Youverse.Hosting.Tests
             return RefitCreator.RestServiceFor<T>(client, sharedSecret);
         }
 
+        private void CreateData()
+        {
+            Directory.CreateDirectory(TestDataPath);
+            Directory.CreateDirectory(TempDataPath);
+        }
+
         private void DeleteData()
         {
             if (Directory.Exists(TestDataPath))
@@ -165,16 +170,19 @@ namespace Youverse.Hosting.Tests
                 Console.WriteLine($"Removing data in [{TestDataPath}]");
                 Directory.Delete(TestDataPath, true);
             }
-
-            Directory.CreateDirectory(TestDataPath);
+           
 
             if (Directory.Exists(TempDataPath))
             {
                 Console.WriteLine($"Removing data in [{TempDataPath}]");
                 Directory.Delete(TempDataPath, true);
             }
+           
+        }
 
-            Directory.CreateDirectory(TempDataPath);
+        private void CreateLogs()
+        {
+            Directory.CreateDirectory(LogFilePath);
         }
 
         private void DeleteLogs()
@@ -184,15 +192,13 @@ namespace Youverse.Hosting.Tests
                 Console.WriteLine($"Removing data in [{LogFilePath}]");
                 Directory.Delete(LogFilePath, true);
             }
-
-            Directory.CreateDirectory(LogFilePath);
         }
 
         private string TestDataPath
         {
             get
             {
-                var p = PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "testsdata", "dotyoudata", _folder);
+                var p = PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "testsdata", _uniqueSubPath, "dotyoudata", _folder);
                 string x = isDev ? PathUtil.Combine(home, p.Substring(1)) : p;
                 return Path.Combine(_testInstancePrefix, x);
                 // return x;
@@ -206,7 +212,7 @@ namespace Youverse.Hosting.Tests
         {
             get
             {
-                var p = PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "tempdata", "dotyoudata", _folder);
+                var p = PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "tempdata", _uniqueSubPath, "dotyoudata", _folder);
                 //return isDev ? PathUtil.Combine(home, p.Substring(1)) : p;
                 string x = isDev ? PathUtil.Combine(home, p.Substring(1)) : p;
                 return Path.Combine(_testInstancePrefix, x);
@@ -217,7 +223,7 @@ namespace Youverse.Hosting.Tests
         {
             get
             {
-                var p = PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "testsdata", "dotyoulogs", _folder);
+                var p = PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "testsdata", _uniqueSubPath, "dotyoulogs", _folder);
                 string x = isDev ? PathUtil.Combine(home, p.Substring(1)) : p;
                 return Path.Combine(_testInstancePrefix, x);
             }
