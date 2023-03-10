@@ -382,7 +382,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             var cmd = new SqliteCommand(stm, con);
 
             // Commit();
-            var rdr = cmd.ExecuteReader(CommandBehavior.Default, this);
+            var rdr = this.ExecuteReader(cmd, CommandBehavior.Default);
 
             var result = new List<Guid>();
             var fileId = new byte[16];
@@ -643,7 +643,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             stm = $"SELECT fileid, modified FROM mainindex " + strWhere + $"ORDER BY modified ASC LIMIT {noOfItems}";
 
             var cmd = new SqliteCommand(stm, con);
-            var rdr = cmd.ExecuteReader(CommandBehavior.Default, this);
+            var rdr = this.ExecuteReader(cmd, CommandBehavior.Default);
 
             var result = new List<Guid>();
             var fileId = new byte[16];

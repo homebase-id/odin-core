@@ -107,13 +107,11 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _pparam3.Value = boxId.ToByteArray();
 
                 _database.BeginTransaction();
-                _popCommand.Transaction = _database.Transaction;
-
 
                 using (_database.CreateCommitUnitOfWork())
                 {
                     List<InboxRecord> result = new List<InboxRecord>();
-                    using (SqliteDataReader rdr = _popCommand.ExecuteReader(System.Data.CommandBehavior.Default))
+                    using (SqliteDataReader rdr = _database.ExecuteReader(_popCommand, System.Data.CommandBehavior.Default))
                     {
                         InboxRecord item;
 
@@ -185,7 +183,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
                 _pcancelparam1.Value = popstamp ?? (object) DBNull.Value;
                 _database.BeginTransaction();
-                _popCancelCommand.ExecuteNonQuery(_database);
+                _database.ExecuteNonQuery(_popCancelCommand);
             }
         }
 
@@ -212,7 +210,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
                 _pcommitparam1.Value = popstamp ?? (object) DBNull.Value;
                 _database.BeginTransaction();
-                _popCommitCommand.ExecuteNonQuery(_database);
+                _database.ExecuteNonQuery(_popCommitCommand);
             }
         }
 
@@ -242,7 +240,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _pcrecoverparam1.Value = SequentialGuid.CreateGuid(new UnixTimeUtc(ut)).ToByteArray(); // UnixTimeMiliseconds
 
                 _database.BeginTransaction();
-                _popRecoverCommand.ExecuteNonQuery(_database);
+                _database.ExecuteNonQuery(_popRecoverCommand);
             }
         }
     }

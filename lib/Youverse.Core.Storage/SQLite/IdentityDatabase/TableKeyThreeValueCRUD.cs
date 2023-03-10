@@ -130,7 +130,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 if (dropExisting)
                 {
                     cmd.CommandText = "DROP TABLE IF EXISTS keyThreeValue;";
-                    cmd.ExecuteNonQuery(_database);
+                    cmd.ExecuteNonQuery();
                 }
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS keyThreeValue("
@@ -143,7 +143,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                      +"CREATE INDEX IF NOT EXISTS Idx0TableKeyThreeValueCRUD ON keyThreeValue(key2);"
                      +"CREATE INDEX IF NOT EXISTS Idx1TableKeyThreeValueCRUD ON keyThreeValue(key3);"
                      ;
-                cmd.ExecuteNonQuery(_database);
+                cmd.ExecuteNonQuery();
             }
         }
 
@@ -175,7 +175,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _insertParam3.Value = item.key3 ?? (object)DBNull.Value;
                 _insertParam4.Value = item.data ?? (object)DBNull.Value;
                 _database.BeginTransaction();
-                return _insertCommand.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_insertCommand);
             } // Lock
         }
 
@@ -209,7 +209,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _upsertParam3.Value = item.key3 ?? (object)DBNull.Value;
                 _upsertParam4.Value = item.data ?? (object)DBNull.Value;
                 _database.BeginTransaction();
-                return _upsertCommand.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_upsertCommand);
             } // Lock
         }
 
@@ -242,7 +242,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _updateParam3.Value = item.key3 ?? (object)DBNull.Value;
                 _updateParam4.Value = item.data ?? (object)DBNull.Value;
                 _database.BeginTransaction();
-                return _updateCommand.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_updateCommand);
             } // Lock
         }
 
@@ -262,7 +262,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 }
                 _delete0Param1.Value = key1.ToByteArray();
                 _database.BeginTransaction();
-                return _delete0Command.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_delete0Command);
             } // Lock
         }
 
@@ -283,7 +283,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _get0Command.Prepare();
                 }
                 _get0Param1.Value = key2 ?? (object)DBNull.Value;
-                using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.Default))
                 {
                     byte[] result0tmp;
                     var thelistresult = new List<byte[]>();
@@ -335,7 +335,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _get1Command.Prepare();
                 }
                 _get1Param1.Value = key3 ?? (object)DBNull.Value;
-                using (SqliteDataReader rdr = _get1Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
                 {
                     byte[] result0tmp;
                     var thelistresult = new List<byte[]>();
@@ -393,7 +393,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 }
                 _get2Param1.Value = key2 ?? (object)DBNull.Value;
                 _get2Param2.Value = key3 ?? (object)DBNull.Value;
-                using (SqliteDataReader rdr = _get2Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_get2Command, System.Data.CommandBehavior.Default))
                 {
                     var result = new List<KeyThreeValueRecord>();
                     if (!rdr.Read())
@@ -455,7 +455,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _get3Command.Prepare();
                 }
                 _get3Param1.Value = key1.ToByteArray();
-                using (SqliteDataReader rdr = _get3Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_get3Command, System.Data.CommandBehavior.SingleRow))
                 {
                     var result = new KeyThreeValueRecord();
                     if (!rdr.Read())

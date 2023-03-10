@@ -164,7 +164,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 if (dropExisting)
                 {
                     cmd.CommandText = "DROP TABLE IF EXISTS connections;";
-                    cmd.ExecuteNonQuery(_database);
+                    cmd.ExecuteNonQuery();
                 }
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS connections("
@@ -180,7 +180,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                      +"CREATE INDEX IF NOT EXISTS Idx0TableConnectionsCRUD ON connections(identity);"
                      +"CREATE INDEX IF NOT EXISTS Idx1TableConnectionsCRUD ON connections(created);"
                      ;
-                cmd.ExecuteNonQuery(_database);
+                cmd.ExecuteNonQuery();
             }
         }
 
@@ -224,7 +224,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _insertParam6.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _insertParam7.Value = DBNull.Value;
                 _database.BeginTransaction();
-                return _insertCommand.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_insertCommand);
             } // Lock
         }
 
@@ -270,7 +270,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _upsertParam6.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _upsertParam7.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _database.BeginTransaction();
-                return _upsertCommand.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_upsertCommand);
             } // Lock
         }
 
@@ -315,7 +315,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _updateParam6.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _updateParam7.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _database.BeginTransaction();
-                return _updateCommand.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_updateCommand);
             } // Lock
         }
 
@@ -335,7 +335,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 }
                 _delete0Param1.Value = identity.DomainName;
                 _database.BeginTransaction();
-                return _delete0Command.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_delete0Command);
             } // Lock
         }
 
@@ -354,7 +354,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _get0Command.Prepare();
                 }
                 _get0Param1.Value = identity.DomainName;
-                using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     var result = new ConnectionsRecord();
                     if (!rdr.Read())
@@ -443,9 +443,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 }
                 _getPaging1Param1.Value = inCursor;
                 _getPaging1Param2.Value = count+1;
-                _getPaging1Command.Transaction = _database.Transaction;
 
-                using (SqliteDataReader rdr = _getPaging1Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_getPaging1Command, System.Data.CommandBehavior.Default))
                 {
                     var result = new List<ConnectionsRecord>();
                     int n = 0;
@@ -557,9 +556,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 }
                 _getPaging6Param1.Value = inCursor?.uniqueTime;
                 _getPaging6Param2.Value = count+1;
-                _getPaging6Command.Transaction = _database.Transaction;
 
-                using (SqliteDataReader rdr = _getPaging6Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_getPaging6Command, System.Data.CommandBehavior.Default))
                 {
                     var result = new List<ConnectionsRecord>();
                     int n = 0;

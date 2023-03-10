@@ -114,7 +114,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 if (dropExisting)
                 {
                     cmd.CommandText = "DROP TABLE IF EXISTS circleMember;";
-                    cmd.ExecuteNonQuery(_database);
+                    cmd.ExecuteNonQuery();
                 }
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS circleMember("
@@ -124,7 +124,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                      +", PRIMARY KEY (circleId,memberId)"
                      +");"
                      ;
-                cmd.ExecuteNonQuery(_database);
+                cmd.ExecuteNonQuery();
             }
         }
 
@@ -152,7 +152,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _insertParam2.Value = item.memberId.ToByteArray();
                 _insertParam3.Value = item.data ?? (object)DBNull.Value;
                 _database.BeginTransaction();
-                return _insertCommand.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_insertCommand);
             } // Lock
         }
 
@@ -182,7 +182,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _upsertParam2.Value = item.memberId.ToByteArray();
                 _upsertParam3.Value = item.data ?? (object)DBNull.Value;
                 _database.BeginTransaction();
-                return _upsertCommand.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_upsertCommand);
             } // Lock
         }
 
@@ -211,7 +211,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _updateParam2.Value = item.memberId.ToByteArray();
                 _updateParam3.Value = item.data ?? (object)DBNull.Value;
                 _database.BeginTransaction();
-                return _updateCommand.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_updateCommand);
             } // Lock
         }
 
@@ -235,7 +235,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _delete0Param1.Value = circleId.ToByteArray();
                 _delete0Param2.Value = memberId.ToByteArray();
                 _database.BeginTransaction();
-                return _delete0Command.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_delete0Command);
             } // Lock
         }
 
@@ -255,7 +255,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 }
                 _delete1Param1.Value = memberId.ToByteArray();
                 _database.BeginTransaction();
-                return _delete1Command.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_delete1Command);
             } // Lock
         }
 
@@ -278,7 +278,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 }
                 _get0Param1.Value = circleId.ToByteArray();
                 _get0Param2.Value = memberId.ToByteArray();
-                using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     var result = new CircleMemberRecord();
                     if (!rdr.Read())
@@ -324,7 +324,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _get1Command.Prepare();
                 }
                 _get1Param1.Value = circleId.ToByteArray();
-                using (SqliteDataReader rdr = _get1Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
                 {
                     var result = new List<CircleMemberRecord>();
                     if (!rdr.Read())
@@ -385,7 +385,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _get2Command.Prepare();
                 }
                 _get2Param1.Value = memberId.ToByteArray();
-                using (SqliteDataReader rdr = _get2Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_get2Command, System.Data.CommandBehavior.Default))
                 {
                     var result = new List<CircleMemberRecord>();
                     if (!rdr.Read())

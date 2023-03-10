@@ -23,8 +23,6 @@ namespace Youverse.Core.Storage.Sqlite
 {
     public class DatabaseBase : IDisposable
     {
-        public readonly Object _transactionLock = new Object();
-
         public class IntCounter // Since I can't store a ref to an int, I make this hack.
         {
             public int _counter = 0;
@@ -71,9 +69,9 @@ namespace Youverse.Core.Storage.Sqlite
 
         private SqliteConnection _connection = null;
         private SqliteTransaction _transaction = null;
-        public SqliteTransaction Transaction => _transaction;
 
-        private Object _getConnectionLock = new Object();
+        private readonly Object _getConnectionLock = new Object();
+        private readonly Object _transactionLock = new Object();
 
         private UnixTimeUtc _lastCommit;
         private bool _wasDisposed = false;
@@ -126,16 +124,37 @@ namespace Youverse.Core.Storage.Sqlite
             _connection?.Dispose();
             _connection = null;
 
-            _getConnectionLock = null;
-
             _wasDisposed = true;
         }
+
+        public int ExecuteNonQuery(SqliteCommand command)
+        {
+            lock (_transactionLock)
+            {
+                command.Transaction = _transaction;
+                var r = command.ExecuteNonQuery();
+                command.Transaction = null;
+                return r;
+            }
+        }
+
+        public SqliteDataReader ExecuteReader(SqliteCommand command, CommandBehavior behavior)
+        {
+            lock (_transactionLock)
+            {
+                command.Transaction = _transaction;
+                var r = command.ExecuteReader();
+                command.Transaction = null;
+                return r;
+            }
+        }
+
 
         public SqliteCommand CreateCommand()
         {
             return new SqliteCommand
             {
-                Connection = GetConnection(),
+                Connection = GetConnection()
             };
         }
 
@@ -144,7 +163,7 @@ namespace Youverse.Core.Storage.Sqlite
             using (var cmd = CreateCommand())
             {
                 cmd.CommandText = "VACUUM;";
-                cmd.ExecuteNonQuery(this);
+                this.ExecuteNonQuery(cmd);
             }
         }
 
@@ -266,6 +285,8 @@ namespace Youverse.Core.Storage.Sqlite
         }
 
 
+
+
         public int TimerCount()
         {
             return _timerTriggerCount;
@@ -298,34 +319,6 @@ namespace Youverse.Core.Storage.Sqlite
 
             _timerCommitTriggerCount++;
             Commit();
-        }
-    }
-
-    public static class CommandExtensions
-    {
-        public static int ExecuteNonQuery(this SqliteCommand command, DatabaseBase database)
-        {
-            lock (database._transactionLock)
-            {
-                command.Transaction = database.Transaction;
-                var r = command.ExecuteNonQuery();
-                command.Transaction = null;
-                return r;
-            }
-        }
-
-        public static SqliteDataReader ExecuteReader(
-            this SqliteCommand command,
-            CommandBehavior behavior,
-            DatabaseBase database)
-        {
-            lock (database._transactionLock)
-            {
-                command.Transaction = database.Transaction;
-                var r = command.ExecuteReader();
-                command.Transaction = null;
-                return r;
-            }
         }
     }
 }
