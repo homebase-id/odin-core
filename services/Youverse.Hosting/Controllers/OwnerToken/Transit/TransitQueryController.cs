@@ -1,4 +1,4 @@
-﻿using System;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -9,12 +9,15 @@ using Youverse.Core.Identity;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Drives.Reactions;
 using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers.ClientToken.Drive;
-using Youverse.Hosting.Controllers.OwnerToken.Drive;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Transit
 {
+    /// <summary>
+    /// Routes requests from the owner app to a target identity
+    /// </summary>
     [ApiController]
     [Route(OwnerApiPathConstants.TransitQueryV1)]
     [AuthorizeValidOwnerToken]
@@ -135,5 +138,35 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
             var page = new PagedResult<ClientDriveData>(PageOptions.All, 1, clientDriveData);
             return page;
         }
+        
+        
+        // /// <summary />
+        // [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        // [HttpPost("list")]
+        // public GetReactionsResponse GetAllReactions([FromBody] GetReactionsRequest request)
+        // {
+        //     return _transitQueryService.GetReactions(request);
+        // }
+        //
+        // /// <summary>
+        // /// Gets a summary of reactions for the file.  The cursor and max parameters are ignored
+        // /// </summary>
+        // [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        // [HttpPost("summary")]
+        // public GetReactionCountsResponse GetReactionCountsByFile([FromBody] GetReactionsRequest request)
+        // {
+        //     return _transitQueryService.GetReactionCounts(request);
+        // }
+        //
+        // /// <summary>
+        // /// Get reactions by identity and file
+        // /// </summary>
+        // [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        // [HttpPost("listbyidentity")]
+        // public List<string> GetReactionsByIdentity([FromBody] GetReactionsByIdentityRequest request)
+        // {
+        //     return _transitQueryService.GetReactionsByIdentityAndFile(request);
+        // }
+        
     }
 }

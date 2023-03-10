@@ -11,6 +11,7 @@ using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Drives.Reactions;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Quarantine;
 using Youverse.Core.Storage.Sqlite;
@@ -19,7 +20,7 @@ using Youverse.Core.Storage.Sqlite.DriveDatabase;
 namespace Youverse.Core.Services.Transit;
 
 /// <summary>
-/// Executes drive query functionality on connected identity hosts
+/// Executes query functionality on connected identity hosts
 /// </summary>
 public class TransitQueryService
 {
@@ -27,7 +28,8 @@ public class TransitQueryService
     private readonly ICircleNetworkService _circleNetworkService;
     private readonly DotYouContextAccessor _contextAccessor;
 
-    public TransitQueryService(IDotYouHttpClientFactory dotYouHttpClientFactory, ICircleNetworkService circleNetworkService, DotYouContextAccessor contextAccessor)
+    public TransitQueryService(IDotYouHttpClientFactory dotYouHttpClientFactory, ICircleNetworkService circleNetworkService,
+        DotYouContextAccessor contextAccessor)
     {
         _dotYouHttpClientFactory = dotYouHttpClientFactory;
         _circleNetworkService = circleNetworkService;
@@ -66,8 +68,8 @@ public class TransitQueryService
         return header;
     }
 
-    public async Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, bool payloadIsEncrypted, string decryptedContentType, Stream payload)> GetPayloadStream(OdinId odinId,
-        ExternalFileIdentifier file)
+    public async Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, bool payloadIsEncrypted, string decryptedContentType, Stream payload)>
+        GetPayloadStream(OdinId odinId, ExternalFileIdentifier file)
     {
         var (icr, httpClient) = await CreateClient(odinId);
         var response = await httpClient.GetPayloadStream(file);
@@ -99,9 +101,8 @@ public class TransitQueryService
         return (ownerSharedSecretEncryptedKeyHeader, payloadIsEncrypted, decryptedContentType, stream);
     }
 
-    public async Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, bool payloadIsEncrypted, string decryptedContentType, Stream thumbnail)> GetThumbnail(OdinId odinId,
-        ExternalFileIdentifier file,
-        int width, int height)
+    public async Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, bool payloadIsEncrypted, string decryptedContentType, Stream thumbnail)>
+        GetThumbnail(OdinId odinId, ExternalFileIdentifier file, int width, int height)
     {
         var (icr, httpClient) = await CreateClient(odinId);
 
@@ -156,6 +157,33 @@ public class TransitQueryService
         return response.Content;
     }
 
+    /// <summary />
+    // public async Task<GetReactionsResponse> GetReactions(OdinId odinId, GetReactionsRequest request)
+    // {
+    //     var (icr, httpClient) = await CreateClient(odinId);
+    //     var response = await httpClient.GetReactions(request.File,
+    //         cursor: request.Cursor,
+    //         maxCount: request.MaxRecords);
+    //
+    //     return response.Content;
+    // }
+    //
+    // /// <summary />
+    // public async Task<GetReactionCountsResponse> GetReactionCounts(OdinId odinId, GetReactionsRequest request)
+    // {
+    //     var (icr, httpClient) = await CreateClient(odinId);
+    //     var response = await httpClient.GetReactionCountsByFile(request.File);
+    //     return response.Content;
+    // }
+    //
+    // public async Task<List<string>> GetReactionsByIdentityAndFile(OdinId odinId, GetReactionsByIdentityRequest request)
+    // {
+    //     var (icr, httpClient) = await CreateClient(odinId);
+    //     var response = await httpClient.GetReactionsByIdentityAndFile(request.Identity,request.File);
+    //
+    //     return response.Content;
+    // }
+
     private async Task<(IdentityConnectionRegistration, ITransitHostHttpClient)> CreateClient(OdinId odinId)
     {
         var icr = await _circleNetworkService.GetIdentityConnectionRegistration(odinId);
@@ -164,7 +192,8 @@ public class TransitQueryService
         return (icr, httpClient);
     }
 
-    private List<SharedSecretEncryptedFileHeader> TransformSharedSecret(IEnumerable<SharedSecretEncryptedFileHeader> headers, IdentityConnectionRegistration icr)
+    private List<SharedSecretEncryptedFileHeader> TransformSharedSecret(IEnumerable<SharedSecretEncryptedFileHeader> headers,
+        IdentityConnectionRegistration icr)
     {
         var result = new List<SharedSecretEncryptedFileHeader>();
         foreach (var clientFileHeader in headers)
@@ -180,7 +209,8 @@ public class TransitQueryService
     /// </summary>
     /// <param name="sharedSecretEncryptedFileHeader"></param>
     /// <param name="icr"></param>
-    private SharedSecretEncryptedFileHeader TransformSharedSecret(SharedSecretEncryptedFileHeader sharedSecretEncryptedFileHeader, IdentityConnectionRegistration icr)
+    private SharedSecretEncryptedFileHeader TransformSharedSecret(SharedSecretEncryptedFileHeader sharedSecretEncryptedFileHeader,
+        IdentityConnectionRegistration icr)
     {
         EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
         if (sharedSecretEncryptedFileHeader.FileMetadata.PayloadIsEncrypted)
