@@ -43,7 +43,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 {
                     _selectCommand.CommandText = $"SELECT fileid,timestamp FROM commandMessageQueue ORDER BY fileid ASC LIMIT {count}";
 
-                    using (SqliteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.SingleResult, _database))
+                    using (SqliteDataReader rdr = _database.ExecuteReader(_selectCommand, System.Data.CommandBehavior.SingleResult))
                     {
                         int i = 0;
                         long n;

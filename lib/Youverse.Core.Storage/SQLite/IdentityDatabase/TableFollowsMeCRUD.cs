@@ -123,7 +123,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 if (dropExisting)
                 {
                     cmd.CommandText = "DROP TABLE IF EXISTS followsMe;";
-                    cmd.ExecuteNonQuery(_database);
+                    cmd.ExecuteNonQuery();
                 }
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS followsMe("
@@ -135,7 +135,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                      +");"
                      +"CREATE INDEX IF NOT EXISTS Idx0TableFollowsMeCRUD ON followsMe(identity);"
                      ;
-                cmd.ExecuteNonQuery(_database);
+                cmd.ExecuteNonQuery();
             }
         }
 
@@ -167,7 +167,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _insertParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _insertParam4.Value = DBNull.Value;
                 _database.BeginTransaction();
-                return _insertCommand.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_insertCommand);
             } // Lock
         }
 
@@ -201,7 +201,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _upsertParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _upsertParam4.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _database.BeginTransaction();
-                return _upsertCommand.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_upsertCommand);
             } // Lock
         }
 
@@ -234,7 +234,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _updateParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _updateParam4.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _database.BeginTransaction();
-                return _updateCommand.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_updateCommand);
             } // Lock
         }
 
@@ -261,7 +261,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _delete0Param1.Value = identity;
                 _delete0Param2.Value = driveId.ToByteArray();
                 _database.BeginTransaction();
-                return _delete0Command.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_delete0Command);
             } // Lock
         }
 
@@ -284,7 +284,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 }
                 _delete1Param1.Value = identity;
                 _database.BeginTransaction();
-                return _delete1Command.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_delete1Command);
             } // Lock
         }
 
@@ -310,7 +310,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 }
                 _get0Param1.Value = identity;
                 _get0Param2.Value = driveId.ToByteArray();
-                using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     var result = new FollowsMeRecord();
                     if (!rdr.Read())
@@ -360,7 +360,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _get1Command.Prepare();
                 }
                 _get1Param1.Value = identity;
-                using (SqliteDataReader rdr = _get1Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
                 {
                     var result = new List<FollowsMeRecord>();
                     if (!rdr.Read())

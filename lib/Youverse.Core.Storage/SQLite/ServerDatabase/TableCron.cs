@@ -122,14 +122,12 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
                 popStamp = SequentialGuid.CreateGuid();
                 _pparam1.Value = popStamp.ToByteArray();
                 _pparam2.Value = count;
-                _popCommand.Transaction = _database.Transaction;
 
                 List<CronRecord> result = new List<CronRecord>();
 
                 _database.BeginTransaction();
-                _popCommand.Transaction = _database.Transaction;
 
-                using (SqliteDataReader rdr = _popCommand.ExecuteReader(System.Data.CommandBehavior.Default))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_popCommand, System.Data.CommandBehavior.Default))
                 {
                     CronRecord item;
                     byte[] _tmpbuf = new byte[MAX_DATA_LENGTH];
@@ -205,7 +203,7 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
                     for (int i = 0; i < listIdentityId.Count; i++)
                     {
                         _pcancellistparam1.Value = listIdentityId[i].ToByteArray();
-                        _popCancelListCommand.ExecuteNonQuery(_database);
+                        _database.ExecuteNonQuery(_popCancelListCommand);
                     }
                 }
             }
@@ -240,7 +238,7 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
                     for (int i = 0; i < listIdentityId.Count; i++)
                     {
                         _pcommitlistparam1.Value = listIdentityId[i].ToByteArray();
-                        _popCommitListCommand.ExecuteNonQuery(_database);
+                        _database.ExecuteNonQuery(_popCommitListCommand);
                     }
                 }
             }
@@ -272,7 +270,7 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
                 _pcrecoverparam1.Value = SequentialGuid.CreateGuid(t).ToByteArray();
 
                 _database.BeginTransaction();
-                _popRecoverCommand.ExecuteNonQuery(_database);
+                _database.ExecuteNonQuery(_popRecoverCommand);
             }
         }
     }

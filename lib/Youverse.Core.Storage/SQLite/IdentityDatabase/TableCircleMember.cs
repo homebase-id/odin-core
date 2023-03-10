@@ -121,7 +121,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     for (int i = 0; i < members.Count; i++)
                     {
                         _delparam1.Value = members[i].ToByteArray();
-                        _deleteCommand.ExecuteNonQuery(_database);
+                        _database.ExecuteNonQuery(_deleteCommand);
                     }
                 }
             }

@@ -94,7 +94,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 if (dropExisting)
                 {
                     cmd.CommandText = "DROP TABLE IF EXISTS tagIndex;";
-                    cmd.ExecuteNonQuery(_database);
+                    cmd.ExecuteNonQuery();
                 }
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS tagIndex("
@@ -104,7 +104,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                      +");"
                      +"CREATE INDEX IF NOT EXISTS Idx0TableTagIndexCRUD ON tagIndex(fileId);"
                      ;
-                cmd.ExecuteNonQuery(_database);
+                cmd.ExecuteNonQuery();
             }
         }
 
@@ -128,7 +128,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _insertParam1.Value = item.fileId.ToByteArray();
                 _insertParam2.Value = item.tagId.ToByteArray();
                 _database.BeginTransaction();
-                return _insertCommand.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_insertCommand);
             } // Lock
         }
 
@@ -154,7 +154,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _upsertParam1.Value = item.fileId.ToByteArray();
                 _upsertParam2.Value = item.tagId.ToByteArray();
                 _database.BeginTransaction();
-                return _upsertCommand.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_upsertCommand);
             } // Lock
         }
 
@@ -179,7 +179,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _updateParam1.Value = item.fileId.ToByteArray();
                 _updateParam2.Value = item.tagId.ToByteArray();
                 _database.BeginTransaction();
-                return _updateCommand.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_updateCommand);
             } // Lock
         }
 
@@ -203,7 +203,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _delete0Param1.Value = fileId.ToByteArray();
                 _delete0Param2.Value = tagId.ToByteArray();
                 _database.BeginTransaction();
-                return _delete0Command.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_delete0Command);
             } // Lock
         }
 
@@ -223,7 +223,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 }
                 _delete1Param1.Value = fileId.ToByteArray();
                 _database.BeginTransaction();
-                return _delete1Command.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_delete1Command);
             } // Lock
         }
 
@@ -246,7 +246,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 }
                 _get0Param1.Value = fileId.ToByteArray();
                 _get0Param2.Value = tagId.ToByteArray();
-                using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     var result = new TagIndexRecord();
                     if (!rdr.Read())
@@ -279,7 +279,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     _get1Command.Prepare();
                 }
                 _get1Param1.Value = fileId.ToByteArray();
-                using (SqliteDataReader rdr = _get1Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
                 {
                     Guid result0tmp;
                     var thelistresult = new List<Guid>();

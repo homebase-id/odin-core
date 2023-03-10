@@ -74,7 +74,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _tparam2.Value = UnixTimeUtcUniqueGenerator.Generator().uniqueTime;
 
                 _database.BeginTransaction();
-                _touchCommand.ExecuteNonQuery(_database);
+                _database.ExecuteNonQuery(_touchCommand);
             }
         }
 
@@ -188,7 +188,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _uparam9.Value = globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
                 // _uparam10.Value = fileSystemType;
                 _database.BeginTransaction();
-                _updateCommand.ExecuteNonQuery(_database);
+                _database.ExecuteNonQuery(_updateCommand);
             }
         }
     }

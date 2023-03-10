@@ -100,7 +100,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _s3param1.Value = inCursor;
                 _s3param2.Value = count + 1; // +1 because we want to see if there are more records to set the nextCursor correctly
 
-                using (SqliteDataReader rdr = _select3Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_select3Command, System.Data.CommandBehavior.Default))
                 {
                     var result = new List<string>();
 
@@ -175,7 +175,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _s2param2.Value = inCursor;
                 _s2param3.Value = count + 1;                    // +1 to check for EOD on nextCursor
 
-                using (SqliteDataReader rdr = _select2Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_select2Command, System.Data.CommandBehavior.Default))
                 {
                     var result = new List<string>();
 
