@@ -12,7 +12,7 @@ namespace Youverse.Core.Services.Transit
         public Guid FileId { get; set; }
         public OdinId Recipient { get; set; }
         public int Attempts { get; set; }
-        public UInt64 LastAttemptTimestampMs { get; set; }
-        public UInt64 FirstAddedTimestampMs { get; set; }
+        public Int64 LastAttemptTimestampMs { get; set; }
+        public Int64 FirstAddedTimestampMs { get; set; }
     }
 }

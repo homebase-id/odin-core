@@ -46,7 +46,7 @@ namespace Youverse.Core.Cryptography
                 payload =  AesCbc.Encrypt(data, ref key, ck.iv)
             };
 
-            cd.crc = CRC32C.CalculateCRC32C(0, ByteArrayUtil.UInt64ToBytes(cd.creationtime.milliseconds));
+            cd.crc = CRC32C.CalculateCRC32C(0, ByteArrayUtil.Int64ToBytes(cd.creationtime.milliseconds));
             cd.crc = CRC32C.CalculateCRC32C(cd.crc, cd.payload);
 
             ck.key = AesCbc.Encrypt(key.GetKey(), ref KeyKey, ck.iv);

@@ -63,7 +63,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
         public readonly TableCommandMessageQueue TblCmdMsgQueue = null;
 
 
-        public DriveDatabase(string connectionString, DatabaseIndexKind databaseKind, ulong commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
+        public DriveDatabase(string connectionString, DatabaseIndexKind databaseKind, long commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
         {
             _kind = databaseKind;
 
@@ -129,7 +129,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             byte[] senderId,
             Guid? groupId,
             Guid? uniqueId,
-            UInt64 userDate,
+            UnixTimeUtc userDate,
             Int32 requiredSecurityGroup,
             List<Guid> accessControlList,
             List<Guid> tagIdList,
@@ -140,7 +140,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 
             using (CreateCommitUnitOfWork())
             {
-                TblMainIndex.Insert(new MainIndexRecord() { fileId = fileId, globalTransitId = globalTransitId, userDate = (Int64) userDate,  fileType = fileType,  dataType = dataType, senderId = senderId.ToString(), groupId = groupId, uniqueId = uniqueId, isArchived = 0, isHistory = 0, requiredSecurityGroup = requiredSecurityGroup, fileSystemType = fileSystemType });
+                TblMainIndex.Insert(new MainIndexRecord() { fileId = fileId, globalTransitId = globalTransitId, userDate = userDate,  fileType = fileType,  dataType = dataType, senderId = senderId.ToString(), groupId = groupId, uniqueId = uniqueId, isArchived = 0, isHistory = 0, requiredSecurityGroup = requiredSecurityGroup, fileSystemType = fileSystemType });
                 TblAclIndex.InsertRows(fileId, accessControlList);
                 TblTagIndex.InsertRows(fileId, tagIdList);
             }
@@ -166,7 +166,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             byte[] senderId = null,
             Guid? groupId = null,
             Guid? uniqueId = null,
-            UInt64? userDate = null,
+            UnixTimeUtc? userDate = null,
             Int32? requiredSecurityGroup = null,
             List<Guid> addAccessControlList = null,
             List<Guid> deleteAccessControlList = null,
@@ -198,7 +198,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             byte[] senderId = null,
             Guid? groupId = null,
             Guid? uniqueId = null,
-            UInt64? userDate = null,
+            UnixTimeUtc? userDate = null,
             Int32? requiredSecurityGroup = null,
             List<Guid> accessControlList = null,
             List<Guid> tagIdList = null,
@@ -659,7 +659,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             }
 
             if (i > 0)
-                cursor = new UnixTimeUtcUnique((UInt64)ts);
+                cursor = new UnixTimeUtcUnique(ts);
 
             stopWatch.Stop();
             // Utils.StopWatchStatus("QueryModified() " + stm, stopWatch);

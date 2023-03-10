@@ -47,9 +47,9 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
         
         public FileState FileState { get; set; }
 
-        public UInt64 Created { get; set; }
+        public Int64 Created { get; set; }
 
-        public UInt64 Updated { get; set; }
+        public Int64 Updated { get; set; }
         
         /// <summary>
         /// Specifies the app which last updated this file

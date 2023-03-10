@@ -13,7 +13,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
 
         public int DataType { get; set; }
         
-        public ulong? UserDate { get; set; }
+        public UnixTimeUtc? UserDate { get; set; }
 
         public Guid? GroupId { get; set; }
         

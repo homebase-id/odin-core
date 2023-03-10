@@ -17,7 +17,7 @@ namespace DriveDatabaseTests
             var cts1 = UnixTimeUtcUnique.Now();
             var sid1 = Guid.NewGuid().ToByteArray();
             var tid1 = Guid.NewGuid();
-            var ud1 = UnixTimeUtc.Now().milliseconds;
+            var ud1 = UnixTimeUtc.Now();
 
             var md = db.TblMainIndex.Get(k1);
 
@@ -34,7 +34,7 @@ namespace DriveDatabaseTests
                 senderId = sid1.ToString(),
                 groupId = tid1,
                 uniqueId = Guid.NewGuid(),
-                userDate = (Int64) ud1,
+                userDate = ud1,
                 isArchived = 0,
                 isHistory = 1,
                 requiredSecurityGroup = 44
@@ -66,7 +66,7 @@ namespace DriveDatabaseTests
             if (ByteArrayUtil.muidcmp(md.groupId, tid1) != 0)
                 Assert.Fail();
 
-            if ((UInt64) md.userDate != ud1)
+            if (md.userDate != ud1)
                 Assert.Fail();
 
             if (md.isArchived != 0)
@@ -86,7 +86,7 @@ namespace DriveDatabaseTests
             var cts1 = UnixTimeUtcUnique.Now();
             var sid1 = Guid.NewGuid().ToByteArray();
             var tid1 = Guid.NewGuid();
-            var ud1 = UnixTimeUtcUnique.Now();
+            var ud1 = UnixTimeUtc.Now();
 
             db.TblMainIndex.Insert(new MainIndexRecord()
             {
@@ -98,7 +98,7 @@ namespace DriveDatabaseTests
                 senderId = sid1.ToString(),
                 groupId = tid1,
                 uniqueId = Guid.NewGuid(),
-                userDate = (Int64)ud1.uniqueTime,
+                userDate = ud1,
                 isArchived = 0,
                 isHistory = 1,
                 fileSystemType = 44
@@ -116,7 +116,7 @@ namespace DriveDatabaseTests
                     senderId = sid1.ToString(),
                     groupId = tid1,
                     uniqueId = Guid.NewGuid(),
-                    userDate = (Int64)ud1.uniqueTime,
+                    userDate = ud1,
                     isArchived = 0,
                     isHistory = 1,
                     fileSystemType = 44
@@ -139,7 +139,7 @@ namespace DriveDatabaseTests
             var cts1 = UnixTimeUtcUnique.Now();
             var sid1 = Guid.NewGuid().ToByteArray();
             var tid1 = Guid.NewGuid();
-            var ud1 = UnixTimeUtc.Now().milliseconds;
+            var ud1 = UnixTimeUtc.Now();
 
             db.TblMainIndex.Insert(new MainIndexRecord()
             {
@@ -151,7 +151,7 @@ namespace DriveDatabaseTests
                 senderId = sid1.ToString(),
                 groupId = tid1,
                 uniqueId = Guid.NewGuid(),
-                userDate = (Int64) ud1,
+                userDate = ud1,
                 isArchived = 0,
                 isHistory = 1,
                 requiredSecurityGroup = 44
@@ -197,9 +197,9 @@ namespace DriveDatabaseTests
 
 
             var ud2 = UnixTimeUtc.Now();
-            db.TblMainIndex.UpdateRow(k1, userDate: ud2.milliseconds);
+            db.TblMainIndex.UpdateRow(k1, userDate: ud2);
             md = db.TblMainIndex.Get(k1);
-            if (ud2.milliseconds != (UInt64) md.userDate)
+            if (ud2 != md.userDate)
                 Assert.Fail();
 
             db.TblMainIndex.UpdateRow(k1, requiredSecurityGroup: 55);

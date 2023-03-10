@@ -316,14 +316,14 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
-                            item.created = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(0));
+                            item.created = new UnixTimeUtcUnique(rdr.GetInt64(0));
                         }
 
                         if (rdr.IsDBNull(1))
                             item.modified = null;
                         else
                         {
-                            item.modified = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(1));
+                            item.modified = new UnixTimeUtcUnique(rdr.GetInt64(1));
                         }
                     return item;
                 } // using
@@ -374,14 +374,14 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
-                            item.created = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(1));
+                            item.created = new UnixTimeUtcUnique(rdr.GetInt64(1));
                         }
 
                         if (rdr.IsDBNull(2))
                             item.modified = null;
                         else
                         {
-                            item.modified = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(2));
+                            item.modified = new UnixTimeUtcUnique(rdr.GetInt64(2));
                         }
                         result.Add(item);
                         if (!rdr.Read())

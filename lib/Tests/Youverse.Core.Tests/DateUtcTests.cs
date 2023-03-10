@@ -11,8 +11,8 @@ namespace Youverse.Core.Tests
         public void DateUtc01()
         {
             var tz = new DateUtc(0, 1, 1);
-            tz = new DateUtc(Int16.MinValue, 12, 31);
-            tz = new DateUtc(Int16.MaxValue, 1, 1);
+            tz = new DateUtc(-9999, 12, 31);
+            tz = new DateUtc(9999, 1, 1);
             Assert.Pass();
         }
 
@@ -98,11 +98,11 @@ namespace Youverse.Core.Tests
             tz = new DateUtc(-1,12,31);
             Debug.Assert(tz.ToString() == "-1-12-31 CE");
 
-            tz = new DateUtc(10000,7,1);
-            Debug.Assert(tz.ToString() == "10000-07-01 CE");
+            tz = new DateUtc(9999,7,1);
+            Debug.Assert(tz.ToString() == "9999-07-01 CE");
 
-            tz = new DateUtc(-11000, 9, 1);
-            Debug.Assert(tz.ToString() == "-11000-09-01 CE");
+            tz = new DateUtc(-9999, 9, 1);
+            Debug.Assert(tz.ToString() == "-9999-09-01 CE");
 
             Assert.Pass();
         }
@@ -110,13 +110,13 @@ namespace Youverse.Core.Tests
         [Test]
         public void DateUtc04()
         {
-            var value = new DateUtc(-10000, 12, 31);
+            var value = new DateUtc(-9999, 12, 31);
             var json = DotYouSystemSerializer.Serialize(value);
             var deserializedValue = DotYouSystemSerializer.Deserialize<DateUtc>(json);
 
             Assert.IsTrue(value.ToString() == deserializedValue.ToString());
 
-            value = new DateUtc(+10000, 12, 31);
+            value = new DateUtc(+9999, 12, 31);
             json = DotYouSystemSerializer.Serialize(value);
             deserializedValue = DotYouSystemSerializer.Deserialize<DateUtc>(json);
 

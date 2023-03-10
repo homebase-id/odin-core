@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NodaTime;
+using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -9,7 +10,7 @@ namespace Youverse.Core
     {
         public override UnixTimeUtc Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            var value = reader.GetUInt64();
+            var value = reader.GetInt64();
             return new UnixTimeUtc(value);
         }
 
@@ -21,8 +22,8 @@ namespace Youverse.Core
 
     /// <summary>
     /// UnixTimeUtc: Keeps track of UNIX time in milliseconds since UTC January 1, year 1970 gregorian.
-    /// Immutable. Once set, cannot be altered. 
-    /// Simply a UInt64 in a fancy class.
+    /// Immutable. Once set, cannot be altered. Negative are in the past
+    /// Simply a Int64 in a fancy class.
     /// </summary>
     [JsonConverter(typeof(UnixTimeUtcConverter))]
     public struct UnixTimeUtc
@@ -31,10 +32,10 @@ namespace Youverse.Core
 
         public UnixTimeUtc()
         {
-            _milliseconds = (UInt64)DateTime.UtcNow.Subtract(DateTime.UnixEpoch).TotalMilliseconds;
+            _milliseconds = (Int64) DateTime.UtcNow.Subtract(DateTime.UnixEpoch).TotalMilliseconds;
         }
 
-        public UnixTimeUtc(UInt64 milliseconds)
+        public UnixTimeUtc(Int64 milliseconds)
         {
             _milliseconds = milliseconds;
         }
@@ -44,9 +45,9 @@ namespace Youverse.Core
             _milliseconds = ut.milliseconds;
         }
 
-        public UnixTimeUtc(DateTime dt)
+        public UnixTimeUtc(Instant nodaTime)
         {
-            _milliseconds = (UInt64)dt.Subtract(DateTime.UnixEpoch).TotalMilliseconds;
+            _milliseconds = nodaTime.ToUnixTimeMilliseconds();
         }
 
         /// <summary>
@@ -55,7 +56,7 @@ namespace Youverse.Core
         /// <param name="s"></param>
         public UnixTimeUtc AddSeconds(int s)
         {
-            return new UnixTimeUtc((UInt64)(((Int64)_milliseconds) + (s * 1000)));
+            return new UnixTimeUtc((Int64)(((Int64)_milliseconds) + (s * 1000)));
         }
 
         /// <summary>
@@ -64,7 +65,7 @@ namespace Youverse.Core
         /// <param name="ms"></param>
         public UnixTimeUtc AddMilliseconds(int ms)
         {
-            return new UnixTimeUtc((UInt64)(((Int64)_milliseconds) + ms));
+            return new UnixTimeUtc((Int64)(((Int64)_milliseconds) + ms));
         }
 
         public static UnixTimeUtc Now()
@@ -72,15 +73,14 @@ namespace Youverse.Core
             return new UnixTimeUtc();
         }
 
-        public static implicit operator DateTime(UnixTimeUtc ms)
+        public static implicit operator Instant(UnixTimeUtc ms)
         {
-            DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeMilliseconds((long)ms.milliseconds);
-            return dateTimeOffset.DateTime;
+            return Instant.FromUnixTimeMilliseconds(ms.milliseconds);
         }
 
-        public static explicit operator UnixTimeUtc(DateTime dateTime)
+        public static explicit operator UnixTimeUtc(Instant nodaTime)
         {
-            return new UnixTimeUtc(dateTime);
+            return new UnixTimeUtc(nodaTime.ToUnixTimeMilliseconds());
         }
 
         public bool IsBetween(UnixTimeUtc start, UnixTimeUtc end, bool inclusive = true)
@@ -136,10 +136,10 @@ namespace Youverse.Core
             return this.milliseconds.GetHashCode();
         }
 
-        public UInt64 seconds { get { return _milliseconds / 1000; } }
-        public UInt64 milliseconds { get { return _milliseconds; } }
+        public Int64 seconds { get { return _milliseconds / 1000; } }
+        public Int64 milliseconds { get { return _milliseconds; } }
 
-        private readonly UInt64 _milliseconds;
+        private readonly Int64 _milliseconds;
     }
 
 
@@ -152,7 +152,7 @@ namespace Youverse.Core
     {
         public static readonly UnixTimeUtcUnique ZeroTime = new UnixTimeUtcUnique(0);
 
-        public UnixTimeUtcUnique(UInt64 msWithCounter)
+        public UnixTimeUtcUnique(Int64 msWithCounter)
         {
             _millisecondsUniqueWithCounter = msWithCounter;
         }
@@ -167,9 +167,9 @@ namespace Youverse.Core
             return new UnixTimeUtc(_millisecondsUniqueWithCounter >> 16);
         }
 
-        public UInt64 uniqueTime { get { return _millisecondsUniqueWithCounter; } }
+        public Int64 uniqueTime { get { return _millisecondsUniqueWithCounter; } }
 
-        private UInt64 _millisecondsUniqueWithCounter;
+        private Int64 _millisecondsUniqueWithCounter;
     }
 
 
@@ -177,7 +177,7 @@ namespace Youverse.Core
     {
         static private Object _lock = new Object();
         static private UnixTimeUtc _lastSecond = new UnixTimeUtc(0);
-        static private UInt64 _counter = 0;
+        static private Int32 _counter = 0;
 
 
         /// <summary>
@@ -212,7 +212,9 @@ namespace Youverse.Core
                 }
             }
 
-            return new UnixTimeUtcUnique((ms.milliseconds << 16) | _counter);
+            Int64 r = (ms.milliseconds << 16) | (UInt16) _counter;
+
+            return new UnixTimeUtcUnique(r);
         }
     }
 }

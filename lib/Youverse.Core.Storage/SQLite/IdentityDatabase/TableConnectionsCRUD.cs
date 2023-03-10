@@ -405,14 +405,14 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
-                            item.created = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(4));
+                            item.created = new UnixTimeUtcUnique(rdr.GetInt64(4));
                         }
 
                         if (rdr.IsDBNull(5))
                             item.modified = null;
                         else
                         {
-                            item.modified = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(5));
+                            item.modified = new UnixTimeUtcUnique(rdr.GetInt64(5));
                         }
                     return item;
                 } // using
@@ -508,14 +508,14 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
-                            item.created = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(6));
+                            item.created = new UnixTimeUtcUnique(rdr.GetInt64(6));
                         }
 
                         if (rdr.IsDBNull(7))
                             item.modified = null;
                         else
                         {
-                            item.modified = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(7));
+                            item.modified = new UnixTimeUtcUnique(rdr.GetInt64(7));
                         }
                         result.Add(item);
                     } // while
@@ -622,14 +622,14 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
-                            item.created = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(6));
+                            item.created = new UnixTimeUtcUnique(rdr.GetInt64(6));
                         }
 
                         if (rdr.IsDBNull(7))
                             item.modified = null;
                         else
                         {
-                            item.modified = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(7));
+                            item.modified = new UnixTimeUtcUnique(rdr.GetInt64(7));
                         }
                         result.Add(item);
                     } // while

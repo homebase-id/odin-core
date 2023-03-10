@@ -13,9 +13,9 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         public bool IsRevoked { get; set; }
 
-        public UInt64 Created { get; set; }
+        public Int64 Created { get; set; }
 
-        public UInt64 Modified { get; set; }
+        public Int64 Modified { get; set; }
 
         public RedactedExchangeGrant Grant { get; set; }
         public List<Guid> AuthorizedCircles { get; set; }

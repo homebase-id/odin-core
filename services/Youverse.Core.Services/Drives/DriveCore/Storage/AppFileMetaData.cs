@@ -18,7 +18,7 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
         
         public Guid? GroupId { get; set; }
         
-        public ulong? UserDate { get; set; }
+        public UnixTimeUtc? UserDate { get; set; }
 
         public bool ContentIsComplete { get; set; }
         

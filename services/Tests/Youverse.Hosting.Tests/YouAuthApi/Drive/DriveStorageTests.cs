@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
+using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
@@ -90,7 +91,7 @@ namespace Youverse.Hosting.Tests.YouAuthApi.Drive
                     JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
-                    UserDate = 0,
+                    UserDate = new UnixTimeUtc(0),
                     Tags = tags
                 },
                 AccessControlList = new AccessControlList()

@@ -134,7 +134,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                                 throw new Exception("wooot");
 
                             var l = rdr.GetInt64(2);
-                            item.timeStamp = new UnixTimeUtc((UInt64) l);
+                            item.timeStamp = new UnixTimeUtc(l);
 
                             if (rdr.IsDBNull(3))
                             {

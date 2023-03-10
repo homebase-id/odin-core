@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Youverse.Core;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.DriveCore.Query;
@@ -55,7 +56,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
-                    UserDate = 0,
+                    UserDate = new UnixTimeUtc(0),
                     Tags = tags
                 }
             };
@@ -114,7 +115,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
-                    UserDate = 0
+                    UserDate = new UnixTimeUtc(0)
                 }
             };
 
@@ -194,7 +195,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
-                    UserDate = 0
+                    UserDate = new UnixTimeUtc(0)
                 }
             };
 

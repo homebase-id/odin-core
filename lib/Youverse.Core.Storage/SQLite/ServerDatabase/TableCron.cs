@@ -159,10 +159,10 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
                         item.runCount = rdr.GetInt32(3);
 
                         // 4: lastrun
-                        item.lastRun = new UnixTimeUtc((UInt64)rdr.GetInt64(4));
+                        item.lastRun = new UnixTimeUtc(rdr.GetInt64(4));
 
                         // 5: nextrun
-                        item.nextRun = new UnixTimeUtc((UInt64)rdr.GetInt64(5));
+                        item.nextRun = new UnixTimeUtc(rdr.GetInt64(5));
 
                         item.popStamp = popStamp;
 

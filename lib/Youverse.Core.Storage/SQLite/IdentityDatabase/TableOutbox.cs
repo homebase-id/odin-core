@@ -147,7 +147,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                                 throw new Exception("Invalid fileId");
                             item.fileId = new Guid(_guid);
                             item.priority = rdr.GetInt32(1);
-                            item.timeStamp = new UnixTimeUtc((UInt64)rdr.GetInt64(2));
+                            item.timeStamp = new UnixTimeUtc(rdr.GetInt64(2));
 
                             if (rdr.IsDBNull(3))
                             {
@@ -220,7 +220,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                                 throw new Exception("Invalid fileId");
                             item.fileId = new Guid(_guid);
                             item.priority = rdr.GetInt32(1);
-                            item.timeStamp = new UnixTimeUtc((UInt64)rdr.GetInt64(2));
+                            item.timeStamp = new UnixTimeUtc(rdr.GetInt64(2));
 
                             if (rdr.IsDBNull(3))
                             {
