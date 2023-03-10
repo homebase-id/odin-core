@@ -28,7 +28,7 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
         /// <summary>
         /// A date specified in UnixTime for the file such as date photo captured, etc.
         /// </summary>
-        ulong? UserDate { get; set; }
+        long? UserDate { get; set; }
 
         /// <summary>
         /// If true, the <see cref="JsonContent"/> is the full payload of information, otherwise, it is partial (like a preview of a chat message)

@@ -400,7 +400,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
-                            item.timeStamp = new UnixTimeUtc((UInt64) rdr.GetInt64(2));
+                            item.timeStamp = new UnixTimeUtc(rdr.GetInt64(2));
                         }
 
                         if (rdr.IsDBNull(3))
@@ -430,14 +430,14 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
-                            item.created = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(5));
+                            item.created = new UnixTimeUtcUnique(rdr.GetInt64(5));
                         }
 
                         if (rdr.IsDBNull(6))
                             item.modified = null;
                         else
                         {
-                            item.modified = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(6));
+                            item.modified = new UnixTimeUtcUnique(rdr.GetInt64(6));
                         }
                     return item;
                 } // using

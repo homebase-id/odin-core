@@ -22,7 +22,7 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
     {
         public readonly TableCron tblCron = null;
 
-        public ServerDatabase(string connectionString, ulong commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
+        public ServerDatabase(string connectionString, long commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
         {
             tblCron = new TableCron(this);
         }

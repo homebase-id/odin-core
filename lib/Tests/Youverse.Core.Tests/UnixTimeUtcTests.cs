@@ -1,6 +1,5 @@
 ﻿using NUnit.Framework;
 using System;
-using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using Youverse.Core.Serialization;
 
@@ -43,7 +42,7 @@ namespace Youverse.Core.Tests
         public void UnixTimeAddtest05()
         {
             var ts1 = UnixTimeUtc.Now();
-            UInt64 ms = ts1.milliseconds;
+            Int64 ms = ts1.milliseconds;
             ts1 = ts1.AddSeconds(24 * 3600);
             Debug.Assert(ts1.milliseconds > ms);
         }
@@ -91,6 +90,16 @@ namespace Youverse.Core.Tests
 
                 Assert.IsTrue(t1.uniqueTime != t2.uniqueTime);
             }
+        }
+
+
+        [Test]
+        public void NegativeUtcTest()
+        {
+            var t1 = new UnixTimeUtc(-315L * 24L * 3600L * 1000L);
+            DateTime dt = t1;
+            var s = dt.ToShortDateString();
+            Assert.AreEqual(s, "20-Feb-69");
         }
     }
 }

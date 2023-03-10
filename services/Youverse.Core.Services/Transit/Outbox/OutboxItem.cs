@@ -29,7 +29,7 @@ namespace Youverse.Core.Services.Transit.Outbox
 
         public List<TransferAttempt> Attempts { get; }
 
-        public UInt64 AddedTimestamp { get; set; }
+        public Int64 AddedTimestamp { get; set; }
 
         public Guid Marker { get; set; }
 

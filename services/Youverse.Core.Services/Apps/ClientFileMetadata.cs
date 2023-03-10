@@ -14,9 +14,9 @@ public class ClientFileMetadata
     
     public Guid? GlobalTransitId { get; set; }
 
-    public UInt64 Created { get; set; }
+    public Int64 Created { get; set; }
 
-    public UInt64 Updated { get; set; }
+    public Int64 Updated { get; set; }
     
     public string ContentType { get; set; }
 

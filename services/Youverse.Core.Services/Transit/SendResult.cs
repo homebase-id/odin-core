@@ -19,7 +19,7 @@ namespace Youverse.Core.Services.Transit
 
         public InternalDriveFileId File { get; set; }
 
-        public UInt64 Timestamp { get; set; }
+        public Int64 Timestamp { get; set; }
         
         public TransitOutboxItem OutboxItem { get; set; }
     }

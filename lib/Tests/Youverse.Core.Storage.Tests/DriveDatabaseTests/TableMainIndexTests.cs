@@ -66,7 +66,7 @@ namespace DriveDatabaseTests
             if (ByteArrayUtil.muidcmp(md.groupId, tid1) != 0)
                 Assert.Fail();
 
-            if ((UInt64) md.userDate != ud1)
+            if (md.userDate != ud1)
                 Assert.Fail();
 
             if (md.isArchived != 0)
@@ -199,7 +199,7 @@ namespace DriveDatabaseTests
             var ud2 = UnixTimeUtc.Now();
             db.TblMainIndex.UpdateRow(k1, userDate: ud2.milliseconds);
             md = db.TblMainIndex.Get(k1);
-            if (ud2.milliseconds != (UInt64) md.userDate)
+            if (ud2.milliseconds != md.userDate)
                 Assert.Fail();
 
             db.TblMainIndex.UpdateRow(k1, requiredSecurityGroup: 55);

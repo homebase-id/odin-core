@@ -9,9 +9,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
     {
         public GuidId Id { get; set; }
 
-        public UInt64 Created { get; set; }
+        public Int64 Created { get; set; }
         
-        public UInt64 LastUpdated { get; set; }
+        public Int64 LastUpdated { get; set; }
         
         public string Name { get; set; }
 

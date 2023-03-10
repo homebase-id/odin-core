@@ -29,7 +29,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         public readonly TableCircleMember tblCircleMember = null;
         public readonly TableConnections tblConnections = null;
 
-        public IdentityDatabase(string connectionString, ulong commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
+        public IdentityDatabase(string connectionString, long commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
         {
             tblKeyValue = new TableKeyValue(this);
             tblKeyTwoValue = new TableKeyTwoValue(this);

@@ -20,7 +20,7 @@ public class ChatMessage
     
     public List<ReadReceipt> ReadReceipts { get; set; }
 
-    public UInt64 ReceivedTimestamp { get; set; }
+    public Int64 ReceivedTimestamp { get; set; }
 }
 
 public class Reaction

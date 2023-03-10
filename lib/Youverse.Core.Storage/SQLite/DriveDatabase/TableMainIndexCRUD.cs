@@ -624,14 +624,14 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
-                            item.created = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(11));
+                            item.created = new UnixTimeUtcUnique(rdr.GetInt64(11));
                         }
 
                         if (rdr.IsDBNull(12))
                             item.modified = null;
                         else
                         {
-                            item.modified = new UnixTimeUtcUnique((UInt64) rdr.GetInt64(12));
+                            item.modified = new UnixTimeUtcUnique(rdr.GetInt64(12));
                         }
                     return item;
                 } // using

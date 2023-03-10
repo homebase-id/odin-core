@@ -63,7 +63,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
         public readonly TableCommandMessageQueue TblCmdMsgQueue = null;
 
 
-        public DriveDatabase(string connectionString, DatabaseIndexKind databaseKind, ulong commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
+        public DriveDatabase(string connectionString, DatabaseIndexKind databaseKind, long commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
         {
             _kind = databaseKind;
 
@@ -129,7 +129,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             byte[] senderId,
             Guid? groupId,
             Guid? uniqueId,
-            UInt64 userDate,
+            Int64 userDate,
             Int32 requiredSecurityGroup,
             List<Guid> accessControlList,
             List<Guid> tagIdList,
@@ -166,7 +166,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             byte[] senderId = null,
             Guid? groupId = null,
             Guid? uniqueId = null,
-            UInt64? userDate = null,
+            Int64? userDate = null,
             Int32? requiredSecurityGroup = null,
             List<Guid> addAccessControlList = null,
             List<Guid> deleteAccessControlList = null,
@@ -198,7 +198,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             byte[] senderId = null,
             Guid? groupId = null,
             Guid? uniqueId = null,
-            UInt64? userDate = null,
+            Int64? userDate = null,
             Int32? requiredSecurityGroup = null,
             List<Guid> accessControlList = null,
             List<Guid> tagIdList = null,
@@ -659,7 +659,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             }
 
             if (i > 0)
-                cursor = new UnixTimeUtcUnique((UInt64)ts);
+                cursor = new UnixTimeUtcUnique(ts);
 
             stopWatch.Stop();
             // Utils.StopWatchStatus("QueryModified() " + stm, stopWatch);

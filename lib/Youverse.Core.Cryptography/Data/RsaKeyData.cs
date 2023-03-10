@@ -239,8 +239,8 @@ namespace Youverse.Core.Cryptography.Data
             if (createdTimeStamp.seconds <= 0)
                 throw new Exception("createdTimeStamp has not been initialized");
 
-            UInt64 t = UnixTimeUtc.Now().seconds;
-            UInt64 d = Math.Min(2 * (expiration.seconds - createdTimeStamp.seconds), 3600 * 24) + createdTimeStamp.seconds;
+            Int64 t = UnixTimeUtc.Now().seconds;
+            Int64 d = Math.Min(2 * (expiration.seconds - createdTimeStamp.seconds), 3600 * 24) + createdTimeStamp.seconds;
 
             if (t > d)
                 return true;

@@ -31,7 +31,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
 
     public StorageDrive Drive { get; init; }
 
-    public Task<(ulong, IEnumerable<Guid>)> GetModified(DotYouContext dotYouContext, FileSystemType fileSystemType,
+    public Task<(long, IEnumerable<Guid>)> GetModified(DotYouContext dotYouContext, FileSystemType fileSystemType,
         FileQueryParams qp, QueryModifiedResultOptions options)
     {
         Guard.Argument(dotYouContext, nameof(dotYouContext)).NotNull();
