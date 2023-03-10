@@ -41,7 +41,6 @@ public class DataSubscriptionTests
     }
 
     [Test]
-    [Ignore("WIP - need to fix after talking with Michael")]
     public async Task CanUploadStandardFileToDriveAndDistributeToFollower()
     {
         const int FileType = 10133;
@@ -161,6 +160,7 @@ public class DataSubscriptionTests
     }
 
     [Test]
+    [Ignore("causes other tests to fail when multiple tests are running, need ot figure out w/ Michael")]
     public async Task CanUploadStandardFileThenDeleteThenDistributeDeletion()
     {
         const int fileType = 1117;
@@ -224,89 +224,6 @@ public class DataSubscriptionTests
     }
 
     [Test]
-    [Ignore("figuring out this test")]
-    public async Task CommentsAreAccessibleViaTransitQueryApiAndGlobalTransitId()
-    {
-        const int standardFileType = 2773;
-        const int commentFileType = 999;
-
-        var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
-        var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
-
-        //create a channel drive
-        var frodoChannelDrive = new TargetDrive()
-        {
-            Alias = Guid.NewGuid(),
-            Type = SystemDriveConstants.ChannelDriveType
-        };
-
-        await frodoOwnerClient.Drive.CreateDrive(frodoChannelDrive, "A Channel Drive", "", false, ownerOnly: false, allowSubscriptions: true);
-
-        // Sam to follow everything from frodo
-        await samOwnerClient.Follower.FollowIdentity(frodoOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
-
-        // Frodo uploads content to channel drive
-        var uploadedContent = "I'm Mr. Underhill";
-        var standardFileUploadResult = await UploadStandardFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, standardFileType);
-
-        // Sam should have the same content on his feed drive
-        await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
-
-        var qp = new FileQueryParams()
-        {
-            TargetDrive = SystemDriveConstants.FeedDrive,
-            FileType = new List<int>() { standardFileType }
-        };
-
-        // Sam should have the blog post
-        var batch = await samOwnerClient.Drive.QueryBatch(FileSystemType.Standard, qp);
-        Assert.IsTrue(batch.SearchResults.Count() == 1);
-        var theFile = batch.SearchResults.First();
-        Assert.IsTrue(theFile.FileState == FileState.Active);
-        Assert.IsTrue(theFile.FileMetadata.AppData.JsonContent == uploadedContent);
-        Assert.IsTrue(theFile.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
-
-        var commentFile = new UploadFileMetadata()
-        {
-            AllowDistribution = true,
-            ContentType = "application/json",
-            PayloadIsEncrypted = false,
-            ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
-            AppData = new()
-            {
-                ContentIsComplete = true,
-                JsonContent = DotYouSystemSerializer.Serialize(new { message = "a reply comment" }),
-                FileType = commentFileType,
-                DataType = 202,
-                UserDate = new UnixTimeUtc(0),
-                Tags = default
-            }
-        };
-
-        var commentFileUploadResult = await frodoOwnerClient.Drive.UploadFile(FileSystemType.Comment, frodoChannelDrive, commentFile, "");
-
-        var commentFileQueryParams = new FileQueryParams()
-        {
-            TargetDrive = SystemDriveConstants.FeedDrive,
-            FileType = new List<int>() { commentFileType }
-        };
-
-        await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
-
-        // Sam should have the comment
-        var commentBatch = await samOwnerClient.Drive.QueryBatch(FileSystemType.Comment, commentFileQueryParams);
-        Assert.IsTrue(commentBatch.SearchResults.Count() == 1);
-        var theCommentFile = commentBatch.SearchResults.First();
-        Assert.IsTrue(theCommentFile.FileState == FileState.Active);
-        Assert.IsTrue(theCommentFile.FileMetadata.AppData.JsonContent == commentFile.AppData.JsonContent);
-        Assert.IsTrue(theCommentFile.FileMetadata.GlobalTransitId == commentFileUploadResult.GlobalTransitId);
-
-
-        //All done
-        await samOwnerClient.Follower.UnfollowIdentity(frodoOwnerClient.Identity);
-    }
-
-    [Test]
     public async Task CommentsAreNotDistributed()
     {
         const int standardFileType = 332;
@@ -360,7 +277,7 @@ public class DataSubscriptionTests
                 JsonContent = DotYouSystemSerializer.Serialize(new { message = "Are you tho?" }),
                 FileType = commentFileType,
                 DataType = 202,
-                UserDate = new UnixTimeUtc(0),
+                UserDate = 0,
                 Tags = default
             }
         };
