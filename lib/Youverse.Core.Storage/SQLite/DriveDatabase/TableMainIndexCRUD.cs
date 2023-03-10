@@ -27,8 +27,8 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                   _globalTransitId = value;
                }
         }
-        private Int64 _userDate;
-        public Int64 userDate
+        private UnixTimeUtc _userDate;
+        public UnixTimeUtc userDate
         {
            get {
                    return _userDate;
@@ -322,7 +322,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 }
                 _insertParam1.Value = item.fileId.ToByteArray();
                 _insertParam2.Value = item.globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
-                _insertParam3.Value = item.userDate;
+                _insertParam3.Value = item.userDate.milliseconds;
                 _insertParam4.Value = item.fileType;
                 _insertParam5.Value = item.dataType;
                 _insertParam6.Value = item.isArchived;
@@ -396,7 +396,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 }
                 _upsertParam1.Value = item.fileId.ToByteArray();
                 _upsertParam2.Value = item.globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
-                _upsertParam3.Value = item.userDate;
+                _upsertParam3.Value = item.userDate.milliseconds;
                 _upsertParam4.Value = item.fileType;
                 _upsertParam5.Value = item.dataType;
                 _upsertParam6.Value = item.isArchived;
@@ -469,7 +469,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 }
                 _updateParam1.Value = item.fileId.ToByteArray();
                 _updateParam2.Value = item.globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
-                _updateParam3.Value = item.userDate;
+                _updateParam3.Value = item.userDate.milliseconds;
                 _updateParam4.Value = item.fileType;
                 _updateParam5.Value = item.dataType;
                 _updateParam6.Value = item.isArchived;
@@ -548,7 +548,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
-                            item.userDate = rdr.GetInt64(1);
+                            item.userDate = new UnixTimeUtc(rdr.GetInt64(1));
                         }
 
                         if (rdr.IsDBNull(2))

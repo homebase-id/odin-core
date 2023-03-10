@@ -274,7 +274,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                     JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
-                    UserDate = 0,
+                    UserDate = new UnixTimeUtc(0),
                     Tags = tags
                 },
                 AccessControlList = new AccessControlList()
@@ -320,7 +320,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                     JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
-                    UserDate = 0,
+                    UserDate = new UnixTimeUtc(0),
                     Tags = new List<Guid>() { tag }
                 },
                 AccessControlList = new AccessControlList()

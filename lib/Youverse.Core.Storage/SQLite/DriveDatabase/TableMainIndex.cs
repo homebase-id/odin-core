@@ -91,7 +91,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             byte[] senderId = null,
             Guid? groupId = null,
             Guid? uniqueId = null,
-            Int64? userDate = null,
+            UnixTimeUtc? userDate = null,
             Int32? requiredSecurityGroup = null)
         {
             lock (_updateLock)
@@ -183,7 +183,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _uparam4.Value = senderId ?? (object)DBNull.Value;
                 _uparam5.Value = groupId?.ToByteArray() ?? (object)DBNull.Value;
                 _uparam6.Value = uniqueId?.ToByteArray() ?? (object)DBNull.Value;
-                _uparam7.Value = userDate ?? (object)DBNull.Value;
+                _uparam7.Value = userDate?.milliseconds ?? (object)DBNull.Value;
                 _uparam8.Value = requiredSecurityGroup ?? (object)DBNull.Value;
                 _uparam9.Value = globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
                 // _uparam10.Value = fileSystemType;

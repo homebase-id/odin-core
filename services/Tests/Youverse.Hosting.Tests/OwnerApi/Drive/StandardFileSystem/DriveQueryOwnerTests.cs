@@ -55,7 +55,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
-                    UserDate = 0,
+                    UserDate = new UnixTimeUtc(0),
                     Tags = tags
                 }
             };
@@ -118,7 +118,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
-                    UserDate = 0
+                    UserDate = new UnixTimeUtc(0)
                 }
             };
 
@@ -209,7 +209,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
-                    UserDate = 0
+                    UserDate = new UnixTimeUtc(0)
                 }
             };
 
@@ -272,7 +272,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
-                    UserDate = 0,
+                    UserDate = new UnixTimeUtc(0),
                     Tags = new List<Guid>() { file1Tag }
                 }
             };
@@ -314,7 +314,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
-                    UserDate = 0,
+                    UserDate = new UnixTimeUtc(0),
                     Tags = new List<Guid>() { file2Tag }
                 }
             };

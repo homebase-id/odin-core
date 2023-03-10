@@ -270,7 +270,7 @@ public class DataSubscriptionTests
                 JsonContent = DotYouSystemSerializer.Serialize(new { message = "a reply comment" }),
                 FileType = commentFileType,
                 DataType = 202,
-                UserDate = 0,
+                UserDate = new UnixTimeUtc(0),
                 Tags = default
             }
         };
@@ -352,7 +352,7 @@ public class DataSubscriptionTests
                 JsonContent = DotYouSystemSerializer.Serialize(new { message = "Are you tho?" }),
                 FileType = commentFileType,
                 DataType = 202,
-                UserDate = 0,
+                UserDate = new UnixTimeUtc(0),
                 Tags = default
             }
         };

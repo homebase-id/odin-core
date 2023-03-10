@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Youverse.Core;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Storage.Sqlite.DriveDatabase;
 using Youverse.Core.Util;
@@ -47,7 +48,7 @@ namespace DriveDatabaseTests
             stopWatch.Start();
             for (int i = 1; i < _performanceIterations; i++)
             {
-                _testDatabase.AddEntry(Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), 0, 55, tmpacllist, tmptaglist);
+                _testDatabase.AddEntry(Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), new UnixTimeUtc(0), 55, tmpacllist, tmptaglist);
             }
             stopWatch.Stop();
             int ms = (int)Math.Max(1, stopWatch.ElapsedMilliseconds);
@@ -88,7 +89,7 @@ namespace DriveDatabaseTests
             // _testDatabase.BeginTransaction();
             for (int i = 1; i < _performanceIterations; i++)
             {
-                _testDatabase.AddEntry(Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), 0, 55, tmpacllist, tmptaglist);
+                _testDatabase.AddEntry(Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), new UnixTimeUtc(0), 55, tmpacllist, tmptaglist);
                 if (i % 100 == 0)
                 {
                     _testDatabase.Commit();
@@ -192,7 +193,7 @@ namespace DriveDatabaseTests
             //
             for (int count = 0; count < iterations; count++)
             {
-                db.AddEntry(Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), 0, 55, tmpacllist, tmptaglist);
+                db.AddEntry(Guid.NewGuid(), Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), Guid.NewGuid().ToByteArray(), Guid.NewGuid(), Guid.NewGuid(), new UnixTimeUtc(0), 55, tmpacllist, tmptaglist);
             }
 
             return timers;

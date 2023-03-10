@@ -1,4 +1,5 @@
-﻿using NUnit.Framework;
+﻿using NodaTime;
+using NUnit.Framework;
 using System;
 using System.Diagnostics;
 using Youverse.Core.Serialization;
@@ -25,7 +26,7 @@ namespace Youverse.Core.Tests
             Debug.Assert(ts.milliseconds == os.milliseconds);
 
             var ns = ts.AddSeconds(1);
-            Debug.Assert(ns.milliseconds == ts.milliseconds+1000); // The original unchanged
+            Debug.Assert(ns.milliseconds == ts.milliseconds + 1000); // The original unchanged
             Debug.Assert(ns.seconds == ts.seconds + 1);
 
             ts = ns.AddMilliseconds(500);
@@ -94,13 +95,40 @@ namespace Youverse.Core.Tests
 
 
         [Test]
-        [Ignore("nodaTime will come for you")]
-        public void NegativeUtcTest()
+        public void TestNodaTimeExtremeRange02()
         {
-            var t1 = new UnixTimeUtc(-315L * 24L * 3600L * 1000L);
-            DateTime dt = t1;
-            var s = dt.ToShortDateString();
-            Assert.AreEqual(s, "20-Feb-69");
+            var future = Instant.FromUtc(9999, 12, 31, 23, 59, 59);
+            Assert.AreEqual("9999-12-31T23:59:59Z", future.ToString());
+            var futureUnixTime = future.ToUnixTimeMilliseconds();
+            Assert.AreEqual(253402300799000, futureUnixTime);
+            Assert.AreEqual(future, Instant.FromUnixTimeMilliseconds(futureUnixTime));
+
+            var past = Instant.FromUtc(-9998, 01, 01, 00, 00, 00);
+            Assert.AreEqual("-9998-01-01T00:00:00Z", past.ToString());
+            var pastUnixTime = past.ToUnixTimeMilliseconds();
+            Assert.AreEqual(-377673580800000, pastUnixTime);
+            Assert.AreEqual(past, Instant.FromUnixTimeMilliseconds(pastUnixTime));
+
+            var epoch = Instant.FromUtc(1970, 01, 01, 00, 00);
+            Assert.AreEqual(epoch.ToUnixTimeMilliseconds(), new UnixTimeUtc(0).milliseconds);
+        }
+
+        [Test]
+        public void TestNodaTimeVsUnixTimeUtc()
+        {
+            var epoch = Instant.FromUtc(1970, 01, 01, 00, 00);
+            Assert.AreEqual(epoch.ToUnixTimeMilliseconds(), new UnixTimeUtc(0).milliseconds);
+        }
+
+        [Test]
+        public void TestUnixTimeUtcTypeConversions()
+        {
+            UnixTimeUtc ut = UnixTimeUtc.Now();
+            Instant nt = ut;
+            Assert.AreEqual(nt.ToUnixTimeMilliseconds(), ut.milliseconds);
+
+            var ut2 = new UnixTimeUtc(nt);
+            Assert.AreEqual(nt.ToUnixTimeMilliseconds(), ut2.milliseconds);
         }
     }
 }

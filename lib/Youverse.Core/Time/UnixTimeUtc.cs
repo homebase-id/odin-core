@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NodaTime;
+using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -44,9 +45,9 @@ namespace Youverse.Core
             _milliseconds = ut.milliseconds;
         }
 
-        public UnixTimeUtc(DateTime dt)
+        public UnixTimeUtc(Instant nodaTime)
         {
-            _milliseconds = (Int64)dt.Subtract(DateTime.UnixEpoch).TotalMilliseconds;
+            _milliseconds = nodaTime.ToUnixTimeMilliseconds();
         }
 
         /// <summary>
@@ -72,15 +73,14 @@ namespace Youverse.Core
             return new UnixTimeUtc();
         }
 
-        public static implicit operator DateTime(UnixTimeUtc ms)
+        public static implicit operator Instant(UnixTimeUtc ms)
         {
-            DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeMilliseconds((long)ms.milliseconds);
-            return dateTimeOffset.DateTime;
+            return Instant.FromUnixTimeMilliseconds(ms.milliseconds);
         }
 
-        public static explicit operator UnixTimeUtc(DateTime dateTime)
+        public static explicit operator UnixTimeUtc(Instant nodaTime)
         {
-            return new UnixTimeUtc(dateTime);
+            return new UnixTimeUtc(nodaTime.ToUnixTimeMilliseconds());
         }
 
         public bool IsBetween(UnixTimeUtc start, UnixTimeUtc end, bool inclusive = true)
