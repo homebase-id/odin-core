@@ -10,6 +10,7 @@ using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.DataSubscription

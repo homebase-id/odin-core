@@ -10,6 +10,7 @@ using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Controllers.ClientToken.Drive;
 using Youverse.Hosting.Controllers.OwnerToken;
+using Youverse.Hosting.Controllers.OwnerToken.Transit;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Transit
 {

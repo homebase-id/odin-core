@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Transit.ReceivingHost;
 
 namespace Youverse.Hosting.Controllers.ClientToken.Transit
 {

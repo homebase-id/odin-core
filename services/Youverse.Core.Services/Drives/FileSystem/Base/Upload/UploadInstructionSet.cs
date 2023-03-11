@@ -4,6 +4,7 @@ using System.Linq;
 using Dawn;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Transit.SendingHost;
 
 namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
 {

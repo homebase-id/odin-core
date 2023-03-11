@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Transit.ReceivingHost;
 using Youverse.Hosting.Controllers.ClientToken;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
 

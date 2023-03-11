@@ -1,6 +1,7 @@
 using System;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.FileSystem;
+using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Transit.Encryption

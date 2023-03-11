@@ -39,9 +39,10 @@ using Youverse.Core.Services.Optimization.Cdn;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Tenant;
 using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.Incoming;
-using Youverse.Core.Services.Transit.Outbox;
-using Youverse.Core.Services.Transit.Quarantine;
+using Youverse.Core.Services.Transit.ReceivingHost;
+using Youverse.Core.Services.Transit.ReceivingHost.Incoming;
+using Youverse.Core.Services.Transit.SendingHost;
+using Youverse.Core.Services.Transit.SendingHost.Outbox;
 using Youverse.Core.Storage;
 using Youverse.Hosting.Controllers.Base;
 
