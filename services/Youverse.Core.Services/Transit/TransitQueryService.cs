@@ -141,7 +141,7 @@ public class TransitQueryService
 
     public async Task<IEnumerable<PerimeterDriveData>> GetDrivesByType(OdinId odinId, Guid driveType, FileSystemType fileSystemType)
     {
-        var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
+        var (_, httpClient) = await CreateClient(odinId, fileSystemType);
         var response = await httpClient.GetDrives(new GetDrivesByTypeRequest()
         {
             DriveType = driveType
@@ -153,6 +153,13 @@ public class TransitQueryService
         }
 
         AssertValidResponse(response);
+        return response.Content;
+    }
+
+    public async Task<RedactedDotYouContext> GetRemoteDotYouContext(OdinId odinId)
+    {
+        var (_, httpClient) = await CreateClient(odinId, null);
+        var response = await httpClient.GetRemoteDotYouContext();
         return response.Content;
     }
 
@@ -182,7 +189,7 @@ public class TransitQueryService
     //
     //     return response.Content;
     // }
-    private async Task<(IdentityConnectionRegistration, ITransitHostHttpClient)> CreateClient(OdinId odinId, FileSystemType fileSystemType)
+    private async Task<(IdentityConnectionRegistration, ITransitHostHttpClient)> CreateClient(OdinId odinId, FileSystemType? fileSystemType)
     {
         var icr = await _circleNetworkService.GetIdentityConnectionRegistration(odinId);
         var httpClient = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(odinId, icr.CreateClientAuthToken(), fileSystemType);

@@ -63,5 +63,18 @@ namespace Youverse.Core.Services.Authorization.Permissions
         {
             return !(p1 == p2);
         }
+
+        public RedactedPermissionSet Redacted()
+        {
+            return new RedactedPermissionSet()
+            {
+                Keys = this.Keys
+            };
+        }
+    }
+    
+    public class RedactedPermissionSet
+    {
+        public List<int> Keys { get; set; }
     }
 }

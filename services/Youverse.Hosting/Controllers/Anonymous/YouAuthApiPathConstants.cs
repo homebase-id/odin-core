@@ -16,6 +16,7 @@
         public const string DriveReactionsV1 = DrivesV1 + "/files/reactions";
 
         public const string CirclesV1 = BasePathV1 + "/circles";
+        public const string SecurityV1 = BasePathV1 + "/security";
 
         public const string CdnV1 = BasePathV1 + "/cdn";
 

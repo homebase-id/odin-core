@@ -67,7 +67,22 @@ public class FileSystemHttpRequestResolver
 
     public FileSystemType GetFileSystemType()
     {
-        var ctx = _contextAccessor.HttpContext;
+        var ctx = _contextAccessor.HttpContext!;
+
+        //first try to get file system type by qs
+        var hasQs = ctx.Request.Query.TryGetValue(DotYouHeaderNames.FileSystemTypeRequestQueryStringName, out var value);
+        if (hasQs)
+        {
+            if (!Enum.TryParse(typeof(FileSystemType), value, true, out var fst))
+            {
+                throw new YouverseClientException("Invalid file system type specified on query string", YouverseClientErrorCode.InvalidFileSystemType);
+            }
+            
+            return (FileSystemType)fst!;
+        }
+
+        //Fall back to the header
+
         if (!Enum.TryParse(typeof(FileSystemType), ctx!.Request.Headers[DotYouHeaderNames.FileSystemTypeHeader], true, out var fileSystemType))
         {
             throw new YouverseClientException("Invalid file system type or no header specified", YouverseClientErrorCode.InvalidFileSystemType);
@@ -75,5 +90,4 @@ public class FileSystemHttpRequestResolver
 
         return (FileSystemType)fileSystemType!;
     }
-    
 }

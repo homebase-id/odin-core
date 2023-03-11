@@ -133,6 +133,12 @@ namespace Youverse.Hosting.Controllers.Certificate
             return drives;
         }
 
+        
+        [HttpPost("security/context")]
+        public Task<RedactedDotYouContext> GetRemoteSecurityContext()
+        {
+            return Task.FromResult(_contextAccessor.GetCurrent().Redacted());
+        }
 
         [HttpPost("deletelinkedfile")]
         public async Task<HostTransitResponse> DeleteLinkedFile(DeleteLinkedFileTransitRequest transitRequest)

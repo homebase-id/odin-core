@@ -15,7 +15,8 @@ namespace Youverse.Core.Services.Base
     {
         private readonly SensitiveByteArray _masterKey;
 
-        public CallerContext(OdinId? odinId, SensitiveByteArray masterKey, SecurityGroupType securityLevel, List<GuidId> circleIds = null, ClientTokenType tokenType = ClientTokenType.Other)
+        public CallerContext(OdinId? odinId, SensitiveByteArray masterKey, SecurityGroupType securityLevel, List<GuidId> circleIds = null,
+            ClientTokenType tokenType = ClientTokenType.Other)
         {
             this.OdinId = odinId;
             this._masterKey = masterKey;
@@ -77,5 +78,21 @@ namespace Youverse.Core.Services.Base
             //TODO: add audit point
             return this._masterKey;
         }
+
+        public RedactedCallerContext Redacted()
+        {
+            return new RedactedCallerContext()
+            {
+                OdinId = this.OdinId,
+                SecurityLevel = this.SecurityLevel,
+            };
+        }
+    }
+
+    public class RedactedCallerContext
+    {
+        public OdinId? OdinId { get; init; }
+        public SecurityGroupType SecurityLevel { get; init; }
+        
     }
 }

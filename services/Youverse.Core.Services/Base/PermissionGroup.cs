@@ -78,4 +78,24 @@ public class PermissionGroup
         var grant = _driveGrants?.SingleOrDefault(g => g.DriveId == driveId);
         return grant?.PermissionedDrive.Drive;
     }
+
+    public RedactedPermissionGroup Redacted()
+    {
+        return new RedactedPermissionGroup()
+        {
+            PermissionSet = _permissionSet.Redacted(),
+            DriveGrants = _driveGrants?.Select(r => r.Redacted()) ?? new List<RedactedDriveGrant>()
+        };
+    }
+}
+
+public class RedactedPermissionGroup
+{
+    public RedactedPermissionGroup()
+    {
+        this.DriveGrants = new List<RedactedDriveGrant>();
+        this.PermissionSet = new RedactedPermissionSet();
+    }
+    public IEnumerable<RedactedDriveGrant> DriveGrants { get; set; }
+    public RedactedPermissionSet PermissionSet { get; set; }
 }
