@@ -6,12 +6,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
     public class TableCircleMember : TableCircleMemberCRUD
     {
-        public const int MAX_DATA_LENGTH = 65000;  // Some max value for the data
-
-        private SqliteCommand _deleteCommand = null;
-        private SqliteParameter _delparam1 = null;
-        private static object _deleteLock = new object();
-
         public TableCircleMember(IdentityDatabase db) : base(db)
         {
         }
@@ -99,28 +93,11 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             if ((members == null) || (members.Count < 1))
                 throw new Exception("No members supplied (null or empty)");
 
-            lock (_deleteLock)
+            using (_database.CreateCommitUnitOfWork())
             {
-                // Make sure we only prep once 
-                if (_deleteCommand == null)
+                for (int i = 0; i < members.Count; i++)
                 {
-                    _deleteCommand = _database.CreateCommand();
-                    _deleteCommand.CommandText = "DELETE FROM circlemember WHERE memberid=$memberid;";
-
-                    _delparam1 = _deleteCommand.CreateParameter();
-                    _delparam1.ParameterName = "$memberid";
-                    _deleteCommand.Parameters.Add(_delparam1);
-
-                    _deleteCommand.Prepare();
-                }
-
-                using (_database.CreateCommitUnitOfWork())
-                {
-                    for (int i = 0; i < members.Count; i++)
-                    {
-                        _delparam1.Value = members[i].ToByteArray();
-                        _database.ExecuteNonQuery(_deleteCommand);
-                    }
+                    DeleteByCircleMember(members[i]);
                 }
             }
         }
