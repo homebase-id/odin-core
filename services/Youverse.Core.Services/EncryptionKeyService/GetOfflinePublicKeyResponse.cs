@@ -6,7 +6,7 @@ public class GetOfflinePublicKeyResponse
 {
     public bool IsExpired()
     {
-        UInt64 t = UnixTimeUtc.Now().seconds;
+        Int64 t = UnixTimeUtc.Now().seconds;
         if (t > Expiration)
             return true;
         else
@@ -15,5 +15,5 @@ public class GetOfflinePublicKeyResponse
 
     public byte[] PublicKey { get; set; }
     public uint Crc32 { get; set; }
-    public ulong Expiration { get; set; }
+    public long Expiration { get; set; }
 }

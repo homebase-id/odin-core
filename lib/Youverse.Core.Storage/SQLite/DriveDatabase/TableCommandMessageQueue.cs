@@ -58,7 +58,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                                 throw new Exception("Not a guid");
                             ts = rdr.GetInt64(1);
 
-                            queue.Add(new CommandMessage { fileId = new Guid(_guid), timestamp = new UnixTimeUtc((UInt64)ts) });
+                            queue.Add(new CommandMessage { fileId = new Guid(_guid), timestamp = new UnixTimeUtc(ts) });
                             i++;
                         }
 

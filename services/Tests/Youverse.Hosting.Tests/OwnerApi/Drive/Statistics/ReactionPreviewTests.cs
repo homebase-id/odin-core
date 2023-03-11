@@ -3,6 +3,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Youverse.Core;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drives;
@@ -65,7 +66,7 @@ public class ReactionPreviewTests
                 JsonContent = DotYouSystemSerializer.Serialize(new { message = "a reply comment 1" }),
                 FileType = 909,
                 DataType = 202,
-                UserDate = 0,
+                UserDate = new UnixTimeUtc(0),
                 Tags = default
             }
         };
@@ -84,7 +85,7 @@ public class ReactionPreviewTests
                 JsonContent = DotYouSystemSerializer.Serialize(new { message = "a reply comment 2" }),
                 FileType = 909,
                 DataType = 202,
-                UserDate = 0,
+                UserDate = new UnixTimeUtc(0),
                 Tags = default
             }
         };
@@ -103,7 +104,7 @@ public class ReactionPreviewTests
                 JsonContent = DotYouSystemSerializer.Serialize(new { message = "a reply comment 3" }),
                 FileType = 909,
                 DataType = 202,
-                UserDate = 0,
+                UserDate = new UnixTimeUtc(0),
                 Tags = default
             }
         };

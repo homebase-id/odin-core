@@ -32,6 +32,6 @@ public class CommentPreview
     public string JsonContent { get; set; }
 
     public List<EmojiReactionPreview> Reactions { get; set; } = new();
-    public ulong Created { get; set; }
-    public ulong Updated { get; set; }
+    public long Created { get; set; }
+    public long Updated { get; set; }
 }

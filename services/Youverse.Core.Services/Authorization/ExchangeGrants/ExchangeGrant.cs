@@ -10,8 +10,8 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants;
 /// </summary>
 public class ExchangeGrant
 {
-    public ulong Created { get; set; }
-    public ulong Modified { get; set; }
+    public long Created { get; set; }
+    public long Modified { get; set; }
     public SymmetricKeyEncryptedAes MasterKeyEncryptedKeyStoreKey { get; set; }
     public bool IsRevoked { get; set; }
     public List<DriveGrant> KeyStoreKeyEncryptedDriveGrants { get; set; }

@@ -49,8 +49,8 @@ namespace Youverse.Core
     {
         public DateUtc(int year, int month, int day)
         {
-            if ((year < Int16.MinValue) || (year > Int16.MaxValue))
-                throw new Exception($"year must be between {Int16.MinValue}..{Int16.MaxValue}");
+            if ((year < -9999) || (year > 9999))
+                throw new Exception($"year must be between -9999..9999");
 
             if ((month < 1) || (month > 12))
                 throw new Exception($"month must be between 1..12");
@@ -67,7 +67,7 @@ namespace Youverse.Core
             _date[3] = (byte) day;
         }
 
-        // TODO: Have a problem here. If year < 0 then it sorts higher. Do we instead need to count years since a certain year?
+        // TODO: Have a problem here? If year < 0 will it then sorts higher? Do we instead need to count years since a certain year?
         public int Year { get { Int16 y = (Int16) ((_date[0]<<8) | _date[1]);  return y; } }
         public int Month { get { return _date[2]; } }
         public int Day { get { return _date[3]; } }

@@ -66,7 +66,7 @@ namespace Youverse.Core.Storage.Sqlite
             }
         }
 
-        private ulong _commitFrequency; // ms
+        private long _commitFrequency; // ms
         private string _connectionString;
 
         private SqliteConnection _connection = null;
@@ -85,7 +85,7 @@ namespace Youverse.Core.Storage.Sqlite
         private int _commitFlushCount = 0;
         private bool _overdue = false;
 
-        public DatabaseBase(string connectionString, ulong commitFrequencyMs = 5000)
+        public DatabaseBase(string connectionString, long commitFrequencyMs = 5000)
         {
             if (commitFrequencyMs < 250)
                 throw new ArgumentOutOfRangeException("Minimum 250ms for now");

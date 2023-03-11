@@ -109,7 +109,9 @@ namespace Youverse.Core
 
             i = i >> 12;
 
-            return new UnixTimeUtc(i);
+            Int64 si = (Int64) i;
+
+            return new UnixTimeUtc(si);
         }
     }
 }   

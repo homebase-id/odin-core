@@ -10,7 +10,7 @@ public class QueryModifiedResult
     /// </summary>
     public bool IncludesJsonContent { get; set; }
     
-    public ulong Cursor { get; set; }
+    public long Cursor { get; set; }
 
     public IEnumerable<SharedSecretEncryptedFileHeader> SearchResults { get; set; }
 }

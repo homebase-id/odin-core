@@ -2,6 +2,6 @@ namespace Youverse.Core.Services.Drives.DriveCore.Query;
 
 public class QueryModifiedResultOptions : ResultOptions
 {
-    public ulong MaxDate { get; set; }
-    public ulong Cursor { get; set; }
+    public long MaxDate { get; set; }
+    public long Cursor { get; set; }
 }

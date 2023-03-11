@@ -9,7 +9,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
 
         public AccessRegistrationClientType AccessRegistrationClientType { get; set; }
 
-        public UInt64 Created { get; set; }
+        public Int64 Created { get; set; }
 
         public SymmetricKeyEncryptedXor ClientAccessKeyEncryptedKeyStoreKey { get; set; }
 

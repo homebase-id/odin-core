@@ -222,7 +222,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                             throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
                         else
                         {
-                            item.timeStamp = new UnixTimeUtc((UInt64) rdr.GetInt64(0));
+                            item.timeStamp = new UnixTimeUtc(rdr.GetInt64(0));
                         }
                     return item;
                 } // using
