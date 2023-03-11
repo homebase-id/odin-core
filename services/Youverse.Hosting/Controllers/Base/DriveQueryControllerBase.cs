@@ -7,7 +7,7 @@ namespace Youverse.Hosting.Controllers.Base
     /// <summary>
     /// Base class for querying a drive's search index
     /// </summary>
-    public abstract class DriveQueryControllerBase : YouverseControllerBase
+    public abstract class DriveQueryControllerBase : OdinControllerBase
     {
         protected async Task<QueryModifiedResult> QueryModified(QueryModifiedRequest request)
         {

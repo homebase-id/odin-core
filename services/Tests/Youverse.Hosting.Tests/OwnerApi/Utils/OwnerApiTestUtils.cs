@@ -636,13 +636,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
         }
 
         public async Task<UploadTestUtilsContext> UploadFile(OdinId identity, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, string payloadData,
-            bool encryptPayload = true, ImageDataContent thumbnail = null, KeyHeader keyHeader = null)
+            bool encryptPayload = true, ImageDataContent thumbnail = null, KeyHeader keyHeader = null, FileSystemType fileSystemType = FileSystemType.Standard)
         {
             Assert.IsNull(instructionSet.TransitOptions?.Recipients, "This method will not send transfers; please ensure recipients are null");
 
             await this.EnsureDriveExists(identity, instructionSet.StorageOptions.Drive, false);
 
-            using (var client = this.CreateOwnerApiHttpClient(identity, out var sharedSecret))
+            using (var client = this.CreateOwnerApiHttpClient(identity, out var sharedSecret, fileSystemType))
             {
                 keyHeader = keyHeader ?? KeyHeader.NewRandom16();
                 var instructionStream = new MemoryStream(DotYouSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
@@ -693,7 +693,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                     UploadFileMetadata = fileMetadata,
                     PayloadData = payloadData,
                     UploadedFile = transferResult.File,
-                    PayloadCipher = payloadCipherBytes
+                    PayloadCipher = payloadCipherBytes,
+                    FileSystemType = fileSystemType
                 };
             }
         }

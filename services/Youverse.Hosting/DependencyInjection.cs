@@ -102,7 +102,7 @@ namespace Youverse.Hosting
             cb.RegisterType<DriveAclAuthorizationService>().As<IDriveAclAuthorizationService>().SingleInstance();
             
             cb.RegisterType<FileSystemResolver>().AsSelf().InstancePerDependency();
-            cb.RegisterType<FileSystemHeaderResolver>().AsSelf().InstancePerDependency();
+            cb.RegisterType<FileSystemHttpRequestResolver>().AsSelf().InstancePerDependency();
             
             cb.RegisterType<StandardFileStreamWriter>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileDriveStorageService>().AsSelf().InstancePerDependency();
@@ -165,7 +165,6 @@ namespace Youverse.Hosting
             
             cb.RegisterType<TransitInboxBoxStorage>().SingleInstance();
             cb.RegisterType<TransitService>().As<ITransitService>().SingleInstance();
-            cb.RegisterType<TransitPerimeterService>().As<ITransitPerimeterService>().InstancePerDependency();
 
             cb.RegisterType<CommandMessagingService>().AsSelf().SingleInstance();
 

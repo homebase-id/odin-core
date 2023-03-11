@@ -124,9 +124,12 @@ namespace Youverse.Hosting.Tests.Performance
             // Prepare environment by uploading secured files
             //
             var frodoAppContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(TestIdentities.Frodo);
-            var randomHeaderContent = string.Join("", Enumerable.Range(10, 10).Select(i => Guid.NewGuid().ToString("N")));  // 32 * 10 = 320 bytes
-            var randomPayloadContent = string.Join("", Enumerable.Range(2468, 2468).Select(i => Guid.NewGuid().ToString("N"))); // 32 * 2468 = 78,976 bytes, almost same size as public test
-            var uploadedFile1 = await UploadFileWithPayloadAndTwoThumbnails(frodoAppContext, randomHeaderContent, randomPayloadContent, AccessControlList.Connected);
+            var randomHeaderContent = string.Join("", Enumerable.Range(10, 10).Select(i => Guid.NewGuid().ToString("N"))); // 32 * 10 = 320 bytes
+            var randomPayloadContent =
+                string.Join("",
+                    Enumerable.Range(2468, 2468).Select(i => Guid.NewGuid().ToString("N"))); // 32 * 2468 = 78,976 bytes, almost same size as public test
+            var uploadedFile1 =
+                await UploadFileWithPayloadAndTwoThumbnails(frodoAppContext, randomHeaderContent, randomPayloadContent, AccessControlList.Connected);
 
             // Note to Michael: your GET requests will be done using the App API instead of YouAuth.
             // This is because I've not yet created a login scaffold for YouAuth in our test framework
@@ -135,7 +138,7 @@ namespace Youverse.Hosting.Tests.Performance
 
             // The primary difference is that app always runs as Owner, however the permission
             // context is still based on what the app has access to
-            
+
             using var frodoHttpClient = _scaffold.AppApi.CreateAppApiHttpClient(frodoAppContext);
             var frodoDriveService = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(frodoHttpClient, frodoAppContext.SharedSecret);
 
@@ -195,12 +198,13 @@ namespace Youverse.Hosting.Tests.Performance
             Console.WriteLine(
                 $"Capacity  : {(1000 * MAXITERATIONS * MAXTHREADS) / Math.Max(1, sw.ElapsedMilliseconds)} / second");
             Console.WriteLine(
-                $"Bandwidth : {1000*(fileByteLength / Math.Max(1, sw.ElapsedMilliseconds))} bytes / second");
+                $"Bandwidth : {1000 * (fileByteLength / Math.Max(1, sw.ElapsedMilliseconds))} bytes / second");
             Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
         }
 
 
-        public async Task<(long, long[])> GetSecuredFile(int threadno, int iterations, IDriveTestHttpClientForApps frodoDriveService, ExternalFileIdentifier uploadedFile1)
+        public async Task<(long, long[])> GetSecuredFile(int threadno, int iterations, IDriveTestHttpClientForApps frodoDriveService,
+            ExternalFileIdentifier uploadedFile1)
         {
             //
             // Calls to get the secured file parts
@@ -212,25 +216,33 @@ namespace Youverse.Hosting.Tests.Performance
             int fileByteLength = 0;
 
 
-            var headerResponse = await frodoDriveService.GetFileHeader(uploadedFile1.FileId, uploadedFile1.TargetDrive.Alias, uploadedFile1.TargetDrive.Type);
+            // var headerResponse = await frodoDriveService.GetFileHeader(uploadedFile1.FileId, uploadedFile1.TargetDrive.Alias, uploadedFile1.TargetDrive.Type);
+            var headerResponse = await frodoDriveService.GetFileHeaderAsPost(uploadedFile1);
             Assert.IsTrue(headerResponse.IsSuccessStatusCode);
             Assert.IsNotNull(headerResponse.Content);
             // fileByteLength += (int)headerResponse.Content. .ToString().Length; -- help
             fileByteLength += 320;
 
             var thumbnail1 = headerResponse.Content.FileMetadata.AppData.AdditionalThumbnails.FirstOrDefault();
-            var thumbnail1Response = await frodoDriveService.GetThumbnail(uploadedFile1.FileId, uploadedFile1.TargetDrive.Alias, uploadedFile1.TargetDrive.Type, thumbnail1.PixelWidth, thumbnail1.PixelWidth);
+            // var thumbnail1Response = await frodoDriveService.GetThumbnail(uploadedFile1.FileId, uploadedFile1.TargetDrive.Alias, uploadedFile1.TargetDrive.Type, thumbnail1.PixelWidth, thumbnail1.PixelWidth);
+            var thumbnail1Response = await frodoDriveService.GetThumbnailAsPost(new GetThumbnailRequest()
+            {
+                File = uploadedFile1,
+                Width = thumbnail1.PixelWidth,
+                Height = thumbnail1.PixelHeight
+            });
             Assert.IsTrue(thumbnail1Response.IsSuccessStatusCode);
             Assert.IsNotNull(thumbnail1Response.Content);
             var encryptedThumbnailBytes = await thumbnail1Response.Content.ReadAsByteArrayAsync();
             fileByteLength += encryptedThumbnailBytes.Length;
 
-            
-            var payload1Response2 = await frodoDriveService.GetPayload(uploadedFile1.FileId, uploadedFile1.TargetDrive.Alias, uploadedFile1.TargetDrive.Type);
+
+            // var payload1Response2 = await frodoDriveService.GetPayload(uploadedFile1.FileId, uploadedFile1.TargetDrive.Alias, uploadedFile1.TargetDrive.Type);
+            var payload1Response2 = await frodoDriveService.GetPayloadAsPost(uploadedFile1);
             Assert.IsTrue(payload1Response2.IsSuccessStatusCode);
             Assert.IsNotNull(payload1Response2.Content);
             // System.Threading.Thread.Sleep(2000);
-            
+
             //
             // I presume here we retrieve the file and download it
             //
@@ -238,14 +250,15 @@ namespace Youverse.Hosting.Tests.Performance
             {
                 sw.Restart();
 
-                var payload1Response = await frodoDriveService.GetPayload(uploadedFile1.FileId, uploadedFile1.TargetDrive.Alias, uploadedFile1.TargetDrive.Type);
+                // var payload1Response = await frodoDriveService.GetPayload(uploadedFile1.FileId, uploadedFile1.TargetDrive.Alias, uploadedFile1.TargetDrive.Type);
+                var payload1Response = await frodoDriveService.GetPayloadAsPost(uploadedFile1);
                 // var contentType = payloadResponse.Headers.SingleOrDefault(h => h.Key == HttpHeaderConstants.DecryptedContentType);
                 Assert.IsTrue(payload1Response.IsSuccessStatusCode);
                 Assert.IsNotNull(payload1Response.Content);
                 var encryptedPayloadBytes = await payload1Response.Content.ReadAsByteArrayAsync();
                 fileByteLength += encryptedPayloadBytes.Length;
 
-                
+
                 // Finished doing all the work
                 timers[count] = sw.ElapsedMilliseconds;
 
@@ -258,7 +271,8 @@ namespace Youverse.Hosting.Tests.Performance
         }
 
 
-        private async Task<ExternalFileIdentifier> UploadFileWithPayloadAndTwoThumbnails(TestAppContext testAppContext, string jsonContent, string payload, AccessControlList acl)
+        private async Task<ExternalFileIdentifier> UploadFileWithPayloadAndTwoThumbnails(TestAppContext testAppContext, string jsonContent, string payload,
+            AccessControlList acl)
         {
             var identity = TestIdentities.Frodo;
 
@@ -331,8 +345,10 @@ namespace Youverse.Hosting.Tests.Performance
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
                     new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
-                    new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)),
-                    new StreamPart(new MemoryStream(thumbnail2CipherBytes), thumbnail2.GetFilename(), thumbnail2.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
+                    new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType,
+                        Enum.GetName(MultipartUploadParts.Thumbnail)),
+                    new StreamPart(new MemoryStream(thumbnail2CipherBytes), thumbnail2.GetFilename(), thumbnail2.ContentType,
+                        Enum.GetName(MultipartUploadParts.Thumbnail)));
 
                 Assert.That(response.IsSuccessStatusCode, Is.True);
                 Assert.That(response.Content, Is.Not.Null);
@@ -381,10 +397,13 @@ namespace Youverse.Hosting.Tests.Performance
                 Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(decryptedKeyHeader.AesKey.GetKey(), keyHeader.AesKey.GetKey()));
 
                 //validate preview thumbnail
-                Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.ContentType == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.ContentType);
-                Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelHeight == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelHeight);
+                Assert.IsTrue(
+                    descriptor.FileMetadata.AppData.PreviewThumbnail.ContentType == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.ContentType);
+                Assert.IsTrue(
+                    descriptor.FileMetadata.AppData.PreviewThumbnail.PixelHeight == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelHeight);
                 Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelWidth == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelWidth);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(descriptor.FileMetadata.AppData.PreviewThumbnail.Content, clientFileHeader.FileMetadata.AppData.PreviewThumbnail.Content));
+                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(descriptor.FileMetadata.AppData.PreviewThumbnail.Content,
+                    clientFileHeader.FileMetadata.AppData.PreviewThumbnail.Content));
 
                 Assert.IsTrue(clientFileHeader.FileMetadata.AppData.AdditionalThumbnails.Count() == 2);
 

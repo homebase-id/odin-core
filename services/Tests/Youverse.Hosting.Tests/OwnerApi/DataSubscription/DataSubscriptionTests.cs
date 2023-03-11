@@ -1,23 +1,19 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Youverse.Core;
-using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.DriveCore.Query;
 using Youverse.Core.Services.Drives.DriveCore.Storage;
-using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Storage;
-using Youverse.Hosting.Tests.AppAPI.ChatStructure.Api;
 using Youverse.Hosting.Tests.OwnerApi.ApiClient;
 
 namespace Youverse.Hosting.Tests.OwnerApi.DataSubscription;
@@ -277,7 +273,7 @@ public class DataSubscriptionTests
                 JsonContent = DotYouSystemSerializer.Serialize(new { message = "Are you tho?" }),
                 FileType = commentFileType,
                 DataType = 202,
-                UserDate = 0,
+                UserDate = UnixTimeUtc.ZeroTime,
                 Tags = default
             }
         };
@@ -356,7 +352,7 @@ public class DataSubscriptionTests
                 JsonContent = DotYouSystemSerializer.Serialize(new { message = "Are you tho?" }),
                 FileType = commentFileType,
                 DataType = 202,
-                UserDate = 0,
+                UserDate = UnixTimeUtc.ZeroTime,
                 Tags = default
             }
         };

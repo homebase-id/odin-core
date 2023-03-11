@@ -12,7 +12,7 @@ namespace Youverse.Hosting.Controllers.Base
     /// <summary>
     /// Base API Controller for uploading multi-part streams
     /// </summary>
-    public abstract class DriveUploadControllerBase : YouverseControllerBase
+    public abstract class DriveUploadControllerBase : OdinControllerBase
     {
         /// <summary>
         /// Uploads a file

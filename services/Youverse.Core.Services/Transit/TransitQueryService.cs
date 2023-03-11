@@ -11,10 +11,9 @@ using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.Reactions;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.Quarantine;
-using Youverse.Core.Storage.Sqlite;
+using Youverse.Core.Storage;
 using Youverse.Core.Storage.Sqlite.DriveDatabase;
 
 namespace Youverse.Core.Services.Transit;
@@ -36,9 +35,9 @@ public class TransitQueryService
         _contextAccessor = contextAccessor;
     }
 
-    public async Task<QueryBatchResult> GetBatch(OdinId odinId, QueryBatchRequest request)
+    public async Task<QueryBatchResult> GetBatch(OdinId odinId, QueryBatchRequest request, FileSystemType fileSystemType)
     {
-        var (icr, httpClient) = await CreateClient(odinId);
+        var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
         var queryBatchResponse = await httpClient.QueryBatch(request);
 
         AssertValidResponse(queryBatchResponse);
@@ -52,9 +51,9 @@ public class TransitQueryService
         };
     }
 
-    public async Task<SharedSecretEncryptedFileHeader> GetFileHeader(OdinId odinId, ExternalFileIdentifier file)
+    public async Task<SharedSecretEncryptedFileHeader> GetFileHeader(OdinId odinId, ExternalFileIdentifier file, FileSystemType fileSystemType)
     {
-        var (icr, httpClient) = await CreateClient(odinId);
+        var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
         var response = await httpClient.GetFileHeader(file);
 
         if (response.StatusCode == HttpStatusCode.NotFound)
@@ -69,9 +68,9 @@ public class TransitQueryService
     }
 
     public async Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, bool payloadIsEncrypted, string decryptedContentType, Stream payload)>
-        GetPayloadStream(OdinId odinId, ExternalFileIdentifier file)
+        GetPayloadStream(OdinId odinId, ExternalFileIdentifier file, FileSystemType fileSystemType)
     {
-        var (icr, httpClient) = await CreateClient(odinId);
+        var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
         var response = await httpClient.GetPayloadStream(file);
 
         if (response.StatusCode == HttpStatusCode.NotFound)
@@ -102,9 +101,9 @@ public class TransitQueryService
     }
 
     public async Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, bool payloadIsEncrypted, string decryptedContentType, Stream thumbnail)>
-        GetThumbnail(OdinId odinId, ExternalFileIdentifier file, int width, int height)
+        GetThumbnail(OdinId odinId, ExternalFileIdentifier file, int width, int height, FileSystemType fileSystemType)
     {
-        var (icr, httpClient) = await CreateClient(odinId);
+        var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
 
         var response = await httpClient.GetThumbnailStream(new GetThumbnailRequest()
         {
@@ -140,9 +139,9 @@ public class TransitQueryService
         return (ownerSharedSecretEncryptedKeyHeader, payloadIsEncrypted, decryptedContentType, stream);
     }
 
-    public async Task<IEnumerable<PerimeterDriveData>> GetDrivesByType(OdinId odinId, Guid driveType)
+    public async Task<IEnumerable<PerimeterDriveData>> GetDrivesByType(OdinId odinId, Guid driveType, FileSystemType fileSystemType)
     {
-        var (icr, httpClient) = await CreateClient(odinId);
+        var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
         var response = await httpClient.GetDrives(new GetDrivesByTypeRequest()
         {
             DriveType = driveType
@@ -183,11 +182,10 @@ public class TransitQueryService
     //
     //     return response.Content;
     // }
-
-    private async Task<(IdentityConnectionRegistration, ITransitHostHttpClient)> CreateClient(OdinId odinId)
+    private async Task<(IdentityConnectionRegistration, ITransitHostHttpClient)> CreateClient(OdinId odinId, FileSystemType fileSystemType)
     {
         var icr = await _circleNetworkService.GetIdentityConnectionRegistration(odinId);
-        var httpClient = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(odinId, icr.CreateClientAuthToken());
+        var httpClient = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(odinId, icr.CreateClientAuthToken(), fileSystemType);
 
         return (icr, httpClient);
     }

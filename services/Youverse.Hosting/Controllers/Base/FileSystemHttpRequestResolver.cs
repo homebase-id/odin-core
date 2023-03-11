@@ -13,14 +13,14 @@ namespace Youverse.Hosting.Controllers.Base;
 
 /// <summary>
 /// Methods to resolve which <see cref="IDriveFileSystem"/> to use based on the
-/// <see cref="FileSystemType"/> from a header
+/// <see cref="FileSystemType"/> in the querystring or header.
 /// </summary>
-public class FileSystemHeaderResolver
+public class FileSystemHttpRequestResolver
 {
     private readonly IHttpContextAccessor _contextAccessor;
 
     /// <summary/> 
-    public FileSystemHeaderResolver(IHttpContextAccessor contextAccessor)
+    public FileSystemHttpRequestResolver(IHttpContextAccessor contextAccessor)
     {
         _contextAccessor = contextAccessor;
     }
@@ -65,14 +65,12 @@ public class FileSystemHeaderResolver
         throw new YouverseClientException("Invalid file system type or could not parse instruction set", YouverseClientErrorCode.InvalidFileSystemType);
     }
 
-    private FileSystemType GetFileSystemType()
+    public FileSystemType GetFileSystemType()
     {
         var ctx = _contextAccessor.HttpContext;
         if (!Enum.TryParse(typeof(FileSystemType), ctx!.Request.Headers[DotYouHeaderNames.FileSystemTypeHeader], true, out var fileSystemType))
         {
-            //default to standard
-            return FileSystemType.Standard;
-            // throw new YouverseClientException("Invalid file system type or no header specified", YouverseClientErrorCode.InvalidFileSystemType);
+            throw new YouverseClientException("Invalid file system type or no header specified", YouverseClientErrorCode.InvalidFileSystemType);
         }
 
         return (FileSystemType)fileSystemType!;

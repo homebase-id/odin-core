@@ -158,8 +158,8 @@ namespace Youverse.Core.Services.Transit
             }
         }
 
-        public async Task<Dictionary<string, TransitResponseCode>> SendDeleteLinkedFileRequest(Guid driveId,
-            Guid globalTransitId, SendFileOptions sendFileOptions, IEnumerable<string> recipients)
+        public async Task<Dictionary<string, TransitResponseCode>> SendDeleteLinkedFileRequest(Guid driveId, Guid globalTransitId,
+            SendFileOptions sendFileOptions, IEnumerable<string> recipients)
         {
             Dictionary<string, TransitResponseCode> result = new Dictionary<string, TransitResponseCode>();
 
@@ -170,7 +170,8 @@ namespace Youverse.Core.Services.Transit
 
                 var clientAccessToken = await ResolveClientAccessToken(r, sendFileOptions.ClientAccessTokenSource);
 
-                var client = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(r, clientAccessToken.ToAuthenticationToken());
+                var client = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(r, clientAccessToken.ToAuthenticationToken(),
+                    fileSystemType: sendFileOptions.FileSystemType);
 
                 //TODO: change to accept a request object that has targetDrive and global transit id
                 var httpResponse = await client.DeleteLinkedFile(new DeleteLinkedFileTransitRequest()

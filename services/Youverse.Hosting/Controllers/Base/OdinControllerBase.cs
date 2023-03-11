@@ -8,12 +8,12 @@ namespace Youverse.Hosting.Controllers.Base;
 /// <summary>
 /// Base utility controller for API endpoints
 /// </summary>
-public abstract class YouverseControllerBase : ControllerBase
+public abstract class OdinControllerBase : ControllerBase
 {
     /// <summary />
-    protected FileSystemHeaderResolver GetFileSystemResolver()
+    protected FileSystemHttpRequestResolver GetFileSystemResolver()
     {
-        return this.HttpContext.RequestServices.GetRequiredService<FileSystemHeaderResolver>();
+        return this.HttpContext.RequestServices.GetRequiredService<FileSystemHttpRequestResolver>();
     }
 
     /// <summary />

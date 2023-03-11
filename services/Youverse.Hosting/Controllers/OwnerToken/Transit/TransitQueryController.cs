@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using System.IO;
+﻿using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
@@ -9,8 +8,8 @@ using Youverse.Core.Identity;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.Reactions;
 using Youverse.Core.Services.Transit;
+using Youverse.Hosting.Controllers.Base;
 using Youverse.Hosting.Controllers.ClientToken.Drive;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Transit
@@ -21,7 +20,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
     [ApiController]
     [Route(OwnerApiPathConstants.TransitQueryV1)]
     [AuthorizeValidOwnerToken]
-    public class TransitQueryController : ControllerBase
+    public class TransitQueryController : OdinControllerBase
     {
         private readonly TransitQueryService _transitQueryService;
 
@@ -48,7 +47,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         [HttpPost("batch")]
         public async Task<QueryBatchResponse> QueryBatch([FromBody] TransitQueryBatchRequest request)
         {
-            var batch = await _transitQueryService.GetBatch((OdinId)request.OdinId, request);
+            var batch = await _transitQueryService.GetBatch((OdinId)request.OdinId, request, GetFileSystemResolver().GetFileSystemType());
             return QueryBatchResponse.FromResult(batch);
         }
 
@@ -58,8 +57,9 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
         [HttpPost("header")]
         public async Task<IActionResult> GetFileHeader([FromBody] TransitExternalFileIdentifier request)
-        {
-            SharedSecretEncryptedFileHeader result = await _transitQueryService.GetFileHeader((OdinId)request.OdinId, request.File);
+        { 
+            var fst = base.GetFileSystemResolver().GetFileSystemType();
+            SharedSecretEncryptedFileHeader result = await _transitQueryService.GetFileHeader((OdinId)request.OdinId, request.File, GetFileSystemResolver().GetFileSystemType());
 
             if (null == result)
             {
@@ -83,7 +83,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         [HttpPost("payload")]
         public async Task<IActionResult> GetPayloadStream([FromBody] TransitExternalFileIdentifier request)
         {
-            var (encryptedKeyHeader, payloadIsEncrypted, decryptedContentType, payload) = await _transitQueryService.GetPayloadStream((OdinId)request.OdinId, request.File);
+            var (encryptedKeyHeader, payloadIsEncrypted, decryptedContentType, payload) = await _transitQueryService.GetPayloadStream((OdinId)request.OdinId, request.File, GetFileSystemResolver().GetFileSystemType());
 
             if (payload == Stream.Null)
             {
@@ -111,7 +111,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         public async Task<IActionResult> GetThumbnail([FromBody] TransitGetThumbRequest request)
         {
             var (encryptedKeyHeader, payloadIsEncrypted, decryptedContentType, thumb) =
-                await _transitQueryService.GetThumbnail((OdinId)request.OdinId, request.File, request.Width, request.Height);
+                await _transitQueryService.GetThumbnail((OdinId)request.OdinId, request.File, request.Width, request.Height, GetFileSystemResolver().GetFileSystemType());
 
             if (thumb == Stream.Null)
             {
@@ -128,7 +128,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         [HttpPost("metadata/type")]
         public async Task<PagedResult<ClientDriveData>> GetDrivesByType([FromBody] TransitGetDrivesByTypeRequest request)
         {
-            var drives = await _transitQueryService.GetDrivesByType((OdinId)request.OdinId, request.DriveType);
+            var drives = await _transitQueryService.GetDrivesByType((OdinId)request.OdinId, request.DriveType, GetFileSystemResolver().GetFileSystemType());
             var clientDriveData = drives.Select(drive =>
                 new ClientDriveData()
                 {

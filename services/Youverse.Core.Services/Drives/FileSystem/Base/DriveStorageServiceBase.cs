@@ -509,7 +509,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             if (serverMetadata.FileSystemType != GetFileSystemType())
             {
                 //just in case the caller used the wrong drive service instance
-                throw new YouverseClientException($"Invalid SystemFileCategory.  This service only handles {GetFileSystemType()}");
+                throw new YouverseClientException($"Invalid SystemFileCategory.  This service only handles the FileSystemType of {GetFileSystemType()}");
             }
         }
     }
