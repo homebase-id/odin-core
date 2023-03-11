@@ -134,7 +134,7 @@ namespace Youverse.Hosting.Controllers.Certificate
         }
 
         
-        [HttpPost("security/context")]
+        [HttpGet("security/context")]
         public Task<RedactedDotYouContext> GetRemoteSecurityContext()
         {
             return Task.FromResult(_contextAccessor.GetCurrent().Redacted());

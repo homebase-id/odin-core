@@ -25,9 +25,9 @@ public class SecurityController : Controller
     /// Returns redacted security information for the currently logged in user
     /// </summary>
     /// <returns></returns>
-    [HttpPost("context")]
-    public IActionResult GetSecurityContext()
+    [HttpGet("context")]
+    public RedactedDotYouContext GetSecurityContext()
     {
-        return new JsonResult(_contextAccessor.GetCurrent().Redacted());
+        return _contextAccessor.GetCurrent().Redacted();
     }
 }

@@ -42,7 +42,7 @@ namespace Youverse.Core.Services.Transit
         [Post(RootPath + "/metadata/type")]
         Task<ApiResponse<IEnumerable<PerimeterDriveData>>> GetDrives([Body] GetDrivesByTypeRequest request);
 
-        [Post(RootPath + "/security/context")]
+        [Get(RootPath + "/security/context")]
         Task<ApiResponse<RedactedDotYouContext>> GetRemoteDotYouContext();
     }
 }
