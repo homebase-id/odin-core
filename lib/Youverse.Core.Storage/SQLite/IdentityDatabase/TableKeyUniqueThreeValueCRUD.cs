@@ -132,7 +132,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 if (dropExisting)
                 {
                     cmd.CommandText = "DROP TABLE IF EXISTS keyUniqueThreeValue;";
-                    cmd.ExecuteNonQuery();
+                    _database.ExecuteNonQuery(cmd);
                 }
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS keyUniqueThreeValue("
@@ -146,7 +146,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                      +"CREATE INDEX IF NOT EXISTS Idx0TableKeyUniqueThreeValueCRUD ON keyUniqueThreeValue(key2);"
                      +"CREATE INDEX IF NOT EXISTS Idx1TableKeyUniqueThreeValueCRUD ON keyUniqueThreeValue(key3);"
                      ;
-                cmd.ExecuteNonQuery();
+                _database.ExecuteNonQuery(cmd);
+                _database.Commit();
             }
         }
 
@@ -177,7 +178,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _insertParam2.Value = item.key2;
                 _insertParam3.Value = item.key3;
                 _insertParam4.Value = item.data ?? (object)DBNull.Value;
-                _database.BeginTransaction();
                 return _database.ExecuteNonQuery(_insertCommand);
             } // Lock
         }
@@ -211,7 +211,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _upsertParam2.Value = item.key2;
                 _upsertParam3.Value = item.key3;
                 _upsertParam4.Value = item.data ?? (object)DBNull.Value;
-                _database.BeginTransaction();
                 return _database.ExecuteNonQuery(_upsertCommand);
             } // Lock
         }
@@ -244,7 +243,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _updateParam2.Value = item.key2;
                 _updateParam3.Value = item.key3;
                 _updateParam4.Value = item.data ?? (object)DBNull.Value;
-                _database.BeginTransaction();
                 return _database.ExecuteNonQuery(_updateCommand);
             } // Lock
         }
@@ -264,7 +262,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _delete0Command.Prepare();
                 }
                 _delete0Param1.Value = key1.ToByteArray();
-                _database.BeginTransaction();
                 return _database.ExecuteNonQuery(_delete0Command);
             } // Lock
         }

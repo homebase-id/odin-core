@@ -123,7 +123,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 if (dropExisting)
                 {
                     cmd.CommandText = "DROP TABLE IF EXISTS followsMe;";
-                    cmd.ExecuteNonQuery();
+                    _database.ExecuteNonQuery(cmd);
                 }
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS followsMe("
@@ -135,7 +135,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                      +");"
                      +"CREATE INDEX IF NOT EXISTS Idx0TableFollowsMeCRUD ON followsMe(identity);"
                      ;
-                cmd.ExecuteNonQuery();
+                _database.ExecuteNonQuery(cmd);
+                _database.Commit();
             }
         }
 
@@ -166,7 +167,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _insertParam2.Value = item.driveId.ToByteArray();
                 _insertParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _insertParam4.Value = DBNull.Value;
-                _database.BeginTransaction();
                 return _database.ExecuteNonQuery(_insertCommand);
             } // Lock
         }
@@ -200,7 +200,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _upsertParam2.Value = item.driveId.ToByteArray();
                 _upsertParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _upsertParam4.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _database.BeginTransaction();
                 return _database.ExecuteNonQuery(_upsertCommand);
             } // Lock
         }
@@ -233,7 +232,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _updateParam2.Value = item.driveId.ToByteArray();
                 _updateParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _updateParam4.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _database.BeginTransaction();
                 return _database.ExecuteNonQuery(_updateCommand);
             } // Lock
         }
@@ -260,7 +258,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 }
                 _delete0Param1.Value = identity;
                 _delete0Param2.Value = driveId.ToByteArray();
-                _database.BeginTransaction();
                 return _database.ExecuteNonQuery(_delete0Command);
             } // Lock
         }
@@ -283,7 +280,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _delete1Command.Prepare();
                 }
                 _delete1Param1.Value = identity;
-                _database.BeginTransaction();
                 return _database.ExecuteNonQuery(_delete1Command);
             } // Lock
         }

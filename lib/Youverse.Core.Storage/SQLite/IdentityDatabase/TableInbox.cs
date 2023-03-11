@@ -106,8 +106,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _pparam2.Value = count;
                 _pparam3.Value = boxId.ToByteArray();
 
-                _database.BeginTransaction();
-
                 using (_database.CreateCommitUnitOfWork())
                 {
                     List<InboxRecord> result = new List<InboxRecord>();
@@ -182,7 +180,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 }
 
                 _pcancelparam1.Value = popstamp ?? (object) DBNull.Value;
-                _database.BeginTransaction();
+
                 _database.ExecuteNonQuery(_popCancelCommand);
             }
         }
@@ -209,7 +207,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 }
 
                 _pcommitparam1.Value = popstamp ?? (object) DBNull.Value;
-                _database.BeginTransaction();
+
                 _database.ExecuteNonQuery(_popCommitCommand);
             }
         }
@@ -239,7 +237,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
                 _pcrecoverparam1.Value = SequentialGuid.CreateGuid(new UnixTimeUtc(ut)).ToByteArray(); // UnixTimeMiliseconds
 
-                _database.BeginTransaction();
                 _database.ExecuteNonQuery(_popRecoverCommand);
             }
         }
