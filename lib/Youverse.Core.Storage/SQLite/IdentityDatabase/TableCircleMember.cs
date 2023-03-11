@@ -114,8 +114,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _deleteCommand.Prepare();
                 }
 
-                _database.BeginTransaction();
-
                 using (_database.CreateCommitUnitOfWork())
                 {
                     for (int i = 0; i < members.Count; i++)

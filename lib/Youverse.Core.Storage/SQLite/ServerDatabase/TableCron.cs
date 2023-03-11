@@ -125,8 +125,6 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
 
                 List<CronRecord> result = new List<CronRecord>();
 
-                _database.BeginTransaction();
-
                 using (SqliteDataReader rdr = _database.ExecuteReader(_popCommand, System.Data.CommandBehavior.Default))
                 {
                     CronRecord item;
@@ -195,8 +193,6 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
                     _popCancelListCommand.Prepare();
                 }
 
-                _database.BeginTransaction();
-
                 using (_database.CreateCommitUnitOfWork())
                 {
                     // I'd rather not do a TEXT statement, this seems safer but slower.
@@ -229,8 +225,6 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
 
                     _popCommitListCommand.Prepare();
                 }
-
-                _database.BeginTransaction();
 
                 using (_database.CreateCommitUnitOfWork())
                 {
@@ -269,7 +263,6 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
 
                 _pcrecoverparam1.Value = SequentialGuid.CreateGuid(t).ToByteArray();
 
-                _database.BeginTransaction();
                 _database.ExecuteNonQuery(_popRecoverCommand);
             }
         }

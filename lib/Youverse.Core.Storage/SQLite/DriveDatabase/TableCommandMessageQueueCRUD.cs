@@ -82,7 +82,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 if (dropExisting)
                 {
                     cmd.CommandText = "DROP TABLE IF EXISTS commandMessageQueue;";
-                    cmd.ExecuteNonQuery();
+                    _database.ExecuteNonQuery(cmd);
                 }
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS commandMessageQueue("
@@ -91,7 +91,8 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                      +", PRIMARY KEY (fileId)"
                      +");"
                      ;
-                cmd.ExecuteNonQuery();
+                _database.ExecuteNonQuery(cmd);
+                _database.Commit();
             }
         }
 
@@ -114,7 +115,6 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 }
                 _insertParam1.Value = item.fileId.ToByteArray();
                 _insertParam2.Value = item.timeStamp.milliseconds;
-                _database.BeginTransaction();
                 return _database.ExecuteNonQuery(_insertCommand);
             } // Lock
         }
@@ -140,7 +140,6 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 }
                 _upsertParam1.Value = item.fileId.ToByteArray();
                 _upsertParam2.Value = item.timeStamp.milliseconds;
-                _database.BeginTransaction();
                 return _database.ExecuteNonQuery(_upsertCommand);
             } // Lock
         }
@@ -165,7 +164,6 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 }
                 _updateParam1.Value = item.fileId.ToByteArray();
                 _updateParam2.Value = item.timeStamp.milliseconds;
-                _database.BeginTransaction();
                 return _database.ExecuteNonQuery(_updateCommand);
             } // Lock
         }
@@ -185,7 +183,6 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     _delete0Command.Prepare();
                 }
                 _delete0Param1.Value = fileId.ToByteArray();
-                _database.BeginTransaction();
                 return _database.ExecuteNonQuery(_delete0Command);
             } // Lock
         }

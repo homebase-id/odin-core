@@ -285,7 +285,6 @@ namespace IdentityDatabaseTests
             var v1 = Guid.NewGuid().ToByteArray();
             var v2 = Guid.NewGuid().ToByteArray();
 
-            db.BeginTransaction();
             var r = db.tblKeyValue.Get(k1);
             if (r != null)
                 Assert.Fail();

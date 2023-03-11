@@ -84,7 +84,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 if (dropExisting)
                 {
                     cmd.CommandText = "DROP TABLE IF EXISTS keyValue;";
-                    cmd.ExecuteNonQuery();
+                    _database.ExecuteNonQuery(cmd);
                 }
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS keyValue("
@@ -93,7 +93,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                      +", PRIMARY KEY (key)"
                      +");"
                      ;
-                cmd.ExecuteNonQuery();
+                _database.ExecuteNonQuery(cmd);
+                _database.Commit();
             }
         }
 
@@ -116,7 +117,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 }
                 _insertParam1.Value = item.key.ToByteArray();
                 _insertParam2.Value = item.data ?? (object)DBNull.Value;
-                _database.BeginTransaction();
                 return _database.ExecuteNonQuery(_insertCommand);
             } // Lock
         }
@@ -142,7 +142,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 }
                 _upsertParam1.Value = item.key.ToByteArray();
                 _upsertParam2.Value = item.data ?? (object)DBNull.Value;
-                _database.BeginTransaction();
                 return _database.ExecuteNonQuery(_upsertCommand);
             } // Lock
         }
@@ -167,7 +166,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 }
                 _updateParam1.Value = item.key.ToByteArray();
                 _updateParam2.Value = item.data ?? (object)DBNull.Value;
-                _database.BeginTransaction();
                 return _database.ExecuteNonQuery(_updateCommand);
             } // Lock
         }
@@ -187,7 +185,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _delete0Command.Prepare();
                 }
                 _delete0Param1.Value = key.ToByteArray();
-                _database.BeginTransaction();
                 return _database.ExecuteNonQuery(_delete0Command);
             } // Lock
         }

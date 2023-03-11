@@ -106,7 +106,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 if (dropExisting)
                 {
                     cmd.CommandText = "DROP TABLE IF EXISTS circle;";
-                    cmd.ExecuteNonQuery();
+                    _database.ExecuteNonQuery(cmd);
                 }
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS circle("
@@ -116,7 +116,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                      +", PRIMARY KEY (circleId)"
                      +");"
                      ;
-                cmd.ExecuteNonQuery();
+                _database.ExecuteNonQuery(cmd);
+                _database.Commit();
             }
         }
 
@@ -143,7 +144,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _insertParam1.Value = item.circleName;
                 _insertParam2.Value = item.circleId.ToByteArray();
                 _insertParam3.Value = item.data ?? (object)DBNull.Value;
-                _database.BeginTransaction();
                 return _database.ExecuteNonQuery(_insertCommand);
             } // Lock
         }
@@ -173,7 +173,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _upsertParam1.Value = item.circleName;
                 _upsertParam2.Value = item.circleId.ToByteArray();
                 _upsertParam3.Value = item.data ?? (object)DBNull.Value;
-                _database.BeginTransaction();
                 return _database.ExecuteNonQuery(_upsertCommand);
             } // Lock
         }
@@ -202,7 +201,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _updateParam1.Value = item.circleName;
                 _updateParam2.Value = item.circleId.ToByteArray();
                 _updateParam3.Value = item.data ?? (object)DBNull.Value;
-                _database.BeginTransaction();
                 return _database.ExecuteNonQuery(_updateCommand);
             } // Lock
         }
@@ -222,7 +220,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _delete0Command.Prepare();
                 }
                 _delete0Param1.Value = circleId.ToByteArray();
-                _database.BeginTransaction();
                 return _database.ExecuteNonQuery(_delete0Command);
             } // Lock
         }

@@ -136,8 +136,6 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             Int32 fileSystemType = (int)FileSystemType.Standard
         )
         {
-            BeginTransaction();
-
             using (CreateCommitUnitOfWork())
             {
                 TblMainIndex.Insert(new MainIndexRecord() { fileId = fileId, globalTransitId = globalTransitId, userDate = userDate,  fileType = fileType,  dataType = dataType, senderId = senderId.ToString(), groupId = groupId, uniqueId = uniqueId, isArchived = 0, isHistory = 0, requiredSecurityGroup = requiredSecurityGroup, fileSystemType = fileSystemType });
@@ -148,8 +146,6 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 
         public void DeleteEntry(Guid fileId)
         {
-            BeginTransaction();
-
             using (CreateCommitUnitOfWork())
             {
                 TblAclIndex.DeleteAllRows(fileId);
@@ -173,8 +169,6 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             List<Guid> addTagIdList = null,
             List<Guid> deleteTagIdList = null)
         {
-            BeginTransaction();
-
             using (CreateCommitUnitOfWork())
             {
                 TblMainIndex.UpdateRow(fileId, globalTransitId: globalTransitId, fileType: fileType, dataType: dataType, senderId: senderId,
@@ -204,8 +198,6 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             List<Guid> tagIdList = null,
             Int32 fileSystemType = 0)
         {
-            BeginTransaction();
-
             using (CreateCommitUnitOfWork())
             {
                 TblMainIndex.UpdateRow(fileId, globalTransitId: globalTransitId, fileType: fileType, dataType: dataType, senderId: senderId,
@@ -252,7 +244,6 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             List<Guid> tagsAnyOf = null,
             List<Guid> tagsAllOf = null)
         {
-            var con = this.GetConnection();
             string stm;
             string strWhere = "";
 
@@ -379,9 +370,9 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             stm = $"SELECT fileid FROM mainindex " + strWhere + $"ORDER BY fileid DESC LIMIT {noOfItems + 1}";
             // +1 to detect EOD
 
-            var cmd = new SqliteCommand(stm, con);
+            var cmd = this.CreateCommand();
+            cmd.CommandText = stm;
 
-            // Commit();
             var rdr = this.ExecuteReader(cmd, CommandBehavior.Default);
 
             var result = new List<Guid>();
@@ -545,7 +536,6 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
         {
             Stopwatch stopWatch = new Stopwatch();
 
-            var con = this.GetConnection();
             string stm;
             string strWhere = "";
 
@@ -642,7 +632,9 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 
             stm = $"SELECT fileid, modified FROM mainindex " + strWhere + $"ORDER BY modified ASC LIMIT {noOfItems}";
 
-            var cmd = new SqliteCommand(stm, con);
+            var cmd = this.CreateCommand();
+            cmd.CommandText = stm;
+
             var rdr = this.ExecuteReader(cmd, CommandBehavior.Default);
 
             var result = new List<Guid>();

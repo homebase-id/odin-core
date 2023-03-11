@@ -125,8 +125,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
                 List<OutboxRecord> result = new List<OutboxRecord>();
 
-                _database.BeginTransaction();
-
                 using (_database.CreateCommitUnitOfWork())
                 {
                     using (SqliteDataReader rdr = _database.ExecuteReader(_popCommand, System.Data.CommandBehavior.Default))
@@ -197,8 +195,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _paparam1.Value = popStamp.ToByteArray();
 
                 List<OutboxRecord> result = new List<OutboxRecord>();
-
-                _database.BeginTransaction();
 
                 using (_database.CreateCommitUnitOfWork())
                 {
@@ -278,7 +274,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
                 _pcancelparam1.Value = popstamp.ToByteArray();
 
-                _database.BeginTransaction();
                 _database.ExecuteNonQuery(_popCancelCommand);
             }
         }
@@ -305,8 +300,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 }
 
                 _pcancellistparam1.Value = popstamp.ToByteArray();
-
-                _database.BeginTransaction();
 
                 using (_database.CreateCommitUnitOfWork())
                 {
@@ -343,7 +336,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 }
 
                 _pcommitparam1.Value = popstamp.ToByteArray();
-                _database.BeginTransaction();
+
                 _database.ExecuteNonQuery(_popCommitCommand);
             }
         }
@@ -375,8 +368,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 }
 
                 _pcommitlistparam1.Value = popstamp.ToByteArray();
-
-                _database.BeginTransaction();
 
                 using (_database.CreateCommitUnitOfWork())
                 {
@@ -415,7 +406,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
                 _pcrecoverparam1.Value = SequentialGuid.CreateGuid(UnixTimeSeconds).ToByteArray(); // UnixTimeMiliseconds
 
-                _database.BeginTransaction();
                 _database.ExecuteNonQuery(_popRecoverCommand);
             }
         }
