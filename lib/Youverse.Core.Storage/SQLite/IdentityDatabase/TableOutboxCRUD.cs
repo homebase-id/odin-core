@@ -180,7 +180,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 if (dropExisting)
                 {
                     cmd.CommandText = "DROP TABLE IF EXISTS outbox;";
-                    cmd.ExecuteNonQuery(_database);
+                    _database.ExecuteNonQuery(cmd);
                 }
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS outbox("
@@ -199,7 +199,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                      +"CREATE INDEX IF NOT EXISTS Idx1TableOutboxCRUD ON outbox(boxId);"
                      +"CREATE INDEX IF NOT EXISTS Idx2TableOutboxCRUD ON outbox(popStamp);"
                      ;
-                cmd.ExecuteNonQuery(_database);
+                _database.ExecuteNonQuery(cmd);
+                _database.Commit();
             }
         }
 
@@ -250,8 +251,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _insertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 _insertParam8.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _insertParam9.Value = DBNull.Value;
-                _database.BeginTransaction();
-                return _insertCommand.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_insertCommand);
             } // Lock
         }
 
@@ -304,8 +304,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _upsertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 _upsertParam8.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _upsertParam9.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _database.BeginTransaction();
-                return _upsertCommand.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_upsertCommand);
             } // Lock
         }
 
@@ -357,8 +356,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _updateParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 _updateParam8.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _updateParam9.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _database.BeginTransaction();
-                return _updateCommand.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_updateCommand);
             } // Lock
         }
 
@@ -384,8 +382,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 }
                 _delete0Param1.Value = fileId.ToByteArray();
                 _delete0Param2.Value = recipient;
-                _database.BeginTransaction();
-                return _delete0Command.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_delete0Command);
             } // Lock
         }
 
@@ -411,7 +408,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 }
                 _get0Param1.Value = fileId.ToByteArray();
                 _get0Param2.Value = recipient;
-                using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     var result = new OutboxRecord();
                     if (!rdr.Read())

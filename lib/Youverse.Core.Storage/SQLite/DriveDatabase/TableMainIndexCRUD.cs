@@ -240,7 +240,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 if (dropExisting)
                 {
                     cmd.CommandText = "DROP TABLE IF EXISTS mainIndex;";
-                    cmd.ExecuteNonQuery(_database);
+                    _database.ExecuteNonQuery(cmd);
                 }
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS mainIndex("
@@ -263,7 +263,8 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                      +"CREATE INDEX IF NOT EXISTS Idx0TableMainIndexCRUD ON mainIndex(globalTransitId);"
                      +"CREATE INDEX IF NOT EXISTS Idx1TableMainIndexCRUD ON mainIndex(modified);"
                      ;
-                cmd.ExecuteNonQuery(_database);
+                _database.ExecuteNonQuery(cmd);
+                _database.Commit();
             }
         }
 
@@ -334,8 +335,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _insertParam12.Value = item.fileSystemType;
                 _insertParam13.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _insertParam14.Value = DBNull.Value;
-                _database.BeginTransaction();
-                return _insertCommand.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_insertCommand);
             } // Lock
         }
 
@@ -408,8 +408,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _upsertParam12.Value = item.fileSystemType;
                 _upsertParam13.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _upsertParam14.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _database.BeginTransaction();
-                return _upsertCommand.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_upsertCommand);
             } // Lock
         }
 
@@ -481,8 +480,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _updateParam12.Value = item.fileSystemType;
                 _updateParam13.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _updateParam14.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _database.BeginTransaction();
-                return _updateCommand.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_updateCommand);
             } // Lock
         }
 
@@ -501,8 +499,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     _delete0Command.Prepare();
                 }
                 _delete0Param1.Value = fileId.ToByteArray();
-                _database.BeginTransaction();
-                return _delete0Command.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_delete0Command);
             } // Lock
         }
 
@@ -521,7 +518,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     _get0Command.Prepare();
                 }
                 _get0Param1.Value = fileId.ToByteArray();
-                using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     var result = new MainIndexRecord();
                     if (!rdr.Read())

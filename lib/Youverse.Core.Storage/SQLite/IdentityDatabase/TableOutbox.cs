@@ -125,12 +125,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
                 List<OutboxRecord> result = new List<OutboxRecord>();
 
-                _database.BeginTransaction();
-                _popCommand.Transaction = _database.Transaction;
-
                 using (_database.CreateCommitUnitOfWork())
                 {
-                    using (SqliteDataReader rdr = _popCommand.ExecuteReader(System.Data.CommandBehavior.Default))
+                    using (SqliteDataReader rdr = _database.ExecuteReader(_popCommand, System.Data.CommandBehavior.Default))
                     {
                         OutboxRecord item;
 
@@ -199,11 +196,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
                 List<OutboxRecord> result = new List<OutboxRecord>();
 
-                _database.BeginTransaction();
-
                 using (_database.CreateCommitUnitOfWork())
                 {
-                    using (SqliteDataReader rdr = _popAllCommand.ExecuteReader(System.Data.CommandBehavior.Default, _database))
+                    using (SqliteDataReader rdr = _database.ExecuteReader(_popAllCommand, System.Data.CommandBehavior.Default))
                     {
                         OutboxRecord item;
 
@@ -279,8 +274,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
                 _pcancelparam1.Value = popstamp.ToByteArray();
 
-                _database.BeginTransaction();
-                _popCancelCommand.ExecuteNonQuery(_database);
+                _database.ExecuteNonQuery(_popCancelCommand);
             }
         }
 
@@ -307,15 +301,13 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
                 _pcancellistparam1.Value = popstamp.ToByteArray();
 
-                _database.BeginTransaction();
-
                 using (_database.CreateCommitUnitOfWork())
                 {
                     // I'd rather not do a TEXT statement, this seems safer but slower.
                     for (int i = 0; i < listFileId.Count; i++)
                     {
                         _pcancellistparam2.Value = listFileId[i].ToByteArray();
-                        _popCancelListCommand.ExecuteNonQuery(_database);
+                        _database.ExecuteNonQuery(_popCancelListCommand);
                     }
                 }
             }
@@ -344,8 +336,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 }
 
                 _pcommitparam1.Value = popstamp.ToByteArray();
-                _database.BeginTransaction();
-                _popCommitCommand.ExecuteNonQuery(_database);
+
+                _database.ExecuteNonQuery(_popCommitCommand);
             }
         }
 
@@ -377,15 +369,13 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
                 _pcommitlistparam1.Value = popstamp.ToByteArray();
 
-                _database.BeginTransaction();
-
                 using (_database.CreateCommitUnitOfWork())
                 {
                     // I'd rather not do a TEXT statement, this seems safer but slower.
                     for (int i = 0; i < listFileId.Count; i++)
                     {
                         _pcommitlistparam2.Value = listFileId[i].ToByteArray();
-                        _popCommitListCommand.ExecuteNonQuery(_database);
+                        _database.ExecuteNonQuery(_popCommitListCommand);
                     }
                 }
             }
@@ -416,8 +406,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
                 _pcrecoverparam1.Value = SequentialGuid.CreateGuid(UnixTimeSeconds).ToByteArray(); // UnixTimeMiliseconds
 
-                _database.BeginTransaction();
-                _popRecoverCommand.ExecuteNonQuery(_database);
+                _database.ExecuteNonQuery(_popRecoverCommand);
             }
         }
     }
