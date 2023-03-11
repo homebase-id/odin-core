@@ -1,8 +1,11 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.AppNotifications.ClientNotifications;
 using Youverse.Core.Services.Apps;
@@ -14,7 +17,8 @@ using Youverse.Core.Services.Transit;
 
 namespace Youverse.Core.Services.AppNotifications
 {
-    public class AppNotificationHandler : INotificationHandler<IClientNotification>, INotificationHandler<IDriveNotification>, INotificationHandler<TransitFileReceivedNotification>
+    public class AppNotificationHandler : INotificationHandler<IClientNotification>, INotificationHandler<IDriveNotification>,
+        INotificationHandler<TransitFileReceivedNotification>
     {
         private readonly DeviceSocketCollection _deviceSocketCollection;
         private readonly DotYouContextAccessor _contextAccessor;
@@ -33,11 +37,20 @@ namespace Youverse.Core.Services.AppNotifications
         {
             var dotYouContext = _contextAccessor.GetCurrent();
 
+            List<Guid> drives = new List<Guid>();
+            foreach (var td in request.Drives)
+            {
+                var driveId = dotYouContext.PermissionsContext.GetDriveId(td);
+                dotYouContext.PermissionsContext.AssertCanReadDrive(driveId);
+                drives.Add(driveId);
+            }
+
             var deviceSocket = new DeviceSocket()
             {
                 Key = Guid.NewGuid(),
                 DeviceAuthToken = null, //TODO: where is the best place to get the cookie?
                 Socket = socket,
+                Drives = drives
             };
 
             _deviceSocketCollection.AddSocket(deviceSocket);
@@ -84,7 +97,7 @@ namespace Youverse.Core.Services.AppNotifications
             await this.SerializeSendToAllDevices(notification);
         }
 
-        public Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
+        public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
             var data = DotYouSystemSerializer.Serialize(new
             {
@@ -92,19 +105,42 @@ namespace Youverse.Core.Services.AppNotifications
                 Header = notification.SharedSecretEncryptedFileHeader
             });
 
-            SerializeSendToAllDevices(new TranslatedClientNotification(notification.NotificationType, data)).GetAwaiter().GetResult();
-            return Task.CompletedTask;
+            var translated = new TranslatedClientNotification(notification.NotificationType, data);
+            await SerializeSendToAllDevicesForDrive(notification.File.DriveId, translated);
         }
 
-        public Task Handle(TransitFileReceivedNotification notification, CancellationToken cancellationToken)
+        public async Task Handle(TransitFileReceivedNotification notification, CancellationToken cancellationToken)
         {
-            var data = DotYouSystemSerializer.Serialize(new
+            var notificationDriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(notification.TempFile.TargetDrive);
+            var translated = new TranslatedClientNotification(notification.NotificationType,
+                DotYouSystemSerializer.Serialize(new
+                {
+                    ExternalFileIdentifier = notification.TempFile
+                }));
+            
+            await SerializeSendToAllDevicesForDrive(notificationDriveId, translated);
+        }
+
+        private List<DeviceSocket> GetSocketsByDrive(Guid targetDriveId)
+        {
+            var sockets = this._deviceSocketCollection.GetAll().Values
+                .Where(ds => ds.Drives.Any(driveId => driveId == targetDriveId));
+            return sockets.ToList();
+        }
+
+        private async Task SerializeSendToAllDevicesForDrive(Guid driveId, IClientNotification notification)
+        {
+            var json = DotYouSystemSerializer.Serialize(new
             {
-                ExternalFileIdentifier = notification.TempFile
+                NotificationType = notification.NotificationType,
+                Data = notification.GetClientData()
             });
 
-            SerializeSendToAllDevices(new TranslatedClientNotification(notification.NotificationType, data)).GetAwaiter().GetResult();
-            return Task.CompletedTask;
+            var sockets = GetSocketsByDrive(driveId);
+            foreach (var deviceSocket in sockets)
+            {
+                await this.SendMessageAsync(deviceSocket, json);
+            }
         }
 
         private async Task SerializeSendToAllDevices(IClientNotification notification)
@@ -160,6 +196,5 @@ namespace Youverse.Core.Services.AppNotifications
                     throw new Exception("Invalid command");
             }
         }
-
     }
 }
