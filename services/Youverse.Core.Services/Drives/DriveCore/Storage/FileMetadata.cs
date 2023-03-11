@@ -51,6 +51,8 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
 
         public Int64 Updated { get; set; }
         
+        public ReactionSummary ReactionPreview { get; set; }
+
         /// <summary>
         /// Specifies the app which last updated this file
         /// </summary>

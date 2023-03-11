@@ -69,6 +69,7 @@ namespace Youverse.Hosting
                 .As<INotificationHandler<TransitFileReceivedNotification>>()
                 .As<INotificationHandler<NewFollowerNotification>>()
                 .As<INotificationHandler<EmojiReactionAddedNotification>>()
+                .As<INotificationHandler<StatisticsUpdatedNotification>>()
                 .AsSelf()
                 .SingleInstance();
 
@@ -101,7 +102,7 @@ namespace Youverse.Hosting
             cb.RegisterType<DriveAclAuthorizationService>().As<IDriveAclAuthorizationService>().SingleInstance();
             
             cb.RegisterType<FileSystemResolver>().AsSelf().InstancePerDependency();
-            cb.RegisterType<FileSystemHeaderResolver>().AsSelf().InstancePerDependency();
+            cb.RegisterType<FileSystemHttpRequestResolver>().AsSelf().InstancePerDependency();
             
             cb.RegisterType<StandardFileStreamWriter>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileDriveStorageService>().AsSelf().InstancePerDependency();
@@ -158,12 +159,12 @@ namespace Youverse.Hosting
                 .As<INotificationHandler<DriveFileAddedNotification>>()
                 .As<INotificationHandler<DriveFileChangedNotification>>()
                 .As<INotificationHandler<DriveFileDeletedNotification>>()
+                .As<INotificationHandler<StatisticsUpdatedNotification>>()
                 .AsSelf()
                 .SingleInstance();
             
             cb.RegisterType<TransitInboxBoxStorage>().SingleInstance();
             cb.RegisterType<TransitService>().As<ITransitService>().SingleInstance();
-            cb.RegisterType<TransitPerimeterService>().As<ITransitPerimeterService>().InstancePerDependency();
 
             cb.RegisterType<CommandMessagingService>().AsSelf().SingleInstance();
 

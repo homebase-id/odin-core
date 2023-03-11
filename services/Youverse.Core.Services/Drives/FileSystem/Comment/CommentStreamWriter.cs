@@ -67,6 +67,10 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
             FileId = metadata.ReferencedFile.GlobalTransitId
         };
 
+        //TODO: I removed this feature as more research is required
+        // i.e. the file being targeted might be across file systems, etc.
+        // so more must be done here at the file system level to query across them
+        
         // if (!package.InstructionSet.StorageOptions.IgnoreMissingReferencedFile)
         // {
         //     var targetFile = FileSystem.Query.GetFileByGlobalTransitId(referenceFileInternal.DriveId,

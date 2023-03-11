@@ -20,3 +20,8 @@ public class TransitGetDrivesByTypeRequest : GetDrivesByTypeRequest
 {
     public string OdinId { get; set; }
 }
+
+public class TransitGetSecurityContextRequest
+{
+    public string OdinId { get; set; }
+}

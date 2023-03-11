@@ -114,13 +114,13 @@ public class ReactionPreviewTests
         // get the target blog file
         var blogPostHeader = await frodoOwnerClient.Drive.GetFileHeader(FileSystemType.Standard, uploadedContentResult.File);
 
-        Assert.IsTrue(blogPostHeader.ReactionPreview.Comments.Count == 3);
-        Assert.IsTrue(blogPostHeader.ReactionPreview.Reactions.Count == 0);
-        Assert.IsTrue(blogPostHeader.ReactionPreview.TotalCommentCount == 3);
+        Assert.IsTrue(blogPostHeader.FileMetadata.ReactionPreview.Comments.Count == 3);
+        Assert.IsTrue(blogPostHeader.FileMetadata.ReactionPreview.Reactions.Count == 0);
+        Assert.IsTrue(blogPostHeader.FileMetadata.ReactionPreview.TotalCommentCount == 3);
 
-        Assert.NotNull(blogPostHeader.ReactionPreview.Comments.SingleOrDefault(x => x.JsonContent == commentFile1.AppData.JsonContent));
-        Assert.NotNull(blogPostHeader.ReactionPreview.Comments.SingleOrDefault(x => x.JsonContent == commentFile2.AppData.JsonContent));
-        Assert.NotNull(blogPostHeader.ReactionPreview.Comments.SingleOrDefault(x => x.JsonContent == commentFile3.AppData.JsonContent));
+        Assert.NotNull(blogPostHeader.FileMetadata.ReactionPreview.Comments.SingleOrDefault(x => x.JsonContent == commentFile1.AppData.JsonContent));
+        Assert.NotNull(blogPostHeader.FileMetadata.ReactionPreview.Comments.SingleOrDefault(x => x.JsonContent == commentFile2.AppData.JsonContent));
+        Assert.NotNull(blogPostHeader.FileMetadata.ReactionPreview.Comments.SingleOrDefault(x => x.JsonContent == commentFile3.AppData.JsonContent));
     }
 
     

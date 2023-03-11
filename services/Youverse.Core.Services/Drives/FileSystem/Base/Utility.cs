@@ -57,14 +57,9 @@ public static class Utility
             FileSystemType = header.ServerMetadata.FileSystemType,
             SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,
             FileMetadata = RedactFileMetadata(header.FileMetadata),
-            Priority = priority,
-            ReactionPreview = header.ReactionPreview,
-            
-            
+            Priority = priority
         };
         
-        
-
         //add additional info
         if (contextAccessor.GetCurrent().Caller.IsOwner)
         {
@@ -87,7 +82,8 @@ public static class Utility
             OriginalRecipientList = fileMetadata.OriginalRecipientList,
             PayloadIsEncrypted = fileMetadata.PayloadIsEncrypted,
             SenderOdinId = fileMetadata.SenderOdinId,
-            ReferencedFile = fileMetadata.ReferencedFile
+            ReferencedFile = fileMetadata.ReferencedFile,
+            ReactionPreview = fileMetadata.ReactionPreview
         };
         return clientFile;
     }

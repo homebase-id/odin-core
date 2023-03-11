@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Refit;
 using Youverse.Core.Services.Apps;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Transit.Quarantine;
 
@@ -40,5 +41,8 @@ namespace Youverse.Core.Services.Transit
 
         [Post(RootPath + "/metadata/type")]
         Task<ApiResponse<IEnumerable<PerimeterDriveData>>> GetDrives([Body] GetDrivesByTypeRequest request);
+
+        [Get(RootPath + "/security/context")]
+        Task<ApiResponse<RedactedDotYouContext>> GetRemoteDotYouContext();
     }
 }

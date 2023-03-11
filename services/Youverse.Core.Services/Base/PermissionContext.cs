@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Dawn;
-using Serilog;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Drives;
 
@@ -57,7 +57,7 @@ namespace Youverse.Core.Services.Base
                 throw new YouverseSecurityException($"Unauthorized access to {permission} to drive [{driveId}]");
             }
         }
-        
+
         public bool HasPermission(int permissionKey)
         {
             if (_isSystem)
@@ -86,7 +86,6 @@ namespace Youverse.Core.Services.Base
             }
         }
 
-        
         /// <summary>
         /// Determines if the current request can write to the specified drive
         /// </summary>
@@ -120,7 +119,7 @@ namespace Youverse.Core.Services.Base
             {
                 throw new YouverseClientException("target drive not specified", YouverseClientErrorCode.InvalidTargetDrive);
             }
-            
+
             foreach (var key in _permissionGroups.Keys)
             {
                 var group = _permissionGroups[key];
@@ -134,7 +133,7 @@ namespace Youverse.Core.Services.Base
 
             throw new YouverseSecurityException($"No access permitted to drive alias {drive.Alias} and drive type {drive.Type}");
         }
-        
+
         public TargetDrive GetTargetDrive(Guid driveId)
         {
             foreach (var key in _permissionGroups.Keys)
@@ -172,5 +171,18 @@ namespace Youverse.Core.Services.Base
             //TODO: this sort of security check feels like it should be in a service..
             throw new YouverseSecurityException($"No access permitted to drive {driveId}");
         }
+
+        public RedactedPermissionContext Redacted()
+        {
+            return new RedactedPermissionContext()
+            {
+                PermissionGroups = _permissionGroups.Values.Select(pg=>pg.Redacted()),
+            };
+        }
+    }
+
+    public class RedactedPermissionContext
+    {
+        public IEnumerable<RedactedPermissionGroup> PermissionGroups { get; init; }
     }
 }

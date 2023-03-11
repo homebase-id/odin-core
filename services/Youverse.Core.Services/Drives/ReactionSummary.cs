@@ -3,14 +3,12 @@ using System.Collections.Generic;
 
 namespace Youverse.Core.Services.Drives;
 
-public class ReactionPreviewData
+public class ReactionSummary
 {
     public Dictionary<Guid, EmojiReactionPreview> Reactions { get; set; } = new();
 
     public List<CommentPreview> Comments { get; set; } = new();
     
-    //    public Dictionary<Guid, CommentPreview> Comments { get; set; } = new();
-
     public int TotalCommentCount { get; set; }
 }
 

@@ -1,6 +1,7 @@
 ﻿using System.IO;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
+using Youverse.Core.Storage;
 
 namespace Youverse.Hosting.Tests
 {
@@ -27,5 +28,6 @@ namespace Youverse.Hosting.Tests
         public ExternalFileIdentifier UploadedFile { get; set; }
 
         public byte[] PayloadCipher { get; set; }
+        public FileSystemType FileSystemType { get; set; }
     }
 }

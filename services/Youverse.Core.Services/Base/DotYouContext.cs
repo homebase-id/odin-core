@@ -41,5 +41,22 @@ namespace Youverse.Core.Services.Base
 
             throw new YouverseSecurityException("Unauthorized Action");
         }
+
+
+        public RedactedDotYouContext Redacted()
+        {
+            return new RedactedDotYouContext()
+            {
+                Caller = this.Caller.Redacted(),
+                PermissionContext = this.PermissionsContext.Redacted()
+            };
+        }
+        
+    }
+    
+    public class RedactedDotYouContext
+    {
+        public RedactedCallerContext Caller { get; set; }
+        public RedactedPermissionContext PermissionContext { get; set; }
     }
 }

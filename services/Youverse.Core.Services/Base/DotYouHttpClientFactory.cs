@@ -7,6 +7,7 @@ using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Certificate;
+using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Base
 {
@@ -26,23 +27,23 @@ namespace Youverse.Core.Services.Base
             _tenantContext = tenantContext;
         }
 
-        public T CreateClientUsingAccessToken<T>(OdinId odinId, ClientAuthenticationToken clientAuthenticationToken)
+        public T CreateClientUsingAccessToken<T>(OdinId odinId, ClientAuthenticationToken clientAuthenticationToken, FileSystemType? fileSystemType = null)
         {
             Guard.Argument(clientAuthenticationToken, nameof(clientAuthenticationToken)).NotNull();
             Guard.Argument(clientAuthenticationToken.Id, nameof(clientAuthenticationToken.Id)).Require(x => x != Guid.Empty);
             Guard.Argument(clientAuthenticationToken.AccessTokenHalfKey, nameof(clientAuthenticationToken.AccessTokenHalfKey)).Require(x => x.IsSet());
             Guard.Argument(clientAuthenticationToken, nameof(clientAuthenticationToken)).NotNull();
 
-            return this.CreateClientInternal<T>(odinId, clientAuthenticationToken);
+            return this.CreateClientInternal<T>(odinId, clientAuthenticationToken, fileSystemType);
         }
 
-        public T CreateClient<T>(OdinId odinId)
+        public T CreateClient<T>(OdinId odinId, FileSystemType? fileSystemType = null)
         {
-            return this.CreateClientInternal<T>(odinId, null);
+            return this.CreateClientInternal<T>(odinId, null, fileSystemType);
         }
 
         ///
-        private T CreateClientInternal<T>(OdinId odinId, ClientAuthenticationToken clientAuthenticationToken)
+        private T CreateClientInternal<T>(OdinId odinId, ClientAuthenticationToken clientAuthenticationToken, FileSystemType? fileSystemType)
         {
             Guard.Argument(odinId.DomainName, nameof(odinId)).NotNull();
 
@@ -53,7 +54,7 @@ namespace Youverse.Core.Services.Base
             {
                 throw new YouverseSystemException($"No certificate configured for {_tenantContext.HostOdinId}");
             }
-
+            
             handler.ClientCertificates.Add(cert);
             handler.AllowAutoRedirect = false; //we should go directly to the endpoint; nothing in between
             handler.SslProtocols = SslProtocols.None; //allow OS to choose;
@@ -68,10 +69,15 @@ namespace Youverse.Core.Services.Base
                 }.Uri
             };
 
+            if (fileSystemType.HasValue)
+            {
+                client.DefaultRequestHeaders.Add(DotYouHeaderNames.FileSystemTypeHeader, fileSystemType.Value.ToString());
+            }
+
 #if DEBUG
             client.Timeout = TimeSpan.FromHours(1);
 #endif
-            
+
             // client.DefaultRequestHeaders.Add(DotYouHeaderNames.AppId, appId);
             if (null != clientAuthenticationToken)
             {

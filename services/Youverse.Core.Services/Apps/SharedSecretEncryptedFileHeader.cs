@@ -25,8 +25,6 @@ namespace Youverse.Core.Services.Apps
         
         public int Priority { get; set; }
         
-        public ReactionPreviewData ReactionPreview { get; set; }
-
         public void AssertFileIsActive()
         {
             if (this.FileState == FileState.Deleted)

@@ -1,5 +1,4 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
@@ -10,15 +9,18 @@ using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Transit;
+using Youverse.Hosting.Controllers.Base;
 using Youverse.Hosting.Controllers.ClientToken.Drive;
-using Youverse.Hosting.Controllers.OwnerToken.Drive;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Transit
 {
+    /// <summary>
+    /// Routes requests from the owner app to a target identity
+    /// </summary>
     [ApiController]
     [Route(OwnerApiPathConstants.TransitQueryV1)]
     [AuthorizeValidOwnerToken]
-    public class TransitQueryController : ControllerBase
+    public class TransitQueryController : OdinControllerBase
     {
         private readonly TransitQueryService _transitQueryService;
 
@@ -45,7 +47,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         [HttpPost("batch")]
         public async Task<QueryBatchResponse> QueryBatch([FromBody] TransitQueryBatchRequest request)
         {
-            var batch = await _transitQueryService.GetBatch((OdinId)request.OdinId, request);
+            var batch = await _transitQueryService.GetBatch((OdinId)request.OdinId, request, GetFileSystemResolver().GetFileSystemType());
             return QueryBatchResponse.FromResult(batch);
         }
 
@@ -55,8 +57,9 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
         [HttpPost("header")]
         public async Task<IActionResult> GetFileHeader([FromBody] TransitExternalFileIdentifier request)
-        {
-            SharedSecretEncryptedFileHeader result = await _transitQueryService.GetFileHeader((OdinId)request.OdinId, request.File);
+        { 
+            var fst = base.GetFileSystemResolver().GetFileSystemType();
+            SharedSecretEncryptedFileHeader result = await _transitQueryService.GetFileHeader((OdinId)request.OdinId, request.File, GetFileSystemResolver().GetFileSystemType());
 
             if (null == result)
             {
@@ -80,7 +83,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         [HttpPost("payload")]
         public async Task<IActionResult> GetPayloadStream([FromBody] TransitExternalFileIdentifier request)
         {
-            var (encryptedKeyHeader, payloadIsEncrypted, decryptedContentType, payload) = await _transitQueryService.GetPayloadStream((OdinId)request.OdinId, request.File);
+            var (encryptedKeyHeader, payloadIsEncrypted, decryptedContentType, payload) = await _transitQueryService.GetPayloadStream((OdinId)request.OdinId, request.File, GetFileSystemResolver().GetFileSystemType());
 
             if (payload == Stream.Null)
             {
@@ -108,7 +111,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         public async Task<IActionResult> GetThumbnail([FromBody] TransitGetThumbRequest request)
         {
             var (encryptedKeyHeader, payloadIsEncrypted, decryptedContentType, thumb) =
-                await _transitQueryService.GetThumbnail((OdinId)request.OdinId, request.File, request.Width, request.Height);
+                await _transitQueryService.GetThumbnail((OdinId)request.OdinId, request.File, request.Width, request.Height, GetFileSystemResolver().GetFileSystemType());
 
             if (thumb == Stream.Null)
             {
@@ -125,7 +128,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         [HttpPost("metadata/type")]
         public async Task<PagedResult<ClientDriveData>> GetDrivesByType([FromBody] TransitGetDrivesByTypeRequest request)
         {
-            var drives = await _transitQueryService.GetDrivesByType((OdinId)request.OdinId, request.DriveType);
+            var drives = await _transitQueryService.GetDrivesByType((OdinId)request.OdinId, request.DriveType, GetFileSystemResolver().GetFileSystemType());
             var clientDriveData = drives.Select(drive =>
                 new ClientDriveData()
                 {
@@ -135,5 +138,35 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
             var page = new PagedResult<ClientDriveData>(PageOptions.All, 1, clientDriveData);
             return page;
         }
+        
+        
+        // /// <summary />
+        // [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        // [HttpPost("list")]
+        // public GetReactionsResponse GetAllReactions([FromBody] GetReactionsRequest request)
+        // {
+        //     return _transitQueryService.GetReactions(request);
+        // }
+        //
+        // /// <summary>
+        // /// Gets a summary of reactions for the file.  The cursor and max parameters are ignored
+        // /// </summary>
+        // [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        // [HttpPost("summary")]
+        // public GetReactionCountsResponse GetReactionCountsByFile([FromBody] GetReactionsRequest request)
+        // {
+        //     return _transitQueryService.GetReactionCounts(request);
+        // }
+        //
+        // /// <summary>
+        // /// Get reactions by identity and file
+        // /// </summary>
+        // [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        // [HttpPost("listbyidentity")]
+        // public List<string> GetReactionsByIdentity([FromBody] GetReactionsByIdentityRequest request)
+        // {
+        //     return _transitQueryService.GetReactionsByIdentityAndFile(request);
+        // }
+        
     }
 }

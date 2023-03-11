@@ -7,7 +7,7 @@ namespace Youverse.Hosting.Controllers.Base;
 /// <summary>
 /// Handles emoji reactions for files
 /// </summary>
-public class DriveEmojiReactionControllerBase : YouverseControllerBase
+public class DriveEmojiReactionControllerBase : OdinControllerBase
 {
     private readonly EmojiReactionService _emojiReactionService;
 

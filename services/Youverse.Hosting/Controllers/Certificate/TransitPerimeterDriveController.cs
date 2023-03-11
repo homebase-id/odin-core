@@ -3,14 +3,20 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Drives.FileSystem;
+using Youverse.Core.Services.Drives.Management;
+using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Quarantine;
+using Youverse.Core.Storage;
 using Youverse.Hosting.Authentication.Perimeter;
+using Youverse.Hosting.Controllers.Base;
 
 namespace Youverse.Hosting.Controllers.Certificate
 {
@@ -20,20 +26,30 @@ namespace Youverse.Hosting.Controllers.Certificate
     [ApiController]
     [Route("/api/perimeter/transit/host")]
     [Authorize(Policy = CertificatePerimeterPolicies.IsInYouverseNetwork, AuthenticationSchemes = PerimeterAuthConstants.TransitCertificateAuthScheme)]
-    public class TransitPerimeterDriveController : ControllerBase
+    public class TransitPerimeterDriveController : OdinControllerBase
     {
-        private readonly ITransitPerimeterService _perimeterService;
+        private readonly DotYouContextAccessor _contextAccessor;
+        private readonly IPublicKeyService _publicKeyService;
+        private readonly DriveManager _driveManager;
+        private readonly ITenantSystemStorage _tenantSystemStorage;
+        private readonly IMediator _mediator;
 
         /// <summary />
-        public TransitPerimeterDriveController(ITransitPerimeterService perimeterService)
+        public TransitPerimeterDriveController(DotYouContextAccessor contextAccessor, IPublicKeyService publicKeyService, DriveManager driveManager, ITenantSystemStorage tenantSystemStorage, IMediator mediator)
         {
-            _perimeterService = perimeterService;
+            _contextAccessor = contextAccessor;
+            this._publicKeyService = publicKeyService;
+            this._driveManager = driveManager;
+            this._tenantSystemStorage = tenantSystemStorage;
+            this._mediator = mediator;
         }
 
         [HttpPost("querybatch")]
         public async Task<QueryBatchResponse> QueryBatch(QueryBatchRequest request)
         {
-            var batch = await _perimeterService.QueryBatch(request.QueryParams, request.ResultOptionsRequest.ToQueryBatchResultOptions());
+            var fileSystem = base.GetFileSystemResolver().ResolveFileSystem();
+            var perimeterService = new TransitPerimeterService(_contextAccessor, _publicKeyService, _driveManager, fileSystem, _tenantSystemStorage, _mediator);
+            var batch = await perimeterService.QueryBatch(request.QueryParams, request.ResultOptionsRequest.ToQueryBatchResultOptions());
             return QueryBatchResponse.FromResult(batch);
         }
 
@@ -43,7 +59,10 @@ namespace Youverse.Hosting.Controllers.Certificate
         [HttpPost("header")]
         public async Task<IActionResult> GetFileHeader([FromBody] ExternalFileIdentifier request)
         {
-            SharedSecretEncryptedFileHeader result = await _perimeterService.GetFileHeader(request.TargetDrive, request.FileId);
+            var fileSystem = base.GetFileSystemResolver().ResolveFileSystem();
+            var perimeterService = new TransitPerimeterService(_contextAccessor, _publicKeyService, _driveManager, fileSystem, _tenantSystemStorage, _mediator);
+
+            SharedSecretEncryptedFileHeader result = await perimeterService.GetFileHeader(request.TargetDrive, request.FileId);
 
             //404 is possible
             if (result == null)
@@ -60,7 +79,11 @@ namespace Youverse.Hosting.Controllers.Certificate
         [HttpPost("payload")]
         public async Task<IActionResult> GetPayloadStream([FromBody] ExternalFileIdentifier request)
         {
-            var (encryptedKeyHeader64, payloadIsEncrypted, decryptedContentType, payload) = await _perimeterService.GetPayloadStream(request.TargetDrive, request.FileId);
+            var fileSystem = base.GetFileSystemResolver().ResolveFileSystem();
+            var perimeterService = new TransitPerimeterService(_contextAccessor, _publicKeyService, _driveManager, fileSystem, _tenantSystemStorage, _mediator);
+
+            var (encryptedKeyHeader64, payloadIsEncrypted, decryptedContentType, payload) =
+                await perimeterService.GetPayloadStream(request.TargetDrive, request.FileId);
 
             if (payload == Stream.Null)
             {
@@ -82,8 +105,12 @@ namespace Youverse.Hosting.Controllers.Certificate
         [HttpPost("thumb")]
         public async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
         {
+            var fileSystem = base.GetFileSystemResolver().ResolveFileSystem();
+            var perimeterService = new TransitPerimeterService(_contextAccessor, _publicKeyService, _driveManager, fileSystem, _tenantSystemStorage, _mediator);
+
+            
             var (encryptedKeyHeader64, payloadIsEncrypted, decryptedContentType, thumb) =
-                await _perimeterService.GetThumbnail(request.File.TargetDrive, request.File.FileId, request.Height, request.Width);
+                await perimeterService.GetThumbnail(request.File.TargetDrive, request.File.FileId, request.Height, request.Width);
 
             if (thumb == Stream.Null)
             {
@@ -99,15 +126,27 @@ namespace Youverse.Hosting.Controllers.Certificate
         [HttpPost("metadata/type")]
         public async Task<IEnumerable<PerimeterDriveData>> GetDrives([FromBody] GetDrivesByTypeRequest request)
         {
-            var drives = await _perimeterService.GetDrives(request.DriveType);
+            var fileSystem = base.GetFileSystemResolver().ResolveFileSystem();
+            var perimeterService = new TransitPerimeterService(_contextAccessor, _publicKeyService, _driveManager, fileSystem, _tenantSystemStorage, _mediator);
+
+            var drives = await perimeterService.GetDrives(request.DriveType);
             return drives;
         }
 
+        
+        [HttpGet("security/context")]
+        public Task<RedactedDotYouContext> GetRemoteSecurityContext()
+        {
+            return Task.FromResult(_contextAccessor.GetCurrent().Redacted());
+        }
 
         [HttpPost("deletelinkedfile")]
         public async Task<HostTransitResponse> DeleteLinkedFile(DeleteLinkedFileTransitRequest transitRequest)
         {
-            return await _perimeterService.AcceptDeleteLinkedFileRequest(transitRequest.TargetDrive, transitRequest.GlobalTransitId, transitRequest.FileSystemType);
+            var fileSystem = base.GetFileSystemResolver().ResolveFileSystem();
+            var perimeterService = new TransitPerimeterService(_contextAccessor, _publicKeyService, _driveManager, fileSystem, _tenantSystemStorage, _mediator);
+            return await perimeterService.AcceptDeleteLinkedFileRequest(transitRequest.TargetDrive, transitRequest.GlobalTransitId,
+                transitRequest.FileSystemType);
         }
     }
 }

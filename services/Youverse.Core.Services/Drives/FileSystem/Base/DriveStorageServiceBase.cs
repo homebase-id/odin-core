@@ -206,7 +206,8 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             return extenstion;
         }
 
-        public async Task<ServerFileHeader> CreateServerFileHeader(InternalDriveFileId file, KeyHeader keyHeader, FileMetadata fileMetadata, ServerMetadata serverMetadata)
+        public async Task<ServerFileHeader> CreateServerFileHeader(InternalDriveFileId file, KeyHeader keyHeader, FileMetadata fileMetadata,
+            ServerMetadata serverMetadata)
         {
             serverMetadata.FileSystemType = GetFileSystemType();
             var sv = new ServerFileHeader()
@@ -311,7 +312,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
 
             await this.WriteFileHeaderInternal(deletedServerFileHeader);
             await GetLongTermStorageManager(file.DriveId).SoftDelete(file.FileId);
-            
+
             await _mediator.Publish(new DriveFileDeletedNotification()
             {
                 IsHardDelete = false,
@@ -338,7 +339,8 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             return result;
         }
 
-        public async Task CommitNewFile(InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata, string payloadExtension)
+        public async Task CommitNewFile(InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
+            string payloadExtension)
         {
             AssertCanWriteToDrive(targetFile.DriveId);
 
@@ -394,7 +396,8 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             });
         }
 
-        public async Task OverwriteFile(InternalDriveFileId tempFile, InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
+        public async Task OverwriteFile(InternalDriveFileId tempFile, InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata,
+            ServerMetadata serverMetadata,
             string payloadExtension)
         {
             AssertCanWriteToDrive(targetFile.DriveId);
@@ -457,13 +460,12 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             });
         }
 
-        public async Task UpdateStatistics(InternalDriveFileId targetFile, ReactionPreviewData previewData)
+        public async Task UpdateStatistics(InternalDriveFileId targetFile, ReactionSummary summary)
         {
             ContextAccessor.GetCurrent().PermissionsContext.AssertHasDrivePermission(targetFile.DriveId, DrivePermission.WriteReactionsAndComments);
 
             var existingHeader = await GetLongTermStorageManager(targetFile.DriveId).GetServerFileHeader(targetFile.FileId);
-            existingHeader.ReactionPreview = previewData;
-
+            existingHeader.FileMetadata.ReactionPreview = summary;
             await WriteFileHeaderInternal(existingHeader);
 
             await _mediator.Publish(new StatisticsUpdatedNotification()
@@ -507,7 +509,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             if (serverMetadata.FileSystemType != GetFileSystemType())
             {
                 //just in case the caller used the wrong drive service instance
-                throw new YouverseClientException($"Invalid SystemFileCategory.  This service only handles {GetFileSystemType()}");
+                throw new YouverseClientException($"Invalid SystemFileCategory.  This service only handles the FileSystemType of {GetFileSystemType()}");
             }
         }
     }

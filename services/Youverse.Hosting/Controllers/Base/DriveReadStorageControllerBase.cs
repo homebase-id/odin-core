@@ -12,7 +12,7 @@ namespace Youverse.Hosting.Controllers.Base
     /// <summary>
     /// Base class for any endpoint reading drive storage
     /// </summary>
-    public abstract class DriveReadStorageControllerBase : YouverseControllerBase
+    public abstract class DriveReadStorageControllerBase : OdinControllerBase
     {
         /// <summary>
         /// Returns the file header
