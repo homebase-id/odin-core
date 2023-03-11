@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Transit;
 
-namespace Youverse.Core.Services.Transit
+namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
 {
     /// <summary>
     ///  Specifies how the transfer was handled for each recipient

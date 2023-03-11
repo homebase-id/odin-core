@@ -16,7 +16,6 @@ using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
-using Youverse.Core.Services.Contacts.Circle.Notification;
 using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Mediator;
@@ -69,21 +68,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             }
 
             return identityReg.CreateClientAuthToken();
-        }
-
-        public async Task HandleNotification(OdinId senderOdinId, CircleNetworkNotification notification)
-        {
-            await Task.CompletedTask; // remove this once below code is completed
-            
-            if (notification.TargetSystemApi != SystemApi.CircleNetwork)
-            {
-                throw new YouverseClientException("Invalid notification type", YouverseClientErrorCode.InvalidNotificationType);
-            }
-
-            //TODO: thse should go into a background queue for processing offline.
-            // processing them here means they're going to be called using the senderDI's context
-
-            throw new YouverseClientException($"Unknown notification Id {notification.NotificationId}", YouverseClientErrorCode.UnknownNotificationId);
         }
 
         public async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreateTransitPermissionContext(OdinId odinId, ClientAuthenticationToken authToken)

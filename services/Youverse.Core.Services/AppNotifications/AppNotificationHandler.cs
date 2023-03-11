@@ -19,13 +19,13 @@ namespace Youverse.Core.Services.AppNotifications
     {
         private readonly DeviceSocketCollection _deviceSocketCollection;
         private readonly DotYouContextAccessor _contextAccessor;
-        private readonly ITransitReceiverService _transitReceiverService;
+        private readonly ITransitFileReceiverService _transitFileReceiverService;
         private readonly DriveManager _driveManager;
 
-        public AppNotificationHandler(DotYouContextAccessor contextAccessor, ITransitReceiverService transitReceiverService, DriveManager driveManager)
+        public AppNotificationHandler(DotYouContextAccessor contextAccessor, ITransitFileReceiverService transitFileReceiverService, DriveManager driveManager)
         {
             _contextAccessor = contextAccessor;
-            _transitReceiverService = transitReceiverService;
+            _transitFileReceiverService = transitFileReceiverService;
             _driveManager = driveManager;
             _deviceSocketCollection = new DeviceSocketCollection();
         }
@@ -154,7 +154,7 @@ namespace Youverse.Core.Services.AppNotifications
             {
                 case SocketCommandType.ProcessTransitInstructions:
                     var d = DotYouSystemSerializer.Deserialize<ExternalFileIdentifier>(command.Data);
-                    await _transitReceiverService.ProcessIncomingTransitInstructions(d.TargetDrive);
+                    await _transitFileReceiverService.ProcessIncomingTransitInstructions(d.TargetDrive);
                     break;
 
                 default:

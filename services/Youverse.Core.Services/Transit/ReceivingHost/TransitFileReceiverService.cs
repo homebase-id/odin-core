@@ -18,14 +18,14 @@ using Youverse.Core.Services.Transit.SendingHost;
 
 namespace Youverse.Core.Services.Transit.ReceivingHost
 {
-    public class TransitReceiverService : ITransitReceiverService
+    public class TransitFileReceiverService : ITransitFileReceiverService
     {
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
         private readonly IPublicKeyService _publicKeyService;
         private readonly FileSystemResolver _fileSystemResolver;
 
-        public TransitReceiverService(DotYouContextAccessor contextAccessor, TransitInboxBoxStorage transitInboxBoxStorage, IPublicKeyService publicKeyService, FileSystemResolver fileSystemResolver)
+        public TransitFileReceiverService(DotYouContextAccessor contextAccessor, TransitInboxBoxStorage transitInboxBoxStorage, IPublicKeyService publicKeyService, FileSystemResolver fileSystemResolver)
         {
             _contextAccessor = contextAccessor;
             _transitInboxBoxStorage = transitInboxBoxStorage;

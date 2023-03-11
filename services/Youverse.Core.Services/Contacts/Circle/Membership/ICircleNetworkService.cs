@@ -1,12 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
-using Youverse.Core.Services.Contacts.Circle.Notification;
 using Youverse.Core.Services.Contacts.Circle.Requests;
 
 namespace Youverse.Core.Services.Contacts.Circle.Membership
@@ -114,11 +112,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <returns></returns>
         Task<AccessRegistration> GetIdentityConnectionAccessRegistration(OdinId odinId,
             SensitiveByteArray remoteIdentityConnectionKey);
-
-        /// <summary>
-        /// Handles the incoming notification.
-        /// </summary>
-        Task HandleNotification(OdinId senderOdinId, CircleNetworkNotification notification);
 
         /// <summary>
         /// Creates a <see cref="PermissionContext"/> for the specified caller based on their access

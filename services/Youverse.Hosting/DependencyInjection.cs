@@ -22,7 +22,6 @@ using Youverse.Core.Services.Certificate.Renewal;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
-using Youverse.Core.Services.Contacts.Circle.Notification;
 using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.DataSubscription;
 using Youverse.Core.Services.DataSubscription.Follower;
@@ -149,7 +148,7 @@ namespace Youverse.Hosting
 
             cb.RegisterType<TransitOutbox>().As<ITransitOutbox>().SingleInstance();
 
-            cb.RegisterType<TransitReceiverService>().As<ITransitReceiverService>().SingleInstance();
+            cb.RegisterType<TransitFileReceiverService>().As<ITransitFileReceiverService>().SingleInstance();
             cb.RegisterType<TransitRegistrationService>()
                 .As<INotificationHandler<IdentityConnectionRegistrationChangedNotification>>()
                 .AsSelf()
@@ -176,8 +175,6 @@ namespace Youverse.Hosting
             cb.RegisterType<TransitQueryService>().AsSelf().SingleInstance();
 
             cb.RegisterType<RsaKeyService>().As<IPublicKeyService>().SingleInstance();
-
-            cb.RegisterType<CircleNetworkNotificationService>();
 
             cb.RegisterType<StaticFileContentService>().AsSelf().SingleInstance();
 
