@@ -1,18 +1,15 @@
-﻿using System;
-using System.Net.Http;
+﻿using System.Net.Http;
 using System.Threading.Tasks;
 using Refit;
 using Youverse.Core;
-using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Controllers.ClientToken.Drive;
 using Youverse.Hosting.Controllers.OwnerToken;
 using Youverse.Hosting.Controllers.OwnerToken.Transit;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Transit
+namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
 {
     /// <summary>
     /// The interface for storing files

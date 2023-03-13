@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.Reactions;
 using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Hosting.Controllers.Base;
@@ -14,7 +13,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
     /// Routes emoji requests from the owner app to a target identity
     /// </summary>
     [ApiController]
-    [Route(OwnerApiPathConstants.TransitQueryV1)]
+    [Route(OwnerApiPathConstants.TransitEmojiV1)]
     [AuthorizeValidOwnerToken]
     public class TransitEmojiController : OdinControllerBase
     {

@@ -163,30 +163,6 @@ public class ReactionTests
         // Assert.IsNotNull(feedbackSearchResults.SearchResults.SingleOrDefault(fb => fb.FileMetadata.AppData.JsonContent == feedbackContent2));
     }
 
-
-    [Test]
-    [Ignore("waiting for endpoint")]
-    public void CanSendEmojiReaction()
-    {
-        // var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
-        //
-        // //create a channel drive
-        // var frodoChannelDrive = new TargetDrive()
-        // {
-        //     Alias = Guid.NewGuid(),
-        //     Type = SystemDriveConstants.ChannelDriveType
-        // };
-        //
-        // await frodoOwnerClient.Drive.CreateDrive(frodoChannelDrive, "A Channel Drive", "", false, false);
-        //
-        // // Frodo uploads content to channel drive
-        // var uploadedContent = "I'm Mr. Underhill";
-        // var uploadResult = await UploadToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent);
-        //
-        //
-    }
-
-
     private async Task<UploadResult> UploadToChannel(OwnerApiClient client, TargetDrive targetDrive, string uploadedContent, bool allowDistribution = true)
     {
         var fileMetadata = new UploadFileMetadata()

@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using Dawn;
 using Youverse.Core.Cryptography.Crypto;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
@@ -59,13 +60,22 @@ namespace Youverse.Core.Services.Transit.SendingHost
             if (source == ClientAccessTokenSource.Circle)
             {
                 var icr = await _circleNetworkService.GetIdentityConnectionRegistration(recipient);
-                return icr.CreateClientAccessToken();
+                if (icr?.IsConnected() == false)
+                {
+                    throw new YouverseClientException("Cannot resolve client access token; not connected", YouverseClientErrorCode.NotAConnectedIdentity);
+                }
+                return icr!.CreateClientAccessToken();
             }
 
             if (source == ClientAccessTokenSource.DataSubscription)
             {
                 var def = await _followerService.GetFollower(recipient);
-                return def.CreateClientAccessToken();
+                if (null == def)
+                {
+                    throw new YouverseClientException("Not a follower", YouverseClientErrorCode.NotAFollowerIdentity);
+                }
+                
+                return def!.CreateClientAccessToken();
             }
 
             throw new ArgumentException("Invalid ClientAccessTokenSource");
