@@ -22,7 +22,7 @@ using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
 {
-    public class TransitPerimeterService : TransitServiceBase<ITransitPerimeterService>, ITransitPerimeterService
+    public class TransitPerimeterService : ITransitPerimeterService
     {
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly ITransitPerimeterTransferStateService _transitPerimeterTransferStateService;
@@ -64,7 +64,8 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
             return await _transitPerimeterTransferStateService.CreateTransferStateItem(transferInstructionSet);
         }
 
-        public async Task<AddPartResponse> ApplyFirstStageFiltering(Guid transferStateItemId, MultipartHostTransferParts part, string fileExtension, Stream data)
+        public async Task<AddPartResponse> ApplyFirstStageFiltering(Guid transferStateItemId, MultipartHostTransferParts part, string fileExtension,
+            Stream data)
         {
             var item = await _transitPerimeterTransferStateService.GetStateItem(transferStateItemId);
 
@@ -159,7 +160,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
                     TargetDrive = _driveManager.GetDrive(item.DriveId).Result.TargetDriveInfo,
                     FileId = item.FileId
                 },
-                
+
                 FileSystemType = item.FileSystemType
             });
         }
@@ -223,7 +224,8 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
             return result;
         }
 
-        public async Task<(string encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, Stream stream)> GetPayloadStream(TargetDrive targetDrive, Guid fileId)
+        public async Task<(string encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, Stream stream)> GetPayloadStream(
+            TargetDrive targetDrive, Guid fileId)
         {
             var file = new InternalDriveFileId()
             {
@@ -244,7 +246,8 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
             return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, header.FileMetadata.ContentType, payload);
         }
 
-        public async Task<(string encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, Stream stream)> GetThumbnail(TargetDrive targetDrive, Guid fileId, int height, int width)
+        public async Task<(string encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, Stream stream)> GetThumbnail(
+            TargetDrive targetDrive, Guid fileId, int height, int width)
         {
             var file = new InternalDriveFileId()
             {

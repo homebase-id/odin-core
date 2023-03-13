@@ -13,7 +13,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.Reactions
         private const string ReactionRootEndpoint = AppApiPathConstants.DriveReactionsV1;
         
         [Post(ReactionRootEndpoint + "/add")]
-        Task<ApiResponse<HttpContent>> AddReaction([Body]AddReactionReqeust request);
+        Task<ApiResponse<HttpContent>> AddReaction([Body]AddReactionRequest request);
         
         [Post(ReactionRootEndpoint + "/delete")]
         Task<ApiResponse<HttpContent>> DeleteReaction([Body]DeleteReactionRequest request);

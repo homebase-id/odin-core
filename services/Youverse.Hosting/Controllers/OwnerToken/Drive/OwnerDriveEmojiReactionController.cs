@@ -22,7 +22,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         /// <summary />
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("add")]
-        public IActionResult AddEmojiReaction([FromBody] AddReactionReqeust request)
+        public IActionResult AddEmojiReaction([FromBody] AddReactionRequest request)
         {
             base.AddReaction(request);
             return NoContent();

@@ -18,7 +18,7 @@ public class DriveEmojiReactionControllerBase : OdinControllerBase
     }
 
     /// <summary />
-    protected void AddReaction(AddReactionReqeust request)
+    protected void AddReaction(AddReactionRequest request)
     {
         _emojiReactionService.AddReaction(MapToInternalFile(request.File), request.Reaction);
     }

@@ -24,14 +24,7 @@ using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Transit.SendingHost
 {
-    public class SendFileOptions
-    {
-        public TransferFileType TransferFileType { get; set; }
-        public ClientAccessTokenSource ClientAccessTokenSource { get; set; }
-        public FileSystemType FileSystemType { get; set; }
-    }
-
-    public class TransitService : TransitServiceBase<ITransitService>, ITransitService
+    public class TransitService : TransitServiceBase, ITransitService
     {
         private readonly FileSystemResolver _fileSystemResolver;
         private readonly DriveManager _driveManager;
@@ -57,7 +50,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
             FollowerService followerService,
             DriveManager driveManager,
             IDriveFileSystem fileSystem,
-            FileSystemResolver fileSystemResolver)
+            FileSystemResolver fileSystemResolver) : base(dotYouHttpClientFactory, circleNetworkService, contextAccessor, followerService, fileSystemResolver)
         {
             _contextAccessor = contextAccessor;
             _transitOutbox = transitOutbox;
@@ -399,7 +392,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
             var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
             storageKey.Wipe();
 
-            foreach (var r in options.Recipients)
+            foreach (var r in options.Recipients!)
             {
                 var recipient = (OdinId)r;
                 try
@@ -418,7 +411,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
 
                     transferStatus.Add(recipient, TransferStatus.TransferKeyCreated);
 
-                    //TODO apply encryption
+                    //TODO apply encryption before storing in the outbox
                     var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
 
                     outboxItems.Add(new TransitOutboxItem()
@@ -445,23 +438,6 @@ namespace Youverse.Core.Services.Transit.SendingHost
             }
 
             return (transferStatus, outboxItems);
-        }
-
-        private async Task<ClientAccessToken> ResolveClientAccessToken(OdinId recipient, ClientAccessTokenSource source)
-        {
-            if (source == ClientAccessTokenSource.Circle)
-            {
-                var icr = await _circleNetworkService.GetIdentityConnectionRegistration(recipient);
-                return icr.CreateClientAccessToken();
-            }
-
-            if (source == ClientAccessTokenSource.DataSubscription)
-            {
-                var def = await _followerService.GetFollower(recipient);
-                return def.CreateClientAccessToken();
-            }
-
-            throw new ArgumentException("Invalid ClientAccessTokenSource");
         }
 
         private async Task<Dictionary<string, TransferStatus>> SendFileLater(InternalDriveFileId internalFile,
@@ -526,15 +502,5 @@ namespace Youverse.Core.Services.Transit.SendingHost
 
             return transferStatus;
         }
-    }
-
-    /// <summary>
-    /// Specifies the type of instruction incoming from another identity 
-    /// </summary>
-    public enum TransferInstructionType
-    {
-        None,
-        DeleteLinkedFile,
-        SaveFile
     }
 }

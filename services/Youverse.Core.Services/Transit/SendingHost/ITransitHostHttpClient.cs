@@ -5,6 +5,7 @@ using Refit;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Drives.Reactions;
 using Youverse.Core.Services.Transit.ReceivingHost;
 using Youverse.Core.Services.Transit.ReceivingHost.Quarantine;
 
@@ -44,5 +45,11 @@ namespace Youverse.Core.Services.Transit.SendingHost
 
         [Get(RootPath + "/security/context")]
         Task<ApiResponse<RedactedDotYouContext>> GetRemoteDotYouContext();
+
+        [Post(RootPath + "/reactions/add")]
+        Task<IApiResponse> AddReaction([Body]SharedSecretEncryptedTransitPayload payload);
+
+        [Post(RootPath + "/reactions/list")]
+        Task<ApiResponse<GetReactionsResponse>> GetReactions([Body]SharedSecretEncryptedTransitPayload payload);
     }
 }

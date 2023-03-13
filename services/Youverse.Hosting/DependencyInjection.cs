@@ -37,7 +37,6 @@ using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Optimization.Cdn;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Tenant;
-using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.ReceivingHost;
 using Youverse.Core.Services.Transit.ReceivingHost.Incoming;
 using Youverse.Core.Services.Transit.SendingHost;
@@ -173,6 +172,10 @@ namespace Youverse.Hosting
             cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();
 
             cb.RegisterType<TransitQueryService>().AsSelf().SingleInstance();
+            
+            cb.RegisterType<TransitEmojiSenderService>().AsSelf().SingleInstance();
+
+            cb.RegisterType<TransitEmojiPerimeterService>().AsSelf().SingleInstance();
 
             cb.RegisterType<RsaKeyService>().As<IPublicKeyService>().SingleInstance();
 
