@@ -30,7 +30,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
-        [HttpGet("security/context")]
+        [HttpPost("security/context")]
         public async Task<RedactedDotYouContext> GetRemoteDotYouContext([FromBody] TransitGetSecurityContextRequest request)
         {
             var ctx = await _transitQueryService.GetRemoteDotYouContext((OdinId)request.OdinId);
