@@ -101,7 +101,7 @@ namespace Youverse.Core.Services.Transit
             }
         }
 
-        // 
+        //
 
         private RsaEncryptedRecipientTransferInstructionSet CreateTransferInstructionSet(byte[] recipientPublicKeyDer,
             KeyHeader keyHeaderToBeEncrypted,
@@ -305,6 +305,7 @@ namespace Youverse.Core.Services.Transit
                     ReactionPreview = metadata.ReactionPreview,
                     SenderOdinId = string.Empty,
                     OriginalRecipientList = null,
+                    ReferencedFile = metadata.ReferencedFile
                 };
 
                 var json = DotYouSystemSerializer.Serialize(redactedMetadata);
@@ -530,7 +531,7 @@ namespace Youverse.Core.Services.Transit
     }
 
     /// <summary>
-    /// Specifies the type of instruction incoming from another identity 
+    /// Specifies the type of instruction incoming from another identity
     /// </summary>
     public enum TransferInstructionType
     {
