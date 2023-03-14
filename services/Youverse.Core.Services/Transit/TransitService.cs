@@ -305,6 +305,7 @@ namespace Youverse.Core.Services.Transit
                     ReactionPreview = metadata.ReactionPreview,
                     SenderOdinId = string.Empty,
                     OriginalRecipientList = null,
+                    ReferencedFile = metadata.ReferencedFile
                 };
 
                 var json = DotYouSystemSerializer.Serialize(redactedMetadata);
