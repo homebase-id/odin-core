@@ -41,7 +41,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
 
 
         //look up the fileId by  updatedFileHeader.FileMetadata.ReferencedFile.GlobalTransitId
-        var fs = _fileSystemResolver.ResolveFileSystem(updatedFileHeader.FileMetadata.ReferencedFile).GetAwaiter().GetResult();
+        var (fs, _) = _fileSystemResolver.ResolveFileSystem(updatedFileHeader.FileMetadata.ReferencedFile).GetAwaiter().GetResult();
         if (null == fs)
         {
             //TODO: consider if we log this or just ignore it

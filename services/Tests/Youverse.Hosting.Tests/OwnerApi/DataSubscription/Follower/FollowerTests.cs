@@ -34,7 +34,7 @@ public class FollowerTests
     {
         var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
         var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
-
+        
         //create some channels for Sam
 
         await frodoOwnerClient.Follower.FollowIdentity(samOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);

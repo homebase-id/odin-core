@@ -121,18 +121,29 @@ namespace Youverse.Core.Services.Transit
                 throw new YouverseClientException("Metadata could not be serialized", YouverseClientErrorCode.MalformedMetadata);
             }
 
+            //files coming from other systems are only accessible to the owner so
+            //the owner can use the UI to pass the file along
+            var targetAcl = new AccessControlList()
+            {
+                RequiredSecurityGroup = SecurityGroupType.Owner
+            };
+
+            //TODO: this might be a hacky place to put this but let's let it cook.  It might better be put into the comment storage
+            if (item.FileSystemType == FileSystemType.Comment)
+            {
+                var (referencedFs, fileId) = await _fileSystemResolver.ResolveFileSystem(metadata.ReferencedFile);
+                var referencedFile = await referencedFs.Query.GetFileByGlobalTransitId(fileId.Value.DriveId, metadata.ReferencedFile.GlobalTransitId);
+                targetAcl = referencedFile.ServerMetadata.AccessControlList;
+            }
+
             var serverMetadata = new ServerMetadata()
             {
                 FileSystemType = item.FileSystemType,
                 AllowDistribution = false,
 
-                //files coming from other systems are only accessible to the owner so
-                //the owner can use the UI to pass the file along
-                AccessControlList = new AccessControlList()
-                {
-                    RequiredSecurityGroup = SecurityGroupType.Owner
-                }
+                AccessControlList = targetAcl
             };
+
 
             metadata!.SenderOdinId = item.Sender;
 
