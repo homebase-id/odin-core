@@ -141,6 +141,7 @@ namespace Youverse.Hosting
                 .AddClientTokenAuthentication()
                 .AddDiCertificateAuthentication(PerimeterAuthConstants.TransitCertificateAuthScheme)
                 .AddDiCertificateAuthentication(PerimeterAuthConstants.PublicTransitAuthScheme)
+                .AddDiCertificateAuthentication(PerimeterAuthConstants.FollowerCertificateAuthScheme)
                 .AddSystemAuthentication();
 
             services.AddAuthorization(policy =>

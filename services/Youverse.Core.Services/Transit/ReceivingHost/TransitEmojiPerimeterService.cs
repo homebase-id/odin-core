@@ -29,8 +29,7 @@ public class TransitEmojiPerimeterService : TransitServiceBase
 
     public async Task AddReaction(SharedSecretEncryptedTransitPayload payload)
     {
-        var request = await base.DecryptUsingSharedSecret<AddRemoteReactionRequest>(payload,
-            ClientAccessTokenSource.DataSubscription);
+        var request = await base.DecryptUsingSharedSecret<AddRemoteReactionRequest>(payload, ClientAccessTokenSource.Follower);
 
         var fileId = await base.ResolveInternalFile(request.File);
         if (null == fileId)
@@ -63,8 +62,7 @@ public class TransitEmojiPerimeterService : TransitServiceBase
 
     public async Task<GetReactionsResponse> GetReactions(SharedSecretEncryptedTransitPayload payload)
     {
-        var request = await base.DecryptUsingSharedSecret<GetRemoteReactionsRequest>(payload,
-            ClientAccessTokenSource.DataSubscription);
+        var request = await base.DecryptUsingSharedSecret<GetRemoteReactionsRequest>(payload, ClientAccessTokenSource.Follower);
 
         var fileId = await base.ResolveInternalFile(request.File);
         if (null == fileId)

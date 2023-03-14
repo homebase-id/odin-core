@@ -21,6 +21,7 @@ public enum YouverseClientErrorCode
     IdentityAlreadyMemberOfCircle = 3005,
     NotAConnectedIdentity = 3006,
     NotAFollowerIdentity = 3007,
+    IdentityNotFollowed = 3008,
 
     // Drive mgmt errors 40xx
     CannotAllowAnonymousReadsOnOwnerOnlyDrive = 4001,

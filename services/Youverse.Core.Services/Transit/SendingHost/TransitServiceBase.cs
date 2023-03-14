@@ -67,12 +67,23 @@ namespace Youverse.Core.Services.Transit.SendingHost
                 return icr!.CreateClientAccessToken();
             }
 
-            if (source == ClientAccessTokenSource.DataSubscription)
+            if (source == ClientAccessTokenSource.Follower)
             {
                 var def = await _followerService.GetFollower(recipient);
                 if (null == def)
                 {
                     throw new YouverseClientException("Not a follower", YouverseClientErrorCode.NotAFollowerIdentity);
+                }
+                
+                return def!.CreateClientAccessToken();
+            }
+            
+            if (source == ClientAccessTokenSource.IdentityIFollow)
+            {
+                var def = await _followerService.GetIdentityIFollow(recipient);
+                if (null == def)
+                {
+                    throw new YouverseClientException("Identity is not followed", YouverseClientErrorCode.IdentityNotFollowed);
                 }
                 
                 return def!.CreateClientAccessToken();

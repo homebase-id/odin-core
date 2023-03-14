@@ -102,7 +102,7 @@ namespace Youverse.Core.Services.DataSubscription
                     {
                         FileSystemType = header.ServerMetadata.FileSystemType,
                         TransferFileType = TransferFileType.Normal,
-                        ClientAccessTokenSource = ClientAccessTokenSource.DataSubscription
+                        ClientAccessTokenSource = ClientAccessTokenSource.Follower
                     },
                     recipients);
 
@@ -145,7 +145,7 @@ namespace Youverse.Core.Services.DataSubscription
                 transitOptions,
                 TransferFileType.Normal,
                 notification.ServerFileHeader.ServerMetadata.FileSystemType,
-                ClientAccessTokenSource.DataSubscription);
+                ClientAccessTokenSource.Follower);
         }
 
         private async Task<bool> SupportsSubscription(Guid driveId)

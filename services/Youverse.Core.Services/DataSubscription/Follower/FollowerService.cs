@@ -129,46 +129,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
         public async Task<FollowerDefinition> GetFollower(OdinId odinId)
         {
             _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadWhoIFollow);
-
-            Guard.Argument(odinId, nameof(odinId)).Require(d => d.HasValue());
-
-            var dbRecords = _tenantStorage.Followers.Get(odinId);
-            if (!dbRecords?.Any() ?? false)
-            {
-                return null;
-            }
-
-            if (dbRecords!.Any(f => odinId != (OdinId)f.identity))
-            {
-                throw new YouverseSystemException($"Follower data for [{odinId}] is corrupt");
-            }
-
-            if (dbRecords.Any(r => r.driveId == Guid.Empty) && dbRecords.Count > 1)
-            {
-                throw new YouverseSystemException($"Follower data for [{odinId}] is corrupt");
-            }
-
-            if (dbRecords.All(r => r.driveId == Guid.Empty))
-            {
-                return new FollowerDefinition()
-                {
-                    OdinId = odinId,
-                    NotificationType = FollowerNotificationType.AllNotifications
-                };
-            }
-
-            var result = new FollowerDefinition()
-            {
-                OdinId = odinId,
-                NotificationType = FollowerNotificationType.SelectedChannels,
-                Channels = dbRecords.Select(record => new TargetDrive()
-                {
-                    Alias = record.driveId,
-                    Type = SystemDriveConstants.ChannelDriveType
-                }).ToList()
-            };
-
-            return await Task.FromResult(result);
+            return await GetFollowerInternal(odinId);
         }
 
         /// <summary>
@@ -270,6 +231,46 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             };
         }
 
+        /// <summary>
+        /// Creates a permission context where the caller is a follower
+        /// </summary>
+        public async Task<PermissionContext> CreateFollowerPermissionContext(OdinId odinId, ClientAuthenticationToken token)
+        {
+            //Note: this check here is basically a replacement for the token
+            // meaning - it is required to be an owner to follow an identity
+            // so they will only be in the list if the owner added them
+            var definition = await GetFollowerInternal(odinId);
+            if (null == definition)
+            {
+                throw new YouverseSecurityException($"Not following {odinId}");
+            }
+
+            var targetDrive = SystemDriveConstants.FeedDrive;
+            var permissionSet = new PermissionSet(); //no permissions
+            var sharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray();
+
+            var driveGrants = new List<DriveGrant>()
+            {
+                new DriveGrant()
+                {
+                    DriveId = (await _driveManager.GetDriveIdByAlias(targetDrive, true)).GetValueOrDefault(),
+                    KeyStoreKeyEncryptedStorageKey = null,
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = targetDrive,
+                        Permission = DrivePermission.WriteReactionsAndComments
+                    }
+                }
+            };
+
+            var groups = new Dictionary<string, PermissionGroup>()
+            {
+                { "follower", new PermissionGroup(permissionSet, driveGrants, sharedSecret) }
+            };
+
+            return new PermissionContext(groups, null);
+        }
+
         public async Task<PermissionContext> CreatePermissionContext(OdinId odinId, ClientAuthenticationToken token)
         {
             //Note: this check here is basically a replacement for the token
@@ -358,6 +359,49 @@ namespace Youverse.Core.Services.DataSubscription.Follower
                     Type = SystemDriveConstants.ChannelDriveType
                 }).ToList()
             });
+        }
+        
+        private async Task<FollowerDefinition> GetFollowerInternal(OdinId odinId)
+        {
+            Guard.Argument(odinId, nameof(odinId)).Require(d => d.HasValue());
+
+            var dbRecords = _tenantStorage.Followers.Get(odinId);
+            if (!dbRecords?.Any() ?? false)
+            {
+                return null;
+            }
+
+            if (dbRecords!.Any(f => odinId != (OdinId)f.identity))
+            {
+                throw new YouverseSystemException($"Follower data for [{odinId}] is corrupt");
+            }
+
+            if (dbRecords.Any(r => r.driveId == Guid.Empty) && dbRecords.Count > 1)
+            {
+                throw new YouverseSystemException($"Follower data for [{odinId}] is corrupt");
+            }
+
+            if (dbRecords.All(r => r.driveId == Guid.Empty))
+            {
+                return new FollowerDefinition()
+                {
+                    OdinId = odinId,
+                    NotificationType = FollowerNotificationType.AllNotifications
+                };
+            }
+
+            var result = new FollowerDefinition()
+            {
+                OdinId = odinId,
+                NotificationType = FollowerNotificationType.SelectedChannels,
+                Channels = dbRecords.Select(record => new TargetDrive()
+                {
+                    Alias = record.driveId,
+                    Type = SystemDriveConstants.ChannelDriveType
+                }).ToList()
+            };
+
+            return await Task.FromResult(result);
         }
     }
 }

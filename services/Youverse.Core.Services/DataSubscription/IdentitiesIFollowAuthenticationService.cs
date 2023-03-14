@@ -11,12 +11,12 @@ using Youverse.Core.Services.DataSubscription.Follower;
 
 namespace Youverse.Core.Services.DataSubscription;
 
-public class DataProviderAuthenticationService
+public class IdentitiesIFollowAuthenticationService
 {
     private readonly DotYouContextCache _cache;
     private readonly FollowerService _followerService;
 
-    public DataProviderAuthenticationService(YouverseConfiguration config, FollowerService followerService)
+    public IdentitiesIFollowAuthenticationService(YouverseConfiguration config, FollowerService followerService)
     {
         _followerService = followerService;
         _cache = new DotYouContextCache(config.Host.CacheSlidingExpirationSeconds);

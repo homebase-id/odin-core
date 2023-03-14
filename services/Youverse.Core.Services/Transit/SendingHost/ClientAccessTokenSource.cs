@@ -15,7 +15,12 @@ public enum ClientAccessTokenSource
     Circle = 1,
     
     /// <summary>
-    /// Get the recipient's token from the <see cref="FollowerService"/>
+    /// Get the recipient's token from the <see cref="FollowerService"/> of an identity that follows me
     /// </summary>
-    DataSubscription = 2
+    Follower = 2,
+    
+    /// <summary>
+    /// Get the recipient's token from the <see cref="FollowerService"/> of an identity I follow
+    /// </summary>
+    IdentityIFollow = 3
 }

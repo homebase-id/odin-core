@@ -46,7 +46,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Emoji
             await pippinOwnerClient.Drive.CreateDrive(pippinChannelDrive, "A Channel Drive", "", false, ownerOnly: false);
 
             await samOwnerClient.Follower.FollowIdentity(pippinOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
-           
+            var samFollowingPippinDefinition = await pippinOwnerClient.Follower.GetFollower(samOwnerClient.Identity);
+            
+            Assert.IsNotNull(samFollowingPippinDefinition);
             //
             // Pippin uploads a post
             //
