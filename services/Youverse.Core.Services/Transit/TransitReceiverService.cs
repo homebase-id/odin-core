@@ -25,7 +25,9 @@ namespace Youverse.Core.Services.Transit
         private readonly IPublicKeyService _publicKeyService;
         private readonly FileSystemResolver _fileSystemResolver;
 
-        public TransitReceiverService(DotYouContextAccessor contextAccessor, TransitInboxBoxStorage transitInboxBoxStorage, IPublicKeyService publicKeyService, FileSystemResolver fileSystemResolver)
+        public TransitReceiverService(DotYouContextAccessor contextAccessor,
+            TransitInboxBoxStorage transitInboxBoxStorage, IPublicKeyService publicKeyService,
+            FileSystemResolver fileSystemResolver)
         {
             _contextAccessor = contextAccessor;
             _transitInboxBoxStorage = transitInboxBoxStorage;
@@ -55,11 +57,13 @@ namespace Youverse.Core.Services.Transit
                     }
                     else if (item.InstructionType == TransferInstructionType.None)
                     {
-                        throw new YouverseClientException("Transfer type not specified", YouverseClientErrorCode.TransferTypeNotSpecified);
+                        throw new YouverseClientException("Transfer type not specified",
+                            YouverseClientErrorCode.TransferTypeNotSpecified);
                     }
                     else
                     {
-                        throw new YouverseClientException("Invalid transfer type", YouverseClientErrorCode.InvalidTransferType);
+                        throw new YouverseClientException("Invalid transfer type",
+                            YouverseClientErrorCode.InvalidTransferType);
                     }
 
                     await _transitInboxBoxStorage.MarkComplete(item.DriveId, item.Marker);
@@ -110,7 +114,8 @@ namespace Youverse.Core.Services.Transit
             decryptedAesKeyHeaderBytes.WriteZeros();
 
             //TODO: this deserialization would be better in the drive service under the name GetTempMetadata or something
-            var metadataStream = await fs.Storage.GetTempStream(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower());
+            var metadataStream =
+                await fs.Storage.GetTempStream(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower());
             var json = await new StreamReader(metadataStream).ReadToEndAsync();
             metadataStream.Close();
 
@@ -118,7 +123,8 @@ namespace Youverse.Core.Services.Transit
 
             if (null == metadata)
             {
-                throw new YouverseClientException("Metadata could not be serialized", YouverseClientErrorCode.MalformedMetadata);
+                throw new YouverseClientException("Metadata could not be serialized",
+                    YouverseClientErrorCode.MalformedMetadata);
             }
 
             //files coming from other systems are only accessible to the owner so
@@ -132,7 +138,8 @@ namespace Youverse.Core.Services.Transit
             if (item.FileSystemType == FileSystemType.Comment)
             {
                 var (referencedFs, fileId) = await _fileSystemResolver.ResolveFileSystem(metadata.ReferencedFile);
-                var referencedFile = await referencedFs.Query.GetFileByGlobalTransitId(fileId.Value.DriveId, metadata.ReferencedFile.GlobalTransitId);
+                var referencedFile = await referencedFs.Query.GetFileByGlobalTransitId(fileId.Value.DriveId,
+                    metadata.ReferencedFile.GlobalTransitId);
                 targetAcl = referencedFile.ServerMetadata.AccessControlList;
             }
 
@@ -191,17 +198,20 @@ namespace Youverse.Core.Services.Transit
         /// <summary>
         /// Stores an incoming command message and updates the queue
         /// </summary>
-        private async Task StoreCommandMessage(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
+        private async Task StoreCommandMessage(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader,
+            FileMetadata metadata, ServerMetadata serverMetadata)
         {
             serverMetadata.DoNotIndex = true;
-            await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
+            await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata,
+                MultipartHostTransferParts.Payload.ToString());
             await fs.Commands.EnqueueCommandMessage(tempFile.DriveId, new List<Guid>() { tempFile.FileId });
         }
 
         /// <summary>
         /// Stores a long-term file or overwrites an existing long-term file if a global transit id was set
         /// </summary>
-        private async Task StoreNormalFileLongTerm(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader,
+        private async Task StoreNormalFileLongTerm(IDriveFileSystem fs, InternalDriveFileId tempFile,
+            KeyHeader keyHeader,
             FileMetadata metadata, ServerMetadata serverMetadata)
         {
             //TODO: should we lock on the id of the global transit id or client unique id?
@@ -219,15 +229,17 @@ namespace Youverse.Core.Services.Transit
             }
 
             //
-            // Second Case: 
+            // Second Case:
             // If there are both a uniqueId and globalTransitId;
             //  - The files they match must be same file
             //  - The current sender must be the same as the sender of the existing file
             //
             if (metadata.GlobalTransitId.HasValue && metadata.AppData.UniqueId.HasValue)
             {
-                SharedSecretEncryptedFileHeader existingFileBySharedSecretEncryptedUniqueId = await fs.Query.GetFileByClientUniqueId(targetDriveId, metadata.AppData.UniqueId.Value);
-                SharedSecretEncryptedFileHeader existingFileByGlobalTransitId = await GetFileByGlobalTransitId(fs, tempFile.DriveId, metadata.GlobalTransitId.GetValueOrDefault());
+                SharedSecretEncryptedFileHeader existingFileBySharedSecretEncryptedUniqueId =
+                    await fs.Query.GetFileByClientUniqueId(targetDriveId, metadata.AppData.UniqueId.Value);
+                SharedSecretEncryptedFileHeader existingFileByGlobalTransitId =
+                    await GetFileByGlobalTransitId(fs, tempFile.DriveId, metadata.GlobalTransitId.GetValueOrDefault());
 
                 if (existingFileBySharedSecretEncryptedUniqueId == null && existingFileByGlobalTransitId == null)
                 {
@@ -240,17 +252,20 @@ namespace Youverse.Core.Services.Transit
                 if ((existingFileBySharedSecretEncryptedUniqueId != null && existingFileByGlobalTransitId == null) ||
                     (existingFileBySharedSecretEncryptedUniqueId == null && existingFileByGlobalTransitId != null))
                 {
-                    throw new DriveSecurityException("Invalid write; UniqueId and GlobalTransitId are not the same file");
+                    throw new DriveSecurityException(
+                        "Invalid write; UniqueId and GlobalTransitId are not the same file");
                 }
 
                 //Must be the same file
                 if (existingFileBySharedSecretEncryptedUniqueId.FileId != existingFileByGlobalTransitId.FileId)
                 {
-                    throw new DriveSecurityException("Invalid write; UniqueId and GlobalTransitId are not the same file");
+                    throw new DriveSecurityException(
+                        "Invalid write; UniqueId and GlobalTransitId are not the same file");
                 }
 
                 existingFileBySharedSecretEncryptedUniqueId.AssertFileIsActive();
-                existingFileBySharedSecretEncryptedUniqueId.AssertOriginalSender((OdinId)metadata.SenderOdinId, $"Sender does not match original sender");
+                existingFileBySharedSecretEncryptedUniqueId.AssertOriginalSender((OdinId)metadata.SenderOdinId,
+                    $"Sender does not match original sender");
 
                 //Update existing file
                 var targetFile = new InternalDriveFileId()
@@ -269,7 +284,8 @@ namespace Youverse.Core.Services.Transit
             //
             if (metadata.AppData.UniqueId.HasValue)
             {
-                SharedSecretEncryptedFileHeader existingFileBySharedSecretEncryptedUniqueId = await fs.Query.GetFileByClientUniqueId(targetDriveId, metadata.AppData.UniqueId.Value);
+                SharedSecretEncryptedFileHeader existingFileBySharedSecretEncryptedUniqueId =
+                    await fs.Query.GetFileByClientUniqueId(targetDriveId, metadata.AppData.UniqueId.Value);
 
                 if (existingFileBySharedSecretEncryptedUniqueId == null)
                 {
@@ -279,7 +295,8 @@ namespace Youverse.Core.Services.Transit
                 }
 
                 existingFileBySharedSecretEncryptedUniqueId.AssertFileIsActive();
-                existingFileBySharedSecretEncryptedUniqueId.AssertOriginalSender((OdinId)metadata.SenderOdinId, $"Sender does not match original sender");
+                existingFileBySharedSecretEncryptedUniqueId.AssertOriginalSender((OdinId)metadata.SenderOdinId,
+                    $"Sender does not match original sender");
 
                 //Update existing file
                 var targetFile = new InternalDriveFileId()
@@ -298,7 +315,8 @@ namespace Youverse.Core.Services.Transit
             //
             if (metadata.GlobalTransitId.HasValue)
             {
-                SharedSecretEncryptedFileHeader existingFileByGlobalTransitId = await GetFileByGlobalTransitId(fs, tempFile.DriveId, metadata.GlobalTransitId.GetValueOrDefault());
+                SharedSecretEncryptedFileHeader existingFileByGlobalTransitId =
+                    await GetFileByGlobalTransitId(fs, tempFile.DriveId, metadata.GlobalTransitId.GetValueOrDefault());
 
                 if (existingFileByGlobalTransitId == null)
                 {
@@ -308,7 +326,8 @@ namespace Youverse.Core.Services.Transit
                 }
 
                 existingFileByGlobalTransitId.AssertFileIsActive();
-                existingFileByGlobalTransitId.AssertOriginalSender((OdinId)metadata.SenderOdinId, $"Sender does not match original sender");
+                existingFileByGlobalTransitId.AssertOriginalSender((OdinId)metadata.SenderOdinId,
+                    $"Sender does not match original sender");
 
                 //Update existing file
                 var targetFile = new InternalDriveFileId()
@@ -325,7 +344,8 @@ namespace Youverse.Core.Services.Transit
             throw new YouverseSystemException("Transit Receiver has unhandled file update scenario");
         }
 
-        private async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(IDriveFileSystem fs, Guid driveId, Guid globalTransitId)
+        private async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(IDriveFileSystem fs, Guid driveId,
+            Guid globalTransitId)
         {
             var existingFile = await fs.Query.GetFileByGlobalTransitId(driveId, globalTransitId);
             return existingFile;
