@@ -108,7 +108,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 if (dropExisting)
                 {
                     cmd.CommandText = "DROP TABLE IF EXISTS reactions;";
-                    cmd.ExecuteNonQuery(_database);
+                    _database.ExecuteNonQuery(cmd);
                 }
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS reactions("
@@ -118,7 +118,8 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                      +", PRIMARY KEY (identity,postId,singleReaction)"
                      +");"
                      ;
-                cmd.ExecuteNonQuery(_database);
+                _database.ExecuteNonQuery(cmd);
+                _database.Commit();
             }
         }
 
@@ -145,8 +146,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _insertParam1.Value = item.identity.DomainName;
                 _insertParam2.Value = item.postId.ToByteArray();
                 _insertParam3.Value = item.singleReaction;
-                _database.BeginTransaction();
-                return _insertCommand.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_insertCommand);
             } // Lock
         }
 
@@ -175,8 +175,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _upsertParam1.Value = item.identity.DomainName;
                 _upsertParam2.Value = item.postId.ToByteArray();
                 _upsertParam3.Value = item.singleReaction;
-                _database.BeginTransaction();
-                return _upsertCommand.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_upsertCommand);
             } // Lock
         }
 
@@ -204,8 +203,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _updateParam1.Value = item.identity.DomainName;
                 _updateParam2.Value = item.postId.ToByteArray();
                 _updateParam3.Value = item.singleReaction;
-                _database.BeginTransaction();
-                return _updateCommand.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_updateCommand);
             } // Lock
         }
 
@@ -235,8 +233,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _delete0Param1.Value = identity.DomainName;
                 _delete0Param2.Value = postId.ToByteArray();
                 _delete0Param3.Value = singleReaction;
-                _database.BeginTransaction();
-                return _delete0Command.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_delete0Command);
             } // Lock
         }
 
@@ -259,8 +256,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 }
                 _delete1Param1.Value = identity.DomainName;
                 _delete1Param2.Value = postId.ToByteArray();
-                _database.BeginTransaction();
-                return _delete1Command.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_delete1Command);
             } // Lock
         }
 
@@ -290,7 +286,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _get0Param1.Value = identity.DomainName;
                 _get0Param2.Value = postId.ToByteArray();
                 _get0Param3.Value = singleReaction;
-                using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     var result = new ReactionsRecord();
                     if (!rdr.Read())

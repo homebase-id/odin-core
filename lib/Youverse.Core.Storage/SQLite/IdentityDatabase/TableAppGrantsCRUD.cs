@@ -110,7 +110,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 if (dropExisting)
                 {
                     cmd.CommandText = "DROP TABLE IF EXISTS appGrants;";
-                    cmd.ExecuteNonQuery(_database);
+                    _database.ExecuteNonQuery(cmd);
                 }
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS appGrants("
@@ -121,7 +121,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                      +", PRIMARY KEY (odinHashId)"
                      +");"
                      ;
-                cmd.ExecuteNonQuery(_database);
+                _database.ExecuteNonQuery(cmd);
+                _database.Commit();
             }
         }
 
@@ -152,8 +153,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _insertParam2.Value = item.appId.ToByteArray();
                 _insertParam3.Value = item.circleId.ToByteArray();
                 _insertParam4.Value = item.data ?? (object)DBNull.Value;
-                _database.BeginTransaction();
-                return _insertCommand.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_insertCommand);
             } // Lock
         }
 
@@ -186,8 +186,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _upsertParam2.Value = item.appId.ToByteArray();
                 _upsertParam3.Value = item.circleId.ToByteArray();
                 _upsertParam4.Value = item.data ?? (object)DBNull.Value;
-                _database.BeginTransaction();
-                return _upsertCommand.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_upsertCommand);
             } // Lock
         }
 
@@ -219,8 +218,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _updateParam2.Value = item.appId.ToByteArray();
                 _updateParam3.Value = item.circleId.ToByteArray();
                 _updateParam4.Value = item.data ?? (object)DBNull.Value;
-                _database.BeginTransaction();
-                return _updateCommand.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_updateCommand);
             } // Lock
         }
 
@@ -239,8 +237,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _delete0Command.Prepare();
                 }
                 _delete0Param1.Value = odinHashId.ToByteArray();
-                _database.BeginTransaction();
-                return _delete0Command.ExecuteNonQuery(_database);
+                return _database.ExecuteNonQuery(_delete0Command);
             } // Lock
         }
 
@@ -259,7 +256,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _get0Command.Prepare();
                 }
                 _get0Param1.Value = odinHashId.ToByteArray();
-                using (SqliteDataReader rdr = _get0Command.ExecuteReader(System.Data.CommandBehavior.SingleRow, _database))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     var result = new AppGrantsRecord();
                     if (!rdr.Read())

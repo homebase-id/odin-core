@@ -52,6 +52,9 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             _select3Command?.Dispose();
             _select3Command = null;
 
+            _select4Command?.Dispose();
+            _select4Command = null;
+
             _getPaging0Command?.Dispose();
             _getPaging0Command = null;
 
@@ -78,7 +81,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 
                 _sparam1.Value = postId.ToByteArray();
 
-                using (SqliteDataReader rdr = _selectCommand.ExecuteReader(System.Data.CommandBehavior.Default, _database))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_selectCommand, System.Data.CommandBehavior.Default))
                 {
                     var result = new List<string>();
                     int totalCount = 0;
@@ -135,7 +138,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _s2param1.Value = postId.ToByteArray();
                 _s2param2.Value = identity.DomainName;
 
-                using (SqliteDataReader rdr = _select2Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_select2Command, System.Data.CommandBehavior.Default))
                 {
                     if (rdr.Read())
                         return rdr.GetInt32(0);
@@ -176,7 +179,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _s3param1.Value = postId.ToByteArray();
                 _s3param2.Value = identity.DomainName;
 
-                using (SqliteDataReader rdr = _select3Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_select3Command, System.Data.CommandBehavior.Default))
                 {
                     var rs = new List<string>();
 
@@ -211,7 +214,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 
                 _s4param1.Value = postId;
 
-                using (SqliteDataReader rdr = _select4Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_select4Command, System.Data.CommandBehavior.Default))
                 {
                     var result = new List<string>();
                     var iresult = new List<int>();
@@ -267,7 +270,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _getPaging0Param2.Value = count + 1;
                 _getPaging0Param3.Value = postIdFilter.ToByteArray();
 
-                using (SqliteDataReader rdr = _getPaging0Command.ExecuteReader(System.Data.CommandBehavior.Default, _database))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_getPaging0Command, System.Data.CommandBehavior.Default))
                 {
                     var result = new List<ReactionsRecord>();
                     int n = 0;

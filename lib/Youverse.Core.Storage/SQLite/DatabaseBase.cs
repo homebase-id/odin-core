@@ -4,6 +4,7 @@ using Youverse.Core.Cryptography.Crypto;
 using System.Timers;
 using Microsoft.Data.Sqlite;
 using Serilog;
+using System.Diagnostics;
 
 
 /*
@@ -23,8 +24,6 @@ namespace Youverse.Core.Storage.Sqlite
 {
     public class DatabaseBase : IDisposable
     {
-        public readonly Object _transactionLock = new Object();
-
         public class IntCounter // Since I can't store a ref to an int, I make this hack.
         {
             public int _counter = 0;
@@ -71,9 +70,9 @@ namespace Youverse.Core.Storage.Sqlite
 
         private SqliteConnection _connection = null;
         private SqliteTransaction _transaction = null;
-        public SqliteTransaction Transaction => _transaction;
 
-        private Object _getConnectionLock = new Object();
+        private readonly Object _connectionLock = new Object();
+        private readonly Object _transactionLock = new Object();
 
         private UnixTimeUtc _lastCommit;
         private bool _wasDisposed = false;
@@ -84,6 +83,7 @@ namespace Youverse.Core.Storage.Sqlite
         private int _commitCallCount = 0;
         private int _commitFlushCount = 0;
         private bool _overdue = false;
+        private bool _dataToCommit = false;
 
         public DatabaseBase(string connectionString, long commitFrequencyMs = 5000)
         {
@@ -96,6 +96,11 @@ namespace Youverse.Core.Storage.Sqlite
             _commitTimer.Interval = _commitFrequency;
             _commitTimer.AutoReset = false;
             _commitTimer.Elapsed += OnCommitTimerEvent;
+
+            _connection = new SqliteConnection(_connectionString);
+            _connection.Open();
+            _transaction = _connection.BeginTransaction();
+            _lastCommit = new UnixTimeUtc();
 
             RsaKeyManagement.noDBOpened++;
         }
@@ -132,49 +137,8 @@ namespace Youverse.Core.Storage.Sqlite
                 _connection = null;
             }
 
-            _getConnectionLock = null;
-
             _wasDisposed = true;
         }
-
-        public SqliteCommand CreateCommand()
-        {
-            return new SqliteCommand
-            {
-                Connection = GetConnection(),
-            };
-        }
-
-        public void Vacuum()
-        {
-            using (var cmd = CreateCommand())
-            {
-                cmd.CommandText = "VACUUM;";
-                cmd.ExecuteNonQuery(this);
-            }
-        }
-
-        /// <summary>
-        /// Create and return the database connection if it's not already created.
-        /// Otherwise simply return the already created connection (one object needed per
-        /// thread). 
-        /// There's ONE connection per database object.
-        /// </summary>
-        /// <returns></returns>
-        public SqliteConnection GetConnection()
-        {
-            lock (_getConnectionLock)
-            {
-                if (_connection == null)
-                {
-                    _connection = new SqliteConnection(_connectionString);
-                    _connection.Open();
-                }
-
-                return _connection;
-            }
-        }
-
 
         /// <summary>
         /// Will destroy all your data and create a fresh database
@@ -183,6 +147,57 @@ namespace Youverse.Core.Storage.Sqlite
         {
             throw new Exception("Not implemented");
         }
+
+        public void Vacuum()
+        {
+            this._transaction.Commit();
+            this._transaction = null;
+
+            using (var cmd = CreateCommand())
+            {
+                cmd.CommandText = "VACUUM;";
+                cmd.ExecuteNonQuery();
+            }
+
+            _transaction = _connection.BeginTransaction();
+            _lastCommit = new UnixTimeUtc();
+        }
+
+        public int ExecuteNonQuery(SqliteCommand command)
+        {
+            lock (_transactionLock)
+            {
+                command.Transaction = _transaction;
+                var r = command.ExecuteNonQuery();
+                command.Transaction = null;
+                _dataToCommit = true;
+                BeginTransaction();
+                return r;
+            }
+        }
+
+        public SqliteDataReader ExecuteReader(SqliteCommand command, CommandBehavior behavior)
+        {
+            lock (_transactionLock)
+            {
+                command.Transaction = _transaction;
+                var r = command.ExecuteReader();
+                command.Transaction = null;
+                _dataToCommit = true;
+                BeginTransaction();
+                return r;
+            }
+        }
+
+
+        public SqliteCommand CreateCommand()
+        {
+            return new SqliteCommand
+            {
+                Connection = _connection
+            };
+        }
+
 
         /// <summary>
         /// This is a wrapper to logically group (same) database transactions what you want to 
@@ -209,32 +224,25 @@ namespace Youverse.Core.Storage.Sqlite
         /// You can only have one transaction per connection. Create a new database object
         /// if you want a second transaction.
         /// </summary>
-        public void BeginTransaction()
+        private void BeginTransaction()
         {
             if (_overdue && _counter.ReadyToCommit())
                 Commit();
 
             lock (_transactionLock)
             {
-                if (_transaction == null)
+                // Let's check if we should commit
+/*                if (UnixTimeUtc.Now().milliseconds - _lastCommit.milliseconds > _commitFrequency)
                 {
-                    _transaction = GetConnection().BeginTransaction();
-                    _lastCommit = new UnixTimeUtc();
-                }
-                else
-                {
-                    // We already had a transaction, let's check if we should commit
-                    if (UnixTimeUtc.Now().milliseconds - _lastCommit.milliseconds > _commitFrequency)
+                    if (Commit() == true)
                     {
-                        if (Commit() == true)
-                        {
-                            _transaction = GetConnection().BeginTransaction();
-                            _lastCommit = new UnixTimeUtc();
-                        }
+                        _transaction = _connection.BeginTransaction();
+                        _lastCommit = new UnixTimeUtc();
                     }
-                }
+                }*/
 
-                _commitTimer.Start();
+                if (_commitTimer.Enabled == false)
+                    _commitTimer.Start();
             }
         }
 
@@ -256,20 +264,26 @@ namespace Youverse.Core.Storage.Sqlite
                     return false;
                 }
 
-                _commitTimer.Stop();
                 _overdue = false;
 
-                if (_transaction != null)
-                {
-                    _commitFlushCount++;
-                    _transaction.Commit(); // Flush the data
-                    _transaction.Dispose(); // I believe these objects need to be disposed
-                    _transaction = null;
-                }
+                if (_dataToCommit == false)
+                    return false;
+
+
+                // Flush the data
+                _commitTimer.Stop();
+                _commitFlushCount++;
+                _transaction.Commit(); // Flush the data
+                _dataToCommit = false;
+                _transaction.Dispose(); // I believe these objects need to be disposed
+                _transaction = _connection.BeginTransaction();
+                _lastCommit = new UnixTimeUtc();
 
                 return true;
             }
         }
+
+
 
 
         public int TimerCount()
@@ -304,34 +318,6 @@ namespace Youverse.Core.Storage.Sqlite
 
             _timerCommitTriggerCount++;
             Commit();
-        }
-    }
-
-    public static class CommandExtensions
-    {
-        public static int ExecuteNonQuery(this SqliteCommand command, DatabaseBase database)
-        {
-            lock (database._transactionLock)
-            {
-                command.Transaction = database.Transaction;
-                var r = command.ExecuteNonQuery();
-                command.Transaction = null;
-                return r;
-            }
-        }
-
-        public static SqliteDataReader ExecuteReader(
-            this SqliteCommand command,
-            CommandBehavior behavior,
-            DatabaseBase database)
-        {
-            lock (database._transactionLock)
-            {
-                command.Transaction = database.Transaction;
-                var r = command.ExecuteReader();
-                command.Transaction = null;
-                return r;
-            }
         }
     }
 }
