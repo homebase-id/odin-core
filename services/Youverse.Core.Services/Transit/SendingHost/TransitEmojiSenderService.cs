@@ -77,7 +77,7 @@ public class TransitEmojiSenderService : TransitServiceBase
     /// <summary />
     public async Task AddReaction(OdinId odinId, AddRemoteReactionRequest request)
     {
-        var (token, client) = await CreateClient(odinId, ClientAccessTokenSource.IdentityIFollow);
+        var (token, client) = await CreateClient(odinId, ClientAccessTokenSource.Circle);
 
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
 
@@ -93,7 +93,7 @@ public class TransitEmojiSenderService : TransitServiceBase
     /// <summary />
     public async Task<GetReactionsResponse> GetReactions(OdinId odinId, GetRemoteReactionsRequest request)
     {
-        var (token, client) = await CreateClient(odinId, ClientAccessTokenSource.IdentityIFollow);
+        var (token, client) = await CreateClient(odinId, ClientAccessTokenSource.Circle);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
         var response = await client.GetReactions(payload);
         return response.Content;

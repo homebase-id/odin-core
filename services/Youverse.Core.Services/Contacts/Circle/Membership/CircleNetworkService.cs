@@ -17,6 +17,7 @@ using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Contacts.Circle.Requests;
+using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Storage;
@@ -27,7 +28,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
     /// <summary>
     /// <inheritdoc cref="ICircleNetworkService"/>
     /// </summary>
-    public class CircleNetworkService : ICircleNetworkService, INotificationHandler<DriveDefinitionAddedNotification>, INotificationHandler<AppRegistrationChangedNotification>
+    public class CircleNetworkService : ICircleNetworkService, INotificationHandler<DriveDefinitionAddedNotification>,
+        INotificationHandler<AppRegistrationChangedNotification>
     {
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
@@ -37,13 +39,14 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         private readonly TableCircleMember _circleMemberStorage;
         private readonly TenantContext _tenantContext;
         private readonly IAppRegistrationService _appRegistrationService;
-
+        // private readonly FollowerService _followerService;
         private readonly GuidId _icrClientDataType = GuidId.FromString("__icr_client_reg");
         private readonly ThreeKeyValueStorage _icrClientValueStorage;
 
         public CircleNetworkService(DotYouContextAccessor contextAccessor, ILogger<ICircleNetworkService> logger, ITenantSystemStorage tenantSystemStorage,
-            IDotYouHttpClientFactory dotYouHttpClientFactory, ExchangeGrantService exchangeGrantService, TenantContext tenantContext, CircleDefinitionService circleDefinitionService,
-            IMediator mediator, IAppRegistrationService appRegistrationService)
+            IDotYouHttpClientFactory dotYouHttpClientFactory, ExchangeGrantService exchangeGrantService, TenantContext tenantContext,
+            CircleDefinitionService circleDefinitionService,
+            IAppRegistrationService appRegistrationService)
         {
             _contextAccessor = contextAccessor;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
@@ -58,19 +61,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             _icrClientValueStorage = tenantSystemStorage.IcrClientStorage;
         }
 
-        public async Task<ClientAuthenticationToken> GetConnectionAuthToken(OdinId odinId, bool failIfNotConnected, bool overrideHack = false)
-        {
-            //TODO: need to NOT use the override version of GetIdentityConnectionRegistration but rather pass in some identifying token?
-            var identityReg = await this.GetIdentityConnectionRegistration(odinId, overrideHack);
-            if (!identityReg.IsConnected() && failIfNotConnected)
-            {
-                throw new YouverseSecurityException("Must be connected to perform this operation");
-            }
-
-            return identityReg.CreateClientAuthToken();
-        }
-
-        public async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreateTransitPermissionContext(OdinId odinId, ClientAuthenticationToken authToken)
+        public async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreateTransitPermissionContext(OdinId odinId,
+            ClientAuthenticationToken authToken)
         {
             var icr = await this.GetIdentityConnectionRegistration(odinId, authToken);
 
@@ -89,14 +81,14 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 authToken: authToken,
                 accessReg: icr.AccessGrant!.AccessRegistration,
                 applyAppCircleGrants: true);
-            
+
             return (permissionContext, enabledCircles);
         }
 
         /// <summary>
         /// Creates a caller and permission context if the authToken represents a connected identity
         /// </summary>
-        public async Task<(CallerContext callerContext, PermissionContext permissionContext)> CreateConnectedClientContext(
+        public async Task<(CallerContext callerContext, PermissionContext permissionContext)> CreateConnectedYouAuthClientContext(
             ClientAuthenticationToken authToken)
         {
             var client = await this.GetIdentityConnectionClient(authToken);
@@ -115,10 +107,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             if (isAuthenticated && isConnected)
             {
                 var (permissionContext, enabledCircles) = await CreatePermissionContextInternal(
-                    connectionRegistration:icr,
-                    accessReg:client.AccessRegistration,
-                    authToken:authToken);
-                
+                    connectionRegistration: icr,
+                    accessReg: client.AccessRegistration,
+                    authToken: authToken);
+
                 var cc = new CallerContext(
                     odinId: client.OdinId,
                     masterKey: null,
@@ -239,7 +231,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             return await GetIdentityConnectionRegistrationInternal(odinId);
         }
 
-        public async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(OdinId odinId, ClientAuthenticationToken remoteClientAuthenticationToken)
+        public async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(OdinId odinId,
+            ClientAuthenticationToken remoteClientAuthenticationToken)
         {
             var connection = await GetIdentityConnectionRegistrationInternal(odinId);
 
@@ -304,7 +297,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             }
         }
 
-        public async Task Connect(string odinIdentity, AccessExchangeGrant accessGrant, ClientAccessToken remoteClientAccessToken, ContactRequestData contactData)
+        public async Task Connect(string odinIdentity, AccessExchangeGrant accessGrant, ClientAccessToken remoteClientAccessToken,
+            ContactRequestData contactData)
         {
             //TODO: need to add security that this method can be called
 
@@ -462,7 +456,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             return circleGrants;
         }
 
-        public async Task<Dictionary<string, Dictionary<string, AppCircleGrant>>> CreateAppCircleGrantList(List<GuidId> circleIds, SensitiveByteArray keyStoreKey)
+        public async Task<Dictionary<string, Dictionary<string, AppCircleGrant>>> CreateAppCircleGrantList(List<GuidId> circleIds,
+            SensitiveByteArray keyStoreKey)
         {
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
 
@@ -590,7 +585,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             return Task.CompletedTask;
         }
 
-        public Task<bool> TryCreateIdentityConnectionClient(string odinId, ClientAuthenticationToken remoteIcrClientAuthToken, out ClientAccessToken clientAccessToken)
+        public Task<bool> TryCreateIdentityConnectionClient(string odinId, ClientAuthenticationToken remoteIcrClientAuthToken,
+            out ClientAccessToken clientAccessToken)
         {
             if (null == remoteIcrClientAuthToken)
             {
@@ -607,7 +603,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             }
 
             var (grantKeyStoreKey, ss) = icr.AccessGrant.AccessRegistration.DecryptUsingClientAuthenticationToken(remoteIcrClientAuthToken);
-            var (accessRegistration, cat) = _exchangeGrantService.CreateClientAccessToken(grantKeyStoreKey, ClientTokenType.IdentityConnectionRegistration).GetAwaiter().GetResult();
+            var (accessRegistration, cat) = _exchangeGrantService.CreateClientAccessToken(grantKeyStoreKey, ClientTokenType.IdentityConnectionRegistration)
+                .GetAwaiter().GetResult();
             grantKeyStoreKey.Wipe();
             ss.Wipe();
 
@@ -646,7 +643,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
         //
 
-        private async Task<AppCircleGrant> CreateAppCircleGrant(RedactedAppRegistration appReg, GuidId circleId, SensitiveByteArray keyStoreKey, SensitiveByteArray masterKey)
+        private async Task<AppCircleGrant> CreateAppCircleGrant(RedactedAppRegistration appReg, GuidId circleId, SensitiveByteArray keyStoreKey,
+            SensitiveByteArray masterKey)
         {
             //map the exchange grant to a structure that matches ICR
             var grant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey,
@@ -785,6 +783,23 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                     }
                 }
             }
+
+
+            //Add write-ability to drives if this identity follows me
+            // var follower = await _followerService.GetFollower(connectionRegistration.OdinId);
+            // if (null != follower)
+            // {
+            //     if (follower.NotificationType == FollowerNotificationType.AllNotifications)
+            //     {
+            //         //get all drives that allow subscriptions of type channel
+            //         
+            //     }
+            //
+            //     if (follower.NotificationType == FollowerNotificationType.SelectedChannels)
+            //     {
+            //         follower.Channels
+            //     }
+            // }
 
             List<int> permissionKeys = new List<int>() { };
             if (_tenantContext.Settings?.AllConnectedIdentitiesCanViewConnections ?? false)

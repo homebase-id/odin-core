@@ -140,9 +140,16 @@ namespace Youverse.Hosting.Middleware
             if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[DotYouHeaderNames.ClientAuthToken], out var clientAuthToken))
             {
                 var user = httpContext.User;
-                var authService = httpContext.RequestServices.GetRequiredService<FollowerAuthenticationService>();
                 var odinId = (OdinId)user.Identity!.Name;
+                var authService = httpContext.RequestServices.GetRequiredService<FollowerAuthenticationService>();
                 var ctx = await authService.GetDotYouContext(odinId, clientAuthToken);
+                
+                //load in transit context
+                // var transitRegService = httpContext.RequestServices.GetRequiredService<TransitRegistrationService>();
+                // var transitCtx = await transitRegService.GetDotYouContext(odinId, clientAuthToken);
+                
+                // transitCtx.PermissionsContext.Redacted().PermissionGroups.First().DriveGrants.First().PermissionedDrive.
+                    
                 if (ctx != null)
                 {
                     dotYouContext.Caller = ctx.Caller;

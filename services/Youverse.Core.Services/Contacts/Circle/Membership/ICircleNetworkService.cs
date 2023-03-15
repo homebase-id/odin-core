@@ -14,12 +14,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
     /// </summary>
     public interface ICircleNetworkService
     {
-        /// <summary>
-        /// Gets the <see cref="ClientAuthenticationToken"/> for a given connection
-        /// </summary>
-        /// <returns></returns>
-        Task<ClientAuthenticationToken> GetConnectionAuthToken(OdinId odinId, bool failIfNotConnected = true,
-            bool overrideHack = false);
 
         /// <summary>
         /// Disconnects you from the specified <see cref="OdinId"/>
@@ -124,7 +118,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <summary>
         /// Creates a caller and permission context for the caller based on the <see cref="IdentityConnectionRegistrationClient"/> resolved by the authToken
         /// </summary>
-        Task<(CallerContext callerContext, PermissionContext permissionContext)> CreateConnectedClientContext(
+        Task<(CallerContext callerContext, PermissionContext permissionContext)> CreateConnectedYouAuthClientContext(
             ClientAuthenticationToken authToken);
 
         /// <summary>

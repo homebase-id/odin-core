@@ -7,7 +7,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Incoming
 {
     public class IncomingTransferStateItem
     {
-        public IncomingTransferStateItem(GuidId id, InternalDriveFileId tempFile, FileSystemType transferTransferFileSystemType)
+        public IncomingTransferStateItem(GuidId id, InternalDriveFileId tempFile, FileSystemType transferTransferFileSystemType, TransferFileType transferFileType )
         {
             Guard.Argument(id, nameof(id)).NotNull().Require(x => GuidId.IsValid(x));
             Guard.Argument(tempFile, nameof(tempFile)).Require(tempFile.IsValid());
@@ -15,11 +15,14 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Incoming
             this.Id = id;
             this.TempFile = tempFile;
             this.TransferFileSystemType = transferTransferFileSystemType;
+            this.TransferFileType = transferFileType;
 
             this.HeaderState = new();
             this.MetadataState = new();
             this.PayloadState = new();
         }
+
+        public TransferFileType TransferFileType { get; init; }
 
         public FileSystemType TransferFileSystemType { get; init; }
 

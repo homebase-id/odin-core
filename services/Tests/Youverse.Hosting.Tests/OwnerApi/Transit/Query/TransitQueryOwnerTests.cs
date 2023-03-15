@@ -702,6 +702,25 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                     CircleIdsGrantedToSender = new List<GuidId>() { recipientCircleDef.Id }
                 });
 
+
+            var samOwnerClient = _scaffold.CreateOwnerApiClient(recipient);
+            var postFileMetadata = new UploadFileMetadata()
+            {
+                ContentType = "application/json",
+                AllowDistribution = true,
+                AppData = new()
+                {
+                    Tags = new List<Guid>() { fileTag },
+                    ContentIsComplete = true,
+                    JsonContent = DotYouSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
+                },
+                PayloadIsEncrypted = false,
+                AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
+            };
+
+            var postUploadResult =
+                await samOwnerClient.Drive.UploadFile(FileSystemType.Standard, targetDrive, postFileMetadata, "", null, overwriteFileId: null);
+
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = KeyHeader.NewRandom16();
 
@@ -730,11 +749,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref key),
                 FileMetadata = new()
                 {
-                    ReferencedFile = new GlobalTransitIdFileIdentifier()
-                    {
-                        GlobalTransitId = Guid.NewGuid(), //TODO: this is nto currently enforced server side
-                        TargetDrive = instructionSet.StorageOptions.Drive
-                    },
+                    ReferencedFile = postUploadResult.GlobalTransitIdFileIdentifier,
                     ContentType = "application/json",
                     AllowDistribution = true,
                     AppData = new()
@@ -959,6 +974,24 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                     CircleIdsGrantedToSender = new List<GuidId>() { recipientCircleDef.Id }
                 });
 
+            //upload a post on sam's side on which frodo can comment
+            var samOwnerClient = _scaffold.CreateOwnerApiClient(recipient);
+            var postFileMetadata = new UploadFileMetadata()
+            {
+                ContentType = "application/json",
+                AllowDistribution = true,
+                AppData = new()
+                {
+                    Tags = new List<Guid>() { fileTag },
+                    ContentIsComplete = true,
+                    JsonContent = DotYouSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
+                },
+                PayloadIsEncrypted = false,
+                AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
+            };
+
+            var postUploadResult = await samOwnerClient.Drive.UploadFile(FileSystemType.Standard, targetDrive, postFileMetadata, "");
+
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var keyHeader = KeyHeader.NewRandom16();
 
@@ -999,11 +1032,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref key),
                 FileMetadata = new()
                 {
-                    ReferencedFile = new GlobalTransitIdFileIdentifier()
-                    {
-                        GlobalTransitId = Guid.NewGuid(), //note: we're not currently enforcing the file to exist
-                        TargetDrive = instructionSet.StorageOptions.Drive
-                    },
+                    ReferencedFile = postUploadResult.GlobalTransitIdFileIdentifier,
                     ContentType = "application/json",
                     AllowDistribution = true,
                     AppData = new()

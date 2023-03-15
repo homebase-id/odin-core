@@ -1,8 +1,13 @@
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Youverse.Core;
 using Youverse.Core.Services.Authorization.Acl;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Youverse.Core.Services.Authorization.Permissions;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
@@ -31,28 +36,45 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Emoji
         }
 
         [Test]
-        public async Task CanSendAndGetEmojisOverTransit()
+        public async Task ConnectedIdentity_CanSendAndGetEmojisOverTransit_ForPublicChannel_WithNoCircles()
         {
             var pippinOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
-            var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
-
-            //create a channel drive
             var pippinChannelDrive = new TargetDrive()
             {
                 Alias = Guid.NewGuid(),
                 Type = SystemDriveConstants.ChannelDriveType
             };
 
-            await pippinOwnerClient.Drive.CreateDrive(pippinChannelDrive, "A Channel Drive", "", false, ownerOnly: false);
+            await pippinOwnerClient.Drive.CreateDrive(pippinChannelDrive, "A Channel Drive", "", false, ownerOnly: false, allowSubscriptions: true);
 
+            var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
             await samOwnerClient.Follower.FollowIdentity(pippinOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
-            var samFollowingPippinDefinition = await pippinOwnerClient.Follower.GetFollower(samOwnerClient.Identity);
-            
-            Assert.IsNotNull(samFollowingPippinDefinition);
+
+            var targetCircle = await pippinOwnerClient.Network.CreateCircle("Garden channel circle", new PermissionSetGrantRequest()
+            {
+                Drives = new List<DriveGrantRequest>()
+                {
+                    new()
+                    {
+                        PermissionedDrive = new PermissionedDrive()
+                        {
+                            Drive = pippinChannelDrive,
+                            Permission = DrivePermission.ReadWrite
+                        }
+                    }
+                }
+            });
+
+            await samOwnerClient.Network.SendConnectionRequest(pippinOwnerClient.Identity, new List<GuidId>() { });
+            await pippinOwnerClient.Network.AcceptConnectionRequest(samOwnerClient.Identity, new List<GuidId>() { targetCircle.Id });
+
+            // var samFollowingPippinDefinition = await pippinOwnerClient.Follower.GetFollower(samOwnerClient.Identity);
+            // Assert.IsNotNull(samFollowingPippinDefinition);
+
             //
             // Pippin uploads a post
             //
-            var uploadedContent = "I'm Hungry";
+            var uploadedContent = "I'm Hungry!";
             var uploadResult = await UploadToChannel(pippinOwnerClient, pippinChannelDrive, uploadedContent);
 
             //
@@ -60,7 +82,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Emoji
             //
             await samOwnerClient.Transit.AddReaction(pippinOwnerClient.Identity,
                 uploadResult.GlobalTransitIdFileIdentifier,
-                ":smile:");
+                ":cake:");
 
             var response = await samOwnerClient.Transit.GetAllReactions(pippinOwnerClient.Identity, new GetRemoteReactionsRequest()
             {
@@ -87,7 +109,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Emoji
                     GroupId = default,
                     Tags = default
                 },
-                AccessControlList = AccessControlList.OwnerOnly
+                AccessControlList = AccessControlList.Connected
             };
 
             return await client.Drive.UploadFile(FileSystemType.Standard, targetDrive, fileMetadata);

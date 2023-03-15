@@ -160,7 +160,8 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
                     TargetDrive = _driveManager.GetDrive(item.DriveId).Result.TargetDriveInfo,
                     FileId = item.FileId
                 },
-
+                
+                TransferFileType = stateItem.TransferFileType,
                 FileSystemType = item.FileSystemType
             });
         }

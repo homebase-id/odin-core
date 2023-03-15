@@ -36,16 +36,16 @@ public class EmojiReactionService
             manager.AddReaction(callerId, file.FileId, reactionContent);
         }
 
-        _mediator.Publish(new EmojiReactionAddedNotification()
-        {
-            Reaction = new Reaction()
-            {
-                OdinId = callerId,
-                Created = UnixTimeUtcUnique.Now(), //TODO: i should technically pull this from the db records
-                ReactionContent = reactionContent,
-                FileId = file
-            }
-        });
+        // _mediator.Publish(new EmojiReactionAddedNotification()
+        // {
+        //     Reaction = new Reaction()
+        //     {
+        //         OdinId = callerId,
+        //         Created = UnixTimeUtcUnique.Now(), //TODO: i should technically pull this from the db records
+        //         ReactionContent = reactionContent,
+        //         FileId = file
+        //     }
+        // });
     }
 
     public void DeleteReaction(InternalDriveFileId file, string reactionContent)

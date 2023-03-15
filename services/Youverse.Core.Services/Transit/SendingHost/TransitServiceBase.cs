@@ -44,7 +44,8 @@ namespace Youverse.Core.Services.Transit.SendingHost
             var iv = ByteArrayUtil.GetRndByteArray(16);
             var key = token.SharedSecret;
             var jsonBytes = DotYouSystemSerializer.Serialize(o).ToUtf8ByteArray();
-            var encryptedBytes = AesCbc.Encrypt(jsonBytes, ref key, iv);
+            // var encryptedBytes = AesCbc.Encrypt(jsonBytes, ref key, iv);
+            var encryptedBytes = jsonBytes;
 
             var payload = new SharedSecretEncryptedTransitPayload()
             {
@@ -108,12 +109,15 @@ namespace Youverse.Core.Services.Transit.SendingHost
             var caller = DotYouContext.Caller.OdinId;
             Guard.Argument(caller, nameof(DotYouContext.Caller.OdinId)).NotNull().Require(v => v.HasValue());
 
-            var t = await ResolveClientAccessToken(caller!.Value, tokenSource);
-            var sharedSecret = t.SharedSecret;
-            var encryptedBytes = Convert.FromBase64String(payload.Data);
-            var decryptedBytes = AesCbc.Decrypt(encryptedBytes, ref sharedSecret, payload.Iv);
+            //TODO: put decryption back in place
+            // var t = await ResolveClientAccessToken(caller!.Value, tokenSource);
+            // var sharedSecret = t.SharedSecret;
+            // var encryptedBytes = Convert.FromBase64String(payload.Data);
+            // var decryptedBytes = AesCbc.Decrypt(encryptedBytes, ref sharedSecret, payload.Iv);
+         
+            var decryptedBytes = Convert.FromBase64String(payload.Data);
             var json = decryptedBytes.ToStringFromUtf8Bytes();
-            return DotYouSystemSerializer.Deserialize<T>(json);
+            return await Task.FromResult(DotYouSystemSerializer.Deserialize<T>(json));
         }
 
         /// <summary>

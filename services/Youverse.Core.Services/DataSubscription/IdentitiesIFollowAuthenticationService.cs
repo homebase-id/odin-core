@@ -61,7 +61,7 @@ public class IdentitiesIFollowAuthenticationService
 
     private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContext(OdinId callerOdinId, ClientAuthenticationToken token)
     {
-        var permissionContext = await _followerService.CreatePermissionContext(callerOdinId, token);
+        var permissionContext = await _followerService.CreatePermissionContextForIdentityIFollow(callerOdinId, token);
         var cc = new CallerContext(
             odinId: callerOdinId,
             masterKey: null,

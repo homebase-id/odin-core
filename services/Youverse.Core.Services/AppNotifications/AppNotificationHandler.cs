@@ -101,7 +101,9 @@ namespace Youverse.Core.Services.AppNotifications
         {
             var data = DotYouSystemSerializer.Serialize(new
             {
-                ExternalFileIdentifier = notification.TempFile
+                ExternalFileIdentifier = notification.TempFile,
+                TransferFileType = notification.TransferFileType,
+                FileSystemType = notification.FileSystemType
             });
 
             SerializeSendToAllDevices(new TranslatedClientNotification(notification.NotificationType, data)).GetAwaiter().GetResult();

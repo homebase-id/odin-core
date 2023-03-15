@@ -95,11 +95,13 @@ namespace Youverse.Core.Services.Transit.SendingHost
 
         // 
 
-        private RsaEncryptedRecipientTransferInstructionSet CreateTransferInstructionSet(byte[] recipientPublicKeyDer,
+        private RsaEncryptedRecipientTransferInstructionSet CreateTransferInstructionSet(
+            byte[] recipientPublicKeyDer,
             KeyHeader keyHeaderToBeEncrypted,
             ClientAccessToken clientAccessToken,
             TargetDrive targetDrive,
-            TransferFileType transferFileType, FileSystemType fileSystemType)
+            TransferFileType transferFileType, 
+            FileSystemType fileSystemType)
         {
             //TODO: need to review how to decrypt the private key on the recipient side
             var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(recipientPublicKeyDer);
@@ -297,6 +299,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
                     ReactionPreview = metadata.ReactionPreview,
                     SenderOdinId = string.Empty,
                     OriginalRecipientList = null,
+                    ReferencedFile = metadata.ReferencedFile
                 };
 
                 var json = DotYouSystemSerializer.Serialize(redactedMetadata);
@@ -376,7 +379,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
         )
         {
             var fs = _fileSystemResolver.ResolveFileSystem(sendFileOptions.FileSystemType);
-
+            
             TargetDrive targetDrive = options.OverrideTargetDrive ?? (await _driveManager.GetDrive(internalFile.DriveId, failIfInvalid: true)).TargetDriveInfo;
 
             var transferStatus = new Dictionary<string, TransferStatus>();

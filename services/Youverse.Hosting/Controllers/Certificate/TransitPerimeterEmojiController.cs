@@ -14,7 +14,8 @@ namespace Youverse.Hosting.Controllers.Certificate
     /// </summary>
     [ApiController]
     [Route("/api/perimeter/transit/host/reactions")]
-    [Authorize(Policy = CertificatePerimeterPolicies.IsInYouverseNetwork, AuthenticationSchemes = PerimeterAuthConstants.FollowerCertificateAuthScheme)]
+    // [Authorize(Policy = CertificatePerimeterPolicies.IsInYouverseNetwork, AuthenticationSchemes = PerimeterAuthConstants.FollowerCertificateAuthScheme)]
+    [Authorize(Policy = CertificatePerimeterPolicies.IsInYouverseNetwork, AuthenticationSchemes = PerimeterAuthConstants.TransitCertificateAuthScheme)]
     public class TransitPerimeterEmojiController : OdinControllerBase
     {
         private readonly TransitEmojiPerimeterService _emojiPerimeterService;

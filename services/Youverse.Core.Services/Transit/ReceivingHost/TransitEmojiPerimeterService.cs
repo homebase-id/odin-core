@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.DataSubscription.Follower;
@@ -16,10 +17,10 @@ public class TransitEmojiPerimeterService : TransitServiceBase
 {
     private readonly EmojiReactionService _emojiReactionService;
 
-    public TransitEmojiPerimeterService(EmojiReactionService emojiReactionService, 
+    public TransitEmojiPerimeterService(EmojiReactionService emojiReactionService,
         IDotYouHttpClientFactory dotYouHttpClientFactory,
-        ICircleNetworkService circleNetworkService, 
-        FollowerService followerService, 
+        ICircleNetworkService circleNetworkService,
+        FollowerService followerService,
         DotYouContextAccessor contextAccessor,
         FileSystemResolver fileSystemResolver) :
         base(dotYouHttpClientFactory, circleNetworkService, contextAccessor, followerService, fileSystemResolver)
@@ -29,8 +30,7 @@ public class TransitEmojiPerimeterService : TransitServiceBase
 
     public async Task AddReaction(SharedSecretEncryptedTransitPayload payload)
     {
-        var request = await base.DecryptUsingSharedSecret<AddRemoteReactionRequest>(payload, ClientAccessTokenSource.Follower);
-
+        var request = await base.DecryptUsingSharedSecret<AddRemoteReactionRequest>(payload, ClientAccessTokenSource.Circle);
         var fileId = await base.ResolveInternalFile(request.File);
         if (null == fileId)
         {
@@ -62,7 +62,7 @@ public class TransitEmojiPerimeterService : TransitServiceBase
 
     public async Task<GetReactionsResponse> GetReactions(SharedSecretEncryptedTransitPayload payload)
     {
-        var request = await base.DecryptUsingSharedSecret<GetRemoteReactionsRequest>(payload, ClientAccessTokenSource.Follower);
+        var request = await base.DecryptUsingSharedSecret<GetRemoteReactionsRequest>(payload, ClientAccessTokenSource.Circle);
 
         var fileId = await base.ResolveInternalFile(request.File);
         if (null == fileId)
