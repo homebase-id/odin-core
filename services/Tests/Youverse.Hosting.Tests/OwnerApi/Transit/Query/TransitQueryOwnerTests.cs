@@ -662,6 +662,119 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
             await _scaffold.OldOwnerApi.DisconnectIdentities(sender.OdinId, recipientContext.Identity);
         }
 
+        [Test]
+        public async Task FailToTransferStandardFile_WhenNoWriteAccess()
+        {
+            var sender = TestIdentities.Samwise;
+            var recipient = TestIdentities.Pippin;
+
+            Guid appId = Guid.NewGuid();
+            var targetDrive = TargetDrive.NewTargetDrive();
+            var senderContext =
+                await _scaffold.OldOwnerApi.SetupTestSampleApp(appId, sender, canReadConnections: true, targetDrive, driveAllowAnonymousReads: true);
+            var recipientContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(senderContext.AppId, recipient, canReadConnections: true, targetDrive);
+
+            Guid fileTag = Guid.NewGuid();
+
+            var senderCircleDef =
+                await _scaffold.OldOwnerApi.CreateCircleWithDrive(sender.OdinId, "Sender Circle",
+                    permissionKeys: new List<int>() { },
+                    drive: new PermissionedDrive()
+                    {
+                        Drive = targetDrive,
+                        Permission = DrivePermission.Read
+                    });
+
+            var recipientCircleDef =
+                await _scaffold.OldOwnerApi.CreateCircleWithDrive(recipient.OdinId, "Recipient Circle",
+                    permissionKeys: new List<int>() { },
+                    drive: new PermissionedDrive()
+                    {
+                        Drive = targetDrive,
+                        Permission = DrivePermission.Read
+                    });
+
+            await _scaffold.OldOwnerApi.CreateConnection(sender.OdinId, recipient.OdinId,
+                createConnectionOptions: new CreateConnectionOptions()
+                {
+                    CircleIdsGrantedToRecipient = new List<GuidId>() { senderCircleDef.Id },
+                    CircleIdsGrantedToSender = new List<GuidId>() { recipientCircleDef.Id }
+                });
+
+            var transferIv = ByteArrayUtil.GetRndByteArray(16);
+            var keyHeader = KeyHeader.NewRandom16();
+
+            var instructionSet = new UploadInstructionSet()
+            {
+                TransferIv = transferIv,
+                StorageOptions = new StorageOptions()
+                {
+                    Drive = senderContext.TargetDrive,
+                    OverwriteFileId = null
+                },
+
+                TransitOptions = new TransitOptions()
+                {
+                    Schedule = ScheduleOptions.SendNowAwaitResponse,
+                    Recipients = new List<string>() { recipient.OdinId },
+                    UseGlobalTransitId = true
+                }
+            };
+
+            var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+            var instructionStream = new MemoryStream(bytes);
+
+            var key = senderContext.SharedSecret.ToSensitiveByteArray();
+            var descriptor = new UploadFileDescriptor()
+            {
+                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref key),
+                FileMetadata = new()
+                {
+                    ContentType = "application/json",
+                    AllowDistribution = true,
+                    AppData = new()
+                    {
+                        Tags = new List<Guid>() { fileTag },
+                        ContentIsComplete = false,
+                        JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    },
+                    PayloadIsEncrypted = true,
+                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
+                },
+            };
+
+            var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref key);
+
+            var payloadData = "{payload:true, image:'b64 data'}";
+            var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadData);
+
+            //
+            // upload and send the file 
+            //
+            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext))
+            {
+                var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
+                var response = await transitSvc.Upload(
+                    new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
+                    new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
+                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+
+                Assert.That(response.IsSuccessStatusCode, Is.True);
+                Assert.That(response.Content, Is.Not.Null);
+                var transferResult = response.Content;
+
+                Assert.That(transferResult.File, Is.Not.Null);
+                Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
+                Assert.IsTrue(transferResult.File.TargetDrive.IsValid());
+
+                foreach (var r in instructionSet.TransitOptions.Recipients)
+                {
+                    Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
+                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.RecipientReturnedAccessDenied, $"transfer key not created for {r}");
+                }
+            }
+
+        }
 
         [Test]
         public async Task CanTransferCommentFileAndRecipientCanQueryFilesByTag()
@@ -1604,7 +1717,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                     Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.Delivered, $"message should have been delivered to {r}");
                 }
             }
-            
+
             //
             // Force transfers to be put into their long term location
             //
@@ -1617,7 +1730,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 //Note: this will fail because the reference file is missing but there's no way to recover
                 Assert.IsFalse(resp.IsSuccessStatusCode, resp.ReasonPhrase);
             }
-            
+
             keyHeader.AesKey.Wipe();
             key.Wipe();
 
