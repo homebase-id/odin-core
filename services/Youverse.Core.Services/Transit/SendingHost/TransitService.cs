@@ -100,7 +100,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
             KeyHeader keyHeaderToBeEncrypted,
             ClientAccessToken clientAccessToken,
             TargetDrive targetDrive,
-            TransferFileType transferFileType, 
+            TransferFileType transferFileType,
             FileSystemType fileSystemType)
         {
             //TODO: need to review how to decrypt the private key on the recipient side
@@ -344,6 +344,9 @@ namespace Youverse.Core.Services.Transit.SendingHost
                         case TransitResponseCode.Rejected:
                             tfr = TransferFailureReason.RecipientServerRejected;
                             break;
+                        case TransitResponseCode.AccessDenied:
+                            tfr = TransferFailureReason.RecipientServerReturnedAccessDenied;
+                            break;
                         default:
                             throw new ArgumentOutOfRangeException();
                     }
@@ -379,7 +382,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
         )
         {
             var fs = _fileSystemResolver.ResolveFileSystem(sendFileOptions.FileSystemType);
-            
+
             TargetDrive targetDrive = options.OverrideTargetDrive ?? (await _driveManager.GetDrive(internalFile.DriveId, failIfInvalid: true)).TargetDriveInfo;
 
             var transferStatus = new Dictionary<string, TransferStatus>();
@@ -496,7 +499,10 @@ namespace Youverse.Core.Services.Transit.SendingHost
                         case TransferFailureReason.FileDoesNotAllowDistribution:
                             transferStatus[result.Recipient.DomainName] = TransferStatus.FileDoesNotAllowDistribution;
                             break;
+                        case TransferFailureReason.RecipientServerReturnedAccessDenied:
+                            transferStatus[result.Recipient.DomainName] = TransferStatus.RecipientReturnedAccessDenied;
 
+                            break;
                         default:
                             throw new ArgumentOutOfRangeException();
                     }

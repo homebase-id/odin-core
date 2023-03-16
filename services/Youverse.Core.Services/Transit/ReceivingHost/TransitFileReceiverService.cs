@@ -74,6 +74,11 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
                     //     string x = "";
                     // }
                 }
+                catch (YouverseRemoteIdentityException remoteException)
+                {
+                    await _transitInboxBoxStorage.MarkFailure(item.DriveId, item.Marker);
+                    throw;
+                }
                 catch (Exception)
                 {
                     await _transitInboxBoxStorage.MarkFailure(item.DriveId, item.Marker);
@@ -133,8 +138,22 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
             if (item.FileSystemType == FileSystemType.Comment)
             {
                 var (referencedFs, fileId) = await _fileSystemResolver.ResolveFileSystem(metadata.ReferencedFile);
+
+                if (null == referencedFs)
+                {
+                    //TODO file does not exist or some other issue - need clarity on what is happening here
+                    throw new YouverseRemoteIdentityException("Referenced file missing");
+                }
+                
                 var referencedFile = await referencedFs.Query.GetFileByGlobalTransitId(fileId.Value.DriveId,
                     metadata.ReferencedFile.GlobalTransitId);
+                
+                if (null == referencedFile)
+                {
+                    //TODO file does not exist or some other issue - need clarity on what is happening here
+                    throw new YouverseRemoteIdentityException("Referenced file missing");
+                }
+                
                 targetAcl = referencedFile.ServerMetadata.AccessControlList;
             }
 

@@ -32,6 +32,11 @@ namespace Youverse.Core.Services.Transit
         /// <summary>
         /// Indicates the file is not allowed to be sent (i.e. AllowDistribution is false)
         /// </summary>
-        FileDoesNotAllowDistribution = 11
+        FileDoesNotAllowDistribution = 11,
+        
+        /// <summary>
+        /// Indicates the recipient server returned a security error
+        /// </summary>
+        RecipientReturnedAccessDenied = 13
     }
 }

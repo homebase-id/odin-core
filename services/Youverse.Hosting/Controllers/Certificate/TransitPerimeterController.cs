@@ -69,7 +69,8 @@ namespace Youverse.Hosting.Controllers.Certificate
                 var transferKeyHeader = await ProcessTransferKeyHeader(await reader.ReadNextSectionAsync());
 
                 _fileSystem = ResolveFileSystem(transferKeyHeader.FileSystemType);
-                _perimeterService = new TransitPerimeterService(_contextAccessor, _publicKeyService, _driveManager, _fileSystem, _tenantSystemStorage, _mediator);
+                _perimeterService =
+                    new TransitPerimeterService(_contextAccessor, _publicKeyService, _driveManager, _fileSystem, _tenantSystemStorage, _mediator);
 
                 _stateItemId = await _perimeterService.InitializeIncomingTransfer(transferKeyHeader);
                 //
@@ -102,6 +103,17 @@ namespace Youverse.Hosting.Controllers.Certificate
                 }
 
                 return result;
+            }
+            catch (YouverseSecurityException yex)
+            {
+                //TODO: break down the actual errors so we can send to the
+                //caller information about why it was rejected w/o giving away
+                //sensitive stuff
+                return new HostTransitResponse()
+                {
+                    Code = TransitResponseCode.AccessDenied,
+                    Message = "Access Denied"
+                };
             }
             catch (Exception)
             {

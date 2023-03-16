@@ -5,6 +5,7 @@ namespace Youverse.Core.Services.Transit
         Accepted = 2,
         QuarantinedPayload = 4,
         QuarantinedSenderNotConnected = 6,
-        Rejected = 8
+        Rejected = 8,
+        AccessDenied = 16
     }
 }
