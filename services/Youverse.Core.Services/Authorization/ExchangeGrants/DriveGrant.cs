@@ -18,6 +18,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         {
             return new RedactedDriveGrant()
             {
+                HasStorageKey = KeyStoreKeyEncryptedStorageKey != null,
                 PermissionedDrive = this.PermissionedDrive
             };
         }
@@ -26,6 +27,6 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
     public class RedactedDriveGrant
     {
         public PermissionedDrive PermissionedDrive { get; set; }
-
+        public bool HasStorageKey { get; set; }
     }
 }
