@@ -59,7 +59,7 @@ namespace Youverse.Core.Services.Base
             return fs;
         }
 
-        public async Task<IDriveFileSystem> ResolveFileSystem(GlobalTransitIdFileIdentifier globalTransitFileId)
+        public async Task<(IDriveFileSystem fileSystem, InternalDriveFileId? fileId)> ResolveFileSystem(GlobalTransitIdFileIdentifier globalTransitFileId)
         {
             //TODO: this sucks and is wierd.   i don't know at this point if the target file is 
             // comment or standard; so i have to get a IDriveFileSystem instance and look up
@@ -77,10 +77,10 @@ namespace Youverse.Core.Services.Base
 
             if (null == file)
             {
-                return null;
+                return (null, null);
             }
 
-            return this.ResolveFileSystem(file.Value);
+            return (this.ResolveFileSystem(file.Value), file.Value);
         }
     }
 }

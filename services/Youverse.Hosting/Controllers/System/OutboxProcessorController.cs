@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.Outbox;
+using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Authentication.System;
 using Youverse.Hosting.Controllers.OwnerToken;

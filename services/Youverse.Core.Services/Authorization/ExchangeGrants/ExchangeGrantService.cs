@@ -182,11 +182,19 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
         private DriveGrant CreateDriveGrant(StorageDrive drive, DrivePermission permission, SensitiveByteArray? grantKeyStoreKey, SensitiveByteArray? masterKey)
         {
             var storageKey = masterKey == null ? null : drive.MasterKeyEncryptedStorageKey.DecryptKeyClone(ref masterKey);
+            
+            SymmetricKeyEncryptedAes? keyStoreKeyEncryptedStorageKey = null;
+
+            bool shouldGetStorageKey = permission.HasFlag(DrivePermission.Read);
+            if (shouldGetStorageKey && storageKey != null && grantKeyStoreKey != null)
+            {
+                keyStoreKeyEncryptedStorageKey = new SymmetricKeyEncryptedAes(ref grantKeyStoreKey, ref storageKey);
+            }
 
             var dk = new DriveGrant()
             {
                 DriveId = drive.Id,
-                KeyStoreKeyEncryptedStorageKey = (storageKey == null || grantKeyStoreKey == null) ? null : new SymmetricKeyEncryptedAes(ref grantKeyStoreKey, ref storageKey),
+                KeyStoreKeyEncryptedStorageKey = keyStoreKeyEncryptedStorageKey,
                 PermissionedDrive = new PermissionedDrive()
                 {
                     Drive = drive.TargetDriveInfo,

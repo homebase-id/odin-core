@@ -10,7 +10,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
     public interface IPublicKeyService
     {
         /// <summary>
-        /// Gets the latest effective offlie public key
+        /// Gets the latest effective offline public key
         /// </summary>
         /// <returns></returns>
         Task<RsaPublicKeyData> GetOfflinePublicKey();

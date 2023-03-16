@@ -9,6 +9,7 @@ using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Hosting.Controllers.Base;
 using Youverse.Hosting.Controllers.ClientToken.Drive;
 
@@ -30,7 +31,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.TransitQuery })]
-        [HttpGet("security/context")]
+        [HttpPost("security/context")]
         public async Task<RedactedDotYouContext> GetRemoteDotYouContext([FromBody] TransitGetSecurityContextRequest request)
         {
             var ctx = await _transitQueryService.GetRemoteDotYouContext((OdinId)request.OdinId);

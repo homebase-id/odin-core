@@ -1,12 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
-using Youverse.Core.Services.Contacts.Circle.Notification;
 using Youverse.Core.Services.Contacts.Circle.Requests;
 
 namespace Youverse.Core.Services.Contacts.Circle.Membership
@@ -16,12 +14,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
     /// </summary>
     public interface ICircleNetworkService
     {
-        /// <summary>
-        /// Gets the <see cref="ClientAuthenticationToken"/> for a given connection
-        /// </summary>
-        /// <returns></returns>
-        Task<ClientAuthenticationToken> GetConnectionAuthToken(OdinId odinId, bool failIfNotConnected = true,
-            bool overrideHack = false);
 
         /// <summary>
         /// Disconnects you from the specified <see cref="OdinId"/>
@@ -116,11 +108,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             SensitiveByteArray remoteIdentityConnectionKey);
 
         /// <summary>
-        /// Handles the incoming notification.
-        /// </summary>
-        Task HandleNotification(OdinId senderOdinId, CircleNetworkNotification notification);
-
-        /// <summary>
         /// Creates a <see cref="PermissionContext"/> for the specified caller based on their access
         /// </summary>
         /// <returns></returns>
@@ -131,7 +118,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <summary>
         /// Creates a caller and permission context for the caller based on the <see cref="IdentityConnectionRegistrationClient"/> resolved by the authToken
         /// </summary>
-        Task<(CallerContext callerContext, PermissionContext permissionContext)> CreateConnectedClientContext(
+        Task<(CallerContext callerContext, PermissionContext permissionContext)> CreateConnectedYouAuthClientContext(
             ClientAuthenticationToken authToken);
 
         /// <summary>

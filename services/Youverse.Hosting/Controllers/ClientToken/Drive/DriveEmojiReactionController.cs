@@ -29,7 +29,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         /// <param name="request"></param>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("add")]
-        public IActionResult AddEmojiReaction([FromBody] AddReactionReqeust request)
+        public IActionResult AddEmojiReaction([FromBody] AddReactionRequest request)
         {
             base.AddReaction(request);
             return NoContent();

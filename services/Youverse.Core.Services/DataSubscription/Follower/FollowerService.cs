@@ -6,6 +6,7 @@ using Dawn;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
+using Youverse.Core.Services.Authentication.Transit;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
@@ -26,9 +27,11 @@ namespace Youverse.Core.Services.DataSubscription.Follower
         private readonly IPublicKeyService _rsaPublicKeyService;
         private readonly TenantContext _tenantContext;
         private readonly DotYouContextAccessor _contextAccessor;
+        private readonly TransitRegistrationService _transitRegistrationService;
 
-        public FollowerService(ITenantSystemStorage tenantStorage, DriveManager driveManager, IDotYouHttpClientFactory httpClientFactory, IPublicKeyService rsaPublicKeyService,
-            TenantContext tenantContext, DotYouContextAccessor contextAccessor)
+        public FollowerService(ITenantSystemStorage tenantStorage, DriveManager driveManager, IDotYouHttpClientFactory httpClientFactory,
+            IPublicKeyService rsaPublicKeyService,
+            TenantContext tenantContext, DotYouContextAccessor contextAccessor, TransitRegistrationService transitRegistrationService)
         {
             _tenantStorage = tenantStorage;
             _driveManager = driveManager;
@@ -36,6 +39,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             _rsaPublicKeyService = rsaPublicKeyService;
             _tenantContext = tenantContext;
             _contextAccessor = contextAccessor;
+            _transitRegistrationService = transitRegistrationService;
         }
 
         /// <summary>
@@ -47,7 +51,8 @@ namespace Youverse.Core.Services.DataSubscription.Follower
 
             if (_contextAccessor.GetCurrent().Caller.OdinId == (OdinId)request.OdinId)
             {
-                throw new YouverseClientException("Cannot follow yourself; at least not in this dimension because that would be like chasing your own tail", YouverseClientErrorCode.InvalidRecipient);
+                throw new YouverseClientException("Cannot follow yourself; at least not in this dimension because that would be like chasing your own tail",
+                    YouverseClientErrorCode.InvalidRecipient);
             }
 
             //TODO: use the exchange grant service to create the access reg and CAT 
@@ -129,46 +134,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
         public async Task<FollowerDefinition> GetFollower(OdinId odinId)
         {
             _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadWhoIFollow);
-
-            Guard.Argument(odinId, nameof(odinId)).Require(d => d.HasValue());
-
-            var dbRecords = _tenantStorage.Followers.Get(odinId);
-            if (!dbRecords?.Any() ?? false)
-            {
-                return null;
-            }
-
-            if (dbRecords!.Any(f => odinId != (OdinId)f.identity))
-            {
-                throw new YouverseSystemException($"Follower data for [{odinId}] is corrupt");
-            }
-
-            if (dbRecords.Any(r => r.driveId == Guid.Empty) && dbRecords.Count > 1)
-            {
-                throw new YouverseSystemException($"Follower data for [{odinId}] is corrupt");
-            }
-
-            if (dbRecords.All(r => r.driveId == Guid.Empty))
-            {
-                return new FollowerDefinition()
-                {
-                    OdinId = odinId,
-                    NotificationType = FollowerNotificationType.AllNotifications
-                };
-            }
-
-            var result = new FollowerDefinition()
-            {
-                OdinId = odinId,
-                NotificationType = FollowerNotificationType.SelectedChannels,
-                Channels = dbRecords.Select(record => new TargetDrive()
-                {
-                    Alias = record.driveId,
-                    Type = SystemDriveConstants.ChannelDriveType
-                }).ToList()
-            };
-
-            return await Task.FromResult(result);
+            return await GetFollowerInternal(odinId);
         }
 
         /// <summary>
@@ -183,9 +149,9 @@ namespace Youverse.Core.Services.DataSubscription.Follower
         public async Task<CursoredResult<string>> GetAllFollowers(int max, string cursor)
         {
             _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadMyFollowers);
-            
+
             var dbResults = _tenantStorage.Followers.GetAllFollowers(DefaultMax(max), cursor, out var nextCursor);
-            
+
             var result = new CursoredResult<string>()
             {
                 Cursor = nextCursor,
@@ -226,7 +192,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadMyFollowers);
 
             var dbResults = _tenantStorage.Followers.GetFollowers(DefaultMax(max), Guid.Empty, cursor, out var nextCursor);
-            
+
             var result = new CursoredResult<string>()
             {
                 Cursor = nextCursor,
@@ -270,7 +236,42 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             };
         }
 
-        public async Task<PermissionContext> CreatePermissionContext(OdinId odinId, ClientAuthenticationToken token)
+        /// <summary>
+        /// Allows my followers to write emojis. 
+        /// </summary>
+        public async Task<PermissionContext> CreateFollowerPermissionContext(OdinId odinId, ClientAuthenticationToken token)
+        {
+            //Note: this check here is basically a replacement for the token
+            // meaning - it is required to be an owner to follow an identity
+            // so they will only be in the list if the owner added them
+            var definition = await GetFollowerInternal(odinId);
+            if (null == definition)
+            {
+                throw new YouverseSecurityException($"Not following {odinId}");
+            }
+
+            var permissionSet = new PermissionSet(); //no permissions
+            var sharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray();
+            
+            //need to grant access to connected drives
+
+            var driveGrants = new List<DriveGrant>()
+            {
+              
+            };
+
+            var groups = new Dictionary<string, PermissionGroup>()
+            {
+                { "follower", new PermissionGroup(permissionSet, driveGrants, sharedSecret) }
+            };
+
+            return new PermissionContext(groups, null);
+        }
+
+        /// <summary>
+        /// Allows an identity I follow to write to my feed drive.
+        /// </summary>
+        public async Task<PermissionContext> CreatePermissionContextForIdentityIFollow(OdinId odinId, ClientAuthenticationToken token)
         {
             //Note: this check here is basically a replacement for the token
             // meaning - it is required to be an owner to follow an identity
@@ -281,7 +282,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
                 throw new YouverseSecurityException($"Not following {odinId}");
             }
 
-            var targetDrive = SystemDriveConstants.FeedDrive;
+            var feedDrive = SystemDriveConstants.FeedDrive;
             var permissionSet = new PermissionSet(); //no permissions
             var sharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray();
 
@@ -289,11 +290,11 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             {
                 new DriveGrant()
                 {
-                    DriveId = (await _driveManager.GetDriveIdByAlias(targetDrive, true)).GetValueOrDefault(),
+                    DriveId = (await _driveManager.GetDriveIdByAlias(feedDrive, true)).GetValueOrDefault(),
                     KeyStoreKeyEncryptedStorageKey = null,
                     PermissionedDrive = new PermissionedDrive()
                     {
-                        Drive = targetDrive,
+                        Drive = feedDrive,
                         Permission = DrivePermission.Write
                     }
                 }
@@ -358,6 +359,49 @@ namespace Youverse.Core.Services.DataSubscription.Follower
                     Type = SystemDriveConstants.ChannelDriveType
                 }).ToList()
             });
+        }
+
+        private async Task<FollowerDefinition> GetFollowerInternal(OdinId odinId)
+        {
+            Guard.Argument(odinId, nameof(odinId)).Require(d => d.HasValue());
+
+            var dbRecords = _tenantStorage.Followers.Get(odinId);
+            if (!dbRecords?.Any() ?? false)
+            {
+                return null;
+            }
+
+            if (dbRecords!.Any(f => odinId != (OdinId)f.identity))
+            {
+                throw new YouverseSystemException($"Follower data for [{odinId}] is corrupt");
+            }
+
+            if (dbRecords.Any(r => r.driveId == Guid.Empty) && dbRecords.Count > 1)
+            {
+                throw new YouverseSystemException($"Follower data for [{odinId}] is corrupt");
+            }
+
+            if (dbRecords.All(r => r.driveId == Guid.Empty))
+            {
+                return new FollowerDefinition()
+                {
+                    OdinId = odinId,
+                    NotificationType = FollowerNotificationType.AllNotifications
+                };
+            }
+
+            var result = new FollowerDefinition()
+            {
+                OdinId = odinId,
+                NotificationType = FollowerNotificationType.SelectedChannels,
+                Channels = dbRecords.Select(record => new TargetDrive()
+                {
+                    Alias = record.driveId,
+                    Type = SystemDriveConstants.ChannelDriveType
+                }).ToList()
+            };
+
+            return await Task.FromResult(result);
         }
     }
 }

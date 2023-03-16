@@ -14,6 +14,7 @@ using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Transit.ReceivingHost;
 
 namespace Youverse.Core.Services.AppNotifications
 {
@@ -22,13 +23,13 @@ namespace Youverse.Core.Services.AppNotifications
     {
         private readonly DeviceSocketCollection _deviceSocketCollection;
         private readonly DotYouContextAccessor _contextAccessor;
-        private readonly ITransitReceiverService _transitReceiverService;
+        private readonly ITransitFileReceiverService _transitFileReceiverService;
         private readonly DriveManager _driveManager;
 
-        public AppNotificationHandler(DotYouContextAccessor contextAccessor, ITransitReceiverService transitReceiverService, DriveManager driveManager)
+        public AppNotificationHandler(DotYouContextAccessor contextAccessor, ITransitFileReceiverService transitFileReceiverService, DriveManager driveManager)
         {
             _contextAccessor = contextAccessor;
-            _transitReceiverService = transitReceiverService;
+            _transitFileReceiverService = transitFileReceiverService;
             _driveManager = driveManager;
             _deviceSocketCollection = new DeviceSocketCollection();
         }
@@ -115,9 +116,11 @@ namespace Youverse.Core.Services.AppNotifications
             var translated = new TranslatedClientNotification(notification.NotificationType,
                 DotYouSystemSerializer.Serialize(new
                 {
-                    ExternalFileIdentifier = notification.TempFile
+                    ExternalFileIdentifier = notification.TempFile,
+                    TransferFileType = notification.TransferFileType,
+                    FileSystemType = notification.FileSystemType
                 }));
-            
+
             await SerializeSendToAllDevicesForDrive(notificationDriveId, translated);
         }
 
@@ -189,7 +192,7 @@ namespace Youverse.Core.Services.AppNotifications
             {
                 case SocketCommandType.ProcessTransitInstructions:
                     var d = DotYouSystemSerializer.Deserialize<ExternalFileIdentifier>(command.Data);
-                    await _transitReceiverService.ProcessIncomingTransitInstructions(d.TargetDrive);
+                    await _transitFileReceiverService.ProcessIncomingTransitInstructions(d.TargetDrive);
                     break;
 
                 default:

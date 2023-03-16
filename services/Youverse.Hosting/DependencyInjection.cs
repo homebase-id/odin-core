@@ -22,7 +22,6 @@ using Youverse.Core.Services.Certificate.Renewal;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
-using Youverse.Core.Services.Contacts.Circle.Notification;
 using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.DataSubscription;
 using Youverse.Core.Services.DataSubscription.Follower;
@@ -38,10 +37,10 @@ using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Optimization.Cdn;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Tenant;
-using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.Incoming;
-using Youverse.Core.Services.Transit.Outbox;
-using Youverse.Core.Services.Transit.Quarantine;
+using Youverse.Core.Services.Transit.ReceivingHost;
+using Youverse.Core.Services.Transit.ReceivingHost.Incoming;
+using Youverse.Core.Services.Transit.SendingHost;
+using Youverse.Core.Services.Transit.SendingHost.Outbox;
 using Youverse.Core.Storage;
 using Youverse.Hosting.Controllers.Base;
 
@@ -148,13 +147,14 @@ namespace Youverse.Hosting
 
             cb.RegisterType<TransitOutbox>().As<ITransitOutbox>().SingleInstance();
 
-            cb.RegisterType<TransitReceiverService>().As<ITransitReceiverService>().SingleInstance();
+            cb.RegisterType<TransitFileReceiverService>().As<ITransitFileReceiverService>().SingleInstance();
             cb.RegisterType<TransitRegistrationService>()
                 .As<INotificationHandler<IdentityConnectionRegistrationChangedNotification>>()
                 .AsSelf()
                 .SingleInstance();
 
-            cb.RegisterType<DataProviderAuthenticationService>().AsSelf().SingleInstance();
+            cb.RegisterType<IdentitiesIFollowAuthenticationService>().AsSelf().SingleInstance();
+            cb.RegisterType<FollowerAuthenticationService>().AsSelf().SingleInstance();
             cb.RegisterType<FeedDriveDataSubscriptionDistributionService>()
                 .As<INotificationHandler<DriveFileAddedNotification>>()
                 .As<INotificationHandler<DriveFileChangedNotification>>()
@@ -173,10 +173,12 @@ namespace Youverse.Hosting
             cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();
 
             cb.RegisterType<TransitQueryService>().AsSelf().SingleInstance();
+            
+            cb.RegisterType<TransitEmojiSenderService>().AsSelf().SingleInstance();
+
+            cb.RegisterType<TransitEmojiPerimeterService>().AsSelf().SingleInstance();
 
             cb.RegisterType<RsaKeyService>().As<IPublicKeyService>().SingleInstance();
-
-            cb.RegisterType<CircleNetworkNotificationService>();
 
             cb.RegisterType<StaticFileContentService>().AsSelf().SingleInstance();
 

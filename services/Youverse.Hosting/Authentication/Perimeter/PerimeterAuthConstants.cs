@@ -14,9 +14,13 @@
         public const string PublicTransitAuthScheme = "PublicTransitCertificate";
         
         /// <summary>
-        /// Scheme for allowing identities to send me data to which I've subscribed
+        /// Scheme for allowing identities I follow to send me data
         /// </summary>
-        public const string DataSubscriptionCertificateAuthScheme = "DataSubscriptionCertificate";
+        public const string IdentitiesIFollowCertificateAuthScheme = "IdentitiesIFollowCertificateAuthScheme";
 
+        /// <summary>
+        /// Scheme for allowing my followers to send reactions to my content
+        /// </summary>
+        public const string FollowerCertificateAuthScheme = "FollowerCertificateAuthScheme";
     }
 }

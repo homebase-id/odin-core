@@ -2,11 +2,9 @@
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Primitives;
 using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Contacts.Circle.Membership;
-using Youverse.Core.Services.Contacts.Circle.Notification;
 using NotImplementedException = System.NotImplementedException;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Circles
@@ -17,12 +15,10 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
     public class CircleNetworkController : ControllerBase
     {
         private readonly ICircleNetworkService _circleNetwork;
-        private readonly CircleNetworkNotificationService _circleNetworkNotificationService;
 
-        public CircleNetworkController(ICircleNetworkService cn, CircleNetworkNotificationService circleNetworkNotificationService)
+        public CircleNetworkController(ICircleNetworkService cn)
         {
             _circleNetwork = cn;
-            _circleNetworkNotificationService = circleNetworkNotificationService;
         }
 
         [HttpPost("unblock")]
@@ -61,7 +57,8 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         }
 
         [HttpPost("connected")]
-        public async Task<PagedResult<RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int pageNumber, int pageSize, bool omitContactData = false)
+        public async Task<PagedResult<RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int pageNumber, int pageSize,
+            bool omitContactData = false)
         {
             var result = await _circleNetwork.GetConnectedIdentities(new PageOptions(pageNumber, pageSize));
             return RedactIcr(result, omitContactData);

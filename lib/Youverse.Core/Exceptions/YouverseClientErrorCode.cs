@@ -19,6 +19,9 @@ public enum YouverseClientErrorCode
     CannotAllowCirclesOrIdentitiesOnAnonymousOrOwnerOnly = 3003,
     CannotDeleteCircleWithMembers = 3004,
     IdentityAlreadyMemberOfCircle = 3005,
+    NotAConnectedIdentity = 3006,
+    NotAFollowerIdentity = 3007,
+    IdentityNotFollowed = 3008,
 
     // Drive mgmt errors 40xx
     CannotAllowAnonymousReadsOnOwnerOnlyDrive = 4001,
@@ -68,11 +71,11 @@ public enum YouverseClientErrorCode
     RemoteServerReturnedInternalServerError = 7500,
     RemoteServerTransitRejected = 7900,
     InvalidTransitOptions = 7901,
-    
+
     RegistrationStatusNotReadyForFinalization = 8001,
 
     // System Errors 90xx
     InvalidFlagName = 9001,
     NotInitialized = 9002,
-    UnknownFlagName = 9003
+    UnknownFlagName = 9003,
 }

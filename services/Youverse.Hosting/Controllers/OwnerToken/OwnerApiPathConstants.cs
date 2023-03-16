@@ -28,6 +28,8 @@
         public const string TransitV1 = BasePathV1 + "/transit";
         
         public const string TransitQueryV1 = TransitV1 + "/query";
+        
+        public const string TransitEmojiV1 = TransitV1 + "/emoji";
 
         public const string CirclesV1 = BasePathV1 + "/circles";
 

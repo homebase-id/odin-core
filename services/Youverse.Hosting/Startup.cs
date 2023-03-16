@@ -22,9 +22,9 @@ using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Certificate.Renewal;
 using Youverse.Core.Services.Configuration;
-using Youverse.Core.Services.Transit.Outbox;
 using Youverse.Core.Services.Logging;
 using Youverse.Core.Services.Registry.Registration;
+using Youverse.Core.Services.Transit.SendingHost.Outbox;
 using Youverse.Core.Services.Workers.Certificate;
 using Youverse.Core.Services.Workers.DefaultCron;
 using Youverse.Hosting.Authentication.ClientToken;
@@ -141,6 +141,7 @@ namespace Youverse.Hosting
                 .AddClientTokenAuthentication()
                 .AddDiCertificateAuthentication(PerimeterAuthConstants.TransitCertificateAuthScheme)
                 .AddDiCertificateAuthentication(PerimeterAuthConstants.PublicTransitAuthScheme)
+                .AddDiCertificateAuthentication(PerimeterAuthConstants.FollowerCertificateAuthScheme)
                 .AddSystemAuthentication();
 
             services.AddAuthorization(policy =>

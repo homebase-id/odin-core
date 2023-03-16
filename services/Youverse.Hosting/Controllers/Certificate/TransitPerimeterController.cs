@@ -18,7 +18,8 @@ using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Services.Transit.Quarantine;
+using Youverse.Core.Services.Transit.ReceivingHost;
+using Youverse.Core.Services.Transit.ReceivingHost.Quarantine;
 using Youverse.Core.Storage;
 using Youverse.Hosting.Authentication.Perimeter;
 

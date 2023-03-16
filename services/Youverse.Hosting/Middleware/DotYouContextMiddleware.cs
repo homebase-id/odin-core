@@ -54,15 +54,24 @@ namespace Youverse.Hosting.Middleware
                 return;
             }
 
-            if (authType == PerimeterAuthConstants.DataSubscriptionCertificateAuthScheme)
+            if (authType == PerimeterAuthConstants.IdentitiesIFollowCertificateAuthScheme)
             {
-                await LoadDataProviderContext(httpContext, dotYouContext);
-                dotYouContext.AuthContext = PerimeterAuthConstants.DataSubscriptionCertificateAuthScheme;
+                await LoadIdentitiesIFollowContext(httpContext, dotYouContext);
+                dotYouContext.AuthContext = PerimeterAuthConstants.IdentitiesIFollowCertificateAuthScheme;
 
                 await _next(httpContext);
                 return;
             }
-
+            
+            if (authType == PerimeterAuthConstants.FollowerCertificateAuthScheme)
+            {
+                await LoadFollowerContext(httpContext, dotYouContext);
+                dotYouContext.AuthContext = PerimeterAuthConstants.FollowerCertificateAuthScheme;
+                
+                await _next(httpContext);
+                return;
+            }
+            
             if (authType == PerimeterAuthConstants.PublicTransitAuthScheme)
             {
                 await LoadPublicTransitContext(httpContext, dotYouContext);
@@ -83,10 +92,10 @@ namespace Youverse.Hosting.Middleware
                 //therefore use the transit subsystem but load permissions only for the fee drive
                 if (clientAuthToken.ClientTokenType == ClientTokenType.DataProvider)
                 {
-                    await LoadDataProviderContext(httpContext, dotYouContext);
+                    await LoadIdentitiesIFollowContext(httpContext, dotYouContext);
                     return;
                 }
-                
+
                 var user = httpContext.User;
                 var transitRegService = httpContext.RequestServices.GetRequiredService<TransitRegistrationService>();
                 var callerOdinId = (OdinId)user.Identity!.Name;
@@ -103,21 +112,49 @@ namespace Youverse.Hosting.Middleware
             await LoadPublicTransitContext(httpContext, dotYouContext);
         }
 
-        private async Task LoadDataProviderContext(HttpContext httpContext, DotYouContext dotYouContext)
+        private async Task LoadIdentitiesIFollowContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
             //No token for now
             if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[DotYouHeaderNames.ClientAuthToken], out var clientAuthToken))
             {
                 var user = httpContext.User;
-                var authService = httpContext.RequestServices.GetRequiredService<DataProviderAuthenticationService>();
+                var authService = httpContext.RequestServices.GetRequiredService<IdentitiesIFollowAuthenticationService>();
                 var odinId = (OdinId)user.Identity!.Name;
                 var ctx = await authService.GetDotYouContext(odinId, clientAuthToken);
                 if (ctx != null)
                 {
                     dotYouContext.Caller = ctx.Caller;
                     dotYouContext.SetPermissionContext(ctx.PermissionsContext);
-                    ctx.AuthContext = PerimeterAuthConstants.DataSubscriptionCertificateAuthScheme;
+                    ctx.AuthContext = PerimeterAuthConstants.IdentitiesIFollowCertificateAuthScheme;
 
+                    return;
+                }
+            }
+
+            throw new YouverseSecurityException("Cannot load context");
+        }
+
+        private async Task LoadFollowerContext(HttpContext httpContext, DotYouContext dotYouContext)
+        {
+            //No token for now
+            if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[DotYouHeaderNames.ClientAuthToken], out var clientAuthToken))
+            {
+                var user = httpContext.User;
+                var odinId = (OdinId)user.Identity!.Name;
+                var authService = httpContext.RequestServices.GetRequiredService<FollowerAuthenticationService>();
+                var ctx = await authService.GetDotYouContext(odinId, clientAuthToken);
+                
+                //load in transit context
+                // var transitRegService = httpContext.RequestServices.GetRequiredService<TransitRegistrationService>();
+                // var transitCtx = await transitRegService.GetDotYouContext(odinId, clientAuthToken);
+                
+                // transitCtx.PermissionsContext.Redacted().PermissionGroups.First().DriveGrants.First().PermissionedDrive.
+                    
+                if (ctx != null)
+                {
+                    dotYouContext.Caller = ctx.Caller;
+                    dotYouContext.SetPermissionContext(ctx.PermissionsContext);
+                    ctx.AuthContext = PerimeterAuthConstants.FollowerCertificateAuthScheme;
                     return;
                 }
             }
@@ -127,7 +164,6 @@ namespace Youverse.Hosting.Middleware
 
         private async Task LoadPublicTransitContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
-
             var user = httpContext.User;
             var odinId = (OdinId)user.Identity!.Name;
 
@@ -141,7 +177,8 @@ namespace Youverse.Hosting.Middleware
 
             if (!anonymousDrives.Results.Any())
             {
-                throw new YouverseClientException("No anonymous drives configured.  There should be at least one; be sure you accessed /owner to initialize them.",
+                throw new YouverseClientException(
+                    "No anonymous drives configured.  There should be at least one; be sure you accessed /owner to initialize them.",
                     YouverseClientErrorCode.NotInitialized);
             }
 
@@ -154,7 +191,7 @@ namespace Youverse.Hosting.Middleware
                     Permission = DrivePermission.Read
                 }
             }).ToList();
-            
+
             var permissionGroupMap = new Dictionary<string, PermissionGroup>
             {
                 { "read_anonymous_drives", new PermissionGroup(new PermissionSet(), anonDriveGrants, null) },

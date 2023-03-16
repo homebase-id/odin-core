@@ -2,7 +2,6 @@
 using System.Threading.Tasks;
 using Refit;
 using Youverse.Core;
-using Youverse.Core.Services.Transit.Incoming;
 using Youverse.Hosting.Controllers.ClientToken;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
 
