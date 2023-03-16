@@ -97,7 +97,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             var expectedPermissionedDrive = new PermissionedDrive()
             {
                 Drive = senderChatDrive.TargetDriveInfo,
-                Permission = DrivePermission.Read & DrivePermission.Write & DrivePermission.WriteReactionsAndComments
+                Permission = DrivePermission.Read | DrivePermission.Write | DrivePermission.WriteReactionsAndComments
             };
 
             var senderChatCircle = await senderOwnerClient.Network.CreateCircle("Chat Participants", new PermissionSetGrantRequest()
@@ -125,7 +125,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 cg.DriveGrants.Any(dg => dg.PermissionedDrive == expectedPermissionedDrive));
             Assert.IsNotNull(actualCircleGrant, "actualPermissionedDrive != null");
             Assert.IsTrue(actualCircleGrant.DriveGrants.Count == 1, "There should only be drive grant from the single circle we created");
-            Assert.IsTrue(actualCircleGrant.DriveGrants.Single().HasStorageKey, "the drive granted should not have a storage key");
+            Assert.IsTrue(actualCircleGrant.DriveGrants.Single().HasStorageKey, "the drive granted should have storage key");
 
             await _scaffold.OldOwnerApi.DisconnectIdentities(sender.OdinId, recipient.OdinId);
         }
