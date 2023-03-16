@@ -139,6 +139,16 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
 
         private async Task CompleteTransfer(IncomingTransferStateItem stateItem)
         {
+            //this means we could decrypt the file 
+            var canReadDrive = _contextAccessor.GetCurrent().PermissionsContext.HasDrivePermission(stateItem.TempFile.DriveId, DrivePermission.Read);
+
+            if (canReadDrive)
+            {
+
+                //
+                return;
+            }
+            
             var item = new TransferBoxItem()
             {
                 Id = Guid.NewGuid(),

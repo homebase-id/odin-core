@@ -154,6 +154,9 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
                     throw new YouverseRemoteIdentityException("Referenced file missing");
                 }
                 
+                //TODO: check that the incoming file matches the encryption of the referenced file
+                // if(referencedFile.FileMetadata.PayloadIsEncrypted)
+                
                 targetAcl = referencedFile.ServerMetadata.AccessControlList;
             }
 
