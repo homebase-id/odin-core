@@ -37,19 +37,22 @@ namespace Youverse.Hosting.Controllers.Certificate
         private readonly IPublicKeyService _publicKeyService;
         private readonly DriveManager _driveManager;
         private readonly ITenantSystemStorage _tenantSystemStorage;
+        private readonly FileSystemResolver _fileSystemResolver;
         private ITransitPerimeterService _perimeterService;
         private IDriveFileSystem _fileSystem;
         private readonly IMediator _mediator;
         private Guid _stateItemId;
 
         /// <summary />
-        public TransitPerimeterController(DotYouContextAccessor contextAccessor, IPublicKeyService publicKeyService, DriveManager driveManager, ITenantSystemStorage tenantSystemStorage, IMediator mediator)
+        public TransitPerimeterController(DotYouContextAccessor contextAccessor, IPublicKeyService publicKeyService, DriveManager driveManager,
+            ITenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver)
         {
             _contextAccessor = contextAccessor;
             _publicKeyService = publicKeyService;
             _driveManager = driveManager;
             _tenantSystemStorage = tenantSystemStorage;
             _mediator = mediator;
+            _fileSystemResolver = fileSystemResolver;
         }
 
         /// <summary />
@@ -66,13 +69,24 @@ namespace Youverse.Hosting.Controllers.Certificate
                 var boundary = GetBoundary(HttpContext.Request.ContentType);
                 var reader = new MultipartReader(boundary, HttpContext.Request.Body);
 
-                var transferKeyHeader = await ProcessTransferKeyHeader(await reader.ReadNextSectionAsync());
+                var transferInstructionSet = await ProcessTransferInstructionSet(await reader.ReadNextSectionAsync());
 
-                _fileSystem = ResolveFileSystem(transferKeyHeader.FileSystemType);
-                _perimeterService =
-                    new TransitPerimeterService(_contextAccessor, _publicKeyService, _driveManager, _fileSystem, _tenantSystemStorage, _mediator);
+                //Optimizations - the caller can't write to the drive, no need to accept any more of the file
 
-                _stateItemId = await _perimeterService.InitializeIncomingTransfer(transferKeyHeader);
+                //S0100
+                _fileSystem = ResolveFileSystem(transferInstructionSet.FileSystemType);
+
+                //S1000, S2000 - can the sender write the content to the target drive?
+                var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(transferInstructionSet.TargetDrive);
+                _fileSystem.Storage.AssertCanWriteToDrive(driveId);
+
+                //End Optimizations
+
+                _perimeterService = new TransitPerimeterService(_contextAccessor, _publicKeyService,
+                    _driveManager, _fileSystem, _tenantSystemStorage, _mediator, _fileSystemResolver);
+
+                _stateItemId = await _perimeterService.InitializeIncomingTransfer(transferInstructionSet);
+
                 //
 
                 await ProcessMetadataSection(await reader.ReadNextSectionAsync());
@@ -104,7 +118,7 @@ namespace Youverse.Hosting.Controllers.Certificate
 
                 return result;
             }
-            catch (YouverseSecurityException yex)
+            catch (YouverseSecurityException)
             {
                 //TODO: break down the actual errors so we can send to the
                 //caller information about why it was rejected w/o giving away
@@ -128,11 +142,11 @@ namespace Youverse.Hosting.Controllers.Certificate
             }
         }
 
-        private async Task<RsaEncryptedRecipientTransferInstructionSet> ProcessTransferKeyHeader(MultipartSection section)
+        private async Task<EncryptedRecipientTransferInstructionSet> ProcessTransferInstructionSet(MultipartSection section)
         {
             AssertIsPart(section, MultipartHostTransferParts.TransferKeyHeader);
             string json = await new StreamReader(section.Body).ReadToEndAsync();
-            var transferKeyHeader = DotYouSystemSerializer.Deserialize<RsaEncryptedRecipientTransferInstructionSet>(json);
+            var transferKeyHeader = DotYouSystemSerializer.Deserialize<EncryptedRecipientTransferInstructionSet>(json);
             return transferKeyHeader;
         }
 
@@ -181,7 +195,8 @@ namespace Youverse.Hosting.Controllers.Certificate
             }
         }
 
-        private void AssertIsValidThumbnailPart(MultipartSection section, MultipartHostTransferParts expectedPart, out FileMultipartSection fileSection, out int width, out int height)
+        private void AssertIsValidThumbnailPart(MultipartSection section, MultipartHostTransferParts expectedPart, out FileMultipartSection fileSection,
+            out int width, out int height)
         {
             if (!Enum.TryParse<MultipartHostTransferParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)
             {
@@ -191,13 +206,15 @@ namespace Youverse.Hosting.Controllers.Certificate
             fileSection = section.AsFileSection();
             if (null == fileSection)
             {
-                throw new YouverseClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')", YouverseClientErrorCode.InvalidThumnbnailName);
+                throw new YouverseClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')",
+                    YouverseClientErrorCode.InvalidThumnbnailName);
             }
 
             string[] parts = fileSection.FileName.Split('x');
             if (!Int32.TryParse(parts[0], out width) || !Int32.TryParse(parts[1], out height))
             {
-                throw new YouverseClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')", YouverseClientErrorCode.InvalidThumnbnailName);
+                throw new YouverseClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')",
+                    YouverseClientErrorCode.InvalidThumnbnailName);
             }
         }
 
@@ -234,7 +251,7 @@ namespace Youverse.Hosting.Controllers.Certificate
             var cd = ContentDispositionHeaderValue.Parse(contentDisposition);
             return cd.Name?.Trim('"');
         }
-        
+
         private IDriveFileSystem ResolveFileSystem(FileSystemType fileSystemType)
         {
             //TODO: this is duplicated code

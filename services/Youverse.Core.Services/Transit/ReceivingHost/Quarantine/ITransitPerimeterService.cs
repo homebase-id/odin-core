@@ -20,7 +20,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
         /// </summary>
         /// <param name="transferInstructionSet"></param>
         /// <returns></returns>
-        Task<Guid> InitializeIncomingTransfer(RsaEncryptedRecipientTransferInstructionSet transferInstructionSet);
+        Task<Guid> InitializeIncomingTransfer(EncryptedRecipientTransferInstructionSet transferInstructionSet);
 
         /// <summary>
         /// Filters, Triages, and distributes the incoming payload the right handler

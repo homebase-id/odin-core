@@ -11,7 +11,6 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.DriveCore.Storage;
 using Youverse.Core.Services.Drives.FileSystem;
-using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.ReceivingHost.Incoming;
 using Youverse.Core.Services.Transit.SendingHost;
@@ -19,102 +18,25 @@ using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Transit.ReceivingHost
 {
-    public class TransitFileReceiverService : ITransitFileReceiverService
+    /// <summary>
+    /// Handles the process of writing a file from temp storage to long-term storage
+    /// </summary>
+    public class TransitFileWriter
     {
         private readonly DotYouContextAccessor _contextAccessor;
-        private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
-        private readonly IPublicKeyService _publicKeyService;
         private readonly FileSystemResolver _fileSystemResolver;
 
-        public TransitFileReceiverService(DotYouContextAccessor contextAccessor, TransitInboxBoxStorage transitInboxBoxStorage, IPublicKeyService publicKeyService, FileSystemResolver fileSystemResolver)
+        public TransitFileWriter(DotYouContextAccessor contextAccessor,
+            FileSystemResolver fileSystemResolver)
         {
             _contextAccessor = contextAccessor;
-            _transitInboxBoxStorage = transitInboxBoxStorage;
-            _publicKeyService = publicKeyService;
             _fileSystemResolver = fileSystemResolver;
         }
 
-        public async Task ProcessIncomingTransitInstructions(TargetDrive targetDrive)
+        public async Task HandleFile(InternalDriveFileId tempFile, IDriveFileSystem fs, KeyHeader decryptedKeyHeader, OdinId sender,
+            FileSystemType fileSystemType,
+            TransferFileType transferFileType)
         {
-            var drive = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(targetDrive);
-            var items = await GetAcceptedItems(drive);
-
-            // var drivesNeedingACommit = new List<Guid>();
-            foreach (var item in items)
-            {
-                try
-                {
-                    var fs = _fileSystemResolver.ResolveFileSystem(item.FileSystemType);
-
-                    if (item.InstructionType == TransferInstructionType.SaveFile)
-                    {
-                        await HandleFile(fs, item);
-                    }
-                    else if (item.InstructionType == TransferInstructionType.DeleteLinkedFile)
-                    {
-                        await DeleteFile(fs, item);
-                    }
-                    else if (item.InstructionType == TransferInstructionType.None)
-                    {
-                        throw new YouverseClientException("Transfer type not specified", YouverseClientErrorCode.TransferTypeNotSpecified);
-                    }
-                    else
-                    {
-                        throw new YouverseClientException("Invalid transfer type", YouverseClientErrorCode.InvalidTransferType);
-                    }
-
-                    await _transitInboxBoxStorage.MarkComplete(item.DriveId, item.Marker);
-                    // drivesNeedingACommit.Add(item.DriveId);
-                    await fs.Query.EnsureDriveDatabaseCommits(new List<Guid>() { item.DriveId });
-
-                    // var items2 = await GetAcceptedItems(drive);
-                    //
-                    // if (items2.Count > 0)
-                    // {
-                    //     string x = "";
-                    // }
-                }
-                catch (YouverseRemoteIdentityException)
-                {
-                    await _transitInboxBoxStorage.MarkFailure(item.DriveId, item.Marker);
-                    throw;
-                }
-                catch (Exception)
-                {
-                    await _transitInboxBoxStorage.MarkFailure(item.DriveId, item.Marker);
-                }
-            }
-
-            // foreach (var x in drivesNeedingACommit)
-            // {
-            // }
-        }
-
-        private async Task HandleFile(IDriveFileSystem fs, TransferBoxItem item)
-        {
-            var tempFile = new InternalDriveFileId()
-            {
-                DriveId = item.DriveId,
-                FileId = item.FileId
-            };
-
-            var transferInstructionSet =
-                await fs.Storage.GetDeserializedStream<RsaEncryptedRecipientTransferInstructionSet>(tempFile,
-                    MultipartHostTransferParts.TransferKeyHeader.ToString(), StorageDisposition.Temporary);
-
-            var (isValidPublicKey, decryptedAesKeyHeaderBytes) =
-                await _publicKeyService.DecryptKeyHeaderUsingOfflineKey(transferInstructionSet.EncryptedAesKeyHeader,
-                    transferInstructionSet.PublicKeyCrc);
-
-            if (!isValidPublicKey)
-            {
-                //TODO: handle when isValidPublicKey = false
-                throw new YouverseSecurityException("Public key was invalid");
-            }
-
-            var decryptedKeyHeader = KeyHeader.FromCombinedBytes(decryptedAesKeyHeaderBytes);
-            decryptedAesKeyHeaderBytes.WriteZeros();
-
             //TODO: this deserialization would be better in the drive service under the name GetTempMetadata or something
             var metadataStream = await fs.Storage.GetTempStream(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower());
             var json = await new StreamReader(metadataStream).ReadToEndAsync();
@@ -135,7 +57,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
             };
 
             //TODO: this might be a hacky place to put this but let's let it cook.  It might better be put into the comment storage
-            if (item.FileSystemType == FileSystemType.Comment)
+            if (fileSystemType == FileSystemType.Comment)
             {
                 var (referencedFs, fileId) = await _fileSystemResolver.ResolveFileSystem(metadata.ReferencedFile);
 
@@ -144,32 +66,32 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
                     //TODO file does not exist or some other issue - need clarity on what is happening here
                     throw new YouverseRemoteIdentityException("Referenced file missing");
                 }
-                
+
                 var referencedFile = await referencedFs.Query.GetFileByGlobalTransitId(fileId.Value.DriveId,
                     metadata.ReferencedFile.GlobalTransitId);
-                
+
                 if (null == referencedFile)
                 {
                     //TODO file does not exist or some other issue - need clarity on what is happening here
                     throw new YouverseRemoteIdentityException("Referenced file missing");
                 }
-                
+
                 //TODO: check that the incoming file matches the encryption of the referenced file
                 // if(referencedFile.FileMetadata.PayloadIsEncrypted)
-                
+
                 targetAcl = referencedFile.ServerMetadata.AccessControlList;
             }
 
             var serverMetadata = new ServerMetadata()
             {
-                FileSystemType = item.FileSystemType,
+                FileSystemType = fileSystemType,
                 AllowDistribution = false,
                 AccessControlList = targetAcl
             };
 
-            metadata!.SenderOdinId = item.Sender;
+            metadata!.SenderOdinId = sender;
 
-            switch (transferInstructionSet.TransferFileType)
+            switch (transferFileType)
             {
                 case TransferFileType.CommandMessage:
                     await StoreCommandMessage(fs, tempFile, decryptedKeyHeader, metadata, serverMetadata);
@@ -180,25 +102,11 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
                     break;
 
                 default:
-                    throw new YouverseClientException("Invalid TransferFileType",
-                        YouverseClientErrorCode.InvalidTransferFileType);
+                    throw new YouverseClientException("Invalid TransferFileType", YouverseClientErrorCode.InvalidTransferFileType);
             }
-
-            await fs.Query.EnsureDriveDatabaseCommits(new List<Guid>() { item.DriveId });
         }
 
-        public Task<PagedResult<TransferBoxItem>> GetQuarantinedItems(PageOptions pageOptions)
-        {
-            throw new NotImplementedException();
-        }
-
-        private async Task<List<TransferBoxItem>> GetAcceptedItems(Guid driveId)
-        {
-            var list = await _transitInboxBoxStorage.GetPendingItems(driveId);
-            return list;
-        }
-
-        private async Task DeleteFile(IDriveFileSystem fs, TransferBoxItem item)
+        public async Task DeleteFile(IDriveFileSystem fs, TransferInboxItem item)
         {
             var clientFileHeader = await GetFileByGlobalTransitId(fs, item.DriveId, item.GlobalTransitId);
             var file = new InternalDriveFileId()
@@ -213,7 +121,8 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
         /// <summary>
         /// Stores an incoming command message and updates the queue
         /// </summary>
-        private async Task StoreCommandMessage(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
+        private async Task StoreCommandMessage(IDriveFileSystem fs, InternalDriveFileId tempFile, KeyHeader keyHeader, FileMetadata metadata,
+            ServerMetadata serverMetadata)
         {
             serverMetadata.DoNotIndex = true;
             await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
@@ -248,8 +157,10 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
             //
             if (metadata.GlobalTransitId.HasValue && metadata.AppData.UniqueId.HasValue)
             {
-                SharedSecretEncryptedFileHeader existingFileBySharedSecretEncryptedUniqueId = await fs.Query.GetFileByClientUniqueId(targetDriveId, metadata.AppData.UniqueId.Value);
-                SharedSecretEncryptedFileHeader existingFileByGlobalTransitId = await GetFileByGlobalTransitId(fs, tempFile.DriveId, metadata.GlobalTransitId.GetValueOrDefault());
+                SharedSecretEncryptedFileHeader existingFileBySharedSecretEncryptedUniqueId =
+                    await fs.Query.GetFileByClientUniqueId(targetDriveId, metadata.AppData.UniqueId.Value);
+                SharedSecretEncryptedFileHeader existingFileByGlobalTransitId =
+                    await GetFileByGlobalTransitId(fs, tempFile.DriveId, metadata.GlobalTransitId.GetValueOrDefault());
 
                 if (existingFileBySharedSecretEncryptedUniqueId == null && existingFileByGlobalTransitId == null)
                 {
@@ -291,7 +202,8 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
             //
             if (metadata.AppData.UniqueId.HasValue)
             {
-                SharedSecretEncryptedFileHeader existingFileBySharedSecretEncryptedUniqueId = await fs.Query.GetFileByClientUniqueId(targetDriveId, metadata.AppData.UniqueId.Value);
+                SharedSecretEncryptedFileHeader existingFileBySharedSecretEncryptedUniqueId =
+                    await fs.Query.GetFileByClientUniqueId(targetDriveId, metadata.AppData.UniqueId.Value);
 
                 if (existingFileBySharedSecretEncryptedUniqueId == null)
                 {
@@ -320,7 +232,8 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
             //
             if (metadata.GlobalTransitId.HasValue)
             {
-                SharedSecretEncryptedFileHeader existingFileByGlobalTransitId = await GetFileByGlobalTransitId(fs, tempFile.DriveId, metadata.GlobalTransitId.GetValueOrDefault());
+                SharedSecretEncryptedFileHeader existingFileByGlobalTransitId =
+                    await GetFileByGlobalTransitId(fs, tempFile.DriveId, metadata.GlobalTransitId.GetValueOrDefault());
 
                 if (existingFileByGlobalTransitId == null)
                 {

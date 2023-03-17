@@ -147,7 +147,7 @@ namespace Youverse.Hosting
 
             cb.RegisterType<TransitOutbox>().As<ITransitOutbox>().SingleInstance();
 
-            cb.RegisterType<TransitFileReceiverService>().As<ITransitFileReceiverService>().SingleInstance();
+            cb.RegisterType<TransitInboxProcessor>().As<ITransitInboxProcessor>().SingleInstance();
             cb.RegisterType<TransitRegistrationService>()
                 .As<INotificationHandler<IdentityConnectionRegistrationChangedNotification>>()
                 .AsSelf()

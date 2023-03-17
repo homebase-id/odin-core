@@ -95,28 +95,24 @@ namespace Youverse.Core.Services.Transit.SendingHost
 
         // 
 
-        private RsaEncryptedRecipientTransferInstructionSet CreateTransferInstructionSet(
-            byte[] recipientPublicKeyDer,
+        private EncryptedRecipientTransferInstructionSet CreateTransferInstructionSet(
             KeyHeader keyHeaderToBeEncrypted,
             ClientAccessToken clientAccessToken,
             TargetDrive targetDrive,
             TransferFileType transferFileType,
             FileSystemType fileSystemType)
         {
-            //TODO: need to review how to decrypt the private key on the recipient side
-            var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(recipientPublicKeyDer);
-
-            var combinedKey = keyHeaderToBeEncrypted.Combine();
-            var rsaEncryptedKeyHeader = publicKey.Encrypt(combinedKey.GetKey());
-            combinedKey.Wipe();
-
-            return new RsaEncryptedRecipientTransferInstructionSet()
+            var sharedSecret = clientAccessToken.SharedSecret;
+            var iv = ByteArrayUtil.GetRndByteArray(16);
+            var sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeaderToBeEncrypted, iv, ref sharedSecret);
+            
+            return new EncryptedRecipientTransferInstructionSet()
             {
-                PublicKeyCrc = publicKey.crc32c,
-                EncryptedAesKeyHeader = rsaEncryptedKeyHeader,
+                
                 TargetDrive = targetDrive,
                 TransferFileType = transferFileType,
-                FileSystemType = fileSystemType
+                FileSystemType = fileSystemType,
+                SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,
             };
         }
 
@@ -403,32 +399,22 @@ namespace Youverse.Core.Services.Transit.SendingHost
                 var recipient = (OdinId)r;
                 try
                 {
-                    //TODO: decide if we should lookup the public key from the recipients host if not cached or just drop the item in the queue
-                    var pk = await _publicKeyService.GetRecipientOfflinePublicKey(recipient, true, false);
-                    if (null == pk)
-                    {
-                        AddToTransferKeyEncryptionQueue(recipient, internalFile);
-                        transferStatus.Add(recipient, TransferStatus.AwaitingTransferKey);
-                        continue;
-                    }
-
                     //TODO: i need to resolve the token outside of transit, pass it in as options instead
                     var clientAuthToken = await ResolveClientAccessToken(recipient, sendFileOptions.ClientAccessTokenSource);
 
                     transferStatus.Add(recipient, TransferStatus.TransferKeyCreated);
 
-                    //TODO apply encryption before storing in the outbox
+                    //TODO: apply encryption before storing in the outbox
                     var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
 
                     outboxItems.Add(new TransitOutboxItem()
                     {
                         IsTransientFile = options.IsTransient,
                         File = internalFile,
-                        Recipient = (OdinId)r,
+                        Recipient = recipient,
                         OriginalTransitOptions = options,
                         EncryptedClientAuthToken = encryptedClientAccessToken,
                         TransferInstructionSet = this.CreateTransferInstructionSet(
-                            pk.publicKey,
                             keyHeader,
                             clientAuthToken,
                             targetDrive,

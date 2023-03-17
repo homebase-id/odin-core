@@ -1,5 +1,6 @@
 using Dawn;
 using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.ReceivingHost.Quarantine;
 using Youverse.Core.Storage;
 
@@ -7,31 +8,22 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Incoming
 {
     public class IncomingTransferStateItem
     {
-        public IncomingTransferStateItem(GuidId id, InternalDriveFileId tempFile, FileSystemType transferTransferFileSystemType, TransferFileType transferFileType )
+        public IncomingTransferStateItem(GuidId id, InternalDriveFileId tempFile, EncryptedRecipientTransferInstructionSet transferInstructionSet )
         {
             Guard.Argument(id, nameof(id)).NotNull().Require(x => GuidId.IsValid(x));
             Guard.Argument(tempFile, nameof(tempFile)).Require(tempFile.IsValid());
 
             this.Id = id;
             this.TempFile = tempFile;
-            this.TransferFileSystemType = transferTransferFileSystemType;
-            this.TransferFileType = transferFileType;
-
+            this.TransferInstructionSet = transferInstructionSet;
             this.HeaderState = new();
             this.MetadataState = new();
             this.PayloadState = new();
         }
 
-        public TransferFileType TransferFileType { get; init; }
-
-        public FileSystemType TransferFileSystemType { get; init; }
-
+        public EncryptedRecipientTransferInstructionSet TransferInstructionSet { get; init; }
+        
         public GuidId Id { get; init; }
-
-        /// <summary>
-        /// The CRC of the Transit public key used when receiving this transfer
-        /// </summary>
-        public uint PublicKeyCrc { get; set; }
 
         public InternalDriveFileId TempFile { get; set; }
 

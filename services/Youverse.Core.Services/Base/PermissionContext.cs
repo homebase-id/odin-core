@@ -96,7 +96,7 @@ namespace Youverse.Core.Services.Base
                 throw new YouverseSecurityException($"Unauthorized to write to drive [{driveId}]");
             }
         }
-        
+
         public void AssertCanWriteReactionsAndCommentsToDrive(Guid driveId)
         {
             if (!this.HasDrivePermission(driveId, DrivePermission.WriteReactionsAndComments))
@@ -180,11 +180,23 @@ namespace Youverse.Core.Services.Base
             throw new YouverseSecurityException($"No access permitted to drive {driveId}");
         }
 
+        public bool TryGetDriveStorageKey(Guid driveId, out SensitiveByteArray storageKey)
+        {
+            storageKey = null;
+            foreach (var key in _permissionGroups.Keys)
+            {
+                var group = _permissionGroups[key];
+                storageKey = group.GetDriveStorageKey(driveId);
+            }
+
+            return storageKey != null;
+        }
+
         public RedactedPermissionContext Redacted()
         {
             return new RedactedPermissionContext()
             {
-                PermissionGroups = _permissionGroups.Values.Select(pg=>pg.Redacted()),
+                PermissionGroups = _permissionGroups.Values.Select(pg => pg.Redacted()),
             };
         }
     }

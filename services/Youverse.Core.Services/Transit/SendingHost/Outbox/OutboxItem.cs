@@ -37,7 +37,7 @@ namespace Youverse.Core.Services.Transit.SendingHost.Outbox
         /// </summary>
         public bool IsTransientFile { get; set; }
         
-        public RsaEncryptedRecipientTransferInstructionSet TransferInstructionSet { get; set; }
+        public EncryptedRecipientTransferInstructionSet TransferInstructionSet { get; set; }
         
         /// <summary>
         /// TransitOptions provided when the file was sent by the client

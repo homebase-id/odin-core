@@ -16,7 +16,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
         /// </summary>
         /// <param name="transferInstructionSet"></param>
         /// <returns></returns>
-        Task<Guid> CreateTransferStateItem(RsaEncryptedRecipientTransferInstructionSet transferInstructionSet);
+        Task<Guid> CreateTransferStateItem(EncryptedRecipientTransferInstructionSet transferInstructionSet);
 
         /// <summary>
         /// Gets a state item used to hold incoming transfers
