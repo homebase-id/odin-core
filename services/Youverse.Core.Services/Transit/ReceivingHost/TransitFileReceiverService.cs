@@ -74,7 +74,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
                     //     string x = "";
                     // }
                 }
-                catch (YouverseRemoteIdentityException remoteException)
+                catch (YouverseRemoteIdentityException)
                 {
                     await _transitInboxBoxStorage.MarkFailure(item.DriveId, item.Marker);
                     throw;
