@@ -2,6 +2,7 @@
 using System.IO;
 using System.Linq;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -11,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Drives.DriveCore.Storage;
 using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Drives.FileSystem.Comment;
 using Youverse.Core.Services.Drives.FileSystem.Standard;
@@ -89,7 +91,7 @@ namespace Youverse.Hosting.Controllers.Certificate
 
                 //
 
-                await ProcessMetadataSection(await reader.ReadNextSectionAsync());
+                var metadata = await ProcessMetadataSection(await reader.ReadNextSectionAsync());
 
                 //
 
@@ -109,7 +111,8 @@ namespace Youverse.Hosting.Controllers.Certificate
                     throw new HostToHostTransferException("Transfer does not contain all required parts.");
                 }
 
-                var result = await _perimeterService.FinalizeTransfer(this._stateItemId);
+                //TODO: that metadata should be on the state item.  hacked in place while figuring out direct-write support
+                var result = await _perimeterService.FinalizeTransfer(this._stateItemId, metadata);
                 if (result.Code == TransitResponseCode.Rejected)
                 {
                     HttpContext.Abort(); //TODO:does this abort also kill the response?
@@ -150,17 +153,26 @@ namespace Youverse.Hosting.Controllers.Certificate
             return transferKeyHeader;
         }
 
-        private async Task ProcessMetadataSection(MultipartSection section)
+        private async Task<FileMetadata> ProcessMetadataSection(MultipartSection section)
         {
             AssertIsPart(section, MultipartHostTransferParts.Metadata);
 
+            //HACK: need to optimize this 
+            var json = await new StreamReader(section.Body).ReadToEndAsync();
+            var metadata = DotYouSystemSerializer.Deserialize<FileMetadata>(json);
+            var metadataStream = new MemoryStream(Encoding.UTF8.GetBytes(json));
+            
             //TODO: determine if the filter needs to decide if its result should be sent back to the sender
-            var response = await _perimeterService.ApplyFirstStageFiltering(this._stateItemId, MultipartHostTransferParts.Metadata, "metadata", section.Body);
+            var response = await _perimeterService.ApplyFirstStageFiltering(this._stateItemId, MultipartHostTransferParts.Metadata, "metadata", metadataStream);
             if (response.FilterAction == FilterAction.Reject)
             {
                 HttpContext.Abort(); //TODO:does this abort also kill the response?
                 throw new HostToHostTransferException("Transmission Aborted");
             }
+            
+            
+
+            return metadata;
         }
 
         private async Task ProcessPayloadSection(MultipartSection section)

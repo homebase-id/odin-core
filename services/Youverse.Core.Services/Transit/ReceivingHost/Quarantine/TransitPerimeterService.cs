@@ -112,7 +112,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
             return item.IsCompleteAndValid();
         }
 
-        public async Task<HostTransitResponse> FinalizeTransfer(Guid transferStateItemId)
+        public async Task<HostTransitResponse> FinalizeTransfer(Guid transferStateItemId, FileMetadata fileMetadata)
         {
             var item = await _transitPerimeterTransferStateService.GetStateItem(transferStateItemId);
 
@@ -131,7 +131,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
 
             if (item.IsCompleteAndValid())
             {
-                await CompleteTransfer(item);
+                await CompleteTransfer(item, fileMetadata);
                 await _transitPerimeterTransferStateService.RemoveStateItem(item.Id);
                 return new HostTransitResponse() { Code = TransitResponseCode.Accepted };
             }
@@ -139,12 +139,12 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
             throw new HostToHostTransferException("Unhandled error");
         }
 
-        private async Task CompleteTransfer(IncomingTransferStateItem stateItem)
+        private async Task CompleteTransfer(IncomingTransferStateItem stateItem, FileMetadata fileMetadata)
         {
             //S1000, S2000 - can the sender write the content to the target drive?
             _fileSystem.Storage.AssertCanWriteToDrive(stateItem.TempFile.DriveId);
 
-            var directWriteSuccess = await TryDirectWriteFile(stateItem);
+            var directWriteSuccess = await TryDirectWriteFile(stateItem, fileMetadata);
 
             if (!directWriteSuccess)
             {
@@ -318,14 +318,19 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
         }
 
         //
-        private async Task<bool> TryDirectWriteFile(IncomingTransferStateItem stateItem)
+        private async Task<bool> TryDirectWriteFile(IncomingTransferStateItem stateItem, FileMetadata metadata)
         {
             _fileSystem.Storage.AssertCanWriteToDrive(stateItem.TempFile.DriveId);
-            TransitFileWriter writer = new TransitFileWriter(_contextAccessor, _fileSystemResolver);
 
+            //HACK: if it's not a connected token
+            if (_contextAccessor.GetCurrent().AuthContext.ToLower() != "TransitCertificate".ToLower())
+            {
+                return false;
+            }
+            
+            TransitFileWriter writer = new TransitFileWriter(_contextAccessor, _fileSystemResolver);
             var sender = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
             var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader);
-            FileMetadata metadata = await LoadMetadataFromTemp(stateItem.TempFile);
 
             if (metadata.PayloadIsEncrypted == false)
             {

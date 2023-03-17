@@ -38,7 +38,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
             TransferFileType transferFileType)
         {
             //TODO: this deserialization would be better in the drive service under the name GetTempMetadata or something
-            var metadataStream = await fs.Storage.GetTempStream(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower());
+            var metadataStream = await fs.Storage.GetTempStreamForWriting(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower());
             var json = await new StreamReader(metadataStream).ReadToEndAsync();
             metadataStream.Close();
 
