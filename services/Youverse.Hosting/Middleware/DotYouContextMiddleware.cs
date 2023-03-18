@@ -100,10 +100,10 @@ namespace Youverse.Hosting.Middleware
                 {
                     dotYouContext.Caller = ctx.Caller;
                     dotYouContext.SetPermissionContext(ctx.PermissionsContext);
+                    dotYouContext.SetAuthContext(PerimeterAuthConstants.TransitCertificateAuthScheme);
                     return;
                 }
 
-                dotYouContext.SetAuthContext(PerimeterAuthConstants.TransitCertificateAuthScheme);
             }
 
             await LoadPublicTransitContext(httpContext, dotYouContext);
