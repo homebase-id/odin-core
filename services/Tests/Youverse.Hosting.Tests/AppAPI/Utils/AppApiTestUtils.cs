@@ -183,7 +183,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
 
                         if (instructionSet!.TransitOptions!.Schedule == ScheduleOptions.SendNowAwaitResponse)
                         {
-                            Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.Delivered, $"file was not delivered to {recipient}");
+                            Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.DeliveredToInbox, $"file was not delivered to {recipient}");
                         }
 
                         if (instructionSet.TransitOptions.Schedule == ScheduleOptions.SendLater)

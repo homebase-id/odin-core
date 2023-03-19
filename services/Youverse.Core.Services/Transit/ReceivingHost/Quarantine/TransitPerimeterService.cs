@@ -41,7 +41,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
             DriveManager driveManager,
             IDriveFileSystem fileSystem,
             ITenantSystemStorage tenantSystemStorage,
-            IMediator mediator, 
+            IMediator mediator,
             FileSystemResolver fileSystemResolver)
         {
             _contextAccessor = contextAccessor;
@@ -131,26 +131,28 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
 
             if (item.IsCompleteAndValid())
             {
-                await CompleteTransfer(item, fileMetadata);
+                var responseCode = await CompleteTransfer(item, fileMetadata);
                 await _transitPerimeterTransferStateService.RemoveStateItem(item.Id);
-                return new HostTransitResponse() { Code = TransitResponseCode.Accepted };
+                return new HostTransitResponse() { Code = responseCode };
             }
 
             throw new HostToHostTransferException("Unhandled error");
         }
 
-        private async Task CompleteTransfer(IncomingTransferStateItem stateItem, FileMetadata fileMetadata)
+        private async Task<TransitResponseCode> CompleteTransfer(IncomingTransferStateItem stateItem, FileMetadata fileMetadata)
         {
             //S1000, S2000 - can the sender write the content to the target drive?
             _fileSystem.Storage.AssertCanWriteToDrive(stateItem.TempFile.DriveId);
 
             var directWriteSuccess = await TryDirectWriteFile(stateItem, fileMetadata);
 
-            if (!directWriteSuccess)
+            if (directWriteSuccess)
             {
-                //S1220
-                await RouteToInbox(stateItem);
+                return TransitResponseCode.AcceptedDirectWrite;
             }
+
+            //S1220
+            return await RouteToInbox(stateItem);
         }
 
         public async Task<HostTransitResponse> AcceptDeleteLinkedFileRequest(TargetDrive targetDrive, Guid globalTransitId, FileSystemType fileSystemType)
@@ -175,7 +177,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
 
                 return new HostTransitResponse()
                 {
-                    Code = TransitResponseCode.Accepted,
+                    Code = TransitResponseCode.AcceptedIntoInbox,
                     Message = ""
                 };
             }
@@ -327,7 +329,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
             {
                 return false;
             }
-            
+
             TransitFileWriter writer = new TransitFileWriter(_contextAccessor, _fileSystemResolver);
             var sender = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
             var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader);
@@ -337,7 +339,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
                 //S1110 - Write to disk and send notifications
                 await writer.HandleFile(stateItem.TempFile, _fileSystem, decryptedKeyHeader, sender,
                     stateItem.TransferInstructionSet.FileSystemType, stateItem.TransferInstructionSet.TransferFileType);
-                
+
                 return true;
             }
 
@@ -356,7 +358,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
                     return true;
                 }
             }
-            
+
             return false;
         }
 
@@ -380,7 +382,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
         /// <summary>
         /// Stores the file in the inbox so it can be processed by the owner in a separate process
         /// </summary>
-        private async Task RouteToInbox(IncomingTransferStateItem stateItem)
+        private async Task<TransitResponseCode> RouteToInbox(IncomingTransferStateItem stateItem)
         {
             //S1210 - Convert to Rsa encrypted header so this could be handled by the TransitInboxProcessor
             var (rsaEncryptedKeyHeader, crc32) = await ConvertKeyHeaderToRsa(stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader);
@@ -413,6 +415,8 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
                 TransferFileType = stateItem.TransferInstructionSet.TransferFileType,
                 FileSystemType = item.FileSystemType
             });
+
+            return TransitResponseCode.AcceptedIntoInbox;
         }
 
         private async Task<(byte[] rsaEncryptedKeyHeader, UInt32 crc)> ConvertKeyHeaderToRsa(EncryptedKeyHeader sharedSecretEncryptedKeyHeader)

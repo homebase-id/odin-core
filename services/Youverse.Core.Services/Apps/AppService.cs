@@ -61,7 +61,7 @@ namespace Youverse.Core.Services.Apps
                     {
                         switch (value)
                         {
-                            case TransitResponseCode.Accepted:
+                            case TransitResponseCode.AcceptedIntoInbox:
                                 result.RecipientStatus.Add(key, DeleteLinkedFileStatus.RequestAccepted);
                                 break;
 

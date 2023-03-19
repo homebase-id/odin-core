@@ -105,10 +105,9 @@ namespace Youverse.Core.Services.Transit.SendingHost
             var sharedSecret = clientAccessToken.SharedSecret;
             var iv = ByteArrayUtil.GetRndByteArray(16);
             var sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeaderToBeEncrypted, iv, ref sharedSecret);
-            
+
             return new EncryptedRecipientTransferInstructionSet()
             {
-                
                 TargetDrive = targetDrive,
                 TransferFileType = transferFileType,
                 FileSystemType = fileSystemType,
@@ -235,6 +234,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
 
             TransferFailureReason tfr = TransferFailureReason.UnknownError;
             bool success = false;
+            TransitResponseCode transitResponseCode = TransitResponseCode.Rejected;
             try
             {
                 //look up transfer key
@@ -328,11 +328,11 @@ namespace Youverse.Core.Services.Transit.SendingHost
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var transitResponse = response.Content;
-
-                    switch (transitResponse.Code)
+                    transitResponseCode = response.Content.Code;
+                    switch (transitResponseCode)
                     {
-                        case TransitResponseCode.Accepted:
+                        case TransitResponseCode.AcceptedDirectWrite:
+                        case TransitResponseCode.AcceptedIntoInbox:
                             success = true;
                             break;
                         case TransitResponseCode.QuarantinedPayload:
@@ -364,6 +364,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
                 File = file,
                 Recipient = recipient,
                 Success = success,
+                RecipientTransitResponseCode = transitResponseCode,
                 ShouldRetry = true,
                 FailureReason = tfr,
                 Timestamp = UnixTimeUtc.Now().milliseconds,
@@ -461,7 +462,18 @@ namespace Youverse.Core.Services.Transit.SendingHost
             {
                 if (result.Success)
                 {
-                    transferStatus[result.Recipient.DomainName] = TransferStatus.Delivered;
+                    switch (result.RecipientTransitResponseCode)
+                    {
+                        case TransitResponseCode.AcceptedIntoInbox:
+                            transferStatus[result.Recipient.DomainName] = TransferStatus.DeliveredToInbox;
+                            break;
+                        case TransitResponseCode.AcceptedDirectWrite:
+                            transferStatus[result.Recipient.DomainName] = TransferStatus.DeliveredToTargetDrive;
+                            break;
+                        default:
+                            throw new YouverseSystemException("Unhandled success scenario in transit");
+                        
+                    }
                 }
                 else
                 {

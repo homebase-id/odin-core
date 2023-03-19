@@ -1714,7 +1714,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 foreach (var r in instructionSet.TransitOptions.Recipients)
                 {
                     Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
-                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.Delivered, $"message should have been delivered to {r}");
+                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.DeliveredToInbox, $"message should have been delivered to {r}");
                 }
             }
 
