@@ -123,7 +123,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Routing
 
             Assert.IsTrue(uploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
             Assert.IsTrue(recipientStatus == TransferStatus.DeliveredToInbox, $"Should have been delivered, actual status was {recipientStatus}");
-            
+
             //
             //  Assert recipient does not have the file when it is first sent
             //
@@ -156,9 +156,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Routing
         }
 
         [Test]
-        public void FailsWhenSenderCannotWriteToTargetDriveOnRecipientServer_S1010()
+        public async Task FailsWhenSenderCannotWriteToTargetDriveOnRecipientServer_S1010()
         {
-            Assert.Inconclusive("work in progress");
             /*
              Failure Test - Standard
                 Fails when sender cannot write to target drive on recipients server
@@ -168,6 +167,42 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Routing
                 Should succeed
                 Throws 403
              */
+
+            var sender = TestIdentities.Frodo;
+            var recipient = TestIdentities.Samwise;
+
+            var senderOwnerClient = _scaffold.CreateOwnerApiClient(sender);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClient(recipient);
+
+            const DrivePermission drivePermissions = DrivePermission.Read;
+            const string uploadedContent = "But we only got Frodo and Sam, thank you Smegol";
+            const bool isEncrypted = false;
+
+            var targetDrive = await this.PrepareScenario(senderOwnerClient, recipientOwnerClient, drivePermissions);
+            var (uploadResult, _) = await this.SendStandardFile(senderOwnerClient, targetDrive, uploadedContent, encrypted: isEncrypted, recipient);
+
+            Assert.IsTrue(uploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
+            Assert.IsTrue(recipientStatus == TransferStatus.RecipientReturnedAccessDenied, $"Should have been delivered, actual status was {recipientStatus}");
+
+            //
+            // Test results
+            //
+
+            //IMPORTANT!!  the test here for direct write - meaning - the file should be on recipient server without calling process incoming files
+            // recipientOwnerClient.Transit.ProcessIncomingInstructionSet(targetDrive);
+            //
+
+            // File should be on recipient server and accessible by global transit id
+            var qp = new FileQueryParams()
+            {
+                TargetDrive = uploadResult.GlobalTransitIdFileIdentifier.TargetDrive,
+                GlobalTransitId = new List<Guid>() { uploadResult.GlobalTransitIdFileIdentifier.GlobalTransitId }
+            };
+
+            var batch = await recipientOwnerClient.Drive.QueryBatch(FileSystemType.Standard, qp);
+            Assert.IsFalse(batch.SearchResults.Any());
+            
+            await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
 
         /// <summary>
