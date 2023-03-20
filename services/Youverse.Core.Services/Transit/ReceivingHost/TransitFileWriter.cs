@@ -67,17 +67,23 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
                     throw new YouverseRemoteIdentityException("Referenced file missing");
                 }
 
+                //
+                // Issue - the caller cannot see the ACL because it's only shown to the
+                // owner, so we need to forceIncludeServerMetadata
+                //
+
                 var referencedFile = await referencedFs.Query.GetFileByGlobalTransitId(fileId.Value.DriveId,
-                    metadata.ReferencedFile.GlobalTransitId);
+                    metadata.ReferencedFile.GlobalTransitId, forceIncludeServerMetadata: true);
 
                 if (null == referencedFile)
                 {
                     //TODO file does not exist or some other issue - need clarity on what is happening here
-                    throw new YouverseRemoteIdentityException("Referenced file missing");
+                    throw new YouverseRemoteIdentityException("Referenced file missing or caller does not have access");
                 }
 
                 //TODO: check that the incoming file matches the encryption of the referenced file
                 // if(referencedFile.FileMetadata.PayloadIsEncrypted)
+
 
                 targetAcl = referencedFile.ServerMetadata.AccessControlList;
             }

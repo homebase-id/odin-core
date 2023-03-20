@@ -44,6 +44,8 @@ namespace Youverse.Hosting.Middleware
                 await _next(httpContext);
                 return;
             }
+            
+            dotYouContext.Tenant = (OdinId)tenant.Name;
 
             if (authType == PerimeterAuthConstants.TransitCertificateAuthScheme)
             {
@@ -103,7 +105,6 @@ namespace Youverse.Hosting.Middleware
                     dotYouContext.SetAuthContext(PerimeterAuthConstants.TransitCertificateAuthScheme);
                     return;
                 }
-
             }
 
             await LoadPublicTransitContext(httpContext, dotYouContext);

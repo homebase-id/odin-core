@@ -17,6 +17,8 @@ namespace Youverse.Core.Services.Base
             }
         }
 
+        public OdinId Tenant { get; set; }
+        
         public CallerContext Caller { get; set; }
 
         public OdinId GetCallerOdinIdOrFail()
@@ -50,6 +52,7 @@ namespace Youverse.Core.Services.Base
 
             _authContext = authContext;
         }
+        
         public void AssertCanManageConnections()
         {
             if (this.Caller.IsOwner && this.Caller.HasMasterKey)

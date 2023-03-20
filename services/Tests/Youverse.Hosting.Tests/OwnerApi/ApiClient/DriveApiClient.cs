@@ -37,7 +37,8 @@ public class DriveApiClient
         _identity = identity;
     }
 
-    public async Task<OwnerClientDriveData> CreateDrive(TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads, bool ownerOnly = false, bool allowSubscriptions = false)
+    public async Task<OwnerClientDriveData> CreateDrive(TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads, bool ownerOnly = false,
+        bool allowSubscriptions = false)
     {
         using (var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
         {
@@ -67,11 +68,27 @@ public class DriveApiClient
             var page = getDrivesResponse.Content;
 
             Assert.NotNull(page);
-            var theDrive = page.Results.SingleOrDefault(drive => drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type);
+            var theDrive = page.Results.SingleOrDefault(drive =>
+                drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type);
             Assert.NotNull(theDrive);
 
             return theDrive;
         }
+    }
+
+    public async Task<SharedSecretEncryptedFileHeader> QueryByGlobalTransitFileId(FileSystemType fileSystemType, GlobalTransitIdFileIdentifier file)
+    {
+        var batch = await this.QueryBatch(FileSystemType.Standard, new FileQueryParams()
+        {
+            TargetDrive = file.TargetDrive,
+            GlobalTransitId = new List<Guid>() { file.GlobalTransitId }
+        }, new QueryBatchResultOptionsRequest()
+        {
+            MaxRecords = 10,
+            IncludeMetadataHeader = true
+        });
+
+        return batch.SearchResults.FirstOrDefault();
     }
 
     public async Task<QueryBatchResponse> QueryBatch(FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptionsRequest resultOptions = null)
@@ -102,7 +119,9 @@ public class DriveApiClient
         }
     }
 
-    public async Task<UploadResult> UploadFile(FileSystemType fileSystemType, TargetDrive targetDrive, UploadFileMetadata fileMetadata, string payloadData = "", ImageDataContent thumbnail = null,
+    public async Task<UploadResult> UploadFile(FileSystemType fileSystemType, TargetDrive targetDrive, UploadFileMetadata fileMetadata,
+        string payloadData = "",
+        ImageDataContent thumbnail = null,
         Guid? overwriteFileId = null)
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
@@ -141,7 +160,8 @@ public class DriveApiClient
             {
                 new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                 new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                new StreamPart(new MemoryStream(payloadData.ToUtf8ByteArray()), "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload))
+                new StreamPart(new MemoryStream(payloadData.ToUtf8ByteArray()), "payload.encrypted", "application/x-binary",
+                    Enum.GetName(MultipartUploadParts.Payload))
             };
 
             if (thumbnail != null)
@@ -167,8 +187,10 @@ public class DriveApiClient
         }
     }
 
-    public async Task<UploadResult> UploadEncryptedFile(FileSystemType fileSystemType, TargetDrive targetDrive, UploadFileMetadata fileMetadata, string payloadData = "",
-        ImageDataContent thumbnail = null)
+    public async Task<UploadResult> UploadEncryptedFile(FileSystemType fileSystemType, TargetDrive targetDrive, UploadFileMetadata fileMetadata,
+        string payloadData = "",
+        ImageDataContent thumbnail = null,
+        Guid? overwriteFileId = null)
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
@@ -178,7 +200,12 @@ public class DriveApiClient
             TransferIv = transferIv,
             StorageOptions = new()
             {
-                Drive = targetDrive
+                Drive = targetDrive,
+                OverwriteFileId = overwriteFileId
+            },
+            TransitOptions = new TransitOptions()
+            {
+                UseGlobalTransitId = true
             }
         };
 
