@@ -78,7 +78,7 @@ public class DriveApiClient
 
     public async Task<SharedSecretEncryptedFileHeader> QueryByGlobalTransitFileId(FileSystemType fileSystemType, GlobalTransitIdFileIdentifier file)
     {
-        var batch = await this.QueryBatch(FileSystemType.Standard, new FileQueryParams()
+        var batch = await this.QueryBatch(fileSystemType, new FileQueryParams()
         {
             TargetDrive = file.TargetDrive,
             GlobalTransitId = new List<Guid>() { file.GlobalTransitId }
@@ -88,7 +88,7 @@ public class DriveApiClient
             IncludeMetadataHeader = true
         });
 
-        return batch.SearchResults.FirstOrDefault();
+        return batch.SearchResults.SingleOrDefault();
     }
 
     public async Task<QueryBatchResponse> QueryBatch(FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptionsRequest resultOptions = null)
@@ -145,7 +145,6 @@ public class DriveApiClient
         {
             var instructionStream = new MemoryStream(DotYouSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
-            // fileMetadata.AppData.JsonContent = keyHeader.EncryptDataAes(fileMetadata.AppData.JsonContent.ToUtf8ByteArray()).ToBase64();
             fileMetadata.PayloadIsEncrypted = false;
 
             var descriptor = new UploadFileDescriptor()
@@ -187,7 +186,8 @@ public class DriveApiClient
         }
     }
 
-    public async Task<UploadResult> UploadEncryptedFile(FileSystemType fileSystemType, TargetDrive targetDrive, UploadFileMetadata fileMetadata,
+    public async Task<(UploadResult uploadResult, string encryptedJsonContent64)> UploadEncryptedFile(FileSystemType fileSystemType, TargetDrive targetDrive,
+        UploadFileMetadata fileMetadata,
         string payloadData = "",
         ImageDataContent thumbnail = null,
         Guid? overwriteFileId = null)
@@ -213,7 +213,8 @@ public class DriveApiClient
         {
             var instructionStream = new MemoryStream(DotYouSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
-            fileMetadata.AppData.JsonContent = keyHeader.EncryptDataAes(fileMetadata.AppData.JsonContent.ToUtf8ByteArray()).ToBase64();
+            var encryptedJsonContent64 = keyHeader.EncryptDataAes(fileMetadata.AppData.JsonContent.ToUtf8ByteArray()).ToBase64();
+            fileMetadata.AppData.JsonContent = encryptedJsonContent64;
             fileMetadata.PayloadIsEncrypted = true;
 
             var descriptor = new UploadFileDescriptor()
@@ -224,7 +225,13 @@ public class DriveApiClient
 
             var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
 
-            var encryptedPayloadBytes = keyHeader.EncryptDataAes(payloadData.ToUtf8ByteArray());
+            //expect a payload if the caller says there should be one
+            byte[] encryptedPayloadBytes = Array.Empty<byte>();
+            if (fileMetadata.AppData.ContentIsComplete == false)
+            {
+                encryptedPayloadBytes = keyHeader.EncryptDataAes(payloadData.ToUtf8ByteArray());
+            }
+
             List<StreamPart> parts = new()
             {
                 new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
@@ -251,7 +258,7 @@ public class DriveApiClient
 
             keyHeader.AesKey.Wipe();
 
-            return uploadResult;
+            return (uploadResult, encryptedJsonContent64);
         }
     }
 

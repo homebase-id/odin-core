@@ -273,32 +273,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Routing
             return (uploadResult, encryptedJsonContent64);
         }
 
-        private async Task<UploadResult> UploadComment(OwnerApiClient client, TargetDrive targetDrive, GlobalTransitIdFileIdentifier referencedFile,
-            string commentContent, bool allowDistribution)
-        {
-            var fileMetadata = new UploadFileMetadata()
-            {
-                AllowDistribution = allowDistribution,
-                ContentType = "application/json",
-                PayloadIsEncrypted = false,
-
-                //indicates the file about which this file is giving feed back
-                ReferencedFile = referencedFile,
-
-                AppData = new()
-                {
-                    ContentIsComplete = true,
-                    JsonContent = commentContent,
-                    FileType = default,
-                    GroupId = default,
-                    Tags = default
-                },
-                AccessControlList = AccessControlList.OwnerOnly
-            };
-
-            return await client.Drive.UploadFile(FileSystemType.Comment, targetDrive, fileMetadata);
-        }
-
         private async Task<TargetDrive> PrepareScenario(
             OwnerApiClient senderOwnerClient,
             OwnerApiClient recipientOwnerClient,

@@ -64,7 +64,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
                 if (null == referencedFs)
                 {
                     //TODO file does not exist or some other issue - need clarity on what is happening here
-                    throw new YouverseRemoteIdentityException("Referenced file missing");
+                    throw new YouverseRemoteIdentityException("Referenced file missing or caller does not have access");
                 }
 
                 //

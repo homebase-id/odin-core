@@ -187,9 +187,13 @@ namespace Youverse.Core.Services.Base
             {
                 var group = _permissionGroups[key];
                 storageKey = group.GetDriveStorageKey(driveId);
+                if (storageKey != null)
+                {
+                    return true;
+                }
             }
 
-            return storageKey != null;
+            return false;
         }
 
         public RedactedPermissionContext Redacted()
