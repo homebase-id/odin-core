@@ -61,7 +61,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Routing
             var senderOwnerClient = _scaffold.CreateOwnerApiClient(sender);
             var recipientOwnerClient = _scaffold.CreateOwnerApiClient(recipient);
 
-            const DrivePermission drivePermissions = DrivePermission.ReadWrite;
+            const DrivePermission drivePermissions = DrivePermission.Read | DrivePermission.WriteReactionsAndComments;
             const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
             const bool standardFileIsEncrypted = false;
 
@@ -145,7 +145,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Routing
             var senderOwnerClient = _scaffold.CreateOwnerApiClient(sender);
             var recipientOwnerClient = _scaffold.CreateOwnerApiClient(recipient);
 
-            const DrivePermission drivePermissions = DrivePermission.ReadWrite;
+            const DrivePermission drivePermissions = DrivePermission.Read | DrivePermission.WriteReactionsAndComments;
             const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
             const bool standardFileIsEncrypted = true;
 
@@ -284,7 +284,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Routing
             var senderOwnerClient = _scaffold.CreateOwnerApiClient(sender);
             var recipientOwnerClient = _scaffold.CreateOwnerApiClient(recipient);
 
-            const DrivePermission drivePermissions = DrivePermission.ReadWrite;
+            const DrivePermission drivePermissions = DrivePermission.Read | DrivePermission.WriteReactionsAndComments;
             const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
             const bool standardFileIsEncrypted = true;
 
@@ -336,7 +336,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Routing
             var senderOwnerClient = _scaffold.CreateOwnerApiClient(sender);
             var recipientOwnerClient = _scaffold.CreateOwnerApiClient(recipient);
 
-            const DrivePermission drivePermissions = DrivePermission.ReadWrite;
+            const DrivePermission drivePermissions = DrivePermission.Read | DrivePermission.WriteReactionsAndComments;
             const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
             const bool standardFileIsEncrypted = true;
 
@@ -396,7 +396,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Routing
             var senderOwnerClient = _scaffold.CreateOwnerApiClient(sender);
             var recipientOwnerClient = _scaffold.CreateOwnerApiClient(recipient);
 
-            const DrivePermission drivePermissions = DrivePermission.ReadWrite;
+            const DrivePermission drivePermissions = DrivePermission.Read | DrivePermission.WriteReactionsAndComments;
             const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
             const bool standardFileIsEncrypted = false;
 
@@ -485,7 +485,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Routing
 
             Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
             Assert.IsTrue(recipientStatus == TransferStatus.RecipientReturnedAccessDenied,
-                $"Should have been delivered, actual status was {recipientStatus}");
+                $"Should have been RecipientReturnedAccessDenied, actual status was {recipientStatus}");
 
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }

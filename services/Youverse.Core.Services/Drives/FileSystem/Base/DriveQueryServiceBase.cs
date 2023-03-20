@@ -57,7 +57,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
 
         public async Task<QueryBatchResult> GetBatch(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options, bool forceIncludeServerMetadata = false)
         {
-            AssertCanReadDrive(driveId);
+            // AssertCanReadDrive(driveId);
 
             if (TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
@@ -139,7 +139,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
 
         public async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId, bool forceIncludeServerMetadata = false)
         {
-            AssertCanReadDrive(driveId);
+            // AssertCanReadDrive(driveId);
             var qp = new FileQueryParams()
             {
                 GlobalTransitId = new List<Guid>() { globalTransitId }

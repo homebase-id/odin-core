@@ -165,15 +165,9 @@ namespace Youverse.Core.Services.Base
         /// <returns></returns>
         public SensitiveByteArray GetDriveStorageKey(Guid driveId)
         {
-            foreach (var key in _permissionGroups.Keys)
+            if (TryGetDriveStorageKey(driveId, out var storageKey))
             {
-                var group = _permissionGroups[key];
-                var storageKey = group.GetDriveStorageKey(driveId);
-                if (storageKey != null)
-                {
-                    //TODO: log key as source of permission.
-                    return storageKey;
-                }
+                return storageKey;
             }
 
             //TODO: this sort of security check feels like it should be in a service..
@@ -187,7 +181,9 @@ namespace Youverse.Core.Services.Base
             {
                 var group = _permissionGroups[key];
                 storageKey = group.GetDriveStorageKey(driveId);
-                if (storageKey != null)
+                var value = storageKey?.GetKey() ?? Array.Empty<byte>();
+                // if (storageKey?.IsSet() ?? false)
+                if (value.Length > 0)
                 {
                     return true;
                 }

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Dawn;
 using MediatR;
 using Youverse.Core.Cryptography.Data;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
@@ -348,14 +349,21 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
             {
                 // Next determine if we can direct write the file
                 var hasStorageKey = _contextAccessor.GetCurrent().PermissionsContext.TryGetDriveStorageKey(stateItem.TempFile.DriveId, out var _);
-
+                
                 //S1200
                 if (hasStorageKey)
                 {
                     //S1205
                     await writer.HandleFile(stateItem.TempFile, _fileSystem, decryptedKeyHeader, sender,
-                        stateItem.TransferInstructionSet.FileSystemType, stateItem.TransferInstructionSet.TransferFileType);
+                        stateItem.TransferInstructionSet.FileSystemType, 
+                        stateItem.TransferInstructionSet.TransferFileType);
                     return true;
+                }
+
+                //S2210 - comments cannot fall back to inbox
+                if (stateItem.TransferInstructionSet.FileSystemType == FileSystemType.Comment)
+                {
+                    throw new YouverseSecurityException("Sender cannot write the comment");
                 }
             }
 
