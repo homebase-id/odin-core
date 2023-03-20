@@ -13,11 +13,12 @@ using Youverse.Core.Services.Drives.DriveCore.Storage;
 using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.ReceivingHost.Incoming;
-using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Transit.ReceivingHost
 {
+    //TODO: this should be split into a file writer for comments and a file writer for standard files.
+    
     /// <summary>
     /// Handles the process of writing a file from temp storage to long-term storage
     /// </summary>
@@ -33,11 +34,13 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
             _fileSystemResolver = fileSystemResolver;
         }
 
-        public async Task HandleFile(InternalDriveFileId tempFile, IDriveFileSystem fs, KeyHeader decryptedKeyHeader, OdinId sender,
+        public async Task HandleFile(InternalDriveFileId tempFile, 
+            IDriveFileSystem fs, 
+            KeyHeader decryptedKeyHeader,
+            OdinId sender,
             FileSystemType fileSystemType,
             TransferFileType transferFileType)
         {
-            //TODO: this deserialization would be better in the drive service under the name GetTempMetadata or something
             var metadataStream = await fs.Storage.GetTempStreamForWriting(tempFile, MultipartHostTransferParts.Metadata.ToString().ToLower());
             var json = await new StreamReader(metadataStream).ReadToEndAsync();
             metadataStream.Close();
@@ -81,10 +84,13 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
                     throw new YouverseRemoteIdentityException("Referenced file missing or caller does not have access");
                 }
 
-                //TODO: check that the incoming file matches the encryption of the referenced file
-                // if(referencedFile.FileMetadata.PayloadIsEncrypted)
 
-
+                //S2040
+                if (referencedFile.FileMetadata.PayloadIsEncrypted != metadata.PayloadIsEncrypted)
+                {
+                    throw new YouverseRemoteIdentityException("Referenced file missing or caller does not have access");
+                }
+                
                 targetAcl = referencedFile.ServerMetadata.AccessControlList;
             }
 

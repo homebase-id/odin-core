@@ -90,7 +90,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Routing
                 encrypted: commentIsEncrypted, recipient);
 
             Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.DeliveredToTargetDrive, $"Should have been delivered, actual status was {recipientStatus}");
+            Assert.IsTrue(recipientStatus == TransferStatus.DeliveredToTargetDrive,
+                $"Should have been DeliveredToTargetDrive, actual status was {recipientStatus}");
 
             //
             // Test results
@@ -174,7 +175,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Routing
                 encrypted: commentIsEncrypted, recipient);
 
             Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.DeliveredToTargetDrive, $"Should have been delivered, actual status was {recipientStatus}");
+            Assert.IsTrue(recipientStatus == TransferStatus.DeliveredToTargetDrive,
+                $"Should have been DeliveredToTargetDrive, actual status was {recipientStatus}");
 
             //
             // Test results
@@ -256,70 +258,183 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Routing
                 encrypted: commentIsEncrypted, recipient);
 
             Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
-            Assert.IsTrue(recipientStatus == TransferStatus.RecipientReturnedAccessDenied, $"Should have been delivered, actual status was {recipientStatus}");
+            Assert.IsTrue(recipientStatus == TransferStatus.RecipientReturnedAccessDenied,
+                $"Should have been RecipientReturnedAccessDenied, actual status was {recipientStatus}");
 
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
 
         [Test]
-        public void FailsWhenSenderSpecifiesInvalidReferencedFile_S2030()
+        public async Task FailsWhenSenderSpecifiesInvalidReferencedFile_S2030()
         {
-            Assert.Inconclusive("work in progress");
-
             /*
              Fails when sender provides invalid  global transit id
                 Upload standard file - encrypted = true
                 Upload comment file - encrypted = true
-                Sender does not have write access (S2000)
-                Sender has storage Key
+                Sender has write access (S2000)
+                Sender has storage Key (read access)
                 Invalid ReferencedFile (global transit id)
                 Should fail
                 throws Bad Request - S2030
              */
+
+            var sender = TestIdentities.Frodo;
+            var recipient = TestIdentities.Samwise;
+
+            var senderOwnerClient = _scaffold.CreateOwnerApiClient(sender);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClient(recipient);
+
+            const DrivePermission drivePermissions = DrivePermission.ReadWrite;
+            const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
+            const bool standardFileIsEncrypted = true;
+
+            const string commentFileContent = "Srsly!?? =O";
+            const bool commentIsEncrypted = true;
+
+            var targetDrive = await this.PrepareScenario(senderOwnerClient, recipientOwnerClient, drivePermissions);
+
+            var (standardFileUploadResult, encryptedJsonContent64) =
+                await UploadStandardFile(recipientOwnerClient, targetDrive, standardFileContent, standardFileIsEncrypted);
+
+            var invalidReferencedFile = new GlobalTransitIdFileIdentifier()
+            {
+                GlobalTransitId = Guid.NewGuid(),
+                TargetDrive = targetDrive
+            };
+
+            //sender replies with a comment
+            var (commentUploadResult, _) = await this.TransferComment(senderOwnerClient,
+                invalidReferencedFile,
+                uploadedContent: commentFileContent,
+                encrypted: commentIsEncrypted, recipient);
+
+            Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
+            Assert.IsTrue(recipientStatus == TransferStatus.TotalRejectionClientShouldRetry,
+                $"Should have been delivered, actual status was {recipientStatus}");
+
+            await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
 
         [Test]
-        public void FailsWhenEncryptionDoesNotMatchCommentAndReferencedFile_S2100_Test1()
+        public async Task FailsWhenEncryptionDoesNotMatchCommentAndReferencedFile_S2100_Test1()
         {
-            Assert.Inconclusive("work in progress");
-
             /*
              Fails when encryption do not match between from a comment to its ReferencedFile
                 Test 1
                 Upload standard file - encrypted = true
                 Upload comment file - encrypted = false
-                Sender does not have write access (S2000)
+                Sender has write access (S2000)
                 Sender has storage Key
                 Valid ReferencedFile (global transit id)
                 Should fail
                 Bad Request (S2100)
              */
+
+            var sender = TestIdentities.Frodo;
+            var recipient = TestIdentities.Samwise;
+
+            var senderOwnerClient = _scaffold.CreateOwnerApiClient(sender);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClient(recipient);
+
+            const DrivePermission drivePermissions = DrivePermission.ReadWrite;
+            const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
+            const bool standardFileIsEncrypted = true;
+
+            const string commentFileContent = "Srsly!?? =O";
+            const bool commentIsEncrypted = false;
+
+            
+            var targetDrive = await this.PrepareScenario(senderOwnerClient, recipientOwnerClient, drivePermissions);
+
+            var (standardFileUploadResult, encryptedJsonContent64) =
+                await UploadStandardFile(recipientOwnerClient, targetDrive, standardFileContent, standardFileIsEncrypted);
+
+            //
+            // Assert that the recipient server has the file by global transit id
+            //
+            var recipientFileByGlobalTransitId = await recipientOwnerClient.Drive.QueryByGlobalTransitFileId(
+                FileSystemType.Standard,
+                standardFileUploadResult.GlobalTransitIdFileIdentifier);
+
+            Assert.IsNotNull(recipientFileByGlobalTransitId);
+            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.JsonContent == encryptedJsonContent64);
+            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.PayloadIsEncrypted == standardFileIsEncrypted);
+
+            //sender replies with a comment
+            var (commentUploadResult, encryptedCommentJsonContent64) = await this.TransferComment(senderOwnerClient,
+                standardFileUploadResult.GlobalTransitIdFileIdentifier,
+                uploadedContent: commentFileContent,
+                encrypted: commentIsEncrypted, recipient);
+            
+            
+            Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
+            Assert.IsTrue(recipientStatus == TransferStatus.TotalRejectionClientShouldRetry,
+                $"Should have been delivered, actual status was {recipientStatus}");
+
+            await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
 
         [Test]
-        public void FailsWhenEncryptionDoesNotMatchCommentAndReferencedFile_S2100_Test2()
+        public async Task FailsWhenEncryptionDoesNotMatchCommentAndReferencedFile_S2100_Test2()
         {
-            Assert.Inconclusive("work in progress");
-
             /*
               Fails when encryption do not match between from a comment to its ReferencedFile
 
                 Test 2
                 Upload standard file - encrypted = false
                 Upload comment file - encrypted = true
-                Sender does not have write access (S2000)
+                Sender does has write access (S2000)
                 Sender has storage Key
                 Valid ReferencedFile (global transit id)
                 Should fail
                 Bad Request (S2100)
              */
+            
+            var sender = TestIdentities.Frodo;
+            var recipient = TestIdentities.Samwise;
+
+            var senderOwnerClient = _scaffold.CreateOwnerApiClient(sender);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClient(recipient);
+
+            const DrivePermission drivePermissions = DrivePermission.ReadWrite;
+            const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
+            const bool standardFileIsEncrypted = false;
+
+            const string commentFileContent = "Srsly!?? =O";
+            const bool commentIsEncrypted = true;
+
+            var targetDrive = await this.PrepareScenario(senderOwnerClient, recipientOwnerClient, drivePermissions);
+
+            var (standardFileUploadResult, encryptedJsonContent64) =
+                await UploadStandardFile(recipientOwnerClient, targetDrive, standardFileContent, standardFileIsEncrypted);
+
+            //
+            // Assert that the recipient server has the file by global transit id
+            //
+            var recipientFileByGlobalTransitId = await recipientOwnerClient.Drive.QueryByGlobalTransitFileId(
+                FileSystemType.Standard,
+                standardFileUploadResult.GlobalTransitIdFileIdentifier);
+
+            Assert.IsNotNull(recipientFileByGlobalTransitId);
+            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.JsonContent == standardFileContent);
+            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.PayloadIsEncrypted == standardFileIsEncrypted);
+
+            //sender replies with a comment
+            var (commentUploadResult, encryptedCommentJsonContent64) = await this.TransferComment(senderOwnerClient,
+                standardFileUploadResult.GlobalTransitIdFileIdentifier,
+                uploadedContent: commentFileContent,
+                encrypted: commentIsEncrypted, recipient);
+
+            Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
+            Assert.IsTrue(recipientStatus == TransferStatus.TotalRejectionClientShouldRetry,
+                $"Should have been delivered, actual status was {recipientStatus}");
+
+            await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
 
         [Test]
-        public void FailsWhenCommentFileIsEncryptedAndSenderHasNoDriveStorageKeyOnRecipientServer_S2210()
+        public async Task FailsWhenCommentFileIsEncryptedAndSenderHasNoDriveStorageKeyOnRecipientServer_S2210()
         {
-            Assert.Inconclusive("work in progress");
-
             /*
              Fails when file is encrypted and there is no drive storage key
                 Comment:
@@ -330,8 +445,49 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Routing
                 Sender does not have storage Key
                 Valid ReferencedFile (global transit id)
                 Should fail
-                403 (question outstanding, why not go to inbox
+                403
              */
+            
+            var sender = TestIdentities.Frodo;
+            var recipient = TestIdentities.Samwise;
+
+            var senderOwnerClient = _scaffold.CreateOwnerApiClient(sender);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClient(recipient);
+
+            const DrivePermission drivePermissions = DrivePermission.WriteReactionsAndComments;
+            const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
+            const bool standardFileIsEncrypted = true;
+
+            const string commentFileContent = "Srsly!?? =O";
+            const bool commentIsEncrypted = true;
+
+            var targetDrive = await this.PrepareScenario(senderOwnerClient, recipientOwnerClient, drivePermissions);
+
+            var (standardFileUploadResult, encryptedJsonContent64) =
+                await UploadStandardFile(recipientOwnerClient, targetDrive, standardFileContent, standardFileIsEncrypted);
+
+            //
+            // Assert that the recipient server has the file by global transit id
+            //
+            var recipientFileByGlobalTransitId = await recipientOwnerClient.Drive.QueryByGlobalTransitFileId(
+                FileSystemType.Standard,
+                standardFileUploadResult.GlobalTransitIdFileIdentifier);
+
+            Assert.IsNotNull(recipientFileByGlobalTransitId);
+            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.JsonContent == encryptedJsonContent64);
+            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.PayloadIsEncrypted == standardFileIsEncrypted);
+
+            //sender replies with a comment
+            var (commentUploadResult, encryptedCommentJsonContent64) = await this.TransferComment(senderOwnerClient,
+                standardFileUploadResult.GlobalTransitIdFileIdentifier,
+                uploadedContent: commentFileContent,
+                encrypted: commentIsEncrypted, recipient);
+
+            Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
+            Assert.IsTrue(recipientStatus == TransferStatus.RecipientReturnedAccessDenied,
+                $"Should have been delivered, actual status was {recipientStatus}");
+
+            await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
 
         //
