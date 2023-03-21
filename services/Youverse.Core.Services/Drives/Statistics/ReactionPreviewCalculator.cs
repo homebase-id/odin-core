@@ -34,7 +34,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
         //TODO: handle encrypted content?
 
         var updatedFileHeader = notification.ServerFileHeader;
-        if (updatedFileHeader.FileMetadata?.ReferencedFile == null)
+        if (updatedFileHeader?.FileMetadata?.ReferencedFile == null)
         {
             return;
         }

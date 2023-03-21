@@ -88,7 +88,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
                 //S2040
                 if (referencedFile.FileMetadata.PayloadIsEncrypted != metadata.PayloadIsEncrypted)
                 {
-                    throw new YouverseRemoteIdentityException("Referenced file missing or caller does not have access");
+                    throw new YouverseRemoteIdentityException("Referenced filed and metadata payload encryption do not match");
                 }
                 
                 targetAcl = referencedFile.ServerMetadata.AccessControlList;

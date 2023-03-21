@@ -773,7 +773,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                     Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.RecipientReturnedAccessDenied, $"transfer key not created for {r}");
                 }
             }
-
         }
 
         [Test]
@@ -871,7 +870,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                         ContentIsComplete = false,
                         JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
-                    PayloadIsEncrypted = true,
+                    PayloadIsEncrypted = false,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
@@ -879,7 +878,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
             var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref key);
 
             var payloadData = "{payload:true, image:'b64 data'}";
-            var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadData);
 
             //
             // upload and send the file 
@@ -890,7 +888,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+                    new StreamPart(new MemoryStream(payloadData.ToUtf8ByteArray()), "payload.encrypted", "application/x-binary",
+                        Enum.GetName(MultipartUploadParts.Payload)));
 
                 Assert.That(response.IsSuccessStatusCode, Is.True);
                 Assert.That(response.Content, Is.Not.Null);
@@ -967,16 +966,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
-                Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.Null);
-                Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv.Length, Is.GreaterThanOrEqualTo(16));
-                Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.EqualTo(Guid.Empty.ToByteArray()), "Iv was all zeros");
-                Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
-
-                var ss = recipientContext.SharedSecret.ToSensitiveByteArray();
-                var decryptedKeyHeader = clientFileHeader.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ss);
-
-                Assert.That(decryptedKeyHeader.AesKey.IsSet(), Is.True);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(decryptedKeyHeader.AesKey.GetKey(), keyHeader.AesKey.GetKey()));
 
                 //
                 // Get the payload that was uploaded, test it
@@ -986,21 +975,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 
-                var payloadResponseCipher = await payloadResponse.Content.ReadAsByteArrayAsync();
-                Assert.That(((MemoryStream)payloadCipher).ToArray(), Is.EqualTo(payloadResponseCipher));
-
-                var aesKey = decryptedKeyHeader.AesKey;
-                var decryptedPayloadBytes = Core.Cryptography.Crypto.AesCbc.Decrypt(
-                    cipherText: payloadResponseCipher,
-                    Key: ref aesKey,
-                    IV: decryptedKeyHeader.Iv);
-
                 var payloadBytes = System.Text.Encoding.UTF8.GetBytes(payloadData);
-                Assert.That(payloadBytes, Is.EqualTo(decryptedPayloadBytes));
+                Assert.That(payloadBytes, Is.EqualTo(await payloadResponse.Content.ReadAsByteArrayAsync()));
 
-                // var decryptedPayloadRaw = System.Text.Encoding.UTF8.GetString(decryptedPayloadBytes);
-
-                decryptedKeyHeader.AesKey.Wipe();
                 keyHeader.AesKey.Wipe();
             }
 
@@ -1129,7 +1106,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
 
             var key = senderContext.SharedSecret.ToSensitiveByteArray();
             var json = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" });
-            var encryptedJsonContent64 = keyHeader.EncryptDataAesAsStream(json).ToByteArray().ToBase64();
+            // var encryptedJsonContent64 = keyHeader.EncryptDataAesAsStream(json).ToByteArray().ToBase64();
 
             var thumbnail1 = new ImageDataHeader()
             {
@@ -1152,10 +1129,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                     {
                         Tags = new List<Guid>() { fileTag },
                         ContentIsComplete = false,
-                        JsonContent = encryptedJsonContent64,
+                        JsonContent = json,
                         AdditionalThumbnails = new[] { thumbnail1 }
                     },
-                    PayloadIsEncrypted = true,
+                    PayloadIsEncrypted = false,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
@@ -1163,7 +1140,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
             var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref key);
 
             var originalPayloadData = "{payload:true, image:'b64 data'}";
-            var originalPayloadCipherBytes = keyHeader.EncryptDataAesAsStream(originalPayloadData);
 
             //
             // upload and send the file 
@@ -1174,7 +1150,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(originalPayloadCipherBytes, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
+                    new StreamPart(new MemoryStream(originalPayloadData.ToUtf8ByteArray()), "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
                     new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType,
                         Enum.GetName(MultipartUploadParts.Thumbnail)));
 
@@ -1252,17 +1228,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
-                Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.Null);
-                Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv.Length, Is.GreaterThanOrEqualTo(16));
-                Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.EqualTo(Guid.Empty.ToByteArray()), "Iv was all zeros");
-                Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
-
-                var ss = recipientContext.SharedSecret.ToSensitiveByteArray();
-                var decryptedKeyHeader = clientFileHeader.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ss);
-
-                Assert.That(decryptedKeyHeader.AesKey.IsSet(), Is.True);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(decryptedKeyHeader.AesKey.GetKey(), keyHeader.AesKey.GetKey()));
-
+                
                 //
                 // Get the payload that was uploaded, test it
                 // 
@@ -1271,19 +1237,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 
-                var payloadResponseCipher = await payloadResponse.Content.ReadAsByteArrayAsync();
-                Assert.That(((MemoryStream)originalPayloadCipherBytes).ToArray(), Is.EqualTo(payloadResponseCipher));
-
-                var aesKey = decryptedKeyHeader.AesKey;
-                var decryptedPayloadBytes = Core.Cryptography.Crypto.AesCbc.Decrypt(
-                    cipherText: payloadResponseCipher,
-                    Key: ref aesKey,
-                    IV: decryptedKeyHeader.Iv);
-
-                var payloadBytes = System.Text.Encoding.UTF8.GetBytes(originalPayloadData);
-                Assert.That(payloadBytes, Is.EqualTo(decryptedPayloadBytes));
-
-                // var decryptedPayloadRaw = System.Text.Encoding.UTF8.GetString(decryptedPayloadBytes);
+                Assert.That(originalPayloadData.ToUtf8ByteArray(), Is.EqualTo(await payloadResponse.Content.ReadAsByteArrayAsync()));
 
                 var getThumbnailResponse = await driveSvc.GetThumbnailAsPost(new GetThumbnailRequest()
                 {
@@ -1296,7 +1250,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 var getThumbnailResponseBytes = await getThumbnailResponse.Content!.ReadAsByteArrayAsync();
                 Assert.IsNotNull(thumbnail1CipherBytes.Length == getThumbnailResponseBytes.Length);
 
-                decryptedKeyHeader.AesKey.Wipe();
                 // keyHeader.AesKey.Wipe();
             }
 
@@ -1714,21 +1667,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 foreach (var r in instructionSet.TransitOptions.Recipients)
                 {
                     Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
-                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.DeliveredToInbox, $"message should have been delivered to {r}");
+                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.TotalRejectionClientShouldRetry,
+                        $"message should have been delivered to {r}");
                 }
-            }
-
-            //
-            // Force transfers to be put into their long term location
-            //
-            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(recipientContext, FileSystemType.Comment))
-            {
-                var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);
-                var resp = await transitAppSvc.ProcessIncomingInstructions(
-                    new ProcessTransitInstructionRequest() { TargetDrive = recipientContext.TargetDrive });
-
-                //Note: this will fail because the reference file is missing but there's no way to recover
-                Assert.IsFalse(resp.IsSuccessStatusCode, resp.ReasonPhrase);
             }
 
             keyHeader.AesKey.Wipe();

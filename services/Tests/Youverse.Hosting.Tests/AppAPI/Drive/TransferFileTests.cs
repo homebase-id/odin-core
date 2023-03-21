@@ -437,7 +437,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 foreach (var r in instructionSet.TransitOptions.Recipients)
                 {
                     Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
-                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.DeliveredToInbox, $"file was not delivered to {r}");
+                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.DeliveredToTargetDrive, $"file was not delivered to {r}");
                 }
             }
 
