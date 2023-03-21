@@ -142,7 +142,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
 
         private async Task<TransitResponseCode> CompleteTransfer(IncomingTransferStateItem stateItem, FileMetadata fileMetadata)
         {
-            //S1000, S2000 - can the sender write the content to the target drive?
+            //S0001, S1000, S2000 - can the sender write the content to the target drive?
             _fileSystem.Storage.AssertCanWriteToDrive(stateItem.TempFile.DriveId);
 
             var directWriteSuccess = await TryDirectWriteFile(stateItem, fileMetadata);
