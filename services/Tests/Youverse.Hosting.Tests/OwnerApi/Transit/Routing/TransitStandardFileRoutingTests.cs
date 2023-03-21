@@ -20,6 +20,7 @@ using Youverse.Hosting.Tests.OwnerApi.ApiClient;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Transit.Routing
 {
+    /// https://github.com/YouFoundation/stories-and-architecture-docs/blob/master/concepts/transit/transit_routing.md
     public class TransitStandardFileRoutingTests
     {
         private WebScaffold _scaffold;
