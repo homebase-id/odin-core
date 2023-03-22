@@ -16,8 +16,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
     /// <summary />
     [ApiController]
     [Route(AppApiPathConstants.DrivesV1)]
-    [Route(YouAuthApiPathConstants.DrivesV1)]
-    [AuthorizeValidExchangeGrant]
+    [AuthorizeValidAppExchangeGrant]
     public class CommentStorageWriteController : DriveUploadControllerBase
     {
         private readonly IAppService _appService;
