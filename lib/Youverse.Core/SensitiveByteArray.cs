@@ -55,6 +55,8 @@ namespace Youverse.Core
         {
             if (_key != null)
                 throw new Exception("Can't set a key which is already set");
+            if (_key.Length < 1)
+                throw new Exception("Can't set an empty key");
             _key = data;
         }
 
