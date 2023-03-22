@@ -78,7 +78,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 Assert.IsNotNull(createdDrivesResponse.Content);
 
                 var createdDrives = createdDrivesResponse.Content;
-                Assert.IsTrue(createdDrives.Results.Count == 5);
+                Assert.IsTrue(createdDrives.Results.Count == 6);
 
                 Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.ContactDrive), $"expected drive [{SystemDriveConstants.ContactDrive}] not found");
                 Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.ProfileDrive), $"expected drive [{SystemDriveConstants.ProfileDrive}] not found");
@@ -180,6 +180,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
                     SystemDriveConstants.WalletDrive,
                     SystemDriveConstants.ChatDrive,
                     SystemDriveConstants.FeedDrive,
+                    SystemDriveConstants.TransientTempDrive,
                     newDrive.TargetDrive
                 };
 

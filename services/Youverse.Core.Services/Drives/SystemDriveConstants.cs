@@ -9,6 +9,12 @@ public static class SystemDriveConstants
 {
     public static readonly GuidId ChannelDriveType = GuidId.FromString("channel");
     
+    public static TargetDrive TransientTempDrive = new()
+    {
+        Alias = GuidId.FromString("transit_temp_drive"),
+        Type = GuidId.FromString("transit_temp_drive")
+    };
+
     public static readonly TargetDrive ContactDrive = new()
     {
         Alias = GuidId.FromString("built_in_contacts_drive"),
@@ -37,6 +43,16 @@ public static class SystemDriveConstants
     {
         Alias = GuidId.FromString("builtin_feed_drive"),
         Type = GuidId.FromString("feed_drive")
+    };
+    
+    
+    public static readonly CreateDriveRequest CreateTransientTempDriveRequest = new()
+    {
+        Name = "Transient temp drive",
+        AllowAnonymousReads = false,
+        Metadata = "",
+        TargetDrive = TransientTempDrive,
+        OwnerOnly = false
     };
     
     public static readonly CreateDriveRequest CreateFeedDriveRequest = new()
@@ -83,4 +99,5 @@ public static class SystemDriveConstants
         TargetDrive = ChatDrive,
         OwnerOnly = false //TODO: this needs to be set to true but is waiting on decision for how to auto-provision it.  I set it to false so it could be added to the system circle
     };
+
 }

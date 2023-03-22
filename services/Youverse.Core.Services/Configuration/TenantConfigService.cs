@@ -73,7 +73,9 @@ public class TenantConfigService
         await CreateDriveIfNotExists(SystemDriveConstants.CreateProfileDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateWalletDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateFeedDriveRequest);
-
+        
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateTransientTempDriveRequest);
+        
         foreach (var rd in request.Drives ?? new List<CreateDriveRequest>())
         {
             await CreateDriveIfNotExists(rd);
