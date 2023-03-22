@@ -1,6 +1,7 @@
 ﻿using System.IO;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Quartz.Util;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
@@ -94,7 +95,10 @@ namespace Youverse.Hosting.Controllers.Base
         {
             if (DotYouContext.Caller.SecurityLevel != SecurityGroupType.Anonymous)
             {
-                HttpContext.Response.Headers.Add("Access-Control-Allow-Origin", DotYouContext.GetCallerOdinIdOrFail().DomainName);
+                if (HttpContext.Response.Headers["Access-Control-Allow-Origin"].ToString().IsNullOrWhiteSpace())
+                {
+                    HttpContext.Response.Headers.Add("Access-Control-Allow-Origin", DotYouContext.GetCallerOdinIdOrFail().DomainName);
+                }
             }
         }
     }

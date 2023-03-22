@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Quartz.Util;
 using Serilog;
 using Youverse.Core;
 using Youverse.Core.Exceptions;
@@ -174,7 +175,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
                 securityLevel: SecurityGroupType.Anonymous,
                 masterKey: null
             );
-            
+
             dotYouContext.SetPermissionContext(
                 new PermissionContext(
                     permissionGroupMap,
@@ -214,6 +215,10 @@ namespace Youverse.Hosting.Authentication.ClientToken
         private bool TryGetClientAuthToken(string cookieName, out ClientAuthenticationToken clientAuthToken)
         {
             var clientAccessTokenValue64 = Context.Request.Cookies[cookieName];
+            if (clientAccessTokenValue64.IsNullOrWhiteSpace())
+            {
+                clientAccessTokenValue64 = Context.Request.Headers[cookieName];
+            }
             return ClientAuthenticationToken.TryParse(clientAccessTokenValue64, out clientAuthToken);
         }
     }
