@@ -215,8 +215,7 @@ namespace Youverse.Hosting
 
             app.MapWhen(IsProvisioningSite, app => Provisioning.Map(app, env, logger));
             app.MapWhen(IsPathUsedForCertificateCreation, app => Certificate.Map(app, env, logger));
-
-            app.UseOptions();
+            
             app.UseLoggingMiddleware();
             app.UseMiddleware<ExceptionHandlingMiddleware>();
             app.UseMultiTenancy();
@@ -231,6 +230,7 @@ namespace Youverse.Hosting
 
             app.UseMiddleware<DotYouContextMiddleware>();
             app.UseResponseCompression();
+            app.UseAppCors();
             app.UseMiddleware<SharedSecretEncryptionMiddleware>();
             app.UseMiddleware<StaticFileCachingMiddleware>();
             app.UseHttpsRedirection();

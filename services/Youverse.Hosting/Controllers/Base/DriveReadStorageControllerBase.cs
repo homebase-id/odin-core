@@ -53,7 +53,6 @@ namespace Youverse.Hosting.Controllers.Base
             HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, header.FileMetadata.ContentType);
             HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader64);
             AddCacheHeader();
-            AddCorsHeader();
             return new FileStreamResult(payload, header.FileMetadata.PayloadIsEncrypted ? "application/octet-stream" : header.FileMetadata.ContentType);
         }
 
@@ -78,7 +77,6 @@ namespace Youverse.Hosting.Controllers.Base
             HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, header.FileMetadata.ContentType);
             HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader64);
 
-            AddCorsHeader();
             AddCacheHeader();
             return new FileStreamResult(payload, header.FileMetadata.PayloadIsEncrypted ? "application/octet-stream" : header.FileMetadata.ContentType);
         }
@@ -88,17 +86,6 @@ namespace Youverse.Hosting.Controllers.Base
             if (DotYouContext.AuthContext == ClientTokenConstants.YouAuthScheme)
             {
                 this.Response.Headers.Add("Cache-Control", "max-age=3600");
-            }
-        }
-
-        private void AddCorsHeader()
-        {
-            if (DotYouContext.Caller.SecurityLevel != SecurityGroupType.Anonymous)
-            {
-                if (HttpContext.Response.Headers["Access-Control-Allow-Origin"].ToString().IsNullOrWhiteSpace())
-                {
-                    HttpContext.Response.Headers.Add("Access-Control-Allow-Origin", DotYouContext.GetCallerOdinIdOrFail().DomainName);
-                }
             }
         }
     }

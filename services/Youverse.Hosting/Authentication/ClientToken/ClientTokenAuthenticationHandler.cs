@@ -64,7 +64,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
 
         private async Task<AuthenticateResult> HandleAppAuth(DotYouContext dotYouContext)
         {
-            if (!TryGetClientAuthToken(ClientTokenConstants.ClientAuthTokenCookieName, out var authToken))
+            if (!TryGetClientAuthToken(ClientTokenConstants.ClientAuthTokenCookieName, out var authToken, true))
             {
                 AuthenticateResult.Fail("Invalid App Token");
             }
@@ -212,10 +212,10 @@ namespace Youverse.Hosting.Authentication.ClientToken
 
         //
 
-        private bool TryGetClientAuthToken(string cookieName, out ClientAuthenticationToken clientAuthToken)
+        private bool TryGetClientAuthToken(string cookieName, out ClientAuthenticationToken clientAuthToken, bool fallbackToHeader = false)
         {
             var clientAccessTokenValue64 = Context.Request.Cookies[cookieName];
-            if (clientAccessTokenValue64.IsNullOrWhiteSpace())
+            if (clientAccessTokenValue64.IsNullOrWhiteSpace() && fallbackToHeader)
             {
                 clientAccessTokenValue64 = Context.Request.Headers[cookieName];
             }
