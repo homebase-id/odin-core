@@ -26,7 +26,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
             params StreamPart[] additionalStreamParts);
 
         [Post(RootPath + "/deletelinkedfile")]
-        Task<ApiResponse<HostTransitResponse>> DeleteLinkedFile([Body] DeleteLinkedFileTransitRequest request);
+        Task<ApiResponse<HostTransitResponse>> DeleteLinkedFile([Body] DeleteRemoteFileTransitRequest request);
 
         [Post(RootPath + "/querybatch")]
         Task<ApiResponse<QueryBatchResponse>> QueryBatch([Body] QueryBatchRequest request);

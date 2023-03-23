@@ -22,7 +22,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.TransitOnly
     /// <summary>
     /// Tests to send comment files to another identity w/o storing them locally
     /// </summary>
-    public class TransitCommentTests
+    public class TransitSenderTests
     {
         private WebScaffold _scaffold;
 
@@ -42,8 +42,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.TransitOnly
 
 
         [Test]
-        [Ignore("wip")]
-        public async Task CanTransfer_Unencrypted_Comment_WithInvalid_TargetDrive()
+        public async Task CanTransfer_Unencrypted_Comment()
         {
             /*
              Success Test - Comment
@@ -87,13 +86,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.TransitOnly
             Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.JsonContent == standardFileContent);
             Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.PayloadIsEncrypted == standardFileIsEncrypted);
 
-            //sender replies with a comment
-            var (commentUploadResult, _) = await this.TransferComment(senderOwnerClient,
+            // Sender replies with a comment
+            var (commentTransitResult, _) = await this.TransferComment(senderOwnerClient,
                 standardFileUploadResult.GlobalTransitIdFileIdentifier,
                 uploadedContent: commentFileContent,
                 encrypted: commentIsEncrypted, recipient);
 
-            Assert.IsTrue(commentUploadResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
+            Assert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
             Assert.IsTrue(recipientStatus == TransferStatus.DeliveredToTargetDrive,
                 $"Should have been DeliveredToTargetDrive, actual status was {recipientStatus}");
 
@@ -108,8 +107,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.TransitOnly
             // File should be on recipient server and accessible by global transit id
             var qp = new FileQueryParams()
             {
-                TargetDrive = commentUploadResult.GlobalTransitIdFileIdentifier.TargetDrive,
-                GlobalTransitId = new List<Guid>() { commentUploadResult.GlobalTransitIdFileIdentifier.GlobalTransitId }
+                TargetDrive = commentTransitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
+                GlobalTransitId = new List<Guid>() { commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId }
             };
 
             var batch = await recipientOwnerClient.Drive.QueryBatch(FileSystemType.Comment, qp);
@@ -119,7 +118,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.TransitOnly
             Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
             Assert.IsTrue(receivedFile.FileMetadata.PayloadIsEncrypted == commentIsEncrypted);
             Assert.IsTrue(receivedFile.FileMetadata.AppData.JsonContent == commentFileContent);
-            Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == commentUploadResult.GlobalTransitId);
+            Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
 
             //Assert - file was distributed to followers: TODO: decide if i want to test this here or else where?
 
@@ -127,7 +126,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.TransitOnly
         }
 
         [Test]
-        [Ignore("wip")]
         public async Task CanTransfer_Encrypted_Comment_S2110()
         {
             /*
@@ -194,8 +192,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.TransitOnly
             // File should be on recipient server and accessible by global transit id
             var qp = new FileQueryParams()
             {
-                TargetDrive = commentUploadResult.GlobalTransitIdFileIdentifier.TargetDrive,
-                GlobalTransitId = new List<Guid>() { commentUploadResult.GlobalTransitIdFileIdentifier.GlobalTransitId }
+                TargetDrive = commentUploadResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
+                GlobalTransitId = new List<Guid>() { commentUploadResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId }
             };
 
             var batch = await recipientOwnerClient.Drive.QueryBatch(FileSystemType.Comment, qp);
@@ -205,7 +203,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.TransitOnly
             Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
             Assert.IsTrue(receivedFile.FileMetadata.PayloadIsEncrypted == commentIsEncrypted);
             Assert.IsTrue(receivedFile.FileMetadata.AppData.JsonContent == encryptedCommentJsonContent64);
-            Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == commentUploadResult.GlobalTransitId);
+            Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == commentUploadResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
 
             //Assert - file was distributed to followers: TODO: decide if i want to test this here or else where?
 
@@ -217,12 +215,13 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.TransitOnly
         /// <summary>
         /// Sends a standard file to a single recipient and performs basic assertions required by all tests
         /// </summary>
-        private async Task<(UploadResult, string encryptedJsonContent64)> TransferComment(
+        private async Task<(TransitResult, string encryptedJsonContent64)> TransferComment(
             OwnerApiClient sender,
             GlobalTransitIdFileIdentifier referencedFile,
             string uploadedContent,
             bool encrypted,
-            TestIdentity recipient)
+            TestIdentity recipient,
+            Guid? overwriteFile = null)
         {
             var fileMetadata = new UploadFileMetadata()
             {
@@ -241,54 +240,45 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.TransitOnly
                     GroupId = default,
                     Tags = default
                 },
-                AccessControlList = AccessControlList.Connected
+                AccessControlList = AccessControlList.OwnerOnly
             };
 
-            var storageOptions = new StorageOptions()
-            {
-                Drive = default
-            };
+            var recipients = new List<string>() { recipient.OdinId };
 
-            var transitOptions = new TransitOptions()
-            {
-                Recipients = new List<string>() { recipient.OdinId },
-                IsTransient = true,
-                UseGlobalTransitId = true,
-                Schedule = ScheduleOptions.SendNowAwaitResponse,
-                OverrideTargetDrive = default
-            };
-
-            UploadResult uploadResult;
+            TransitResult transitResult;
             string encryptedJsonContent64 = null;
             if (encrypted)
             {
-                (uploadResult, encryptedJsonContent64) = await sender.Transit.TransferEncryptedFile(
+                (transitResult, encryptedJsonContent64) = await sender.Transit.TransferEncryptedFile(
                     FileSystemType.Comment,
                     fileMetadata,
-                    storageOptions,
-                    transitOptions,
-                    payloadData: string.Empty
+                    recipients: recipients,
+                    remoteTargetDrive: referencedFile.TargetDrive,
+                    payloadData: "",
+                    overwriteGlobalTransitFileId: overwriteFile,
+                    thumbnail: null
                 );
             }
             else
             {
-                uploadResult = await sender.Transit.TransferFile(
+                transitResult = await sender.Transit.TransferFile(
                     FileSystemType.Comment,
                     fileMetadata,
-                    storageOptions,
-                    transitOptions,
-                    payloadData: string.Empty
+                    recipients: recipients,
+                    remoteTargetDrive: referencedFile.TargetDrive,
+                    payloadData: "",
+                    overwriteGlobalTransitFileId: overwriteFile,
+                    thumbnail: null
                 );
             }
 
             //
             // Basic tests first which apply to all calls
             //
-            Assert.IsTrue(uploadResult.RecipientStatus.Count == 1);
+            Assert.IsTrue(transitResult.RecipientStatus.Count == 1);
 
-            return (uploadResult, encryptedJsonContent64);
+            return (transitResult, encryptedJsonContent64);
         }
-
 
         private async Task<TargetDrive> PrepareScenario(
             OwnerApiClient senderOwnerClient,

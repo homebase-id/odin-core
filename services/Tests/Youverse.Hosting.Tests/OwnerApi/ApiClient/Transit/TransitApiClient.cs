@@ -1,12 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core;
-using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.DriveCore.Storage;
@@ -17,14 +15,11 @@ using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Core.Storage;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
-using Youverse.Hosting.Tests.AppAPI;
-using Youverse.Hosting.Tests.AppAPI.Transit;
 using Youverse.Hosting.Tests.AppAPI.Utils;
-using Youverse.Hosting.Tests.OwnerApi.Drive;
 using Youverse.Hosting.Tests.OwnerApi.Transit.Emoji;
 using Youverse.Hosting.Tests.OwnerApi.Utils;
 
-namespace Youverse.Hosting.Tests.OwnerApi.ApiClient;
+namespace Youverse.Hosting.Tests.OwnerApi.ApiClient.Transit;
 
 public class TransitApiClient
 {
@@ -58,29 +53,70 @@ public class TransitApiClient
         }
     }
 
-    public async Task<UploadResult> TransferFile(FileSystemType fileSystemType,
+    public async Task AddReaction(TestIdentity recipient, GlobalTransitIdFileIdentifier file, string reactionContent)
+    {
+        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        {
+            var transitSvc = RefitCreator.RestServiceFor<ITransitEmojiHttpClientForOwner>(client, ownerSharedSecret);
+            var resp = await transitSvc.AddReaction(new TransitAddReactionRequest()
+            {
+                OdinId = recipient.OdinId,
+                Request = new AddRemoteReactionRequest()
+                {
+                    File = file,
+                    Reaction = reactionContent
+                }
+            });
+
+            Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
+        }
+    }
+
+    public async Task<GetReactionsResponse> GetAllReactions(TestIdentity recipient, GetRemoteReactionsRequest request)
+    {
+        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        {
+            var transitSvc = RefitCreator.RestServiceFor<ITransitEmojiHttpClientForOwner>(client, ownerSharedSecret);
+            var resp = await transitSvc.GetAllReactions(new TransitGetReactionsRequest()
+            {
+                OdinId = recipient.OdinId,
+                Request = request
+            });
+
+            return resp.Content;
+        }
+    }
+
+
+    /// <summary>
+    /// Directly sends the file to the recipients; does not store on any local drives.  (see DriveApiClient.TransferFile to store it on sender's drive)
+    /// </summary>
+    public async Task<TransitResult> TransferFile(
+        FileSystemType fileSystemType,
         UploadFileMetadata fileMetadata,
-        StorageOptions storageOptions,
-        TransitOptions transitOptions,
+        List<string> recipients,
+        TargetDrive remoteTargetDrive,
         string payloadData = "",
+        Guid? overwriteGlobalTransitFileId = null,
         ImageDataContent thumbnail = null
     )
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
 
-        UploadInstructionSet instructionSet = new UploadInstructionSet()
+        TransitInstructionSet instructionSet = new TransitInstructionSet()
         {
             TransferIv = transferIv,
-            StorageOptions = storageOptions,
-            TransitOptions = transitOptions
+            OverwriteGlobalTransitFileId = overwriteGlobalTransitFileId,
+            RemoteTargetDrive = remoteTargetDrive,
+            Schedule = ScheduleOptions.SendNowAwaitResponse,
+            Recipients = recipients,
         };
 
         using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType))
         {
             var instructionStream = new MemoryStream(DotYouSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
-            // fileMetadata.AppData.JsonContent = keyHeader.EncryptDataAes(fileMetadata.AppData.JsonContent.ToUtf8ByteArray()).ToBase64();
             fileMetadata.PayloadIsEncrypted = false;
 
             var descriptor = new UploadFileDescriptor()
@@ -105,39 +141,46 @@ public class TransitApiClient
                 parts.Add(new StreamPart(thumbnailCipherBytes, thumbnail.GetFilename(), thumbnail.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
             }
 
-            var driveSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
-            ApiResponse<UploadResult> response = await driveSvc.UploadStream(parts.ToArray());
+            var transitService = RestService.For<ITransitTestHttpClientForOwner>(client);
+            ApiResponse<TransitResult> response = await transitService.TransferStream(parts.ToArray());
 
             Assert.That(response.IsSuccessStatusCode, Is.True);
             Assert.That(response.Content, Is.Not.Null);
-            var uploadResult = response.Content;
+            var transitResult = response.Content;
 
-            Assert.That(uploadResult.File, Is.Not.Null);
-            Assert.That(uploadResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-            Assert.That(uploadResult.File.TargetDrive, Is.Not.EqualTo(Guid.Empty));
-
+            Assert.That(transitResult.RemoteGlobalTransitIdFileIdentifier, Is.Not.Null);
+            Assert.That(transitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId, Is.Not.EqualTo(Guid.Empty));
+            Assert.IsNotNull(transitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive);
+            Assert.IsTrue(transitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive.IsValid());
             keyHeader.AesKey.Wipe();
 
-            return uploadResult;
+            return transitResult;
         }
     }
 
-    public async Task<(UploadResult uploadResult, string encryptedJsonContent64)> TransferEncryptedFile(
+    /// <summary>
+    /// Directly sends the file to the recipients; does not store on any local drives.  (see DriveApiClient.TransferEncryptedFile to store it on sender's drive)
+    /// </summary>
+    public async Task<(TransitResult transitResult, string encryptedJsonContent64)> TransferEncryptedFile(
         FileSystemType fileSystemType,
         UploadFileMetadata fileMetadata,
-        StorageOptions storageOptions,
-        TransitOptions transitOptions,
+        List<string> recipients,
+        TargetDrive remoteTargetDrive,
         string payloadData = "",
-        ImageDataContent thumbnail = null)
+        Guid? overwriteGlobalTransitFileId = null,
+        ImageDataContent thumbnail = null
+    )
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
 
-        UploadInstructionSet instructionSet = new UploadInstructionSet()
+        TransitInstructionSet instructionSet = new TransitInstructionSet()
         {
             TransferIv = transferIv,
-            StorageOptions = storageOptions,
-            TransitOptions = transitOptions
+            OverwriteGlobalTransitFileId = overwriteGlobalTransitFileId,
+            RemoteTargetDrive = remoteTargetDrive,
+            Schedule = ScheduleOptions.SendNowAwaitResponse,
+            Recipients = recipients,
         };
 
         using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType))
@@ -176,54 +219,22 @@ public class TransitApiClient
                 parts.Add(new StreamPart(thumbnailCipherBytes, thumbnail.GetFilename(), thumbnail.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
             }
 
-            var driveSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
-            ApiResponse<UploadResult> response = await driveSvc.UploadStream(parts.ToArray());
+            var transitSvc = RestService.For<ITransitTestHttpClientForOwner>(client);
+            ApiResponse<TransitResult> response = await transitSvc.TransferStream(parts.ToArray());
 
             Assert.That(response.IsSuccessStatusCode, Is.True);
             Assert.That(response.Content, Is.Not.Null);
-            var uploadResult = response.Content;
+            var transitResult = response.Content;
 
-            Assert.That(uploadResult.File, Is.Not.Null);
-            Assert.That(uploadResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
-            Assert.That(uploadResult.File.TargetDrive, Is.Not.EqualTo(Guid.Empty));
+            Assert.That(transitResult.RemoteGlobalTransitIdFileIdentifier, Is.Not.Null);
+            Assert.That(transitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId, Is.Not.EqualTo(Guid.Empty));
+            Assert.IsNotNull(transitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive);
+            Assert.IsTrue(transitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive.IsValid());
+            
 
             keyHeader.AesKey.Wipe();
 
-            return (uploadResult, encryptedJsonContent64);
-        }
-    }
-
-    public async Task AddReaction(TestIdentity recipient, GlobalTransitIdFileIdentifier file, string reactionContent)
-    {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
-        {
-            var transitSvc = RefitCreator.RestServiceFor<ITransitEmojiHttpClientForOwner>(client, ownerSharedSecret);
-            var resp = await transitSvc.AddReaction(new TransitAddReactionRequest()
-            {
-                OdinId = recipient.OdinId,
-                Request = new AddRemoteReactionRequest()
-                {
-                    File = file,
-                    Reaction = reactionContent
-                }
-            });
-
-            Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
-        }
-    }
-
-    public async Task<GetReactionsResponse> GetAllReactions(TestIdentity recipient, GetRemoteReactionsRequest request)
-    {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
-        {
-            var transitSvc = RefitCreator.RestServiceFor<ITransitEmojiHttpClientForOwner>(client, ownerSharedSecret);
-            var resp = await transitSvc.GetAllReactions(new TransitGetReactionsRequest()
-            {
-                OdinId = recipient.OdinId,
-                Request = request
-            });
-
-            return resp.Content;
+            return (transitResult, encryptedJsonContent64);
         }
     }
 }

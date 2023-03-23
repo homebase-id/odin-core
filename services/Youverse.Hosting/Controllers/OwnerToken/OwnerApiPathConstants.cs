@@ -27,6 +27,8 @@
 
         public const string TransitV1 = BasePathV1 + "/transit";
         
+        public const string TransitSenderV1 = BasePathV1 + "/sender";
+        
         public const string TransitQueryV1 = TransitV1 + "/query";
         
         public const string TransitEmojiV1 = TransitV1 + "/emoji";

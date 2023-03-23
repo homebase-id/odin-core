@@ -18,6 +18,7 @@ using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
+using Youverse.Hosting.Controllers.OwnerToken;
 
 namespace Youverse.Hosting.Middleware
 {
@@ -53,7 +54,7 @@ namespace Youverse.Hosting.Middleware
                 "/api/apps/v1/transit/app/process", //TODO: why is this here??
                 "/api/perimeter", //TODO: temporarily allowing all perimeter traffic not use shared secret
                 "/api/owner/v1/drive/files/upload",
-                "/api/owner/v1/drive/files/comments/files/upload",
+                $"{OwnerApiPathConstants.TransitSenderV1}/files/send", 
                 "/api/apps/v1/drive/files/upload",
                 "/api/youauth/v1/drive/files/upload",
                 "/api/youauth/v1/auth/is-authenticated",

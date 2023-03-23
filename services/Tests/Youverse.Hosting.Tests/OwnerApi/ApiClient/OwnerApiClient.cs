@@ -1,6 +1,7 @@
 ﻿using System.Threading.Tasks;
 using NUnit.Framework;
 using Youverse.Core.Services.Configuration;
+using Youverse.Hosting.Tests.OwnerApi.ApiClient.Transit;
 using Youverse.Hosting.Tests.OwnerApi.Configuration;
 using Youverse.Hosting.Tests.OwnerApi.Utils;
 

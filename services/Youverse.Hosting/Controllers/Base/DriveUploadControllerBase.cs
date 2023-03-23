@@ -33,7 +33,7 @@ namespace Youverse.Hosting.Controllers.Base
 
             var section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Instructions);
-            var packageId = await driveUploadService.CreatePackage(section!.Body);
+            var packageId = await driveUploadService.CreatePackageFromInstructionSet(section!.Body);
 
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Metadata);

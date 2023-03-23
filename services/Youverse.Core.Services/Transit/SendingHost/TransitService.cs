@@ -5,7 +5,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using Refit;
-using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
@@ -24,6 +23,7 @@ using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Transit.SendingHost
 {
+    
     public class TransitService : TransitServiceBase, ITransitService
     {
         private readonly FileSystemResolver _fileSystemResolver;
@@ -163,7 +163,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
                     fileSystemType: sendFileOptions.FileSystemType);
 
                 //TODO: change to accept a request object that has targetDrive and global transit id
-                var httpResponse = await client.DeleteLinkedFile(new DeleteLinkedFileTransitRequest()
+                var httpResponse = await client.DeleteLinkedFile(new DeleteRemoteFileTransitRequest()
                 {
                     TargetDrive = targetDrive,
                     GlobalTransitId = globalTransitId,
@@ -380,7 +380,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
         {
             var fs = _fileSystemResolver.ResolveFileSystem(sendFileOptions.FileSystemType);
 
-            TargetDrive targetDrive = options.OverrideTargetDrive ?? (await _driveManager.GetDrive(internalFile.DriveId, failIfInvalid: true)).TargetDriveInfo;
+            TargetDrive targetDrive = options.RemoteTargetDrive ?? (await _driveManager.GetDrive(internalFile.DriveId, failIfInvalid: true)).TargetDriveInfo;
 
             var transferStatus = new Dictionary<string, TransferStatus>();
             var outboxItems = new List<TransitOutboxItem>();

@@ -43,12 +43,8 @@ public abstract class FileSystemStreamWriterBase
 
     protected IDriveFileSystem FileSystem { get; }
 
-    public virtual async Task<Guid> CreatePackage(Stream data)
+    public virtual async Task<Guid> CreatePackage(UploadInstructionSet instructionSet)
     {
-        //TODO: need to partially encrypt upload instruction set
-        string json = await new StreamReader(data).ReadToEndAsync();
-        var instructionSet = DotYouSystemSerializer.Deserialize<UploadInstructionSet>(json);
-
         Guard.Argument(instructionSet, nameof(instructionSet)).NotNull();
         instructionSet?.AssertIsValid();
 
@@ -87,7 +83,16 @@ public abstract class FileSystemStreamWriterBase
             throw new YouverseSystemException("Failed to add the upload package");
         }
 
-        return pkgId;
+        return await Task.FromResult(pkgId);
+    }
+
+    public virtual async Task<Guid> CreatePackageFromInstructionSet(Stream data)
+    {
+        //TODO: need to partially encrypt upload instruction set
+        string json = await new StreamReader(data).ReadToEndAsync();
+        var instructionSet = DotYouSystemSerializer.Deserialize<UploadInstructionSet>(json);
+
+        return await this.CreatePackage(instructionSet);
     }
 
     public virtual async Task AddMetadata(Guid packageId, Stream data)
@@ -256,15 +261,15 @@ public abstract class FileSystemStreamWriterBase
 
         var uploadDescriptor = DotYouSystemSerializer.Deserialize<UploadFileDescriptor>(json);
 
-        var transferEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;
+        var transferKeyEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;
 
-        if (null == transferEncryptedKeyHeader)
+        if (null == transferKeyEncryptedKeyHeader)
         {
             throw new YouverseClientException("Failure to unpack upload metadata, invalid transfer key header", YouverseClientErrorCode.InvalidKeyHeader);
         }
 
         KeyHeader keyHeader = uploadDescriptor.FileMetadata.PayloadIsEncrypted
-            ? transferEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret)
+            ? transferKeyEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret)
             : KeyHeader.Empty();
 
         await ValidateUploadDescriptor(uploadDescriptor);
@@ -343,10 +348,5 @@ public abstract class FileSystemStreamWriterBase
                     YouverseClientErrorCode.InvalidTransitOptions);
             }
         }
-    }
-
-    public void UpdatePackageHack(UploadPackage pkg)
-    {
-        _packages[pkg.Id] = pkg;
     }
 }

@@ -9,7 +9,7 @@ public static class SystemDriveConstants
 {
     public static readonly GuidId ChannelDriveType = GuidId.FromString("channel");
     
-    public static TargetDrive TransientTempDrive = new()
+    public static readonly TargetDrive TransientTempDrive = new()
     {
         Alias = GuidId.FromString("transit_temp_drive"),
         Type = GuidId.FromString("transit_temp_drive")
@@ -52,7 +52,7 @@ public static class SystemDriveConstants
         AllowAnonymousReads = false,
         Metadata = "",
         TargetDrive = TransientTempDrive,
-        OwnerOnly = false
+        OwnerOnly = true
     };
     
     public static readonly CreateDriveRequest CreateFeedDriveRequest = new()

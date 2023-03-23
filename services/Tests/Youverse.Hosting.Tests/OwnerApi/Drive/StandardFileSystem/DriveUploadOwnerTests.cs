@@ -20,6 +20,7 @@ using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Storage;
 using Youverse.Hosting.Tests.AppAPI.Utils;
+using Youverse.Hosting.Tests.OwnerApi.ApiClient;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
 {

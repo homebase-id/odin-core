@@ -37,7 +37,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
         /// <summary>
         /// If set, the target drive will be this one instead of that from the file
         /// </summary>
-        public TargetDrive OverrideTargetDrive { get; set; }
+        public TargetDrive RemoteTargetDrive { get; set; }
     }
 
     

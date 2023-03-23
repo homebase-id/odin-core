@@ -140,7 +140,7 @@ namespace Youverse.Core.Services.DataSubscription
                 IsTransient = false,
                 UseGlobalTransitId = true,
                 SendContents = SendContents.Header,
-                OverrideTargetDrive = SystemDriveConstants.FeedDrive
+                RemoteTargetDrive = SystemDriveConstants.FeedDrive
             };
 
             //

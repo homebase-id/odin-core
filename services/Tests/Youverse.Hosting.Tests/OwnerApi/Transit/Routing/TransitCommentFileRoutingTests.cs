@@ -534,14 +534,14 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Routing
                 IsTransient = true,
                 UseGlobalTransitId = true,
                 Schedule = ScheduleOptions.SendNowAwaitResponse,
-                OverrideTargetDrive = default
+                RemoteTargetDrive = default
             };
 
             UploadResult uploadResult;
             string encryptedJsonContent64 = null;
             if (encrypted)
             {
-                (uploadResult, encryptedJsonContent64) = await sender.Transit.TransferEncryptedFile(
+                (uploadResult, encryptedJsonContent64) = await sender.Drive.UploadAndTransferEncryptedFile(
                     FileSystemType.Comment,
                     fileMetadata,
                     storageOptions,
@@ -551,7 +551,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Routing
             }
             else
             {
-                uploadResult = await sender.Transit.TransferFile(
+                uploadResult = await sender.Drive.UploadAndTransferFile(
                     FileSystemType.Comment,
                     fileMetadata,
                     storageOptions,
