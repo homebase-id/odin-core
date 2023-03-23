@@ -240,7 +240,7 @@ public class TransitApiClient
         }
     }
 
-    public async Task SendDeleteRequest(FileSystemType fileSystemType, GlobalTransitIdFileIdentifier remoteGlobalTransitIdFileIdentifier,
+    public async Task DeleteFile(FileSystemType fileSystemType, GlobalTransitIdFileIdentifier remoteGlobalTransitIdFileIdentifier,
         List<string> recipients)
     {
         var request = new DeleteFileByGlobalTransitIdRequest()

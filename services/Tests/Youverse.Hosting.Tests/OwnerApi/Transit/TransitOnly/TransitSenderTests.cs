@@ -488,7 +488,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.TransitOnly
             //Delete the comment
             //
 
-            await senderOwnerClient.Transit.SendDeleteRequest(
+            await senderOwnerClient.Transit.DeleteFile(
                 FileSystemType.Comment,
                 commentTransitResult.RemoteGlobalTransitIdFileIdentifier,
                 new List<string>() { recipient.OdinId });

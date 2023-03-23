@@ -174,45 +174,47 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
                     FileId = header.FileId,
                     DriveId = driveId
                 });
+                
+                return new HostTransitResponse()
+                {
+                    Code = TransitResponseCode.AcceptedDirectWrite,
+                    Message = ""
+                };
+
             }
 
-            return new HostTransitResponse()
-            {
-                Code = TransitResponseCode.AcceptedDirectWrite,
-                Message = ""
-            };
             
-            // try
-            // {
-            //     var item = new TransferInboxItem()
-            //     {
-            //         Id = Guid.NewGuid(),
-            //         AddedTimestamp = UnixTimeUtc.Now(),
-            //         Sender = this._contextAccessor.GetCurrent().GetCallerOdinIdOrFail(),
-            //
-            //         InstructionType = TransferInstructionType.DeleteLinkedFile,
-            //         DriveId = driveId,
-            //         GlobalTransitId = globalTransitId,
-            //         FileSystemType = fileSystemType,
-            //     };
-            //
-            //     await _transitInboxBoxStorage.Add(item);
-            //
-            //     return new HostTransitResponse()
-            //     {
-            //         Code = TransitResponseCode.AcceptedIntoInbox,
-            //         Message = ""
-            //     };
-            // }
-            // catch
-            // {
-            //     //TODO: add logging here?
-            //     return new HostTransitResponse()
-            //     {
-            //         Code = TransitResponseCode.Rejected,
-            //         Message = "Server Error"
-            //     };
-            // }
+            try
+            {
+                var item = new TransferInboxItem()
+                {
+                    Id = Guid.NewGuid(),
+                    AddedTimestamp = UnixTimeUtc.Now(),
+                    Sender = this._contextAccessor.GetCurrent().GetCallerOdinIdOrFail(),
+            
+                    InstructionType = TransferInstructionType.DeleteLinkedFile,
+                    DriveId = driveId,
+                    GlobalTransitId = globalTransitId,
+                    FileSystemType = fileSystemType,
+                };
+            
+                await _transitInboxBoxStorage.Add(item);
+            
+                return new HostTransitResponse()
+                {
+                    Code = TransitResponseCode.AcceptedIntoInbox,
+                    Message = ""
+                };
+            }
+            catch
+            {
+                //TODO: add logging here?
+                return new HostTransitResponse()
+                {
+                    Code = TransitResponseCode.Rejected,
+                    Message = "Server Error"
+                };
+            }
         }
 
         public Task<QueryBatchResult> QueryBatch(FileQueryParams qp, QueryBatchResultOptions options)
