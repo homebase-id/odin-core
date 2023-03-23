@@ -23,7 +23,6 @@ using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Transit.SendingHost
 {
-    
     public class TransitService : TransitServiceBase, ITransitService
     {
         private readonly FileSystemResolver _fileSystemResolver;
@@ -291,7 +290,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
                     AppData = metadata.AppData,
                     PayloadIsEncrypted = metadata.PayloadIsEncrypted,
                     ContentType = metadata.ContentType,
-                    GlobalTransitId = metadata.GlobalTransitId,
+                    GlobalTransitId = options.OverrideRemoteGlobalTransitId.GetValueOrDefault(metadata.GlobalTransitId.GetValueOrDefault()),
                     ReactionPreview = metadata.ReactionPreview,
                     SenderOdinId = string.Empty,
                     OriginalRecipientList = null,
@@ -472,7 +471,6 @@ namespace Youverse.Core.Services.Transit.SendingHost
                             break;
                         default:
                             throw new YouverseSystemException("Unhandled success scenario in transit");
-                        
                     }
                 }
                 else

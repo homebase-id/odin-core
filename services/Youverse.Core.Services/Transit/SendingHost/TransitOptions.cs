@@ -38,6 +38,12 @@ namespace Youverse.Core.Services.Transit.SendingHost
         /// If set, the target drive will be this one instead of that from the file
         /// </summary>
         public TargetDrive RemoteTargetDrive { get; set; }
+
+        /// <summary>
+        /// If set, the recipient will receive this in the file's metadata instead of that in the file
+        /// </summary>
+        //TODO: hack - This is a hack in place for alpha to support transit direct send
+        public Guid? OverrideRemoteGlobalTransitId { get; set; }
     }
 
     

@@ -210,6 +210,111 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.TransitOnly
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
 
+        [Test]
+        public async Task CanTransfer_AndUpdate_Unencrypted_Comment()
+        {
+            /*
+             Success Test - Comment
+                Valid ReferencedFile (global transit id)
+                Sender has storage Key
+                Sender has write access
+                Upload standard file - encrypted = false
+                Upload comment file - encrypted = false
+                Should succeed (S2110)
+                    Direct write comment
+                    Comment is not distributed
+                    ReferencedFile summary updated
+                    ReferencedFile is distributed to followers
+             */
+
+            var sender = TestIdentities.Frodo;
+            var recipient = TestIdentities.Samwise;
+
+            var senderOwnerClient = _scaffold.CreateOwnerApiClient(sender);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClient(recipient);
+
+            const DrivePermission drivePermissions = DrivePermission.Read | DrivePermission.WriteReactionsAndComments;
+            const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
+            const bool standardFileIsEncrypted = false;
+
+            const string commentFileContent = "Srsly!?? =O";
+            const string updatedCommentFileContent = "Bruh! Srsly!?? =O";
+            const bool commentIsEncrypted = false;
+
+            var targetDrive = await this.PrepareScenario(senderOwnerClient, recipientOwnerClient, drivePermissions);
+
+            var (standardFileUploadResult, _) = await UploadStandardFile(recipientOwnerClient, targetDrive, standardFileContent, standardFileIsEncrypted);
+
+            //
+            // Assert that the recipient server has the file by global transit id
+            //
+            var recipientFileByGlobalTransitId = await recipientOwnerClient.Drive.QueryByGlobalTransitFileId(
+                FileSystemType.Standard,
+                standardFileUploadResult.GlobalTransitIdFileIdentifier);
+
+            Assert.IsNotNull(recipientFileByGlobalTransitId);
+            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.JsonContent == standardFileContent);
+            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.PayloadIsEncrypted == standardFileIsEncrypted);
+
+            // Sender replies with a comment
+            var (commentTransitResult, _) = await this.TransferComment(senderOwnerClient,
+                standardFileUploadResult.GlobalTransitIdFileIdentifier,
+                uploadedContent: commentFileContent,
+                encrypted: commentIsEncrypted,
+                recipient: recipient);
+
+            Assert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
+            Assert.IsTrue(recipientStatus == TransferStatus.DeliveredToTargetDrive,
+                $"Should have been DeliveredToTargetDrive, actual status was {recipientStatus}");
+
+            //
+            // Test results
+            //
+
+            //IMPORTANT!!  the test here for direct write - meaning - the file should be on recipient server without calling process incoming files
+            // recipientOwnerClient.Transit.ProcessIncomingInstructionSet(targetDrive);
+            //
+
+            // File should be on recipient server and accessible by global transit id
+            var qp = new FileQueryParams()
+            {
+                TargetDrive = commentTransitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
+                GlobalTransitId = new List<Guid>() { commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId }
+            };
+
+            var batch = await recipientOwnerClient.Drive.QueryBatch(FileSystemType.Comment, qp);
+            Assert.IsTrue(batch.SearchResults.Count() == 1);
+            var receivedFile = batch.SearchResults.First();
+            Assert.IsTrue(receivedFile.FileState == FileState.Active);
+            Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
+            Assert.IsTrue(receivedFile.FileMetadata.PayloadIsEncrypted == commentIsEncrypted);
+            Assert.IsTrue(receivedFile.FileMetadata.AppData.JsonContent == commentFileContent);
+            Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
+
+
+            //Sender updates their comment
+
+            var (updatedCommentTransitResult, _) = await this.TransferComment(
+                senderOwnerClient,
+                standardFileUploadResult.GlobalTransitIdFileIdentifier,
+                uploadedContent: updatedCommentFileContent,
+                encrypted: commentIsEncrypted,
+                recipient: recipient,
+                overwriteFile: commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
+
+            var updatedBatch = await recipientOwnerClient.Drive.QueryBatch(FileSystemType.Comment, qp);
+            Assert.IsTrue(updatedBatch.SearchResults.Count() == 1);
+            var updatedReceivedFile = updatedBatch.SearchResults.First();
+            Assert.IsTrue(updatedReceivedFile.FileState == FileState.Active);
+            Assert.IsTrue(updatedReceivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
+            Assert.IsTrue(updatedReceivedFile.FileMetadata.PayloadIsEncrypted == commentIsEncrypted);
+            Assert.IsTrue(updatedReceivedFile.FileMetadata.AppData.JsonContent == updatedCommentFileContent);
+
+            Assert.IsTrue(updatedReceivedFile.FileMetadata.GlobalTransitId == commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
+                "should still match original global transit id");
+
+            await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
+        }
         //
 
         /// <summary>
