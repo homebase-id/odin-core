@@ -5,6 +5,7 @@ using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Hosting.Controllers.OwnerToken;
+using Youverse.Hosting.Controllers.OwnerToken.Transit;
 
 namespace Youverse.Hosting.Tests.OwnerApi.ApiClient.Transit
 {
@@ -19,7 +20,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.ApiClient.Transit
         [Post(RootEndpoint + "/files/send")]
         Task<ApiResponse<TransitResult>> TransferStream(StreamPart[] parts);
         
-        [Post(RootEndpoint + "/files/delete")]
-        Task<ApiResponse<DeleteLinkedFileResult>> DeleteFile([Body] DeleteRemoteFileTransitRequest file);
+        [Post(RootEndpoint + "/files/senddeleterequest")]
+        Task<ApiResponse<DeleteLinkedFileResult>> SendDeleteRequest([Body] DeleteFileByGlobalTransitIdRequest file);
     }
 }

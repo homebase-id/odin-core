@@ -96,13 +96,13 @@ namespace Youverse.Core.Services.DataSubscription
 
             if (header.FileMetadata.GlobalTransitId.HasValue)
             {
-                //in this
-                var targetDrive = await _driveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive);
-
                 //send the deleted file
                 var map = await _transitService.SendDeleteLinkedFileRequest(
-                    driveId: targetDrive.GetValueOrDefault(),
-                    globalTransitId: header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
+                    new GlobalTransitIdFileIdentifier()
+                    {
+                        TargetDrive = SystemDriveConstants.FeedDrive,
+                        GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
+                    },
                     sendFileOptions: new SendFileOptions()
                     {
                         FileSystemType = header.ServerMetadata.FileSystemType,

@@ -128,8 +128,7 @@ namespace Youverse.Hosting.Controllers.Certificate
             var drives = await perimeterService.GetDrives(request.DriveType);
             return drives;
         }
-
-
+        
         [HttpGet("security/context")]
         public Task<RedactedDotYouContext> GetRemoteSecurityContext()
         {

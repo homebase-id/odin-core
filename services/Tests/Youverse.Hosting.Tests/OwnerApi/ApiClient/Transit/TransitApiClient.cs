@@ -15,6 +15,7 @@ using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Core.Storage;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
+using Youverse.Hosting.Controllers.OwnerToken.Transit;
 using Youverse.Hosting.Tests.AppAPI.Utils;
 using Youverse.Hosting.Tests.OwnerApi.Transit.Emoji;
 using Youverse.Hosting.Tests.OwnerApi.Utils;
@@ -174,7 +175,7 @@ public class TransitApiClient
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
 
-        
+
         TransitInstructionSet instructionSet = new TransitInstructionSet()
         {
             TransferIv = transferIv,
@@ -231,11 +232,30 @@ public class TransitApiClient
             Assert.That(transitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId, Is.Not.EqualTo(Guid.Empty));
             Assert.IsNotNull(transitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive);
             Assert.IsTrue(transitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive.IsValid());
-            
+
 
             keyHeader.AesKey.Wipe();
 
             return (transitResult, encryptedJsonContent64);
+        }
+    }
+
+    public async Task SendDeleteRequest(FileSystemType fileSystemType, GlobalTransitIdFileIdentifier remoteGlobalTransitIdFileIdentifier,
+        List<string> recipients)
+    {
+        var request = new DeleteFileByGlobalTransitIdRequest()
+        {
+            FileSystemType = fileSystemType,
+            GlobalTransitIdFileIdentifier = remoteGlobalTransitIdFileIdentifier,
+            Recipients = recipients,
+        };
+
+        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType))
+        {
+            var transitSvc = RefitCreator.RestServiceFor<ITransitTestHttpClientForOwner>(client, sharedSecret);
+            var response = await transitSvc.SendDeleteRequest(request);
+
+            Assert.IsTrue(response.IsSuccessStatusCode);
         }
     }
 }

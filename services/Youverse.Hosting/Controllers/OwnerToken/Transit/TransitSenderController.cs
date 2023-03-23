@@ -1,6 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using Dawn;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Swashbuckle.AspNetCore.Annotations;
@@ -10,6 +12,7 @@ using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.SendingHost;
+using Youverse.Core.Storage;
 using Youverse.Hosting.Controllers.Base;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Transit
@@ -20,6 +23,13 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
     [AuthorizeValidOwnerToken]
     public class TransitSenderController : DriveUploadControllerBase
     {
+        private readonly ITransitService _transitService;
+
+        public TransitSenderController(ITransitService transitService)
+        {
+            _transitService = transitService;
+        }
+
         /// <summary>
         /// Uploads a file using multi-part form data
         /// </summary>
@@ -77,42 +87,40 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
             {
                 RemoteGlobalTransitIdFileIdentifier = new GlobalTransitIdFileIdentifier()
                 {
-                    GlobalTransitId =  uploadResult.GlobalTransitId.GetValueOrDefault(),
-                    TargetDrive  = uploadInstructionSet.TransitOptions.RemoteTargetDrive
+                    GlobalTransitId = uploadResult.GlobalTransitId.GetValueOrDefault(),
+                    TargetDrive = uploadInstructionSet.TransitOptions.RemoteTargetDrive
                 },
                 RecipientStatus = uploadResult.RecipientStatus
             };
         }
 
-        /*
         /// <summary>
-        /// Deletes a file
+        /// Sends a Delete Linked File Request to recpients
         /// </summary>
-        /// <param name="request"></param>
-        */
-        // [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
-        // [HttpPost("files/delete")]
-        // public async Task<IActionResult> DeleteFile([FromBody] DeleteFileByGlobalTransitIdRequest request)
-        // {
-        //     //TODO: send the delete request for request.File
-        //
-        //     // var driveId = DotYouContext.PermissionsContext.GetDriveId(request.File.TargetDrive);
-        //     //
-        //     // var file = new InternalDriveFileId()
-        //     // {
-        //     //     DriveId = driveId,
-        //     //     FileId = request.File.FileId
-        //     // };
-        //     //
-        //     // var result = await _appService.DeleteFile(file, request.Recipients);
-        //     // if (result.LocalFileNotFound)
-        //     // {
-        //     //     return NotFound();
-        //     // }
-        //
-        //     var result = "";
-        //     return new JsonResult(result);
-        // }
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpPost("files/senddeleterequest")]
+        public async Task<IActionResult> DeleteFile([FromBody] DeleteFileByGlobalTransitIdRequest request)
+        {
+            Guard.Argument(request, nameof(request)).NotNull();
+            Guard.Argument(request.Recipients, nameof(request.Recipients)).NotEmpty();
+            Guard.Argument(request.GlobalTransitIdFileIdentifier, nameof(request.GlobalTransitIdFileIdentifier))
+                .Require(g => g.TargetDrive.IsValid())
+                .Require(g => g.GlobalTransitId != Guid.Empty);
+
+            //TODO: send the delete request for request.File
+
+            //send the deleted file
+            var map = await _transitService.SendDeleteLinkedFileRequest(request.GlobalTransitIdFileIdentifier,
+                new SendFileOptions()
+                {
+                    FileSystemType = request.FileSystemType,
+                    TransferFileType = TransferFileType.Normal,
+                    ClientAccessTokenSource = ClientAccessTokenSource.Circle
+                },
+                request.Recipients);
+
+            return new JsonResult(map);
+        }
 
 
         /// <summary>
@@ -140,7 +148,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
 
                     //TODO: OMG HACK
                     OverrideRemoteGlobalTransitId = transitInstructionSet.GlobalTransitFileId,
-                    
+
                     RemoteTargetDrive = transitInstructionSet.RemoteTargetDrive,
                     Recipients = transitInstructionSet.Recipients,
                     Schedule = transitInstructionSet.Schedule
@@ -153,10 +161,12 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
 
     public class DeleteFileByGlobalTransitIdRequest
     {
+        public FileSystemType FileSystemType { get; set; }
+
         /// <summary>
         /// The file to be deleted
         /// </summary>
-        public GlobalTransitIdFileIdentifier File { get; set; }
+        public GlobalTransitIdFileIdentifier GlobalTransitIdFileIdentifier { get; set; }
 
         /// <summary>
         /// List of recipients to receive the delete-file notification

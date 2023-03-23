@@ -211,6 +211,113 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.TransitOnly
         }
 
         [Test]
+        public async Task CanTransfer_AndUpdate_Encrypted_Comment_S2110()
+        {
+            /*
+             Success Test - Comment
+                Upload standard file - encrypted = true
+                Upload comment file - encrypted = true
+                Sender has write access
+                Sender has storage Key (read access)
+                Valid ReferencedFile (global transit id)
+                Should succeed (S2110)
+                    Direct write comment
+                    Comment is not distributed
+                    ReferencedFile summary updated
+                    ReferencedFile is distributed to followers
+             */
+
+            var sender = TestIdentities.Frodo;
+            var recipient = TestIdentities.Samwise;
+
+            var senderOwnerClient = _scaffold.CreateOwnerApiClient(sender);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClient(recipient);
+
+            const DrivePermission drivePermissions = DrivePermission.Read | DrivePermission.WriteReactionsAndComments;
+            const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
+            const bool standardFileIsEncrypted = true;
+
+            const string commentFileContent = "Srsly!?? =O";
+            const string updatedCommentFileContent = "Bruh! Srsly!?? =O";
+            const bool commentIsEncrypted = true;
+
+            var targetDrive = await this.PrepareScenario(senderOwnerClient, recipientOwnerClient, drivePermissions);
+
+            var (standardFileUploadResult, encryptedJsonContent64) =
+                await UploadStandardFile(recipientOwnerClient, targetDrive, standardFileContent, standardFileIsEncrypted);
+
+            //
+            // Assert that the recipient server has the file by global transit id
+            //
+            var recipientFileByGlobalTransitId = await recipientOwnerClient.Drive.QueryByGlobalTransitFileId(
+                FileSystemType.Standard,
+                standardFileUploadResult.GlobalTransitIdFileIdentifier);
+
+            Assert.IsNotNull(recipientFileByGlobalTransitId);
+            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.JsonContent == encryptedJsonContent64);
+            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.PayloadIsEncrypted == standardFileIsEncrypted);
+
+            //sender replies with a comment
+            var (commentTransitResult, encryptedCommentJsonContent64) = await this.TransferComment(senderOwnerClient,
+                standardFileUploadResult.GlobalTransitIdFileIdentifier,
+                uploadedContent: commentFileContent,
+                encrypted: commentIsEncrypted, recipient);
+
+            Assert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
+            Assert.IsTrue(recipientStatus == TransferStatus.DeliveredToTargetDrive,
+                $"Should have been DeliveredToTargetDrive, actual status was {recipientStatus}");
+
+            //
+            // Test results
+            //
+
+            //IMPORTANT!!  the test here for direct write - meaning - the file should be on recipient server without calling process incoming files
+            // recipientOwnerClient.Transit.ProcessIncomingInstructionSet(targetDrive);
+            //
+
+            // File should be on recipient server and accessible by global transit id
+            var qp = new FileQueryParams()
+            {
+                TargetDrive = commentTransitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
+                GlobalTransitId = new List<Guid>() { commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId }
+            };
+
+            var batch = await recipientOwnerClient.Drive.QueryBatch(FileSystemType.Comment, qp);
+            Assert.IsTrue(batch.SearchResults.Count() == 1);
+            var receivedFile = batch.SearchResults.First();
+            Assert.IsTrue(receivedFile.FileState == FileState.Active);
+            Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
+            Assert.IsTrue(receivedFile.FileMetadata.PayloadIsEncrypted == commentIsEncrypted);
+            Assert.IsTrue(receivedFile.FileMetadata.AppData.JsonContent == encryptedCommentJsonContent64);
+            Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
+
+
+            //Sender updates their comment
+
+            var (updatedCommentTransitResult, encryptedUpdatedCommentJsonContent64) = await this.TransferComment(
+                senderOwnerClient,
+                standardFileUploadResult.GlobalTransitIdFileIdentifier,
+                uploadedContent: updatedCommentFileContent,
+                encrypted: commentIsEncrypted,
+                recipient: recipient,
+                overwriteFile: commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
+
+            var updatedBatch = await recipientOwnerClient.Drive.QueryBatch(FileSystemType.Comment, qp);
+            Assert.IsTrue(updatedBatch.SearchResults.Count() == 1);
+            var updatedReceivedFile = updatedBatch.SearchResults.First();
+            Assert.IsTrue(updatedReceivedFile.FileState == FileState.Active);
+            Assert.IsTrue(updatedReceivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
+            Assert.IsTrue(updatedReceivedFile.FileMetadata.PayloadIsEncrypted == commentIsEncrypted);
+            Assert.IsTrue(updatedReceivedFile.FileMetadata.AppData.JsonContent == encryptedUpdatedCommentJsonContent64);
+
+            Assert.IsTrue(updatedReceivedFile.FileMetadata.GlobalTransitId == commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
+                "should still match original global transit id");
+
+
+            await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
+        }
+
+        [Test]
         public async Task CanTransfer_AndUpdate_Unencrypted_Comment()
         {
             /*
@@ -315,6 +422,91 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.TransitOnly
 
             await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
         }
+
+        [Test]
+        public async Task CanDelete_Unencrypted_Comment()
+        {
+            var sender = TestIdentities.Frodo;
+            var recipient = TestIdentities.Samwise;
+
+            var senderOwnerClient = _scaffold.CreateOwnerApiClient(sender);
+            var recipientOwnerClient = _scaffold.CreateOwnerApiClient(recipient);
+
+            const DrivePermission drivePermissions = DrivePermission.Read | DrivePermission.WriteReactionsAndComments;
+            const string standardFileContent = "We eagles fly to Mordor, sup w/ that?";
+            const bool standardFileIsEncrypted = false;
+
+            const string commentFileContent = "Srsly!?? =O";
+            const bool commentIsEncrypted = false;
+
+            var targetDrive = await this.PrepareScenario(senderOwnerClient, recipientOwnerClient, drivePermissions);
+
+            var (standardFileUploadResult, _) = await UploadStandardFile(recipientOwnerClient, targetDrive, standardFileContent, standardFileIsEncrypted);
+
+            //
+            // Assert that the recipient server has the file by global transit id
+            //
+            var recipientFileByGlobalTransitId = await recipientOwnerClient.Drive.QueryByGlobalTransitFileId(
+                FileSystemType.Standard,
+                standardFileUploadResult.GlobalTransitIdFileIdentifier);
+
+            Assert.IsNotNull(recipientFileByGlobalTransitId);
+            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.AppData.JsonContent == standardFileContent);
+            Assert.IsTrue(recipientFileByGlobalTransitId.FileMetadata.PayloadIsEncrypted == standardFileIsEncrypted);
+
+            // Sender replies with a comment
+            var (commentTransitResult, _) = await this.TransferComment(senderOwnerClient,
+                standardFileUploadResult.GlobalTransitIdFileIdentifier,
+                uploadedContent: commentFileContent,
+                encrypted: commentIsEncrypted, recipient);
+
+            Assert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
+            Assert.IsTrue(recipientStatus == TransferStatus.DeliveredToTargetDrive,
+                $"Should have been DeliveredToTargetDrive, actual status was {recipientStatus}");
+
+            //
+            // Test results
+            //
+
+            // File should be on recipient server and accessible by global transit id
+            var qp = new FileQueryParams()
+            {
+                TargetDrive = commentTransitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
+                GlobalTransitId = new List<Guid>() { commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId }
+            };
+
+            var batch = await recipientOwnerClient.Drive.QueryBatch(FileSystemType.Comment, qp);
+            Assert.IsTrue(batch.SearchResults.Count() == 1);
+            var receivedFile = batch.SearchResults.First();
+            Assert.IsTrue(receivedFile.FileState == FileState.Active);
+            Assert.IsTrue(receivedFile.FileMetadata.SenderOdinId == sender.OdinId, $"Sender should have been ${sender.OdinId}");
+            Assert.IsTrue(receivedFile.FileMetadata.PayloadIsEncrypted == commentIsEncrypted);
+            Assert.IsTrue(receivedFile.FileMetadata.AppData.JsonContent == commentFileContent);
+            Assert.IsTrue(receivedFile.FileMetadata.GlobalTransitId == commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
+
+            //
+            //Delete the comment
+            //
+
+            await senderOwnerClient.Transit.SendDeleteRequest(
+                FileSystemType.Comment,
+                commentTransitResult.RemoteGlobalTransitIdFileIdentifier,
+                new List<string>() { recipient.OdinId });
+
+            //
+            // See the comment is deleted
+            //
+
+            var softDeletedBatch = await recipientOwnerClient.Drive.QueryBatch(FileSystemType.Comment, qp);
+            Assert.IsTrue(softDeletedBatch.SearchResults.Count() == 1);
+            var theDeletedFile = softDeletedBatch.SearchResults.SingleOrDefault();
+            Assert.IsNotNull(theDeletedFile);
+            Assert.IsTrue(theDeletedFile.FileState == FileState.Deleted);
+            Assert.IsTrue(theDeletedFile.FileSystemType == FileSystemType.Comment);
+
+            await this.DeleteScenario(senderOwnerClient, recipientOwnerClient);
+        }
+
         //
 
         /// <summary>

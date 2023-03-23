@@ -167,9 +167,7 @@ namespace Youverse.Hosting
             cb.RegisterType<TransitService>().As<ITransitService>().SingleInstance();
 
             cb.RegisterType<CommandMessagingService>().AsSelf().SingleInstance();
-
-            cb.RegisterType<AppService>().As<IAppService>().SingleInstance();
-
+            
             cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();
 
             cb.RegisterType<TransitQueryService>().AsSelf().SingleInstance();

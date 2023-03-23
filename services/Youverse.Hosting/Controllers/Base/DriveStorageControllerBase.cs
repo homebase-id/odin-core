@@ -1,19 +1,34 @@
-﻿using System.IO;
+﻿using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Youverse.Core.Exceptions;
+using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Hosting.Authentication.ClientToken;
+using Youverse.Hosting.Controllers.OwnerToken.Drive;
 
 namespace Youverse.Hosting.Controllers.Base
 {
     /// <summary>
     /// Base class for any endpoint reading drive storage
     /// </summary>
-    public abstract class DriveReadStorageControllerBase : OdinControllerBase
+    public abstract class DriveStorageControllerBase : OdinControllerBase
     {
+        private readonly ITransitService _transitService;
+        private readonly FileSystemResolver _fileSystemResolver;
+
+        protected DriveStorageControllerBase(FileSystemResolver fileSystemResolver, ITransitService transitService)
+        {
+            _fileSystemResolver = fileSystemResolver;
+            _transitService = transitService;
+        }
+
         /// <summary>
         /// Returns the file header
         /// </summary>
@@ -82,7 +97,90 @@ namespace Youverse.Hosting.Controllers.Base
             return new FileStreamResult(payload, header.FileMetadata.PayloadIsEncrypted ? "application/octet-stream" : header.FileMetadata.ContentType);
         }
 
-        
+        /// <summary>
+        /// Deletes a file and sends delete linked file requests to all recipient if specified
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
+        protected async Task<IActionResult> DeleteFile(DeleteFileRequest request)
+        {
+            var driveId = DotYouContext.PermissionsContext.GetDriveId(request.File.TargetDrive);
+            var requestRecipients = request.Recipients;
+            
+            var file = new InternalDriveFileId()
+            {
+                DriveId = driveId,
+                FileId = request.File.FileId
+            };
+
+            var result = new DeleteLinkedFileResult()
+            {
+                RecipientStatus = new Dictionary<string, DeleteLinkedFileStatus>(),
+                LocalFileDeleted = false
+            };
+
+            var fs = _fileSystemResolver.ResolveFileSystem(file);
+
+            var header = await fs.Storage.GetServerFileHeader(file);
+            if (header == null)
+            {
+                result.LocalFileNotFound = true;
+                return new JsonResult(result);
+            }
+
+            var recipients = requestRecipients ?? new List<string>();
+            if (recipients.Any())
+            {
+                if (header.FileMetadata.GlobalTransitId.HasValue)
+                {
+                    var remoteGlobalTransitIdentifier = new GlobalTransitIdFileIdentifier()
+                    {
+                        GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
+                        TargetDrive = request.File.TargetDrive
+                    };
+                    
+                    //send the deleted file
+                    var map = await _transitService.SendDeleteLinkedFileRequest(remoteGlobalTransitIdentifier,
+                        new SendFileOptions()
+                        {
+                            FileSystemType = header.ServerMetadata.FileSystemType,
+                            TransferFileType = TransferFileType.Normal,
+                            ClientAccessTokenSource = ClientAccessTokenSource.Circle
+                        },
+                        recipients);
+
+                    foreach (var (key, value) in map)
+                    {
+                        switch (value)
+                        {
+                            case TransitResponseCode.AcceptedIntoInbox:
+                                result.RecipientStatus.Add(key, DeleteLinkedFileStatus.RequestAccepted);
+                                break;
+
+                            case TransitResponseCode.Rejected:
+                            case TransitResponseCode.QuarantinedPayload:
+                            case TransitResponseCode.QuarantinedSenderNotConnected:
+                                result.RecipientStatus.Add(key, DeleteLinkedFileStatus.RequestRejected);
+                                break;
+
+                            default:
+                                throw new YouverseSystemException($"Unknown TransitResponseCode {value}");
+                        }
+                    }
+                }
+            }
+
+            await fs.Storage.SoftDeleteLongTermFile(file);
+            result.LocalFileDeleted = true;
+
+            if (result.LocalFileNotFound)
+            {
+                return NotFound();
+            }
+
+            return new JsonResult(result);
+        }
+
         private void AddCacheHeader()
         {
             if (DotYouContext.AuthContext == ClientTokenConstants.YouAuthScheme)

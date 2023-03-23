@@ -160,37 +160,59 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(targetDrive);
 
-            try
+            //TODO: add checks if the sender can write comments if this is a comment
+            _fileSystem.Storage.AssertCanWriteToDrive(driveId);
+
+            //if the sender can write, we can perform this now
+
+            //Note: we need to check if the person deleting the comment is the original commenter or the owner
+            var header = await _fileSystem.Query.GetFileByGlobalTransitId(driveId, globalTransitId);
+            if (null != header)
             {
-                var item = new TransferInboxItem()
+                await _fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
                 {
-                    Id = Guid.NewGuid(),
-                    AddedTimestamp = UnixTimeUtc.Now(),
-                    Sender = this._contextAccessor.GetCurrent().GetCallerOdinIdOrFail(),
-
-                    InstructionType = TransferInstructionType.DeleteLinkedFile,
-                    DriveId = driveId,
-                    GlobalTransitId = globalTransitId,
-                    FileSystemType = fileSystemType,
-                };
-
-                await _transitInboxBoxStorage.Add(item);
-
-                return new HostTransitResponse()
-                {
-                    Code = TransitResponseCode.AcceptedIntoInbox,
-                    Message = ""
-                };
+                    FileId = header.FileId,
+                    DriveId = driveId
+                });
             }
-            catch
+
+            return new HostTransitResponse()
             {
-                //TODO: add logging here?
-                return new HostTransitResponse()
-                {
-                    Code = TransitResponseCode.Rejected,
-                    Message = "Server Error"
-                };
-            }
+                Code = TransitResponseCode.AcceptedDirectWrite,
+                Message = ""
+            };
+            
+            // try
+            // {
+            //     var item = new TransferInboxItem()
+            //     {
+            //         Id = Guid.NewGuid(),
+            //         AddedTimestamp = UnixTimeUtc.Now(),
+            //         Sender = this._contextAccessor.GetCurrent().GetCallerOdinIdOrFail(),
+            //
+            //         InstructionType = TransferInstructionType.DeleteLinkedFile,
+            //         DriveId = driveId,
+            //         GlobalTransitId = globalTransitId,
+            //         FileSystemType = fileSystemType,
+            //     };
+            //
+            //     await _transitInboxBoxStorage.Add(item);
+            //
+            //     return new HostTransitResponse()
+            //     {
+            //         Code = TransitResponseCode.AcceptedIntoInbox,
+            //         Message = ""
+            //     };
+            // }
+            // catch
+            // {
+            //     //TODO: add logging here?
+            //     return new HostTransitResponse()
+            //     {
+            //         Code = TransitResponseCode.Rejected,
+            //         Message = "Server Error"
+            //     };
+            // }
         }
 
         public Task<QueryBatchResult> QueryBatch(FileQueryParams qp, QueryBatchResultOptions options)
@@ -349,13 +371,13 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
             {
                 // Next determine if we can direct write the file
                 var hasStorageKey = _contextAccessor.GetCurrent().PermissionsContext.TryGetDriveStorageKey(stateItem.TempFile.DriveId, out var _);
-                
+
                 //S1200
                 if (hasStorageKey)
                 {
                     //S1205
                     await writer.HandleFile(stateItem.TempFile, _fileSystem, decryptedKeyHeader, sender,
-                        stateItem.TransferInstructionSet.FileSystemType, 
+                        stateItem.TransferInstructionSet.FileSystemType,
                         stateItem.TransferInstructionSet.TransferFileType);
                     return true;
                 }
