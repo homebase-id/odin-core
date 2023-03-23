@@ -165,25 +165,25 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
 
             //if the sender can write, we can perform this now
 
-            //Note: we need to check if the person deleting the comment is the original commenter or the owner
-            var header = await _fileSystem.Query.GetFileByGlobalTransitId(driveId, globalTransitId);
-            if (null != header)
+            if(fileSystemType == FileSystemType.Comment)
             {
-                await _fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
+                //Note: we need to check if the person deleting the comment is the original commenter or the owner
+                var header = await _fileSystem.Query.GetFileByGlobalTransitId(driveId, globalTransitId);
+                if (null != header)
                 {
-                    FileId = header.FileId,
-                    DriveId = driveId
-                });
-                
-                return new HostTransitResponse()
-                {
-                    Code = TransitResponseCode.AcceptedDirectWrite,
-                    Message = ""
-                };
+                    await _fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
+                    {
+                        FileId = header.FileId,
+                        DriveId = driveId
+                    });
 
+                    return new HostTransitResponse()
+                    {
+                        Code = TransitResponseCode.AcceptedDirectWrite,
+                        Message = ""
+                    };
+                }
             }
-
-            
             try
             {
                 var item = new TransferInboxItem()
