@@ -82,6 +82,7 @@ namespace Youverse.Hosting.Controllers.Base
             return new FileStreamResult(payload, header.FileMetadata.PayloadIsEncrypted ? "application/octet-stream" : header.FileMetadata.ContentType);
         }
 
+        
         private void AddCacheHeader()
         {
             if (DotYouContext.AuthContext == ClientTokenConstants.YouAuthScheme)

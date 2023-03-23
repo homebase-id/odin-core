@@ -156,7 +156,7 @@ public class DataSubscriptionTests
     }
 
     [Test]
-    [Ignore("causes other tests to fail when multiple tests are running, need ot figure out w/ Michael")]
+    // [Ignore("causes other tests to fail when multiple tests are running, need ot figure out w/ Michael")]
     public async Task CanUploadStandardFileThenDeleteThenDistributeDeletion()
     {
         const int fileType = 1117;

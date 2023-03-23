@@ -140,8 +140,9 @@ namespace Youverse.Hosting.Controllers.Certificate
         public async Task<HostTransitResponse> DeleteLinkedFile(DeleteRemoteFileTransitRequest transitRequest)
         {
             var perimeterService = GetPerimeterService();
-            return await perimeterService.AcceptDeleteLinkedFileRequest(transitRequest.TargetDrive, 
-                transitRequest.GlobalTransitId,
+            return await perimeterService.AcceptDeleteLinkedFileRequest(
+                transitRequest.RemoteGlobalTransitIdFileIdentifier.TargetDrive, 
+                transitRequest.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
                 transitRequest.FileSystemType);
         }
 

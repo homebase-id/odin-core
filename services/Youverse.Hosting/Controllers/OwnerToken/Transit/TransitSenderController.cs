@@ -139,7 +139,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
                     SendContents = SendContents.All,
 
                     //TODO: OMG HACK
-                    OverrideRemoteGlobalTransitId = transitInstructionSet.OverwriteGlobalTransitFileId,
+                    OverrideRemoteGlobalTransitId = transitInstructionSet.GlobalTransitFileId,
                     
                     RemoteTargetDrive = transitInstructionSet.RemoteTargetDrive,
                     Recipients = transitInstructionSet.Recipients,

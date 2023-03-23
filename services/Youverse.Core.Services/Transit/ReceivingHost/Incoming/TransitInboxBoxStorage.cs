@@ -61,7 +61,6 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Incoming
         public Task MarkComplete(Guid driveId, byte[] marker)
         {
             _tenantSystemStorage.Inbox.PopCommit(marker);
-            _tenantSystemStorage.CommitOutstandingTransactions();
             return Task.CompletedTask;
         }
 

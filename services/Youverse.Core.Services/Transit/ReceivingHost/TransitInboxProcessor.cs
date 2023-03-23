@@ -1,14 +1,13 @@
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.DriveCore.Storage;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.ReceivingHost.Incoming;
 using Youverse.Core.Services.Transit.SendingHost;
+using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Transit.ReceivingHost
 {
@@ -18,15 +17,18 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
         private readonly FileSystemResolver _fileSystemResolver;
         private readonly IPublicKeyService _publicKeyService;
+        private readonly ITenantSystemStorage _tenantSystemStorage;
+
         
         public TransitInboxProcessor(DotYouContextAccessor contextAccessor,
             TransitInboxBoxStorage transitInboxBoxStorage,
-            FileSystemResolver fileSystemResolver, IPublicKeyService publicKeyService)
+            FileSystemResolver fileSystemResolver, IPublicKeyService publicKeyService, ITenantSystemStorage tenantSystemStorage)
         {
             _contextAccessor = contextAccessor;
             _transitInboxBoxStorage = transitInboxBoxStorage;
             _fileSystemResolver = fileSystemResolver;
             _publicKeyService = publicKeyService;
+            _tenantSystemStorage = tenantSystemStorage;
         }
 
         public async Task ProcessIncomingTransitInstructions(TargetDrive targetDrive)
@@ -36,74 +38,64 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
 
             TransitFileWriter writer = new TransitFileWriter(_contextAccessor, _fileSystemResolver);
             
-            // var drivesNeedingACommit = new List<Guid>();
             foreach (var inboxItem in items)
             {
-                try
+                using (_tenantSystemStorage.CreateCommitUnitOfWork())
                 {
-                    var fs = _fileSystemResolver.ResolveFileSystem(inboxItem.FileSystemType);
-                    
-                    var tempFile = new InternalDriveFileId()
+                    try
                     {
-                        DriveId = inboxItem.DriveId,
-                        FileId = inboxItem.FileId
-                    };
+                        var fs = _fileSystemResolver.ResolveFileSystem(inboxItem.FileSystemType);
 
-                    if (inboxItem.InstructionType == TransferInstructionType.SaveFile)
-                    {
-                        var (isValidPublicKey, decryptedAesKeyHeaderBytes) =
-                            await _publicKeyService.DecryptKeyHeaderUsingOfflineKey(inboxItem.RsaEncryptedKeyHeader,
-                                inboxItem.PublicKeyCrc);
-
-                        if (!isValidPublicKey)
+                        var tempFile = new InternalDriveFileId()
                         {
-                            //TODO: handle when isValidPublicKey = false
-                            throw new YouverseSecurityException("Public key was invalid");
+                            DriveId = inboxItem.DriveId,
+                            FileId = inboxItem.FileId
+                        };
+
+                        if (inboxItem.InstructionType == TransferInstructionType.SaveFile)
+                        {
+                            var (isValidPublicKey, decryptedAesKeyHeaderBytes) =
+                                await _publicKeyService.DecryptKeyHeaderUsingOfflineKey(inboxItem.RsaEncryptedKeyHeader,
+                                    inboxItem.PublicKeyCrc);
+
+                            if (!isValidPublicKey)
+                            {
+                                //TODO: handle when isValidPublicKey = false
+                                throw new YouverseSecurityException("Public key was invalid");
+                            }
+
+                            var decryptedKeyHeader = KeyHeader.FromCombinedBytes(decryptedAesKeyHeaderBytes);
+                            decryptedAesKeyHeaderBytes.WriteZeros();
+
+                            await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender, inboxItem.FileSystemType, inboxItem.TransferFileType);
                         }
-                    
-                        var decryptedKeyHeader = KeyHeader.FromCombinedBytes(decryptedAesKeyHeaderBytes);
-                        decryptedAesKeyHeaderBytes.WriteZeros();
+                        else if (inboxItem.InstructionType == TransferInstructionType.DeleteLinkedFile)
+                        {
+                            await writer.DeleteFile(fs, inboxItem);
+                        }
+                        else if (inboxItem.InstructionType == TransferInstructionType.None)
+                        {
+                            throw new YouverseClientException("Transfer type not specified", YouverseClientErrorCode.TransferTypeNotSpecified);
+                        }
+                        else
+                        {
+                            throw new YouverseClientException("Invalid transfer type", YouverseClientErrorCode.InvalidTransferType);
+                        }
 
-                        await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender, inboxItem.FileSystemType, inboxItem.TransferFileType);
+                        await _transitInboxBoxStorage.MarkComplete(inboxItem.DriveId, inboxItem.Marker);
                     }
-                    else if (inboxItem.InstructionType == TransferInstructionType.DeleteLinkedFile)
+                    catch (YouverseRemoteIdentityException)
                     {
-                        await writer.DeleteFile(fs, inboxItem);
+                        await _transitInboxBoxStorage.MarkFailure(inboxItem.DriveId, inboxItem.Marker);
+                        throw;
                     }
-                    else if (inboxItem.InstructionType == TransferInstructionType.None)
+                    catch (Exception)
                     {
-                        throw new YouverseClientException("Transfer type not specified", YouverseClientErrorCode.TransferTypeNotSpecified);
+                        await _transitInboxBoxStorage.MarkFailure(inboxItem.DriveId, inboxItem.Marker);
                     }
-                    else
-                    {
-                        throw new YouverseClientException("Invalid transfer type", YouverseClientErrorCode.InvalidTransferType);
-                    }
-
-                    await _transitInboxBoxStorage.MarkComplete(inboxItem.DriveId, inboxItem.Marker);
-                    // drivesNeedingACommit.Add(item.DriveId);
-                    await fs.Query.EnsureDriveDatabaseCommits(new List<Guid>() { inboxItem.DriveId });
-
-                    // var items2 = await GetAcceptedItems(drive);
-                    //
-                    // if (items2.Count > 0)
-                    // {
-                    //     string x = "";
-                    // }
-                }
-                catch (YouverseRemoteIdentityException)
-                {
-                    await _transitInboxBoxStorage.MarkFailure(inboxItem.DriveId, inboxItem.Marker);
-                    throw;
-                }
-                catch (Exception)
-                {
-                    await _transitInboxBoxStorage.MarkFailure(inboxItem.DriveId, inboxItem.Marker);
                 }
             }
 
-            // foreach (var x in drivesNeedingACommit)
-            // {
-            // }
         }
 
         public Task<PagedResult<TransferInboxItem>> GetQuarantinedItems(PageOptions pageOptions)

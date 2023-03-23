@@ -123,20 +123,6 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             return collection;
         }
 
-        public Task EnsureDriveDatabaseCommits(IEnumerable<Guid> driveIdList)
-        {
-            foreach (var driveId in driveIdList)
-            {
-                AssertCanWriteToDrive(driveId);
-                if (this.TryGetOrLoadQueryManager(driveId, out var manager))
-                {
-                    manager.EnsureDriveDatabaseCommits();
-                }
-            }
-
-            return Task.CompletedTask;
-        }
-
         public async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId, bool forceIncludeServerMetadata = false)
         {
             AssertCanReadDrive(driveId);

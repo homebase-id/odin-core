@@ -32,6 +32,6 @@ namespace Youverse.Core.Services.Transit.SendingHost
         /// <summary>
         /// Optionally specified if you are overwriting a remote file
         /// </summary>
-        public Guid? OverwriteGlobalTransitFileId { get; set; }
+        public Guid? GlobalTransitFileId { get; set; }
     }
 }

@@ -107,7 +107,7 @@ public class TransitApiClient
         TransitInstructionSet instructionSet = new TransitInstructionSet()
         {
             TransferIv = transferIv,
-            OverwriteGlobalTransitFileId = overwriteGlobalTransitFileId,
+            GlobalTransitFileId = overwriteGlobalTransitFileId,
             RemoteTargetDrive = remoteTargetDrive,
             Schedule = ScheduleOptions.SendNowAwaitResponse,
             Recipients = recipients,
@@ -178,7 +178,7 @@ public class TransitApiClient
         TransitInstructionSet instructionSet = new TransitInstructionSet()
         {
             TransferIv = transferIv,
-            OverwriteGlobalTransitFileId = overwriteGlobalTransitFileId,
+            GlobalTransitFileId = overwriteGlobalTransitFileId,
             RemoteTargetDrive = remoteTargetDrive,
             Schedule = ScheduleOptions.SendNowAwaitResponse,
             Recipients = recipients,

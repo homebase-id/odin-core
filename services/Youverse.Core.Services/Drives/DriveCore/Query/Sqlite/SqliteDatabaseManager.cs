@@ -212,12 +212,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         _db.TblCmdMsgQueue.DeleteRow(fileIds);
         return Task.CompletedTask;
     }
-
-    public void EnsureDriveDatabaseCommits()
-    {
-        _db.Commit();
-    }
-
+    
     public void Dispose()
     {
         _db.Commit();
