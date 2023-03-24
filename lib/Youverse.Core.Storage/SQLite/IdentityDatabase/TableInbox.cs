@@ -14,6 +14,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         private SqliteParameter _pparam3 = null;
         private static Object _popLock = new Object();
 
+        private SqliteCommand _popStatusCommand = null;
+
         private SqliteCommand _popCancelCommand = null;
         private SqliteParameter _pcancelparam1 = null;
 
@@ -36,6 +38,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         {
             _popCommand?.Dispose();
             _popCommand = null;
+
+            _popStatusCommand?.Dispose();
+            _popStatusCommand = null;
 
             _popCancelCommand?.Dispose();
             _popCancelCommand = null;
@@ -63,16 +68,17 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             return base.Insert(item);
         }
 
+
         /// <summary>
-        /// Pops 'count' items from the inbox. The items remain in the DB with the 'popstamp' unique identifier.
+        /// Pops 'count' items from the table. The items remain in the DB with the 'popstamp' unique identifier.
         /// Popstamp is used by the caller to release the items when they have been successfully processed, or
         /// to cancel the transaction and restore the items to the inbox.
         /// </summary
-        /// <param name="boxId">Is the inbox to pop from, e.g. Drive A, or App B</param>
+        /// <param name="boxId">Is the box to pop from, e.g. Drive A, or App B</param>
         /// <param name="count">How many items to 'pop' (reserve)</param>
         /// <param name="popStamp">The unique identifier for the items reserved for pop</param>
-        /// <returns></returns>
-        public List<InboxRecord> Pop(Guid boxId, int count, out byte[] popStamp)
+        /// <returns>List of records</returns>
+        public List<InboxRecord> PopSpecificBox(Guid boxId, int count, out Guid popStamp)
         {
             lock (_popLock)
             {
@@ -80,9 +86,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 if (_popCommand == null)
                 {
                     _popCommand = _database.CreateCommand();
-                    //_popCommand.CommandText = "UPDATE inbox SET popstamp=$popstamp WHERE boxid=$boxid AND popstamp IS NULL ORDER BY timeStamp ASC LIMIT $count; " +
-                    //                          "SELECT fileid, priority, timeStamp, value from inbox WHERE popstamp=$popstamp";
-
                     _popCommand.CommandText = "UPDATE inbox SET popstamp=$popstamp WHERE rowid IN (SELECT rowid FROM inbox WHERE boxid=$boxid AND popstamp IS NULL ORDER BY timeStamp ASC LIMIT $count); " +
                                               "SELECT fileid, priority, timeStamp, value from inbox WHERE popstamp=$popstamp";
 
@@ -101,8 +104,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _popCommand.Prepare();
                 }
 
-                popStamp = SequentialGuid.CreateGuid().ToByteArray();
-                _pparam1.Value = popStamp ?? (object) DBNull.Value;
+                popStamp = SequentialGuid.CreateGuid();
+                _pparam1.Value = popStamp.ToByteArray();
                 _pparam2.Value = count;
                 _pparam3.Value = boxId.ToByteArray();
 
@@ -157,11 +160,71 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             }
         }
 
+
+        /// <summary>
+        /// Status on the box
+        /// </summary>
+        /// <returns>Number of total items in box, number of popped items, the oldest popped item (ZeroTime if none)</returns>
+        /// <exception cref="Exception"></exception>
+        public (int, int, UnixTimeUtc) PopStatus()
+        {
+            lock (_popLock)
+            {
+                // Make sure we only prep once 
+                if (_popStatusCommand == null)
+                {
+                    _popStatusCommand = _database.CreateCommand();
+                    _popStatusCommand.CommandText =
+                        "SELECT count(*) FROM inbox;" +
+                        "SELECT count(*) FROM inbox WHERE popstamp NOT NULL;" +
+                        "SELECT popstamp FROM inbox ORDER BY popstamp DESC LIMIT 1;";
+                    _popStatusCommand.Prepare();
+                }
+
+                using (SqliteDataReader rdr = _database.ExecuteReader(_popStatusCommand, System.Data.CommandBehavior.Default))
+                {
+                    // Read the total count
+                    if (!rdr.Read())
+                        throw new Exception("Not possible");
+                    if (rdr.IsDBNull(0))
+                        throw new Exception("Not possible");
+
+                    int totalCount = rdr.GetInt32(0);
+
+                    // Read the popped count
+                    if (!rdr.NextResult())
+                        throw new Exception("Not possible");
+
+                    if (!rdr.Read())
+                        throw new Exception("Not possible");
+                    if (rdr.IsDBNull(0))
+                        throw new Exception("Not possible");
+
+                    int poppedCount = rdr.GetInt32(0);
+
+                    if (!rdr.NextResult())
+                        throw new Exception("Not possible");
+                    // Read the marker, if any
+                    if (!rdr.Read() || rdr.IsDBNull(0))
+                        return (totalCount, poppedCount, UnixTimeUtc.ZeroTime);
+
+                    var _guid = new byte[16];
+                    var n = rdr.GetBytes(0, 0, _guid, 0, 16);
+                    if (n != 16)
+                        throw new Exception("Invalid stamp");
+
+                    var guid = new Guid(_guid);
+                    var utc = SequentialGuid.ToUnixTimeUtc(guid);
+                    return (totalCount, poppedCount, utc);
+                }
+            }
+        }
+
         /// <summary>
         /// Cancels the pop of items with the 'popstamp' from a previous pop operation
         /// </summary>
         /// <param name="popstamp"></param>
-        public void PopCancel(byte[] popstamp)
+        public void PopCancelAll(Guid popstamp)
         {
             lock (_popLock)
             {
@@ -179,7 +242,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _popCancelCommand.Prepare();
                 }
 
-                _pcancelparam1.Value = popstamp ?? (object) DBNull.Value;
+                _pcancelparam1.Value = popstamp.ToByteArray();
 
                 _database.ExecuteNonQuery(_popCancelCommand);
             }
@@ -189,7 +252,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         /// Commits (removes) the items previously popped with the supplied 'popstamp'
         /// </summary>
         /// <param name="popstamp"></param>
-        public void PopCommit(byte[] popstamp)
+        public void PopCommitAll(Guid popstamp)
         {
             lock (_popLock)
             {
@@ -206,7 +269,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _popCommitCommand.Prepare();
                 }
 
-                _pcommitparam1.Value = popstamp ?? (object) DBNull.Value;
+                _pcommitparam1.Value = popstamp.ToByteArray();
 
                 _database.ExecuteNonQuery(_popCommitCommand);
             }

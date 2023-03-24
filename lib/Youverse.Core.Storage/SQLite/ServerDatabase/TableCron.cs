@@ -1,8 +1,6 @@
-﻿// using SqlitePCL;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
-using Youverse.Core.Util;
 
 namespace Youverse.Core.Storage.Sqlite.ServerDatabase
 {
@@ -69,7 +67,7 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
 
 
         /// <summary>
-        /// Pops 'count' items from the cron. The items remain in the DB with the 'popstamp' unique identifier.
+        /// Pops 'count' items from the table. The items remain in the DB with the 'popstamp' unique identifier.
         /// Popstamp is used by the caller to release the items when they have been successfully processed, or
         /// to cancel the transaction and restore the items to the cron.
         /// </summary
@@ -79,30 +77,11 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
         /// <returns></returns>
         public List<CronRecord> Pop(int count, out Guid popStamp)
         {
-            // TODO, maybe you can also checkout a TYPE. e.g. Give me outbox items.
-
             lock (_popLock)
             {
-                // Make sure we only prep once 
                 if (_popCommand == null)
                 {
                     _popCommand = _database.CreateCommand();
-
-                    //_popCommand.CommandText =
-                    //    "UPDATE cron SET popstamp=$popstamp " +
-                    //    "WHERE id IN (SELECT id FROM cron ORDER BY nextrun ASC LIMIT 10); " +
-                    //    "SELECT identityid, type, data, runcount, lastrun, nextrun FROM cron WHERE popstamp=$popstamp";
-
-                    /* _popCommand.CommandText =
-                        "UPDATE cron SET popstamp=$popstamp, runcount=runcount+1, nextRun = 1000*(60 * power(2, min(runcount, 10)) + unixepoch()) " +
-                        "WHERE (popstamp IS NULL) ORDER BY nextrun ASC LIMIT $count; " +
-                        "SELECT identityid, type, data, runcount, lastrun, nextrun FROM cron WHERE popstamp=$popstamp";*/
-
-                    /* _popCommand.CommandText =
-                        "UPDATE cron SET popstamp=$popstamp, runcount=runcount+1, nextRun = 1000*(60 * power(2, min(runcount, 10)) + unixepoch()) " +
-                        "WHERE rowid IN (SELECT rowid FROM cron WHERE (popstamp IS NULL) ORDER BY nextrun ASC LIMIT $count); " +
-                        "SELECT identityid, type, data, runcount, lastrun, nextrun FROM cron WHERE popstamp=$popstamp";*/
-
                     _popCommand.CommandText =
                         "UPDATE cron SET popstamp=$popstamp, runcount=runcount+1, nextRun = 1000 * (60 * (runcount+1)) + unixepoch() " +
                         "WHERE rowid IN (SELECT rowid FROM cron WHERE (popstamp IS NULL) ORDER BY nextrun ASC LIMIT $count); " +

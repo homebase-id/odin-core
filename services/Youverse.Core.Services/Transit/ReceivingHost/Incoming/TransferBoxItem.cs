@@ -37,7 +37,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Incoming
         /// </summary>
         public int Priority { get; set; }
 
-        public byte[] Marker { get; set; }
+        public Guid Marker { get; set; }
 
         /// <summary>
         /// The FileSystemType of the incoming file

@@ -33,7 +33,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Incoming
         public async Task<List<TransferBoxItem>> GetPendingItems(Guid driveId)
         {
             //CRITICAL NOTE: we can only get back one item since we want to make sure the marker is for that one item in-case the operation fails
-            var records = this._tenantSystemStorage.Inbox.Pop(driveId, 1, out var marker);
+            var records = this._tenantSystemStorage.Inbox.PopSpecificBox(driveId, 1, out var marker);
 
             var record = records.SingleOrDefault();
             if (null == record)
@@ -57,16 +57,16 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Incoming
             return await Task.FromResult(items);
         }
 
-        public Task MarkComplete(Guid driveId, byte[] marker)
+        public Task MarkComplete(Guid driveId, Guid marker)
         {
-            _tenantSystemStorage.Inbox.PopCommit(marker);
+            _tenantSystemStorage.Inbox.PopCommitAll(marker);
             _tenantSystemStorage.CommitOutstandingTransactions();
             return Task.CompletedTask;
         }
 
-        public Task MarkFailure(Guid driveId, byte[] marker)
+        public Task MarkFailure(Guid driveId, Guid marker)
         {
-            _tenantSystemStorage.Inbox.PopCancel(marker);
+            _tenantSystemStorage.Inbox.PopCancelAll(marker);
             return Task.CompletedTask;
         }
     }

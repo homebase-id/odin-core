@@ -89,7 +89,7 @@ namespace Youverse.Core.Services.Transit.SendingHost.Outbox
 
         public Task MarkComplete(Guid marker)
         {
-            _tenantSystemStorage.Outbox.PopCommit(marker);
+            _tenantSystemStorage.Outbox.PopCommitAll(marker);
             return Task.CompletedTask;
         }
 
@@ -100,7 +100,7 @@ namespace Youverse.Core.Services.Transit.SendingHost.Outbox
         {
             _tenantSystemStorage.Outbox.PopCommitList(marker, listFileId: new List<Guid>());
             //TODO: there is no way to keep information on why an item failed
-            _tenantSystemStorage.Outbox.PopCancel(marker);
+            _tenantSystemStorage.Outbox.PopCancelAll(marker);
 
             // if (null == item)
             // {
@@ -119,7 +119,7 @@ namespace Youverse.Core.Services.Transit.SendingHost.Outbox
         public async Task<List<TransitOutboxItem>> GetBatchForProcessing(Guid driveId, int batchSize)
         {
             //CRITICAL NOTE: To integrate this with the existing outbox design, you can only pop one item at a time since the marker defines a set
-            var records = _tenantSystemStorage.Outbox.Pop(driveId, batchSize, out var marker);
+            var records = _tenantSystemStorage.Outbox.PopSpecificBox(driveId, batchSize, out var marker);
 
             var items = records.Select(r =>
             {

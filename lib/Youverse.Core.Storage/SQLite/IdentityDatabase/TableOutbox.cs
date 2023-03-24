@@ -8,15 +8,18 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
     {
         const int MAX_VALUE_LENGTH = 65535;  // Stored value cannot be longer than this
 
-        private SqliteCommand _popCommand = null;
-        private SqliteParameter _pparam1 = null;
-        private SqliteParameter _pparam2 = null;
-        private SqliteParameter _pparam3 = null;
+        private SqliteCommand _popSpecificBoxCommand = null;
+        private SqliteParameter _psbparam1 = null;
+        private SqliteParameter _psbparam2 = null;
+        private SqliteParameter _psbparam3 = null;
         private static Object _popLock = new Object();
 
         private SqliteCommand _popAllCommand = null;
         private SqliteParameter _paparam1 = null;
+        private SqliteParameter _paparam2 = null;
         private static Object _popAllLock = new Object();
+
+        private SqliteCommand _popStatusCommand = null;
 
         private SqliteCommand _popCancelCommand = null;
         private SqliteParameter _pcancelparam1 = null;
@@ -47,8 +50,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
         public override void Dispose()
         {
-            _popCommand?.Dispose();
-            _popCommand = null;
+            _popSpecificBoxCommand?.Dispose();
+            _popSpecificBoxCommand = null;
 
             _popAllCommand?.Dispose();
             _popAllCommand = null;
@@ -64,6 +67,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
             _popRecoverCommand?.Dispose();
             _popRecoverCommand = null;
+
+            _popStatusCommand?.Dispose();
+            _popStatusCommand = null;
 
             base.Dispose();
         }
@@ -83,97 +89,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         }
 
 
-        /// <summary>
-        /// Pops 'count' items from the outbox. The items remain in the DB with the 'popstamp' unique identifier.
-        /// Popstamp is used by the caller to release the items when they have been successfully processed, or
-        /// to cancel the transaction and restore the items to the outbox.
-        /// </summary
-        /// <param name="boxId">Is the outbox to pop from, e.g. Drive A, or App B</param>
-        /// <param name="count">How many items to 'pop' (reserve)</param>
-        /// <param name="popStamp">The unique identifier for the items reserved for pop</param>
-        /// <returns></returns>
-        public List<OutboxRecord> Pop(Guid boxId, int count, out Guid popStamp)
-        {
-            lock (_popLock)
-            {
-                // Make sure we only prep once 
-                if (_popCommand == null)
-                {
-                    _popCommand = _database.CreateCommand();
-                    _popCommand.CommandText = "UPDATE outbox SET popStamp=$popstamp WHERE rowid IN (SELECT rowid FROM outbox WHERE boxId=$boxid AND popStamp IS NULL ORDER BY timeStamp ASC LIMIT $count); " +
-                                              "SELECT fileId, priority, timeStamp, value, recipient from outbox WHERE popstamp=$popstamp";
 
-                    _pparam1 = _popCommand.CreateParameter();
-                    _pparam1.ParameterName = "$popstamp";
-                    _popCommand.Parameters.Add(_pparam1);
 
-                    _pparam2 = _popCommand.CreateParameter();
-                    _pparam2.ParameterName = "$count";
-                    _popCommand.Parameters.Add(_pparam2);
-
-                    _pparam3 = _popCommand.CreateParameter();
-                    _pparam3.ParameterName = "$boxid";
-                    _popCommand.Parameters.Add(_pparam3);
-
-                    _popCommand.Prepare();
-                }
-
-                popStamp = SequentialGuid.CreateGuid();
-                _pparam1.Value = popStamp.ToByteArray();
-                _pparam2.Value = count;
-                _pparam3.Value = boxId.ToByteArray();
-
-                List<OutboxRecord> result = new List<OutboxRecord>();
-
-                using (_database.CreateCommitUnitOfWork())
-                {
-                    using (SqliteDataReader rdr = _database.ExecuteReader(_popCommand, System.Data.CommandBehavior.Default))
-                    {
-                        OutboxRecord item;
-
-                        while (rdr.Read())
-                        {
-                            if (rdr.IsDBNull(0))
-                                throw new Exception("Not possible");
-
-                            item = new OutboxRecord();
-                            item.boxId = boxId;
-                            var _guid = new byte[16];
-                            var n = rdr.GetBytes(0, 0, _guid, 0, 16);
-                            if (n != 16)
-                                throw new Exception("Invalid fileId");
-                            item.fileId = new Guid(_guid);
-                            item.priority = rdr.GetInt32(1);
-                            item.timeStamp = new UnixTimeUtc(rdr.GetInt64(2));
-
-                            if (rdr.IsDBNull(3))
-                            {
-                                item.value = null;
-                            }
-                            else
-                            {
-                                byte[] _tmpbuf = new byte[MAX_VALUE_LENGTH];
-                                n = rdr.GetBytes(3, 0, _tmpbuf, 0, MAX_VALUE_LENGTH);
-                                if (n >= MAX_VALUE_LENGTH)
-                                    throw new Exception("Too much data...");
-                                if (n == 0)
-                                    throw new Exception("Is that possible?");
-
-                                item.value = new byte[n];
-                                Buffer.BlockCopy(_tmpbuf, 0, item.value, 0, (int)n);
-                            }
-                            item.recipient = rdr.GetString(4);
-
-                            result.Add(item);
-                        }
-                    }
-
-                    return result;
-                }
-            }
-        }
-
-        public List<OutboxRecord> PopAll(out Guid popStamp)
+        public List<OutboxRecord> Pop(int count, out Guid popStamp)
         {
             lock (_popAllLock)
             {
@@ -181,18 +99,23 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 if (_popAllCommand == null)
                 {
                     _popAllCommand = _database.CreateCommand();
-                    _popAllCommand.CommandText = "UPDATE outbox SET popstamp=$popstamp WHERE popstamp is NULL and fileId IN (SELECT fileid FROM outbox WHERE popstamp is NULL GROUP BY boxid ORDER BY timestamp ASC); " +
+                    _popAllCommand.CommandText = "UPDATE outbox SET popstamp=$popstamp WHERE popstamp is NULL and fileId IN (SELECT fileid FROM outbox WHERE popstamp is NULL ORDER BY timestamp ASC LIMIT $count); " +
                                               "SELECT fileid, priority, timestamp, value, boxid, recipient from outbox WHERE popstamp=$popstamp";
 
                     _paparam1 = _popAllCommand.CreateParameter();
                     _paparam1.ParameterName = "$popstamp";
                     _popAllCommand.Parameters.Add(_paparam1);
 
+                    _paparam2 = _popAllCommand.CreateParameter();
+                    _paparam2.ParameterName = "$count";
+                    _popAllCommand.Parameters.Add(_paparam2);
+
                     _popAllCommand.Prepare();
                 }
 
                 popStamp = SequentialGuid.CreateGuid();
                 _paparam1.Value = popStamp.ToByteArray();
+                _paparam2.Value = count;
 
                 List<OutboxRecord> result = new List<OutboxRecord>();
 
@@ -250,11 +173,73 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             }
         }
 
+
+        /// <summary>
+        /// Status on the box
+        /// </summary>
+        /// <returns>Number of total items in box, number of popped items, the oldest popped item (ZeroTime if none)</returns>
+        /// <exception cref="Exception"></exception>
+        public (int, int, UnixTimeUtc) PopStatus()
+        {
+            lock (_popLock)
+            {
+                // Make sure we only prep once 
+                if (_popStatusCommand == null)
+                {
+                    _popStatusCommand = _database.CreateCommand();
+                    _popStatusCommand.CommandText =
+                        "SELECT count(*) FROM outbox;" +
+                        "SELECT count(*) FROM outbox WHERE popstamp NOT NULL;" +
+                        "SELECT popstamp FROM outbox ORDER BY popstamp DESC LIMIT 1;";
+                    _popStatusCommand.Prepare();
+                }
+
+                using (SqliteDataReader rdr = _database.ExecuteReader(_popStatusCommand, System.Data.CommandBehavior.Default))
+                {
+                    // Read the total count
+                    if (!rdr.Read())
+                        throw new Exception("Not possible");
+                    if (rdr.IsDBNull(0))
+                        throw new Exception("Not possible");
+
+                    int totalCount = rdr.GetInt32(0);
+
+                    // Read the popped count
+                    if (!rdr.NextResult())
+                        throw new Exception("Not possible");
+
+                    if (!rdr.Read())
+                        throw new Exception("Not possible");
+                    if (rdr.IsDBNull(0))
+                        throw new Exception("Not possible");
+
+                    int poppedCount = rdr.GetInt32(0);
+
+                    if (!rdr.NextResult())
+                        throw new Exception("Not possible");
+                    // Read the marker, if any
+                    if (!rdr.Read() || rdr.IsDBNull(0))
+                        return (totalCount, poppedCount, UnixTimeUtc.ZeroTime);
+
+                    var _guid = new byte[16];
+                    var n = rdr.GetBytes(0, 0, _guid, 0, 16);
+                    if (n != 16)
+                        throw new Exception("Invalid stamp");
+
+                    var guid = new Guid(_guid);
+                    var utc = SequentialGuid.ToUnixTimeUtc(guid);
+                    return (totalCount, poppedCount, utc);
+                }
+            }
+        }
+
+
+
         /// <summary>
         /// Cancels the pop of items with the 'popstamp' from a previous pop operation
         /// </summary>
         /// <param name="popstamp"></param>
-        public void PopCancel(Guid popstamp)
+        public void PopCancelAll(Guid popstamp)
         {
             lock (_popLock)
             {
@@ -318,7 +303,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         /// Commits (removes) the items previously popped with the supplied 'popstamp'
         /// </summary>
         /// <param name="popstamp"></param>
-        public void PopCommit(Guid popstamp)
+        public void PopCommitAll(Guid popstamp)
         {
             lock (_popLock)
             {
@@ -407,6 +392,97 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _pcrecoverparam1.Value = SequentialGuid.CreateGuid(UnixTimeSeconds).ToByteArray(); // UnixTimeMiliseconds
 
                 _database.ExecuteNonQuery(_popRecoverCommand);
+            }
+        }
+
+
+        /// <summary>
+        /// Pops 'count' items from the outbox. The items remain in the DB with the 'popstamp' unique identifier.
+        /// Popstamp is used by the caller to release the items when they have been successfully processed, or
+        /// to cancel the transaction and restore the items to the outbox.
+        /// </summary
+        /// <param name="boxId">Is the outbox to pop from, e.g. Drive A, or App B</param>
+        /// <param name="count">How many items to 'pop' (reserve)</param>
+        /// <param name="popStamp">The unique identifier for the items reserved for pop</param>
+        /// <returns></returns>
+        public List<OutboxRecord> PopSpecificBox(Guid boxId, int count, out Guid popStamp)
+        {
+            lock (_popLock)
+            {
+                // Make sure we only prep once 
+                if (_popSpecificBoxCommand == null)
+                {
+                    _popSpecificBoxCommand = _database.CreateCommand();
+                    _popSpecificBoxCommand.CommandText = "UPDATE outbox SET popStamp=$popstamp WHERE rowid IN (SELECT rowid FROM outbox WHERE boxId=$boxid AND popStamp IS NULL ORDER BY timeStamp ASC LIMIT $count); " +
+                                              "SELECT fileId, priority, timeStamp, value, recipient from outbox WHERE popstamp=$popstamp";
+
+                    _psbparam1 = _popSpecificBoxCommand.CreateParameter();
+                    _psbparam1.ParameterName = "$popstamp";
+                    _popSpecificBoxCommand.Parameters.Add(_psbparam1);
+
+                    _psbparam2 = _popSpecificBoxCommand.CreateParameter();
+                    _psbparam2.ParameterName = "$count";
+                    _popSpecificBoxCommand.Parameters.Add(_psbparam2);
+
+                    _psbparam3 = _popSpecificBoxCommand.CreateParameter();
+                    _psbparam3.ParameterName = "$boxid";
+                    _popSpecificBoxCommand.Parameters.Add(_psbparam3);
+
+                    _popSpecificBoxCommand.Prepare();
+                }
+
+                popStamp = SequentialGuid.CreateGuid();
+                _psbparam1.Value = popStamp.ToByteArray();
+                _psbparam2.Value = count;
+                _psbparam3.Value = boxId.ToByteArray();
+
+                List<OutboxRecord> result = new List<OutboxRecord>();
+
+                using (_database.CreateCommitUnitOfWork())
+                {
+                    using (SqliteDataReader rdr = _database.ExecuteReader(_popSpecificBoxCommand, System.Data.CommandBehavior.Default))
+                    {
+                        OutboxRecord item;
+
+                        while (rdr.Read())
+                        {
+                            if (rdr.IsDBNull(0))
+                                throw new Exception("Not possible");
+
+                            item = new OutboxRecord();
+                            item.boxId = boxId;
+                            var _guid = new byte[16];
+                            var n = rdr.GetBytes(0, 0, _guid, 0, 16);
+                            if (n != 16)
+                                throw new Exception("Invalid fileId");
+                            item.fileId = new Guid(_guid);
+                            item.priority = rdr.GetInt32(1);
+                            item.timeStamp = new UnixTimeUtc(rdr.GetInt64(2));
+
+                            if (rdr.IsDBNull(3))
+                            {
+                                item.value = null;
+                            }
+                            else
+                            {
+                                byte[] _tmpbuf = new byte[MAX_VALUE_LENGTH];
+                                n = rdr.GetBytes(3, 0, _tmpbuf, 0, MAX_VALUE_LENGTH);
+                                if (n >= MAX_VALUE_LENGTH)
+                                    throw new Exception("Too much data...");
+                                if (n == 0)
+                                    throw new Exception("Is that possible?");
+
+                                item.value = new byte[n];
+                                Buffer.BlockCopy(_tmpbuf, 0, item.value, 0, (int)n);
+                            }
+                            item.recipient = rdr.GetString(4);
+
+                            result.Add(item);
+                        }
+                    }
+
+                    return result;
+                }
             }
         }
     }
