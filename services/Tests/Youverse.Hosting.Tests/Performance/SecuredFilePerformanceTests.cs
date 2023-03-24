@@ -89,6 +89,38 @@ namespace Youverse.Hosting.Tests.Performance
         Capacity  : 2704 / second
         Bandwidth : 213655000 bytes / second
         DB Opened 15, Closed 0
+
+    2023-03-12:
+        TaskPerformanceTest_SecuredFiles
+           Duration: 6.8 sec
+
+          Standard Output: 
+            Threads   : 10
+            Iterations: 2000
+            Time      : 6360ms
+            Minimum   : 1ms
+            Maximum   : 30ms
+            Average   : 2ms
+            Median    : 2ms
+            Capacity  : 3144 / second
+            Bandwidth : 248424000 bytes / second
+            DB Opened 11, Closed 0
+    
+        TaskPerformanceTest_SecuredFiles
+           Duration: 13.3 sec
+
+          Standard Output: 
+            Threads   : 20
+            Iterations: 2000
+            Time      : 12556ms
+            Minimum   : 0ms
+            Maximum   : 42ms
+            Average   : 5ms
+            Median    : 6ms
+            Capacity  : 3185 / second
+            Bandwidth : 251669000 bytes / second
+            DB Opened 11, Closed 0
+
      */
     public class SecuredFilePerformanceTests
     {

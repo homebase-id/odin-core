@@ -48,6 +48,24 @@ namespace Youverse.Hosting.Tests.Performance
      *    RSA Keys Created 12, Keys Expired 0
      *    DB Opened 22, Closed 0
      *
+     * 2023-03-12
+     *
+        TaskPerformanceTest_Transit
+            Duration: 21.5 sec
+
+        Standard Output: 
+            Threads   : 12
+            Iterations: 300
+            Time      : 18748ms
+            Minimum   : 16ms
+            Maximum   : 431ms
+            Average   : 60ms
+            Median    : 53ms
+            Capacity  : 192 / second
+            Bandwidth : 146000 bytes / second
+            RSA Encryptions 3616, Decryptions 24
+            RSA Keys Created 12, Keys Expired 0
+            DB Opened 14, Closed 0
      */
 
     public class TransitPerformanceTests
@@ -55,7 +73,7 @@ namespace Youverse.Hosting.Tests.Performance
         private const int FileType = 844;
 
         // For the performance test
-        private static readonly int MAXTHREADS = 12; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
+        private static readonly int MAXTHREADS = 6; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
         private const int MAXITERATIONS = 30; // A number high enough to get warmed up and reliable
 
         private WebScaffold _scaffold;
