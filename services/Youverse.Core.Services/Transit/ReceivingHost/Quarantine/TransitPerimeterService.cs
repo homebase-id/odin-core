@@ -171,6 +171,13 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
                 var header = await _fileSystem.Query.GetFileByGlobalTransitId(driveId, globalTransitId);
                 if (null != header)
                 {
+
+                    //requester must be the original commenter
+                    if (header.FileMetadata.SenderOdinId != _contextAccessor.GetCurrent().Caller.OdinId)
+                    {
+                        throw new YouverseSecurityException();
+                    }
+                    
                     await _fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
                     {
                         FileId = header.FileId,
@@ -184,6 +191,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
                     };
                 }
             }
+            
             try
             {
                 var item = new TransferInboxItem()
