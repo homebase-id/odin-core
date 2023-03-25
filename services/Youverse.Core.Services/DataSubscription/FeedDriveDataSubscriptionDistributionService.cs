@@ -38,6 +38,9 @@ namespace Youverse.Core.Services.DataSubscription
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
             //if the file was received from another identity, do not redistribute
+            
+            //TODO: need to move this distribution to a background thread so that the system runs it
+
             var sender = notification.ServerFileHeader?.FileMetadata?.SenderOdinId;
             var uploadedByThisIdentity = sender == _tenantContext.HostOdinId || string.IsNullOrEmpty(sender?.Trim());
             if (!uploadedByThisIdentity)
