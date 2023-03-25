@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Core.Services.Drives;
@@ -24,15 +26,17 @@ namespace Youverse.Core.Services.DataSubscription
         private readonly DriveManager _driveManager;
         private readonly ITransitService _transitService;
         private readonly TenantContext _tenantContext;
+        private readonly ServerSystemStorage _serverSystemStorage;
 
         public FeedDriveDataSubscriptionDistributionService(
             FollowerService followerService,
-            ITransitService transitService, DriveManager driveManager, TenantContext tenantContext)
+            ITransitService transitService, DriveManager driveManager, TenantContext tenantContext, ServerSystemStorage serverSystemStorage)
         {
             _followerService = followerService;
             _transitService = transitService;
             _driveManager = driveManager;
             _tenantContext = tenantContext;
+            _serverSystemStorage = serverSystemStorage;
         }
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
@@ -48,7 +52,7 @@ namespace Youverse.Core.Services.DataSubscription
                 return;
             }
 
-            if (notification.ServerFileHeader == null) //file was deleted
+            if (notification.ServerFileHeader == null) //file was hard-deleted
             {
                 return;
             }
@@ -71,7 +75,18 @@ namespace Youverse.Core.Services.DataSubscription
             {
                 return;
             }
-
+            
+            //TODO: finish this bit
+            //
+            // var jobInfo = new FeedJobInfo
+            // {
+            //     DriveNotificationType = notification.DriveNotificationType,
+            //     FileId = notification.ServerFileHeader.FileMetadata!.File
+            // };
+            //
+            // _serverSystemStorage.EnqueueJob(_tenantContext.HostOdinId, CronJobType.FeedDistribution, DotYouSystemSerializer.Serialize(jobInfo).ToUtf8ByteArray());
+            //
+            
             int maxRecords = 10000; //TODO: cursor thru batches instead
             var driveFollowers = await _followerService.GetFollowers(notification.File.DriveId, maxRecords, cursor: "");
             var allDriveFollowers = await _followerService.GetFollowersOfAllNotifications(maxRecords, cursor: "");

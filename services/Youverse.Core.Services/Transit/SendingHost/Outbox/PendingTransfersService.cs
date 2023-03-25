@@ -16,17 +16,12 @@ namespace Youverse.Core.Services.Transit.SendingHost.Outbox
         {
             _serverSystemStorage = serverSystemStorage;
         }
-        
+
         public void EnsureIdentityIsPending(OdinId sender)
         {
             try
             {
-                _serverSystemStorage.tblCron.Insert(new CronRecord()
-                {
-                    identityId = sender,
-                    type = 1,
-                    data = sender.DomainName.ToLower().ToUtf8ByteArray(),
-                });
+                _serverSystemStorage.EnqueueJob(sender, CronJobType.PendingTransfer, sender.DomainName.ToLower().ToUtf8ByteArray());
             }
             catch (Microsoft.Data.Sqlite.SqliteException ex)
             {

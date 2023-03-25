@@ -26,14 +26,14 @@ namespace Youverse.Core.Services.Workers.DefaultCron
         {
             int count = 1; //TODO: config
             var items = _serverSystemStorage.tblCron.Pop(count, out var marker);
-            
+
             Dictionary<Guid, CertificateOrderStatus> statusMap = new();
             var markers = new List<Guid>() { marker };
 
             foreach (var item in items)
             {
                 var identity = (OdinId)item.data.ToStringFromUtf8Bytes();
-                if (item.type == 1)
+                if (item.type == (Int32)CronJobType.PendingTransfer)
                 {
                     var success = await StokeOutbox(identity, batchSize: 1);
                     if (success)
@@ -46,7 +46,7 @@ namespace Youverse.Core.Services.Workers.DefaultCron
                     }
                 }
 
-                if (item.type == 2)
+                if (item.type == (Int32)CronJobType.GenerateCertificate)
                 {
                     var status = await GenerateCertificate(identity);
 
@@ -61,6 +61,11 @@ namespace Youverse.Core.Services.Workers.DefaultCron
                     {
                         _serverSystemStorage.tblCron.PopCancelList(markers);
                     }
+                }
+
+                if (item.type == (Int32)CronJobType.FeedDistribution)
+                {
+                    //deserialize FeedJobInfo
                 }
             }
         }
