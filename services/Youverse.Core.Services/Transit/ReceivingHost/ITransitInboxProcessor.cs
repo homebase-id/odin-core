@@ -5,9 +5,9 @@ using Youverse.Core.Services.Transit.ReceivingHost.Incoming;
 namespace Youverse.Core.Services.Transit.ReceivingHost
 {
     /// <summary>
-    /// Functions to manage incoming transfers from the transit system
+    /// Processes files received over transit that are stored in the inbox
     /// </summary>
-    public interface ITransitFileReceiverService
+    public interface ITransitInboxProcessor
     {
         /// <summary>
         /// Processes incoming transfers by converting their transfer keys and moving files to long term storage
@@ -21,6 +21,6 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
         /// </summary>
         /// <param name="pageOptions"></param>
         /// <returns></returns>
-        Task<PagedResult<TransferBoxItem>> GetQuarantinedItems(PageOptions pageOptions);
+        Task<PagedResult<TransferInboxItem>> GetQuarantinedItems(PageOptions pageOptions);
     }
 }

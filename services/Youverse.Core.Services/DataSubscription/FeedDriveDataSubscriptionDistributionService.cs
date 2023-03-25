@@ -38,9 +38,14 @@ namespace Youverse.Core.Services.DataSubscription
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
             //if the file was received from another identity, do not redistribute
-            var sender = notification.ServerFileHeader.FileMetadata.SenderOdinId;
+            var sender = notification.ServerFileHeader?.FileMetadata?.SenderOdinId;
             var uploadedByThisIdentity = sender == _tenantContext.HostOdinId || string.IsNullOrEmpty(sender?.Trim());
             if (!uploadedByThisIdentity)
+            {
+                return;
+            }
+
+            if (notification.ServerFileHeader == null) //file was deleted
             {
                 return;
             }
@@ -91,13 +96,13 @@ namespace Youverse.Core.Services.DataSubscription
 
             if (header.FileMetadata.GlobalTransitId.HasValue)
             {
-                //in this
-                var targetDrive = await _driveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive);
-
                 //send the deleted file
                 var map = await _transitService.SendDeleteLinkedFileRequest(
-                    driveId: targetDrive.GetValueOrDefault(),
-                    globalTransitId: header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
+                    new GlobalTransitIdFileIdentifier()
+                    {
+                        TargetDrive = SystemDriveConstants.FeedDrive,
+                        GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
+                    },
                     sendFileOptions: new SendFileOptions()
                     {
                         FileSystemType = header.ServerMetadata.FileSystemType,
@@ -135,7 +140,7 @@ namespace Youverse.Core.Services.DataSubscription
                 IsTransient = false,
                 UseGlobalTransitId = true,
                 SendContents = SendContents.Header,
-                OverrideTargetDrive = SystemDriveConstants.FeedDrive
+                RemoteTargetDrive = SystemDriveConstants.FeedDrive
             };
 
             //

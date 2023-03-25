@@ -24,6 +24,7 @@ using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Hosting.Controllers.OwnerToken.Cdn;
 using Youverse.Hosting.Tests.AppAPI;
 using Youverse.Hosting.Tests.AppAPI.Utils;
+using Youverse.Hosting.Tests.OwnerApi.ApiClient;
 using Youverse.Hosting.Tests.OwnerApi.Drive;
 using Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn;
 

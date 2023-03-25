@@ -55,7 +55,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             throw new NoValidIndexClientException(driveId);
         }
 
-        public async Task<QueryBatchResult> GetBatch(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options)
+        public async Task<QueryBatchResult> GetBatch(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options, bool forceIncludeServerMetadata = false)
         {
             AssertCanReadDrive(driveId);
 
@@ -66,7 +66,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
                     qp,
                     options);
 
-                var headers = await CreateClientFileHeaders(driveId, fileIdList, options);
+                var headers = await CreateClientFileHeaders(driveId, fileIdList, options, forceIncludeServerMetadata);
                 return new QueryBatchResult()
                 {
                     IncludeMetadataHeader = options.IncludeJsonContent,
@@ -123,21 +123,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             return collection;
         }
 
-        public Task EnsureDriveDatabaseCommits(IEnumerable<Guid> driveIdList)
-        {
-            foreach (var driveId in driveIdList)
-            {
-                AssertCanWriteToDrive(driveId);
-                if (this.TryGetOrLoadQueryManager(driveId, out var manager))
-                {
-                    manager.EnsureDriveDatabaseCommits();
-                }
-            }
-
-            return Task.CompletedTask;
-        }
-
-        public async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId)
+        public async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId, bool forceIncludeServerMetadata = false)
         {
             AssertCanReadDrive(driveId);
             var qp = new FileQueryParams()
@@ -152,13 +138,13 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
                 ExcludePreviewThumbnail = true
             };
 
-            var results = await this.GetBatch(driveId, qp, options);
+            var results = await this.GetBatch(driveId, qp, options, forceIncludeServerMetadata);
 
             return results.SearchResults.SingleOrDefault();
         }
 
         private async Task<IEnumerable<SharedSecretEncryptedFileHeader>> CreateClientFileHeaders(Guid driveId,
-            IEnumerable<Guid> fileIdList, ResultOptions options)
+            IEnumerable<Guid> fileIdList, ResultOptions options, bool forceIncludeServerMetadata = false)
         {
             var results = new List<SharedSecretEncryptedFileHeader>();
 
@@ -171,7 +157,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
                 };
 
                 var serverFileHeader = await _storage.GetServerFileHeader(file);
-                var header = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverFileHeader, ContextAccessor);
+                var header = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverFileHeader, ContextAccessor, forceIncludeServerMetadata);
                 if (!options.IncludeJsonContent)
                 {
                     header.FileMetadata.AppData.JsonContent = string.Empty;
@@ -227,7 +213,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
                 {
                     return null;
                 }
-                
+
                 return new InternalDriveFileId()
                 {
                     FileId = fileId,

@@ -139,6 +139,13 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
 
             return GetTempStorageManager(file.DriveId).GetStream(file.FileId, extension);
         }
+        
+        public Task<Stream> GetTempStreamForWriting(InternalDriveFileId file, string extension)
+        {
+            this.AssertCanWriteToDrive(file.DriveId);
+
+            return GetTempStorageManager(file.DriveId).GetStream(file.FileId, extension);
+        }
 
         public Task DeleteTempFile(InternalDriveFileId file, string extension)
         {

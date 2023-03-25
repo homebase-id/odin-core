@@ -2,27 +2,25 @@
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Services.Drives.Reactions;
-using Youverse.Hosting.Controllers.Anonymous;
 using Youverse.Hosting.Controllers.Base;
-using Youverse.Hosting.Controllers.ClientToken;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 {
     /// <summary />
     [ApiController]
-    [Route(OwnerApiPathConstants.DriveReactionsV1)]
+    [Route(OwnerApiPathConstants.DriveReactionContentV1)]
     [AuthorizeValidOwnerToken]
-    public class OwnerDriveEmojiReactionController : DriveEmojiReactionControllerBase
+    public class OwnerDriveReactionContentController : DriveReactionContentControllerBase
     {
         /// <summary />
-        public OwnerDriveEmojiReactionController(EmojiReactionService emojiReactionService) : base(emojiReactionService)
+        public OwnerDriveReactionContentController(ReactionContentService reactionContentService) : base(reactionContentService)
         {
         }
 
         /// <summary />
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("add")]
-        public IActionResult AddEmojiReaction([FromBody] AddReactionRequest request)
+        public IActionResult AddReactionContent([FromBody] AddReactionRequest request)
         {
             base.AddReaction(request);
             return NoContent();
@@ -31,7 +29,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         /// <summary />
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("delete")]
-        public IActionResult DeleteEmojiReaction([FromBody] DeleteReactionRequest request)
+        public IActionResult DeleteReactionContent([FromBody] DeleteReactionRequest request)
         {
             base.DeleteReaction(request);
             return NoContent();

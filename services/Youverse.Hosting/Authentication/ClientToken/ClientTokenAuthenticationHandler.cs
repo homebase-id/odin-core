@@ -69,7 +69,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
             }
 
             var appRegService = Context.RequestServices.GetRequiredService<IAppRegistrationService>();
-            dotYouContext.AuthContext = ClientTokenConstants.AppSchemeName;
+            dotYouContext.SetAuthContext(ClientTokenConstants.AppSchemeName);
 
             var ctx = await appRegService.GetAppPermissionContext(authToken);
 
@@ -97,7 +97,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
                 return AuthenticateResult.Success(await CreateAnonYouAuthTicket(dotYouContext));
             }
 
-            dotYouContext.AuthContext = ClientTokenConstants.YouAuthScheme;
+            dotYouContext.SetAuthContext(ClientTokenConstants.YouAuthScheme);
             var youAuthRegService = this.Context.RequestServices.GetRequiredService<IYouAuthRegistrationService>();
             var ctx = await youAuthRegService.GetDotYouContext(clientAuthToken);
 
@@ -187,7 +187,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
                 new Claim(DotYouClaimTypes.IsAuthenticated, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer)
             };
 
-            dotYouContext.AuthContext = ClientTokenConstants.YouAuthScheme;
+            dotYouContext.SetAuthContext(ClientTokenConstants.YouAuthScheme);
             var claimsIdentity = new ClaimsIdentity(claims, ClientTokenConstants.YouAuthScheme);
             return new AuthenticationTicket(new ClaimsPrincipal(claimsIdentity), this.Scheme.Name);
         }

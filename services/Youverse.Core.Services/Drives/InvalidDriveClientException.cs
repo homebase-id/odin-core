@@ -5,7 +5,7 @@ namespace Youverse.Core.Services.Drives
 {
     public class InvalidDriveClientException : YouverseClientException
     {
-        public InvalidDriveClientException(Guid driveId): base($"No valid drive with Id: {driveId}")
+        public InvalidDriveClientException(Guid driveId): base($"No valid drive with alias or Id: {driveId}")
         {
         }
     }

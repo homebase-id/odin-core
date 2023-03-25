@@ -69,12 +69,7 @@ namespace Youverse.Core.Services.Base
         {
             return _db.CreateCommitUnitOfWork();
         }
-
-        public void CommitOutstandingTransactions()
-        {
-            _db.Commit();
-        }
-
+        
         public void Dispose()
         {
             _db.Dispose();

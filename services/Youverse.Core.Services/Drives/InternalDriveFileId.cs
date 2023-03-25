@@ -41,6 +41,11 @@ namespace Youverse.Core.Services.Drives
             return this == d2;
         }
 
+        public override string ToString()
+        {
+            return $"FileId={this.FileId.ToString()}\nDrive={this.DriveId.ToString()}";
+        }
+
         public override int GetHashCode()
         {
             return this.DriveId.GetHashCode() + this.FileId.GetHashCode();

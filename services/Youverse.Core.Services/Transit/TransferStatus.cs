@@ -15,9 +15,14 @@ namespace Youverse.Core.Services.Transit
         TransferKeyCreated = 3,
 
         /// <summary>
-        /// Indicates the transfer was successfully delivered.
+        /// Indicates the transfer was successfully delivered to the inbox.
         /// </summary>
-        Delivered = 5,
+        DeliveredToInbox = 5,
+        
+        /// <summary>
+        /// Indicates the transfer was successfully delivered and directly written to the target drive
+        /// </summary>
+        DeliveredToTargetDrive = 7,
         
         /// <summary>
         /// Specifies there was a failure to send the transfer and it will be retried.
@@ -32,6 +37,11 @@ namespace Youverse.Core.Services.Transit
         /// <summary>
         /// Indicates the file is not allowed to be sent (i.e. AllowDistribution is false)
         /// </summary>
-        FileDoesNotAllowDistribution = 11
+        FileDoesNotAllowDistribution = 11,
+        
+        /// <summary>
+        /// Indicates the recipient server returned a security error
+        /// </summary>
+        RecipientReturnedAccessDenied = 13
     }
 }

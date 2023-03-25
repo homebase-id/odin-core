@@ -11,7 +11,7 @@ using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Controllers.OwnerToken;
 using Youverse.Hosting.Controllers.OwnerToken.Drive;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Drive
+namespace Youverse.Hosting.Tests.OwnerApi.ApiClient
 {
     /// <summary>
     /// The interface for storing files

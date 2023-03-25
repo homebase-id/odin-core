@@ -13,11 +13,11 @@ public abstract class RequirePermissionsBase
     /// <summary>
     /// Enforces drive permissions when reading files
     /// </summary>
-    protected abstract void AssertCanReadDrive(Guid driveId);
+    public abstract void AssertCanReadDrive(Guid driveId);
 
     /// <summary>
     /// Enforces drive permissions when writing files
     /// </summary>
-    protected abstract void AssertCanWriteToDrive(Guid driveId);
+    public abstract void AssertCanWriteToDrive(Guid driveId);
 
 }

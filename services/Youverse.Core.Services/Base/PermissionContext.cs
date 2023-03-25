@@ -97,6 +97,14 @@ namespace Youverse.Core.Services.Base
             }
         }
 
+        public void AssertCanWriteReactionsAndCommentsToDrive(Guid driveId)
+        {
+            if (!this.HasDrivePermission(driveId, DrivePermission.WriteReactionsAndComments))
+            {
+                throw new YouverseSecurityException($"Unauthorized to write reactions and comments to drive [{driveId}]");
+            }
+        }
+
         /// <summary>
         /// Determines if the current request can write to the specified drive
         /// </summary>
@@ -157,26 +165,38 @@ namespace Youverse.Core.Services.Base
         /// <returns></returns>
         public SensitiveByteArray GetDriveStorageKey(Guid driveId)
         {
-            foreach (var key in _permissionGroups.Keys)
+            if (TryGetDriveStorageKey(driveId, out var storageKey))
             {
-                var group = _permissionGroups[key];
-                var storageKey = group.GetDriveStorageKey(driveId);
-                if (storageKey != null)
-                {
-                    //TODO: log key as source of permission.
-                    return storageKey;
-                }
+                return storageKey;
             }
 
             //TODO: this sort of security check feels like it should be in a service..
             throw new YouverseSecurityException($"No access permitted to drive {driveId}");
         }
 
+        public bool TryGetDriveStorageKey(Guid driveId, out SensitiveByteArray storageKey)
+        {
+            storageKey = null;
+            foreach (var key in _permissionGroups.Keys)
+            {
+                var group = _permissionGroups[key];
+                storageKey = group.GetDriveStorageKey(driveId);
+                var value = storageKey?.GetKey() ?? Array.Empty<byte>();
+                // if (storageKey?.IsSet() ?? false)
+                if (value.Length > 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         public RedactedPermissionContext Redacted()
         {
             return new RedactedPermissionContext()
             {
-                PermissionGroups = _permissionGroups.Values.Select(pg=>pg.Redacted()),
+                PermissionGroups = _permissionGroups.Values.Select(pg => pg.Redacted()),
             };
         }
     }

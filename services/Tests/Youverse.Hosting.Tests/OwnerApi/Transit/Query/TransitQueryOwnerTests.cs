@@ -662,6 +662,118 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
             await _scaffold.OldOwnerApi.DisconnectIdentities(sender.OdinId, recipientContext.Identity);
         }
 
+        [Test]
+        public async Task FailToTransferStandardFile_WhenNoWriteAccess()
+        {
+            var sender = TestIdentities.Samwise;
+            var recipient = TestIdentities.Pippin;
+
+            Guid appId = Guid.NewGuid();
+            var targetDrive = TargetDrive.NewTargetDrive();
+            var senderContext =
+                await _scaffold.OldOwnerApi.SetupTestSampleApp(appId, sender, canReadConnections: true, targetDrive, driveAllowAnonymousReads: true);
+            var recipientContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(senderContext.AppId, recipient, canReadConnections: true, targetDrive);
+
+            Guid fileTag = Guid.NewGuid();
+
+            var senderCircleDef =
+                await _scaffold.OldOwnerApi.CreateCircleWithDrive(sender.OdinId, "Sender Circle",
+                    permissionKeys: new List<int>() { },
+                    drive: new PermissionedDrive()
+                    {
+                        Drive = targetDrive,
+                        Permission = DrivePermission.Read
+                    });
+
+            var recipientCircleDef =
+                await _scaffold.OldOwnerApi.CreateCircleWithDrive(recipient.OdinId, "Recipient Circle",
+                    permissionKeys: new List<int>() { },
+                    drive: new PermissionedDrive()
+                    {
+                        Drive = targetDrive,
+                        Permission = DrivePermission.Read
+                    });
+
+            await _scaffold.OldOwnerApi.CreateConnection(sender.OdinId, recipient.OdinId,
+                createConnectionOptions: new CreateConnectionOptions()
+                {
+                    CircleIdsGrantedToRecipient = new List<GuidId>() { senderCircleDef.Id },
+                    CircleIdsGrantedToSender = new List<GuidId>() { recipientCircleDef.Id }
+                });
+
+            var transferIv = ByteArrayUtil.GetRndByteArray(16);
+            var keyHeader = KeyHeader.NewRandom16();
+
+            var instructionSet = new UploadInstructionSet()
+            {
+                TransferIv = transferIv,
+                StorageOptions = new StorageOptions()
+                {
+                    Drive = senderContext.TargetDrive,
+                    OverwriteFileId = null
+                },
+
+                TransitOptions = new TransitOptions()
+                {
+                    Schedule = ScheduleOptions.SendNowAwaitResponse,
+                    Recipients = new List<string>() { recipient.OdinId },
+                    UseGlobalTransitId = true
+                }
+            };
+
+            var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+            var instructionStream = new MemoryStream(bytes);
+
+            var key = senderContext.SharedSecret.ToSensitiveByteArray();
+            var descriptor = new UploadFileDescriptor()
+            {
+                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref key),
+                FileMetadata = new()
+                {
+                    ContentType = "application/json",
+                    AllowDistribution = true,
+                    AppData = new()
+                    {
+                        Tags = new List<Guid>() { fileTag },
+                        ContentIsComplete = false,
+                        JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    },
+                    PayloadIsEncrypted = true,
+                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
+                },
+            };
+
+            var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref key);
+
+            var payloadData = "{payload:true, image:'b64 data'}";
+            var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadData);
+
+            //
+            // upload and send the file 
+            //
+            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext))
+            {
+                var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
+                var response = await transitSvc.Upload(
+                    new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
+                    new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
+                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+
+                Assert.That(response.IsSuccessStatusCode, Is.True);
+                Assert.That(response.Content, Is.Not.Null);
+                var transferResult = response.Content;
+
+                Assert.That(transferResult.File, Is.Not.Null);
+                Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
+                Assert.IsTrue(transferResult.File.TargetDrive.IsValid());
+
+                foreach (var r in instructionSet.TransitOptions.Recipients)
+                {
+                    Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
+                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.RecipientReturnedAccessDenied, $"transfer key not created for {r}");
+                }
+            }
+        }
 
         [Test]
         public async Task CanTransferCommentFileAndRecipientCanQueryFilesByTag()
@@ -683,7 +795,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                     drive: new PermissionedDrive()
                     {
                         Drive = targetDrive,
-                        Permission = DrivePermission.ReadWrite
+                        Permission = DrivePermission.Read | DrivePermission.WriteReactionsAndComments
                     });
 
             var recipientCircleDef =
@@ -692,7 +804,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                     drive: new PermissionedDrive()
                     {
                         Drive = targetDrive,
-                        Permission = DrivePermission.ReadWrite
+                        Permission = DrivePermission.Read | DrivePermission.WriteReactionsAndComments
                     });
 
             await _scaffold.OldOwnerApi.CreateConnection(sender.OdinId, recipient.OdinId,
@@ -758,7 +870,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                         ContentIsComplete = false,
                         JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
-                    PayloadIsEncrypted = true,
+                    PayloadIsEncrypted = false,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
@@ -766,7 +878,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
             var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref key);
 
             var payloadData = "{payload:true, image:'b64 data'}";
-            var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadData);
 
             //
             // upload and send the file 
@@ -777,7 +888,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+                    new StreamPart(new MemoryStream(payloadData.ToUtf8ByteArray()), "payload.encrypted", "application/x-binary",
+                        Enum.GetName(MultipartUploadParts.Payload)));
 
                 Assert.That(response.IsSuccessStatusCode, Is.True);
                 Assert.That(response.Content, Is.Not.Null);
@@ -854,16 +966,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
-                Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.Null);
-                Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv.Length, Is.GreaterThanOrEqualTo(16));
-                Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.EqualTo(Guid.Empty.ToByteArray()), "Iv was all zeros");
-                Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
-
-                var ss = recipientContext.SharedSecret.ToSensitiveByteArray();
-                var decryptedKeyHeader = clientFileHeader.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ss);
-
-                Assert.That(decryptedKeyHeader.AesKey.IsSet(), Is.True);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(decryptedKeyHeader.AesKey.GetKey(), keyHeader.AesKey.GetKey()));
 
                 //
                 // Get the payload that was uploaded, test it
@@ -873,21 +975,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 
-                var payloadResponseCipher = await payloadResponse.Content.ReadAsByteArrayAsync();
-                Assert.That(((MemoryStream)payloadCipher).ToArray(), Is.EqualTo(payloadResponseCipher));
-
-                var aesKey = decryptedKeyHeader.AesKey;
-                var decryptedPayloadBytes = Core.Cryptography.Crypto.AesCbc.Decrypt(
-                    cipherText: payloadResponseCipher,
-                    Key: ref aesKey,
-                    IV: decryptedKeyHeader.Iv);
-
                 var payloadBytes = System.Text.Encoding.UTF8.GetBytes(payloadData);
-                Assert.That(payloadBytes, Is.EqualTo(decryptedPayloadBytes));
+                Assert.That(payloadBytes, Is.EqualTo(await payloadResponse.Content.ReadAsByteArrayAsync()));
 
-                // var decryptedPayloadRaw = System.Text.Encoding.UTF8.GetString(decryptedPayloadBytes);
-
-                decryptedKeyHeader.AesKey.Wipe();
                 keyHeader.AesKey.Wipe();
             }
 
@@ -955,7 +1045,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                     drive: new PermissionedDrive()
                     {
                         Drive = targetDrive,
-                        Permission = DrivePermission.ReadWrite
+                        Permission = DrivePermission.Read | DrivePermission.WriteReactionsAndComments
                     });
 
             var recipientCircleDef =
@@ -964,7 +1054,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                     drive: new PermissionedDrive()
                     {
                         Drive = targetDrive,
-                        Permission = DrivePermission.ReadWrite
+                        Permission = DrivePermission.Read | DrivePermission.WriteReactionsAndComments
                     });
 
             await _scaffold.OldOwnerApi.CreateConnection(sender.OdinId, recipient.OdinId,
@@ -1016,7 +1106,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
 
             var key = senderContext.SharedSecret.ToSensitiveByteArray();
             var json = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" });
-            var encryptedJsonContent64 = keyHeader.EncryptDataAesAsStream(json).ToByteArray().ToBase64();
+            // var encryptedJsonContent64 = keyHeader.EncryptDataAesAsStream(json).ToByteArray().ToBase64();
 
             var thumbnail1 = new ImageDataHeader()
             {
@@ -1039,10 +1129,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                     {
                         Tags = new List<Guid>() { fileTag },
                         ContentIsComplete = false,
-                        JsonContent = encryptedJsonContent64,
+                        JsonContent = json,
                         AdditionalThumbnails = new[] { thumbnail1 }
                     },
-                    PayloadIsEncrypted = true,
+                    PayloadIsEncrypted = false,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
                 },
             };
@@ -1050,7 +1140,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
             var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref key);
 
             var originalPayloadData = "{payload:true, image:'b64 data'}";
-            var originalPayloadCipherBytes = keyHeader.EncryptDataAesAsStream(originalPayloadData);
 
             //
             // upload and send the file 
@@ -1061,7 +1150,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 var response = await transitSvc.Upload(
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(originalPayloadCipherBytes, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
+                    new StreamPart(new MemoryStream(originalPayloadData.ToUtf8ByteArray()), "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
                     new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType,
                         Enum.GetName(MultipartUploadParts.Thumbnail)));
 
@@ -1139,17 +1228,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
-                Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.Null);
-                Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv.Length, Is.GreaterThanOrEqualTo(16));
-                Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.EqualTo(Guid.Empty.ToByteArray()), "Iv was all zeros");
-                Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
-
-                var ss = recipientContext.SharedSecret.ToSensitiveByteArray();
-                var decryptedKeyHeader = clientFileHeader.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ss);
-
-                Assert.That(decryptedKeyHeader.AesKey.IsSet(), Is.True);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(decryptedKeyHeader.AesKey.GetKey(), keyHeader.AesKey.GetKey()));
-
+                
                 //
                 // Get the payload that was uploaded, test it
                 // 
@@ -1158,19 +1237,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 
-                var payloadResponseCipher = await payloadResponse.Content.ReadAsByteArrayAsync();
-                Assert.That(((MemoryStream)originalPayloadCipherBytes).ToArray(), Is.EqualTo(payloadResponseCipher));
-
-                var aesKey = decryptedKeyHeader.AesKey;
-                var decryptedPayloadBytes = Core.Cryptography.Crypto.AesCbc.Decrypt(
-                    cipherText: payloadResponseCipher,
-                    Key: ref aesKey,
-                    IV: decryptedKeyHeader.Iv);
-
-                var payloadBytes = System.Text.Encoding.UTF8.GetBytes(originalPayloadData);
-                Assert.That(payloadBytes, Is.EqualTo(decryptedPayloadBytes));
-
-                // var decryptedPayloadRaw = System.Text.Encoding.UTF8.GetString(decryptedPayloadBytes);
+                Assert.That(originalPayloadData.ToUtf8ByteArray(), Is.EqualTo(await payloadResponse.Content.ReadAsByteArrayAsync()));
 
                 var getThumbnailResponse = await driveSvc.GetThumbnailAsPost(new GetThumbnailRequest()
                 {
@@ -1183,7 +1250,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 var getThumbnailResponseBytes = await getThumbnailResponse.Content!.ReadAsByteArrayAsync();
                 Assert.IsNotNull(thumbnail1CipherBytes.Length == getThumbnailResponseBytes.Length);
 
-                decryptedKeyHeader.AesKey.Wipe();
                 // keyHeader.AesKey.Wipe();
             }
 
@@ -1311,6 +1377,299 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 var transitThumbnailResponse1CipherBytes = await getTransitThumbnailResponse!.Content!.ReadAsByteArrayAsync();
                 var decryptedThumbnailBytes = decryptedThumbnailKeyHeader.Decrypt(transitThumbnailResponse1CipherBytes);
                 Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(thumbnail1OriginalBytes, decryptedThumbnailBytes));
+            }
+
+            keyHeader.AesKey.Wipe();
+            key.Wipe();
+
+            await _scaffold.OldOwnerApi.DisconnectIdentities(sender.OdinId, recipientContext.Identity);
+        }
+
+        [Test]
+        public async Task FailToTransferComment_When_Missing_DrivePermission_WriteReactionAndComment()
+        {
+            var sender = TestIdentities.Samwise;
+            var recipient = TestIdentities.Pippin;
+
+            Guid appId = Guid.NewGuid();
+            var targetDrive = TargetDrive.NewTargetDrive();
+            var senderContext =
+                await _scaffold.OldOwnerApi.SetupTestSampleApp(appId, sender, canReadConnections: true, targetDrive, driveAllowAnonymousReads: true);
+            var recipientContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(senderContext.AppId, recipient, canReadConnections: true, targetDrive);
+
+            Guid fileTag = Guid.NewGuid();
+
+            var senderCircleDef =
+                await _scaffold.OldOwnerApi.CreateCircleWithDrive(sender.OdinId, "Sender Circle",
+                    permissionKeys: new List<int>() { },
+                    drive: new PermissionedDrive()
+                    {
+                        Drive = targetDrive,
+                        Permission = DrivePermission.Read | DrivePermission.Write
+                    });
+
+            var recipientCircleDef =
+                await _scaffold.OldOwnerApi.CreateCircleWithDrive(recipient.OdinId, "Recipient Circle",
+                    permissionKeys: new List<int>() { },
+                    drive: new PermissionedDrive()
+                    {
+                        Drive = targetDrive,
+                        Permission = DrivePermission.Read | DrivePermission.Write
+                    });
+
+            await _scaffold.OldOwnerApi.CreateConnection(sender.OdinId, recipient.OdinId,
+                createConnectionOptions: new CreateConnectionOptions()
+                {
+                    CircleIdsGrantedToRecipient = new List<GuidId>() { senderCircleDef.Id },
+                    CircleIdsGrantedToSender = new List<GuidId>() { recipientCircleDef.Id }
+                });
+
+
+            var samOwnerClient = _scaffold.CreateOwnerApiClient(recipient);
+            var postFileMetadata = new UploadFileMetadata()
+            {
+                ContentType = "application/json",
+                AllowDistribution = true,
+                AppData = new()
+                {
+                    Tags = new List<Guid>() { fileTag },
+                    ContentIsComplete = true,
+                    JsonContent = DotYouSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
+                },
+                PayloadIsEncrypted = false,
+                AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
+            };
+
+            var postUploadResult =
+                await samOwnerClient.Drive.UploadFile(FileSystemType.Standard, targetDrive, postFileMetadata, "", null, overwriteFileId: null);
+
+            var transferIv = ByteArrayUtil.GetRndByteArray(16);
+            var keyHeader = KeyHeader.NewRandom16();
+
+            var instructionSet = new UploadInstructionSet()
+            {
+                TransferIv = transferIv,
+                StorageOptions = new StorageOptions()
+                {
+                    Drive = senderContext.TargetDrive,
+                    OverwriteFileId = null
+                },
+
+                TransitOptions = new TransitOptions()
+                {
+                    Schedule = ScheduleOptions.SendNowAwaitResponse,
+                    Recipients = new List<string>() { recipient.OdinId },
+                    UseGlobalTransitId = true
+                }
+            };
+
+            var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+            var instructionStream = new MemoryStream(bytes);
+
+            var key = senderContext.SharedSecret.ToSensitiveByteArray();
+            var descriptor = new UploadFileDescriptor()
+            {
+                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref key),
+                FileMetadata = new()
+                {
+                    ReferencedFile = postUploadResult.GlobalTransitIdFileIdentifier,
+                    ContentType = "application/json",
+                    AllowDistribution = true,
+                    AppData = new()
+                    {
+                        Tags = new List<Guid>() { fileTag },
+                        ContentIsComplete = false,
+                        JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    },
+                    PayloadIsEncrypted = true,
+                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
+                },
+            };
+
+            var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref key);
+
+            var payloadData = "{payload:true, image:'b64 data'}";
+            var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadData);
+
+            //
+            // upload and send the file 
+            //
+            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext, FileSystemType.Comment))
+            {
+                var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
+                var response = await transitSvc.Upload(
+                    new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
+                    new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
+                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+
+                Assert.That(response.IsSuccessStatusCode, Is.True);
+                Assert.That(response.Content, Is.Not.Null);
+                var transferResult = response.Content;
+
+                Assert.That(transferResult.File, Is.Not.Null);
+                Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
+                Assert.IsTrue(transferResult.File.TargetDrive.IsValid());
+
+                foreach (var r in instructionSet.TransitOptions.Recipients)
+                {
+                    Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
+                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.RecipientReturnedAccessDenied, $"transfer key not created for {r}");
+                }
+            }
+
+            await _scaffold.OldOwnerApi.DisconnectIdentities(sender.OdinId, recipientContext.Identity);
+        }
+
+
+        [Test]
+        public async Task FailToTransferCommentFileWith_InvalidGlobalTransitId()
+        {
+            var sender = TestIdentities.Frodo;
+            var recipient = TestIdentities.Samwise;
+
+            Guid appId = Guid.NewGuid();
+            var targetDrive = TargetDrive.NewTargetDrive();
+            var senderContext =
+                await _scaffold.OldOwnerApi.SetupTestSampleApp(appId, sender, canReadConnections: true, targetDrive, driveAllowAnonymousReads: true);
+            var recipientContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(senderContext.AppId, recipient, canReadConnections: true, targetDrive);
+
+            Guid fileTag = Guid.NewGuid();
+
+            var senderCircleDef =
+                await _scaffold.OldOwnerApi.CreateCircleWithDrive(sender.OdinId, "Sender Circle",
+                    permissionKeys: new List<int>() { },
+                    drive: new PermissionedDrive()
+                    {
+                        Drive = targetDrive,
+                        Permission = DrivePermission.Read | DrivePermission.WriteReactionsAndComments
+                    });
+
+            var recipientCircleDef =
+                await _scaffold.OldOwnerApi.CreateCircleWithDrive(recipient.OdinId, "Recipient Circle",
+                    permissionKeys: new List<int>() { },
+                    drive: new PermissionedDrive()
+                    {
+                        Drive = targetDrive,
+                        Permission = DrivePermission.Read | DrivePermission.WriteReactionsAndComments
+                    });
+
+            await _scaffold.OldOwnerApi.CreateConnection(sender.OdinId, recipient.OdinId,
+                createConnectionOptions: new CreateConnectionOptions()
+                {
+                    CircleIdsGrantedToRecipient = new List<GuidId>() { senderCircleDef.Id },
+                    CircleIdsGrantedToSender = new List<GuidId>() { recipientCircleDef.Id }
+                });
+
+            //upload a post on sam's side on which frodo can comment
+            var samOwnerClient = _scaffold.CreateOwnerApiClient(recipient);
+            var postFileMetadata = new UploadFileMetadata()
+            {
+                ContentType = "application/json",
+                AllowDistribution = true,
+                AppData = new()
+                {
+                    Tags = new List<Guid>() { fileTag },
+                    ContentIsComplete = true,
+                    JsonContent = DotYouSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
+                },
+                PayloadIsEncrypted = false,
+                AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
+            };
+
+            var postUploadResult = await samOwnerClient.Drive.UploadFile(FileSystemType.Standard, targetDrive, postFileMetadata, "");
+
+            var transferIv = ByteArrayUtil.GetRndByteArray(16);
+            var keyHeader = KeyHeader.NewRandom16();
+
+            var instructionSet = new UploadInstructionSet()
+            {
+                TransferIv = transferIv,
+                StorageOptions = new StorageOptions()
+                {
+                    Drive = senderContext.TargetDrive,
+                    OverwriteFileId = null
+                },
+
+                TransitOptions = new TransitOptions()
+                {
+                    Schedule = ScheduleOptions.SendNowAwaitResponse,
+                    Recipients = new List<string>() { recipient.OdinId },
+                    UseGlobalTransitId = true
+                }
+            };
+
+            var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+            var instructionStream = new MemoryStream(bytes);
+
+            var key = senderContext.SharedSecret.ToSensitiveByteArray();
+            var json = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" });
+            var encryptedJsonContent64 = keyHeader.EncryptDataAesAsStream(json).ToByteArray().ToBase64();
+
+            var thumbnail1 = new ImageDataHeader()
+            {
+                PixelHeight = 300,
+                PixelWidth = 300,
+                ContentType = "image/jpeg"
+            };
+            var thumbnail1OriginalBytes = TestMedia.ThumbnailBytes300;
+            var thumbnail1CipherBytes = keyHeader.EncryptDataAes(thumbnail1OriginalBytes);
+
+            var descriptor = new UploadFileDescriptor()
+            {
+                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref key),
+                FileMetadata = new()
+                {
+                    ReferencedFile = new GlobalTransitIdFileIdentifier() //write an invalid global transit id so the recipient server will reject
+                    {
+                        GlobalTransitId = Guid.NewGuid(),
+                        TargetDrive = postUploadResult.GlobalTransitIdFileIdentifier.TargetDrive
+                    },
+                    ContentType = "application/json",
+                    AllowDistribution = true,
+                    AppData = new()
+                    {
+                        Tags = new List<Guid>() { fileTag },
+                        ContentIsComplete = false,
+                        JsonContent = encryptedJsonContent64,
+                        AdditionalThumbnails = new[] { thumbnail1 }
+                    },
+                    PayloadIsEncrypted = true,
+                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
+                },
+            };
+
+            var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref key);
+
+            var originalPayloadData = "{payload:true, image:'b64 data'}";
+            var originalPayloadCipherBytes = keyHeader.EncryptDataAesAsStream(originalPayloadData);
+
+            //
+            // upload and send the comment file
+            //
+            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext, FileSystemType.Comment))
+            {
+                var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
+                var response = await transitSvc.Upload(
+                    new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
+                    new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
+                    new StreamPart(originalPayloadCipherBytes, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
+                    new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType,
+                        Enum.GetName(MultipartUploadParts.Thumbnail)));
+
+                Assert.That(response.IsSuccessStatusCode, Is.True);
+                Assert.That(response.Content, Is.Not.Null);
+                var transferResult = response.Content;
+
+                Assert.That(transferResult.File, Is.Not.Null);
+                Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
+                Assert.IsTrue(transferResult.File.TargetDrive.IsValid());
+
+                foreach (var r in instructionSet.TransitOptions.Recipients)
+                {
+                    Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(r), $"Could not find matching recipient {r}");
+                    Assert.IsTrue(transferResult.RecipientStatus[r] == TransferStatus.TotalRejectionClientShouldRetry,
+                        $"message should have been delivered to {r}");
+                }
             }
 
             keyHeader.AesKey.Wipe();

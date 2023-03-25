@@ -13,7 +13,7 @@
 
         public const string DrivesV1 = BasePathV1 + "/drive";
         
-        public const string DriveReactionsV1 = DrivesV1 + "/files/reactions";
+        public const string DriveReactionContentV1 = DrivesV1 + "/files/reactions";
 
         public const string DriveManagementV1 = DrivesV1 + "/mgmt";
 
@@ -27,9 +27,11 @@
 
         public const string TransitV1 = BasePathV1 + "/transit";
         
+        public const string TransitSenderV1 = TransitV1 + "/sender";
+        
         public const string TransitQueryV1 = TransitV1 + "/query";
         
-        public const string TransitEmojiV1 = TransitV1 + "/emoji";
+        public const string TransitReactionContentV1 = TransitV1 + "/reactions";
 
         public const string CirclesV1 = BasePathV1 + "/circles";
 

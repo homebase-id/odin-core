@@ -39,7 +39,6 @@ namespace Youverse.Hosting.Authentication.Owner
         }
 
         /// <summary/>
-
         protected override Task HandleChallengeAsync(AuthenticationProperties properties)
         {
             Context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
@@ -55,7 +54,7 @@ namespace Youverse.Hosting.Authentication.Owner
                 {
                     return AuthenticateResult.Fail("Empty authResult");
                 }
-                
+
                 var dotYouContext = Context.RequestServices.GetRequiredService<DotYouContext>();
 
                 if (!await UpdateDotYouContext(authResult, dotYouContext))
@@ -95,25 +94,25 @@ namespace Youverse.Hosting.Authentication.Owner
         private async Task<bool> UpdateDotYouContext(ClientAuthenticationToken token, DotYouContext dotYouContext)
         {
             var authService = Context.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
-            dotYouContext.AuthContext = OwnerAuthConstants.SchemeName;
-            
+            dotYouContext.SetAuthContext(OwnerAuthConstants.SchemeName);
+
             //HACK: fix this
             //a bit of a hack here: we have to set the context as owner
             //because it's required to build the permission context
             // this is justified because we're heading down the owner api path
             // just below this, we check to see if the token was good.  if not, the call fails.
             dotYouContext.Caller = new CallerContext(
-                odinId:(OdinId) Request.Host.Host,
+                odinId: (OdinId)Request.Host.Host,
                 masterKey: null,
                 securityLevel: SecurityGroupType.Owner);
-            
+
             DotYouContext ctx = await authService.GetDotYouContext(token);
-           
+
             if (null == ctx)
             {
                 return false;
             }
-            
+
             dotYouContext.Caller = ctx.Caller;
             dotYouContext.SetPermissionContext(ctx.PermissionsContext);
             return true;

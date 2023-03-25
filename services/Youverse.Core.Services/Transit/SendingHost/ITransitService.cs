@@ -24,7 +24,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
         /// <summary>
         /// Notifies the recipients the file with the <param name="globalTransitId"/> must be deleted
         /// </summary>
-        Task<Dictionary<string, TransitResponseCode>> SendDeleteLinkedFileRequest(Guid driveId, Guid globalTransitId, SendFileOptions sendFileOptions,
+        Task<Dictionary<string, TransitResponseCode>> SendDeleteLinkedFileRequest(GlobalTransitIdFileIdentifier remoteGlobalTransitIdentifier, SendFileOptions sendFileOptions,
             IEnumerable<string> recipients);
     }
 }

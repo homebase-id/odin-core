@@ -30,7 +30,8 @@ public abstract class FileSystemStreamWriterBase
     private readonly DriveManager _driveManager;
 
     /// <summary />
-    protected FileSystemStreamWriterBase(IDriveFileSystem fileSystem, TenantContext tenantContext, DotYouContextAccessor contextAccessor, DriveManager driveManager)
+    protected FileSystemStreamWriterBase(IDriveFileSystem fileSystem, TenantContext tenantContext, DotYouContextAccessor contextAccessor,
+        DriveManager driveManager)
     {
         FileSystem = fileSystem;
 
@@ -42,14 +43,8 @@ public abstract class FileSystemStreamWriterBase
 
     protected IDriveFileSystem FileSystem { get; }
 
-    protected UploadPackage Package { get; }
-
-    public virtual async Task<Guid> CreatePackage(Stream data)
+    public virtual async Task<Guid> CreatePackage(UploadInstructionSet instructionSet)
     {
-        //TODO: need to partially encrypt upload instruction set
-        string json = await new StreamReader(data).ReadToEndAsync();
-        var instructionSet = DotYouSystemSerializer.Deserialize<UploadInstructionSet>(json);
-
         Guard.Argument(instructionSet, nameof(instructionSet)).NotNull();
         instructionSet?.AssertIsValid();
 
@@ -88,7 +83,16 @@ public abstract class FileSystemStreamWriterBase
             throw new YouverseSystemException("Failed to add the upload package");
         }
 
-        return pkgId;
+        return await Task.FromResult(pkgId);
+    }
+
+    public virtual async Task<Guid> CreatePackageFromInstructionSet(Stream data)
+    {
+        //TODO: need to partially encrypt upload instruction set
+        string json = await new StreamReader(data).ReadToEndAsync();
+        var instructionSet = DotYouSystemSerializer.Deserialize<UploadInstructionSet>(json);
+
+        return await this.CreatePackage(instructionSet);
     }
 
     public virtual async Task AddMetadata(Guid packageId, Stream data)
@@ -155,7 +159,8 @@ public abstract class FileSystemStreamWriterBase
             // Validate the file exists by the Id
             if (!FileSystem.Storage.FileExists(package.InternalFile))
             {
-                throw new YouverseClientException("OverwriteFileId is specified but file does not exist", YouverseClientErrorCode.CannotOverwriteNonExistentFile);
+                throw new YouverseClientException("OverwriteFileId is specified but file does not exist",
+                    YouverseClientErrorCode.CannotOverwriteNonExistentFile);
             }
 
             // If the uniqueId is being changed, validate that uniqueId is not in use by another file
@@ -170,7 +175,8 @@ public abstract class FileSystemStreamWriterBase
                     var existingFile = await FileSystem.Query.GetFileByClientUniqueId(package.InternalFile.DriveId, incomingClientUniqueId);
                     if (null != existingFile && existingFile.FileId != existingFileHeader.FileMetadata.File.FileId)
                     {
-                        throw new YouverseClientException($"It looks like the uniqueId is being changed but a file already exists with ClientUniqueId: [{incomingClientUniqueId}]",
+                        throw new YouverseClientException(
+                            $"It looks like the uniqueId is being changed but a file already exists with ClientUniqueId: [{incomingClientUniqueId}]",
                             YouverseClientErrorCode.ExistingFileWithUniqueId);
                     }
                 }
@@ -187,7 +193,8 @@ public abstract class FileSystemStreamWriterBase
                 var existingFile = await FileSystem.Query.GetFileByClientUniqueId(package.InternalFile.DriveId, incomingClientUniqueId);
                 if (null != existingFile)
                 {
-                    throw new YouverseClientException($"File already exists with ClientUniqueId: [{incomingClientUniqueId}]", YouverseClientErrorCode.ExistingFileWithUniqueId);
+                    throw new YouverseClientException($"File already exists with ClientUniqueId: [{incomingClientUniqueId}]",
+                        YouverseClientErrorCode.ExistingFileWithUniqueId);
                 }
             }
 
@@ -254,14 +261,16 @@ public abstract class FileSystemStreamWriterBase
 
         var uploadDescriptor = DotYouSystemSerializer.Deserialize<UploadFileDescriptor>(json);
 
-        var transferEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;
+        var transferKeyEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;
 
-        if (null == transferEncryptedKeyHeader)
+        if (null == transferKeyEncryptedKeyHeader)
         {
             throw new YouverseClientException("Failure to unpack upload metadata, invalid transfer key header", YouverseClientErrorCode.InvalidKeyHeader);
         }
 
-        KeyHeader keyHeader = uploadDescriptor.FileMetadata.PayloadIsEncrypted ? transferEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret) : KeyHeader.Empty();
+        KeyHeader keyHeader = uploadDescriptor.FileMetadata.PayloadIsEncrypted
+            ? transferKeyEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret)
+            : KeyHeader.Empty();
 
         await ValidateUploadDescriptor(uploadDescriptor);
 
@@ -291,12 +300,14 @@ public abstract class FileSystemStreamWriterBase
         if (serverMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Anonymous && metadata.PayloadIsEncrypted)
         {
             //Note: dont allow anonymously accessible encrypted files because we wont have a client shared secret to secure the key header
-            throw new YouverseClientException("Cannot upload an encrypted file that is accessible to anonymous visitors", YouverseClientErrorCode.CannotUploadEncryptedFileForAnonymous);
+            throw new YouverseClientException("Cannot upload an encrypted file that is accessible to anonymous visitors",
+                YouverseClientErrorCode.CannotUploadEncryptedFileForAnonymous);
         }
 
         if (serverMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Authenticated && metadata.PayloadIsEncrypted)
         {
-            throw new YouverseClientException("Cannot upload an encrypted file that is accessible to authenticated visitors", YouverseClientErrorCode.CannotUploadEncryptedFileForAnonymous);
+            throw new YouverseClientException("Cannot upload an encrypted file that is accessible to authenticated visitors",
+                YouverseClientErrorCode.CannotUploadEncryptedFileForAnonymous);
         }
 
         if (metadata.AppData.ContentIsComplete && package.HasPayload)
@@ -312,20 +323,22 @@ public abstract class FileSystemStreamWriterBase
         var drive = await _driveManager.GetDrive(package.InternalFile.DriveId, true);
         if (drive.OwnerOnly && serverMetadata.AccessControlList.RequiredSecurityGroup != SecurityGroupType.Owner)
         {
-            throw new YouverseClientException("Drive is owner only so all files must have RequiredSecurityGroup of Owner", YouverseClientErrorCode.DriveSecurityAndAclMismatch);
+            throw new YouverseClientException("Drive is owner only so all files must have RequiredSecurityGroup of Owner",
+                YouverseClientErrorCode.DriveSecurityAndAclMismatch);
         }
 
         if (metadata.PayloadIsEncrypted)
         {
             if (ByteArrayUtil.IsStrongKey(keyHeader.Iv) == false || ByteArrayUtil.IsStrongKey(keyHeader.AesKey.GetKey()) == false)
             {
-                throw new YouverseClientException("Payload is set as encrypted but the encryption key is too simple", code: YouverseClientErrorCode.InvalidKeyHeader);
+                throw new YouverseClientException("Payload is set as encrypted but the encryption key is too simple",
+                    code: YouverseClientErrorCode.InvalidKeyHeader);
             }
         }
-        
+
         //if a new file, we need to ensure the global transit is set correct.  for existing files, the system
         // uses the existing global transit id
-        if(!package.IsUpdateOperation)
+        if (!package.IsUpdateOperation)
         {
             bool usesGlobalTransitId = package.InstructionSet.TransitOptions?.UseGlobalTransitId ?? false;
             if (serverMetadata.AllowDistribution && usesGlobalTransitId == false)

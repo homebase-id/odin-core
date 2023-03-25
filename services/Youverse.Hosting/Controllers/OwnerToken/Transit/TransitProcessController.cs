@@ -13,11 +13,11 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
     [AuthorizeValidOwnerToken]
     public class TransitProcessController : ControllerBase
     {
-        private readonly ITransitFileReceiverService _transitFileReceiverService;
+        private readonly ITransitInboxProcessor _transitInboxProcessor;
 
-        public TransitProcessController(ITransitFileReceiverService transitFileReceiverService)
+        public TransitProcessController(ITransitInboxProcessor transitInboxProcessor)
         {
-            _transitFileReceiverService = transitFileReceiverService;
+            _transitInboxProcessor = transitInboxProcessor;
         }
 
         [HttpPost("process")]
@@ -28,7 +28,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
                 throw new YouverseClientException("Invalid target drive", YouverseClientErrorCode.InvalidTargetDrive);
             }
             
-            await _transitFileReceiverService.ProcessIncomingTransitInstructions(request.TargetDrive);
+            await _transitInboxProcessor.ProcessIncomingTransitInstructions(request.TargetDrive);
             return new JsonResult(true);
         }
     }
