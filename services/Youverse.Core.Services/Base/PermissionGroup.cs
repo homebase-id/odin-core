@@ -65,7 +65,8 @@ public class PermissionGroup
         //this most likely denotes an anonymous drive.  Return an empty key which means encryption will fail
         if (this._driveDecryptionKey == null || grant.KeyStoreKeyEncryptedStorageKey == null)
         {
-            return Array.Empty<byte>().ToSensitiveByteArray();
+            // return Array.Empty<byte>().ToSensitiveByteArray();
+            return null;
         }
 
         var key = this._driveDecryptionKey;
