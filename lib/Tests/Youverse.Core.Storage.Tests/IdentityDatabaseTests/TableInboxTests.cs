@@ -76,6 +76,7 @@ namespace IdentityDatabaseTests
             Assert.AreEqual(0, pop);
             Assert.AreEqual(UnixTimeUtc.ZeroTime, poptime);
 
+
             // pop one item from the inbox
             var tbefore = new UnixTimeUtc();
             var r = db.tblInbox.PopSpecificBox(boxid, 1, out var poptimeStamp);
@@ -280,10 +281,25 @@ namespace IdentityDatabaseTests
             db.tblInbox.Insert(new InboxRecord() { boxId = b2, fileId = f4, priority = 10, value = v1 });
             db.tblInbox.Insert(new InboxRecord() { boxId = b2, fileId = f5, priority = 10, value = v1 });
 
+            var (tot, pop, poptime) = db.tblInbox.PopStatusSpecificBox(b1);
+            Assert.AreEqual(2, tot);
+            Assert.AreEqual(0, pop);
+            Assert.AreEqual(UnixTimeUtc.ZeroTime, poptime);
+            var tbefore = new UnixTimeUtc();
+
             // Pop the oldest record from the inbox 1
             var r1 = db.tblInbox.PopSpecificBox(b1, 1, out var poptimeStamp1);
             var r2 = db.tblInbox.PopSpecificBox(b1, 10, out var poptimeStamp2);
             if (r2.Count != 1)
+                Assert.Fail();
+
+            var tafter = new UnixTimeUtc();
+            (tot, pop, poptime) = db.tblInbox.PopStatusSpecificBox(b1);
+            Assert.AreEqual(2, tot);
+            Assert.AreEqual(2, pop);
+            if (poptime < tbefore) // We can't have popped before we popped
+                Assert.Fail();
+            if (poptime > tafter) // We can't have popped after we popped
                 Assert.Fail();
 
             // Then pop 10 oldest record from the inbox (only 2 are available now)

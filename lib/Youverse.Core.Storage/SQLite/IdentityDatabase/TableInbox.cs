@@ -16,6 +16,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
         private SqliteCommand _popStatusCommand = null;
 
+        private SqliteCommand _popStatusSpecificBoxCommand = null;
+        private SqliteParameter _pssbparam1 = null;
+
         private SqliteCommand _popCancelCommand = null;
         private SqliteParameter _pcancelparam1 = null;
 
@@ -41,6 +44,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
             _popStatusCommand?.Dispose();
             _popStatusCommand = null;
+
+            _popStatusSpecificBoxCommand?.Dispose();
+            _popStatusSpecificBoxCommand = null;
 
             _popCancelCommand?.Dispose();
             _popCancelCommand = null;
@@ -219,6 +225,74 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 }
             }
         }
+
+
+        /// <summary>
+        /// Status on the box
+        /// </summary>
+        /// <returns>Number of total items in box, number of popped items, the oldest popped item (ZeroTime if none)</returns>
+        /// <exception cref="Exception"></exception>
+        public (int, int, UnixTimeUtc) PopStatusSpecificBox(Guid boxId)
+        {
+            lock (_popLock)
+            {
+                // Make sure we only prep once 
+                if (_popStatusSpecificBoxCommand == null)
+                {
+                    _popStatusSpecificBoxCommand = _database.CreateCommand();
+                    _popStatusSpecificBoxCommand.CommandText =
+                        "SELECT count(*) FROM inbox WHERE boxid=$boxid;" +
+                        "SELECT count(*) FROM inbox WHERE boxid=$boxid AND popstamp NOT NULL;" +
+                        "SELECT popstamp FROM inbox WHERE boxid=$boxid ORDER BY popstamp DESC LIMIT 1;";
+                    _pssbparam1 = _popStatusSpecificBoxCommand.CreateParameter();
+                    _pssbparam1.ParameterName = "$boxid";
+                    _popStatusSpecificBoxCommand.Parameters.Add(_pssbparam1);
+
+                    _popStatusSpecificBoxCommand.Prepare();
+                }
+
+                _pssbparam1.Value = boxId.ToByteArray();
+
+                using (SqliteDataReader rdr = _database.ExecuteReader(_popStatusSpecificBoxCommand, System.Data.CommandBehavior.Default))
+                {
+                    // Read the total count
+                    if (!rdr.Read())
+                        throw new Exception("Not possible");
+                    if (rdr.IsDBNull(0))
+                        throw new Exception("Not possible");
+
+                    int totalCount = rdr.GetInt32(0);
+
+                    // Read the popped count
+                    if (!rdr.NextResult())
+                        throw new Exception("Not possible");
+
+                    if (!rdr.Read())
+                        throw new Exception("Not possible");
+                    if (rdr.IsDBNull(0))
+                        throw new Exception("Not possible");
+
+                    int poppedCount = rdr.GetInt32(0);
+
+                    if (!rdr.NextResult())
+                        throw new Exception("Not possible");
+                    // Read the marker, if any
+                    if (!rdr.Read() || rdr.IsDBNull(0))
+                        return (totalCount, poppedCount, UnixTimeUtc.ZeroTime);
+
+                    var _guid = new byte[16];
+                    var n = rdr.GetBytes(0, 0, _guid, 0, 16);
+                    if (n != 16)
+                        throw new Exception("Invalid stamp");
+
+                    var guid = new Guid(_guid);
+                    var utc = SequentialGuid.ToUnixTimeUtc(guid);
+                    return (totalCount, poppedCount, utc);
+                }
+            }
+        }
+
+
 
         /// <summary>
         /// Cancels the pop of items with the 'popstamp' from a previous pop operation

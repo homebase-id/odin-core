@@ -485,6 +485,11 @@ namespace IdentityDatabaseTests
             Assert.AreEqual( 0, pop);
             Assert.AreEqual(UnixTimeUtc.ZeroTime, poptime);
 
+            (tot, pop, poptime) = db.tblOutbox.PopStatusSpecificBox(box1id);
+            Assert.AreEqual(3, tot);
+            Assert.AreEqual(0, pop);
+            Assert.AreEqual(UnixTimeUtc.ZeroTime, poptime);
+
             var tbefore = new UnixTimeUtc();
             var r = db.tblOutbox.PopSpecificBox(box1id, 1000, out var popStamp);
             var tafter = new UnixTimeUtc();
@@ -499,6 +504,15 @@ namespace IdentityDatabaseTests
                 Assert.Fail();
             if (poptime > tafter) // We can't have popped after we popped
                 Assert.Fail();
+
+            (tot, pop, poptime) = db.tblOutbox.PopStatusSpecificBox(box1id);
+            Assert.AreEqual(3, tot);
+            Assert.AreEqual(3, pop);
+            if (poptime < tbefore) // We can't have popped before we popped
+                Assert.Fail();
+            if (poptime > tafter) // We can't have popped after we popped
+                Assert.Fail();
+
 
             if (ByteArrayUtil.muidcmp(r[0].fileId, f1) != 0)
                 Assert.Fail();
