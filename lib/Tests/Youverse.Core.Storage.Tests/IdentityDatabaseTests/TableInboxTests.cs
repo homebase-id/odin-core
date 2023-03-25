@@ -1,4 +1,6 @@
 ﻿using NUnit.Framework;
+using System.Collections.Generic;
+using System;
 using Youverse.Core;
 using Youverse.Core.Storage.Sqlite.IdentityDatabase;
 
@@ -217,6 +219,95 @@ namespace IdentityDatabaseTests
 
             var r2 = db.tblInbox.PopSpecificBox(boxid, 10, out var poptimeStamp2);
             if (r2.Count != 3)
+                Assert.Fail();
+        }
+
+
+        [TestCase()]
+        public void PopCommitListTest()
+        {
+            using var db = new IdentityDatabase("");
+            db.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var v1 = SequentialGuid.CreateGuid().ToByteArray();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+
+            var b1 = SequentialGuid.CreateGuid();
+
+            // Insert three records with fileId (f1), priority, and value (e.g. appId etc)
+            db.tblInbox.Insert(new InboxRecord() { boxId = b1, fileId = f1, priority = 0, value = v1 });
+            db.tblInbox.Insert(new InboxRecord() { boxId = b1, fileId = f2, priority = 10, value = v1 });
+            db.tblInbox.Insert(new InboxRecord() { boxId = b1, fileId = f3, priority = 10, value = v1 });
+
+            // Pop all records from the Inbox,be sure we get 3
+            var r1 = db.tblInbox.PopSpecificBox(b1, 5, out var popTimestamp1);
+            if (r1.Count != 3)
+                Assert.Fail();
+
+            // Commit one of the three records
+            db.tblInbox.PopCommitList(popTimestamp1, new List<Guid>() { f2 });
+
+            // Cancel the rest (f1, f3)
+            db.tblInbox.PopCancelAll(popTimestamp1);
+
+            // Pop all records from the Inbox,be sure we get 2 (f1 & f3)
+            var r2 = db.tblInbox.PopSpecificBox(b1, 5, out var popTimestamp2);
+            if (r2.Count != 2)
+                Assert.Fail();
+
+            // Commit all records
+            db.tblInbox.PopCommitList(popTimestamp2, new List<Guid>() { f1, f3 });
+
+            // Cancel nothing
+            db.tblInbox.PopCancelAll(popTimestamp2);
+            // Get everything back
+            db.tblInbox.PopRecoverDead(new UnixTimeUtc());
+
+            // Pop all records from the Inbox,be sure we get 2 (f1 & f3)
+            var r3 = db.tblInbox.PopSpecificBox(b1, 5, out var popTimestamp3);
+            if (r3.Count != 0)
+                Assert.Fail();
+        }
+
+        [TestCase()]
+        public void PopCancelListTest()
+        {
+            using var db = new IdentityDatabase("");
+            db.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var v1 = SequentialGuid.CreateGuid().ToByteArray();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+
+            var b1 = SequentialGuid.CreateGuid();
+
+            // Insert three records with fileId (f1), priority, and value (e.g. appId etc)
+            db.tblInbox.Insert(new InboxRecord() { boxId = b1, fileId = f1, priority = 0, value = v1 });
+            db.tblInbox.Insert(new InboxRecord() { boxId = b1, fileId = f2, priority = 10, value = v1 });
+            db.tblInbox.Insert(new InboxRecord() { boxId = b1, fileId = f3, priority = 10, value = v1 });
+
+            // Pop all records from the Inbox,be sure we get 3
+            var r1 = db.tblInbox.PopSpecificBox(b1, 5, out var popTimestamp1);
+            if (r1.Count != 3)
+                Assert.Fail();
+
+            // Cancel two of the three records
+            db.tblInbox.PopCancelList(popTimestamp1, new List<Guid>() { f1, f2 });
+
+            // Pop all the recods from the Inbox, but sure we get the two cancelled
+            var r2 = db.tblInbox.PopSpecificBox(b1, 5, out var popTimestamp2);
+            if (r2.Count != 2)
+                Assert.Fail();
+
+            // Cancel one of the two records
+            db.tblInbox.PopCancelList(popTimestamp2, new List<Guid>() { f1 });
+
+            // Pop all the recods from the Inbox, but sure we get the two cancelled
+            var r3 = db.tblInbox.PopSpecificBox(b1, 5, out var popTimestamp3);
+            if (r3.Count != 1)
                 Assert.Fail();
         }
 

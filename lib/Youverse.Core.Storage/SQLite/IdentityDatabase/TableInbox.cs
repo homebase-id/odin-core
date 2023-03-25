@@ -22,8 +22,18 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         private SqliteCommand _popCancelCommand = null;
         private SqliteParameter _pcancelparam1 = null;
 
+        private SqliteCommand _popCancelListCommand = null;
+        private SqliteParameter _pcancellistparam1 = null;
+        private SqliteParameter _pcancellistparam2 = null;
+        private static Object _popCancelListLock = new Object();
+
         private SqliteCommand _popCommitCommand = null;
         private SqliteParameter _pcommitparam1 = null;
+
+        private SqliteCommand _popCommitListCommand = null;
+        private SqliteParameter _pcommitlistparam1 = null;
+        private SqliteParameter _pcommitlistparam2 = null;
+        private static Object _popCommitListLock = new Object();
 
         private SqliteCommand _popRecoverCommand = null;
         private SqliteParameter _pcrecoverparam1 = null;
@@ -51,8 +61,14 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             _popCancelCommand?.Dispose();
             _popCancelCommand = null;
 
+            _popCancelListCommand?.Dispose();
+            _popCancelListCommand = null;
+
             _popCommitCommand?.Dispose();
             _popCommitCommand = null;
+
+            _popCommitListCommand?.Dispose();
+            _popCommitListCommand = null;
 
             _popRecoverCommand?.Dispose();
             _popRecoverCommand = null;
@@ -322,6 +338,42 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             }
         }
 
+        public void PopCancelList(Guid popstamp, List<Guid> listFileId)
+        {
+            lock (_popCancelListLock)
+            {
+                // Make sure we only prep once 
+                if (_popCancelListCommand == null)
+                {
+                    _popCancelListCommand = _database.CreateCommand();
+                    _popCancelListCommand.CommandText = "UPDATE inbox SET popstamp=NULL WHERE fileid=$fileid AND popstamp=$popstamp";
+
+                    _pcancellistparam1 = _popCancelListCommand.CreateParameter();
+                    _pcancellistparam1.ParameterName = "$popstamp";
+                    _popCancelListCommand.Parameters.Add(_pcancellistparam1);
+
+                    _pcancellistparam2 = _popCancelListCommand.CreateParameter();
+                    _pcancellistparam2.ParameterName = "$fileid";
+                    _popCancelListCommand.Parameters.Add(_pcancellistparam2);
+
+                    _popCancelListCommand.Prepare();
+                }
+
+                _pcancellistparam1.Value = popstamp.ToByteArray();
+
+                using (_database.CreateCommitUnitOfWork())
+                {
+                    // I'd rather not do a TEXT statement, this seems safer but slower.
+                    for (int i = 0; i < listFileId.Count; i++)
+                    {
+                        _pcancellistparam2.Value = listFileId[i].ToByteArray();
+                        _database.ExecuteNonQuery(_popCancelListCommand);
+                    }
+                }
+            }
+        }
+
+
         /// <summary>
         /// Commits (removes) the items previously popped with the supplied 'popstamp'
         /// </summary>
@@ -346,6 +398,46 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _pcommitparam1.Value = popstamp.ToByteArray();
 
                 _database.ExecuteNonQuery(_popCommitCommand);
+            }
+        }
+
+
+        /// <summary>
+        /// Commits (removes) the items previously popped with the supplied 'popstamp'
+        /// </summary>
+        /// <param name="popstamp"></param>
+        public void PopCommitList(Guid popstamp, List<Guid> listFileId)
+        {
+            lock (_popCommitListLock)
+            {
+                // Make sure we only prep once 
+                if (_popCommitListCommand == null)
+                {
+                    _popCommitListCommand = _database.CreateCommand();
+                    _popCommitListCommand.CommandText = "DELETE FROM inbox WHERE fileid=$fileid AND popstamp=$popstamp";
+
+                    _pcommitlistparam1 = _popCommitListCommand.CreateParameter();
+                    _pcommitlistparam1.ParameterName = "$popstamp";
+                    _popCommitListCommand.Parameters.Add(_pcommitlistparam1);
+
+                    _pcommitlistparam2 = _popCommitListCommand.CreateParameter();
+                    _pcommitlistparam2.ParameterName = "$fileid";
+                    _popCommitListCommand.Parameters.Add(_pcommitlistparam2);
+
+                    _popCommitListCommand.Prepare();
+                }
+
+                _pcommitlistparam1.Value = popstamp.ToByteArray();
+
+                using (_database.CreateCommitUnitOfWork())
+                {
+                    // I'd rather not do a TEXT statement, this seems safer but slower.
+                    for (int i = 0; i < listFileId.Count; i++)
+                    {
+                        _pcommitlistparam2.Value = listFileId[i].ToByteArray();
+                        _database.ExecuteNonQuery(_popCommitListCommand);
+                    }
+                }
             }
         }
 
