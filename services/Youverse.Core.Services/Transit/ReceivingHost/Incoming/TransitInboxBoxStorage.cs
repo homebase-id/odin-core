@@ -2,8 +2,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Dawn;
 using Youverse.Core.Serialization;
 using Youverse.Core.Storage;
+using Youverse.Core.Storage.Sqlite.IdentityDatabase;
 
 namespace Youverse.Core.Services.Transit.ReceivingHost.Incoming
 {
@@ -19,18 +21,17 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Incoming
             _tenantSystemStorage = tenantSystemStorage;
         }
 
-        public Task Add(TransferBoxItem item)
+        public Task Add(TransferInboxItem item)
         {
             item.AddedTimestamp = UnixTimeUtc.Now();
 
             var state = DotYouSystemSerializer.Serialize(item).ToUtf8ByteArray();
-            // XXX MS Did I do that right?
-            _tenantSystemStorage.Inbox.Insert(new Storage.Sqlite.IdentityDatabase.InboxRecord() { boxId = item.DriveId, fileId = item.FileId, priority = 1, value = state });
-            
+            _tenantSystemStorage.Inbox.Insert(new InboxRecord() { boxId = item.DriveId, fileId = item.FileId, priority = 1, value = state });
+
             return Task.CompletedTask;
         }
 
-        public async Task<List<TransferBoxItem>> GetPendingItems(Guid driveId)
+        public async Task<List<TransferInboxItem>> GetPendingItems(Guid driveId)
         {
             //CRITICAL NOTE: we can only get back one item since we want to make sure the marker is for that one item in-case the operation fails
             var records = this._tenantSystemStorage.Inbox.Pop(driveId, 1, out var marker);
@@ -38,12 +39,12 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Incoming
             var record = records.SingleOrDefault();
             if (null == record)
             {
-                return new List<TransferBoxItem>();
+                return new List<TransferInboxItem>();
             }
 
             var items = records.Select(r =>
             {
-                var item = DotYouSystemSerializer.Deserialize<TransferBoxItem>(r.value.ToStringFromUtf8Bytes());
+                var item = DotYouSystemSerializer.Deserialize<TransferInboxItem>(r.value.ToStringFromUtf8Bytes());
 
                 item.Priority = (int)r.priority;
                 item.AddedTimestamp = r.timeStamp;
@@ -60,7 +61,6 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Incoming
         public Task MarkComplete(Guid driveId, byte[] marker)
         {
             _tenantSystemStorage.Inbox.PopCommit(marker);
-            _tenantSystemStorage.CommitOutstandingTransactions();
             return Task.CompletedTask;
         }
 

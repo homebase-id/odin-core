@@ -18,7 +18,7 @@ namespace Youverse.Core.Services.Transit.SendingHost.Outbox
         public List<TransferAttempt> Attempts { get; }
 
         public bool IsTransientFile { get; set; }
-        public RsaEncryptedRecipientTransferInstructionSet TransferInstructionSet { get; set; }
+        public EncryptedRecipientTransferInstructionSet TransferInstructionSet { get; set; }
         
         public TransitOptions OriginalTransitOptions { get; set; }
         public byte[] EncryptedClientAuthToken { get; set; }

@@ -10,9 +10,11 @@ using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Hosting.Authentication.ClientToken;
 using Youverse.Hosting.Controllers.Anonymous;
 using Youverse.Hosting.Controllers.Base;
+using Youverse.Hosting.Controllers.OwnerToken.Drive;
 
 namespace Youverse.Hosting.Controllers.ClientToken.Drive
 {
@@ -23,8 +25,13 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
     [Route(AppApiPathConstants.DrivesV1)]
     [Route(YouAuthApiPathConstants.DrivesV1)]
     [AuthorizeValidExchangeGrant]
-    public class DriveReadStorageController : DriveReadStorageControllerBase
+    public class DriveStorageController : DriveStorageControllerBase
     {
+        public DriveStorageController(FileSystemResolver fileSystemResolver, ITransitService transitService) :
+            base(fileSystemResolver, transitService)
+        {
+        }
+
         /// <summary>
         /// Returns the file header
         /// </summary>
@@ -90,7 +97,8 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         }
 
         [HttpGet("files/thumb")]
-        public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] int width, [FromQuery] int height)
+        public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] int width,
+            [FromQuery] int height)
         {
             return await GetThumbnail(new GetThumbnailRequest()
             {
@@ -106,6 +114,17 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
                 Width = width,
                 Height = height
             });
+        }
+
+        /// <summary>
+        /// Deletes a file
+        /// </summary>
+        /// <param name="request"></param>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpPost("files/delete")]
+        public new async Task<IActionResult> DeleteFile([FromBody] DeleteFileRequest request)
+        {
+            return await base.DeleteFile(request);
         }
     }
 }

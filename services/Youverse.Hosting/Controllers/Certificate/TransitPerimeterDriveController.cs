@@ -34,22 +34,25 @@ namespace Youverse.Hosting.Controllers.Certificate
         private readonly DriveManager _driveManager;
         private readonly ITenantSystemStorage _tenantSystemStorage;
         private readonly IMediator _mediator;
+        private readonly FileSystemResolver _fileSystemResolver;
 
         /// <summary />
-        public TransitPerimeterDriveController(DotYouContextAccessor contextAccessor, IPublicKeyService publicKeyService, DriveManager driveManager, ITenantSystemStorage tenantSystemStorage, IMediator mediator)
+        public TransitPerimeterDriveController(DotYouContextAccessor contextAccessor, IPublicKeyService publicKeyService, DriveManager driveManager,
+            ITenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver)
         {
             _contextAccessor = contextAccessor;
             this._publicKeyService = publicKeyService;
             this._driveManager = driveManager;
             this._tenantSystemStorage = tenantSystemStorage;
             this._mediator = mediator;
+            _fileSystemResolver = fileSystemResolver;
         }
 
         [HttpPost("querybatch")]
         public async Task<QueryBatchResponse> QueryBatch(QueryBatchRequest request)
         {
             var fileSystem = base.GetFileSystemResolver().ResolveFileSystem();
-            var perimeterService = new TransitPerimeterService(_contextAccessor, _publicKeyService, _driveManager, fileSystem, _tenantSystemStorage, _mediator);
+            var perimeterService = GetPerimeterService();
             var batch = await perimeterService.QueryBatch(request.QueryParams, request.ResultOptionsRequest.ToQueryBatchResultOptions());
             return QueryBatchResponse.FromResult(batch);
         }
@@ -60,9 +63,7 @@ namespace Youverse.Hosting.Controllers.Certificate
         [HttpPost("header")]
         public async Task<IActionResult> GetFileHeader([FromBody] ExternalFileIdentifier request)
         {
-            var fileSystem = base.GetFileSystemResolver().ResolveFileSystem();
-            var perimeterService = new TransitPerimeterService(_contextAccessor, _publicKeyService, _driveManager, fileSystem, _tenantSystemStorage, _mediator);
-
+            var perimeterService = GetPerimeterService();
             SharedSecretEncryptedFileHeader result = await perimeterService.GetFileHeader(request.TargetDrive, request.FileId);
 
             //404 is possible
@@ -80,9 +81,7 @@ namespace Youverse.Hosting.Controllers.Certificate
         [HttpPost("payload")]
         public async Task<IActionResult> GetPayloadStream([FromBody] ExternalFileIdentifier request)
         {
-            var fileSystem = base.GetFileSystemResolver().ResolveFileSystem();
-            var perimeterService = new TransitPerimeterService(_contextAccessor, _publicKeyService, _driveManager, fileSystem, _tenantSystemStorage, _mediator);
-
+            var perimeterService = GetPerimeterService();
             var (encryptedKeyHeader64, payloadIsEncrypted, decryptedContentType, payload) =
                 await perimeterService.GetPayloadStream(request.TargetDrive, request.FileId);
 
@@ -106,10 +105,8 @@ namespace Youverse.Hosting.Controllers.Certificate
         [HttpPost("thumb")]
         public async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
         {
-            var fileSystem = base.GetFileSystemResolver().ResolveFileSystem();
-            var perimeterService = new TransitPerimeterService(_contextAccessor, _publicKeyService, _driveManager, fileSystem, _tenantSystemStorage, _mediator);
+            var perimeterService = GetPerimeterService();
 
-            
             var (encryptedKeyHeader64, payloadIsEncrypted, decryptedContentType, thumb) =
                 await perimeterService.GetThumbnail(request.File.TargetDrive, request.File.FileId, request.Height, request.Width);
 
@@ -127,13 +124,10 @@ namespace Youverse.Hosting.Controllers.Certificate
         [HttpPost("metadata/type")]
         public async Task<IEnumerable<PerimeterDriveData>> GetDrives([FromBody] GetDrivesByTypeRequest request)
         {
-            var fileSystem = base.GetFileSystemResolver().ResolveFileSystem();
-            var perimeterService = new TransitPerimeterService(_contextAccessor, _publicKeyService, _driveManager, fileSystem, _tenantSystemStorage, _mediator);
-
+            var perimeterService = GetPerimeterService();
             var drives = await perimeterService.GetDrives(request.DriveType);
             return drives;
         }
-
         
         [HttpGet("security/context")]
         public Task<RedactedDotYouContext> GetRemoteSecurityContext()
@@ -142,12 +136,25 @@ namespace Youverse.Hosting.Controllers.Certificate
         }
 
         [HttpPost("deletelinkedfile")]
-        public async Task<HostTransitResponse> DeleteLinkedFile(DeleteLinkedFileTransitRequest transitRequest)
+        public async Task<HostTransitResponse> DeleteLinkedFile(DeleteRemoteFileTransitRequest transitRequest)
+        {
+            var perimeterService = GetPerimeterService();
+            return await perimeterService.AcceptDeleteLinkedFileRequest(
+                transitRequest.RemoteGlobalTransitIdFileIdentifier.TargetDrive, 
+                transitRequest.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
+                transitRequest.FileSystemType);
+        }
+
+        private TransitPerimeterService GetPerimeterService()
         {
             var fileSystem = base.GetFileSystemResolver().ResolveFileSystem();
-            var perimeterService = new TransitPerimeterService(_contextAccessor, _publicKeyService, _driveManager, fileSystem, _tenantSystemStorage, _mediator);
-            return await perimeterService.AcceptDeleteLinkedFileRequest(transitRequest.TargetDrive, transitRequest.GlobalTransitId,
-                transitRequest.FileSystemType);
+            return new TransitPerimeterService(_contextAccessor,
+                _publicKeyService,
+                _driveManager,
+                fileSystem,
+                _tenantSystemStorage,
+                _mediator,
+                _fileSystemResolver);
         }
     }
 }

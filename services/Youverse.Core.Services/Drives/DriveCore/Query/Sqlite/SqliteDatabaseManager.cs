@@ -212,12 +212,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         _db.TblCmdMsgQueue.DeleteRow(fileIds);
         return Task.CompletedTask;
     }
-
-    public void EnsureDriveDatabaseCommits()
-    {
-        _db.Commit();
-    }
-
+    
     public void Dispose()
     {
         _db.Commit();
@@ -247,7 +242,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
 
     public (List<ReactionCount> reactions, int total) GetReactionSummaryByFile(Guid fileId)
     {
-        var (reactionContentList, countByEmojiList, total) = _db.TblReactions.GetPostReactionsWithDetails(fileId);
+        var (reactionContentList, countByReactionsList, total) = _db.TblReactions.GetPostReactionsWithDetails(fileId);
 
         var results = new List<ReactionCount>();
 
@@ -256,7 +251,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
             results.Add(new ReactionCount()
             {
                 ReactionContent = reactionContentList[i],
-                Count = countByEmojiList[i]
+                Count = countByReactionsList[i]
             });
         }
 

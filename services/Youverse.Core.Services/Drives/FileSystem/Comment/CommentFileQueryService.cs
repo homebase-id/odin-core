@@ -14,7 +14,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Comment
         {
         }
 
-        protected override void AssertCanReadDrive(Guid driveId)
+        public override void AssertCanReadDrive(Guid driveId)
         {
             var drive = DriveManager.GetDrive(driveId, true).GetAwaiter().GetResult();
             if (!drive.AllowAnonymousReads)
@@ -23,7 +23,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Comment
             }
         }
 
-        protected override void AssertCanWriteToDrive(Guid driveId)
+        public override void AssertCanWriteToDrive(Guid driveId)
         {
             var drive = DriveManager.GetDrive(driveId, true).GetAwaiter().GetResult();
             if (!drive.AllowAnonymousReads)

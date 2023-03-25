@@ -93,12 +93,12 @@ namespace Youverse.Core.Services.Transit.SendingHost
             throw new ArgumentException("Invalid ClientAccessTokenSource");
         }
 
-        protected async Task<(ClientAccessToken token, ITransitHostHttpClient client)> CreateClient(OdinId odinId, ClientAccessTokenSource tokenSource,
+        protected async Task<(ClientAccessToken token, ITransitHostReactionHttpClient client)> CreateReactionContentClient(OdinId odinId, ClientAccessTokenSource tokenSource,
             FileSystemType? fileSystemType = null)
         {
             var token = await ResolveClientAccessToken(odinId, tokenSource);
 
-            var httpClient = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(
+            var httpClient = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostReactionHttpClient>(
                 odinId, token.ToAuthenticationToken(), fileSystemType);
 
             return (token, httpClient);

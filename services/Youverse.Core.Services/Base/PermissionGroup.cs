@@ -33,7 +33,7 @@ public class PermissionGroup
 
     public bool HasPermission(int permission)
     {
-        return this._permissionSet.HasKey(permission);
+        return this._permissionSet?.HasKey(permission) ?? false;
     }
 
     /// <summary>
@@ -96,6 +96,7 @@ public class RedactedPermissionGroup
         this.DriveGrants = new List<RedactedDriveGrant>();
         this.PermissionSet = new RedactedPermissionSet();
     }
+
     public IEnumerable<RedactedDriveGrant> DriveGrants { get; set; }
     public RedactedPermissionSet PermissionSet { get; set; }
 }

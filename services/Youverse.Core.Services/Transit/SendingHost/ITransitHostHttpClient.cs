@@ -26,7 +26,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
             params StreamPart[] additionalStreamParts);
 
         [Post(RootPath + "/deletelinkedfile")]
-        Task<ApiResponse<HostTransitResponse>> DeleteLinkedFile([Body] DeleteLinkedFileTransitRequest request);
+        Task<ApiResponse<HostTransitResponse>> DeleteLinkedFile([Body] DeleteRemoteFileTransitRequest request);
 
         [Post(RootPath + "/querybatch")]
         Task<ApiResponse<QueryBatchResponse>> QueryBatch([Body] QueryBatchRequest request);
@@ -46,10 +46,5 @@ namespace Youverse.Core.Services.Transit.SendingHost
         [Get(RootPath + "/security/context")]
         Task<ApiResponse<RedactedDotYouContext>> GetRemoteDotYouContext();
 
-        [Post(RootPath + "/reactions/add")]
-        Task<ApiResponse<HttpContent>> AddReaction([Body]SharedSecretEncryptedTransitPayload payload);
-
-        [Post(RootPath + "/reactions/list")]
-        Task<ApiResponse<GetReactionsResponse>> GetReactions([Body]SharedSecretEncryptedTransitPayload payload);
     }
 }

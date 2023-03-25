@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.DriveCore.Query;
+using Youverse.Core.Services.Drives.DriveCore.Storage;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Storage;
 
@@ -20,7 +21,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
         /// </summary>
         /// <param name="transferInstructionSet"></param>
         /// <returns></returns>
-        Task<Guid> InitializeIncomingTransfer(RsaEncryptedRecipientTransferInstructionSet transferInstructionSet);
+        Task<Guid> InitializeIncomingTransfer(EncryptedRecipientTransferInstructionSet transferInstructionSet);
 
         /// <summary>
         /// Filters, Triages, and distributes the incoming payload the right handler
@@ -37,7 +38,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
         /// <summary>
         /// Finalizes the transfer after having applied the full set of filters to all parts of the incoming file.
         /// </summary>
-        Task<HostTransitResponse> FinalizeTransfer(Guid transferStateItemId);
+        Task<HostTransitResponse> FinalizeTransfer(Guid transferStateItemId, FileMetadata fileMetadata);
 
         /// <summary>
         /// Deletes a file that was linked with a GlobalTransitId

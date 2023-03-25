@@ -28,6 +28,5 @@ namespace Youverse.Core.Storage
 
         DatabaseBase.LogicCommitUnit CreateCommitUnitOfWork();
 
-        void CommitOutstandingTransactions();
     }
 }

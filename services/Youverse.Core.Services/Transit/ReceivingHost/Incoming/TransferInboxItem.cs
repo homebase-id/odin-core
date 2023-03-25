@@ -5,9 +5,9 @@ using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Transit.ReceivingHost.Incoming
 {
-    public class TransferBoxItem
+    public class TransferInboxItem
     {
-        public TransferBoxItem()
+        public TransferInboxItem()
         {
             this.Id = Guid.NewGuid();
         }
@@ -43,5 +43,9 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Incoming
         /// The FileSystemType of the incoming file
         /// </summary>
         public FileSystemType FileSystemType { get; set; }
+
+        public TransferFileType TransferFileType { get; set; }
+        
+        public byte[] RsaEncryptedKeyHeader { get; set; }
     }
 }

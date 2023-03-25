@@ -7,10 +7,3 @@ public class AddReactionRequest
     public string Reaction { get; set; }
     public ExternalFileIdentifier File { get; set; }
 }
-
-
-public class DeleteReactionRequest
-{
-    public string Reaction { get; set; }
-    public ExternalFileIdentifier File { get; set; }
-}

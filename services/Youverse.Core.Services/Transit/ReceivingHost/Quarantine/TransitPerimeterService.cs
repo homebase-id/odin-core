@@ -5,11 +5,14 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using MediatR;
+using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.DriveCore.Query;
+using Youverse.Core.Services.Drives.DriveCore.Storage;
 using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Services.EncryptionKeyService;
@@ -30,6 +33,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
         private readonly DriveManager _driveManager;
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
         private readonly IDriveFileSystem _fileSystem;
+        private readonly FileSystemResolver _fileSystemResolver;
         private readonly IMediator _mediator;
 
         public TransitPerimeterService(
@@ -38,7 +42,8 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
             DriveManager driveManager,
             IDriveFileSystem fileSystem,
             ITenantSystemStorage tenantSystemStorage,
-            IMediator mediator)
+            IMediator mediator,
+            FileSystemResolver fileSystemResolver)
         {
             _contextAccessor = contextAccessor;
             _publicKeyService = publicKeyService;
@@ -46,20 +51,18 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
             _fileSystem = fileSystem;
             _transitInboxBoxStorage = new TransitInboxBoxStorage(tenantSystemStorage);
             _mediator = mediator;
+            _fileSystemResolver = fileSystemResolver;
 
             _transitPerimeterTransferStateService = new TransitPerimeterTransferStateService(_fileSystem, contextAccessor);
         }
 
-        public async Task<Guid> InitializeIncomingTransfer(RsaEncryptedRecipientTransferInstructionSet transferInstructionSet)
+        public async Task<Guid> InitializeIncomingTransfer(EncryptedRecipientTransferInstructionSet transferInstructionSet)
         {
             Guard.Argument(transferInstructionSet, nameof(transferInstructionSet)).NotNull();
-            Guard.Argument(transferInstructionSet!.PublicKeyCrc, nameof(transferInstructionSet.PublicKeyCrc)).NotEqual<uint>(0);
-            Guard.Argument(transferInstructionSet.EncryptedAesKeyHeader.Length, nameof(transferInstructionSet.EncryptedAesKeyHeader)).NotEqual(0);
-
-            if (!await _publicKeyService.IsValidPublicKey(transferInstructionSet.PublicKeyCrc))
-            {
-                throw new YouverseClientException("Invalid Public Key CRC provided", YouverseClientErrorCode.InvalidInstructionSet);
-            }
+            Guard.Argument(transferInstructionSet.SharedSecretEncryptedKeyHeader.Iv.Length,
+                nameof(transferInstructionSet.SharedSecretEncryptedKeyHeader.Iv)).NotEqual(0);
+            Guard.Argument(transferInstructionSet.SharedSecretEncryptedKeyHeader.EncryptedAesKey.Length,
+                nameof(transferInstructionSet.SharedSecretEncryptedKeyHeader.EncryptedAesKey)).NotEqual(0);
 
             return await _transitPerimeterTransferStateService.CreateTransferStateItem(transferInstructionSet);
         }
@@ -110,7 +113,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
             return item.IsCompleteAndValid();
         }
 
-        public async Task<HostTransitResponse> FinalizeTransfer(Guid transferStateItemId)
+        public async Task<HostTransitResponse> FinalizeTransfer(Guid transferStateItemId, FileMetadata fileMetadata)
         {
             var item = await _transitPerimeterTransferStateService.GetStateItem(transferStateItemId);
 
@@ -129,68 +132,85 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
 
             if (item.IsCompleteAndValid())
             {
-                await CompleteTransfer(item);
+                var responseCode = await CompleteTransfer(item, fileMetadata);
                 await _transitPerimeterTransferStateService.RemoveStateItem(item.Id);
-                return new HostTransitResponse() { Code = TransitResponseCode.Accepted };
+                return new HostTransitResponse() { Code = responseCode };
             }
 
             throw new HostToHostTransferException("Unhandled error");
         }
 
-        private async Task CompleteTransfer(IncomingTransferStateItem stateItem)
+        private async Task<TransitResponseCode> CompleteTransfer(IncomingTransferStateItem stateItem, FileMetadata fileMetadata)
         {
-            var item = new TransferBoxItem()
-            {
-                Id = Guid.NewGuid(),
-                AddedTimestamp = UnixTimeUtc.Now(),
-                Sender = this._contextAccessor.GetCurrent().GetCallerOdinIdOrFail(),
-                PublicKeyCrc = stateItem.PublicKeyCrc,
+            //S0001, S1000, S2000 - can the sender write the content to the target drive?
+            _fileSystem.Storage.AssertCanWriteToDrive(stateItem.TempFile.DriveId);
 
-                InstructionType = TransferInstructionType.SaveFile,
-                DriveId = stateItem.TempFile.DriveId,
-                FileId = stateItem.TempFile.FileId,
-                FileSystemType = stateItem.TransferFileSystemType
-            };
+            var directWriteSuccess = await TryDirectWriteFile(stateItem, fileMetadata);
 
-            await _transitInboxBoxStorage.Add(item);
-            await _mediator.Publish(new TransitFileReceivedNotification()
+            if (directWriteSuccess)
             {
-                TempFile = new ExternalFileIdentifier()
-                {
-                    TargetDrive = _driveManager.GetDrive(item.DriveId).Result.TargetDriveInfo,
-                    FileId = item.FileId
-                },
-                
-                TransferFileType = stateItem.TransferFileType,
-                FileSystemType = item.FileSystemType
-            });
+                return TransitResponseCode.AcceptedDirectWrite;
+            }
+
+            //S1220
+            return await RouteToInbox(stateItem);
         }
 
         public async Task<HostTransitResponse> AcceptDeleteLinkedFileRequest(TargetDrive targetDrive, Guid globalTransitId, FileSystemType fileSystemType)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(targetDrive);
 
+            //TODO: add checks if the sender can write comments if this is a comment
+            _fileSystem.Storage.AssertCanWriteToDrive(driveId);
+
+            //if the sender can write, we can perform this now
+
+            if(fileSystemType == FileSystemType.Comment)
+            {
+                //Note: we need to check if the person deleting the comment is the original commenter or the owner
+                var header = await _fileSystem.Query.GetFileByGlobalTransitId(driveId, globalTransitId);
+                if (null != header)
+                {
+
+                    //requester must be the original commenter
+                    if (header.FileMetadata.SenderOdinId != _contextAccessor.GetCurrent().Caller.OdinId)
+                    {
+                        throw new YouverseSecurityException();
+                    }
+                    
+                    await _fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
+                    {
+                        FileId = header.FileId,
+                        DriveId = driveId
+                    });
+
+                    return new HostTransitResponse()
+                    {
+                        Code = TransitResponseCode.AcceptedDirectWrite,
+                        Message = ""
+                    };
+                }
+            }
+            
             try
             {
-                uint publicKeyCrc = 0; //TODO: we need to encrypt the delete linked file request using the public key or the shared secret
-                var item = new TransferBoxItem()
+                var item = new TransferInboxItem()
                 {
                     Id = Guid.NewGuid(),
                     AddedTimestamp = UnixTimeUtc.Now(),
                     Sender = this._contextAccessor.GetCurrent().GetCallerOdinIdOrFail(),
-                    PublicKeyCrc = publicKeyCrc,
-
+            
                     InstructionType = TransferInstructionType.DeleteLinkedFile,
                     DriveId = driveId,
                     GlobalTransitId = globalTransitId,
-                    FileSystemType = fileSystemType
+                    FileSystemType = fileSystemType,
                 };
-
+            
                 await _transitInboxBoxStorage.Add(item);
-
+            
                 return new HostTransitResponse()
                 {
-                    Code = TransitResponseCode.Accepted,
+                    Code = TransitResponseCode.AcceptedIntoInbox,
                     Message = ""
                 };
             }
@@ -330,6 +350,124 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
             }
 
             return FilterAction.Accept;
+        }
+
+        //
+        private async Task<bool> TryDirectWriteFile(IncomingTransferStateItem stateItem, FileMetadata metadata)
+        {
+            _fileSystem.Storage.AssertCanWriteToDrive(stateItem.TempFile.DriveId);
+
+            //HACK: if it's not a connected token
+            if (_contextAccessor.GetCurrent().AuthContext.ToLower() != "TransitCertificate".ToLower())
+            {
+                return false;
+            }
+
+            TransitFileWriter writer = new TransitFileWriter(_contextAccessor, _fileSystemResolver);
+            var sender = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
+            var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader);
+
+            if (metadata.PayloadIsEncrypted == false)
+            {
+                //S1110 - Write to disk and send notifications
+                await writer.HandleFile(stateItem.TempFile, _fileSystem, decryptedKeyHeader, sender,
+                    stateItem.TransferInstructionSet.FileSystemType, stateItem.TransferInstructionSet.TransferFileType);
+
+                return true;
+            }
+
+            //S1100
+            if (metadata.PayloadIsEncrypted)
+            {
+                // Next determine if we can direct write the file
+                var hasStorageKey = _contextAccessor.GetCurrent().PermissionsContext.TryGetDriveStorageKey(stateItem.TempFile.DriveId, out var _);
+
+                //S1200
+                if (hasStorageKey)
+                {
+                    //S1205
+                    await writer.HandleFile(stateItem.TempFile, _fileSystem, decryptedKeyHeader, sender,
+                        stateItem.TransferInstructionSet.FileSystemType,
+                        stateItem.TransferInstructionSet.TransferFileType);
+                    return true;
+                }
+
+                //S2210 - comments cannot fall back to inbox
+                if (stateItem.TransferInstructionSet.FileSystemType == FileSystemType.Comment)
+                {
+                    throw new YouverseSecurityException("Sender cannot write the comment");
+                }
+            }
+
+            return false;
+        }
+
+        private KeyHeader DecryptKeyHeaderWithSharedSecret(EncryptedKeyHeader sharedSecretEncryptedKeyHeader)
+        {
+            var sharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
+            var decryptedKeyHeader = sharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
+            return decryptedKeyHeader;
+        }
+
+        private async Task<FileMetadata> LoadMetadataFromTemp(InternalDriveFileId file)
+        {
+            var metadataStream = await _fileSystem.Storage.GetTempStream(file, MultipartHostTransferParts.Metadata.ToString().ToLower());
+            var json = await new StreamReader(metadataStream).ReadToEndAsync();
+            metadataStream.Close();
+
+            var metadata = DotYouSystemSerializer.Deserialize<FileMetadata>(json);
+            return metadata;
+        }
+
+        /// <summary>
+        /// Stores the file in the inbox so it can be processed by the owner in a separate process
+        /// </summary>
+        private async Task<TransitResponseCode> RouteToInbox(IncomingTransferStateItem stateItem)
+        {
+            //S1210 - Convert to Rsa encrypted header so this could be handled by the TransitInboxProcessor
+            var (rsaEncryptedKeyHeader, crc32) = await ConvertKeyHeaderToRsa(stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader);
+
+            var item = new TransferInboxItem()
+            {
+                Id = Guid.NewGuid(),
+                AddedTimestamp = UnixTimeUtc.Now(),
+                Sender = this._contextAccessor.GetCurrent().GetCallerOdinIdOrFail(),
+
+                InstructionType = TransferInstructionType.SaveFile,
+                DriveId = stateItem.TempFile.DriveId,
+                FileId = stateItem.TempFile.FileId,
+                FileSystemType = stateItem.TransferInstructionSet.FileSystemType,
+                TransferFileType = stateItem.TransferInstructionSet.TransferFileType,
+
+                PublicKeyCrc = crc32,
+                RsaEncryptedKeyHeader = rsaEncryptedKeyHeader
+            };
+
+            await _transitInboxBoxStorage.Add(item);
+            await _mediator.Publish(new TransitFileReceivedNotification()
+            {
+                TempFile = new ExternalFileIdentifier()
+                {
+                    TargetDrive = _driveManager.GetDrive(item.DriveId).Result.TargetDriveInfo,
+                    FileId = item.FileId
+                },
+
+                TransferFileType = stateItem.TransferInstructionSet.TransferFileType,
+                FileSystemType = item.FileSystemType
+            });
+
+            return TransitResponseCode.AcceptedIntoInbox;
+        }
+
+        private async Task<(byte[] rsaEncryptedKeyHeader, UInt32 crc)> ConvertKeyHeaderToRsa(EncryptedKeyHeader sharedSecretEncryptedKeyHeader)
+        {
+            var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(sharedSecretEncryptedKeyHeader);
+            var pk = await _publicKeyService.GetOfflinePublicKey();
+            var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(pk.publicKey);
+            var combinedKey = decryptedKeyHeader.Combine();
+            var rsaEncryptedKeyHeader = publicKey.Encrypt(combinedKey.GetKey());
+            combinedKey.Wipe();
+            return (rsaEncryptedKeyHeader, pk.crc32c);
         }
     }
 }

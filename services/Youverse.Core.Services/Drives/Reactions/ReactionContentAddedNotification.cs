@@ -6,11 +6,11 @@ using Youverse.Core.Services.Drives.DriveCore.Query.Sqlite;
 
 namespace Youverse.Core.Services.Drives.Reactions;
 
-public class EmojiReactionAddedNotification : EventArgs, IClientNotification
+public class ReactionContentAddedNotification : EventArgs, IClientNotification
 {
     public Reaction Reaction { get; set; }
     
-    public ClientNotificationType NotificationType { get; } = ClientNotificationType.EmojiReactionAdded;
+    public ClientNotificationType NotificationType { get; } = ClientNotificationType.ReactionContentAdded;
 
     public string GetClientData()
     {

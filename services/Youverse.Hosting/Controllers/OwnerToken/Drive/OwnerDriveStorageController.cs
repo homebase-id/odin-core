@@ -4,9 +4,10 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Apps;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Hosting.Controllers.Base;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Drive
@@ -15,14 +16,11 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
     [ApiController]
     [Route(OwnerApiPathConstants.DriveStorageV1)]
     [AuthorizeValidOwnerToken]
-    public class OwnerDriveStorageController : DriveReadStorageControllerBase
+    public class OwnerDriveStorageController : DriveStorageControllerBase
     {
-        private readonly IAppService _appService;
-
-        /// <summary />
-        public OwnerDriveStorageController(IAppService appService)
+        public OwnerDriveStorageController(FileSystemResolver fileSystemResolver, ITransitService transitService) :
+            base(fileSystemResolver, transitService)
         {
-            _appService = appService;
         }
 
         /// <summary>
@@ -123,23 +121,9 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("delete")]
-        public async Task<IActionResult> DeleteFile([FromBody] DeleteFileRequest request)
+        public new async Task<IActionResult> DeleteFile([FromBody] DeleteFileRequest request)
         {
-            var driveId = DotYouContext.PermissionsContext.GetDriveId(request.File.TargetDrive);
-
-            var file = new InternalDriveFileId()
-            {
-                DriveId = driveId,
-                FileId = request.File.FileId
-            };
-
-            var result = await _appService.DeleteFile(file, request.Recipients);
-            if (result.LocalFileNotFound)
-            {
-                return NotFound();
-            }
-
-            return new JsonResult(result);
+            return await base.DeleteFile(request);
         }
 
         /// <summary>
@@ -165,5 +149,6 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             await base.GetFileSystemResolver().ResolveFileSystem().Storage.HardDeleteLongTermFile(file);
             return Ok();
         }
+
     }
 }

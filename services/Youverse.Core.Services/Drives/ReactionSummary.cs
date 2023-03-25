@@ -5,14 +5,14 @@ namespace Youverse.Core.Services.Drives;
 
 public class ReactionSummary
 {
-    public Dictionary<Guid, EmojiReactionPreview> Reactions { get; set; } = new();
+    public Dictionary<Guid, ReactionContentPreview> Reactions { get; set; } = new();
 
     public List<CommentPreview> Comments { get; set; } = new();
     
     public int TotalCommentCount { get; set; }
 }
 
-public class EmojiReactionPreview
+public class ReactionContentPreview
 {
     public Guid Key { get; set; }
 
@@ -31,7 +31,7 @@ public class CommentPreview
 
     public string JsonContent { get; set; }
 
-    public List<EmojiReactionPreview> Reactions { get; set; } = new();
+    public List<ReactionContentPreview> Reactions { get; set; } = new();
     public long Created { get; set; }
     public long Updated { get; set; }
 }

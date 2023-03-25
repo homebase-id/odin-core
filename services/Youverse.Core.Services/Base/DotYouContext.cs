@@ -1,3 +1,4 @@
+using System;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 
@@ -6,9 +7,18 @@ namespace Youverse.Core.Services.Base
     public class DotYouContext
     {
         private PermissionContext _permissionsContext;
-        
-        public string AuthContext { get; set; }
+        private string _authContext;
 
+        public string AuthContext
+        {
+            get
+            {
+                return _authContext;
+            }
+        }
+
+        public OdinId Tenant { get; set; }
+        
         public CallerContext Caller { get; set; }
 
         public OdinId GetCallerOdinIdOrFail()
@@ -32,6 +42,17 @@ namespace Youverse.Core.Services.Base
             _permissionsContext = pc;
         }
 
+        public void SetAuthContext(string authContext)
+        {
+            //This is only exist to ensure we only set auth context in the DotYouContextMiddleware
+            if (null != _authContext)
+            {
+                throw new YouverseSecurityException("Cannot reset auth context");
+            }
+
+            _authContext = authContext;
+        }
+        
         public void AssertCanManageConnections()
         {
             if (this.Caller.IsOwner && this.Caller.HasMasterKey)

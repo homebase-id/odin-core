@@ -77,9 +77,9 @@ public class DriveManager
             var driveKey = new SymmetricKeyEncryptedAes(ref mk);
 
             var id = Guid.NewGuid();
-            var secret = driveKey.DecryptKeyClone(ref mk);
+            var storageKey = driveKey.DecryptKeyClone(ref mk);
 
-            (byte[] encryptedIdIv, byte[] encryptedIdValue) = AesCbc.Encrypt(id.ToByteArray(), ref secret);
+            (byte[] encryptedIdIv, byte[] encryptedIdValue) = AesCbc.Encrypt(id.ToByteArray(), ref storageKey);
 
             var sdb = new StorageDriveBase()
             {
@@ -95,7 +95,7 @@ public class DriveManager
                 OwnerOnly = request.OwnerOnly
             };
 
-            secret.Wipe();
+            storageKey.Wipe();
 
             _tenantSystemStorage.ThreeKeyValueStorage.Upsert(sdb.Id, request.TargetDrive.ToKey(), _driveDataType, sdb);
 

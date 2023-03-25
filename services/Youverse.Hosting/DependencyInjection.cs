@@ -39,6 +39,7 @@ using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Tenant;
 using Youverse.Core.Services.Transit.ReceivingHost;
 using Youverse.Core.Services.Transit.ReceivingHost.Incoming;
+using Youverse.Core.Services.Transit.ReceivingHost.Reactions;
 using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Core.Services.Transit.SendingHost.Outbox;
 using Youverse.Core.Storage;
@@ -67,7 +68,7 @@ namespace Youverse.Hosting
                 .As<INotificationHandler<DriveFileDeletedNotification>>()
                 .As<INotificationHandler<TransitFileReceivedNotification>>()
                 .As<INotificationHandler<NewFollowerNotification>>()
-                .As<INotificationHandler<EmojiReactionAddedNotification>>()
+                .As<INotificationHandler<ReactionContentAddedNotification>>()
                 .As<INotificationHandler<StatisticsUpdatedNotification>>()
                 .AsSelf()
                 .SingleInstance();
@@ -123,13 +124,13 @@ namespace Youverse.Hosting
                 .SingleInstance();
 
 
-            cb.RegisterType<EmojiReactionService>().AsSelf().SingleInstance();
+            cb.RegisterType<ReactionContentService>().AsSelf().SingleInstance();
             
             cb.RegisterType<ReactionPreviewCalculator>()
                 .As<INotificationHandler<DriveFileAddedNotification>>()
                 .As<INotificationHandler<DriveFileChangedNotification>>()
                 .As<INotificationHandler<DriveFileDeletedNotification>>()
-                .As<INotificationHandler<EmojiReactionAddedNotification>>();
+                .As<INotificationHandler<ReactionContentAddedNotification>>();
             
             cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>().SingleInstance();
             
@@ -147,7 +148,7 @@ namespace Youverse.Hosting
 
             cb.RegisterType<TransitOutbox>().As<ITransitOutbox>().SingleInstance();
 
-            cb.RegisterType<TransitFileReceiverService>().As<ITransitFileReceiverService>().SingleInstance();
+            cb.RegisterType<TransitInboxProcessor>().As<ITransitInboxProcessor>().SingleInstance();
             cb.RegisterType<TransitRegistrationService>()
                 .As<INotificationHandler<IdentityConnectionRegistrationChangedNotification>>()
                 .AsSelf()
@@ -167,16 +168,14 @@ namespace Youverse.Hosting
             cb.RegisterType<TransitService>().As<ITransitService>().SingleInstance();
 
             cb.RegisterType<CommandMessagingService>().AsSelf().SingleInstance();
-
-            cb.RegisterType<AppService>().As<IAppService>().SingleInstance();
-
+            
             cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();
 
             cb.RegisterType<TransitQueryService>().AsSelf().SingleInstance();
             
-            cb.RegisterType<TransitEmojiSenderService>().AsSelf().SingleInstance();
+            cb.RegisterType<TransitReactionContentSenderService>().AsSelf().SingleInstance();
 
-            cb.RegisterType<TransitEmojiPerimeterService>().AsSelf().SingleInstance();
+            cb.RegisterType<TransitReactionPerimeterService>().AsSelf().SingleInstance();
 
             cb.RegisterType<RsaKeyService>().As<IPublicKeyService>().SingleInstance();
 
