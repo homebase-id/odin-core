@@ -14,7 +14,6 @@ namespace Youverse.Hosting.Controllers.Certificate
     /// </summary>
     [ApiController]
     [Route("/api/perimeter/transit/host/reactions")]
-    // [Authorize(Policy = CertificatePerimeterPolicies.IsInYouverseNetwork, AuthenticationSchemes = PerimeterAuthConstants.FollowerCertificateAuthScheme)]
     [Authorize(Policy = CertificatePerimeterPolicies.IsInYouverseNetwork, AuthenticationSchemes = PerimeterAuthConstants.TransitCertificateAuthScheme)]
     public class TransitPerimeterEmojiController : OdinControllerBase
     {
@@ -38,7 +37,6 @@ namespace Youverse.Hosting.Controllers.Certificate
             return await _emojiPerimeterService.GetReactions(payload);
         }
 
-        
         // [HttpPost("delete")]
         // public async Task<IActionResult> DeleteEmojiReaction(SharedSecretEncryptedTransitPayload payload)
         // {

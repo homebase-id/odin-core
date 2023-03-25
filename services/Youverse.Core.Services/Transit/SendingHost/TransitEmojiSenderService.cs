@@ -45,6 +45,11 @@ public class TransitDeleteReactionRequest
 {
     public string OdinId { get; set; }
 
+    public DeleteReactionRequestByGlobalTransitId Request { get; set; }
+}
+
+public class DeleteReactionRequestByGlobalTransitId
+{
     public string Reaction { get; set; }
 
     public GlobalTransitIdFileIdentifier File { get; set; }
@@ -58,7 +63,7 @@ public class TransitGetReactionsByIdentityRequest
     public OdinId OdinId { get; set; }
 
     public OdinId Identity { get; set; }
-        
+
     public GlobalTransitIdFileIdentifier File { get; set; }
 }
 
@@ -79,7 +84,7 @@ public class TransitEmojiSenderService : TransitServiceBase
     /// <summary />
     public async Task AddReaction(OdinId odinId, AddRemoteReactionRequest request)
     {
-        var (token, client) = await CreateClient(odinId, ClientAccessTokenSource.Circle);
+        var (token, client) = await CreateEmojiClient(odinId, ClientAccessTokenSource.Circle);
 
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
 
@@ -95,40 +100,44 @@ public class TransitEmojiSenderService : TransitServiceBase
     /// <summary />
     public async Task<GetReactionsResponse> GetReactions(OdinId odinId, GetRemoteReactionsRequest request)
     {
-        var (token, client) = await CreateClient(odinId, ClientAccessTokenSource.Circle);
+        var (token, client) = await CreateEmojiClient(odinId, ClientAccessTokenSource.Circle);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
         var response = await client.GetReactions(payload);
         return response.Content;
     }
 
     /// <summary />
-    public Task<GetReactionCountsResponse> GetReactionCounts(OdinId odinId, GetRemoteReactionsRequest request)
+    public async Task<GetReactionCountsResponse> GetReactionCounts(OdinId odinId, GetRemoteReactionsRequest request)
     {
-        // var (_, client) = await CreateClient(odinId, ClientAccessTokenSource.DataSubscription);
-        // var response = await client.GetReactionCountsByFile(request.File);
-        // return response.Content;
-        return null;
+        var (token, client) = await CreateEmojiClient(odinId, ClientAccessTokenSource.Circle);
+        SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
+        var response = await client.GetReactionCountsByFile(payload);
+        return response.Content;
     }
 
-    public Task<List<string>> GetReactionsByIdentityAndFile(OdinId odinId, TransitGetReactionsByIdentityRequest request)
+    public async Task<List<string>> GetReactionsByIdentityAndFile(OdinId odinId, TransitGetReactionsByIdentityRequest request)
     {
-        // var (_, client) = await CreateClient(odinId, ClientAccessTokenSource.DataSubscription);
-        // var response = await client.GetReactionsByIdentityAndFile(request.Identity, request.File);
-        // return response.Content;
-        return null;
-    }
-    
-    public void DeleteReaction(TransitDeleteReactionRequest request)
-    {
-        throw new System.NotImplementedException();
+        var (token, client) = await CreateEmojiClient(odinId, ClientAccessTokenSource.Circle);
+        SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
+        var response = await client.GetReactionsByIdentity(payload);
+        return response.Content;
     }
 
-    public void DeleteAllReactions(TransitDeleteReactionRequest request)
+    public async Task DeleteReaction(OdinId odinId, DeleteReactionRequestByGlobalTransitId request)
     {
-        throw new System.NotImplementedException();
+        var (token, client) = await CreateEmojiClient(odinId, ClientAccessTokenSource.Circle);
+        SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
+        await client.GetReactionsByIdentity(payload);
     }
-    
-        /// <summary>
+
+    public async Task DeleteAllReactions(OdinId odinId, DeleteReactionRequestByGlobalTransitId request)
+    {
+        var (token, client) = await CreateEmojiClient(odinId, ClientAccessTokenSource.Circle);
+        SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
+        await client.GetReactionsByIdentity(payload);
+    }
+
+    /// <summary>
     /// Converts the icr-shared-secret-encrypted key header to an owner-shared-secret encrypted key header
     /// </summary>
     /// <param name="sharedSecretEncryptedFileHeader"></param>
@@ -180,5 +189,4 @@ public class TransitEmojiSenderService : TransitServiceBase
             throw new YouverseSystemException($"Unhandled transit error response: {response.StatusCode}");
         }
     }
-
 }

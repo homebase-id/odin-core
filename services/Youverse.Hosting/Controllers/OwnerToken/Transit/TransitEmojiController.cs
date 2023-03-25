@@ -50,9 +50,9 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         /// <param name="request"></param>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("delete")]
-        public IActionResult DeleteEmojiReaction([FromBody] TransitDeleteReactionRequest request)
+        public async Task<IActionResult> DeleteEmojiReaction([FromBody] TransitDeleteReactionRequest request)
         {
-            _transitEmojiSenderService.DeleteReaction(request);
+            await _transitEmojiSenderService.DeleteReaction((OdinId)request.OdinId, request.Request);
             return NoContent();
         }
 
@@ -62,9 +62,9 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         /// <param name="request"></param>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("deleteall")]
-        public IActionResult DeleteAllReactionsOnFile([FromBody] TransitDeleteReactionRequest request)
+        public async Task<IActionResult> DeleteAllReactionsOnFile([FromBody] TransitDeleteReactionRequest request)
         {
-            _transitEmojiSenderService.DeleteAllReactions(request);
+            await _transitEmojiSenderService.DeleteAllReactions((OdinId)request.OdinId, request.Request);
             return NoContent();
         }
 

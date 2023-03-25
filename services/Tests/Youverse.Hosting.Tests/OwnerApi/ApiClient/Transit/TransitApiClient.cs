@@ -95,9 +95,12 @@ public class TransitApiClient
             var transitSvc = RefitCreator.RestServiceFor<ITransitEmojiHttpClientForOwner>(client, ownerSharedSecret);
             var resp = await transitSvc.DeleteEmojiReaction(new TransitDeleteReactionRequest()
             {
-                Reaction = reaction,
                 OdinId = recipient.OdinId,
-                File = file
+                Request = new DeleteReactionRequestByGlobalTransitId()
+                {
+                    Reaction = reaction,
+                    File = file
+                }
             });
         }
     }
@@ -110,7 +113,11 @@ public class TransitApiClient
             var resp = await transitSvc.DeleteAllReactionsOnFile(new TransitDeleteReactionRequest()
             {
                 OdinId = recipient.OdinId,
-                File = file
+                Request = new DeleteReactionRequestByGlobalTransitId()
+                {
+                    Reaction = "",
+                    File = file
+                }
             });
         }
     }

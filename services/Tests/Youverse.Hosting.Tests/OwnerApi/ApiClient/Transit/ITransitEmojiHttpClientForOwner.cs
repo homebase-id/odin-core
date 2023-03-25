@@ -6,7 +6,7 @@ using Youverse.Core.Services.Drives.Reactions;
 using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Hosting.Controllers.OwnerToken;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Transit.Emoji
+namespace Youverse.Hosting.Tests.OwnerApi.ApiClient.Transit
 {
     /// <summary>
     /// The interface for storing files
