@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Refit;
 using Youverse.Core.Services.Drives.Reactions;
+using Youverse.Core.Services.Transit.ReceivingHost.Reactions;
 using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Hosting.Controllers.OwnerToken;
 
@@ -11,18 +12,18 @@ namespace Youverse.Hosting.Tests.OwnerApi.ApiClient.Transit
     /// <summary>
     /// The interface for storing files
     /// </summary>
-    public interface ITransitEmojiHttpClientForOwner
+    public interface ITransitReactionHttpClientForOwner
     {
-        private const string RootEndpoint = OwnerApiPathConstants.TransitEmojiV1;
+        private const string RootEndpoint = OwnerApiPathConstants.TransitReactionContentV1;
 
         [Post(RootEndpoint + "/add")]
         Task<ApiResponse<HttpContent>> AddReaction([Body] TransitAddReactionRequest request);
 
         [Post(RootEndpoint + "/list")]
-        Task<ApiResponse<GetReactionsResponse>> GetAllReactions([Body] TransitGetReactionsRequest file);
+        Task<ApiResponse<GetReactionsPerimeterResponse>> GetAllReactions([Body] TransitGetReactionsRequest file);
 
         [Post(RootEndpoint + "/delete")]
-        Task<ApiResponse<HttpContent>> DeleteEmojiReaction([Body] TransitDeleteReactionRequest file);
+        Task<ApiResponse<HttpContent>> DeleteReactionContent([Body] TransitDeleteReactionRequest file);
 
         [Post(RootEndpoint + "/deleteall")]
         Task<ApiResponse<HttpContent>> DeleteAllReactionsOnFile([Body] TransitDeleteReactionRequest file);

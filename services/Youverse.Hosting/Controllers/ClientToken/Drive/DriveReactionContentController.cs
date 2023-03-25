@@ -16,39 +16,39 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
     [Route(AppApiPathConstants.DriveReactionsV1)]
     [Route(YouAuthApiPathConstants.DriveReactionsV1)]
     [AuthorizeValidExchangeGrant]
-    public class DriveEmojiReactionController : DriveEmojiReactionControllerBase
+    public class DriveReactionContentController : DriveReactionContentControllerBase
     {
         /// <summary />
-        public DriveEmojiReactionController(EmojiReactionService emojiReactionService) : base(emojiReactionService)
+        public DriveReactionContentController(ReactionContentService reactionContentService) : base(reactionContentService)
         {
         }
 
         /// <summary>
-        /// Adds an emoji reaction for a given file
+        /// Adds a reaction for a given file
         /// </summary>
         /// <param name="request"></param>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("add")]
-        public IActionResult AddEmojiReaction([FromBody] AddReactionRequest request)
+        public IActionResult AddReactionContent([FromBody] AddReactionRequest request)
         {
             base.AddReaction(request);
             return NoContent();
         }
 
         /// <summary>
-        /// Adds an emoji reaction for a given file
+        /// Adds a reaction for a given file
         /// </summary>
         /// <param name="request"></param>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("delete")]
-        public IActionResult DeleteEmojiReaction([FromBody] DeleteReactionRequest request)
+        public IActionResult DeleteReactionContent([FromBody] DeleteReactionRequest request)
         {
             base.DeleteReaction(request);
             return NoContent();
         }
 
         /// <summary>
-        /// Adds an emoji reaction for a given file
+        /// Adds a reaction for a given file
         /// </summary>
         /// <param name="request"></param>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]

@@ -4,67 +4,68 @@ using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Drives.Reactions;
+using Youverse.Core.Services.Transit.ReceivingHost.Reactions;
 using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Hosting.Controllers.Base;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Transit
 {
     /// <summary>
-    /// Routes emoji requests from the owner app to a target identity
+    /// Routes reaction requests from the owner app to a target identity
     /// </summary>
     [ApiController]
-    [Route(OwnerApiPathConstants.TransitEmojiV1)]
+    [Route(OwnerApiPathConstants.TransitReactionContentV1)]
     [AuthorizeValidOwnerToken]
-    public class TransitEmojiController : OdinControllerBase
+    public class TransitReactionContentSenderController : OdinControllerBase
     {
-        private readonly TransitEmojiSenderService _transitEmojiSenderService;
+        private readonly TransitReactionContentSenderService _transitReactionContentSenderService;
 
-        public TransitEmojiController(TransitEmojiSenderService transitEmojiSenderService)
+        public TransitReactionContentSenderController(TransitReactionContentSenderService transitReactionContentSenderService)
         {
-            _transitEmojiSenderService = transitEmojiSenderService;
+            _transitReactionContentSenderService = transitReactionContentSenderService;
         }
 
         /// <summary>
-        /// Adds an emoji reaction for a given file
+        /// Adds a reaction for a given file
         /// </summary>
         /// <param name="request"></param>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("add")]
-        public async Task<IActionResult> AddEmojiReaction([FromBody] TransitAddReactionRequest request)
+        public async Task<IActionResult> AddReactionContent([FromBody] TransitAddReactionRequest request)
         {
-            await _transitEmojiSenderService.AddReaction((OdinId)request.OdinId, request.Request);
+            await _transitReactionContentSenderService.AddReaction((OdinId)request.OdinId, request.Request);
             return NoContent();
         }
 
         /// <summary />
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("list")]
-        public Task<GetReactionsResponse> GetAllReactions([FromBody] TransitGetReactionsRequest request)
+        public Task<GetReactionsPerimeterResponse> GetAllReactions([FromBody] TransitGetReactionsRequest request)
         {
-            return _transitEmojiSenderService.GetReactions((OdinId)request.OdinId, request.Request);
+            return _transitReactionContentSenderService.GetReactions((OdinId)request.OdinId, request.Request);
         }
 
         /// <summary>
-        /// Adds an emoji reaction for a given file
+        /// Deletes a specific reaction on a given file
         /// </summary>
         /// <param name="request"></param>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("delete")]
-        public async Task<IActionResult> DeleteEmojiReaction([FromBody] TransitDeleteReactionRequest request)
+        public async Task<IActionResult> DeleteReactionContent([FromBody] TransitDeleteReactionRequest request)
         {
-            await _transitEmojiSenderService.DeleteReaction((OdinId)request.OdinId, request.Request);
+            await _transitReactionContentSenderService.DeleteReaction((OdinId)request.OdinId, request.Request);
             return NoContent();
         }
 
         /// <summary>
-        /// Adds an emoji reaction for a given file
+        /// Deletes all reactions on given file; leave the reaction property empty
         /// </summary>
         /// <param name="request"></param>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("deleteall")]
         public async Task<IActionResult> DeleteAllReactionsOnFile([FromBody] TransitDeleteReactionRequest request)
         {
-            await _transitEmojiSenderService.DeleteAllReactions((OdinId)request.OdinId, request.Request);
+            await _transitReactionContentSenderService.DeleteAllReactions((OdinId)request.OdinId, request.Request);
             return NoContent();
         }
 
@@ -76,7 +77,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         [HttpPost("summary")]
         public async Task<GetReactionCountsResponse> GetReactionCountsByFile([FromBody] TransitGetReactionsRequest request)
         {
-            return await _transitEmojiSenderService.GetReactionCounts((OdinId)request.OdinId, request.Request);
+            return await _transitReactionContentSenderService.GetReactionCounts((OdinId)request.OdinId, request.Request);
         }
 
         /// <summary>
@@ -86,7 +87,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         [HttpPost("listbyidentity")]
         public async Task<List<string>> GetReactionsByIdentity([FromBody] TransitGetReactionsByIdentityRequest request)
         {
-            return await _transitEmojiSenderService.GetReactionsByIdentityAndFile((OdinId)request.OdinId, request);
+            return await _transitReactionContentSenderService.GetReactionsByIdentityAndFile((OdinId)request.OdinId, request);
         }
     }
 }

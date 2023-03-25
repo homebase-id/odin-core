@@ -237,7 +237,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
         }
 
         /// <summary>
-        /// Allows my followers to write emojis. 
+        /// Allows my followers to write reactions. 
         /// </summary>
         public async Task<PermissionContext> CreateFollowerPermissionContext(OdinId odinId, ClientAuthenticationToken token)
         {

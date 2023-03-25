@@ -18,7 +18,7 @@ namespace Youverse.Core.Services.Drives.Statistics;
 /// Listens for reaction file additions/changes and updates their target's preview
 /// </summary>
 public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification>,
-    INotificationHandler<EmojiReactionAddedNotification>
+    INotificationHandler<ReactionContentAddedNotification>
 {
     private readonly DotYouContextAccessor _contextAccessor;
     private readonly FileSystemResolver _fileSystemResolver;
@@ -108,7 +108,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
                 Updated = updatedFileHeader.FileMetadata.Updated,
                 OdinId = _contextAccessor.GetCurrent().Caller.OdinId,
                 JsonContent = updatedFileHeader.FileMetadata.AppData.JsonContent,
-                Reactions = new List<EmojiReactionPreview>()
+                Reactions = new List<ReactionContentPreview>()
             };
         }
     }
@@ -130,30 +130,30 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
             Updated = updatedFileHeader.FileMetadata.Updated,
             OdinId = _contextAccessor.GetCurrent().Caller.OdinId,
             JsonContent = updatedFileHeader.FileMetadata.AppData.JsonContent,
-            Reactions = new List<EmojiReactionPreview>()
+            Reactions = new List<ReactionContentPreview>()
         });
     }
 
-    public Task Handle(EmojiReactionAddedNotification notification, CancellationToken cancellationToken)
+    public Task Handle(ReactionContentAddedNotification notification, CancellationToken cancellationToken)
     {
         var targetFile = notification.Reaction.FileId;
         var fs = _fileSystemResolver.ResolveFileSystem(targetFile);
         var header = fs.Storage.GetServerFileHeader(targetFile).GetAwaiter().GetResult();
         var preview = header.FileMetadata.ReactionPreview ?? new ReactionSummary();
 
-        var dict = preview.Reactions ?? new Dictionary<Guid, EmojiReactionPreview>();
+        var dict = preview.Reactions ?? new Dictionary<Guid, ReactionContentPreview>();
 
         var key = HashUtil.ReduceSHA256Hash(notification.Reaction.ReactionContent);
-        if (!dict.TryGetValue(key, out EmojiReactionPreview emojiPreview))
+        if (!dict.TryGetValue(key, out ReactionContentPreview reactionPreview))
         {
-            emojiPreview = new EmojiReactionPreview();
+            reactionPreview = new ReactionContentPreview();
         }
 
-        emojiPreview.Count++;
-        emojiPreview.ReactionContent = notification.Reaction.ReactionContent;
-        emojiPreview.Key = key;
+        reactionPreview.Count++;
+        reactionPreview.ReactionContent = notification.Reaction.ReactionContent;
+        reactionPreview.Key = key;
 
-        dict[key] = emojiPreview;
+        dict[key] = reactionPreview;
 
         preview.Reactions = dict;
 

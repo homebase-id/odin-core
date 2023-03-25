@@ -124,7 +124,7 @@ public class ReactionPreviewTests
     }
 
     
-    public async Task AddingEmojiReactionUpdatesReactionPreview()
+    public async Task AddingReactionUpdatesReactionPreview()
     {
         var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
 

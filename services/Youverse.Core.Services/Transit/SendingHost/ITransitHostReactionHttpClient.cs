@@ -8,13 +8,14 @@ using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.Reactions;
 using Youverse.Core.Services.Transit.ReceivingHost;
 using Youverse.Core.Services.Transit.ReceivingHost.Quarantine;
+using Youverse.Core.Services.Transit.ReceivingHost.Reactions;
 
 namespace Youverse.Core.Services.Transit.SendingHost
 {
     /// <summary>
     /// The interface for querying from a host to another host
     /// </summary>
-    public interface ITransitHostEmojiHttpClient
+    public interface ITransitHostReactionHttpClient
     {
         private const string RootPath = "/api/perimeter/transit/host/reactions";
 
@@ -22,10 +23,10 @@ namespace Youverse.Core.Services.Transit.SendingHost
         Task<ApiResponse<HttpContent>> AddReaction([Body]SharedSecretEncryptedTransitPayload payload);
 
         [Post(RootPath + "/list")]
-        Task<ApiResponse<GetReactionsResponse>> GetReactions([Body]SharedSecretEncryptedTransitPayload payload);
+        Task<ApiResponse<GetReactionsPerimeterResponse>> GetReactions([Body]SharedSecretEncryptedTransitPayload payload);
         
         [Post(RootPath + "/delete")]
-        Task<ApiResponse<HttpContent>> DeleteEmojiReaction([Body] SharedSecretEncryptedTransitPayload file);
+        Task<ApiResponse<HttpContent>> DeleteReactionContent([Body] SharedSecretEncryptedTransitPayload file);
 
         [Post(RootPath + "/deleteall")]
         Task<ApiResponse<HttpContent>> DeleteAllReactionsOnFile([Body] SharedSecretEncryptedTransitPayload file);

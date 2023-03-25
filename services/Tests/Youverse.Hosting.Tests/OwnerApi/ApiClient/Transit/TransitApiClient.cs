@@ -12,12 +12,12 @@ using Youverse.Core.Services.Drives.DriveCore.Storage;
 using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 using Youverse.Core.Services.Drives.Reactions;
 using Youverse.Core.Services.Transit.Encryption;
+using Youverse.Core.Services.Transit.ReceivingHost.Reactions;
 using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Core.Storage;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Controllers.OwnerToken.Transit;
 using Youverse.Hosting.Tests.AppAPI.Utils;
-using Youverse.Hosting.Tests.OwnerApi.Transit.Emoji;
 using Youverse.Hosting.Tests.OwnerApi.Utils;
 
 namespace Youverse.Hosting.Tests.OwnerApi.ApiClient.Transit;
@@ -58,7 +58,7 @@ public class TransitApiClient
     {
         using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
         {
-            var transitSvc = RefitCreator.RestServiceFor<ITransitEmojiHttpClientForOwner>(client, ownerSharedSecret);
+            var transitSvc = RefitCreator.RestServiceFor<ITransitReactionHttpClientForOwner>(client, ownerSharedSecret);
             var resp = await transitSvc.AddReaction(new TransitAddReactionRequest()
             {
                 OdinId = recipient.OdinId,
@@ -73,11 +73,11 @@ public class TransitApiClient
         }
     }
 
-    public async Task<GetReactionsResponse> GetAllReactions(TestIdentity recipient, GetRemoteReactionsRequest request)
+    public async Task<GetReactionsPerimeterResponse> GetAllReactions(TestIdentity recipient, GetRemoteReactionsRequest request)
     {
         using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
         {
-            var transitSvc = RefitCreator.RestServiceFor<ITransitEmojiHttpClientForOwner>(client, ownerSharedSecret);
+            var transitSvc = RefitCreator.RestServiceFor<ITransitReactionHttpClientForOwner>(client, ownerSharedSecret);
             var resp = await transitSvc.GetAllReactions(new TransitGetReactionsRequest()
             {
                 OdinId = recipient.OdinId,
@@ -88,12 +88,12 @@ public class TransitApiClient
         }
     }
 
-    public async Task DeleteEmojiReaction(TestIdentity recipient, string reaction, GlobalTransitIdFileIdentifier file)
+    public async Task DeleteReactionContent(TestIdentity recipient, string reaction, GlobalTransitIdFileIdentifier file)
     {
         using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
         {
-            var transitSvc = RefitCreator.RestServiceFor<ITransitEmojiHttpClientForOwner>(client, ownerSharedSecret);
-            var resp = await transitSvc.DeleteEmojiReaction(new TransitDeleteReactionRequest()
+            var transitSvc = RefitCreator.RestServiceFor<ITransitReactionHttpClientForOwner>(client, ownerSharedSecret);
+            var resp = await transitSvc.DeleteReactionContent(new TransitDeleteReactionRequest()
             {
                 OdinId = recipient.OdinId,
                 Request = new DeleteReactionRequestByGlobalTransitId()
@@ -109,7 +109,7 @@ public class TransitApiClient
     {
         using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
         {
-            var transitSvc = RefitCreator.RestServiceFor<ITransitEmojiHttpClientForOwner>(client, ownerSharedSecret);
+            var transitSvc = RefitCreator.RestServiceFor<ITransitReactionHttpClientForOwner>(client, ownerSharedSecret);
             var resp = await transitSvc.DeleteAllReactionsOnFile(new TransitDeleteReactionRequest()
             {
                 OdinId = recipient.OdinId,
@@ -126,7 +126,7 @@ public class TransitApiClient
     {
         using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
         {
-            var transitSvc = RefitCreator.RestServiceFor<ITransitEmojiHttpClientForOwner>(client, ownerSharedSecret);
+            var transitSvc = RefitCreator.RestServiceFor<ITransitReactionHttpClientForOwner>(client, ownerSharedSecret);
             var resp = await transitSvc.GetReactionCountsByFile(new TransitGetReactionsRequest()
             {
                 OdinId = recipient.OdinId,
@@ -141,7 +141,7 @@ public class TransitApiClient
     {
         using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
         {
-            var transitSvc = RefitCreator.RestServiceFor<ITransitEmojiHttpClientForOwner>(client, ownerSharedSecret);
+            var transitSvc = RefitCreator.RestServiceFor<ITransitReactionHttpClientForOwner>(client, ownerSharedSecret);
             var resp = await transitSvc.GetReactionsByIdentity(new TransitGetReactionsByIdentityRequest()
             {
                 OdinId = recipient.OdinId,

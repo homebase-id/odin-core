@@ -11,15 +11,15 @@ namespace Youverse.Core.Services.Drives.Reactions;
 //TODO: need to determine if I want to validate if the file exists.  file exist calls are expensive 
 
 /// <summary>
-/// Manages emoji reactions to files
+/// Manages reactions to files
 /// </summary>
-public class EmojiReactionService
+public class ReactionContentService
 {
     private readonly DotYouContextAccessor _contextAccessor;
     private readonly DriveDatabaseHost _driveDatabaseHost;
     private readonly IMediator _mediator;
 
-    public EmojiReactionService(DriveDatabaseHost driveDatabaseHost, DotYouContextAccessor contextAccessor, IMediator mediator)
+    public ReactionContentService(DriveDatabaseHost driveDatabaseHost, DotYouContextAccessor contextAccessor, IMediator mediator)
     {
         _driveDatabaseHost = driveDatabaseHost;
         _contextAccessor = contextAccessor;
@@ -36,7 +36,7 @@ public class EmojiReactionService
             manager.AddReaction(callerId, file.FileId, reactionContent);
         }
 
-        _mediator.Publish(new EmojiReactionAddedNotification()
+        _mediator.Publish(new ReactionContentAddedNotification()
         {
             Reaction = new Reaction()
             {

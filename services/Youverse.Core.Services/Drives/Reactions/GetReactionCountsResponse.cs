@@ -3,9 +3,9 @@ using Youverse.Core.Services.Drives.DriveCore.Query.Sqlite;
 
 namespace Youverse.Core.Services.Drives.Reactions;
 
-public class GetReactionsResponse
+public class GetReactionCountsResponse
 {
-    public List<Reaction> Reactions { get; set; }
+    public List<ReactionCount> Reactions { get; set; }
         
-    public int? Cursor { get; set; }
+    public int Total { get; set; }
 }
