@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core.Services.Drives.Reactions;
@@ -37,11 +38,31 @@ namespace Youverse.Hosting.Controllers.Certificate
             return await _emojiPerimeterService.GetReactions(payload);
         }
 
-        // [HttpPost("delete")]
-        // public async Task<IActionResult> DeleteEmojiReaction(SharedSecretEncryptedTransitPayload payload)
-        // {
-        //     await _emojiPerimeterService.DeleteReaction(payload);
-        //     return NoContent();
-        // }
+        [HttpPost("delete")]
+        public async Task<IActionResult> DeleteEmojiReaction([FromBody] SharedSecretEncryptedTransitPayload payload)
+        {
+            await _emojiPerimeterService.DeleteReaction(payload);
+            return NoContent();
+        }
+
+        [HttpPost("deleteall")]
+        public async Task<IActionResult> DeleteAllReactionsOnFile([FromBody] SharedSecretEncryptedTransitPayload payload)
+        {
+            await _emojiPerimeterService.DeleteAllReactions(payload);
+            return NoContent();
+        }
+
+        [HttpPost("summary")]
+        public async Task<GetReactionCountsResponse> GetReactionCountsByFile([FromBody]SharedSecretEncryptedTransitPayload payload)
+        {
+            return await _emojiPerimeterService.GetReactionCountsByFile(payload);
+        }
+
+        [HttpPost("listbyidentity")]
+        public async Task<List<string>> GetReactionsByIdentity([FromBody]SharedSecretEncryptedTransitPayload payload)
+        {
+            return await _emojiPerimeterService.GetReactionsByIdentityAndFile(payload);
+        }
+        
     }
 }

@@ -90,7 +90,7 @@ public class EmojiReactionService
         throw new YouverseSystemException($"Invalid query manager instance for drive {file.DriveId}");
     }
 
-    public void DeleteReactions(InternalDriveFileId file)
+    public void DeleteAllReactions(InternalDriveFileId file)
     {
         var context = _contextAccessor.GetCurrent();
         context.PermissionsContext.AssertHasDrivePermission(file.DriveId, DrivePermission.WriteReactionsAndComments);

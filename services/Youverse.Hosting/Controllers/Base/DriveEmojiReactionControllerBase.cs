@@ -32,7 +32,7 @@ public class DriveEmojiReactionControllerBase : OdinControllerBase
     /// <summary />
     protected void DeleteAllReactions(DeleteReactionRequest request)
     {
-        _emojiReactionService.DeleteReactions(MapToInternalFile(request.File));
+        _emojiReactionService.DeleteAllReactions(MapToInternalFile(request.File));
     }
 
     /// <summary />

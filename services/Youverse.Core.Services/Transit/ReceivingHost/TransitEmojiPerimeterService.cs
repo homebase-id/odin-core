@@ -1,7 +1,6 @@
-using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Youverse.Core.Exceptions;
-using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.DataSubscription.Follower;
@@ -40,24 +39,56 @@ public class TransitEmojiPerimeterService : TransitServiceBase
         _emojiReactionService.AddReaction(fileId.Value, request.Reaction);
     }
 
-    public Task<GetReactionsResponse> DeleteReaction(SharedSecretEncryptedTransitPayload payload)
+    public async Task DeleteReaction(SharedSecretEncryptedTransitPayload payload)
     {
-        throw new NotImplementedException();
+        var request = await base.DecryptUsingSharedSecret<DeleteReactionRequestByGlobalTransitId>(payload, ClientAccessTokenSource.Circle);
+
+        var fileId = await base.ResolveInternalFile(request.File);
+        if (null == fileId)
+        {
+            throw new YouverseRemoteIdentityException("Invalid global transit id");
+        }
+
+        _emojiReactionService.DeleteReaction(fileId.Value, request.Reaction);
     }
 
-    public Task<GetReactionCountsResponse> GetReactionCountsByFile(SharedSecretEncryptedTransitPayload payload)
+    public async Task<GetReactionCountsResponse> GetReactionCountsByFile(SharedSecretEncryptedTransitPayload payload)
     {
-        throw new NotImplementedException();
+        var request = await base.DecryptUsingSharedSecret<GetRemoteReactionsRequest>(payload, ClientAccessTokenSource.Circle);
+
+        var fileId = await base.ResolveInternalFile(request.File);
+        if (null == fileId)
+        {
+            throw new YouverseRemoteIdentityException("Invalid global transit id");
+        }
+
+        return _emojiReactionService.GetReactionCountsByFile(fileId.Value);
     }
 
-    public Task<GetReactionsResponse> GetReactionsByIdentityAndFile(SharedSecretEncryptedTransitPayload payload)
+    public async Task<List<string>> GetReactionsByIdentityAndFile(SharedSecretEncryptedTransitPayload payload)
     {
-        throw new NotImplementedException();
+        var request = await base.DecryptUsingSharedSecret<TransitGetReactionsByIdentityRequest>(payload, ClientAccessTokenSource.Circle);
+
+        var fileId = await base.ResolveInternalFile(request.File);
+        if (null == fileId)
+        {
+            throw new YouverseRemoteIdentityException("Invalid global transit id");
+        }
+
+        return _emojiReactionService.GetReactionsByIdentityAndFile(request.Identity, fileId.Value);
     }
 
-    public Task<GetReactionsResponse> DeleteReactions(SharedSecretEncryptedTransitPayload payload)
+    public async Task DeleteAllReactions(SharedSecretEncryptedTransitPayload payload)
     {
-        throw new NotImplementedException();
+        var request = await base.DecryptUsingSharedSecret<DeleteReactionRequestByGlobalTransitId>(payload, ClientAccessTokenSource.Circle);
+
+        var fileId = await base.ResolveInternalFile(request.File);
+        if (null == fileId)
+        {
+            throw new YouverseRemoteIdentityException("Invalid global transit id");
+        }
+
+        _emojiReactionService.DeleteAllReactions(fileId.Value);
     }
 
     public async Task<GetReactionsResponse> GetReactions(SharedSecretEncryptedTransitPayload payload)
