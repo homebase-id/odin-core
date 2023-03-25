@@ -6,7 +6,6 @@ using NUnit.Framework;
 using Youverse.Core;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Core.Services.Drives;
@@ -36,7 +35,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Emoji
         }
 
         [Test]
-        public async Task ConnectedIdentity_CanSendAndGetEmojisOverTransit_ForPublicChannel_WithNoCircles()
+        public async Task ConnectedIdentity_CanSendAndGetAllReactions_EmojisOverTransit_ForPublicChannel_WithNoCircles()
         {
             var pippinOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
             var pippinChannelDrive = new TargetDrive()
@@ -94,6 +93,34 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Emoji
             Assert.IsTrue(response.Reactions.Count == 1);
         }
 
+        [Test]
+        public Task ConnectedIdentity_CanSendAndDeleteEmojisOverTransit_ForPublicChannel_WithNoCircles()
+        {
+            Assert.Inconclusive("TODO");
+            return Task.CompletedTask;
+        }
+        
+        [Test]
+        public Task ConnectedIdentity_CanSendAndDeleteAllReactionsOnFile_EmojisOverTransit_ForPublicChannel_WithNoCircles()
+        {
+            Assert.Inconclusive("TODO DeleteAllReactionsOnFile");
+            return Task.CompletedTask;
+        }
+        
+        [Test]
+        public Task ConnectedIdentity_CanSendAndGetReactionCountsByFile_EmojisOverTransit_ForPublicChannel_WithNoCircles()
+        {
+            Assert.Inconclusive("TODO GetReactionCountsByFile");
+            return Task.CompletedTask;
+        }
+        
+        [Test]
+        public Task ConnectedIdentity_CanSendAnd_GetReactionsByIdentity_EmojisOverTransit_ForPublicChannel_WithNoCircles()
+        {
+            Assert.Inconclusive("TODO GetReactionsByIdentity");
+            return Task.CompletedTask;
+        }
+        
         private async Task<UploadResult> UploadToChannel(OwnerApiClient client, TargetDrive targetDrive, string uploadedContent, bool allowDistribution = true)
         {
             var fileMetadata = new UploadFileMetadata()

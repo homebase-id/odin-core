@@ -10,7 +10,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 {
     /// <summary />
     [ApiController]
-    [Route(OwnerApiPathConstants.DriveReactionsV1)]
+    [Route(OwnerApiPathConstants.DriveEmojisV1)]
     [AuthorizeValidOwnerToken]
     public class OwnerDriveEmojiReactionController : DriveEmojiReactionControllerBase
     {

@@ -1,4 +1,5 @@
-﻿using System.Net.Http;
+﻿using System.Collections.Generic;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Refit;
 using Youverse.Core.Services.Drives.Reactions;
@@ -27,9 +28,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Emoji
         Task<ApiResponse<HttpContent>> DeleteAllReactionsOnFile([Body] TransitDeleteReactionRequest file);
 
         [Post(RootEndpoint + "/summary")]
-        Task<ApiResponse<GetReactionCountsResponse>> GetReactionCountsByFile([Body] TransitDeleteReactionRequest file);
+        Task<ApiResponse<GetReactionCountsResponse>> GetReactionCountsByFile([Body] TransitGetReactionsRequest file);
 
         [Post(RootEndpoint + "/listbyidentity")]
-        Task<ApiResponse<HttpContent>> GetReactionsByIdentity([Body] TransitGetReactionsByIdentityRequest file);
+        Task<ApiResponse<List<string>>> GetReactionsByIdentity([Body] TransitGetReactionsByIdentityRequest file);
     }
 }

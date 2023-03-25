@@ -45,6 +45,8 @@ public class TransitDeleteReactionRequest
 {
     public string OdinId { get; set; }
 
+    public string Reaction { get; set; }
+
     public GlobalTransitIdFileIdentifier File { get; set; }
 }
 
@@ -115,9 +117,18 @@ public class TransitEmojiSenderService : TransitServiceBase
         // return response.Content;
         return null;
     }
+    
+    public void DeleteReaction(TransitDeleteReactionRequest request)
+    {
+        throw new System.NotImplementedException();
+    }
 
-
-    /// <summary>
+    public void DeleteAllReactions(TransitDeleteReactionRequest request)
+    {
+        throw new System.NotImplementedException();
+    }
+    
+        /// <summary>
     /// Converts the icr-shared-secret-encrypted key header to an owner-shared-secret encrypted key header
     /// </summary>
     /// <param name="sharedSecretEncryptedFileHeader"></param>
@@ -170,13 +181,4 @@ public class TransitEmojiSenderService : TransitServiceBase
         }
     }
 
-    public void DeleteReaction(TransitDeleteReactionRequest request)
-    {
-        throw new System.NotImplementedException();
-    }
-
-    public void DeleteAllReactions(TransitDeleteReactionRequest request)
-    {
-        throw new System.NotImplementedException();
-    }
 }

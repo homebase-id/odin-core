@@ -5,12 +5,12 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core;
+using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.DriveCore.Storage;
 using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 using Youverse.Core.Services.Drives.Reactions;
-using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Core.Storage;
@@ -88,6 +88,63 @@ public class TransitApiClient
         }
     }
 
+    public async Task DeleteEmojiReaction(TestIdentity recipient, string reaction, GlobalTransitIdFileIdentifier file)
+    {
+        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        {
+            var transitSvc = RefitCreator.RestServiceFor<ITransitEmojiHttpClientForOwner>(client, ownerSharedSecret);
+            var resp = await transitSvc.DeleteEmojiReaction(new TransitDeleteReactionRequest()
+            {
+                Reaction = reaction,
+                OdinId = recipient.OdinId,
+                File = file
+            });
+        }
+    }
+
+    public async Task DeleteAllReactionsOnFile(TestIdentity recipient, GlobalTransitIdFileIdentifier file)
+    {
+        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        {
+            var transitSvc = RefitCreator.RestServiceFor<ITransitEmojiHttpClientForOwner>(client, ownerSharedSecret);
+            var resp = await transitSvc.DeleteAllReactionsOnFile(new TransitDeleteReactionRequest()
+            {
+                OdinId = recipient.OdinId,
+                File = file
+            });
+        }
+    }
+
+    public async Task<GetReactionCountsResponse> GetReactionCountsByFile(TestIdentity recipient, GetRemoteReactionsRequest request)
+    {
+        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        {
+            var transitSvc = RefitCreator.RestServiceFor<ITransitEmojiHttpClientForOwner>(client, ownerSharedSecret);
+            var resp = await transitSvc.GetReactionCountsByFile(new TransitGetReactionsRequest()
+            {
+                OdinId = recipient.OdinId,
+                Request = request
+            });
+
+            return resp.Content;
+        }
+    }
+
+    public async Task<List<string>> GetReactionsByIdentity(TestIdentity recipient, OdinId identity, GlobalTransitIdFileIdentifier file)
+    {
+        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        {
+            var transitSvc = RefitCreator.RestServiceFor<ITransitEmojiHttpClientForOwner>(client, ownerSharedSecret);
+            var resp = await transitSvc.GetReactionsByIdentity(new TransitGetReactionsByIdentityRequest()
+            {
+                OdinId = recipient.OdinId,
+                Identity = identity,
+                File = file
+            });
+
+            return resp.Content;
+        }
+    }
 
     /// <summary>
     /// Directly sends the file to the recipients; does not store on any local drives.  (see DriveApiClient.TransferFile to store it on sender's drive)
