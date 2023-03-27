@@ -1,5 +1,4 @@
 ﻿#nullable enable
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Net;
@@ -10,13 +9,13 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Youverse.Core;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Authentication.Owner;
 using Youverse.Core.Services.Authorization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
-using Youverse.Hosting.Authentication.Owner;
 
 namespace Youverse.Hosting.Authentication.System
 {
@@ -59,8 +58,19 @@ namespace Youverse.Hosting.Authentication.System
                         odinId: (OdinId)domain,
                         masterKey: null,
                         securityLevel: SecurityGroupType.System);
-                    
-                    dotYouContext.SetPermissionContext(new PermissionContext(new Dictionary<string, PermissionGroup>(), null, true));
+
+                    var permissionSet = new PermissionSet(new[] { PermissionKeys.ReadMyFollowers });
+                    var sharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray();
+
+
+                    var systemPermissions = new Dictionary<string, PermissionGroup>()
+                    {
+                        {
+                            "read_followers_only", new PermissionGroup(permissionSet, new List<DriveGrant>() { }, sharedSecret)
+                        }
+                    };
+
+                    dotYouContext.SetPermissionContext(new PermissionContext(systemPermissions, null, true));
 
                     var identity = new ClaimsIdentity(claims, SystemAuthConstants.SchemeName);
                     ClaimsPrincipal principal = new ClaimsPrincipal(identity);

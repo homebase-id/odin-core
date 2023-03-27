@@ -53,10 +53,3 @@ public class ServerSystemStorage : IDisposable
         _db.Dispose();
     }
 }
-
-public enum CronJobType
-{
-    PendingTransfer = 101,
-    GenerateCertificate = 202,
-    FeedDistribution = 303
-}

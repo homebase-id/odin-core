@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Threading.Tasks;
 using Dawn;
 using Youverse.Core.Exceptions;
@@ -15,6 +14,7 @@ using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Storage;
+using TenantStorageConfig = Youverse.Core.Services.Base.TenantStorageConfig;
 
 namespace Youverse.Core.Services.Configuration;
 
@@ -30,10 +30,11 @@ public class TenantConfigService
     private readonly IIdentityRegistry _registry;
     private readonly IAppRegistrationService _appRegistrationService;
     private readonly DriveManager _driveManager;
+    private readonly ITenantSystemStorage _tenantSystemStorage;
 
     public TenantConfigService(ICircleNetworkService cns, DotYouContextAccessor contextAccessor,
         ITenantSystemStorage storage, TenantContext tenantContext,
-        IIdentityRegistry registry, IAppRegistrationService appRegistrationService, DriveManager driveManager)
+        IIdentityRegistry registry, IAppRegistrationService appRegistrationService, DriveManager driveManager, ITenantSystemStorage tenantSystemStorage)
     {
         _cns = cns;
         _contextAccessor = contextAccessor;
@@ -41,6 +42,7 @@ public class TenantConfigService
         _registry = registry;
         _appRegistrationService = appRegistrationService;
         _driveManager = driveManager;
+        _tenantSystemStorage = tenantSystemStorage;
         _configStorage = storage.SingleKeyValueStorage;
         _tenantContext.UpdateSystemConfig(this.GetTenantSettings());
     }
@@ -73,9 +75,9 @@ public class TenantConfigService
         await CreateDriveIfNotExists(SystemDriveConstants.CreateProfileDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateWalletDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateFeedDriveRequest);
-        
+
         await CreateDriveIfNotExists(SystemDriveConstants.CreateTransientTempDriveRequest);
-        
+
         foreach (var rd in request.Drives ?? new List<CreateDriveRequest>())
         {
             await CreateDriveIfNotExists(rd);
@@ -190,32 +192,45 @@ public class TenantConfigService
         _configStorage.Upsert(OwnerAppSettings.ConfigKey, newSettings);
     }
 
-    public async Task CreateSystemApps()
+    private async Task CreateSystemApps()
     {
-        await Task.CompletedTask;
-        // [Obsolete("Still Determining if we want to have the concept of system apps; but i dont want to lose this code")]
+        await CreateFeedApp();
+    }
+
+    private async Task CreateFeedApp()
+    {
         //Feed app
-        // var request = new AppRegistrationRequest()
-        // {
-        //     AppId = SystemAppConstants.FeedAppId,
-        //     Name = "System Feed Writer",
-        //     AuthorizedCircles = new List<Guid>(), //no circles
-        //     CircleMemberPermissionGrant = null,
-        //     Drives = new List<DriveGrantRequest>()
-        //     {
-        //         new DriveGrantRequest()
-        //         {
-        //             PermissionedDrive = new PermissionedDrive()
-        //             {
-        //                 Drive = SystemDriveConstants.FeedDrive,
-        //                 Permission = DrivePermission.Write
-        //             }
-        //         }
-        //     },
-        //     PermissionSet = new PermissionSet() //no permissions for this app
-        // };
-        //
-        // await _appRegistrationService.RegisterApp(request);
+        var request = new AppRegistrationRequest()
+        {
+            AppId = SystemAppConstants.FeedAppId,
+            Name = "Feed",
+            AuthorizedCircles = new List<Guid>(),
+            CircleMemberPermissionGrant = null,
+            Drives = new List<DriveGrantRequest>()
+            {
+                new()
+                {
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = SystemDriveConstants.FeedDrive,
+                        Permission = DrivePermission.ReadWrite
+                    }
+                }
+            },
+            PermissionSet = new PermissionSet(new List<int>()
+            {
+                PermissionKeys.ReadMyFollowers
+            })
+        };
+
+        await _appRegistrationService.RegisterApp(request);
+
+        //Create a CAT for the background process
+        // 🐈🐈🐈
+        var feedCat = await _appRegistrationService.RegisterClientRaw(request.AppId, $"{request.Name} Distribution Service");
+
+        //TODO: encrypt CAT for storage
+        _tenantSystemStorage.SingleKeyValueStorage.Upsert(SystemAppConstants.FeedAppId, feedCat);
     }
 
     //

@@ -9,11 +9,13 @@ using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Drives.DriveCore.Storage;
 using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Core.Storage;
+using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.DataSubscription
 {
@@ -22,27 +24,33 @@ namespace Youverse.Core.Services.DataSubscription
     /// </summary>
     public class FeedDriveDataSubscriptionDistributionService : INotificationHandler<IDriveNotification>
     {
+        private readonly GuidId _feedItemCategory = GuidId.FromString("feed_items");
         private readonly FollowerService _followerService;
         private readonly DriveManager _driveManager;
         private readonly ITransitService _transitService;
         private readonly TenantContext _tenantContext;
         private readonly ServerSystemStorage _serverSystemStorage;
+        private readonly FileSystemResolver _fileSystemResolver;
+        private readonly ITenantSystemStorage _tenantSystemStorage;
 
         public FeedDriveDataSubscriptionDistributionService(
             FollowerService followerService,
-            ITransitService transitService, DriveManager driveManager, TenantContext tenantContext, ServerSystemStorage serverSystemStorage)
+            ITransitService transitService, DriveManager driveManager, TenantContext tenantContext, ServerSystemStorage serverSystemStorage,
+            FileSystemResolver fileSystemResolver, ITenantSystemStorage tenantSystemStorage)
         {
             _followerService = followerService;
             _transitService = transitService;
             _driveManager = driveManager;
             _tenantContext = tenantContext;
             _serverSystemStorage = serverSystemStorage;
+            _fileSystemResolver = fileSystemResolver;
+            _tenantSystemStorage = tenantSystemStorage;
         }
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
             //if the file was received from another identity, do not redistribute
-            
+
             //TODO: need to move this distribution to a background thread so that the system runs it
 
             var sender = notification.ServerFileHeader?.FileMetadata?.SenderOdinId;
@@ -75,20 +83,48 @@ namespace Youverse.Core.Services.DataSubscription
             {
                 return;
             }
-            
-            //TODO: finish this bit
+
+            //store an item in the queue to be processed
+            var item = new FeedDistributionItem()
+            {
+                DriveNotificationType = notification.DriveNotificationType,
+                File = notification.ServerFileHeader.FileMetadata!.File
+            };
+
+            await DistributeFeedItem(item);
+                
+            // var bytes = HashUtil.ReduceSHA256Hash(ByteArrayUtil.Combine(item.File.FileId.ToByteArray(), item.File.DriveId.ToByteArray()));
+            // var key = new Guid(bytes);
+            // _tenantSystemStorage.ThreeKeyValueStorage.Upsert(key, _feedItemCategory, null, item);
             //
-            // var jobInfo = new FeedJobInfo
+            // //tell the job we this tenant needs to have their queue processed
+            // var jobInfo = new FeedDistributionInfo()
             // {
-            //     DriveNotificationType = notification.DriveNotificationType,
-            //     FileId = notification.ServerFileHeader.FileMetadata!.File
+            //     OdinId = _tenantContext.HostOdinId,
             // };
-            //
-            // _serverSystemStorage.EnqueueJob(_tenantContext.HostOdinId, CronJobType.FeedDistribution, DotYouSystemSerializer.Serialize(jobInfo).ToUtf8ByteArray());
-            //
-            
+            // _serverSystemStorage.EnqueueJob(_tenantContext.HostOdinId, CronJobType.FeedDistribution,
+            //     DotYouSystemSerializer.Serialize(jobInfo).ToUtf8ByteArray());
+        }
+
+        public async Task DistributeItems()
+        {
+            var items = _tenantSystemStorage.ThreeKeyValueStorage.GetByKey2<FeedDistributionItem>(_feedItemCategory);
+
+            //TODO: consider background thread
+            foreach (var item in items)
+            {
+                //TODO: this needs a Pop queue, etc.
+                //TODO when happens when one fails?
+                await this.DistributeFeedItem(item);
+            }
+        }
+
+        public async Task DistributeFeedItem(FeedDistributionItem distroInfo)
+        {
+            var driveId = distroInfo.File.DriveId;
+
             int maxRecords = 10000; //TODO: cursor thru batches instead
-            var driveFollowers = await _followerService.GetFollowers(notification.File.DriveId, maxRecords, cursor: "");
+            var driveFollowers = await _followerService.GetFollowers(driveId, maxRecords, cursor: "");
             var allDriveFollowers = await _followerService.GetFollowersOfAllNotifications(maxRecords, cursor: "");
 
             var recipients = new List<string>();
@@ -100,18 +136,19 @@ namespace Youverse.Core.Services.DataSubscription
                 return;
             }
 
-            if (notification.DriveNotificationType == DriveNotificationType.FileDeleted)
+            var fs = _fileSystemResolver.ResolveFileSystem(distroInfo.File);
+            var header = await fs.Storage.GetServerFileHeader(distroInfo.File);
+
+            if (distroInfo.DriveNotificationType == DriveNotificationType.FileDeleted)
             {
-                await HandleFileDeleted(notification, recipients);
+                await HandleFileDeleted(header, recipients);
             }
 
-            await HandleFileAddOrUpdate(notification, recipients);
+            await HandleFileAddOrUpdate(header, recipients);
         }
 
-        private async Task HandleFileDeleted(IDriveNotification notification, List<string> recipients)
+        private async Task HandleFileDeleted(ServerFileHeader header, List<string> recipients)
         {
-            var header = notification.ServerFileHeader;
-
             if (header.FileMetadata.GlobalTransitId.HasValue)
             {
                 //send the deleted file
@@ -148,7 +185,7 @@ namespace Youverse.Core.Services.DataSubscription
             }
         }
 
-        private async Task HandleFileAddOrUpdate(IDriveNotification notification, List<string> recipients)
+        private async Task HandleFileAddOrUpdate(ServerFileHeader header, List<string> recipients)
         {
             //use transit? to send like normal?
             var transitOptions = new TransitOptions()
@@ -164,10 +201,10 @@ namespace Youverse.Core.Services.DataSubscription
             //
             //TODO: in order to send over transit like this, the sender needs access to the feed drive
             var _ = await _transitService.SendFile(
-                notification.File,
+                header.FileMetadata.File,
                 transitOptions,
                 TransferFileType.Normal,
-                notification.ServerFileHeader.ServerMetadata.FileSystemType,
+                header.ServerMetadata.FileSystemType,
                 ClientAccessTokenSource.Follower);
         }
 

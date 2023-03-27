@@ -7,12 +7,16 @@ using NUnit.Framework;
 using Youverse.Core;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.DriveCore.Query;
 using Youverse.Core.Services.Drives.DriveCore.Storage;
 using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
+using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Workers.DefaultCron;
+using Youverse.Core.Services.Workers.FeedDistributionApp;
 using Youverse.Core.Storage;
 using Youverse.Hosting.Tests.OwnerApi.ApiClient;
 
@@ -63,9 +67,15 @@ public class DataSubscriptionTests
         var uploadedContent = "I'm Mr. Underhill";
         var uploadResult = await UploadStandardFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, FileType);
 
+        // var j = new FeedDistributionJob();
+        // var svc = SystemHttpClient.CreateHttps<IFeedDistributionClient>(frodoOwnerClient.Identity.OdinId);
+        // var distributeFeedItemResponse = await svc.DistributeQueuedItems();
+        // Assert.IsTrue(distributeFeedItemResponse.IsSuccessStatusCode);
+
         // Sam should have the same content on his feed drive
         await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
 
+        
         var qp = new FileQueryParams()
         {
             TargetDrive = SystemDriveConstants.FeedDrive,

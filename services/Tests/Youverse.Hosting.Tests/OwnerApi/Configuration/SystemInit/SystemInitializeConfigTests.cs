@@ -9,6 +9,7 @@ using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Membership;
@@ -80,11 +81,16 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 var createdDrives = createdDrivesResponse.Content;
                 Assert.IsTrue(createdDrives.Results.Count == 6);
 
-                Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.ContactDrive), $"expected drive [{SystemDriveConstants.ContactDrive}] not found");
-                Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.ProfileDrive), $"expected drive [{SystemDriveConstants.ProfileDrive}] not found");
-                Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.WalletDrive), $"expected drive [{SystemDriveConstants.WalletDrive}] not found");
-                Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.ChatDrive), $"expected drive [{SystemDriveConstants.ChatDrive}] not found");
-                Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.FeedDrive), $"expected drive [{SystemDriveConstants.FeedDrive}] not found");
+                Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.ContactDrive),
+                    $"expected drive [{SystemDriveConstants.ContactDrive}] not found");
+                Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.ProfileDrive),
+                    $"expected drive [{SystemDriveConstants.ProfileDrive}] not found");
+                Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.WalletDrive),
+                    $"expected drive [{SystemDriveConstants.WalletDrive}] not found");
+                Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.ChatDrive),
+                    $"expected drive [{SystemDriveConstants.ChatDrive}] not found");
+                Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.FeedDrive),
+                    $"expected drive [{SystemDriveConstants.FeedDrive}] not found");
 
                 var circleDefinitionService = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
 
@@ -115,16 +121,19 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
             //
             // System apps should be in place
             //
-            // var samOwnerClient = _scaffold.CreateOwnerApiClient(identity);
-            // var feedAppReg = await samOwnerClient.Apps.GetAppRegistration(SystemAppConstants.FeedAppId);
-            // Assert.IsNotNull(feedAppReg, "feed app was not found");
-            // Assert.IsFalse(feedAppReg.AuthorizedCircles.Any(), "Feed app should have no authorized circles");
-            // Assert.IsTrue(feedAppReg.AppId == SystemAppConstants.FeedAppId.Value);
-            // Assert.IsFalse(feedAppReg.Grant.PermissionSet.Keys?.Any() ?? false, "feed app should have no permissions");
-            // Assert.IsTrue(feedAppReg.Grant.DriveGrants.All(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.FeedDrive));
-            // Assert.IsTrue(feedAppReg.Grant.DriveGrants.All(dg => dg.PermissionedDrive.Permission == DrivePermission.Write), "feed app should be able to write to feed drive");
-            // Assert.IsFalse(feedAppReg.Grant.DriveGrants.All(dg => dg.PermissionedDrive.Permission == DrivePermission.Read), "feed app should not be able to read feed drive");
-            // Assert.IsFalse(feedAppReg.Grant.DriveGrants.All(dg => dg.PermissionedDrive.Permission == DrivePermission.All), "feed app should not not have all permission to feed drive");
+            var samOwnerClient = _scaffold.CreateOwnerApiClient(identity);
+            var feedAppReg = await samOwnerClient.Apps.GetAppRegistration(SystemAppConstants.FeedAppId);
+            Assert.IsNotNull(feedAppReg, "feed app was not found");
+            Assert.IsFalse(feedAppReg.AuthorizedCircles.Any(), "Feed app should have no authorized circles");
+            Assert.IsTrue(feedAppReg.AppId == SystemAppConstants.FeedAppId.Value);
+            Assert.IsTrue(feedAppReg.Grant.PermissionSet.HasKey(PermissionKeys.ReadMyFollowers), "feed app should have ability to read owner's followers");
+            Assert.IsTrue(feedAppReg.Grant.DriveGrants.All(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.FeedDrive));
+            Assert.IsTrue(feedAppReg.Grant.DriveGrants.All(dg => dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Write)),
+                "feed app should be able to write to feed drive");
+            Assert.IsTrue(feedAppReg.Grant.DriveGrants.All(dg => dg.PermissionedDrive.Permission.HasFlag(DrivePermission.Read)),
+                "feed app should be able to read feed drive"); 
+            Assert.IsTrue(feedAppReg.Grant.DriveGrants.All(dg => dg.PermissionedDrive.Permission.HasFlag(DrivePermission.WriteReactionsAndComments)),
+                "feed app should be able to write reactions and comments feed drive");
         }
 
         [Test]
@@ -213,16 +222,19 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 Assert.IsTrue(systemCircle.Description == "All Connected Identities");
                 Assert.IsTrue(!systemCircle.Permissions.Keys.Any(), "By default, the system circle should have no permissions");
 
-                var newDriveGrant = systemCircle.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == newDrive.TargetDrive && dg.PermissionedDrive.Permission == DrivePermission.Read);
+                var newDriveGrant = systemCircle.DriveGrants.SingleOrDefault(dg =>
+                    dg.PermissionedDrive.Drive == newDrive.TargetDrive && dg.PermissionedDrive.Permission == DrivePermission.Read);
                 Assert.IsNotNull(newDriveGrant, "The new drive should be in the system circle");
 
                 var standardProfileDriveGrant =
-                    systemCircle.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == standardProfileDrive && dg.PermissionedDrive.Permission == DrivePermission.Read);
+                    systemCircle.DriveGrants.SingleOrDefault(dg =>
+                        dg.PermissionedDrive.Drive == standardProfileDrive && dg.PermissionedDrive.Permission == DrivePermission.Read);
                 Assert.IsNotNull(standardProfileDriveGrant, "The standard profile drive should be in the system circle");
 
                 //note: the permission for chat drive is write
                 var chatDriveGrant =
-                    systemCircle.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive && dg.PermissionedDrive.Permission == DrivePermission.Write);
+                    systemCircle.DriveGrants.SingleOrDefault(dg =>
+                        dg.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive && dg.PermissionedDrive.Permission == DrivePermission.Write);
                 Assert.IsNotNull(chatDriveGrant, "the chat drive grant should exist in system circle");
 
 
