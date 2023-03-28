@@ -16,7 +16,7 @@ public class StandardDriveCommandService : DriveCommandServiceBase
     {
     }
 
-    protected override void AssertCanReadDrive(Guid driveId)
+    public override void AssertCanReadDrive(Guid driveId)
     {
         var drive = this.DriveManager.GetDrive(driveId, true).GetAwaiter().GetResult();
         if (!drive.AllowAnonymousReads)
@@ -25,7 +25,7 @@ public class StandardDriveCommandService : DriveCommandServiceBase
         }
     }
 
-    protected override void AssertCanWriteToDrive(Guid driveId)
+    public override void AssertCanWriteToDrive(Guid driveId)
     {
         var drive = this.DriveManager.GetDrive(driveId, true).GetAwaiter().GetResult();
         if (!drive.AllowAnonymousReads)

@@ -5,7 +5,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using Refit;
-using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
@@ -95,28 +94,23 @@ namespace Youverse.Core.Services.Transit.SendingHost
 
         // 
 
-        private RsaEncryptedRecipientTransferInstructionSet CreateTransferInstructionSet(
-            byte[] recipientPublicKeyDer,
+        private EncryptedRecipientTransferInstructionSet CreateTransferInstructionSet(
             KeyHeader keyHeaderToBeEncrypted,
             ClientAccessToken clientAccessToken,
             TargetDrive targetDrive,
-            TransferFileType transferFileType, 
+            TransferFileType transferFileType,
             FileSystemType fileSystemType)
         {
-            //TODO: need to review how to decrypt the private key on the recipient side
-            var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(recipientPublicKeyDer);
+            var sharedSecret = clientAccessToken.SharedSecret;
+            var iv = ByteArrayUtil.GetRndByteArray(16);
+            var sharedSecretEncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeaderToBeEncrypted, iv, ref sharedSecret);
 
-            var combinedKey = keyHeaderToBeEncrypted.Combine();
-            var rsaEncryptedKeyHeader = publicKey.Encrypt(combinedKey.GetKey());
-            combinedKey.Wipe();
-
-            return new RsaEncryptedRecipientTransferInstructionSet()
+            return new EncryptedRecipientTransferInstructionSet()
             {
-                PublicKeyCrc = publicKey.crc32c,
-                EncryptedAesKeyHeader = rsaEncryptedKeyHeader,
                 TargetDrive = targetDrive,
                 TransferFileType = transferFileType,
-                FileSystemType = fileSystemType
+                FileSystemType = fileSystemType,
+                SharedSecretEncryptedKeyHeader = sharedSecretEncryptedKeyHeader,
             };
         }
 
@@ -152,12 +146,11 @@ namespace Youverse.Core.Services.Transit.SendingHost
             }
         }
 
-        public async Task<Dictionary<string, TransitResponseCode>> SendDeleteLinkedFileRequest(Guid driveId, Guid globalTransitId,
+        public async Task<Dictionary<string, TransitResponseCode>> SendDeleteLinkedFileRequest(GlobalTransitIdFileIdentifier remoteGlobalTransitIdentifier,
             SendFileOptions sendFileOptions, IEnumerable<string> recipients)
         {
             Dictionary<string, TransitResponseCode> result = new Dictionary<string, TransitResponseCode>();
 
-            var targetDrive = (await _driveManager.GetDrive(driveId, true)).TargetDriveInfo;
             foreach (var recipient in recipients)
             {
                 var r = (OdinId)recipient;
@@ -168,10 +161,9 @@ namespace Youverse.Core.Services.Transit.SendingHost
                     fileSystemType: sendFileOptions.FileSystemType);
 
                 //TODO: change to accept a request object that has targetDrive and global transit id
-                var httpResponse = await client.DeleteLinkedFile(new DeleteLinkedFileTransitRequest()
+                var httpResponse = await client.DeleteLinkedFile(new DeleteRemoteFileTransitRequest()
                 {
-                    TargetDrive = targetDrive,
-                    GlobalTransitId = globalTransitId,
+                    RemoteGlobalTransitIdFileIdentifier = remoteGlobalTransitIdentifier,
                     FileSystemType = sendFileOptions.FileSystemType
                 });
 
@@ -239,6 +231,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
 
             TransferFailureReason tfr = TransferFailureReason.UnknownError;
             bool success = false;
+            TransitResponseCode transitResponseCode = TransitResponseCode.Rejected;
             try
             {
                 //look up transfer key
@@ -295,7 +288,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
                     AppData = metadata.AppData,
                     PayloadIsEncrypted = metadata.PayloadIsEncrypted,
                     ContentType = metadata.ContentType,
-                    GlobalTransitId = metadata.GlobalTransitId,
+                    GlobalTransitId = options.OverrideRemoteGlobalTransitId.GetValueOrDefault(metadata.GlobalTransitId.GetValueOrDefault()),
                     ReactionPreview = metadata.ReactionPreview,
                     SenderOdinId = string.Empty,
                     OriginalRecipientList = null,
@@ -332,17 +325,20 @@ namespace Youverse.Core.Services.Transit.SendingHost
 
                 if (response.IsSuccessStatusCode)
                 {
-                    var transitResponse = response.Content;
-
-                    switch (transitResponse.Code)
+                    transitResponseCode = response.Content.Code;
+                    switch (transitResponseCode)
                     {
-                        case TransitResponseCode.Accepted:
+                        case TransitResponseCode.AcceptedDirectWrite:
+                        case TransitResponseCode.AcceptedIntoInbox:
                             success = true;
                             break;
                         case TransitResponseCode.QuarantinedPayload:
                         case TransitResponseCode.QuarantinedSenderNotConnected:
                         case TransitResponseCode.Rejected:
                             tfr = TransferFailureReason.RecipientServerRejected;
+                            break;
+                        case TransitResponseCode.AccessDenied:
+                            tfr = TransferFailureReason.RecipientServerReturnedAccessDenied;
                             break;
                         default:
                             throw new ArgumentOutOfRangeException();
@@ -365,6 +361,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
                 File = file,
                 Recipient = recipient,
                 Success = success,
+                RecipientTransitResponseCode = transitResponseCode,
                 ShouldRetry = true,
                 FailureReason = tfr,
                 Timestamp = UnixTimeUtc.Now().milliseconds,
@@ -379,8 +376,8 @@ namespace Youverse.Core.Services.Transit.SendingHost
         )
         {
             var fs = _fileSystemResolver.ResolveFileSystem(sendFileOptions.FileSystemType);
-            
-            TargetDrive targetDrive = options.OverrideTargetDrive ?? (await _driveManager.GetDrive(internalFile.DriveId, failIfInvalid: true)).TargetDriveInfo;
+
+            TargetDrive targetDrive = options.RemoteTargetDrive ?? (await _driveManager.GetDrive(internalFile.DriveId, failIfInvalid: true)).TargetDriveInfo;
 
             var transferStatus = new Dictionary<string, TransferStatus>();
             var outboxItems = new List<TransitOutboxItem>();
@@ -400,32 +397,22 @@ namespace Youverse.Core.Services.Transit.SendingHost
                 var recipient = (OdinId)r;
                 try
                 {
-                    //TODO: decide if we should lookup the public key from the recipients host if not cached or just drop the item in the queue
-                    var pk = await _publicKeyService.GetRecipientOfflinePublicKey(recipient, true, false);
-                    if (null == pk)
-                    {
-                        AddToTransferKeyEncryptionQueue(recipient, internalFile);
-                        transferStatus.Add(recipient, TransferStatus.AwaitingTransferKey);
-                        continue;
-                    }
-
                     //TODO: i need to resolve the token outside of transit, pass it in as options instead
                     var clientAuthToken = await ResolveClientAccessToken(recipient, sendFileOptions.ClientAccessTokenSource);
 
                     transferStatus.Add(recipient, TransferStatus.TransferKeyCreated);
 
-                    //TODO apply encryption before storing in the outbox
+                    //TODO: apply encryption before storing in the outbox
                     var encryptedClientAccessToken = clientAuthToken.ToAuthenticationToken().ToPortableBytes();
 
                     outboxItems.Add(new TransitOutboxItem()
                     {
                         IsTransientFile = options.IsTransient,
                         File = internalFile,
-                        Recipient = (OdinId)r,
+                        Recipient = recipient,
                         OriginalTransitOptions = options,
                         EncryptedClientAuthToken = encryptedClientAccessToken,
                         TransferInstructionSet = this.CreateTransferInstructionSet(
-                            pk.publicKey,
                             keyHeader,
                             clientAuthToken,
                             targetDrive,
@@ -472,7 +459,17 @@ namespace Youverse.Core.Services.Transit.SendingHost
             {
                 if (result.Success)
                 {
-                    transferStatus[result.Recipient.DomainName] = TransferStatus.Delivered;
+                    switch (result.RecipientTransitResponseCode)
+                    {
+                        case TransitResponseCode.AcceptedIntoInbox:
+                            transferStatus[result.Recipient.DomainName] = TransferStatus.DeliveredToInbox;
+                            break;
+                        case TransitResponseCode.AcceptedDirectWrite:
+                            transferStatus[result.Recipient.DomainName] = TransferStatus.DeliveredToTargetDrive;
+                            break;
+                        default:
+                            throw new YouverseSystemException("Unhandled success scenario in transit");
+                    }
                 }
                 else
                 {
@@ -496,7 +493,10 @@ namespace Youverse.Core.Services.Transit.SendingHost
                         case TransferFailureReason.FileDoesNotAllowDistribution:
                             transferStatus[result.Recipient.DomainName] = TransferStatus.FileDoesNotAllowDistribution;
                             break;
+                        case TransferFailureReason.RecipientServerReturnedAccessDenied:
+                            transferStatus[result.Recipient.DomainName] = TransferStatus.RecipientReturnedAccessDenied;
 
+                            break;
                         default:
                             throw new ArgumentOutOfRangeException();
                     }

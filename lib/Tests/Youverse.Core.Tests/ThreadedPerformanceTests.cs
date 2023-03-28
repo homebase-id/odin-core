@@ -15,6 +15,7 @@ namespace Youverse.Core.Tests
 
 
         [Test]
+        [Ignore("This was just a test of how to set it up")]
         public void TaskPerformanceTest()
         {
             Task[] tasks = new Task[MAXTHREADS];

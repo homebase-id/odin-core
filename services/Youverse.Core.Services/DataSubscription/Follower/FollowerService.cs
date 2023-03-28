@@ -237,7 +237,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
         }
 
         /// <summary>
-        /// Allows my followers to write emojis. 
+        /// Allows my followers to write reactions. 
         /// </summary>
         public async Task<PermissionContext> CreateFollowerPermissionContext(OdinId odinId, ClientAuthenticationToken token)
         {
@@ -252,12 +252,11 @@ namespace Youverse.Core.Services.DataSubscription.Follower
 
             var permissionSet = new PermissionSet(); //no permissions
             var sharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray();
-            
+
             //need to grant access to connected drives
 
             var driveGrants = new List<DriveGrant>()
             {
-              
             };
 
             var groups = new Dictionary<string, PermissionGroup>()
@@ -284,7 +283,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
 
             var feedDrive = SystemDriveConstants.FeedDrive;
             var permissionSet = new PermissionSet(); //no permissions
-            var sharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray();
+            var sharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray(); //TODO: what shared secret for this?
 
             var driveGrants = new List<DriveGrant>()
             {
@@ -302,10 +301,10 @@ namespace Youverse.Core.Services.DataSubscription.Follower
 
             var groups = new Dictionary<string, PermissionGroup>()
             {
-                { "data_subscriber", new PermissionGroup(permissionSet, driveGrants, sharedSecret) }
+                { "data_subscriber", new PermissionGroup(permissionSet, driveGrants, null) }
             };
 
-            return new PermissionContext(groups, null);
+            return new PermissionContext(groups, sharedSecret);
         }
 
         ///

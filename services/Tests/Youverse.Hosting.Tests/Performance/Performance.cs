@@ -24,6 +24,7 @@ using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Hosting.Controllers.OwnerToken.Cdn;
 using Youverse.Hosting.Tests.AppAPI;
 using Youverse.Hosting.Tests.AppAPI.Utils;
+using Youverse.Hosting.Tests.OwnerApi.ApiClient;
 using Youverse.Hosting.Tests.OwnerApi.Drive;
 using Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn;
 
@@ -60,6 +61,23 @@ namespace Youverse.Hosting.Tests.Performance
             Median    : 7ms
             Capacity  : 2349 / second
             Bandwidth : 185526369 bytes / second        
+
+    March 12-2023
+        TaskPerformanceTest
+            Duration: 27.7 sec
+
+          Standard Output: 
+            Threads   : 10
+            Iterations: 10000
+            Time      : 26887ms
+            Minimum   : 0ms
+            Maximum   : 38ms
+            Average   : 2ms
+            Median    : 1ms
+            Capacity  : 3719 / second
+            Bandwidth : 295057000 bytes / second
+            DB Opened 11, Closed 0
+         
      */
     public class PublicStaticFilePerformanceTest
     {
@@ -67,7 +85,7 @@ namespace Youverse.Hosting.Tests.Performance
         private const int
             MAXTHREADS = 10; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
 
-        const int MAXITERATIONS = 1000; // A number high enough to get warmed up and reliable
+        const int MAXITERATIONS = 100; // A number high enough to get warmed up and reliable
 
 
         [Test]

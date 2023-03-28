@@ -260,8 +260,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                      +"modified INT  "
                      +", PRIMARY KEY (fileId)"
                      +");"
-                     +"CREATE INDEX IF NOT EXISTS Idx0TableMainIndexCRUD ON mainIndex(globalTransitId);"
-                     +"CREATE INDEX IF NOT EXISTS Idx1TableMainIndexCRUD ON mainIndex(modified);"
+                     +"CREATE INDEX IF NOT EXISTS Idx0TableMainIndexCRUD ON mainIndex(modified);"
                      ;
                 _database.ExecuteNonQuery(cmd);
                 _database.Commit();

@@ -34,6 +34,8 @@
 
         RecipientServerRejected = 900,
         
+        RecipientServerReturnedAccessDenied = 909,
+        
         /// <summary>
         /// Indicates the file's header has AllowDistribution == false.  The file should be removed from the queue
         /// </summary>

@@ -20,6 +20,7 @@ using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Storage;
 using Youverse.Hosting.Tests.AppAPI.Utils;
+using Youverse.Hosting.Tests.OwnerApi.ApiClient;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
 {
@@ -69,7 +70,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 }
             };
 
-            var uploadResult = await frodoOwnerClient.Drive.UploadEncryptedFile(FileSystemType.Standard, targetDrive, metadata, "");
+            var (uploadResult, _) = await frodoOwnerClient.Drive.UploadEncryptedFile(FileSystemType.Standard, targetDrive, metadata, "");
 
             Assert.That(uploadResult.File, Is.Not.Null);
             Assert.That(uploadResult.File.FileId, Is.Not.EqualTo(Guid.Empty));

@@ -177,8 +177,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                      +"modified INT  "
                      +", PRIMARY KEY (identity)"
                      +");"
-                     +"CREATE INDEX IF NOT EXISTS Idx0TableConnectionsCRUD ON connections(identity);"
-                     +"CREATE INDEX IF NOT EXISTS Idx1TableConnectionsCRUD ON connections(created);"
+                     +"CREATE INDEX IF NOT EXISTS Idx0TableConnectionsCRUD ON connections(created);"
                      ;
                 _database.ExecuteNonQuery(cmd);
                 _database.Commit();

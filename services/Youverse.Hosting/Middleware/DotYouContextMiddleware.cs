@@ -44,39 +44,36 @@ namespace Youverse.Hosting.Middleware
                 await _next(httpContext);
                 return;
             }
+            
+            dotYouContext.Tenant = (OdinId)tenant.Name;
 
             if (authType == PerimeterAuthConstants.TransitCertificateAuthScheme)
             {
                 await LoadTransitContext(httpContext, dotYouContext);
-                dotYouContext.AuthContext = PerimeterAuthConstants.TransitCertificateAuthScheme;
 
                 await _next(httpContext);
                 return;
             }
 
-            if (authType == PerimeterAuthConstants.IdentitiesIFollowCertificateAuthScheme)
-            {
-                await LoadIdentitiesIFollowContext(httpContext, dotYouContext);
-                dotYouContext.AuthContext = PerimeterAuthConstants.IdentitiesIFollowCertificateAuthScheme;
+            // if (authType == PerimeterAuthConstants.IdentitiesIFollowCertificateAuthScheme)
+            // {
+            //     await LoadIdentitiesIFollowContext(httpContext, dotYouContext);
+            //     dotYouContext.AuthContext = PerimeterAuthConstants.IdentitiesIFollowCertificateAuthScheme;
+            //     await _next(httpContext);
+            //     return;
+            // }
+            //
+            // if (authType == PerimeterAuthConstants.FollowerCertificateAuthScheme)
+            // {
+            //     await LoadFollowerContext(httpContext, dotYouContext);
+            //     dotYouContext.AuthContext = PerimeterAuthConstants.FollowerCertificateAuthScheme;
+            //     await _next(httpContext);
+            //     return;
+            // }
 
-                await _next(httpContext);
-                return;
-            }
-            
-            if (authType == PerimeterAuthConstants.FollowerCertificateAuthScheme)
-            {
-                await LoadFollowerContext(httpContext, dotYouContext);
-                dotYouContext.AuthContext = PerimeterAuthConstants.FollowerCertificateAuthScheme;
-                
-                await _next(httpContext);
-                return;
-            }
-            
             if (authType == PerimeterAuthConstants.PublicTransitAuthScheme)
             {
                 await LoadPublicTransitContext(httpContext, dotYouContext);
-                dotYouContext.AuthContext = PerimeterAuthConstants.PublicTransitAuthScheme;
-
                 await _next(httpContext);
                 return;
             }
@@ -105,6 +102,7 @@ namespace Youverse.Hosting.Middleware
                 {
                     dotYouContext.Caller = ctx.Caller;
                     dotYouContext.SetPermissionContext(ctx.PermissionsContext);
+                    dotYouContext.SetAuthContext(PerimeterAuthConstants.TransitCertificateAuthScheme);
                     return;
                 }
             }
@@ -125,7 +123,7 @@ namespace Youverse.Hosting.Middleware
                 {
                     dotYouContext.Caller = ctx.Caller;
                     dotYouContext.SetPermissionContext(ctx.PermissionsContext);
-                    ctx.AuthContext = PerimeterAuthConstants.IdentitiesIFollowCertificateAuthScheme;
+                    dotYouContext.SetAuthContext(PerimeterAuthConstants.IdentitiesIFollowCertificateAuthScheme);
 
                     return;
                 }
@@ -143,18 +141,18 @@ namespace Youverse.Hosting.Middleware
                 var odinId = (OdinId)user.Identity!.Name;
                 var authService = httpContext.RequestServices.GetRequiredService<FollowerAuthenticationService>();
                 var ctx = await authService.GetDotYouContext(odinId, clientAuthToken);
-                
+
                 //load in transit context
                 // var transitRegService = httpContext.RequestServices.GetRequiredService<TransitRegistrationService>();
                 // var transitCtx = await transitRegService.GetDotYouContext(odinId, clientAuthToken);
-                
+
                 // transitCtx.PermissionsContext.Redacted().PermissionGroups.First().DriveGrants.First().PermissionedDrive.
-                    
+
                 if (ctx != null)
                 {
                     dotYouContext.Caller = ctx.Caller;
                     dotYouContext.SetPermissionContext(ctx.PermissionsContext);
-                    ctx.AuthContext = PerimeterAuthConstants.FollowerCertificateAuthScheme;
+                    dotYouContext.SetAuthContext(PerimeterAuthConstants.FollowerCertificateAuthScheme);
                     return;
                 }
             }
@@ -202,6 +200,8 @@ namespace Youverse.Hosting.Middleware
                     permissionGroupMap,
                     sharedSecretKey: null
                 ));
+
+            dotYouContext.SetAuthContext(PerimeterAuthConstants.PublicTransitAuthScheme);
         }
     }
 }

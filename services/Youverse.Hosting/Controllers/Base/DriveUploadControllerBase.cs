@@ -33,7 +33,7 @@ namespace Youverse.Hosting.Controllers.Base
 
             var section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Instructions);
-            var packageId = await driveUploadService.CreatePackage(section!.Body);
+            var packageId = await driveUploadService.CreatePackageFromInstructionSet(section!.Body);
 
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Metadata);
@@ -57,7 +57,7 @@ namespace Youverse.Hosting.Controllers.Base
             return status;
         }
 
-        private void AssertIsPart(MultipartSection section, MultipartUploadParts expectedPart)
+        private protected void AssertIsPart(MultipartSection section, MultipartUploadParts expectedPart)
         {
             if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)
             {
@@ -65,7 +65,7 @@ namespace Youverse.Hosting.Controllers.Base
             }
         }
 
-        private void AssertIsValidThumbnailPart(MultipartSection section, MultipartUploadParts expectedPart, out FileMultipartSection fileSection, out int width, out int height)
+        private protected void AssertIsValidThumbnailPart(MultipartSection section, MultipartUploadParts expectedPart, out FileMultipartSection fileSection, out int width, out int height)
         {
             if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)
             {
@@ -85,12 +85,12 @@ namespace Youverse.Hosting.Controllers.Base
             }
         }
 
-        private static bool IsMultipartContentType(string contentType)
+        private protected static bool IsMultipartContentType(string contentType)
         {
             return !string.IsNullOrEmpty(contentType) && contentType.IndexOf("multipart/", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
-        private static string GetBoundary(string contentType)
+        private protected static string GetBoundary(string contentType)
         {
             var elements = contentType.Split(' ');
             var element = elements.First(entry => entry.StartsWith("boundary="));
