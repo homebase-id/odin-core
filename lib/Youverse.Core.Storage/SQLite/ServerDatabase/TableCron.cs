@@ -6,8 +6,6 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
 {
     public class TableCron: TableCronCRUD
     {
-        const int MAX_DATA_LENGTH = 65535;  // Stored data value cannot be longer than this
-
         private SqliteCommand _popCommand = null;
         private SqliteParameter _pparam1 = null;
         private SqliteParameter _pparam2 = null;
@@ -85,7 +83,7 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
                     _popCommand.CommandText =
                         "UPDATE cron SET popstamp=$popstamp, runcount=runcount+1, nextRun = 1000 * (60 * (runcount+1)) + unixepoch() " +
                         "WHERE rowid IN (SELECT rowid FROM cron WHERE (popstamp IS NULL) ORDER BY nextrun ASC LIMIT $count); " +
-                        "SELECT identityid, type, data, runcount, lastrun, nextrun FROM cron WHERE popstamp=$popstamp";
+                        "SELECT identityId,type,data,runCount,nextRun,lastRun,popStamp,created,modified FROM cron WHERE popstamp=$popstamp";
  
                     _pparam1 = _popCommand.CreateParameter();
                     _pparam1.ParameterName = "$popstamp";
@@ -106,42 +104,9 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
 
                 using (SqliteDataReader rdr = _database.ExecuteReader(_popCommand, System.Data.CommandBehavior.Default))
                 {
-                    CronRecord item;
-                    byte[] _tmpbuf = new byte[MAX_DATA_LENGTH];
-                    byte[] _g = new byte[16];
-
                     while (rdr.Read())
                     {
-                        item = new CronRecord();
-
-                        // 0: identityId
-                        var n = rdr.GetBytes(0, 0, _g, 0, _g.Length);
-                        if (n != 16)
-                            throw new Exception("Invalid identityid GUID size");
-                        item.identityId = new Guid(_g);
-
-                        // 1: type
-                        item.type = (Int32)rdr.GetInt32(1);
-
-                        // 2: data
-                        n = rdr.GetBytes(2, 0, _tmpbuf, 0, MAX_DATA_LENGTH);
-                        if (n >= MAX_DATA_LENGTH)
-                            throw new Exception("Too much data...");
-                        item.data = new byte[n];
-                        Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int)n);
-
-                        // 3: runcount
-                        item.runCount = rdr.GetInt32(3);
-
-                        // 4: lastrun
-                        item.lastRun = new UnixTimeUtc(rdr.GetInt64(4));
-
-                        // 5: nextrun
-                        item.nextRun = new UnixTimeUtc(rdr.GetInt64(5));
-
-                        item.popStamp = popStamp;
-
-                        result.Add(item);
+                        result.Add(ReadRecordFromReaderAll(rdr));
                     }
                 }
 

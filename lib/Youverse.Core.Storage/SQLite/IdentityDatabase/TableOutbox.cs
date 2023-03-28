@@ -6,8 +6,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
     public class TableOutbox: TableOutboxCRUD
     {
-        const int MAX_VALUE_LENGTH = 65535;  // Stored value cannot be longer than this
-
         private SqliteCommand _popSpecificBoxCommand = null;
         private SqliteParameter _psbparam1 = null;
         private SqliteParameter _psbparam2 = null;
@@ -109,7 +107,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 {
                     _popAllCommand = _database.CreateCommand();
                     _popAllCommand.CommandText = "UPDATE outbox SET popstamp=$popstamp WHERE popstamp is NULL and fileId IN (SELECT fileid FROM outbox WHERE popstamp is NULL ORDER BY timestamp ASC LIMIT $count); " +
-                                              "SELECT fileid, priority, timestamp, value, boxid, recipient from outbox WHERE popstamp=$popstamp";
+                                              "SELECT fileId,recipient,boxId,priority,timeStamp,value,popStamp,created,modified FROM outbox WHERE popstamp=$popstamp";
 
                     _paparam1 = _popAllCommand.CreateParameter();
                     _paparam1.ParameterName = "$popstamp";
@@ -132,48 +130,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 {
                     using (SqliteDataReader rdr = _database.ExecuteReader(_popAllCommand, System.Data.CommandBehavior.Default))
                     {
-                        OutboxRecord item;
-
                         while (rdr.Read())
                         {
-                            if (rdr.IsDBNull(0))
-                                throw new Exception("Not possible");
-
-                            item = new OutboxRecord();
-
-                            var _guid  = new byte[16];
-                            var n = rdr.GetBytes(0, 0, _guid, 0, 16);
-                            if (n != 16)
-                                throw new Exception("Invalid fileId");
-                            item.fileId = new Guid(_guid);
-                            item.priority = rdr.GetInt32(1);
-                            item.timeStamp = new UnixTimeUtc(rdr.GetInt64(2));
-
-                            if (rdr.IsDBNull(3))
-                            {
-                                item.value = null;
-                            }
-                            else
-                            {
-                                byte[] _tmpbuf = new byte[MAX_VALUE_LENGTH];
-                                n = rdr.GetBytes(3, 0, _tmpbuf, 0, MAX_VALUE_LENGTH);
-                                if (n >= MAX_VALUE_LENGTH)
-                                    throw new Exception("Too much data...");
-                                if (n == 0)
-                                    throw new Exception("Is that possible?");
-
-                                item.value = new byte[n];
-                                Buffer.BlockCopy(_tmpbuf, 0, item.value, 0, (int)n);
-                            }
-
-                            n = rdr.GetBytes(4, 0, _guid, 0, 16);
-
-                            if (n != 16)
-                                throw new Exception("Invalid boxId");
-                            item.boxId = new Guid(_guid);
-                            item.recipient = rdr.GetString(5);
-
-                            result.Add(item);
+                            result.Add(ReadRecordFromReaderAll(rdr));
                         }
                     }
 
@@ -490,7 +449,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 {
                     _popSpecificBoxCommand = _database.CreateCommand();
                     _popSpecificBoxCommand.CommandText = "UPDATE outbox SET popStamp=$popstamp WHERE rowid IN (SELECT rowid FROM outbox WHERE boxId=$boxid AND popStamp IS NULL ORDER BY timeStamp ASC LIMIT $count); " +
-                                              "SELECT fileId, priority, timeStamp, value, recipient from outbox WHERE popstamp=$popstamp";
+                                              "SELECT fileId,recipient,boxId,priority,timeStamp,value,popStamp,created,modified FROM outbox WHERE popstamp=$popstamp";
 
                     _psbparam1 = _popSpecificBoxCommand.CreateParameter();
                     _psbparam1.ParameterName = "$popstamp";
@@ -518,42 +477,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 {
                     using (SqliteDataReader rdr = _database.ExecuteReader(_popSpecificBoxCommand, System.Data.CommandBehavior.Default))
                     {
-                        OutboxRecord item;
-
                         while (rdr.Read())
                         {
-                            if (rdr.IsDBNull(0))
-                                throw new Exception("Not possible");
-
-                            item = new OutboxRecord();
-                            item.boxId = boxId;
-                            var _guid = new byte[16];
-                            var n = rdr.GetBytes(0, 0, _guid, 0, 16);
-                            if (n != 16)
-                                throw new Exception("Invalid fileId");
-                            item.fileId = new Guid(_guid);
-                            item.priority = rdr.GetInt32(1);
-                            item.timeStamp = new UnixTimeUtc(rdr.GetInt64(2));
-
-                            if (rdr.IsDBNull(3))
-                            {
-                                item.value = null;
-                            }
-                            else
-                            {
-                                byte[] _tmpbuf = new byte[MAX_VALUE_LENGTH];
-                                n = rdr.GetBytes(3, 0, _tmpbuf, 0, MAX_VALUE_LENGTH);
-                                if (n >= MAX_VALUE_LENGTH)
-                                    throw new Exception("Too much data...");
-                                if (n == 0)
-                                    throw new Exception("Is that possible?");
-
-                                item.value = new byte[n];
-                                Buffer.BlockCopy(_tmpbuf, 0, item.value, 0, (int)n);
-                            }
-                            item.recipient = rdr.GetString(4);
-
-                            result.Add(item);
+                            result.Add(ReadRecordFromReaderAll(rdr));
                         }
                     }
 

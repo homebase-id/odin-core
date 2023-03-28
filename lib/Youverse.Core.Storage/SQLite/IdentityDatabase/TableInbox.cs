@@ -6,8 +6,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
     public class TableInbox : TableInboxCRUD
     {
-        const int MAX_VALUE_LENGTH = 65535;  // Stored value cannot be longer than this
-
         private SqliteCommand _popCommand = null;
         private SqliteParameter _pparam1 = null;
         private SqliteParameter _pparam2 = null;
@@ -109,7 +107,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 {
                     _popCommand = _database.CreateCommand();
                     _popCommand.CommandText = "UPDATE inbox SET popstamp=$popstamp WHERE rowid IN (SELECT rowid FROM inbox WHERE boxid=$boxid AND popstamp IS NULL ORDER BY timeStamp ASC LIMIT $count); " +
-                                              "SELECT fileid, priority, timeStamp, value from inbox WHERE popstamp=$popstamp";
+                                              "SELECT fileId,boxId,priority,timeStamp,value,popStamp,created,modified FROM inbox WHERE popstamp=$popstamp";
 
                     _pparam1 = _popCommand.CreateParameter();
                     _pparam1.ParameterName = "$popstamp";
@@ -136,44 +134,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     List<InboxRecord> result = new List<InboxRecord>();
                     using (SqliteDataReader rdr = _database.ExecuteReader(_popCommand, System.Data.CommandBehavior.Default))
                     {
-                        InboxRecord item;
-
                         while (rdr.Read())
                         {
-                            if (rdr.IsDBNull(0))
-                                throw new Exception("Not possible");
-
-                            item = new InboxRecord();
-                            item.boxId = boxId;
-                            var _guid = new byte[16];
-                            var n = rdr.GetBytes(0, 0, _guid, 0, 16);
-                            if (n != 16)
-                                throw new Exception("Invalid fileId");
-                            item.fileId = new Guid(_guid);
-                            item.priority = (Int32)rdr.GetInt32(1);
-                            if (rdr.IsDBNull(2))
-                                throw new Exception("wooot");
-
-                            var l = rdr.GetInt64(2);
-                            item.timeStamp = new UnixTimeUtc(l);
-
-                            if (rdr.IsDBNull(3))
-                            {
-                                item.value = null;
-                            }
-                            else
-                            {
-                                byte[] _tmpbuf = new byte[MAX_VALUE_LENGTH];
-                                n = rdr.GetBytes(3, 0, _tmpbuf, 0, MAX_VALUE_LENGTH);
-                                if (n >= MAX_VALUE_LENGTH)
-                                    throw new Exception("Too much data...");
-                                if (n == 0)
-                                    throw new Exception("Is that possible?");
-
-                                item.value = new byte[n];
-                                Buffer.BlockCopy(_tmpbuf, 0, item.value, 0, (int)n);
-                            }
-                            result.Add(item);
+                            result.Add(ReadRecordFromReaderAll(rdr));
                         }
                     }
 

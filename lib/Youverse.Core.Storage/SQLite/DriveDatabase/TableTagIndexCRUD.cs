@@ -181,6 +181,39 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             } // Lock
         }
 
+        // SELECT fileId,tagId
+        public TagIndexRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        {
+            var result = new List<TagIndexRecord>();
+            byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new TagIndexRecord();
+
+            if (rdr.IsDBNull(0))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in fileId...");
+                item.fileId = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(1))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(1, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in tagId...");
+                item.tagId = new Guid(_guid);
+            }
+            return item;
+       }
+
         public int Delete(Guid fileId,Guid tagId)
         {
             lock (_delete0Lock)
@@ -223,6 +256,20 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             } // Lock
         }
 
+        public TagIndexRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid fileId,Guid tagId)
+        {
+            var result = new List<TagIndexRecord>();
+            byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new TagIndexRecord();
+            item.fileId = fileId;
+            item.tagId = tagId;
+            return item;
+       }
+
         public TagIndexRecord Get(Guid fileId,Guid tagId)
         {
             lock (_get0Lock)
@@ -244,18 +291,9 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _get0Param2.Value = tagId.ToByteArray();
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
-                    var result = new TagIndexRecord();
                     if (!rdr.Read())
                         return null;
-                    byte[] _tmpbuf = new byte[65535+1];
-#pragma warning disable CS0168
-                    long bytesRead;
-#pragma warning restore CS0168
-                    var _guid = new byte[16];
-                        var item = new TagIndexRecord();
-                        item.fileId = fileId;
-                        item.tagId = tagId;
-                    return item;
+                    return ReadRecordFromReader0(rdr, fileId,tagId);
                 } // using
             } // lock
         }

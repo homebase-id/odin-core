@@ -207,6 +207,43 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             } // Lock
         }
 
+        // SELECT identity,postId,singleReaction
+        public ReactionsRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        {
+            var result = new List<ReactionsRecord>();
+            byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new ReactionsRecord();
+
+            if (rdr.IsDBNull(0))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.identity = new OdinId(rdr.GetString(0));
+            }
+
+            if (rdr.IsDBNull(1))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(1, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in postId...");
+                item.postId = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(2))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.singleReaction = rdr.GetString(2);
+            }
+            return item;
+       }
+
         public int Delete(OdinId identity,Guid postId,string singleReaction)
         {
             if (singleReaction == null) throw new Exception("Cannot be null");
@@ -260,6 +297,24 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             } // Lock
         }
 
+        public ReactionsRecord ReadRecordFromReader0(SqliteDataReader rdr, OdinId identity,Guid postId,string singleReaction)
+        {
+            if (singleReaction == null) throw new Exception("Cannot be null");
+            if (singleReaction?.Length < 3) throw new Exception("Too short");
+            if (singleReaction?.Length > 80) throw new Exception("Too long");
+            var result = new List<ReactionsRecord>();
+            byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new ReactionsRecord();
+            item.identity = identity;
+            item.postId = postId;
+            item.singleReaction = singleReaction;
+            return item;
+       }
+
         public ReactionsRecord Get(OdinId identity,Guid postId,string singleReaction)
         {
             if (singleReaction == null) throw new Exception("Cannot be null");
@@ -288,19 +343,9 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _get0Param3.Value = singleReaction;
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
-                    var result = new ReactionsRecord();
                     if (!rdr.Read())
                         return null;
-                    byte[] _tmpbuf = new byte[65535+1];
-#pragma warning disable CS0168
-                    long bytesRead;
-#pragma warning restore CS0168
-                    var _guid = new byte[16];
-                        var item = new ReactionsRecord();
-                        item.identity = identity;
-                        item.postId = postId;
-                        item.singleReaction = singleReaction;
-                    return item;
+                    return ReadRecordFromReader0(rdr, identity,postId,singleReaction);
                 } // using
             } // lock
         }
