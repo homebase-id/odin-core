@@ -73,7 +73,7 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
         /// <param name="count">How many items to 'pop' (reserve)</param>
         /// <param name="popStamp">The unique identifier for the items reserved for pop</param>
         /// <returns></returns>
-        public List<CronRecord> Pop(int count, out Guid popStamp)
+        public List<CronRecord> Pop(int count)
         {
             lock (_popLock)
             {
@@ -96,8 +96,7 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
                     _popCommand.Prepare();
                 }
 
-                popStamp = SequentialGuid.CreateGuid();
-                _pparam1.Value = popStamp.ToByteArray();
+                _pparam1.Value = SequentialGuid.CreateGuid().ToByteArray();
                 _pparam2.Value = count;
 
                 List<CronRecord> result = new List<CronRecord>();

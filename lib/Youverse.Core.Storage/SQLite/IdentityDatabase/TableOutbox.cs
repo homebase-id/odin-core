@@ -98,7 +98,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         }
 
 
-        public List<OutboxRecord> Pop(int count, out Guid popStamp)
+        public List<OutboxRecord> Pop(int count)
         {
             lock (_popAllLock)
             {
@@ -120,8 +120,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _popAllCommand.Prepare();
                 }
 
-                popStamp = SequentialGuid.CreateGuid();
-                _paparam1.Value = popStamp.ToByteArray();
+                _paparam1.Value = SequentialGuid.CreateGuid().ToByteArray();
                 _paparam2.Value = count;
 
                 List<OutboxRecord> result = new List<OutboxRecord>();
@@ -440,7 +439,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         /// <param name="count">How many items to 'pop' (reserve)</param>
         /// <param name="popStamp">The unique identifier for the items reserved for pop</param>
         /// <returns></returns>
-        public List<OutboxRecord> PopSpecificBox(Guid boxId, int count, out Guid popStamp)
+        public List<OutboxRecord> PopSpecificBox(Guid boxId, int count)
         {
             lock (_popLock)
             {
@@ -466,8 +465,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _popSpecificBoxCommand.Prepare();
                 }
 
-                popStamp = SequentialGuid.CreateGuid();
-                _psbparam1.Value = popStamp.ToByteArray();
+                _psbparam1.Value = SequentialGuid.CreateGuid().ToByteArray();
                 _psbparam2.Value = count;
                 _psbparam3.Value = boxId.ToByteArray();
 

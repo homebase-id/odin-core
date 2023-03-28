@@ -98,7 +98,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         /// <param name="count">How many items to 'pop' (reserve)</param>
         /// <param name="popStamp">The unique identifier for the items reserved for pop</param>
         /// <returns>List of records</returns>
-        public List<InboxRecord> PopSpecificBox(Guid boxId, int count, out Guid popStamp)
+        public List<InboxRecord> PopSpecificBox(Guid boxId, int count)
         {
             lock (_popLock)
             {
@@ -124,8 +124,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _popCommand.Prepare();
                 }
 
-                popStamp = SequentialGuid.CreateGuid();
-                _pparam1.Value = popStamp.ToByteArray();
+                _pparam1.Value = SequentialGuid.CreateGuid().ToByteArray();
                 _pparam2.Value = count;
                 _pparam3.Value = boxId.ToByteArray();
 

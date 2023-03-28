@@ -81,7 +81,7 @@ namespace IdentityDatabaseTests
 
             // pop one item from the inbox
             var tbefore = new UnixTimeUtc();
-            var r = db.tblInbox.PopSpecificBox(boxid, 1, out var poptimeStamp);
+            var r = db.tblInbox.PopSpecificBox(boxid, 1);
             var tafter = new UnixTimeUtc();
             if (r.Count != 1)
                 Assert.Fail();
@@ -105,7 +105,7 @@ namespace IdentityDatabaseTests
                 Assert.Fail();
 
             // pop all the remaining items from the inbox
-            r = db.tblInbox.PopSpecificBox(boxid, 10, out poptimeStamp);
+            r = db.tblInbox.PopSpecificBox(boxid, 10);
             if (r.Count != 4)
                 Assert.Fail();
 
@@ -146,7 +146,7 @@ namespace IdentityDatabaseTests
                 Assert.Fail();
 
             // pop to make sure there are no more items
-            r = db.tblInbox.PopSpecificBox(boxid, 1, out poptimeStamp);
+            r = db.tblInbox.PopSpecificBox(boxid, 1);
             if (r.Count != 0)
                 Assert.Fail();
         }
@@ -170,12 +170,12 @@ namespace IdentityDatabaseTests
             db.tblInbox.Insert(new InboxRecord() { boxId = boxid, fileId = f4, priority = 10, value = null });
             db.tblInbox.Insert(new InboxRecord() { boxId = boxid, fileId = f5, priority = 20, value = null });
 
-            var r1 = db.tblInbox.PopSpecificBox(boxid, 2, out var poptimeStamp1);
-            var r2 = db.tblInbox.PopSpecificBox(boxid, 3, out var poptimeStamp2);
+            var r1 = db.tblInbox.PopSpecificBox(boxid, 2);
+            var r2 = db.tblInbox.PopSpecificBox(boxid, 3);
 
-            db.tblInbox.PopCancelAll(poptimeStamp1);
+            db.tblInbox.PopCancelAll((Guid) r1[0].popStamp);
 
-            var r3 = db.tblInbox.PopSpecificBox(boxid, 10, out var poptimeStamp3);
+            var r3 = db.tblInbox.PopSpecificBox(boxid, 10);
 
             if (r3.Count != 2)
                 Assert.Fail();
@@ -185,9 +185,9 @@ namespace IdentityDatabaseTests
             if (ByteArrayUtil.muidcmp(r1[1].fileId, r3[1].fileId) != 0)
                 Assert.Fail();
 
-            db.tblInbox.PopCancelAll(poptimeStamp3);
-            db.tblInbox.PopCancelAll(poptimeStamp2);
-            var r4 = db.tblInbox.PopSpecificBox(boxid, 10, out var poptimeStamp4);
+            db.tblInbox.PopCancelAll((Guid) r3[0].popStamp);
+            db.tblInbox.PopCancelAll((Guid) r2[0].popStamp);
+            var r4 = db.tblInbox.PopSpecificBox(boxid, 10);
 
             if (r4.Count != 5)
                 Assert.Fail();
@@ -214,10 +214,10 @@ namespace IdentityDatabaseTests
             db.tblInbox.Insert(new InboxRecord() { boxId = boxid, fileId = f4, priority = 10, value = null });
             db.tblInbox.Insert(new InboxRecord() { boxId = boxid, fileId = f5, priority = 20, value = null });
 
-            var r1 = db.tblInbox.PopSpecificBox(boxid, 2, out var poptimeStamp1);
-            db.tblInbox.PopCommitAll(poptimeStamp1);
+            var r1 = db.tblInbox.PopSpecificBox(boxid, 2);
+            db.tblInbox.PopCommitAll((Guid) r1[0].popStamp);
 
-            var r2 = db.tblInbox.PopSpecificBox(boxid, 10, out var poptimeStamp2);
+            var r2 = db.tblInbox.PopSpecificBox(boxid, 10);
             if (r2.Count != 3)
                 Assert.Fail();
         }
@@ -242,31 +242,31 @@ namespace IdentityDatabaseTests
             db.tblInbox.Insert(new InboxRecord() { boxId = b1, fileId = f3, priority = 10, value = v1 });
 
             // Pop all records from the Inbox,be sure we get 3
-            var r1 = db.tblInbox.PopSpecificBox(b1, 5, out var popTimestamp1);
+            var r1 = db.tblInbox.PopSpecificBox(b1, 5);
             if (r1.Count != 3)
                 Assert.Fail();
 
             // Commit one of the three records
-            db.tblInbox.PopCommitList(popTimestamp1, new List<Guid>() { f2 });
+            db.tblInbox.PopCommitList((Guid) r1[0].popStamp, new List<Guid>() { f2 });
 
             // Cancel the rest (f1, f3)
-            db.tblInbox.PopCancelAll(popTimestamp1);
+            db.tblInbox.PopCancelAll((Guid)r1[0].popStamp);
 
             // Pop all records from the Inbox,be sure we get 2 (f1 & f3)
-            var r2 = db.tblInbox.PopSpecificBox(b1, 5, out var popTimestamp2);
+            var r2 = db.tblInbox.PopSpecificBox(b1, 5);
             if (r2.Count != 2)
                 Assert.Fail();
 
             // Commit all records
-            db.tblInbox.PopCommitList(popTimestamp2, new List<Guid>() { f1, f3 });
+            db.tblInbox.PopCommitList((Guid) r2[0].popStamp, new List<Guid>() { f1, f3 });
 
             // Cancel nothing
-            db.tblInbox.PopCancelAll(popTimestamp2);
+            db.tblInbox.PopCancelAll((Guid)r2[0].popStamp);
             // Get everything back
             db.tblInbox.PopRecoverDead(new UnixTimeUtc());
 
             // Pop all records from the Inbox,be sure we get 2 (f1 & f3)
-            var r3 = db.tblInbox.PopSpecificBox(b1, 5, out var popTimestamp3);
+            var r3 = db.tblInbox.PopSpecificBox(b1, 5);
             if (r3.Count != 0)
                 Assert.Fail();
         }
@@ -290,23 +290,23 @@ namespace IdentityDatabaseTests
             db.tblInbox.Insert(new InboxRecord() { boxId = b1, fileId = f3, priority = 10, value = v1 });
 
             // Pop all records from the Inbox,be sure we get 3
-            var r1 = db.tblInbox.PopSpecificBox(b1, 5, out var popTimestamp1);
+            var r1 = db.tblInbox.PopSpecificBox(b1, 5);
             if (r1.Count != 3)
                 Assert.Fail();
 
             // Cancel two of the three records
-            db.tblInbox.PopCancelList(popTimestamp1, new List<Guid>() { f1, f2 });
+            db.tblInbox.PopCancelList((Guid)r1[0].popStamp, new List<Guid>() { f1, f2 });
 
             // Pop all the recods from the Inbox, but sure we get the two cancelled
-            var r2 = db.tblInbox.PopSpecificBox(b1, 5, out var popTimestamp2);
+            var r2 = db.tblInbox.PopSpecificBox(b1, 5);
             if (r2.Count != 2)
                 Assert.Fail();
 
             // Cancel one of the two records
-            db.tblInbox.PopCancelList(popTimestamp2, new List<Guid>() { f1 });
+            db.tblInbox.PopCancelList((Guid)r2[0].popStamp, new List<Guid>() { f1 });
 
             // Pop all the recods from the Inbox, but sure we get the two cancelled
-            var r3 = db.tblInbox.PopSpecificBox(b1, 5, out var popTimestamp3);
+            var r3 = db.tblInbox.PopSpecificBox(b1, 5);
             if (r3.Count != 1)
                 Assert.Fail();
         }
@@ -332,18 +332,18 @@ namespace IdentityDatabaseTests
             db.tblInbox.Insert(new InboxRecord() { boxId = boxid, fileId = f4, priority = 10, value = null });
             db.tblInbox.Insert(new InboxRecord() { boxId = boxid, fileId = f5, priority = 20, value = null });
 
-            var r1 = db.tblInbox.PopSpecificBox(boxid, 2, out var poptimeStamp1);
+            var r1 = db.tblInbox.PopSpecificBox(boxid, 2);
 
             // Recover all items older than the future (=all)
             db.tblInbox.PopRecoverDead(UnixTimeUtc.Now().AddSeconds(2));
 
-            var r2 = db.tblInbox.PopSpecificBox(boxid, 10, out var poptimeStamp2);
+            var r2 = db.tblInbox.PopSpecificBox(boxid, 10);
             if (r2.Count != 5)
                 Assert.Fail();
 
             // Recover items older than long ago (=none)
             db.tblInbox.PopRecoverDead(UnixTimeUtc.Now().AddSeconds(-2));
-            var r3 = db.tblInbox.PopSpecificBox(boxid, 10, out var poptimeStamp3);
+            var r3 = db.tblInbox.PopSpecificBox(boxid, 10);
             if (r3.Count != 0)
                 Assert.Fail();
         }
@@ -379,8 +379,8 @@ namespace IdentityDatabaseTests
             var tbefore = new UnixTimeUtc();
 
             // Pop the oldest record from the inbox 1
-            var r1 = db.tblInbox.PopSpecificBox(b1, 1, out var poptimeStamp1);
-            var r2 = db.tblInbox.PopSpecificBox(b1, 10, out var poptimeStamp2);
+            var r1 = db.tblInbox.PopSpecificBox(b1, 1);
+            var r2 = db.tblInbox.PopSpecificBox(b1, 10);
             if (r2.Count != 1)
                 Assert.Fail();
 
@@ -394,19 +394,19 @@ namespace IdentityDatabaseTests
                 Assert.Fail();
 
             // Then pop 10 oldest record from the inbox (only 2 are available now)
-            var r3 = db.tblInbox.PopSpecificBox(b2, 10, out var poptimeStamp3);
+            var r3 = db.tblInbox.PopSpecificBox(b2, 10);
             if (r3.Count != 3)
                 Assert.Fail();
 
             // The thread that popped the first record is now done.
             // Commit the pop
-            db.tblInbox.PopCommitAll(poptimeStamp1);
+            db.tblInbox.PopCommitAll((Guid)r1[0].popStamp);
 
             // Oh no, the second thread running on the second pop of records
             // encountered a terrible error. Undo the pop
-            db.tblInbox.PopCancelAll(poptimeStamp2);
+            db.tblInbox.PopCancelAll((Guid)r2[0].popStamp);
 
-            var r4 = db.tblInbox.PopSpecificBox(b1, 10, out var poptimeStamp4);
+            var r4 = db.tblInbox.PopSpecificBox(b1, 10);
             if (r4.Count != 1)
                 Assert.Fail();
         }
@@ -446,23 +446,23 @@ namespace IdentityDatabaseTests
             // A thread1 pops one record from inbox1 (it'll get the oldest one)
             // Popping the record "reserves it" for your thread but doesn't remove
             // it from the inbox until the pop is committed or cancelled.
-            var r1 = db.tblInbox.PopSpecificBox(box1id, 1, out var poptimeStamp1);
+            var r1 = db.tblInbox.PopSpecificBox(box1id, 1);
 
             // Another thread2 then pops 10 records from inbox1 (only 2 are available now)
-            var r2 = db.tblInbox.PopSpecificBox(box1id, 10, out var poptimeStamp2);
+            var r2 = db.tblInbox.PopSpecificBox(box1id, 10);
 
             // The thread1 that popped the first record is now done.
             // Commit the pop, which effectively deletes it from the inbox
             // You of course call commit as the very final step when you're
             // certain the item has been saved correctly.
-            db.tblInbox.PopCommitAll(poptimeStamp1);
+            db.tblInbox.PopCommitAll((Guid)r1[0].popStamp);
 
             // Imagine that thread2 encountered a terrible error, e.g. out of disk space
             // Undo the pop and put the items back into the inbox
-            db.tblInbox.PopCancelAll(poptimeStamp2);
+            db.tblInbox.PopCancelAll((Guid)r2[0].popStamp);
 
             // Thread3 pops 10 items from inbox2 (will retrieve 2)
-            var r3 = db.tblInbox.PopSpecificBox(box2id, 10, out var poptimeStamp3);
+            var r3 = db.tblInbox.PopSpecificBox(box2id, 10);
 
             // Now imagine that there is a power outage, the server crashes.
             // The popped items are in "limbo" because they are not committed and not cancelled.
