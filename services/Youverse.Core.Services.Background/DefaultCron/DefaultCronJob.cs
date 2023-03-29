@@ -25,10 +25,17 @@ namespace Youverse.Core.Services.Workers.DefaultCron
         public async Task Execute(IJobExecutionContext context)
         {
             int count = 1; //TODO: config
-            var items = _serverSystemStorage.tblCron.Pop(count, out var marker);
+            var items = _serverSystemStorage.tblCron.Pop(count);
+
+            if (!items.Any())
+            {
+                return;
+            }
             
             Dictionary<Guid, CertificateOrderStatus> statusMap = new();
-            var markers = new List<Guid>() { marker };
+            
+            
+            var markers = new List<Guid>() { items.First().popStamp.GetValueOrDefault() };
 
             foreach (var item in items)
             {

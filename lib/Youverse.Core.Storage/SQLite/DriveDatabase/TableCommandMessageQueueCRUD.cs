@@ -168,6 +168,36 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             } // Lock
         }
 
+        // SELECT fileId,timeStamp
+        public CommandMessageQueueRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        {
+            var result = new List<CommandMessageQueueRecord>();
+            byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new CommandMessageQueueRecord();
+
+            if (rdr.IsDBNull(0))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in fileId...");
+                item.fileId = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(1))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.timeStamp = new UnixTimeUtc(rdr.GetInt64(1));
+            }
+            return item;
+       }
+
         public int Delete(Guid fileId)
         {
             lock (_delete0Lock)
@@ -187,6 +217,26 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             } // Lock
         }
 
+        public CommandMessageQueueRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid fileId)
+        {
+            var result = new List<CommandMessageQueueRecord>();
+            byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new CommandMessageQueueRecord();
+            item.fileId = fileId;
+
+            if (rdr.IsDBNull(0))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.timeStamp = new UnixTimeUtc(rdr.GetInt64(0));
+            }
+            return item;
+       }
+
         public CommandMessageQueueRecord Get(Guid fileId)
         {
             lock (_get0Lock)
@@ -204,24 +254,9 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _get0Param1.Value = fileId.ToByteArray();
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
-                    var result = new CommandMessageQueueRecord();
                     if (!rdr.Read())
                         return null;
-                    byte[] _tmpbuf = new byte[65535+1];
-#pragma warning disable CS0168
-                    long bytesRead;
-#pragma warning restore CS0168
-                    var _guid = new byte[16];
-                        var item = new CommandMessageQueueRecord();
-                        item.fileId = fileId;
-
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.timeStamp = new UnixTimeUtc(rdr.GetInt64(0));
-                        }
-                    return item;
+                    return ReadRecordFromReader0(rdr, fileId);
                 } // using
             } // lock
         }

@@ -47,8 +47,9 @@ namespace Youverse.Core.Services.Certificate.Renewal
         /// </summary>
         public async Task<(IEnumerable<OdinId>, Guid marker)> GetIdentities()
         {
-            var records = _serverSystemStorage.tblCron.Pop(1, out var marker);
+            var records = _serverSystemStorage.tblCron.Pop(1);
 
+            var marker = records.First().popStamp.GetValueOrDefault();
             //see Add method.  fileId = odinId
             var senders = records.Select(item => new OdinId(item.data.ToStringFromUtf8Bytes())).ToList();
             var result = (senders, marker);

@@ -222,6 +222,62 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
+        // SELECT odinHashId,appId,circleId,data
+        public AppGrantsRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        {
+            var result = new List<AppGrantsRecord>();
+            byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new AppGrantsRecord();
+
+            if (rdr.IsDBNull(0))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in odinHashId...");
+                item.odinHashId = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(1))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(1, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in appId...");
+                item.appId = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(2))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(2, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in circleId...");
+                item.circleId = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(3))
+                item.data = null;
+            else
+            {
+                bytesRead = rdr.GetBytes(3, 0, _tmpbuf, 0, 65535+1);
+                if (bytesRead > 65535)
+                    throw new Exception("Too much data in data...");
+                if (bytesRead < 0)
+                    throw new Exception("Too little data in data...");
+                item.data = new byte[bytesRead];
+                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+            }
+            return item;
+       }
+
         public int Delete(Guid odinHashId)
         {
             lock (_delete0Lock)
@@ -241,6 +297,52 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
+        public AppGrantsRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid odinHashId)
+        {
+            var result = new List<AppGrantsRecord>();
+            byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new AppGrantsRecord();
+            item.odinHashId = odinHashId;
+
+            if (rdr.IsDBNull(0))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in appId...");
+                item.appId = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(1))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(1, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in circleId...");
+                item.circleId = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(2))
+                item.data = null;
+            else
+            {
+                bytesRead = rdr.GetBytes(2, 0, _tmpbuf, 0, 65535+1);
+                if (bytesRead > 65535)
+                    throw new Exception("Too much data in data...");
+                if (bytesRead < 0)
+                    throw new Exception("Too little data in data...");
+                item.data = new byte[bytesRead];
+                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+            }
+            return item;
+       }
+
         public AppGrantsRecord Get(Guid odinHashId)
         {
             lock (_get0Lock)
@@ -258,50 +360,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _get0Param1.Value = odinHashId.ToByteArray();
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
-                    var result = new AppGrantsRecord();
                     if (!rdr.Read())
                         return null;
-                    byte[] _tmpbuf = new byte[65535+1];
-#pragma warning disable CS0168
-                    long bytesRead;
-#pragma warning restore CS0168
-                    var _guid = new byte[16];
-                        var item = new AppGrantsRecord();
-                        item.odinHashId = odinHashId;
-
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
-                            if (bytesRead != 16)
-                                throw new Exception("Not a GUID in appId...");
-                            item.appId = new Guid(_guid);
-                        }
-
-                        if (rdr.IsDBNull(1))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            bytesRead = rdr.GetBytes(1, 0, _guid, 0, 16);
-                            if (bytesRead != 16)
-                                throw new Exception("Not a GUID in circleId...");
-                            item.circleId = new Guid(_guid);
-                        }
-
-                        if (rdr.IsDBNull(2))
-                            item.data = null;
-                        else
-                        {
-                            bytesRead = rdr.GetBytes(2, 0, _tmpbuf, 0, 65535+1);
-                            if (bytesRead > 65535)
-                                throw new Exception("Too much data in data...");
-                            if (bytesRead < 0)
-                                throw new Exception("Too little data in data...");
-                            item.data = new byte[bytesRead];
-                            Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
-                        }
-                    return item;
+                    return ReadRecordFromReader0(rdr, odinHashId);
                 } // using
             } // lock
         }

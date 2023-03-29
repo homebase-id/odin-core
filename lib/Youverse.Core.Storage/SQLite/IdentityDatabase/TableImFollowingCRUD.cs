@@ -233,6 +233,50 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
+        // SELECT identity,driveId,created,modified
+        public ImFollowingRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        {
+            var result = new List<ImFollowingRecord>();
+            byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new ImFollowingRecord();
+
+            if (rdr.IsDBNull(0))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.identity = new OdinId(rdr.GetString(0));
+            }
+
+            if (rdr.IsDBNull(1))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(1, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in driveId...");
+                item.driveId = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(2))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.created = new UnixTimeUtcUnique(rdr.GetInt64(2));
+            }
+
+            if (rdr.IsDBNull(3))
+                item.modified = null;
+            else
+            {
+                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(3));
+            }
+            return item;
+       }
+
         public int Delete(OdinId identity,Guid driveId)
         {
             lock (_delete0Lock)
@@ -275,6 +319,34 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
+        public ImFollowingRecord ReadRecordFromReader0(SqliteDataReader rdr, OdinId identity,Guid driveId)
+        {
+            var result = new List<ImFollowingRecord>();
+            byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new ImFollowingRecord();
+            item.identity = identity;
+            item.driveId = driveId;
+
+            if (rdr.IsDBNull(0))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.created = new UnixTimeUtcUnique(rdr.GetInt64(0));
+            }
+
+            if (rdr.IsDBNull(1))
+                item.modified = null;
+            else
+            {
+                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(1));
+            }
+            return item;
+       }
+
         public ImFollowingRecord Get(OdinId identity,Guid driveId)
         {
             lock (_get0Lock)
@@ -296,35 +368,49 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _get0Param2.Value = driveId.ToByteArray();
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
-                    var result = new ImFollowingRecord();
                     if (!rdr.Read())
                         return null;
-                    byte[] _tmpbuf = new byte[65535+1];
-#pragma warning disable CS0168
-                    long bytesRead;
-#pragma warning restore CS0168
-                    var _guid = new byte[16];
-                        var item = new ImFollowingRecord();
-                        item.identity = identity;
-                        item.driveId = driveId;
-
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.created = new UnixTimeUtcUnique(rdr.GetInt64(0));
-                        }
-
-                        if (rdr.IsDBNull(1))
-                            item.modified = null;
-                        else
-                        {
-                            item.modified = new UnixTimeUtcUnique(rdr.GetInt64(1));
-                        }
-                    return item;
+                    return ReadRecordFromReader0(rdr, identity,driveId);
                 } // using
             } // lock
         }
+
+        public ImFollowingRecord ReadRecordFromReader1(SqliteDataReader rdr, OdinId identity)
+        {
+            var result = new List<ImFollowingRecord>();
+            byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new ImFollowingRecord();
+            item.identity = identity;
+
+            if (rdr.IsDBNull(0))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in driveId...");
+                item.driveId = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(1))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.created = new UnixTimeUtcUnique(rdr.GetInt64(1));
+            }
+
+            if (rdr.IsDBNull(2))
+                item.modified = null;
+            else
+            {
+                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(2));
+            }
+            return item;
+       }
 
         public List<ImFollowingRecord> Get(OdinId identity)
         {
@@ -343,46 +429,15 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _get1Param1.Value = identity.DomainName;
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
                 {
-                    var result = new List<ImFollowingRecord>();
                     if (!rdr.Read())
                         return null;
-                    byte[] _tmpbuf = new byte[65535+1];
-#pragma warning disable CS0168
-                    long bytesRead;
-#pragma warning restore CS0168
-                    var _guid = new byte[16];
+                    var result = new List<ImFollowingRecord>();
                     while (true)
                     {
-                        var item = new ImFollowingRecord();
-                        item.identity = identity;
-
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
-                            if (bytesRead != 16)
-                                throw new Exception("Not a GUID in driveId...");
-                            item.driveId = new Guid(_guid);
-                        }
-
-                        if (rdr.IsDBNull(1))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.created = new UnixTimeUtcUnique(rdr.GetInt64(1));
-                        }
-
-                        if (rdr.IsDBNull(2))
-                            item.modified = null;
-                        else
-                        {
-                            item.modified = new UnixTimeUtcUnique(rdr.GetInt64(2));
-                        }
-                        result.Add(item);
+                        result.Add(ReadRecordFromReader1(rdr, identity));
                         if (!rdr.Read())
-                           break;
-                    } // while
+                            break;
+                    }
                     return result;
                 } // using
             } // lock

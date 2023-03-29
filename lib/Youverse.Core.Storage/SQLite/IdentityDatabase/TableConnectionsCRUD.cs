@@ -316,6 +316,74 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
+        // SELECT identity,displayName,status,accessIsRevoked,data,created,modified
+        public ConnectionsRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        {
+            var result = new List<ConnectionsRecord>();
+            byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new ConnectionsRecord();
+
+            if (rdr.IsDBNull(0))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.identity = new OdinId(rdr.GetString(0));
+            }
+
+            if (rdr.IsDBNull(1))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.displayName = rdr.GetString(1);
+            }
+
+            if (rdr.IsDBNull(2))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.status = rdr.GetInt32(2);
+            }
+
+            if (rdr.IsDBNull(3))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.accessIsRevoked = rdr.GetInt32(3);
+            }
+
+            if (rdr.IsDBNull(4))
+                item.data = null;
+            else
+            {
+                bytesRead = rdr.GetBytes(4, 0, _tmpbuf, 0, 65535+1);
+                if (bytesRead > 65535)
+                    throw new Exception("Too much data in data...");
+                if (bytesRead < 0)
+                    throw new Exception("Too little data in data...");
+                item.data = new byte[bytesRead];
+                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+            }
+
+            if (rdr.IsDBNull(5))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.created = new UnixTimeUtcUnique(rdr.GetInt64(5));
+            }
+
+            if (rdr.IsDBNull(6))
+                item.modified = null;
+            else
+            {
+                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(6));
+            }
+            return item;
+       }
+
         public int Delete(OdinId identity)
         {
             lock (_delete0Lock)
@@ -335,6 +403,67 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
+        public ConnectionsRecord ReadRecordFromReader0(SqliteDataReader rdr, OdinId identity)
+        {
+            var result = new List<ConnectionsRecord>();
+            byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new ConnectionsRecord();
+            item.identity = identity;
+
+            if (rdr.IsDBNull(0))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.displayName = rdr.GetString(0);
+            }
+
+            if (rdr.IsDBNull(1))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.status = rdr.GetInt32(1);
+            }
+
+            if (rdr.IsDBNull(2))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.accessIsRevoked = rdr.GetInt32(2);
+            }
+
+            if (rdr.IsDBNull(3))
+                item.data = null;
+            else
+            {
+                bytesRead = rdr.GetBytes(3, 0, _tmpbuf, 0, 65535+1);
+                if (bytesRead > 65535)
+                    throw new Exception("Too much data in data...");
+                if (bytesRead < 0)
+                    throw new Exception("Too little data in data...");
+                item.data = new byte[bytesRead];
+                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+            }
+
+            if (rdr.IsDBNull(4))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.created = new UnixTimeUtcUnique(rdr.GetInt64(4));
+            }
+
+            if (rdr.IsDBNull(5))
+                item.modified = null;
+            else
+            {
+                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(5));
+            }
+            return item;
+       }
+
         public ConnectionsRecord Get(OdinId identity)
         {
             lock (_get0Lock)
@@ -352,65 +481,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _get0Param1.Value = identity.DomainName;
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
-                    var result = new ConnectionsRecord();
                     if (!rdr.Read())
                         return null;
-                    byte[] _tmpbuf = new byte[65535+1];
-#pragma warning disable CS0168
-                    long bytesRead;
-#pragma warning restore CS0168
-                    var _guid = new byte[16];
-                        var item = new ConnectionsRecord();
-                        item.identity = identity;
-
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.displayName = rdr.GetString(0);
-                        }
-
-                        if (rdr.IsDBNull(1))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.status = rdr.GetInt32(1);
-                        }
-
-                        if (rdr.IsDBNull(2))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.accessIsRevoked = rdr.GetInt32(2);
-                        }
-
-                        if (rdr.IsDBNull(3))
-                            item.data = null;
-                        else
-                        {
-                            bytesRead = rdr.GetBytes(3, 0, _tmpbuf, 0, 65535+1);
-                            if (bytesRead > 65535)
-                                throw new Exception("Too much data in data...");
-                            if (bytesRead < 0)
-                                throw new Exception("Too little data in data...");
-                            item.data = new byte[bytesRead];
-                            Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
-                        }
-
-                        if (rdr.IsDBNull(4))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.created = new UnixTimeUtcUnique(rdr.GetInt64(4));
-                        }
-
-                        if (rdr.IsDBNull(5))
-                            item.modified = null;
-                        else
-                        {
-                            item.modified = new UnixTimeUtcUnique(rdr.GetInt64(5));
-                        }
-                    return item;
+                    return ReadRecordFromReader0(rdr, identity);
                 } // using
             } // lock
         }
@@ -427,7 +500,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 if (_getPaging1Command == null)
                 {
                     _getPaging1Command = _database.CreateCommand();
-                    _getPaging1Command.CommandText = "SELECT rowid,identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
+                    _getPaging1Command.CommandText = "SELECT identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
                                                  "WHERE identity > $identity ORDER BY identity ASC LIMIT $_count;";
                     _getPaging1Param1 = _getPaging1Command.CreateParameter();
                     _getPaging1Command.Parameters.Add(_getPaging1Param1);
@@ -444,75 +517,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 {
                     var result = new List<ConnectionsRecord>();
                     int n = 0;
-                    int rowid = 0;
                     while ((n < count) && rdr.Read())
                     {
                         n++;
-                        var item = new ConnectionsRecord();
-                        byte[] _tmpbuf = new byte[65535+1];
-                        long bytesRead;
-                        var _guid = new byte[16];
-
-                        rowid = rdr.GetInt32(0);
-
-                        if (rdr.IsDBNull(1))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.identity = new OdinId(rdr.GetString(1));
-                        }
-
-                        if (rdr.IsDBNull(2))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.displayName = rdr.GetString(2);
-                        }
-
-                        if (rdr.IsDBNull(3))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.status = rdr.GetInt32(3);
-                        }
-
-                        if (rdr.IsDBNull(4))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.accessIsRevoked = rdr.GetInt32(4);
-                        }
-
-                        if (rdr.IsDBNull(5))
-                            item.data = null;
-                        else
-                        {
-                            bytesRead = rdr.GetBytes(5, 0, _tmpbuf, 0, 65535+1);
-                            if (bytesRead > 65535)
-                                throw new Exception("Too much data in data...");
-                            if (bytesRead < 0)
-                                throw new Exception("Too little data in data...");
-                            if (bytesRead > 0)
-                            {
-                                item.data = new byte[bytesRead];
-                                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
-                            }
-                        }
-
-                        if (rdr.IsDBNull(6))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.created = new UnixTimeUtcUnique(rdr.GetInt64(6));
-                        }
-
-                        if (rdr.IsDBNull(7))
-                            item.modified = null;
-                        else
-                        {
-                            item.modified = new UnixTimeUtcUnique(rdr.GetInt64(7));
-                        }
-                        result.Add(item);
+                        result.Add(ReadRecordFromReaderAll(rdr));
                     } // while
                     if ((n > 0) && rdr.Read())
                     {
@@ -540,7 +548,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 if (_getPaging6Command == null)
                 {
                     _getPaging6Command = _database.CreateCommand();
-                    _getPaging6Command.CommandText = "SELECT rowid,identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
+                    _getPaging6Command.CommandText = "SELECT identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
                                                  "WHERE created > $created ORDER BY created DESC LIMIT $_count;";
                     _getPaging6Param1 = _getPaging6Command.CreateParameter();
                     _getPaging6Command.Parameters.Add(_getPaging6Param1);
@@ -557,75 +565,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 {
                     var result = new List<ConnectionsRecord>();
                     int n = 0;
-                    int rowid = 0;
                     while ((n < count) && rdr.Read())
                     {
                         n++;
-                        var item = new ConnectionsRecord();
-                        byte[] _tmpbuf = new byte[65535+1];
-                        long bytesRead;
-                        var _guid = new byte[16];
-
-                        rowid = rdr.GetInt32(0);
-
-                        if (rdr.IsDBNull(1))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.identity = new OdinId(rdr.GetString(1));
-                        }
-
-                        if (rdr.IsDBNull(2))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.displayName = rdr.GetString(2);
-                        }
-
-                        if (rdr.IsDBNull(3))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.status = rdr.GetInt32(3);
-                        }
-
-                        if (rdr.IsDBNull(4))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.accessIsRevoked = rdr.GetInt32(4);
-                        }
-
-                        if (rdr.IsDBNull(5))
-                            item.data = null;
-                        else
-                        {
-                            bytesRead = rdr.GetBytes(5, 0, _tmpbuf, 0, 65535+1);
-                            if (bytesRead > 65535)
-                                throw new Exception("Too much data in data...");
-                            if (bytesRead < 0)
-                                throw new Exception("Too little data in data...");
-                            if (bytesRead > 0)
-                            {
-                                item.data = new byte[bytesRead];
-                                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
-                            }
-                        }
-
-                        if (rdr.IsDBNull(6))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.created = new UnixTimeUtcUnique(rdr.GetInt64(6));
-                        }
-
-                        if (rdr.IsDBNull(7))
-                            item.modified = null;
-                        else
-                        {
-                            item.modified = new UnixTimeUtcUnique(rdr.GetInt64(7));
-                        }
-                        result.Add(item);
+                        result.Add(ReadRecordFromReaderAll(rdr));
                     } // while
                     if ((n > 0) && rdr.Read())
                     {
