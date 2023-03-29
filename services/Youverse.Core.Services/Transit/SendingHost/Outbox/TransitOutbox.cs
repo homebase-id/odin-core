@@ -119,7 +119,7 @@ namespace Youverse.Core.Services.Transit.SendingHost.Outbox
         public async Task<List<TransitOutboxItem>> GetBatchForProcessing(Guid driveId, int batchSize)
         {
             //CRITICAL NOTE: To integrate this with the existing outbox design, you can only pop one item at a time since the marker defines a set
-            var records = _tenantSystemStorage.Outbox.PopSpecificBox(driveId, batchSize, out var marker);
+            var records = _tenantSystemStorage.Outbox.PopSpecificBox(driveId, batchSize);
 
             var items = records.Select(r =>
             {
@@ -138,7 +138,7 @@ namespace Youverse.Core.Services.Transit.SendingHost.Outbox
                     },
                     OriginalTransitOptions = state.OriginalTransitOptions,
                     EncryptedClientAuthToken = state.EncryptedClientAuthToken,
-                    Marker = marker
+                    Marker = r.popStamp.GetValueOrDefault()
                 };
             });
 
