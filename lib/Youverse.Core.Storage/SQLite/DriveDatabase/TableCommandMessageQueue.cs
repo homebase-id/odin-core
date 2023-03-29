@@ -4,12 +4,6 @@ using Microsoft.Data.Sqlite;
 
 namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 {
-    public class CommandMessage
-    {
-        public Guid fileId;
-        public UnixTimeUtc timestamp;
-    }
-
     public class TableCommandMessageQueue : TableCommandMessageQueueCRUD
     {
         private SqliteCommand _selectCommand = null;
@@ -35,7 +29,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 
 
         // Returns up to count items
-        public List<CommandMessage> Get(int count)
+        public List<CommandMessageQueueRecord> Get(int count)
         {
             lock (_selectLock)
             {
@@ -46,19 +40,11 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     using (SqliteDataReader rdr = _database.ExecuteReader(_selectCommand, System.Data.CommandBehavior.SingleResult))
                     {
                         int i = 0;
-                        long n;
-                        var queue = new List<CommandMessage>();
-                        byte[] _guid = new byte[16];
-                        Int64 ts;
+                        var queue = new List<CommandMessageQueueRecord>();
 
                         while (rdr.Read())
                         {
-                            n = rdr.GetBytes(0, 0, _guid, 0, 16);
-                            if (n != 16)
-                                throw new Exception("Not a guid");
-                            ts = rdr.GetInt64(1);
-
-                            queue.Add(new CommandMessage { fileId = new Guid(_guid), timestamp = new UnixTimeUtc(ts) });
+                            queue.Add(ReadRecordFromReaderAll(rdr));
                             i++;
                         }
 

@@ -170,6 +170,42 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
+        // SELECT key,data
+        public KeyValueRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        {
+            var result = new List<KeyValueRecord>();
+            byte[] _tmpbuf = new byte[1048576+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new KeyValueRecord();
+
+            if (rdr.IsDBNull(0))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in key...");
+                item.key = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(1))
+                item.data = null;
+            else
+            {
+                bytesRead = rdr.GetBytes(1, 0, _tmpbuf, 0, 1048576+1);
+                if (bytesRead > 1048576)
+                    throw new Exception("Too much data in data...");
+                if (bytesRead < 0)
+                    throw new Exception("Too little data in data...");
+                item.data = new byte[bytesRead];
+                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+            }
+            return item;
+       }
+
         public int Delete(Guid key)
         {
             lock (_delete0Lock)
@@ -189,6 +225,32 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
+        public KeyValueRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid key)
+        {
+            var result = new List<KeyValueRecord>();
+            byte[] _tmpbuf = new byte[1048576+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new KeyValueRecord();
+            item.key = key;
+
+            if (rdr.IsDBNull(0))
+                item.data = null;
+            else
+            {
+                bytesRead = rdr.GetBytes(0, 0, _tmpbuf, 0, 1048576+1);
+                if (bytesRead > 1048576)
+                    throw new Exception("Too much data in data...");
+                if (bytesRead < 0)
+                    throw new Exception("Too little data in data...");
+                item.data = new byte[bytesRead];
+                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+            }
+            return item;
+       }
+
         public KeyValueRecord Get(Guid key)
         {
             lock (_get0Lock)
@@ -206,30 +268,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _get0Param1.Value = key.ToByteArray();
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
-                    var result = new KeyValueRecord();
                     if (!rdr.Read())
                         return null;
-                    byte[] _tmpbuf = new byte[1048576+1];
-#pragma warning disable CS0168
-                    long bytesRead;
-#pragma warning restore CS0168
-                    var _guid = new byte[16];
-                        var item = new KeyValueRecord();
-                        item.key = key;
-
-                        if (rdr.IsDBNull(0))
-                            item.data = null;
-                        else
-                        {
-                            bytesRead = rdr.GetBytes(0, 0, _tmpbuf, 0, 1048576+1);
-                            if (bytesRead > 1048576)
-                                throw new Exception("Too much data in data...");
-                            if (bytesRead < 0)
-                                throw new Exception("Too little data in data...");
-                            item.data = new byte[bytesRead];
-                            Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
-                        }
-                    return item;
+                    return ReadRecordFromReader0(rdr, key);
                 } // using
             } // lock
         }

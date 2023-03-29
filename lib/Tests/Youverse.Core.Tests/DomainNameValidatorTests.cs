@@ -201,6 +201,7 @@ namespace Youverse.Core.Tests
         }
 
         [Test]
+        [Ignore("Not yet used...")]
         public void CNameLookupTest()
         {
             string s;

@@ -36,11 +36,16 @@ namespace Youverse.Core.Services.Transit.SendingHost.Outbox
 
         public async Task<(IEnumerable<OdinId>, Guid marker)> GetIdentities()
         {
-            var records = _serverSystemStorage.tblCron.Pop(1, out var marker);
+            var records = _serverSystemStorage.tblCron.Pop(1);
 
+            if (!records.Any())
+            {
+                return (new List<OdinId>(), Guid.Empty);
+            }
+            
             var senders = records.Select(item => new OdinId(item.data.ToStringFromUtf8Bytes())).ToList();
 
-            var result = (senders, marker);
+            var result = (senders, records.First().popStamp.GetValueOrDefault());
             return await Task.FromResult(result);
         }
 

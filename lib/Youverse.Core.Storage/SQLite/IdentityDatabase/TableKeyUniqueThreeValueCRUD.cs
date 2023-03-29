@@ -247,6 +247,68 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
+        // SELECT key1,key2,key3,data
+        public KeyUniqueThreeValueRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        {
+            var result = new List<KeyUniqueThreeValueRecord>();
+            byte[] _tmpbuf = new byte[1048576+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new KeyUniqueThreeValueRecord();
+
+            if (rdr.IsDBNull(0))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in key1...");
+                item.key1 = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(1))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(1, 0, _tmpbuf, 0, 256+1);
+                if (bytesRead > 256)
+                    throw new Exception("Too much data in key2...");
+                if (bytesRead < 0)
+                    throw new Exception("Too little data in key2...");
+                item.key2 = new byte[bytesRead];
+                Buffer.BlockCopy(_tmpbuf, 0, item.key2, 0, (int) bytesRead);
+            }
+
+            if (rdr.IsDBNull(2))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(2, 0, _tmpbuf, 0, 256+1);
+                if (bytesRead > 256)
+                    throw new Exception("Too much data in key3...");
+                if (bytesRead < 0)
+                    throw new Exception("Too little data in key3...");
+                item.key3 = new byte[bytesRead];
+                Buffer.BlockCopy(_tmpbuf, 0, item.key3, 0, (int) bytesRead);
+            }
+
+            if (rdr.IsDBNull(3))
+                item.data = null;
+            else
+            {
+                bytesRead = rdr.GetBytes(3, 0, _tmpbuf, 0, 1048576+1);
+                if (bytesRead > 1048576)
+                    throw new Exception("Too much data in data...");
+                if (bytesRead < 0)
+                    throw new Exception("Too little data in data...");
+                item.data = new byte[bytesRead];
+                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+            }
+            return item;
+       }
+
         public int Delete(Guid key1)
         {
             lock (_delete0Lock)
@@ -372,6 +434,49 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // lock
         }
 
+        public KeyUniqueThreeValueRecord ReadRecordFromReader2(SqliteDataReader rdr, byte[] key2,byte[] key3)
+        {
+            if (key2 == null) throw new Exception("Cannot be null");
+            if (key2?.Length < 0) throw new Exception("Too short");
+            if (key2?.Length > 256) throw new Exception("Too long");
+            if (key3 == null) throw new Exception("Cannot be null");
+            if (key3?.Length < 0) throw new Exception("Too short");
+            if (key3?.Length > 256) throw new Exception("Too long");
+            var result = new List<KeyUniqueThreeValueRecord>();
+            byte[] _tmpbuf = new byte[1048576+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new KeyUniqueThreeValueRecord();
+            item.key2 = key2;
+            item.key3 = key3;
+
+            if (rdr.IsDBNull(0))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in key1...");
+                item.key1 = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(1))
+                item.data = null;
+            else
+            {
+                bytesRead = rdr.GetBytes(1, 0, _tmpbuf, 0, 1048576+1);
+                if (bytesRead > 1048576)
+                    throw new Exception("Too much data in data...");
+                if (bytesRead < 0)
+                    throw new Exception("Too little data in data...");
+                item.data = new byte[bytesRead];
+                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+            }
+            return item;
+       }
+
         public List<KeyUniqueThreeValueRecord> GetByKeyTwoThree(byte[] key2,byte[] key3)
         {
             if (key2 == null) throw new Exception("Cannot be null");
@@ -399,50 +504,71 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _get2Param2.Value = key3;
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get2Command, System.Data.CommandBehavior.Default))
                 {
-                    var result = new List<KeyUniqueThreeValueRecord>();
                     if (!rdr.Read())
                         return null;
-                    byte[] _tmpbuf = new byte[1048576+1];
-#pragma warning disable CS0168
-                    long bytesRead;
-#pragma warning restore CS0168
-                    var _guid = new byte[16];
+                    var result = new List<KeyUniqueThreeValueRecord>();
                     while (true)
                     {
-                        var item = new KeyUniqueThreeValueRecord();
-                        item.key2 = key2;
-                        item.key3 = key3;
-
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
-                            if (bytesRead != 16)
-                                throw new Exception("Not a GUID in key1...");
-                            item.key1 = new Guid(_guid);
-                        }
-
-                        if (rdr.IsDBNull(1))
-                            item.data = null;
-                        else
-                        {
-                            bytesRead = rdr.GetBytes(1, 0, _tmpbuf, 0, 1048576+1);
-                            if (bytesRead > 1048576)
-                                throw new Exception("Too much data in data...");
-                            if (bytesRead < 0)
-                                throw new Exception("Too little data in data...");
-                            item.data = new byte[bytesRead];
-                            Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
-                        }
-                        result.Add(item);
+                        result.Add(ReadRecordFromReader2(rdr, key2,key3));
                         if (!rdr.Read())
-                           break;
-                    } // while
+                            break;
+                    }
                     return result;
                 } // using
             } // lock
         }
+
+        public KeyUniqueThreeValueRecord ReadRecordFromReader3(SqliteDataReader rdr, Guid key1)
+        {
+            var result = new List<KeyUniqueThreeValueRecord>();
+            byte[] _tmpbuf = new byte[1048576+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new KeyUniqueThreeValueRecord();
+            item.key1 = key1;
+
+            if (rdr.IsDBNull(0))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(0, 0, _tmpbuf, 0, 256+1);
+                if (bytesRead > 256)
+                    throw new Exception("Too much data in key2...");
+                if (bytesRead < 0)
+                    throw new Exception("Too little data in key2...");
+                item.key2 = new byte[bytesRead];
+                Buffer.BlockCopy(_tmpbuf, 0, item.key2, 0, (int) bytesRead);
+            }
+
+            if (rdr.IsDBNull(1))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(1, 0, _tmpbuf, 0, 256+1);
+                if (bytesRead > 256)
+                    throw new Exception("Too much data in key3...");
+                if (bytesRead < 0)
+                    throw new Exception("Too little data in key3...");
+                item.key3 = new byte[bytesRead];
+                Buffer.BlockCopy(_tmpbuf, 0, item.key3, 0, (int) bytesRead);
+            }
+
+            if (rdr.IsDBNull(2))
+                item.data = null;
+            else
+            {
+                bytesRead = rdr.GetBytes(2, 0, _tmpbuf, 0, 1048576+1);
+                if (bytesRead > 1048576)
+                    throw new Exception("Too much data in data...");
+                if (bytesRead < 0)
+                    throw new Exception("Too little data in data...");
+                item.data = new byte[bytesRead];
+                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+            }
+            return item;
+       }
 
         public KeyUniqueThreeValueRecord Get(Guid key1)
         {
@@ -461,56 +587,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _get3Param1.Value = key1.ToByteArray();
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get3Command, System.Data.CommandBehavior.SingleRow))
                 {
-                    var result = new KeyUniqueThreeValueRecord();
                     if (!rdr.Read())
                         return null;
-                    byte[] _tmpbuf = new byte[1048576+1];
-#pragma warning disable CS0168
-                    long bytesRead;
-#pragma warning restore CS0168
-                    var _guid = new byte[16];
-                        var item = new KeyUniqueThreeValueRecord();
-                        item.key1 = key1;
-
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            bytesRead = rdr.GetBytes(0, 0, _tmpbuf, 0, 256+1);
-                            if (bytesRead > 256)
-                                throw new Exception("Too much data in key2...");
-                            if (bytesRead < 0)
-                                throw new Exception("Too little data in key2...");
-                            item.key2 = new byte[bytesRead];
-                            Buffer.BlockCopy(_tmpbuf, 0, item.key2, 0, (int) bytesRead);
-                        }
-
-                        if (rdr.IsDBNull(1))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            bytesRead = rdr.GetBytes(1, 0, _tmpbuf, 0, 256+1);
-                            if (bytesRead > 256)
-                                throw new Exception("Too much data in key3...");
-                            if (bytesRead < 0)
-                                throw new Exception("Too little data in key3...");
-                            item.key3 = new byte[bytesRead];
-                            Buffer.BlockCopy(_tmpbuf, 0, item.key3, 0, (int) bytesRead);
-                        }
-
-                        if (rdr.IsDBNull(2))
-                            item.data = null;
-                        else
-                        {
-                            bytesRead = rdr.GetBytes(2, 0, _tmpbuf, 0, 1048576+1);
-                            if (bytesRead > 1048576)
-                                throw new Exception("Too much data in data...");
-                            if (bytesRead < 0)
-                                throw new Exception("Too little data in data...");
-                            item.data = new byte[bytesRead];
-                            Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
-                        }
-                    return item;
+                    return ReadRecordFromReader3(rdr, key1);
                 } // using
             } // lock
         }

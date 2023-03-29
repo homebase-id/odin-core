@@ -36,7 +36,7 @@ namespace ServerDatabaseTests
 
 
             // Pop 10 records from the stack. 
-            var il1 = db.tblCron.Pop(10, out var _);
+            var il1 = db.tblCron.Pop(10);
             Assert.True(il1.Count == 2);
 
             // Let's say that you finished everything for Frodo correctly:
@@ -134,7 +134,7 @@ namespace ServerDatabaseTests
             db.tblCron.Upsert(new CronRecord() { identityId = c1, type = 1, data = d1 });
             var t2 = new UnixTimeUtc();
 
-            var il = db.tblCron.Pop(10, out var popStamp);
+            var il = db.tblCron.Pop(10);
             Assert.True(il.Count == 1);
 
             var i = db.tblCron.Get(c1, 1);
@@ -199,10 +199,10 @@ namespace ServerDatabaseTests
             db.tblCron.Upsert(new CronRecord() { identityId = i1, type = 1, data = d1 });
             db.tblCron.Upsert(new CronRecord() { identityId = i2, type = 1, data = d1 });
 
-            var il1 = db.tblCron.Pop(1, out var popStamp1);
+            var il1 = db.tblCron.Pop(1);
             Assert.True(il1.Count == 1);
 
-            var il2 = db.tblCron.Pop(1, out var popStamp2);
+            var il2 = db.tblCron.Pop(1);
             Assert.True(il2.Count == 1);
 
             // Making sure that the first item on the stack is the first item to get out
@@ -225,7 +225,7 @@ namespace ServerDatabaseTests
             db.tblCron.Upsert(new CronRecord() { identityId = Guid.NewGuid(), type = 1, data = d1 });
             var t2 = new UnixTimeUtc();
 
-            var il1 = db.tblCron.Pop(10, out var popStamp1);
+            var il1 = db.tblCron.Pop(10);
             Assert.True(il1.Count == 3);
 
             // JIC you're wondering about the sleep. In case the timestamp is the same ms as the Pop
@@ -235,29 +235,29 @@ namespace ServerDatabaseTests
             Thread.Sleep(1);
             var t3 = new UnixTimeUtc();
 
-            var il2 = db.tblCron.Pop(10, out var _);
+            var il2 = db.tblCron.Pop(10);
             Assert.True(il2.Count == 0);
 
             db.tblCron.Upsert(new CronRecord() { identityId = Guid.NewGuid(), type = 1, data = d1 });
             db.tblCron.Upsert(new CronRecord() { identityId = Guid.NewGuid(), type = 1, data = d1 });
 
-            il1 = db.tblCron.Pop(10, out var popStamp2);
+            il1 = db.tblCron.Pop(10);
             Assert.True(il1.Count == 2);
             var t4 = new UnixTimeUtc();
 
-            il2 = db.tblCron.Pop(10, out var _);
+            il2 = db.tblCron.Pop(10);
             Assert.True(il2.Count == 0);
 
             db.tblCron.PopRecoverDead(t3);
 
-            il1 = db.tblCron.Pop(10, out var popStamp3);
+            il1 = db.tblCron.Pop(10);
             Assert.True(il1.Count == 3);
 
             Thread.Sleep(1);   // ms pause here too.
             var t5 = new UnixTimeUtc();
             db.tblCron.PopRecoverDead(t5);
 
-            il1 = db.tblCron.Pop(10, out var popStamp5);
+            il1 = db.tblCron.Pop(10);
             Assert.True(il1.Count == 5);
         }
 
@@ -274,7 +274,7 @@ namespace ServerDatabaseTests
             db.tblCron.Upsert(new CronRecord() { identityId = Guid.NewGuid(), type = 1, data = d1 });
             db.tblCron.Upsert(new CronRecord() { identityId = Guid.NewGuid(), type = 1, data = d1 });
 
-            var il1 = db.tblCron.Pop(10, out var popStamp1);
+            var il1 = db.tblCron.Pop(10);
             Assert.True(il1.Count == 3);
 
             db.tblCron.PopCommitList(new List<Guid>() { il1[0].identityId, il1[1].identityId }) ;
@@ -283,7 +283,7 @@ namespace ServerDatabaseTests
 
             db.tblCron.PopRecoverDead(UnixTimeUtc.Now());
 
-            var il2 = db.tblCron.Pop(10, out var _);
+            var il2 = db.tblCron.Pop(10);
             Assert.True(il2.Count == 1);
         }
 
@@ -300,7 +300,7 @@ namespace ServerDatabaseTests
             db.tblCron.Upsert(new CronRecord() { identityId = Guid.NewGuid(), type = 1, data = d1 });
             db.tblCron.Upsert(new CronRecord() { identityId = Guid.NewGuid(), type = 1, data = d1 });
 
-            var il1 = db.tblCron.Pop(10, out var popStamp1);
+            var il1 = db.tblCron.Pop(10);
             Assert.True(il1.Count == 3);
 
             db.tblCron.PopCancelList(new List<Guid>() { il1[0].identityId, il1[1].identityId });
@@ -309,7 +309,7 @@ namespace ServerDatabaseTests
 
             db.tblCron.PopRecoverDead(UnixTimeUtc.Now());
 
-            var il2 = db.tblCron.Pop(10, out var _);
+            var il2 = db.tblCron.Pop(10);
             Assert.True(il2.Count == 3);
         }
 
@@ -334,7 +334,7 @@ namespace ServerDatabaseTests
             Assert.True((i.nextRun >= t1) && (i.nextRun <= t2));
 
             // Pop it, now counters are incremented
-            var il1 = db.tblCron.Pop(1, out var _);
+            var il1 = db.tblCron.Pop(1);
             Assert.True(il1.Count == 1);
 
             // re-check item data
@@ -346,7 +346,7 @@ namespace ServerDatabaseTests
 
 
             // Pop it, now counters are incremented
-            il1 = db.tblCron.Pop(1, out var _);
+            il1 = db.tblCron.Pop(1);
             Assert.True(il1.Count == 1);
 
             // re-check item data
@@ -358,7 +358,7 @@ namespace ServerDatabaseTests
 
 
             // Pop it, now counters are incremented
-            il1 = db.tblCron.Pop(1, out var _);
+            il1 = db.tblCron.Pop(1);
             Assert.True(il1.Count == 1);
 
             // re-check item data

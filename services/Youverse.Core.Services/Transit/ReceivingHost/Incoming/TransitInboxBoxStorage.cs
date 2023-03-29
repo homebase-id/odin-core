@@ -34,14 +34,15 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Incoming
         public async Task<List<TransferInboxItem>> GetPendingItems(Guid driveId)
         {
             //CRITICAL NOTE: we can only get back one item since we want to make sure the marker is for that one item in-case the operation fails
-            var records = this._tenantSystemStorage.Inbox.Pop(driveId, 1, out var marker);
-
+            var records = this._tenantSystemStorage.Inbox.PopSpecificBox(driveId, 1);
+            
             var record = records.SingleOrDefault();
+            
             if (null == record)
             {
                 return new List<TransferInboxItem>();
             }
-
+            
             var items = records.Select(r =>
             {
                 var item = DotYouSystemSerializer.Deserialize<TransferInboxItem>(r.value.ToStringFromUtf8Bytes());
@@ -50,7 +51,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Incoming
                 item.AddedTimestamp = r.timeStamp;
                 item.DriveId = r.boxId;
                 item.FileId = r.fileId;
-                item.Marker = marker;
+                item.Marker = r.popStamp.GetValueOrDefault();
 
                 return item;
             }).ToList();
@@ -58,15 +59,15 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Incoming
             return await Task.FromResult(items);
         }
 
-        public Task MarkComplete(Guid driveId, byte[] marker)
+        public Task MarkComplete(Guid driveId, Guid marker)
         {
-            _tenantSystemStorage.Inbox.PopCommit(marker);
+            _tenantSystemStorage.Inbox.PopCommitAll(marker);
             return Task.CompletedTask;
         }
 
-        public Task MarkFailure(Guid driveId, byte[] marker)
+        public Task MarkFailure(Guid driveId, Guid marker)
         {
-            _tenantSystemStorage.Inbox.PopCancel(marker);
+            _tenantSystemStorage.Inbox.PopCancelAll(marker);
             return Task.CompletedTask;
         }
     }
