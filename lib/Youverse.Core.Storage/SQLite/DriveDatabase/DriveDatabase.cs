@@ -244,26 +244,25 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             List<Guid> tagsAnyOf = null,
             List<Guid> tagsAllOf = null)
         {
-            string stm;
-            string strWhere = "";
-
             if (cursor == null)
             {
                 cursor = new QueryBatchCursor();
             }
 
-            // var list = new List<string>();
-            // var query = string.Join(" ", list);
+            //
+            // OPPOSITE DIRECTION CHANGES...
+            // For opposite direction, reverse < to > and > to < and 
+            // DESC to ASC
+            //
+
+            var listWhereAnd = new List<string>();
 
             if (cursor.pagingCursor != null)
-                strWhere += $"fileid < x'{Convert.ToHexString(cursor.pagingCursor)}' ";
+                listWhereAnd.Add($"fileid < x'{Convert.ToHexString(cursor.pagingCursor)}'");
 
             if (cursor.currentBoundaryCursor != null)
             {
-                if (strWhere != "")
-                    strWhere += "AND ";
-
-                strWhere += $"fileid > x'{Convert.ToHexString(cursor.currentBoundaryCursor)}' ";
+                listWhereAnd.Add($"fileid > x'{Convert.ToHexString(cursor.currentBoundaryCursor)}'");
             }
 
             if (requiredSecurityGroup == null)
@@ -276,99 +275,73 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 throw new Exception($"{nameof(fileSystemType)} is required");
             }
 
-            if (strWhere != "")
-                strWhere += "AND ";
-
-            strWhere += $"(fileSystemType == {fileSystemType}) ";
-
-            if (strWhere != "")
-                strWhere += "AND ";
+            listWhereAnd.Add($"(fileSystemType == {fileSystemType}) ");
 
             if (aclAnyOf == null)
             {
-                strWhere += $"(requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) ";
+                listWhereAnd.Add($"(requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) ");
             }
             else
             {
-                strWhere += $"((requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) OR ";
-                strWhere += $"(fileid IN (SELECT DISTINCT fileid FROM aclindex WHERE aclmemberid IN ({HexList(aclAnyOf)})))) ";
+                listWhereAnd.Add($"((requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) OR " +
+                            $"(fileid IN (SELECT DISTINCT fileid FROM aclindex WHERE aclmemberid IN ({HexList(aclAnyOf)})))) ");
             }
 
             if (IsSet(globalTransitIdAnyOf))
             {
-                if (strWhere != "")
-                    strWhere += "AND ";
-                strWhere += $"globaltransitid IN ({HexList(globalTransitIdAnyOf)}) ";
+                listWhereAnd.Add($"globaltransitid IN ({HexList(globalTransitIdAnyOf)})");
             }
 
             if (IsSet(filetypesAnyOf))
             {
-                if (strWhere != "")
-                    strWhere += "AND ";
-                strWhere += $"filetype IN ({IntList(filetypesAnyOf)}) ";
+                listWhereAnd.Add($"filetype IN ({IntList(filetypesAnyOf)})");
             }
 
             if (IsSet(datatypesAnyOf))
             {
-                if (strWhere != "")
-                    strWhere += "AND ";
-                strWhere += $"datatype IN ({IntList(datatypesAnyOf)}) ";
+                listWhereAnd.Add($"datatype IN ({IntList(datatypesAnyOf)})");
             }
 
             if (IsSet(senderidAnyOf))
             {
-                if (strWhere != "")
-                    strWhere += "AND ";
-                strWhere += $"senderid IN ({HexList(senderidAnyOf)}) ";
+                listWhereAnd.Add($"senderid IN ({HexList(senderidAnyOf)})");
             }
 
             if (IsSet(groupIdAnyOf))
             {
-                if (strWhere != "")
-                    strWhere += "AND ";
-                strWhere += $"groupid IN ({HexList(groupIdAnyOf)}) ";
+                listWhereAnd.Add($"groupid IN ({HexList(groupIdAnyOf)})");
             }
 
             if (IsSet(uniqueIdAnyOf))
             {
-                if (strWhere != "")
-                    strWhere += "AND ";
-                strWhere += $"uniqueid IN ({HexList(uniqueIdAnyOf)}) ";
+                listWhereAnd.Add($"uniqueid IN ({HexList(uniqueIdAnyOf)})");
             }
 
             if (userdateSpan != null)
             {
                 userdateSpan.Validate();
-
-                if (strWhere != "")
-                    strWhere += "AND ";
-                strWhere += $"(userdate >= {userdateSpan.Start.milliseconds} AND userdate <= {userdateSpan.End.milliseconds}) ";
+                listWhereAnd.Add($"(userdate >= {userdateSpan.Start.milliseconds} AND userdate <= {userdateSpan.End.milliseconds})");
             }
 
             if (IsSet(tagsAnyOf))
             {
-                if (strWhere != "")
-                    strWhere += "AND ";
-                strWhere += $"fileid IN (SELECT DISTINCT fileid FROM tagindex WHERE tagid IN ({HexList(tagsAnyOf)})) ";
+                listWhereAnd.Add($"fileid IN (SELECT DISTINCT fileid FROM tagindex WHERE tagid IN ({HexList(tagsAnyOf)}))");
             }
 
             if (IsSet(tagsAllOf))
             {
-                if (strWhere != "")
-                    strWhere += "AND ";
-
                 // TODO: This will return 0 matches. Figure out the right query.
-                strWhere += $"{AndHexList(tagsAllOf)} ";
+                listWhereAnd.Add($"{AndHexList(tagsAllOf)}");
             }
 
-            if (strWhere != "")
+            string strWhere = "";
+            if (listWhereAnd.Count > 0)
             {
-                strWhere = "WHERE " + strWhere;
+                strWhere = "WHERE " + string.Join(" AND ", listWhereAnd);
             }
 
             // Read 1 more than requested to see if we're at the end of the dataset
-            stm = $"SELECT fileid FROM mainindex " + strWhere + $"ORDER BY fileid DESC LIMIT {noOfItems + 1}";
-            // +1 to detect EOD
+            string stm = $"SELECT fileid FROM mainindex " + strWhere + $" ORDER BY fileid DESC LIMIT {noOfItems + 1}";
 
             var cmd = this.CreateCommand();
             cmd.CommandText = stm;
@@ -388,7 +361,9 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     break;
             }
 
-            return (result, rdr.HasRows);
+            bool HasMoreRows = rdr.Read();
+
+            return (result, HasMoreRows);
         }
 
 
@@ -427,9 +402,27 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 throw new YouverseSystemException("fileSystemType required in Query Batch");
             }
             
-            var (result, moreRows) = QueryBatchRaw(noOfItems, ref cursor, fileSystemType, requiredSecurityGroup, globalTransitIdAnyOf, filetypesAnyOf, datatypesAnyOf, senderidAnyOf, groupIdAnyOf,
-                uniqueIdAnyOf,
-                userdateSpan, aclAnyOf, tagsAnyOf, tagsAllOf);
+            var (result, moreRows) = 
+                QueryBatchRaw(noOfItems, 
+                              ref cursor,
+                              fileSystemType,
+                              requiredSecurityGroup,
+                              globalTransitIdAnyOf,
+                              filetypesAnyOf,
+                              datatypesAnyOf,
+                              senderidAnyOf,
+                              groupIdAnyOf,
+                              uniqueIdAnyOf,
+                              userdateSpan,
+                              aclAnyOf,
+                              tagsAnyOf,
+                              tagsAllOf);
+
+            //
+            // OldToNew:
+            //   nextBoundaryCursor and currentBoundaryCursor not needed.
+            //   PagingCursor will probably suffice
+            // 
 
             if (result.Count > 0)
             {
