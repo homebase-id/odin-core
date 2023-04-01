@@ -55,28 +55,16 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             throw new NoValidIndexClientException(driveId);
         }
 
-        public async Task<QueryBatchResult> GetBatch(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options, bool forceIncludeServerMetadata = false)
+        /// <summary>
+        /// Executes a query for the parameters while enforcing the callers ability to read the specified drive
+        /// </summary>
+        public async Task<QueryBatchResult> GetBatch(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options,
+            bool forceIncludeServerMetadata = false)
         {
             AssertCanReadDrive(driveId);
-
-            if (TryGetOrLoadQueryManager(driveId, out var queryManager))
-            {
-                var (cursor, fileIdList) = await queryManager.GetBatch(ContextAccessor.GetCurrent(),
-                    GetFileSystemType(),
-                    qp,
-                    options);
-
-                var headers = await CreateClientFileHeaders(driveId, fileIdList, options, forceIncludeServerMetadata);
-                return new QueryBatchResult()
-                {
-                    IncludeMetadataHeader = options.IncludeJsonContent,
-                    Cursor = cursor,
-                    SearchResults = headers
-                };
-            }
-
-            throw new NoValidIndexClientException(driveId);
+            return await GetBatchInternal(driveId, qp, options, forceIncludeServerMetadata);
         }
+
 
         public async Task<SharedSecretEncryptedFileHeader> GetFileByClientUniqueId(Guid driveId, Guid clientUniqueId)
         {
@@ -123,9 +111,11 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             return collection;
         }
 
-        public async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(Guid driveId, Guid globalTransitId, bool forceIncludeServerMetadata = false)
+        public async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitIdForWritingAFile(Guid driveId, Guid globalTransitId,
+            bool forceIncludeServerMetadata = false)
         {
-            AssertCanReadDrive(driveId);
+            AssertCanWriteToDrive(driveId);
+
             var qp = new FileQueryParams()
             {
                 GlobalTransitId = new List<Guid>() { globalTransitId }
@@ -138,7 +128,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
                 ExcludePreviewThumbnail = true
             };
 
-            var results = await this.GetBatch(driveId, qp, options, forceIncludeServerMetadata);
+            var results = await this.GetBatchInternal(driveId, qp, options, forceIncludeServerMetadata);
 
             return results.SearchResults.SingleOrDefault();
         }
@@ -186,7 +176,8 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
         public async Task<InternalDriveFileId?> ResolveFileId(GlobalTransitIdFileIdentifier file)
         {
             var driveId = ContextAccessor.GetCurrent().PermissionsContext.GetDriveId(file.TargetDrive);
-            AssertCanReadDrive(driveId);
+            // AssertCanReadDrive(driveId);
+            AssertCanReadOrWriteToDrive(driveId);
 
             var qp = new FileQueryParams()
             {
@@ -218,6 +209,28 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
                 {
                     FileId = fileId,
                     DriveId = driveId
+                };
+            }
+
+            throw new NoValidIndexClientException(driveId);
+        }
+
+        private async Task<QueryBatchResult> GetBatchInternal(Guid driveId, FileQueryParams qp, QueryBatchResultOptions options,
+            bool forceIncludeServerMetadata = false)
+        {
+            if (TryGetOrLoadQueryManager(driveId, out var queryManager))
+            {
+                var (cursor, fileIdList) = await queryManager.GetBatch(ContextAccessor.GetCurrent(),
+                    GetFileSystemType(),
+                    qp,
+                    options);
+
+                var headers = await CreateClientFileHeaders(driveId, fileIdList, options, forceIncludeServerMetadata);
+                return new QueryBatchResult()
+                {
+                    IncludeMetadataHeader = options.IncludeJsonContent,
+                    Cursor = cursor,
+                    SearchResults = headers
                 };
             }
 

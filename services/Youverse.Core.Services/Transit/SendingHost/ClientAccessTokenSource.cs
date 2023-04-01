@@ -10,6 +10,11 @@ namespace Youverse.Core.Services.Transit.SendingHost;
 public enum ClientAccessTokenSource
 {
     /// <summary>
+    /// Gets the recipients token using Circle then falls back to Follower if the recipient is not connected.
+    /// </summary>
+    Auto = 0,
+    
+    /// <summary>
     /// Get the recipient's token from the <see cref="CircleNetworkService"/>
     /// </summary>
     Circle = 1,

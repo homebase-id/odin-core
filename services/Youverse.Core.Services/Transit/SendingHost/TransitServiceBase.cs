@@ -58,6 +58,23 @@ namespace Youverse.Core.Services.Transit.SendingHost
 
         protected async Task<ClientAccessToken> ResolveClientAccessToken(OdinId recipient, ClientAccessTokenSource source)
         {
+            if (source == ClientAccessTokenSource.Auto)
+            {
+                var icr = await _circleNetworkService.GetIdentityConnectionRegistration(recipient);
+                if (icr?.IsConnected() == false)
+                {
+                    var def = await _followerService.GetFollower(recipient);
+                    if (null == def)
+                    {
+                        throw new YouverseClientException("Not a follower", YouverseClientErrorCode.NotAFollowerIdentity);
+                    }
+                
+                    return def!.CreateClientAccessToken();
+                }
+                
+                return icr!.CreateClientAccessToken();
+            }
+            
             if (source == ClientAccessTokenSource.Circle)
             {
                 var icr = await _circleNetworkService.GetIdentityConnectionRegistration(recipient);
@@ -79,16 +96,37 @@ namespace Youverse.Core.Services.Transit.SendingHost
                 return def!.CreateClientAccessToken();
             }
             
-            if (source == ClientAccessTokenSource.IdentityIFollow)
-            {
-                var def = await _followerService.GetIdentityIFollow(recipient);
-                if (null == def)
-                {
-                    throw new YouverseClientException("Identity is not followed", YouverseClientErrorCode.IdentityNotFollowed);
-                }
-                
-                return def!.CreateClientAccessToken();
-            }
+            // if (source == ClientAccessTokenSource.Circle)
+            // {
+            //     var icr = await _circleNetworkService.GetIdentityConnectionRegistration(recipient);
+            //     if (icr?.IsConnected() == false)
+            //     {
+            //         throw new YouverseClientException("Cannot resolve client access token; not connected", YouverseClientErrorCode.NotAConnectedIdentity);
+            //     }
+            //     return icr!.CreateClientAccessToken();
+            // }
+            //
+            // if (source == ClientAccessTokenSource.Follower)
+            // {
+            //     var def = await _followerService.GetFollower(recipient);
+            //     if (null == def)
+            //     {
+            //         throw new YouverseClientException("Not a follower", YouverseClientErrorCode.NotAFollowerIdentity);
+            //     }
+            //     
+            //     return def!.CreateClientAccessToken();
+            // }
+            
+            // if (source == ClientAccessTokenSource.IdentityIFollow)
+            // {
+            //     var def = await _followerService.GetIdentityIFollow(recipient);
+            //     if (null == def)
+            //     {
+            //         throw new YouverseClientException("Identity is not followed", YouverseClientErrorCode.IdentityNotFollowed);
+            //     }
+            //     
+            //     return def!.CreateClientAccessToken();
+            // }
 
             throw new ArgumentException("Invalid ClientAccessTokenSource");
         }

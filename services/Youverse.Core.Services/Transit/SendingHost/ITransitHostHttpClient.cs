@@ -46,5 +46,8 @@ namespace Youverse.Core.Services.Transit.SendingHost
         [Get(RootPath + "/security/context")]
         Task<ApiResponse<RedactedDotYouContext>> GetRemoteDotYouContext();
 
+        [Post(RootPath + "/reactionpreview")]
+        Task<ApiResponse<HostTransitResponse>> SendReactionPreview(SharedSecretEncryptedTransitPayload payload);
+        
     }
 }

@@ -12,6 +12,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Contacts.Circle.Membership;
+using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Core.Services.Drives.DriveCore.Storage;
 using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Drives.FileSystem.Comment;
@@ -44,10 +46,14 @@ namespace Youverse.Hosting.Controllers.Certificate
         private IDriveFileSystem _fileSystem;
         private readonly IMediator _mediator;
         private Guid _stateItemId;
+        private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
+        private readonly ICircleNetworkService _circleNetworkService;
+        private readonly FollowerService _followerService;
+
 
         /// <summary />
         public TransitPerimeterController(DotYouContextAccessor contextAccessor, IPublicKeyService publicKeyService, DriveManager driveManager,
-            ITenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver)
+            ITenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver, ICircleNetworkService circleNetworkService, IDotYouHttpClientFactory dotYouHttpClientFactory, FollowerService followerService)
         {
             _contextAccessor = contextAccessor;
             _publicKeyService = publicKeyService;
@@ -55,6 +61,9 @@ namespace Youverse.Hosting.Controllers.Certificate
             _tenantSystemStorage = tenantSystemStorage;
             _mediator = mediator;
             _fileSystemResolver = fileSystemResolver;
+            _circleNetworkService = circleNetworkService;
+            _dotYouHttpClientFactory = dotYouHttpClientFactory;
+            _followerService = followerService;
         }
 
         /// <summary />
@@ -85,7 +94,10 @@ namespace Youverse.Hosting.Controllers.Certificate
                 //End Optimizations
 
                 _perimeterService = new TransitPerimeterService(_contextAccessor, _publicKeyService,
-                    _driveManager, _fileSystem, _tenantSystemStorage, _mediator, _fileSystemResolver);
+                    _driveManager, _fileSystem, _tenantSystemStorage, _mediator, _fileSystemResolver,
+                    _dotYouHttpClientFactory,
+                    _circleNetworkService, 
+                    _followerService);
 
                 _stateItemId = await _perimeterService.InitializeIncomingTransfer(transferInstructionSet);
 

@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Contacts.Circle.Membership;
+using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Drives.Management;
@@ -15,6 +17,7 @@ using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.ReceivingHost;
 using Youverse.Core.Services.Transit.ReceivingHost.Quarantine;
+using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Core.Storage;
 using Youverse.Hosting.Authentication.Perimeter;
 using Youverse.Hosting.Controllers.Base;
@@ -35,10 +38,14 @@ namespace Youverse.Hosting.Controllers.Certificate
         private readonly ITenantSystemStorage _tenantSystemStorage;
         private readonly IMediator _mediator;
         private readonly FileSystemResolver _fileSystemResolver;
+        private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
+        private readonly ICircleNetworkService _circleNetworkService;
+        private readonly FollowerService _followerService;
 
         /// <summary />
         public TransitPerimeterDriveController(DotYouContextAccessor contextAccessor, IPublicKeyService publicKeyService, DriveManager driveManager,
-            ITenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver)
+            ITenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver,
+            IDotYouHttpClientFactory dotYouHttpClientFactory, ICircleNetworkService circleNetworkService, FollowerService followerService)
         {
             _contextAccessor = contextAccessor;
             this._publicKeyService = publicKeyService;
@@ -46,6 +53,9 @@ namespace Youverse.Hosting.Controllers.Certificate
             this._tenantSystemStorage = tenantSystemStorage;
             this._mediator = mediator;
             _fileSystemResolver = fileSystemResolver;
+            _dotYouHttpClientFactory = dotYouHttpClientFactory;
+            _circleNetworkService = circleNetworkService;
+            _followerService = followerService;
         }
 
         [HttpPost("querybatch")]
@@ -128,7 +138,7 @@ namespace Youverse.Hosting.Controllers.Certificate
             var drives = await perimeterService.GetDrives(request.DriveType);
             return drives;
         }
-        
+
         [HttpGet("security/context")]
         public Task<RedactedDotYouContext> GetRemoteSecurityContext()
         {
@@ -140,9 +150,16 @@ namespace Youverse.Hosting.Controllers.Certificate
         {
             var perimeterService = GetPerimeterService();
             return await perimeterService.AcceptDeleteLinkedFileRequest(
-                transitRequest.RemoteGlobalTransitIdFileIdentifier.TargetDrive, 
+                transitRequest.RemoteGlobalTransitIdFileIdentifier.TargetDrive,
                 transitRequest.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
                 transitRequest.FileSystemType);
+        }
+
+        [HttpPost("reactionpreview")]
+        public async Task<HostTransitResponse> AcceptUpdatedReactionPreview(SharedSecretEncryptedTransitPayload payload)
+        {
+            var perimeterService = GetPerimeterService();
+            return await perimeterService.AcceptUpdatedReactionPreview(payload);
         }
 
         private TransitPerimeterService GetPerimeterService()
@@ -154,7 +171,10 @@ namespace Youverse.Hosting.Controllers.Certificate
                 fileSystem,
                 _tenantSystemStorage,
                 _mediator,
-                _fileSystemResolver);
+                _fileSystemResolver, 
+                _dotYouHttpClientFactory,
+                _circleNetworkService, 
+                _followerService);
         }
     }
 }

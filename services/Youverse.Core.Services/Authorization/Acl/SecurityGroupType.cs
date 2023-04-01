@@ -19,9 +19,15 @@ namespace Youverse.Core.Services.Authorization.Acl
         Authenticated = 444,
 
         /// <summary>
+        /// Alpha release hack to allow connected identities to the feed drive.
+        /// </summary>
+        FeedDriveAccess = 707,
+
+        /// <summary>
         /// Requests where the caller is marked as connected and holds a connected token
         /// </summary>
         Connected = 777,
+        
         
         /// <summary>
         /// Specifies that only the owner can access a file

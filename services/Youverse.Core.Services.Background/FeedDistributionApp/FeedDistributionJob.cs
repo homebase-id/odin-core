@@ -23,19 +23,16 @@ namespace Youverse.Core.Services.Workers.FeedDistributionApp
             if (record.type == (Int32)CronJobType.FeedDistribution)
             {
                 var distroTask = DotYouSystemSerializer.Deserialize<FeedDistributionInfo>(record.data.ToStringFromUtf8Bytes());
-                return await DistributeFeedItem(distroTask.OdinId);
+                return await DistributeFeedItem(distroTask);
             }
 
             throw new YouverseSystemException($"Record type {record.type} not handled");
         }
 
-        private async Task<bool> DistributeFeedItem(OdinId identity)
+        private async Task<bool> DistributeFeedItem(FeedDistributionInfo info)
         {
-            var svc = SystemHttpClient.CreateHttps<IFeedDistributionClient>(identity);
-            
-            //TODO: add CAT
-            
-            var response = await svc.DistributeQueuedItems();
+            var svc = SystemHttpClient.CreateHttps<IFeedDistributionClient>(info.OdinId);
+            var response = await svc.DistributeReactionPreviewUpdates();
             return response.IsSuccessStatusCode;
         }
     }

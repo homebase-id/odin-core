@@ -12,5 +12,8 @@
         /// </summary>
         public static string Header = "SY4829";
 
+        
+        public static string AppCatHeader = "SY22";
+
     }
 }

@@ -56,7 +56,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
 
         var referencedFile = updatedFileHeader.FileMetadata.ReferencedFile!;
         var referenceFileDriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(referencedFile.TargetDrive);
-        var referencedFileHeader = await fs.Query.GetFileByGlobalTransitId(referenceFileDriveId, referencedFile.GlobalTransitId);
+        var referencedFileHeader = await fs.Query.GetFileByGlobalTransitIdForWritingAFile(referenceFileDriveId, referencedFile.GlobalTransitId);
         var referencedFileReactionPreview = referencedFileHeader.FileMetadata.ReactionPreview ?? new ReactionSummary();
 
         if (notification.DriveNotificationType == DriveNotificationType.FileAdded)
@@ -74,7 +74,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
             HandleFileDeleted(updatedFileHeader, ref referencedFileReactionPreview);
         }
 
-        await fs.Storage.UpdateStatistics(new InternalDriveFileId()
+        await fs.Storage.UpdateReactionPreview(new InternalDriveFileId()
             {
                 FileId = referencedFileHeader.FileId,
                 DriveId = referenceFileDriveId
@@ -157,7 +157,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
 
         preview.Reactions = dict;
 
-        fs.Storage.UpdateStatistics(targetFile, preview).GetAwaiter().GetResult();
+        fs.Storage.UpdateReactionPreview(targetFile, preview).GetAwaiter().GetResult();
         return Task.CompletedTask;
     }
 }

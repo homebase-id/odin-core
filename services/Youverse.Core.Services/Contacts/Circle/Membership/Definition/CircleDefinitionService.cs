@@ -6,6 +6,7 @@ using Dawn;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
+using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Storage;
 
@@ -130,10 +131,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
 
                 var drive = _driveManager.GetDrive(driveId.GetValueOrDefault()).GetAwaiter().GetResult();
 
-                if (drive.OwnerOnly)
-                {
-                    throw new YouverseSecurityException("Cannot grant access to owner-only drives to circles");
-                }
+                // if (drive.OwnerOnly && dgr.PermissionedDrive.Permission.HasFlag(DrivePermission.Read))
+                // {
+                //     throw new YouverseSecurityException("Cannot grant access to owner-only drives to circles with read permissions");
+                // }
             }
         }
 

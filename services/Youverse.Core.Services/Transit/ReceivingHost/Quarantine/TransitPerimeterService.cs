@@ -5,11 +5,15 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using MediatR;
+using Org.BouncyCastle.Asn1.Ocsp;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Apps;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Contacts.Circle.Membership;
+using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.DriveCore.Query;
 using Youverse.Core.Services.Drives.DriveCore.Storage;
@@ -25,7 +29,7 @@ using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
 {
-    public class TransitPerimeterService : ITransitPerimeterService
+    public class TransitPerimeterService : TransitServiceBase, ITransitPerimeterService
     {
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly ITransitPerimeterTransferStateService _transitPerimeterTransferStateService;
@@ -43,7 +47,10 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
             IDriveFileSystem fileSystem,
             ITenantSystemStorage tenantSystemStorage,
             IMediator mediator,
-            FileSystemResolver fileSystemResolver)
+            FileSystemResolver fileSystemResolver,
+            IDotYouHttpClientFactory dotYouHttpClientFactory,
+            ICircleNetworkService circleNetworkService,
+            FollowerService followerService) : base(dotYouHttpClientFactory, circleNetworkService, contextAccessor, followerService, fileSystemResolver)
         {
             _contextAccessor = contextAccessor;
             _publicKeyService = publicKeyService;
@@ -140,22 +147,6 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
             throw new HostToHostTransferException("Unhandled error");
         }
 
-        private async Task<TransitResponseCode> CompleteTransfer(IncomingTransferStateItem stateItem, FileMetadata fileMetadata)
-        {
-            //S0001, S1000, S2000 - can the sender write the content to the target drive?
-            _fileSystem.Storage.AssertCanWriteToDrive(stateItem.TempFile.DriveId);
-
-            var directWriteSuccess = await TryDirectWriteFile(stateItem, fileMetadata);
-
-            if (directWriteSuccess)
-            {
-                return TransitResponseCode.AcceptedDirectWrite;
-            }
-
-            //S1220
-            return await RouteToInbox(stateItem);
-        }
-
         public async Task<HostTransitResponse> AcceptDeleteLinkedFileRequest(TargetDrive targetDrive, Guid globalTransitId, FileSystemType fileSystemType)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(targetDrive);
@@ -165,19 +156,18 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
 
             //if the sender can write, we can perform this now
 
-            if(fileSystemType == FileSystemType.Comment)
+            if (fileSystemType == FileSystemType.Comment)
             {
                 //Note: we need to check if the person deleting the comment is the original commenter or the owner
-                var header = await _fileSystem.Query.GetFileByGlobalTransitId(driveId, globalTransitId);
+                var header = await _fileSystem.Query.GetFileByGlobalTransitIdForWritingAFile(driveId, globalTransitId);
                 if (null != header)
                 {
-
                     //requester must be the original commenter
                     if (header.FileMetadata.SenderOdinId != _contextAccessor.GetCurrent().Caller.OdinId)
                     {
                         throw new YouverseSecurityException();
                     }
-                    
+
                     await _fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
                     {
                         FileId = header.FileId,
@@ -191,7 +181,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
                     };
                 }
             }
-            
+
             try
             {
                 var item = new TransferInboxItem()
@@ -199,15 +189,15 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
                     Id = Guid.NewGuid(),
                     AddedTimestamp = UnixTimeUtc.Now(),
                     Sender = this._contextAccessor.GetCurrent().GetCallerOdinIdOrFail(),
-            
+
                     InstructionType = TransferInstructionType.DeleteLinkedFile,
                     DriveId = driveId,
                     GlobalTransitId = globalTransitId,
                     FileSystemType = fileSystemType,
                 };
-            
+
                 await _transitInboxBoxStorage.Add(item);
-            
+
                 return new HostTransitResponse()
                 {
                     Code = TransitResponseCode.AcceptedIntoInbox,
@@ -223,6 +213,32 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
                     Message = "Server Error"
                 };
             }
+        }
+
+        public async Task<HostTransitResponse> AcceptUpdatedReactionPreview(SharedSecretEncryptedTransitPayload payload)
+        {
+            var request = await DecryptUsingSharedSecret<UpdateReactionSummaryRequest>(payload, ClientAccessTokenSource.Circle);
+
+            InternalDriveFileId? file;
+            using (new SecurityContextSwitcher(_contextAccessor))
+            {
+                file = await this.ResolveInternalFile(request.File);
+
+                if (null == file)
+                {
+                    return new HostTransitResponse()
+                    {
+                        Code = TransitResponseCode.Rejected
+                    };
+                }
+            }
+
+            await _fileSystem.Storage.UpdateReactionPreview(file.Value, request.ReactionPreview);
+
+            return new HostTransitResponse()
+            {
+                Code = TransitResponseCode.AcceptedDirectWrite
+            };
         }
 
         public Task<QueryBatchResult> QueryBatch(FileQueryParams qp, QueryBatchResultOptions options)
@@ -320,6 +336,8 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
             });
         }
 
+        //
+
         private async Task<FilterAction> ApplyFilters(MultipartHostTransferParts part, Stream data)
         {
             //TODO: when this has the full set of filters
@@ -352,7 +370,22 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
             return FilterAction.Accept;
         }
 
-        //
+        private async Task<TransitResponseCode> CompleteTransfer(IncomingTransferStateItem stateItem, FileMetadata fileMetadata)
+        {
+            //S0001, S1000, S2000 - can the sender write the content to the target drive?
+            _fileSystem.Storage.AssertCanWriteToDrive(stateItem.TempFile.DriveId);
+
+            var directWriteSuccess = await TryDirectWriteFile(stateItem, fileMetadata);
+
+            if (directWriteSuccess)
+            {
+                return TransitResponseCode.AcceptedDirectWrite;
+            }
+
+            //S1220
+            return await RouteToInbox(stateItem);
+        }
+
         private async Task<bool> TryDirectWriteFile(IncomingTransferStateItem stateItem, FileMetadata metadata)
         {
             _fileSystem.Storage.AssertCanWriteToDrive(stateItem.TempFile.DriveId);
@@ -468,6 +501,24 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
             var rsaEncryptedKeyHeader = publicKey.Encrypt(combinedKey.GetKey());
             combinedKey.Wipe();
             return (rsaEncryptedKeyHeader, pk.crc32c);
+        }
+    }
+
+    public class SecurityContextSwitcher : IDisposable
+    {
+        private readonly SecurityGroupType _prevSecurityGroupType;
+        private readonly DotYouContextAccessor _dotYouContextAccessor;
+
+        public SecurityContextSwitcher(DotYouContextAccessor dotYouContextAccessor)
+        {
+            _dotYouContextAccessor = dotYouContextAccessor;
+            _prevSecurityGroupType = _dotYouContextAccessor.GetCurrent().Caller.SecurityLevel;
+            _dotYouContextAccessor.GetCurrent().Caller.SecurityLevel = SecurityGroupType.Owner;
+        }
+
+        public void Dispose()
+        {
+            _dotYouContextAccessor.GetCurrent().Caller.SecurityLevel = _prevSecurityGroupType;
         }
     }
 }

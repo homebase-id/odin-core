@@ -25,6 +25,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
         private readonly IDriveAclAuthorizationService _driveAclAuthorizationService;
         private readonly IMediator _mediator;
         private readonly ILoggerFactory _loggerFactory;
+        private readonly DriveManager _driveManager;
 
         protected DriveStorageServiceBase(
             DotYouContextAccessor contextAccessor,
@@ -37,6 +38,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             _loggerFactory = loggerFactory;
             _mediator = mediator;
             _driveAclAuthorizationService = driveAclAuthorizationService;
+            _driveManager = driveManager;
             DriveManager = driveManager;
         }
 
@@ -139,7 +141,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
 
             return GetTempStorageManager(file.DriveId).GetStream(file.FileId, extension);
         }
-        
+
         public Task<Stream> GetTempStreamForWriting(InternalDriveFileId file, string extension)
         {
             this.AssertCanWriteToDrive(file.DriveId);
@@ -240,6 +242,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
 
         public async Task<ServerFileHeader> GetServerFileHeader(InternalDriveFileId file)
         {
+            this.AssertCanReadDrive(file.DriveId);
             var header = await GetServerFileHeaderInternal(file);
             AssertValidFileSystemType(header.ServerMetadata);
 
@@ -252,13 +255,13 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
         /// </summary>
         public async Task<FileSystemType> ResolveFileSystemType(InternalDriveFileId file)
         {
+            this.AssertCanReadOrWriteToDrive(file.DriveId);
             var header = await GetServerFileHeaderInternal(file);
             return header.ServerMetadata.FileSystemType;
         }
 
         private async Task<ServerFileHeader> GetServerFileHeaderInternal(InternalDriveFileId file)
         {
-            this.AssertCanReadDrive(file.DriveId);
 
             var header = await GetLongTermStorageManager(file.DriveId).GetServerFileHeader(file.FileId);
 
@@ -295,7 +298,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
 
         public bool FileExists(InternalDriveFileId file)
         {
-            this.AssertCanReadDrive(file.DriveId);
+            this.AssertCanReadOrWriteToDrive(file.DriveId);
             return GetLongTermStorageManager(file.DriveId).FileExists(file.FileId);
         }
 
@@ -320,13 +323,16 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             await this.WriteFileHeaderInternal(deletedServerFileHeader);
             await GetLongTermStorageManager(file.DriveId).SoftDelete(file.FileId);
 
-            await _mediator.Publish(new DriveFileDeletedNotification()
+            if (await ShouldRaiseDriveEvent(file))
             {
-                IsHardDelete = false,
-                File = file,
-                ServerFileHeader = deletedServerFileHeader,
-                SharedSecretEncryptedFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(deletedServerFileHeader, ContextAccessor)
-            });
+                await _mediator.Publish(new DriveFileDeletedNotification()
+                {
+                    IsHardDelete = false,
+                    File = file,
+                    ServerFileHeader = deletedServerFileHeader,
+                    SharedSecretEncryptedFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(deletedServerFileHeader, ContextAccessor)
+                });
+            }
         }
 
         public Task HardDeleteLongTermFile(InternalDriveFileId file)
@@ -335,13 +341,16 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
 
             var result = GetLongTermStorageManager(file.DriveId).HardDelete(file.FileId);
 
-            _mediator.Publish(new DriveFileDeletedNotification()
+            if (ShouldRaiseDriveEvent(file).GetAwaiter().GetResult())
             {
-                IsHardDelete = true,
-                File = file,
-                ServerFileHeader = null,
-                SharedSecretEncryptedFileHeader = null
-            });
+                _mediator.Publish(new DriveFileDeletedNotification()
+                {
+                    IsHardDelete = true,
+                    File = file,
+                    ServerFileHeader = null,
+                    SharedSecretEncryptedFileHeader = null
+                });
+            }
 
             return result;
         }
@@ -388,19 +397,22 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             //TODO: calculate payload checksum, put on file metadata
             var serverHeader = new ServerFileHeader()
             {
-                EncryptedKeyHeader = await this.EncryptKeyHeader(targetFile.DriveId, keyHeader),
+                EncryptedKeyHeader = metadata.PayloadIsEncrypted ? await this.EncryptKeyHeader(targetFile.DriveId, keyHeader) : EncryptedKeyHeader.Empty(),
                 FileMetadata = metadata,
                 ServerMetadata = serverMetadata
             };
 
             await this.UpdateActiveFileHeader(targetFile, serverHeader);
 
-            await _mediator.Publish(new DriveFileAddedNotification()
+            if (await ShouldRaiseDriveEvent(targetFile))
             {
-                File = targetFile,
-                ServerFileHeader = serverHeader,
-                SharedSecretEncryptedFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverHeader, ContextAccessor)
-            });
+                await _mediator.Publish(new DriveFileAddedNotification()
+                {
+                    File = targetFile,
+                    ServerFileHeader = serverHeader,
+                    SharedSecretEncryptedFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverHeader, ContextAccessor)
+                });
+            }
         }
 
         public async Task OverwriteFile(InternalDriveFileId tempFile, InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata,
@@ -459,28 +471,34 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             };
 
             await WriteFileHeaderInternal(serverHeader);
-            await _mediator.Publish(new DriveFileChangedNotification()
+            if (await ShouldRaiseDriveEvent(targetFile))
             {
-                File = targetFile,
-                ServerFileHeader = serverHeader,
-                SharedSecretEncryptedFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverHeader, ContextAccessor)
-            });
+                await _mediator.Publish(new DriveFileChangedNotification()
+                {
+                    File = targetFile,
+                    ServerFileHeader = serverHeader,
+                    SharedSecretEncryptedFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverHeader, ContextAccessor)
+                });
+            }
         }
 
-        public async Task UpdateStatistics(InternalDriveFileId targetFile, ReactionSummary summary)
+        public async Task UpdateReactionPreview(InternalDriveFileId targetFile, ReactionSummary summary)
         {
-            ContextAccessor.GetCurrent().PermissionsContext.AssertHasDrivePermission(targetFile.DriveId, DrivePermission.WriteReactionsAndComments);
+            // ContextAccessor.GetCurrent().PermissionsContext.AssertHasDrivePermission(targetFile.DriveId, DrivePermission.WriteReactionsAndComments);
 
             var existingHeader = await GetLongTermStorageManager(targetFile.DriveId).GetServerFileHeader(targetFile.FileId);
             existingHeader.FileMetadata.ReactionPreview = summary;
             await WriteFileHeaderInternal(existingHeader);
 
-            await _mediator.Publish(new StatisticsUpdatedNotification()
+            if (await ShouldRaiseDriveEvent(targetFile))
             {
-                File = targetFile,
-                ServerFileHeader = existingHeader,
-                SharedSecretEncryptedFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(existingHeader, ContextAccessor)
-            });
+                await _mediator.Publish(new ReactionPreviewUpdatedNotification()
+                {
+                    File = targetFile,
+                    ServerFileHeader = existingHeader,
+                    SharedSecretEncryptedFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(existingHeader, ContextAccessor)
+                });
+            }
         }
 
         //
@@ -518,6 +536,11 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
                 //just in case the caller used the wrong drive service instance
                 throw new YouverseClientException($"Invalid SystemFileCategory.  This service only handles the FileSystemType of {GetFileSystemType()}");
             }
+        }
+
+        private async Task<bool> ShouldRaiseDriveEvent(InternalDriveFileId file)
+        {
+            return file.DriveId != (await _driveManager.GetDriveIdByAlias(SystemDriveConstants.TransientTempDrive));
         }
     }
 }

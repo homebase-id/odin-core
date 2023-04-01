@@ -26,5 +26,11 @@ namespace Youverse.Core.Services.Transit.SendingHost
         /// </summary>
         Task<Dictionary<string, TransitResponseCode>> SendDeleteLinkedFileRequest(GlobalTransitIdFileIdentifier remoteGlobalTransitIdentifier, SendFileOptions sendFileOptions,
             IEnumerable<string> recipients);
+
+
+        Task<Dictionary<string, TransitResponseCode>> SendReactionPreview(
+            InternalDriveFileId file,
+            SendFileOptions sendFileOptions,
+            IEnumerable<string> recipients);
     }
 }

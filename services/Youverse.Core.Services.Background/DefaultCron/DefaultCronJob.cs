@@ -35,7 +35,6 @@ namespace Youverse.Core.Services.Workers.DefaultCron
 
             Dictionary<Guid, CertificateOrderStatus> statusMap = new();
             
-            
             var markers = new List<Guid>() { items.First().popStamp.GetValueOrDefault() };
 
             foreach (var item in items)
@@ -89,8 +88,6 @@ namespace Youverse.Core.Services.Workers.DefaultCron
 
         private async Task<bool> StokeOutbox(OdinId identity, int batchSize)
         {
-            // _logger.LogInformation($"Stoke running for {identity}");
-
             var svc = SystemHttpClient.CreateHttps<ICronHttpClient>(identity);
             var response = await svc.ProcessOutbox(batchSize);
             return response.IsSuccessStatusCode;

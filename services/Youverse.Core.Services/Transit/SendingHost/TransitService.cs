@@ -49,7 +49,8 @@ namespace Youverse.Core.Services.Transit.SendingHost
             FollowerService followerService,
             DriveManager driveManager,
             IDriveFileSystem fileSystem,
-            FileSystemResolver fileSystemResolver) : base(dotYouHttpClientFactory, circleNetworkService, contextAccessor, followerService, fileSystemResolver)
+            FileSystemResolver fileSystemResolver) :
+            base(dotYouHttpClientFactory, circleNetworkService, contextAccessor, followerService, fileSystemResolver)
         {
             _contextAccessor = contextAccessor;
             _transitOutbox = transitOutbox;
@@ -180,6 +181,66 @@ namespace Youverse.Core.Services.Transit.SendingHost
 
             return result;
         }
+
+
+        public async Task<Dictionary<string, TransitResponseCode>> SendReactionPreview(
+            InternalDriveFileId file,
+            SendFileOptions sendFileOptions,
+            IEnumerable<string> recipients)
+        {
+            Dictionary<string, TransitResponseCode> result = new Dictionary<string, TransitResponseCode>();
+
+            var fs = _fileSystemResolver.ResolveFileSystem(file);
+            var header = await fs.Storage.GetServerFileHeader(file);
+
+            //TODO: Handle security??
+
+            if (null == header.FileMetadata.ReactionPreview)
+            {
+                //TODO?
+                return null;
+            }
+
+            var request = new UpdateReactionSummaryRequest()
+            {
+                File = new GlobalTransitIdFileIdentifier()
+                {
+                    GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
+                    TargetDrive = SystemDriveConstants.FeedDrive
+                },
+                ReactionPreview = header.FileMetadata.ReactionPreview
+            };
+
+            foreach (var r in recipients)
+            {
+                var recipient = (OdinId)r;
+
+                //TODO: need to validate the recipient can get the file - security
+
+                //TODO: need build a fallback token lookup
+
+                var clientAccessToken = await ResolveClientAccessToken(recipient, sendFileOptions.ClientAccessTokenSource);
+
+                var client = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(recipient, clientAccessToken.ToAuthenticationToken(),
+                    fileSystemType: sendFileOptions.FileSystemType);
+
+                var payload = this.CreateSharedSecretEncryptedPayload(clientAccessToken, request);
+                var httpResponse = await client.SendReactionPreview(payload);
+
+                if (httpResponse.IsSuccessStatusCode)
+                {
+                    var transitResponse = httpResponse.Content;
+                    result.Add(recipient, transitResponse!.Code);
+                }
+                else
+                {
+                    result.Add(recipient, TransitResponseCode.Rejected);
+                }
+            }
+
+            return result;
+        }
+
 
         private async Task<List<SendResult>> SendBatchNow(IEnumerable<TransitOutboxItem> items)
         {
@@ -387,9 +448,11 @@ namespace Youverse.Core.Services.Transit.SendingHost
                 throw new YouverseClientException("Cannot transfer a file to the sender; what's the point?", YouverseClientErrorCode.InvalidRecipient);
             }
 
+
             var header = await fs.Storage.GetServerFileHeader(internalFile);
             var storageKey = _contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(internalFile.DriveId);
-            var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+
+            var keyHeader = header.FileMetadata.PayloadIsEncrypted ? header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey) : KeyHeader.Empty();
             storageKey.Wipe();
 
             foreach (var r in options.Recipients!)
@@ -505,5 +568,11 @@ namespace Youverse.Core.Services.Transit.SendingHost
 
             return transferStatus;
         }
+    }
+
+    public class UpdateReactionSummaryRequest
+    {
+        public ReactionSummary ReactionPreview { get; set; }
+        public GlobalTransitIdFileIdentifier File { get; set; }
     }
 }

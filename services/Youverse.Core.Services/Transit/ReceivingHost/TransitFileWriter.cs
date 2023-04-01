@@ -49,15 +49,28 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
 
             if (null == metadata)
             {
-                throw new YouverseClientException("Metadata could not be serialized", YouverseClientErrorCode.MalformedMetadata);
+                throw new YouverseClientException("Metadata could not be deserialized", YouverseClientErrorCode.MalformedMetadata);
             }
 
+            //
+            //
+            //
+            //
+            
+            //If i used connected as the acl, it would mean that 
+            //SecurityGroupType.FeedDriveAccess
+            
             // Files coming from other systems are only accessible to the owner so
             // the owner can use the UI to pass the file along
             var targetAcl = new AccessControlList()
             {
                 RequiredSecurityGroup = SecurityGroupType.Owner
             };
+            
+            //
+            //
+            //
+            //
 
             //TODO: this might be a hacky place to put this but let's let it cook.  It might better be put into the comment storage
             if (fileSystemType == FileSystemType.Comment)
@@ -75,7 +88,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
                 // owner, so we need to forceIncludeServerMetadata
                 //
 
-                var referencedFile = await referencedFs.Query.GetFileByGlobalTransitId(fileId.Value.DriveId,
+                var referencedFile = await referencedFs.Query.GetFileByGlobalTransitIdForWritingAFile(fileId.Value.DriveId,
                     metadata.ReferencedFile.GlobalTransitId, forceIncludeServerMetadata: true);
 
                 if (null == referencedFile)
@@ -274,7 +287,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
 
         private async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(IDriveFileSystem fs, Guid driveId, Guid globalTransitId)
         {
-            var existingFile = await fs.Query.GetFileByGlobalTransitId(driveId, globalTransitId);
+            var existingFile = await fs.Query.GetFileByGlobalTransitIdForWritingAFile(driveId, globalTransitId);
             return existingFile;
         }
     }
