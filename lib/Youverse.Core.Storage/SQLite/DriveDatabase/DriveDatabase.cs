@@ -223,7 +223,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
         /// appropriate constructor (by time or by fileId).
         /// </summary>
         /// <param name="noOfItems">Maximum number of results you want back</param>
-        /// <param name="cursor">Pass null to get a complete set of data. Continue to pass the cursor to get the next page.</param>
+        /// <param name="cursor">Pass null to get a complete set of data. Continue to pass the cursor to get the next page. pagingCursor will be updated. When no more data is available, pagingCursor is set to null (query will restart if you keep passing it)</param>
         /// <param name="newestFirstOrder">true to get pages from the newest item first, false to get pages from the oldest item first.</param>
         /// <param name="requiredSecurityGroup"></param>
         /// <param name="filetypesAnyOf"></param>
@@ -382,13 +382,10 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     break;
             }
 
-            if (i < 1)
-                cursor.pagingCursor = null;
-            else
-                cursor.pagingCursor = _fileId; // The last result
+            if (i > 0)
+                cursor.pagingCursor = _fileId; // The last result, ought to be a lone copy
 
-            // Unfortunately, this seems like the only way to know if there's more rows
-            bool HasMoreRows = rdr.Read();
+            bool HasMoreRows = rdr.Read(); // Unfortunately, this seems like the only way to know if there's more rows
 
             return (result, HasMoreRows);
         }
@@ -455,7 +452,6 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 //
                 if (pagingCursorWasNull)
                     cursor.nextBoundaryCursor = result[0].ToByteArray(); // Set to the newest cursor
-                /* cursor.pagingCursor = result[result.Count - 1].ToByteArray(); // The oldest cursor */
 
                 if (result.Count < noOfItems)
                 {
