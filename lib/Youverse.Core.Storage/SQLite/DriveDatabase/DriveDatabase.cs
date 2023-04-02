@@ -215,10 +215,16 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 
 
         /// <summary>
-        /// Will get the newest item first as specified by the cursor.
+        /// Get a page with up to 'noOfItems' rows in either newest first or oldest first order as
+        /// specified by the 'newestFirstOrder' bool. If the cursor.stopAtBoundary is null, paging will
+        /// continue until the last data row. If set, the paging will stop at the specified point. 
+        /// For example if you wanted to get all the latest items but stop
+        /// at 2023-03-15, set the stopAtBoundary to this value by constructing a cusor with the 
+        /// appropriate constructor (by time or by fileId).
         /// </summary>
         /// <param name="noOfItems">Maximum number of results you want back</param>
         /// <param name="cursor">Pass null to get a complete set of data. Continue to pass the cursor to get the next page.</param>
+        /// <param name="newestFirstOrder">true to get pages from the newest item first, false to get pages from the oldest item first.</param>
         /// <param name="requiredSecurityGroup"></param>
         /// <param name="filetypesAnyOf"></param>
         /// <param name="datatypesAnyOf"></param>
@@ -228,9 +234,10 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
         /// <param name="aclAnyOf"></param>
         /// <param name="tagsAnyOf"></param>
         /// <param name="tagsAllOf"></param>
-        /// <returns></returns>
-        private (List<Guid>, bool moreRows) QueryBatchRaw(int noOfItems,
+        /// <returns>List of fileIds in the dataset, and indicates if there is more data to fetch.</fileId></returns>
+        public (List<Guid>, bool moreRows) QueryBatchBasic(int noOfItems,
             ref QueryBatchCursor cursor,
+            bool newestFirstOrder,
             Int32? fileSystemType = null,
             IntRange requiredSecurityGroup = null,
             List<Guid> globalTransitIdAnyOf = null,
@@ -258,11 +265,19 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             var listWhereAnd = new List<string>();
 
             if (cursor.pagingCursor != null)
-                listWhereAnd.Add($"fileid < x'{Convert.ToHexString(cursor.pagingCursor)}'");
-
-            if (cursor.currentBoundaryCursor != null)
             {
-                listWhereAnd.Add($"fileid > x'{Convert.ToHexString(cursor.currentBoundaryCursor)}'");
+                if (newestFirstOrder)
+                    listWhereAnd.Add($"fileid < x'{Convert.ToHexString(cursor.pagingCursor)}'");
+                else
+                    listWhereAnd.Add($"fileid > x'{Convert.ToHexString(cursor.pagingCursor)}'");
+            }
+
+            if (cursor.stopAtBoundary != null)
+            {
+                if (newestFirstOrder)
+                    listWhereAnd.Add($"fileid > x'{Convert.ToHexString(cursor.stopAtBoundary)}'");
+                else
+                    listWhereAnd.Add($"fileid < x'{Convert.ToHexString(cursor.stopAtBoundary)}'");
             }
 
             if (requiredSecurityGroup == null)
@@ -275,16 +290,16 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 throw new Exception($"{nameof(fileSystemType)} is required");
             }
 
-            listWhereAnd.Add($"(fileSystemType == {fileSystemType}) ");
+            listWhereAnd.Add($"(fileSystemType == {fileSystemType})");
 
             if (aclAnyOf == null)
             {
-                listWhereAnd.Add($"(requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) ");
+                listWhereAnd.Add($"(requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End})");
             }
             else
             {
                 listWhereAnd.Add($"((requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) OR " +
-                            $"(fileid IN (SELECT DISTINCT fileid FROM aclindex WHERE aclmemberid IN ({HexList(aclAnyOf)})))) ");
+                            $"(fileid IN (SELECT DISTINCT fileid FROM aclindex WHERE aclmemberid IN ({HexList(aclAnyOf)}))))");
             }
 
             if (IsSet(globalTransitIdAnyOf))
@@ -337,11 +352,17 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             string strWhere = "";
             if (listWhereAnd.Count > 0)
             {
-                strWhere = "WHERE " + string.Join(" AND ", listWhereAnd);
+                strWhere = " WHERE " + string.Join(" AND ", listWhereAnd);
             }
 
-            // Read 1 more than requested to see if we're at the end of the dataset
-            string stm = $"SELECT fileid FROM mainindex " + strWhere + $" ORDER BY fileid DESC LIMIT {noOfItems + 1}";
+            string order;
+            if (newestFirstOrder)
+                order = "DESC";
+            else
+                order = "ASC";
+
+            // Read +1 more than requested to see if we're at the end of the dataset
+            string stm = $"SELECT fileid FROM mainindex" + strWhere + $" ORDER BY fileid {order} LIMIT {noOfItems + 1}";
 
             var cmd = this.CreateCommand();
             cmd.CommandText = stm;
@@ -349,18 +370,24 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             var rdr = this.ExecuteReader(cmd, CommandBehavior.Default);
 
             var result = new List<Guid>();
-            var fileId = new byte[16];
+            var _fileId = new byte[16];
 
             int i = 0;
             while (rdr.Read())
             {
-                rdr.GetBytes(0, 0, fileId, 0, 16);
-                result.Add(new Guid(fileId));
+                rdr.GetBytes(0, 0, _fileId, 0, 16);
+                result.Add(new Guid(_fileId));
                 i++;
                 if (i >= noOfItems)
                     break;
             }
 
+            if (i < 1)
+                cursor.pagingCursor = null;
+            else
+                cursor.pagingCursor = _fileId; // The last result
+
+            // Unfortunately, this seems like the only way to know if there's more rows
             bool HasMoreRows = rdr.Read();
 
             return (result, HasMoreRows);
@@ -401,10 +428,13 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             {
                 throw new YouverseSystemException("fileSystemType required in Query Batch");
             }
+
+            bool pagingCursorWasNull = ((cursor == null) || (cursor.pagingCursor == null));
             
             var (result, moreRows) = 
-                QueryBatchRaw(noOfItems, 
+                QueryBatchBasic(noOfItems, 
                               ref cursor,
+                              newestFirstOrder: true,
                               fileSystemType,
                               requiredSecurityGroup,
                               globalTransitIdAnyOf,
@@ -418,20 +448,14 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                               tagsAnyOf,
                               tagsAllOf);
 
-            //
-            // OldToNew:
-            //   nextBoundaryCursor and currentBoundaryCursor not needed.
-            //   PagingCursor will probably suffice
-            // 
-
             if (result.Count > 0)
             {
                 // If pagingCursor is null, it means we are getting a the newest data,
                 // and since we got a dataset back then we need to set the nextBoundaryCursor for this first set
                 //
-                if (cursor.pagingCursor == null)
+                if (pagingCursorWasNull)
                     cursor.nextBoundaryCursor = result[0].ToByteArray(); // Set to the newest cursor
-                cursor.pagingCursor = result[result.Count - 1].ToByteArray(); // The oldest cursor
+                /* cursor.pagingCursor = result[result.Count - 1].ToByteArray(); // The oldest cursor */
 
                 if (result.Count < noOfItems)
                 {
@@ -439,7 +463,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     {
                         if (cursor.nextBoundaryCursor != null)
                         {
-                            cursor.currentBoundaryCursor = cursor.nextBoundaryCursor;
+                            cursor.stopAtBoundary = cursor.nextBoundaryCursor;
                             cursor.nextBoundaryCursor = null;
                             cursor.pagingCursor = null;
                         }
@@ -484,7 +508,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             {
                 if (cursor.nextBoundaryCursor != null)
                 {
-                    cursor.currentBoundaryCursor = cursor.nextBoundaryCursor;
+                    cursor.stopAtBoundary = cursor.nextBoundaryCursor;
                     cursor.nextBoundaryCursor = null;
                     cursor.pagingCursor = null;
                     return QueryBatch(noOfItems, ref cursor, fileSystemType, requiredSecurityGroup, globalTransitIdAnyOf, filetypesAnyOf, datatypesAnyOf, senderidAnyOf, groupIdAnyOf, uniqueIdAnyOf,

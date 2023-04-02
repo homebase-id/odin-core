@@ -17,7 +17,7 @@ namespace DriveDatabaseTests
             Assert.That(newcursor, Is.Not.Null);
             Assert.That(newcursor.pagingCursor == null);
             Assert.That(newcursor.nextBoundaryCursor== null);
-            Assert.That(newcursor.currentBoundaryCursor == null);
+            Assert.That(newcursor.stopAtBoundary == null);
 
             Assert.Pass();
         }
@@ -34,7 +34,7 @@ namespace DriveDatabaseTests
             Assert.That(newcursor, Is.Not.Null);
             Assert.That(newcursor.pagingCursor != null);
             Assert.That(newcursor.nextBoundaryCursor == null);
-            Assert.That(newcursor.currentBoundaryCursor == null);
+            Assert.That(newcursor.stopAtBoundary == null);
 
             Assert.Pass();
         }
@@ -51,7 +51,7 @@ namespace DriveDatabaseTests
             Assert.That(newcursor, Is.Not.Null);
             Assert.That(newcursor.pagingCursor == null);
             Assert.That(newcursor.nextBoundaryCursor != null);
-            Assert.That(newcursor.currentBoundaryCursor == null);
+            Assert.That(newcursor.stopAtBoundary == null);
 
             Assert.Pass();
         }
@@ -60,7 +60,7 @@ namespace DriveDatabaseTests
         public void SetCBCTest()
         {
             var cursor = new QueryBatchCursor();
-            cursor.currentBoundaryCursor = Guid.NewGuid().ToByteArray();
+            cursor.stopAtBoundary = Guid.NewGuid().ToByteArray();
 
             var base64 = cursor.ToState();
             Assert.That(base64, Is.Not.Null);
@@ -68,7 +68,7 @@ namespace DriveDatabaseTests
             Assert.That(newcursor, Is.Not.Null);
             Assert.That(newcursor.pagingCursor == null);
             Assert.That(newcursor.nextBoundaryCursor == null);
-            Assert.That(newcursor.currentBoundaryCursor != null);
+            Assert.That(newcursor.stopAtBoundary != null);
 
             Assert.Pass();
         }

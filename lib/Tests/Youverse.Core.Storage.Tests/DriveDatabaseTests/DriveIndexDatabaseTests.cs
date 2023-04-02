@@ -30,12 +30,12 @@ namespace DriveDatabaseTests
 
             var result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(cursor.currentBoundaryCursor == null);
+            Debug.Assert(cursor.stopAtBoundary == null);
             Debug.Assert(cursor.pagingCursor == null);
 
             result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(cursor.currentBoundaryCursor == null);
+            Debug.Assert(cursor.stopAtBoundary == null);
             Debug.Assert(cursor.pagingCursor == null);
 
             UnixTimeUtcUnique outCursor = UnixTimeUtcUnique.ZeroTime;
@@ -84,12 +84,12 @@ namespace DriveDatabaseTests
 
             Debug.Assert(cursor.pagingCursor == null);
             Debug.Assert(cursor.nextBoundaryCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].ToByteArray(), cursor.stopAtBoundary) == 0);
 
             // We do a refresh a few seconds later and since no new items have hit the DB nothing more is returned
             result = _testDatabase.QueryBatch(100, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.stopAtBoundary) == 0);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
 
@@ -99,7 +99,7 @@ namespace DriveDatabaseTests
             Debug.Assert(result.Count == 0);
             Debug.Assert(cursor.pagingCursor == null);
             Debug.Assert(cursor.nextBoundaryCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.stopAtBoundary) == 0);
         }
 
         /// <summary>
@@ -129,13 +129,13 @@ namespace DriveDatabaseTests
             QueryBatchCursor cursor = null;
             var result = _testDatabase.QueryBatch(2, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
-            Debug.Assert(cursor.currentBoundaryCursor == null);
+            Debug.Assert(cursor.stopAtBoundary == null);
             Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.nextBoundaryCursor) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(f4.ToByteArray(), cursor.pagingCursor) == 0);
 
             result = _testDatabase.QueryBatch(2, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
-            Debug.Assert(cursor.currentBoundaryCursor == null);
+            Debug.Assert(cursor.stopAtBoundary == null);
             Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.nextBoundaryCursor) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(f2.ToByteArray(), cursor.pagingCursor) == 0);
 
@@ -143,19 +143,19 @@ namespace DriveDatabaseTests
             Debug.Assert(result.Count == 1);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.stopAtBoundary) == 0);
 
             result = _testDatabase.QueryBatch(2, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.stopAtBoundary) == 0);
 
             result = _testDatabase.QueryBatch(2, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.stopAtBoundary) == 0);
         }
 
         /// <summary>
@@ -186,14 +186,14 @@ namespace DriveDatabaseTests
             Debug.Assert(result.Count == 5);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.stopAtBoundary) == 0);
 
             // Now there should be no more items
             result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.stopAtBoundary) == 0);
 
             // Add two more items
             var f6 = SequentialGuid.CreateGuid();
@@ -207,21 +207,21 @@ namespace DriveDatabaseTests
             Debug.Assert(result.Count == 2);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), cursor.stopAtBoundary) == 0);
 
             // Now there should be no more items
             result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), cursor.stopAtBoundary) == 0);
 
             // Double check
             result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), cursor.stopAtBoundary) == 0);
         }
 
 
@@ -324,7 +324,7 @@ namespace DriveDatabaseTests
             Debug.Assert(result.Count == 5);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.stopAtBoundary) == 0);
 
             // Add two more items
             var f6 = SequentialGuid.CreateGuid();
@@ -337,14 +337,14 @@ namespace DriveDatabaseTests
             Debug.Assert(result.Count == 2);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), cursor.stopAtBoundary) == 0);
 
             // Now there should be no more items (recursive call in QueryBatch())
             result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), cursor.stopAtBoundary) == 0);
         }
 
 
@@ -391,7 +391,7 @@ namespace DriveDatabaseTests
             Debug.Assert(ByteArrayUtil.muidcmp(result[2], f3) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(result[3], f2) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(result[4], f1) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.stopAtBoundary) == 0);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
 
@@ -400,7 +400,7 @@ namespace DriveDatabaseTests
             Debug.Assert(result.Count == 0);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.stopAtBoundary) == 0);
 
             // Now add three more items
             var f6 = SequentialGuid.CreateGuid();
@@ -416,7 +416,7 @@ namespace DriveDatabaseTests
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f8) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(result[1], f7) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), cursor.pagingCursor) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.stopAtBoundary) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(f8.ToByteArray(), cursor.nextBoundaryCursor) == 0);
 
 
@@ -437,7 +437,7 @@ namespace DriveDatabaseTests
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f10) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(result[1], f6) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(f10.ToByteArray(), cursor.pagingCursor) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f8.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f8.ToByteArray(), cursor.stopAtBoundary) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(f10.ToByteArray(), cursor.nextBoundaryCursor) == 0);
 
 
@@ -448,7 +448,7 @@ namespace DriveDatabaseTests
 
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f10.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f10.ToByteArray(), cursor.stopAtBoundary) == 0);
         }
 
 
