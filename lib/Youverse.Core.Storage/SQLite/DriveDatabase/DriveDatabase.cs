@@ -129,6 +129,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             byte[] senderId,
             Guid? groupId,
             Guid? uniqueId,
+            Int32 isArchived,
             UnixTimeUtc userDate,
             Int32 requiredSecurityGroup,
             List<Guid> accessControlList,
@@ -138,7 +139,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
         {
             using (CreateCommitUnitOfWork())
             {
-                TblMainIndex.Insert(new MainIndexRecord() { fileId = fileId, globalTransitId = globalTransitId, userDate = userDate,  fileType = fileType,  dataType = dataType, senderId = senderId.ToString(), groupId = groupId, uniqueId = uniqueId, isArchived = 0, isHistory = 0, requiredSecurityGroup = requiredSecurityGroup, fileSystemType = fileSystemType });
+                TblMainIndex.Insert(new MainIndexRecord() { fileId = fileId, globalTransitId = globalTransitId, userDate = userDate,  fileType = fileType,  dataType = dataType, senderId = senderId.ToString(), groupId = groupId, uniqueId = uniqueId, isArchived = isArchived, isHistory = 0, requiredSecurityGroup = requiredSecurityGroup, fileSystemType = fileSystemType });
                 TblAclIndex.InsertRows(fileId, accessControlList);
                 TblTagIndex.InsertRows(fileId, tagIdList);
             }
@@ -162,6 +163,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             byte[] senderId = null,
             Guid? groupId = null,
             Guid? uniqueId = null,
+            Int32? isArchived = null,
             UnixTimeUtc? userDate = null,
             Int32? requiredSecurityGroup = null,
             List<Guid> addAccessControlList = null,
@@ -172,7 +174,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             using (CreateCommitUnitOfWork())
             {
                 TblMainIndex.UpdateRow(fileId, globalTransitId: globalTransitId, fileType: fileType, dataType: dataType, senderId: senderId,
-                    groupId: groupId, uniqueId: uniqueId, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup);
+                    groupId: groupId, uniqueId: uniqueId, isArchived: isArchived, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup);
 
                 TblAclIndex.InsertRows(fileId, addAccessControlList);
                 TblTagIndex.InsertRows(fileId, addTagIdList);
@@ -192,6 +194,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             byte[] senderId = null,
             Guid? groupId = null,
             Guid? uniqueId = null,
+            Int32? isArchived = null,
             UnixTimeUtc? userDate = null,
             Int32? requiredSecurityGroup = null,
             List<Guid> accessControlList = null,
@@ -201,7 +204,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             using (CreateCommitUnitOfWork())
             {
                 TblMainIndex.UpdateRow(fileId, globalTransitId: globalTransitId, fileType: fileType, dataType: dataType, senderId: senderId,
-                    groupId: groupId, uniqueId: uniqueId, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup);
+                    groupId: groupId, uniqueId: uniqueId, isArchived: isArchived, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup);
 
                 TblAclIndex.DeleteAllRows(fileId);
                 TblAclIndex.InsertRows(fileId, accessControlList);
@@ -239,6 +242,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             List<byte[]> senderidAnyOf = null,
             List<Guid> groupIdAnyOf = null,
             List<Guid> uniqueIdAnyOf = null,
+            List<Int32> isArchivedAnyOf = null,
             UnixTimeUtcRange userdateSpan = null,
             List<Guid> aclAnyOf = null,
             List<Guid> tagsAnyOf = null,
@@ -300,6 +304,11 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             if (IsSet(datatypesAnyOf))
             {
                 listWhereAnd.Add($"datatype IN ({IntList(datatypesAnyOf)})");
+            }
+
+            if (IsSet(isArchivedAnyOf))
+            {
+                listWhereAnd.Add($"isArchived IN ({IntList(isArchivedAnyOf)})");
             }
 
             if (IsSet(senderidAnyOf))
@@ -392,6 +401,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             List<byte[]> senderidAnyOf = null,
             List<Guid> groupIdAnyOf = null,
             List<Guid> uniqueIdAnyOf = null,
+            List<Int32> isArchivedAnyOf = null,
             UnixTimeUtcRange userdateSpan = null,
             List<Guid> aclAnyOf = null,
             List<Guid> tagsAnyOf = null,
@@ -413,6 +423,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                               senderidAnyOf,
                               groupIdAnyOf,
                               uniqueIdAnyOf,
+                              isArchivedAnyOf,
                               userdateSpan,
                               aclAnyOf,
                               tagsAnyOf,
@@ -466,6 +477,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                         senderidAnyOf,
                         groupIdAnyOf,
                         uniqueIdAnyOf,
+                        isArchivedAnyOf,
                         userdateSpan,
                         aclAnyOf,
                         tagsAnyOf,
@@ -487,7 +499,16 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     cursor.currentBoundaryCursor = cursor.nextBoundaryCursor;
                     cursor.nextBoundaryCursor = null;
                     cursor.pagingCursor = null;
-                    return QueryBatch(noOfItems, ref cursor, fileSystemType, requiredSecurityGroup, globalTransitIdAnyOf, filetypesAnyOf, datatypesAnyOf, senderidAnyOf, groupIdAnyOf, uniqueIdAnyOf,
+                    return QueryBatch(noOfItems, ref cursor, 
+                        fileSystemType, 
+                        requiredSecurityGroup, 
+                        globalTransitIdAnyOf, 
+                        filetypesAnyOf, 
+                        datatypesAnyOf, 
+                        senderidAnyOf, 
+                        groupIdAnyOf, 
+                        uniqueIdAnyOf,
+                        isArchivedAnyOf,
                         userdateSpan,
                         aclAnyOf, tagsAnyOf, tagsAllOf);
                 }
@@ -522,6 +543,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             List<byte[]> senderidAnyOf = null,
             List<Guid> groupIdAnyOf = null,
             List<Guid> uniqueIdAnyOf = null,
+            List<Int32> isArchivedAnyOf = null,
             UnixTimeUtcRange userdateSpan = null,
             List<Guid> aclAnyOf = null,
             List<Guid> tagsAnyOf = null,
@@ -567,6 +589,11 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             if (IsSet(datatypesAnyOf))
             {
                 strWhere += $"AND datatype IN ({IntList(datatypesAnyOf)}) ";
+            }
+
+            if (IsSet(isArchivedAnyOf))
+            {
+                strWhere += $"AND isArchived IN ({IntList(isArchivedAnyOf)}) ";
             }
 
             if (IsSet(senderidAnyOf))

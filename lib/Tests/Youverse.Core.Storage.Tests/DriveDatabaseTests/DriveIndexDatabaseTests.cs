@@ -68,11 +68,11 @@ namespace DriveDatabaseTests
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid(); // Most recent chat item
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 0, null, null);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 2, null, null);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 1, null, null);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 3, null, null);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null);
+            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null);
+            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
 
             QueryBatchCursor cursor = null;
 
@@ -120,11 +120,11 @@ namespace DriveDatabaseTests
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 0, null, null);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 1, null, null);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 2, null, null);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 2, null, null);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 3, null, null);
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null);
 
             QueryBatchCursor cursor = null;
             var result = _testDatabase.QueryBatch(2, ref cursor, requiredSecurityGroup: allIntRange);
@@ -175,11 +175,11 @@ namespace DriveDatabaseTests
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 0, null, null);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 1, null, null);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 2, null, null);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 2, null, null);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 3, null, null);
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null);
 
             QueryBatchCursor cursor = null;
             var result = _testDatabase.QueryBatch(100, ref cursor, requiredSecurityGroup: allIntRange);
@@ -198,8 +198,8 @@ namespace DriveDatabaseTests
             // Add two more items
             var f6 = SequentialGuid.CreateGuid();
             var f7 = SequentialGuid.CreateGuid();
-            _testDatabase.AddEntry(f6, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 1, null, null);
-            _testDatabase.AddEntry(f7, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
 
             // Later we do a new query, with a NULL startFromCursor, because then we'll get the newest items first.
             // But stop at stopAtBoundaryCursor: pagingCursor
@@ -239,11 +239,11 @@ namespace DriveDatabaseTests
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 0, null, null);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 1, null, null);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 2, null, null);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 2, null, null);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 3, null, null);
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null);
 
             QueryBatchCursor cursor = null;
 
@@ -260,8 +260,8 @@ namespace DriveDatabaseTests
             Debug.Assert(c == 5);
 
             // Add two more items
-            _testDatabase.AddEntry(SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 0, null, null);
-            _testDatabase.AddEntry(SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 43, new UnixTimeUtc(0), 0, null, null);
+            _testDatabase.AddEntry(SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 43, new UnixTimeUtc(0), 1, null, null);
 
             // How you'd get the latest items (in chuinks) since your last update
             c = 0;
@@ -276,11 +276,11 @@ namespace DriveDatabaseTests
             Debug.Assert(c == 2);
 
             // Add five more items
-            _testDatabase.AddEntry(SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 0, null, null);
-            _testDatabase.AddEntry(SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 1, null, null);
-            _testDatabase.AddEntry(SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 0, null, null);
-            _testDatabase.AddEntry(SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 1, null, null);
-            _testDatabase.AddEntry(SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 0, null, null);
+            _testDatabase.AddEntry(SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 0, null, null);
+            _testDatabase.AddEntry(SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 0, null, null);
+            _testDatabase.AddEntry(SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 44, new UnixTimeUtc(0), 0, null, null);
 
             // How you'd get the latest items (in chuinks) since your last update
             c = 0;
@@ -293,6 +293,67 @@ namespace DriveDatabaseTests
             }
 
             Debug.Assert(c == 5);
+        }
+
+        [Test]
+        public void IsArchivedTest()
+        {
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            _testDatabase.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var s1 = SequentialGuid.CreateGuid().ToByteArray();
+            var t1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+            var f4 = SequentialGuid.CreateGuid();
+            var f5 = SequentialGuid.CreateGuid();
+
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 0, null, null);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 1, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 1, new UnixTimeUtc(0), 3, null, null);
+            _testDatabase.AddEntry(SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 2, new UnixTimeUtc(0), 0, null, null);
+
+            QueryBatchCursor cursor = null;
+            var result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 6);
+            cursor = null;
+            result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange, isArchivedAnyOf: new List<Int32>() { 0 });
+            Debug.Assert(result.Count == 3);
+
+            cursor = null;
+            result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange, isArchivedAnyOf: new List<Int32>() { 1 });
+            Debug.Assert(result.Count == 2);
+
+            cursor = null;
+            result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange, isArchivedAnyOf: new List<Int32>() { 2 });
+            Debug.Assert(result.Count == 1);
+
+            cursor = null;
+            result = _testDatabase.QueryBatch(10, ref cursor, isArchivedAnyOf: new List<Int32>() { 0,1 }, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 5);
+
+            UnixTimeUtcUnique c2 = new UnixTimeUtcUnique(0);
+            result = _testDatabase.QueryModified(10, ref c2, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 0);
+
+            _testDatabase.UpdateEntryZapZap(f1, isArchived: 7);
+
+            c2 = new UnixTimeUtcUnique(0);
+            result = _testDatabase.QueryModified(10, ref c2, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 1);
+
+            cursor = null;
+            result = _testDatabase.QueryBatch(10, ref cursor, isArchivedAnyOf: new List<Int32>() { 0 }, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 2);
+
+            _testDatabase.UpdateEntry(f2, isArchived: 7);
+
+            cursor = null;
+            result = _testDatabase.QueryBatch(10, ref cursor, isArchivedAnyOf: new List<Int32>() { 0 }, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 1);
         }
 
 
@@ -313,11 +374,11 @@ namespace DriveDatabaseTests
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 0, null, null);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 1, null, null);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 2, null, null);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 2, null, null);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 3, null, null);
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null);
 
             QueryBatchCursor cursor = null;
             var result = _testDatabase.QueryBatch(100, ref cursor, requiredSecurityGroup: allIntRange);
@@ -329,8 +390,8 @@ namespace DriveDatabaseTests
             // Add two more items
             var f6 = SequentialGuid.CreateGuid();
             var f7 = SequentialGuid.CreateGuid();
-            _testDatabase.AddEntry(f6, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 1, null, null);
-            _testDatabase.AddEntry(f7, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
 
             // Now there should be no more items (recursive call in QueryBatch())
             result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange);
@@ -376,11 +437,11 @@ namespace DriveDatabaseTests
             var f5 = SequentialGuid.CreateGuid();
 
             // Add five items to the chat database
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 0, null, null);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 1, null, null);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 2, null, null);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 2, null, null);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 3, null, null);
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null);
 
             // Get everything from the chat database
             QueryBatchCursor cursor = null;
@@ -406,9 +467,9 @@ namespace DriveDatabaseTests
             var f6 = SequentialGuid.CreateGuid();
             var f7 = SequentialGuid.CreateGuid();
             var f8 = SequentialGuid.CreateGuid();
-            _testDatabase.AddEntry(f6, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 1, null, null);
-            _testDatabase.AddEntry(f7, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 1, null, null);
-            _testDatabase.AddEntry(f8, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f8, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
 
             // Now we get two of the three new items, we get the newest first f8 & f7
             result = _testDatabase.QueryBatch(2, ref cursor, requiredSecurityGroup: allIntRange);
@@ -423,8 +484,8 @@ namespace DriveDatabaseTests
             // Now add two more items
             var f9 = SequentialGuid.CreateGuid();
             var f10 = SequentialGuid.CreateGuid();
-            _testDatabase.AddEntry(f9, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 1, null, null);
-            _testDatabase.AddEntry(f10, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f9, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f10, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
 
             // Now we get two more items. Internally, this will turn into two QueryBatchRaw()
             // because there is only 1 left in the previous range. A second request will get the
@@ -472,11 +533,11 @@ namespace DriveDatabaseTests
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 0, null, null);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 1, null, null);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 2, null, null);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 2, null, null);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 3, null, null);
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null);
 
             UnixTimeUtcUnique cursor = UnixTimeUtcUnique.ZeroTime;
             var result = _testDatabase.QueryModified(100, ref cursor, requiredSecurityGroup: allIntRange);
@@ -507,11 +568,11 @@ namespace DriveDatabaseTests
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 0, null, null);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 1, null, null);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 2, null, null);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 2, null, null);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 3, null, null);
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null);
 
 
             UnixTimeUtcUnique cursor = UnixTimeUtcUnique.ZeroTime;
@@ -548,11 +609,11 @@ namespace DriveDatabaseTests
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 0, null, null);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 1, null, null);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 2, null, null);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 2, null, null);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 3, null, null);
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null);
 
             QueryBatchCursor cursor = null;
 
@@ -600,11 +661,11 @@ namespace DriveDatabaseTests
             var f4 = SequentialGuid.CreateGuid();
             var f5 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 0, null, null);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 1, null, null);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 2, null, null);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 2, null, null);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, new UnixTimeUtc(0), 3, null, null);
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null);
 
             UnixTimeUtcUnique outCursor = UnixTimeUtcUnique.ZeroTime;
             var result = _testDatabase.QueryModified(400, ref outCursor, requiredSecurityGroup: allIntRange);
@@ -661,11 +722,11 @@ namespace DriveDatabaseTests
             var a3 = SequentialGuid.CreateGuid();
             var a4 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a1 }, null);
-            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a2 }, null);
-            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a1, a2 }, null);
-            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a3, a4 }, null);
-            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: null, null);
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a1 }, null);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 1, accessControlList: new List<Guid>() { a2 }, null);
+            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a1, a2 }, null);
+            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: new List<Guid>() { a3, a4 }, null);
+            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, Guid.NewGuid(), 42, new UnixTimeUtc(0), requiredSecurityGroup: 2, accessControlList: null, null);
 
             QueryBatchCursor cursor = null;
 
@@ -718,7 +779,7 @@ namespace DriveDatabaseTests
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
             var t1 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, g1, 1, 1, s1, t1, null, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
 
             QueryBatchCursor cursor = null;
             cursor = null;
@@ -740,11 +801,11 @@ namespace DriveDatabaseTests
             var g1 = Guid.NewGuid();
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
             var t1 = SequentialGuid.CreateGuid();
-            _testDatabase.AddEntry(f1, g1, 1, 1, s1, t1, null, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
 
             var f2 = SequentialGuid.CreateGuid();
             var g2 = Guid.NewGuid();
-            _testDatabase.AddEntry(f2, g2, 1, 1, s1, t1, null, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f2, g2, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
 
             QueryBatchCursor cursor = null;
             var result = _testDatabase.QueryBatch(400, ref cursor, requiredSecurityGroup: allIntRange);
@@ -770,12 +831,12 @@ namespace DriveDatabaseTests
             var g1 = Guid.NewGuid();
             var s1 = SequentialGuid.CreateGuid();
             var t1 = SequentialGuid.CreateGuid();
-            _testDatabase.AddEntry(f1, g1, 1, 1, s1.ToByteArray(), t1, null, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f1, g1, 1, 1, s1.ToByteArray(), t1, null, 42, new UnixTimeUtc(0), 1, null, null);
 
             try
             {
                 var f2 = SequentialGuid.CreateGuid();
-                _testDatabase.AddEntry(f2, g1, 1, 1, s1.ToByteArray(), t1, null, new UnixTimeUtc(0), 1, null, null);
+                _testDatabase.AddEntry(f2, g1, 1, 1, s1.ToByteArray(), t1, null, 42, new UnixTimeUtc(0), 1, null, null);
                 Assert.Fail();
             }
             catch
@@ -796,7 +857,7 @@ namespace DriveDatabaseTests
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
             var t1 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, null, 1, 1, s1, t1, null, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f1, null, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
 
             QueryBatchCursor cursor = null;
             cursor = null;
@@ -820,7 +881,7 @@ namespace DriveDatabaseTests
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
             var t1 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, g1, 1, 1, s1, t1, null, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
 
             QueryBatchCursor cursor = null;
             cursor = null;
@@ -853,12 +914,12 @@ namespace DriveDatabaseTests
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
             var t1 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, g1, 1, 1, s1, t1, null, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f1, g1, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
 
             var data = _testDatabase.TblMainIndex.Get(f1);
             Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g1) == 0);
 
-            _testDatabase.UpdateEntry(f1, globalTransitId: g2);
+            _testDatabase.UpdateEntry(f1, globalTransitId: g2, isArchived: 7);
             data = _testDatabase.TblMainIndex.Get(f1);
             Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g2) == 0);
 
@@ -881,7 +942,7 @@ namespace DriveDatabaseTests
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
             var t1 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, null, 1, 1, s1, t1, u1, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null);
 
             QueryBatchCursor cursor = null;
             cursor = null;
@@ -903,11 +964,11 @@ namespace DriveDatabaseTests
             var u1 = Guid.NewGuid();
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
             var t1 = SequentialGuid.CreateGuid();
-            _testDatabase.AddEntry(f1, null, 1, 1, s1, t1, u1, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null);
 
             var f2 = SequentialGuid.CreateGuid();
             var u2 = Guid.NewGuid();
-            _testDatabase.AddEntry(f2, null, 1, 1, s1, t1, u2, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f2, null, 1, 1, s1, t1, u2, 42, new UnixTimeUtc(0), 1, null, null);
 
             QueryBatchCursor cursor = null;
             var result = _testDatabase.QueryBatch(400, ref cursor, requiredSecurityGroup: allIntRange);
@@ -933,12 +994,12 @@ namespace DriveDatabaseTests
             var u1 = Guid.NewGuid();
             var s1 = SequentialGuid.CreateGuid();
             var t1 = SequentialGuid.CreateGuid();
-            _testDatabase.AddEntry(f1, null, 1, 1, s1.ToByteArray(), t1, u1, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f1, null, 1, 1, s1.ToByteArray(), t1, u1, 42, new UnixTimeUtc(0), 1, null, null);
 
             try
             {
                 var f2 = SequentialGuid.CreateGuid();
-                _testDatabase.AddEntry(f2, null, 1, 1, s1.ToByteArray(), t1, u1, new UnixTimeUtc(0), 1, null, null);
+                _testDatabase.AddEntry(f2, null, 1, 1, s1.ToByteArray(), t1, u1, 42, new UnixTimeUtc(0), 1, null, null);
                 Assert.Fail();
             }
             catch
@@ -959,7 +1020,7 @@ namespace DriveDatabaseTests
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
             var t1 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, null, 1, 1, s1, t1, null, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f1, null, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
 
             QueryBatchCursor cursor = null;
             cursor = null;
@@ -983,7 +1044,7 @@ namespace DriveDatabaseTests
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
             var t1 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, null, 1, 1, s1, t1, u1, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null);
 
             QueryBatchCursor cursor = null;
             cursor = null;
@@ -1016,7 +1077,7 @@ namespace DriveDatabaseTests
             var s1 = SequentialGuid.CreateGuid().ToByteArray();
             var t1 = SequentialGuid.CreateGuid();
 
-            _testDatabase.AddEntry(f1, null, 1, 1, s1, t1, u1, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f1, null, 1, 1, s1, t1, u1, 42, new UnixTimeUtc(0), 1, null, null);
 
             var data = _testDatabase.TblMainIndex.Get(f1);
             Debug.Assert(ByteArrayUtil.muidcmp(data.uniqueId, u1) == 0);
@@ -1306,7 +1367,7 @@ namespace DriveDatabaseTests
             tmptaglist.Add(tags[2]);
             tmptaglist.Add(tags[3]);
 
-            _testDatabase.AddEntry(fileId[0], Guid.NewGuid(), 0, 0, conversationId[0].ToByteArray(), null, null, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist);
+            _testDatabase.AddEntry(fileId[0], Guid.NewGuid(), 0, 0, conversationId[0].ToByteArray(), null, null, 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist);
 
             // Insert a lot of random data
             for (var i = 0 + 1; i < fileId.Count; i++)
@@ -1333,7 +1394,7 @@ namespace DriveDatabaseTests
                     countTags++;
                 }
 
-                _testDatabase.AddEntry(fileId[i], Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), conversationId[myRnd.Next(0, conversationId.Count - 1)].ToByteArray(), null, null, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist);
+                _testDatabase.AddEntry(fileId[i], Guid.NewGuid(), myRnd.Next(0, 5), myRnd.Next(0, 5), conversationId[myRnd.Next(0, conversationId.Count - 1)].ToByteArray(), null, null, 42, new UnixTimeUtc(0), 55, tmpacllist, tmptaglist);
             }
 
             _testDatabase.Commit();
