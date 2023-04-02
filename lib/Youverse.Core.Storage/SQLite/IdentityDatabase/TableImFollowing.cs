@@ -12,8 +12,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
     public class TableImFollowing : TableImFollowingCRUD
     {
-        public const int GUID_SIZE = 16; // Precisely 16 bytes for the ID key
-
         private SqliteCommand _select2Command = null;
         private SqliteParameter _s2param1 = null;
         private SqliteParameter _s2param2 = null;

@@ -236,6 +236,50 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
+        // SELECT identity,driveId,created,modified
+        public FollowsMeRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        {
+            var result = new List<FollowsMeRecord>();
+            byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new FollowsMeRecord();
+
+            if (rdr.IsDBNull(0))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.identity = rdr.GetString(0);
+            }
+
+            if (rdr.IsDBNull(1))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(1, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in driveId...");
+                item.driveId = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(2))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.created = new UnixTimeUtcUnique(rdr.GetInt64(2));
+            }
+
+            if (rdr.IsDBNull(3))
+                item.modified = null;
+            else
+            {
+                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(3));
+            }
+            return item;
+       }
+
         public int Delete(string identity,Guid driveId)
         {
             if (identity == null) throw new Exception("Cannot be null");
@@ -284,6 +328,37 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
+        public FollowsMeRecord ReadRecordFromReader0(SqliteDataReader rdr, string identity,Guid driveId)
+        {
+            if (identity == null) throw new Exception("Cannot be null");
+            if (identity?.Length < 3) throw new Exception("Too short");
+            if (identity?.Length > 255) throw new Exception("Too long");
+            var result = new List<FollowsMeRecord>();
+            byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new FollowsMeRecord();
+            item.identity = identity;
+            item.driveId = driveId;
+
+            if (rdr.IsDBNull(0))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.created = new UnixTimeUtcUnique(rdr.GetInt64(0));
+            }
+
+            if (rdr.IsDBNull(1))
+                item.modified = null;
+            else
+            {
+                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(1));
+            }
+            return item;
+       }
+
         public FollowsMeRecord Get(string identity,Guid driveId)
         {
             if (identity == null) throw new Exception("Cannot be null");
@@ -308,35 +383,52 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _get0Param2.Value = driveId.ToByteArray();
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
-                    var result = new FollowsMeRecord();
                     if (!rdr.Read())
                         return null;
-                    byte[] _tmpbuf = new byte[65535+1];
-#pragma warning disable CS0168
-                    long bytesRead;
-#pragma warning restore CS0168
-                    var _guid = new byte[16];
-                        var item = new FollowsMeRecord();
-                        item.identity = identity;
-                        item.driveId = driveId;
-
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.created = new UnixTimeUtcUnique(rdr.GetInt64(0));
-                        }
-
-                        if (rdr.IsDBNull(1))
-                            item.modified = null;
-                        else
-                        {
-                            item.modified = new UnixTimeUtcUnique(rdr.GetInt64(1));
-                        }
-                    return item;
+                    return ReadRecordFromReader0(rdr, identity,driveId);
                 } // using
             } // lock
         }
+
+        public FollowsMeRecord ReadRecordFromReader1(SqliteDataReader rdr, string identity)
+        {
+            if (identity == null) throw new Exception("Cannot be null");
+            if (identity?.Length < 3) throw new Exception("Too short");
+            if (identity?.Length > 255) throw new Exception("Too long");
+            var result = new List<FollowsMeRecord>();
+            byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new FollowsMeRecord();
+            item.identity = identity;
+
+            if (rdr.IsDBNull(0))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in driveId...");
+                item.driveId = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(1))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.created = new UnixTimeUtcUnique(rdr.GetInt64(1));
+            }
+
+            if (rdr.IsDBNull(2))
+                item.modified = null;
+            else
+            {
+                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(2));
+            }
+            return item;
+       }
 
         public List<FollowsMeRecord> Get(string identity)
         {
@@ -358,46 +450,15 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _get1Param1.Value = identity;
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
                 {
-                    var result = new List<FollowsMeRecord>();
                     if (!rdr.Read())
                         return null;
-                    byte[] _tmpbuf = new byte[65535+1];
-#pragma warning disable CS0168
-                    long bytesRead;
-#pragma warning restore CS0168
-                    var _guid = new byte[16];
+                    var result = new List<FollowsMeRecord>();
                     while (true)
                     {
-                        var item = new FollowsMeRecord();
-                        item.identity = identity;
-
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
-                            if (bytesRead != 16)
-                                throw new Exception("Not a GUID in driveId...");
-                            item.driveId = new Guid(_guid);
-                        }
-
-                        if (rdr.IsDBNull(1))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.created = new UnixTimeUtcUnique(rdr.GetInt64(1));
-                        }
-
-                        if (rdr.IsDBNull(2))
-                            item.modified = null;
-                        else
-                        {
-                            item.modified = new UnixTimeUtcUnique(rdr.GetInt64(2));
-                        }
-                        result.Add(item);
+                        result.Add(ReadRecordFromReader1(rdr, identity));
                         if (!rdr.Read())
-                           break;
-                    } // while
+                            break;
+                    }
                     return result;
                 } // using
             } // lock

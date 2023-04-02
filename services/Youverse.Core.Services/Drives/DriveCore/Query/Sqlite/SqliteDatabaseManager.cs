@@ -148,6 +148,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
                 senderId: sender,
                 groupId: metadata.AppData.GroupId,
                 uniqueId: metadata.AppData.UniqueId,
+                // TODO TODD ADD isArchived: value here
                 userDate: metadata.AppData.UserDate,
                 requiredSecurityGroup: securityGroup,
                 accessControlList: acl,
@@ -164,6 +165,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
                 senderId: sender,
                 groupId: metadata.AppData.GroupId,
                 uniqueId: metadata.AppData.UniqueId,
+                isArchived: 0, // TODO TODD ADD VALUE HERE
                 userDate: metadata.AppData.UserDate.GetValueOrDefault(),
                 requiredSecurityGroup: securityGroup,
                 accessControlList: acl,
@@ -196,12 +198,12 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
     public Task<List<UnprocessedCommandMessage>> GetUnprocessedCommands(int count)
     {
         Guard.Argument(count, nameof(count)).Require(c => c > 0);
-        var list = _db.TblCmdMsgQueue.Get(count) ?? new List<CommandMessage>();
+        var list = _db.TblCmdMsgQueue.Get(count) ?? new List<CommandMessageQueueRecord>();
 
         var result = list.Select(x => new UnprocessedCommandMessage()
         {
             Id = x.fileId,
-            Received = x.timestamp
+            Received = x.timeStamp
         }).ToList();
 
         return Task.FromResult(result);

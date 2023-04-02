@@ -1,15 +1,11 @@
-﻿// using SqlitePCL;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
-using Youverse.Core.Util;
 
 namespace Youverse.Core.Storage.Sqlite.ServerDatabase
 {
     public class TableCron: TableCronCRUD
     {
-        const int MAX_DATA_LENGTH = 65535;  // Stored data value cannot be longer than this
-
         private SqliteCommand _popCommand = null;
         private SqliteParameter _pparam1 = null;
         private SqliteParameter _pparam2 = null;
@@ -69,7 +65,7 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
 
 
         /// <summary>
-        /// Pops 'count' items from the cron. The items remain in the DB with the 'popstamp' unique identifier.
+        /// Pops 'count' items from the table. The items remain in the DB with the 'popstamp' unique identifier.
         /// Popstamp is used by the caller to release the items when they have been successfully processed, or
         /// to cancel the transaction and restore the items to the cron.
         /// </summary
@@ -77,36 +73,17 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
         /// <param name="count">How many items to 'pop' (reserve)</param>
         /// <param name="popStamp">The unique identifier for the items reserved for pop</param>
         /// <returns></returns>
-        public List<CronRecord> Pop(int count, out Guid popStamp)
+        public List<CronRecord> Pop(int count)
         {
-            // TODO, maybe you can also checkout a TYPE. e.g. Give me outbox items.
-
             lock (_popLock)
             {
-                // Make sure we only prep once 
                 if (_popCommand == null)
                 {
                     _popCommand = _database.CreateCommand();
-
-                    //_popCommand.CommandText =
-                    //    "UPDATE cron SET popstamp=$popstamp " +
-                    //    "WHERE id IN (SELECT id FROM cron ORDER BY nextrun ASC LIMIT 10); " +
-                    //    "SELECT identityid, type, data, runcount, lastrun, nextrun FROM cron WHERE popstamp=$popstamp";
-
-                    /* _popCommand.CommandText =
-                        "UPDATE cron SET popstamp=$popstamp, runcount=runcount+1, nextRun = 1000*(60 * power(2, min(runcount, 10)) + unixepoch()) " +
-                        "WHERE (popstamp IS NULL) ORDER BY nextrun ASC LIMIT $count; " +
-                        "SELECT identityid, type, data, runcount, lastrun, nextrun FROM cron WHERE popstamp=$popstamp";*/
-
-                    /* _popCommand.CommandText =
-                        "UPDATE cron SET popstamp=$popstamp, runcount=runcount+1, nextRun = 1000*(60 * power(2, min(runcount, 10)) + unixepoch()) " +
-                        "WHERE rowid IN (SELECT rowid FROM cron WHERE (popstamp IS NULL) ORDER BY nextrun ASC LIMIT $count); " +
-                        "SELECT identityid, type, data, runcount, lastrun, nextrun FROM cron WHERE popstamp=$popstamp";*/
-
                     _popCommand.CommandText =
                         "UPDATE cron SET popstamp=$popstamp, runcount=runcount+1, nextRun = 1000 * (60 * (runcount+1)) + unixepoch() " +
                         "WHERE rowid IN (SELECT rowid FROM cron WHERE (popstamp IS NULL) ORDER BY nextrun ASC LIMIT $count); " +
-                        "SELECT identityid, type, data, runcount, lastrun, nextrun FROM cron WHERE popstamp=$popstamp";
+                        "SELECT identityId,type,data,runCount,nextRun,lastRun,popStamp,created,modified FROM cron WHERE popstamp=$popstamp";
  
                     _pparam1 = _popCommand.CreateParameter();
                     _pparam1.ParameterName = "$popstamp";
@@ -119,50 +96,16 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
                     _popCommand.Prepare();
                 }
 
-                popStamp = SequentialGuid.CreateGuid();
-                _pparam1.Value = popStamp.ToByteArray();
+                _pparam1.Value = SequentialGuid.CreateGuid().ToByteArray();
                 _pparam2.Value = count;
 
                 List<CronRecord> result = new List<CronRecord>();
 
                 using (SqliteDataReader rdr = _database.ExecuteReader(_popCommand, System.Data.CommandBehavior.Default))
                 {
-                    CronRecord item;
-                    byte[] _tmpbuf = new byte[MAX_DATA_LENGTH];
-                    byte[] _g = new byte[16];
-
                     while (rdr.Read())
                     {
-                        item = new CronRecord();
-
-                        // 0: identityId
-                        var n = rdr.GetBytes(0, 0, _g, 0, _g.Length);
-                        if (n != 16)
-                            throw new Exception("Invalid identityid GUID size");
-                        item.identityId = new Guid(_g);
-
-                        // 1: type
-                        item.type = (Int32)rdr.GetInt32(1);
-
-                        // 2: data
-                        n = rdr.GetBytes(2, 0, _tmpbuf, 0, MAX_DATA_LENGTH);
-                        if (n >= MAX_DATA_LENGTH)
-                            throw new Exception("Too much data...");
-                        item.data = new byte[n];
-                        Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int)n);
-
-                        // 3: runcount
-                        item.runCount = rdr.GetInt32(3);
-
-                        // 4: lastrun
-                        item.lastRun = new UnixTimeUtc(rdr.GetInt64(4));
-
-                        // 5: nextrun
-                        item.nextRun = new UnixTimeUtc(rdr.GetInt64(5));
-
-                        item.popStamp = popStamp;
-
-                        result.Add(item);
+                        result.Add(ReadRecordFromReaderAll(rdr));
                     }
                 }
 

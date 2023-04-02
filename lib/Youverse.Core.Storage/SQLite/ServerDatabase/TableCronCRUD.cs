@@ -356,6 +356,94 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
             } // Lock
         }
 
+        // SELECT identityId,type,data,runCount,nextRun,lastRun,popStamp,created,modified
+        public CronRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        {
+            var result = new List<CronRecord>();
+            byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new CronRecord();
+
+            if (rdr.IsDBNull(0))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in identityId...");
+                item.identityId = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(1))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.type = rdr.GetInt32(1);
+            }
+
+            if (rdr.IsDBNull(2))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(2, 0, _tmpbuf, 0, 65535+1);
+                if (bytesRead > 65535)
+                    throw new Exception("Too much data in data...");
+                if (bytesRead < 0)
+                    throw new Exception("Too little data in data...");
+                item.data = new byte[bytesRead];
+                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+            }
+
+            if (rdr.IsDBNull(3))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.runCount = rdr.GetInt32(3);
+            }
+
+            if (rdr.IsDBNull(4))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.nextRun = new UnixTimeUtc(rdr.GetInt64(4));
+            }
+
+            if (rdr.IsDBNull(5))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.lastRun = new UnixTimeUtc(rdr.GetInt64(5));
+            }
+
+            if (rdr.IsDBNull(6))
+                item.popStamp = null;
+            else
+            {
+                bytesRead = rdr.GetBytes(6, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in popStamp...");
+                item.popStamp = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(7))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.created = new UnixTimeUtcUnique(rdr.GetInt64(7));
+            }
+
+            if (rdr.IsDBNull(8))
+                item.modified = null;
+            else
+            {
+                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(8));
+            }
+            return item;
+       }
+
         public int Delete(Guid identityId,Int32 type)
         {
             lock (_delete0Lock)
@@ -379,6 +467,78 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
             } // Lock
         }
 
+        public CronRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid identityId,Int32 type)
+        {
+            var result = new List<CronRecord>();
+            byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new CronRecord();
+            item.identityId = identityId;
+            item.type = type;
+
+            if (rdr.IsDBNull(0))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(0, 0, _tmpbuf, 0, 65535+1);
+                if (bytesRead > 65535)
+                    throw new Exception("Too much data in data...");
+                if (bytesRead < 0)
+                    throw new Exception("Too little data in data...");
+                item.data = new byte[bytesRead];
+                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+            }
+
+            if (rdr.IsDBNull(1))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.runCount = rdr.GetInt32(1);
+            }
+
+            if (rdr.IsDBNull(2))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.nextRun = new UnixTimeUtc(rdr.GetInt64(2));
+            }
+
+            if (rdr.IsDBNull(3))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.lastRun = new UnixTimeUtc(rdr.GetInt64(3));
+            }
+
+            if (rdr.IsDBNull(4))
+                item.popStamp = null;
+            else
+            {
+                bytesRead = rdr.GetBytes(4, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in popStamp...");
+                item.popStamp = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(5))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.created = new UnixTimeUtcUnique(rdr.GetInt64(5));
+            }
+
+            if (rdr.IsDBNull(6))
+                item.modified = null;
+            else
+            {
+                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(6));
+            }
+            return item;
+       }
+
         public CronRecord Get(Guid identityId,Int32 type)
         {
             lock (_get0Lock)
@@ -400,76 +560,9 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
                 _get0Param2.Value = type;
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
-                    var result = new CronRecord();
                     if (!rdr.Read())
                         return null;
-                    byte[] _tmpbuf = new byte[65535+1];
-#pragma warning disable CS0168
-                    long bytesRead;
-#pragma warning restore CS0168
-                    var _guid = new byte[16];
-                        var item = new CronRecord();
-                        item.identityId = identityId;
-                        item.type = type;
-
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            bytesRead = rdr.GetBytes(0, 0, _tmpbuf, 0, 65535+1);
-                            if (bytesRead > 65535)
-                                throw new Exception("Too much data in data...");
-                            if (bytesRead < 0)
-                                throw new Exception("Too little data in data...");
-                            item.data = new byte[bytesRead];
-                            Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
-                        }
-
-                        if (rdr.IsDBNull(1))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.runCount = rdr.GetInt32(1);
-                        }
-
-                        if (rdr.IsDBNull(2))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.nextRun = new UnixTimeUtc(rdr.GetInt64(2));
-                        }
-
-                        if (rdr.IsDBNull(3))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.lastRun = new UnixTimeUtc(rdr.GetInt64(3));
-                        }
-
-                        if (rdr.IsDBNull(4))
-                            item.popStamp = null;
-                        else
-                        {
-                            bytesRead = rdr.GetBytes(4, 0, _guid, 0, 16);
-                            if (bytesRead != 16)
-                                throw new Exception("Not a GUID in popStamp...");
-                            item.popStamp = new Guid(_guid);
-                        }
-
-                        if (rdr.IsDBNull(5))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.created = new UnixTimeUtcUnique(rdr.GetInt64(5));
-                        }
-
-                        if (rdr.IsDBNull(6))
-                            item.modified = null;
-                        else
-                        {
-                            item.modified = new UnixTimeUtcUnique(rdr.GetInt64(6));
-                        }
-                    return item;
+                    return ReadRecordFromReader0(rdr, identityId,type);
                 } // using
             } // lock
         }

@@ -360,6 +360,97 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
+        // SELECT fileId,recipient,boxId,priority,timeStamp,value,popStamp,created,modified
+        public OutboxRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        {
+            var result = new List<OutboxRecord>();
+            byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new OutboxRecord();
+
+            if (rdr.IsDBNull(0))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in fileId...");
+                item.fileId = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(1))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.recipient = rdr.GetString(1);
+            }
+
+            if (rdr.IsDBNull(2))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(2, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in boxId...");
+                item.boxId = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(3))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.priority = rdr.GetInt32(3);
+            }
+
+            if (rdr.IsDBNull(4))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.timeStamp = new UnixTimeUtc(rdr.GetInt64(4));
+            }
+
+            if (rdr.IsDBNull(5))
+                item.value = null;
+            else
+            {
+                bytesRead = rdr.GetBytes(5, 0, _tmpbuf, 0, 65535+1);
+                if (bytesRead > 65535)
+                    throw new Exception("Too much data in value...");
+                if (bytesRead < 0)
+                    throw new Exception("Too little data in value...");
+                item.value = new byte[bytesRead];
+                Buffer.BlockCopy(_tmpbuf, 0, item.value, 0, (int) bytesRead);
+            }
+
+            if (rdr.IsDBNull(6))
+                item.popStamp = null;
+            else
+            {
+                bytesRead = rdr.GetBytes(6, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in popStamp...");
+                item.popStamp = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(7))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.created = new UnixTimeUtcUnique(rdr.GetInt64(7));
+            }
+
+            if (rdr.IsDBNull(8))
+                item.modified = null;
+            else
+            {
+                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(8));
+            }
+            return item;
+       }
+
         public int Delete(Guid fileId,string recipient)
         {
             if (recipient == null) throw new Exception("Cannot be null");
@@ -386,6 +477,84 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
+        public OutboxRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid fileId,string recipient)
+        {
+            if (recipient == null) throw new Exception("Cannot be null");
+            if (recipient?.Length < 0) throw new Exception("Too short");
+            if (recipient?.Length > 65535) throw new Exception("Too long");
+            var result = new List<OutboxRecord>();
+            byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new OutboxRecord();
+            item.fileId = fileId;
+            item.recipient = recipient;
+
+            if (rdr.IsDBNull(0))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in boxId...");
+                item.boxId = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(1))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.priority = rdr.GetInt32(1);
+            }
+
+            if (rdr.IsDBNull(2))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.timeStamp = new UnixTimeUtc(rdr.GetInt64(2));
+            }
+
+            if (rdr.IsDBNull(3))
+                item.value = null;
+            else
+            {
+                bytesRead = rdr.GetBytes(3, 0, _tmpbuf, 0, 65535+1);
+                if (bytesRead > 65535)
+                    throw new Exception("Too much data in value...");
+                if (bytesRead < 0)
+                    throw new Exception("Too little data in value...");
+                item.value = new byte[bytesRead];
+                Buffer.BlockCopy(_tmpbuf, 0, item.value, 0, (int) bytesRead);
+            }
+
+            if (rdr.IsDBNull(4))
+                item.popStamp = null;
+            else
+            {
+                bytesRead = rdr.GetBytes(4, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in popStamp...");
+                item.popStamp = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(5))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.created = new UnixTimeUtcUnique(rdr.GetInt64(5));
+            }
+
+            if (rdr.IsDBNull(6))
+                item.modified = null;
+            else
+            {
+                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(6));
+            }
+            return item;
+       }
+
         public OutboxRecord Get(Guid fileId,string recipient)
         {
             if (recipient == null) throw new Exception("Cannot be null");
@@ -410,79 +579,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _get0Param2.Value = recipient;
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
-                    var result = new OutboxRecord();
                     if (!rdr.Read())
                         return null;
-                    byte[] _tmpbuf = new byte[65535+1];
-#pragma warning disable CS0168
-                    long bytesRead;
-#pragma warning restore CS0168
-                    var _guid = new byte[16];
-                        var item = new OutboxRecord();
-                        item.fileId = fileId;
-                        item.recipient = recipient;
-
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
-                            if (bytesRead != 16)
-                                throw new Exception("Not a GUID in boxId...");
-                            item.boxId = new Guid(_guid);
-                        }
-
-                        if (rdr.IsDBNull(1))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.priority = rdr.GetInt32(1);
-                        }
-
-                        if (rdr.IsDBNull(2))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.timeStamp = new UnixTimeUtc(rdr.GetInt64(2));
-                        }
-
-                        if (rdr.IsDBNull(3))
-                            item.value = null;
-                        else
-                        {
-                            bytesRead = rdr.GetBytes(3, 0, _tmpbuf, 0, 65535+1);
-                            if (bytesRead > 65535)
-                                throw new Exception("Too much data in value...");
-                            if (bytesRead < 0)
-                                throw new Exception("Too little data in value...");
-                            item.value = new byte[bytesRead];
-                            Buffer.BlockCopy(_tmpbuf, 0, item.value, 0, (int) bytesRead);
-                        }
-
-                        if (rdr.IsDBNull(4))
-                            item.popStamp = null;
-                        else
-                        {
-                            bytesRead = rdr.GetBytes(4, 0, _guid, 0, 16);
-                            if (bytesRead != 16)
-                                throw new Exception("Not a GUID in popStamp...");
-                            item.popStamp = new Guid(_guid);
-                        }
-
-                        if (rdr.IsDBNull(5))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            item.created = new UnixTimeUtcUnique(rdr.GetInt64(5));
-                        }
-
-                        if (rdr.IsDBNull(6))
-                            item.modified = null;
-                        else
-                        {
-                            item.modified = new UnixTimeUtcUnique(rdr.GetInt64(6));
-                        }
-                    return item;
+                    return ReadRecordFromReader0(rdr, fileId,recipient);
                 } // using
             } // lock
         }

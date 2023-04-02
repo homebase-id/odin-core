@@ -213,6 +213,52 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
+        // SELECT circleId,memberId,data
+        public CircleMemberRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        {
+            var result = new List<CircleMemberRecord>();
+            byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new CircleMemberRecord();
+
+            if (rdr.IsDBNull(0))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in circleId...");
+                item.circleId = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(1))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(1, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in memberId...");
+                item.memberId = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(2))
+                item.data = null;
+            else
+            {
+                bytesRead = rdr.GetBytes(2, 0, _tmpbuf, 0, 65535+1);
+                if (bytesRead > 65535)
+                    throw new Exception("Too much data in data...");
+                if (bytesRead < 0)
+                    throw new Exception("Too little data in data...");
+                item.data = new byte[bytesRead];
+                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+            }
+            return item;
+       }
+
         public int Delete(Guid circleId,Guid memberId)
         {
             lock (_delete0Lock)
@@ -255,6 +301,33 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
+        public CircleMemberRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid circleId,Guid memberId)
+        {
+            var result = new List<CircleMemberRecord>();
+            byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new CircleMemberRecord();
+            item.circleId = circleId;
+            item.memberId = memberId;
+
+            if (rdr.IsDBNull(0))
+                item.data = null;
+            else
+            {
+                bytesRead = rdr.GetBytes(0, 0, _tmpbuf, 0, 65535+1);
+                if (bytesRead > 65535)
+                    throw new Exception("Too much data in data...");
+                if (bytesRead < 0)
+                    throw new Exception("Too little data in data...");
+                item.data = new byte[bytesRead];
+                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+            }
+            return item;
+       }
+
         public CircleMemberRecord Get(Guid circleId,Guid memberId)
         {
             lock (_get0Lock)
@@ -276,34 +349,48 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _get0Param2.Value = memberId.ToByteArray();
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
-                    var result = new CircleMemberRecord();
                     if (!rdr.Read())
                         return null;
-                    byte[] _tmpbuf = new byte[65535+1];
-#pragma warning disable CS0168
-                    long bytesRead;
-#pragma warning restore CS0168
-                    var _guid = new byte[16];
-                        var item = new CircleMemberRecord();
-                        item.circleId = circleId;
-                        item.memberId = memberId;
-
-                        if (rdr.IsDBNull(0))
-                            item.data = null;
-                        else
-                        {
-                            bytesRead = rdr.GetBytes(0, 0, _tmpbuf, 0, 65535+1);
-                            if (bytesRead > 65535)
-                                throw new Exception("Too much data in data...");
-                            if (bytesRead < 0)
-                                throw new Exception("Too little data in data...");
-                            item.data = new byte[bytesRead];
-                            Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
-                        }
-                    return item;
+                    return ReadRecordFromReader0(rdr, circleId,memberId);
                 } // using
             } // lock
         }
+
+        public CircleMemberRecord ReadRecordFromReader1(SqliteDataReader rdr, Guid circleId)
+        {
+            var result = new List<CircleMemberRecord>();
+            byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new CircleMemberRecord();
+            item.circleId = circleId;
+
+            if (rdr.IsDBNull(0))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in memberId...");
+                item.memberId = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(1))
+                item.data = null;
+            else
+            {
+                bytesRead = rdr.GetBytes(1, 0, _tmpbuf, 0, 65535+1);
+                if (bytesRead > 65535)
+                    throw new Exception("Too much data in data...");
+                if (bytesRead < 0)
+                    throw new Exception("Too little data in data...");
+                item.data = new byte[bytesRead];
+                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+            }
+            return item;
+       }
 
         public List<CircleMemberRecord> GetCircleMembers(Guid circleId)
         {
@@ -322,49 +409,55 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _get1Param1.Value = circleId.ToByteArray();
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
                 {
-                    var result = new List<CircleMemberRecord>();
                     if (!rdr.Read())
                         return null;
-                    byte[] _tmpbuf = new byte[65535+1];
-#pragma warning disable CS0168
-                    long bytesRead;
-#pragma warning restore CS0168
-                    var _guid = new byte[16];
+                    var result = new List<CircleMemberRecord>();
                     while (true)
                     {
-                        var item = new CircleMemberRecord();
-                        item.circleId = circleId;
-
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
-                            if (bytesRead != 16)
-                                throw new Exception("Not a GUID in memberId...");
-                            item.memberId = new Guid(_guid);
-                        }
-
-                        if (rdr.IsDBNull(1))
-                            item.data = null;
-                        else
-                        {
-                            bytesRead = rdr.GetBytes(1, 0, _tmpbuf, 0, 65535+1);
-                            if (bytesRead > 65535)
-                                throw new Exception("Too much data in data...");
-                            if (bytesRead < 0)
-                                throw new Exception("Too little data in data...");
-                            item.data = new byte[bytesRead];
-                            Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
-                        }
-                        result.Add(item);
+                        result.Add(ReadRecordFromReader1(rdr, circleId));
                         if (!rdr.Read())
-                           break;
-                    } // while
+                            break;
+                    }
                     return result;
                 } // using
             } // lock
         }
+
+        public CircleMemberRecord ReadRecordFromReader2(SqliteDataReader rdr, Guid memberId)
+        {
+            var result = new List<CircleMemberRecord>();
+            byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new CircleMemberRecord();
+            item.memberId = memberId;
+
+            if (rdr.IsDBNull(0))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in circleId...");
+                item.circleId = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(1))
+                item.data = null;
+            else
+            {
+                bytesRead = rdr.GetBytes(1, 0, _tmpbuf, 0, 65535+1);
+                if (bytesRead > 65535)
+                    throw new Exception("Too much data in data...");
+                if (bytesRead < 0)
+                    throw new Exception("Too little data in data...");
+                item.data = new byte[bytesRead];
+                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+            }
+            return item;
+       }
 
         public List<CircleMemberRecord> GetMemberCirclesAndData(Guid memberId)
         {
@@ -383,45 +476,15 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _get2Param1.Value = memberId.ToByteArray();
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get2Command, System.Data.CommandBehavior.Default))
                 {
-                    var result = new List<CircleMemberRecord>();
                     if (!rdr.Read())
                         return null;
-                    byte[] _tmpbuf = new byte[65535+1];
-#pragma warning disable CS0168
-                    long bytesRead;
-#pragma warning restore CS0168
-                    var _guid = new byte[16];
+                    var result = new List<CircleMemberRecord>();
                     while (true)
                     {
-                        var item = new CircleMemberRecord();
-                        item.memberId = memberId;
-
-                        if (rdr.IsDBNull(0))
-                            throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-                        else
-                        {
-                            bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
-                            if (bytesRead != 16)
-                                throw new Exception("Not a GUID in circleId...");
-                            item.circleId = new Guid(_guid);
-                        }
-
-                        if (rdr.IsDBNull(1))
-                            item.data = null;
-                        else
-                        {
-                            bytesRead = rdr.GetBytes(1, 0, _tmpbuf, 0, 65535+1);
-                            if (bytesRead > 65535)
-                                throw new Exception("Too much data in data...");
-                            if (bytesRead < 0)
-                                throw new Exception("Too little data in data...");
-                            item.data = new byte[bytesRead];
-                            Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
-                        }
-                        result.Add(item);
+                        result.Add(ReadRecordFromReader2(rdr, memberId));
                         if (!rdr.Read())
-                           break;
-                    } // while
+                            break;
+                    }
                     return result;
                 } // using
             } // lock

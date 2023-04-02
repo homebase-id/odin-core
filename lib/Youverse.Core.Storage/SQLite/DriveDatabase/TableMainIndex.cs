@@ -90,6 +90,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             byte[] senderId = null,
             Guid? groupId = null,
             Guid? uniqueId = null,
+            Int32? isArchived = null,
             UnixTimeUtc? userDate = null,
             Int32? requiredSecurityGroup = null)
         {
@@ -137,8 +138,8 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     _uparam9.ParameterName = "$globaltransitid";
                     _updateCommand.Parameters.Add(_uparam9);
 
-                    // _uparam10.ParameterName = "$fileSystemType";
-                    // _updateCommand.Parameters.Add(_uparam10);
+                    _uparam10.ParameterName = "$isarchived";
+                    _updateCommand.Parameters.Add(_uparam10);
                 }
 
                 string stm;
@@ -170,8 +171,8 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 if (requiredSecurityGroup != null)
                     stm += ", requiredSecurityGroup = $requiredSecurityGroup ";
 
-                // if (fileSystemType != null)
-                //     stm += ", fileSystemType = $fileSystemType";
+                if (isArchived != null)
+                    stm += ", isarchived = $isarchived";
 
                 _updateCommand.CommandText =
                     $"UPDATE mainindex SET " + stm + $" WHERE fileid = x'{Convert.ToHexString(fileId.ToByteArray())}'";
@@ -185,7 +186,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _uparam7.Value = userDate?.milliseconds ?? (object)DBNull.Value;
                 _uparam8.Value = requiredSecurityGroup ?? (object)DBNull.Value;
                 _uparam9.Value = globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
-                // _uparam10.Value = fileSystemType;
+                _uparam10.Value = isArchived ?? (object)DBNull.Value;
 
                 _database.ExecuteNonQuery(_updateCommand);
             }
