@@ -158,7 +158,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.IsNotNull(batch.SearchResults.Single(item => item.FileMetadata.AppData.IsArchived == isArchived));
             }
         }
-        
+
         [Test]
         public async Task CanQueryDriveModifiedItems()
         {
@@ -238,6 +238,108 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 //TODO: How to test this with a fileId?
             }
         }
+
+        [Test]
+        public async Task CanQueryDriveModifiedArchivedItems()
+        {
+            var identity = TestIdentities.Samwise;
+            const bool isArchived = true;
+            
+            TransitTestUtilsOptions options = new TransitTestUtilsOptions()
+            {
+                PayloadData = "some payload data for good measure",
+                ProcessOutbox = false,
+                ProcessTransitBox = false,
+                DisconnectIdentitiesAfterTransfer = true,
+            };
+            
+            var uploadFileMetadata_not_archived = new UploadFileMetadata()
+            {
+                ContentType = "application/json",
+                AllowDistribution = false,
+                PayloadIsEncrypted = false,
+                AppData = new()
+                {
+                    ContentIsComplete = false,
+                    JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    FileType = 100,
+                    DataType = 202,
+                    UserDate = new UnixTimeUtc(0),
+                    IsArchived = !isArchived
+                }
+            };
+
+            var notArchivedUploadContext = await _scaffold.AppApi.CreateAppAndUploadFileMetadata(identity, uploadFileMetadata_not_archived, options);
+            
+            var uploadFileMetadata_archived = new UploadFileMetadata()
+            {
+                ContentType = "application/json",
+                AllowDistribution = false,
+                PayloadIsEncrypted = false,
+                AppData = new()
+                {
+                    ContentIsComplete = false,
+                    JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    FileType = 100,
+                    DataType = 202,
+                    UserDate = new UnixTimeUtc(0),
+                    IsArchived = isArchived
+                }
+            };
+            
+            var uploadContext = await _scaffold.AppApi.CreateAppAndUploadFileMetadata(identity, uploadFileMetadata_archived, options);
+
+            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(uploadContext.TestAppContext))
+            {
+                var svc = _scaffold.RestServiceFor<IDriveTestHttpClientForApps>(client, uploadContext.TestAppContext.SharedSecret);
+
+                var qp = new FileQueryParams()
+                {
+                    TargetDrive = uploadContext.TestAppContext.TargetDrive,
+                    IsArchived = isArchived
+                };
+
+                var resultOptions = new QueryBatchResultOptionsRequest()
+                {
+                    CursorState = "",
+                    MaxRecords = 10,
+                    IncludeMetadataHeader = true
+                };
+
+                var request = new QueryBatchRequest()
+                {
+                    QueryParams = qp,
+                    ResultOptionsRequest = resultOptions
+                };
+
+                var response = await svc.QueryBatch(request);
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+                var batch = response.Content;
+                Assert.IsNotNull(batch);
+
+                //TODO: what to test here?
+                Assert.IsTrue(batch.SearchResults.Any());
+                Assert.IsNotNull(batch.CursorState);
+                Assert.IsNotEmpty(batch.CursorState);
+
+                var theFileResult = batch.SearchResults.Single();
+
+                //ensure file content was sent 
+                Assert.NotNull(theFileResult.FileMetadata.AppData.JsonContent);
+                Assert.IsNotEmpty(theFileResult.FileMetadata.AppData.JsonContent);
+
+                Assert.IsTrue(theFileResult.FileMetadata.AppData.FileType == uploadFileMetadata_archived.AppData.FileType);
+                Assert.IsTrue(theFileResult.FileMetadata.AppData.IsArchived == uploadFileMetadata_archived.AppData.IsArchived);
+                Assert.IsTrue(theFileResult.FileMetadata.AppData.DataType == uploadFileMetadata_archived.AppData.DataType);
+                Assert.IsTrue(theFileResult.FileMetadata.AppData.UserDate == uploadFileMetadata_archived.AppData.UserDate);
+                Assert.IsTrue(theFileResult.FileMetadata.ContentType == uploadFileMetadata_archived.ContentType);
+                Assert.IsTrue(string.IsNullOrEmpty(theFileResult.FileMetadata.SenderOdinId));
+
+                //must be ordered correctly
+                //TODO: How to test this with a fileId?
+            }
+        }
+
 
         [Test]
         public async Task CanQueryDriveModifiedItemsRedactedContent()
