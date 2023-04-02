@@ -26,6 +26,8 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// </summary>
         public ExchangeGrant Grant { get; set; }
 
+        public string CorsHostName { get; set; }
+
         public RedactedAppRegistration Redacted()
         {
             //NOTE: we're not sharing the encrypted app dek, this is crucial
@@ -38,6 +40,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 AuthorizedCircles = this.AuthorizedCircles,
                 CircleMemberPermissionSetGrantRequest = this.CircleMemberPermissionGrant,
                 Modified = this.Grant.Modified,
+                CorsHostName = this.CorsHostName,
                 Grant = this.Grant.Redacted()
             };
         }

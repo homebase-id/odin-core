@@ -18,49 +18,38 @@ namespace Youverse.Hosting.Middleware
             _next = next;
         }
 
-        public Task Invoke(HttpContext context)
+        public Task Invoke(HttpContext context, DotYouContext dotYouContext)
         {
-            return BeginInvoke(context);
+            return BeginInvoke(context, dotYouContext);
         }
 
-        private Task BeginInvoke(HttpContext context)
+        private Task BeginInvoke(HttpContext context, DotYouContext dotYouContext)
         {
             var originHeader = context.Request.Headers["Origin"];
-            if (context.Request.Path.StartsWithSegments(AppApiPathConstants.BasePathV1) &&
-                (originHeader.Equals("https://dominion.id:3005") || originHeader.Equals("https://photos.odin.earth")))
+            // if (context.Request.Path.StartsWithSegments(AppApiPathConstants.BasePathV1) &&
+            //     (originHeader.Equals("https://dominion.id:3005") || originHeader.Equals("https://photos.odin.earth")))
+         
+            if(dotYouContext is { AuthContext: ClientTokenConstants.AppSchemeName } && context.Request.Method.ToUpper() != "OPTIONS")
             {
-                if (context.Request.Method == "OPTIONS")
+                // context.Response.Headers.Add("Access-Control-Allow-Origin", originHeader);
+
+                string appHostName = dotYouContext.Caller.AppContext.CorsAppName;
+                if (!string.IsNullOrEmpty(appHostName))
                 {
-                    context.Response.Headers.Add("Access-Control-Allow-Origin",
-                        (string)context.Request.Headers["Origin"]);
-                    context.Response.Headers.Add("Access-Control-Allow-Headers",
-                        new[]
-                        {
-                            "Content-Type", "Accept", ClientTokenConstants.ClientAuthTokenCookieName,
-                            DotYouHeaderNames.FileSystemTypeHeader
-                        });
-                    context.Response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-                    context.Response.Headers.Add("Access-Control-Allow-Credentials", "true");
-                    context.Response.Headers.Add("Access-Control-Expose-Headers", "*");
-                    context.Response.StatusCode = 200;
-                    return context.Response.WriteAsync("OK");
+                    context.Response.Headers.Add("Access-Control-Allow-Origin", $"https://{appHostName}");
                 }
-                else
-                {
-                    context.Response.Headers.Add("Access-Control-Allow-Origin",
-                        (string)context.Request.Headers["Origin"]);
-                    context.Response.Headers.Add("Access-Control-Allow-Headers",
-                        new[]
-                        {
-                            ClientTokenConstants.ClientAuthTokenCookieName, DotYouHeaderNames.FileSystemTypeHeader
-                        });
-                    context.Response.Headers.Add("Access-Control-Allow-Credentials", "true");
-                    context.Response.Headers.Add("Access-Control-Expose-Headers",
-                        new[]
-                        {
-                            HttpHeaderConstants.SharedSecretEncryptedHeader64, HttpHeaderConstants.PayloadEncrypted
-                        });
-                }
+
+                context.Response.Headers.Add("Access-Control-Allow-Headers",
+                    new[]
+                    {
+                        ClientTokenConstants.ClientAuthTokenCookieName, DotYouHeaderNames.FileSystemTypeHeader
+                    });
+                context.Response.Headers.Add("Access-Control-Allow-Credentials", "true");
+                context.Response.Headers.Add("Access-Control-Expose-Headers",
+                    new[]
+                    {
+                        HttpHeaderConstants.SharedSecretEncryptedHeader64, HttpHeaderConstants.PayloadEncrypted
+                    });
             }
 
             return _next.Invoke(context);

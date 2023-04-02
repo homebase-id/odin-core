@@ -20,5 +20,6 @@ namespace Youverse.Core.Services.Authorization.Apps
         public RedactedExchangeGrant Grant { get; set; }
         public List<Guid> AuthorizedCircles { get; set; }
         public PermissionSetGrantRequest CircleMemberPermissionSetGrantRequest { get; set; }
+        public string CorsHostName { get; set; }
     }
 }
