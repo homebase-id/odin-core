@@ -55,7 +55,8 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
             userdateSpan: qp.UserDate,
             aclAnyOf: aclList,
             tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
-            tagsAllOf: qp.TagsMatchAll?.ToList());
+            tagsAllOf: qp.TagsMatchAll?.ToList(),
+            isArchivedAnyOf: qp.IsArchived.HasValue ? new List<int>() { qp.IsArchived.Value ? 1 : 0 } : null);
 
         return Task.FromResult((cursor.uniqueTime, results.AsEnumerable()));
     }
@@ -85,7 +86,8 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
             aclAnyOf: aclList?.ToList(),
             uniqueIdAnyOf: qp.ClientUniqueIdAtLeastOne?.ToList(),
             tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
-            tagsAllOf: qp.TagsMatchAll?.ToList());
+            tagsAllOf: qp.TagsMatchAll?.ToList(),
+            isArchivedAnyOf: qp.IsArchived.HasValue ? new List<int>() { qp.IsArchived.Value ? 1 : 0 } : null);
 
         return Task.FromResult((cursor, results.Select(r => r)));
     }
@@ -148,7 +150,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
                 senderId: sender,
                 groupId: metadata.AppData.GroupId,
                 uniqueId: metadata.AppData.UniqueId,
-                // TODO TODD ADD isArchived: value here
+                isArchived: metadata.AppData.IsArchived ? 1 : 0,
                 userDate: metadata.AppData.UserDate,
                 requiredSecurityGroup: securityGroup,
                 accessControlList: acl,
@@ -165,7 +167,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
                 senderId: sender,
                 groupId: metadata.AppData.GroupId,
                 uniqueId: metadata.AppData.UniqueId,
-                isArchived: 0, // TODO TODD ADD VALUE HERE
+                isArchived: metadata.AppData.IsArchived ? 1 : 0,
                 userDate: metadata.AppData.UserDate.GetValueOrDefault(),
                 requiredSecurityGroup: securityGroup,
                 accessControlList: acl,
@@ -214,7 +216,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         _db.TblCmdMsgQueue.DeleteRow(fileIds);
         return Task.CompletedTask;
     }
-    
+
     public void Dispose()
     {
         _db.Commit();

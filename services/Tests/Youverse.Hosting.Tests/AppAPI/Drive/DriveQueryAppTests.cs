@@ -100,6 +100,66 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         }
 
         [Test]
+        public async Task CanQueryBatchByIsArchivedFlag()
+        {
+            var identity = TestIdentities.Samwise;
+
+            const bool isArchived = true;
+            var uploadFileMetadata = new UploadFileMetadata()
+            {
+                ContentType = "application/json",
+                AllowDistribution = false,
+                PayloadIsEncrypted = false,
+                AppData = new()
+                {
+                    ContentIsComplete = false,
+                    JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    FileType = 100,
+                    DataType = 202,
+                    UserDate = new UnixTimeUtc(0),
+                    IsArchived = isArchived
+                }
+            };
+
+            TransitTestUtilsOptions options = new TransitTestUtilsOptions()
+            {
+                PayloadData = "some payload data for good measure",
+                ProcessOutbox = false,
+                ProcessTransitBox = false,
+                DisconnectIdentitiesAfterTransfer = true,
+            };
+
+            var uploadContext = await _scaffold.AppApi.CreateAppAndUploadFileMetadata(identity, uploadFileMetadata, options);
+
+            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(uploadContext.TestAppContext))
+            {
+                var svc = _scaffold.RestServiceFor<IDriveTestHttpClientForApps>(client, uploadContext.TestAppContext.SharedSecret);
+                var request = new QueryBatchRequest()
+                {
+                    QueryParams = new FileQueryParams()
+                    {
+                        TargetDrive = uploadContext.TestAppContext.TargetDrive,
+                        IsArchived = isArchived
+                    },
+
+                    ResultOptionsRequest = new QueryBatchResultOptionsRequest()
+                    {
+                        CursorState = "",
+                        MaxRecords = 10,
+                        IncludeMetadataHeader = false
+                    }
+                };
+
+                var response = await svc.QueryBatch(request);
+                Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+                var batch = response.Content;
+
+                Assert.IsNotNull(batch);
+                Assert.IsNotNull(batch.SearchResults.Single(item => item.FileMetadata.AppData.IsArchived == isArchived));
+            }
+        }
+        
+        [Test]
         public async Task CanQueryDriveModifiedItems()
         {
             var identity = TestIdentities.Samwise;

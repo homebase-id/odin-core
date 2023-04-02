@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Youverse.Core.Services.Base;
 using Youverse.Hosting.Authentication.ClientToken;
-using Youverse.Hosting.Controllers.ClientToken;
 
 // Originally from StackOverflow:
 // https://stackoverflow.com/questions/42199757/enable-options-header-for-cors-on-net-core-web-api

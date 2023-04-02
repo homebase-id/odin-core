@@ -16,8 +16,8 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
         public UnixTimeUtc? UserDate { get; set; }
 
         public Guid? GroupId { get; set; }
-        
-        
+
+        public bool IsArchived { get; set; }
 
         public bool ContentIsComplete { get; set; }
 
@@ -26,6 +26,5 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
         public ImageDataContent PreviewThumbnail { get; set; }
         
         public IEnumerable<ImageDataHeader> AdditionalThumbnails { get; set; }
-
     }
 }   
