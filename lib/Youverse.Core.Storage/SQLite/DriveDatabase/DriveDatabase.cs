@@ -129,6 +129,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             byte[] senderId,
             Guid? groupId,
             Guid? uniqueId,
+            Int32 isArchived,
             UnixTimeUtc userDate,
             Int32 requiredSecurityGroup,
             List<Guid> accessControlList,
@@ -138,7 +139,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
         {
             using (CreateCommitUnitOfWork())
             {
-                TblMainIndex.Insert(new MainIndexRecord() { fileId = fileId, globalTransitId = globalTransitId, userDate = userDate,  fileType = fileType,  dataType = dataType, senderId = senderId.ToString(), groupId = groupId, uniqueId = uniqueId, isArchived = 0, isHistory = 0, requiredSecurityGroup = requiredSecurityGroup, fileSystemType = fileSystemType });
+                TblMainIndex.Insert(new MainIndexRecord() { fileId = fileId, globalTransitId = globalTransitId, userDate = userDate,  fileType = fileType,  dataType = dataType, senderId = senderId.ToString(), groupId = groupId, uniqueId = uniqueId, isArchived = isArchived, isHistory = 0, requiredSecurityGroup = requiredSecurityGroup, fileSystemType = fileSystemType });
                 TblAclIndex.InsertRows(fileId, accessControlList);
                 TblTagIndex.InsertRows(fileId, tagIdList);
             }
@@ -162,6 +163,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             byte[] senderId = null,
             Guid? groupId = null,
             Guid? uniqueId = null,
+            Int32? isArchived = null,
             UnixTimeUtc? userDate = null,
             Int32? requiredSecurityGroup = null,
             List<Guid> addAccessControlList = null,
@@ -172,7 +174,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             using (CreateCommitUnitOfWork())
             {
                 TblMainIndex.UpdateRow(fileId, globalTransitId: globalTransitId, fileType: fileType, dataType: dataType, senderId: senderId,
-                    groupId: groupId, uniqueId: uniqueId, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup);
+                    groupId: groupId, uniqueId: uniqueId, isArchived: isArchived, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup);
 
                 TblAclIndex.InsertRows(fileId, addAccessControlList);
                 TblTagIndex.InsertRows(fileId, addTagIdList);
@@ -192,6 +194,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             byte[] senderId = null,
             Guid? groupId = null,
             Guid? uniqueId = null,
+            Int32? isArchived = null,
             UnixTimeUtc? userDate = null,
             Int32? requiredSecurityGroup = null,
             List<Guid> accessControlList = null,
@@ -201,7 +204,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             using (CreateCommitUnitOfWork())
             {
                 TblMainIndex.UpdateRow(fileId, globalTransitId: globalTransitId, fileType: fileType, dataType: dataType, senderId: senderId,
-                    groupId: groupId, uniqueId: uniqueId, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup);
+                    groupId: groupId, uniqueId: uniqueId, isArchived: isArchived, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup);
 
                 TblAclIndex.DeleteAllRows(fileId);
                 TblAclIndex.InsertRows(fileId, accessControlList);
@@ -239,31 +242,31 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             List<byte[]> senderidAnyOf = null,
             List<Guid> groupIdAnyOf = null,
             List<Guid> uniqueIdAnyOf = null,
+            List<Int32> isArchivedAnyOf = null,
             UnixTimeUtcRange userdateSpan = null,
             List<Guid> aclAnyOf = null,
             List<Guid> tagsAnyOf = null,
             List<Guid> tagsAllOf = null)
         {
-            string stm;
-            string strWhere = "";
-
             if (cursor == null)
             {
                 cursor = new QueryBatchCursor();
             }
 
-            // var list = new List<string>();
-            // var query = string.Join(" ", list);
+            //
+            // OPPOSITE DIRECTION CHANGES...
+            // For opposite direction, reverse < to > and > to < and 
+            // DESC to ASC
+            //
+
+            var listWhereAnd = new List<string>();
 
             if (cursor.pagingCursor != null)
-                strWhere += $"fileid < x'{Convert.ToHexString(cursor.pagingCursor)}' ";
+                listWhereAnd.Add($"fileid < x'{Convert.ToHexString(cursor.pagingCursor)}'");
 
             if (cursor.currentBoundaryCursor != null)
             {
-                if (strWhere != "")
-                    strWhere += "AND ";
-
-                strWhere += $"fileid > x'{Convert.ToHexString(cursor.currentBoundaryCursor)}' ";
+                listWhereAnd.Add($"fileid > x'{Convert.ToHexString(cursor.currentBoundaryCursor)}'");
             }
 
             if (requiredSecurityGroup == null)
@@ -276,99 +279,78 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 throw new Exception($"{nameof(fileSystemType)} is required");
             }
 
-            if (strWhere != "")
-                strWhere += "AND ";
-
-            strWhere += $"(fileSystemType == {fileSystemType}) ";
-
-            if (strWhere != "")
-                strWhere += "AND ";
+            listWhereAnd.Add($"(fileSystemType == {fileSystemType}) ");
 
             if (aclAnyOf == null)
             {
-                strWhere += $"(requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) ";
+                listWhereAnd.Add($"(requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) ");
             }
             else
             {
-                strWhere += $"((requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) OR ";
-                strWhere += $"(fileid IN (SELECT DISTINCT fileid FROM aclindex WHERE aclmemberid IN ({HexList(aclAnyOf)})))) ";
+                listWhereAnd.Add($"((requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) OR " +
+                            $"(fileid IN (SELECT DISTINCT fileid FROM aclindex WHERE aclmemberid IN ({HexList(aclAnyOf)})))) ");
             }
 
             if (IsSet(globalTransitIdAnyOf))
             {
-                if (strWhere != "")
-                    strWhere += "AND ";
-                strWhere += $"globaltransitid IN ({HexList(globalTransitIdAnyOf)}) ";
+                listWhereAnd.Add($"globaltransitid IN ({HexList(globalTransitIdAnyOf)})");
             }
 
             if (IsSet(filetypesAnyOf))
             {
-                if (strWhere != "")
-                    strWhere += "AND ";
-                strWhere += $"filetype IN ({IntList(filetypesAnyOf)}) ";
+                listWhereAnd.Add($"filetype IN ({IntList(filetypesAnyOf)})");
             }
 
             if (IsSet(datatypesAnyOf))
             {
-                if (strWhere != "")
-                    strWhere += "AND ";
-                strWhere += $"datatype IN ({IntList(datatypesAnyOf)}) ";
+                listWhereAnd.Add($"datatype IN ({IntList(datatypesAnyOf)})");
+            }
+
+            if (IsSet(isArchivedAnyOf))
+            {
+                listWhereAnd.Add($"isArchived IN ({IntList(isArchivedAnyOf)})");
             }
 
             if (IsSet(senderidAnyOf))
             {
-                if (strWhere != "")
-                    strWhere += "AND ";
-                strWhere += $"senderid IN ({HexList(senderidAnyOf)}) ";
+                listWhereAnd.Add($"senderid IN ({HexList(senderidAnyOf)})");
             }
 
             if (IsSet(groupIdAnyOf))
             {
-                if (strWhere != "")
-                    strWhere += "AND ";
-                strWhere += $"groupid IN ({HexList(groupIdAnyOf)}) ";
+                listWhereAnd.Add($"groupid IN ({HexList(groupIdAnyOf)})");
             }
 
             if (IsSet(uniqueIdAnyOf))
             {
-                if (strWhere != "")
-                    strWhere += "AND ";
-                strWhere += $"uniqueid IN ({HexList(uniqueIdAnyOf)}) ";
+                listWhereAnd.Add($"uniqueid IN ({HexList(uniqueIdAnyOf)})");
             }
 
             if (userdateSpan != null)
             {
                 userdateSpan.Validate();
-
-                if (strWhere != "")
-                    strWhere += "AND ";
-                strWhere += $"(userdate >= {userdateSpan.Start.milliseconds} AND userdate <= {userdateSpan.End.milliseconds}) ";
+                listWhereAnd.Add($"(userdate >= {userdateSpan.Start.milliseconds} AND userdate <= {userdateSpan.End.milliseconds})");
             }
 
             if (IsSet(tagsAnyOf))
             {
-                if (strWhere != "")
-                    strWhere += "AND ";
-                strWhere += $"fileid IN (SELECT DISTINCT fileid FROM tagindex WHERE tagid IN ({HexList(tagsAnyOf)})) ";
+                listWhereAnd.Add($"fileid IN (SELECT DISTINCT fileid FROM tagindex WHERE tagid IN ({HexList(tagsAnyOf)}))");
             }
 
             if (IsSet(tagsAllOf))
             {
-                if (strWhere != "")
-                    strWhere += "AND ";
-
                 // TODO: This will return 0 matches. Figure out the right query.
-                strWhere += $"{AndHexList(tagsAllOf)} ";
+                listWhereAnd.Add($"{AndHexList(tagsAllOf)}");
             }
 
-            if (strWhere != "")
+            string strWhere = "";
+            if (listWhereAnd.Count > 0)
             {
-                strWhere = "WHERE " + strWhere;
+                strWhere = "WHERE " + string.Join(" AND ", listWhereAnd);
             }
 
             // Read 1 more than requested to see if we're at the end of the dataset
-            stm = $"SELECT fileid FROM mainindex " + strWhere + $"ORDER BY fileid DESC LIMIT {noOfItems + 1}";
-            // +1 to detect EOD
+            string stm = $"SELECT fileid FROM mainindex " + strWhere + $" ORDER BY fileid DESC LIMIT {noOfItems + 1}";
 
             var cmd = this.CreateCommand();
             cmd.CommandText = stm;
@@ -388,7 +370,9 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     break;
             }
 
-            return (result, rdr.HasRows);
+            bool HasMoreRows = rdr.Read();
+
+            return (result, HasMoreRows);
         }
 
 
@@ -417,6 +401,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             List<byte[]> senderidAnyOf = null,
             List<Guid> groupIdAnyOf = null,
             List<Guid> uniqueIdAnyOf = null,
+            List<Int32> isArchivedAnyOf = null,
             UnixTimeUtcRange userdateSpan = null,
             List<Guid> aclAnyOf = null,
             List<Guid> tagsAnyOf = null,
@@ -427,9 +412,28 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 throw new YouverseSystemException("fileSystemType required in Query Batch");
             }
             
-            var (result, moreRows) = QueryBatchRaw(noOfItems, ref cursor, fileSystemType, requiredSecurityGroup, globalTransitIdAnyOf, filetypesAnyOf, datatypesAnyOf, senderidAnyOf, groupIdAnyOf,
-                uniqueIdAnyOf,
-                userdateSpan, aclAnyOf, tagsAnyOf, tagsAllOf);
+            var (result, moreRows) = 
+                QueryBatchRaw(noOfItems, 
+                              ref cursor,
+                              fileSystemType,
+                              requiredSecurityGroup,
+                              globalTransitIdAnyOf,
+                              filetypesAnyOf,
+                              datatypesAnyOf,
+                              senderidAnyOf,
+                              groupIdAnyOf,
+                              uniqueIdAnyOf,
+                              isArchivedAnyOf,
+                              userdateSpan,
+                              aclAnyOf,
+                              tagsAnyOf,
+                              tagsAllOf);
+
+            //
+            // OldToNew:
+            //   nextBoundaryCursor and currentBoundaryCursor not needed.
+            //   PagingCursor will probably suffice
+            // 
 
             if (result.Count > 0)
             {
@@ -473,6 +477,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                         senderidAnyOf,
                         groupIdAnyOf,
                         uniqueIdAnyOf,
+                        isArchivedAnyOf,
                         userdateSpan,
                         aclAnyOf,
                         tagsAnyOf,
@@ -494,7 +499,16 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     cursor.currentBoundaryCursor = cursor.nextBoundaryCursor;
                     cursor.nextBoundaryCursor = null;
                     cursor.pagingCursor = null;
-                    return QueryBatch(noOfItems, ref cursor, fileSystemType, requiredSecurityGroup, globalTransitIdAnyOf, filetypesAnyOf, datatypesAnyOf, senderidAnyOf, groupIdAnyOf, uniqueIdAnyOf,
+                    return QueryBatch(noOfItems, ref cursor, 
+                        fileSystemType, 
+                        requiredSecurityGroup, 
+                        globalTransitIdAnyOf, 
+                        filetypesAnyOf, 
+                        datatypesAnyOf, 
+                        senderidAnyOf, 
+                        groupIdAnyOf, 
+                        uniqueIdAnyOf,
+                        isArchivedAnyOf,
                         userdateSpan,
                         aclAnyOf, tagsAnyOf, tagsAllOf);
                 }
@@ -529,6 +543,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             List<byte[]> senderidAnyOf = null,
             List<Guid> groupIdAnyOf = null,
             List<Guid> uniqueIdAnyOf = null,
+            List<Int32> isArchivedAnyOf = null,
             UnixTimeUtcRange userdateSpan = null,
             List<Guid> aclAnyOf = null,
             List<Guid> tagsAnyOf = null,
@@ -574,6 +589,11 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             if (IsSet(datatypesAnyOf))
             {
                 strWhere += $"AND datatype IN ({IntList(datatypesAnyOf)}) ";
+            }
+
+            if (IsSet(isArchivedAnyOf))
+            {
+                strWhere += $"AND isArchived IN ({IntList(isArchivedAnyOf)}) ";
             }
 
             if (IsSet(senderidAnyOf))
