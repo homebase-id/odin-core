@@ -72,7 +72,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         var aclList = GetAcl(dotYouContext);
 
         var cursor = options.Cursor;
-        var results = _db.QueryBatch(
+        var results = _db.QueryBatchAuto(
             noOfItems: options.MaxRecords,
             cursor: ref cursor,
             fileSystemType: (Int32)fileSystemType,
