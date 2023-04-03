@@ -96,7 +96,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
                 DataType = uploadDescriptor.FileMetadata.AppData.DataType,
                 UserDate = uploadDescriptor.FileMetadata.AppData.UserDate,
                 GroupId = uploadDescriptor.FileMetadata.AppData.GroupId,
-                IsArchived = uploadDescriptor.FileMetadata.AppData.IsArchived,
+                ArchivalStatus = uploadDescriptor.FileMetadata.AppData.ArchivalStatus,
 
                 JsonContent = uploadDescriptor.FileMetadata.AppData.JsonContent,
                 ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete,

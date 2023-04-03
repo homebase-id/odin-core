@@ -100,11 +100,11 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         }
 
         [Test]
-        public async Task CanQueryBatchByIsArchivedFlag()
+        public async Task CanQueryBatchByArchivalStatus()
         {
             var identity = TestIdentities.Samwise;
 
-            const bool isArchived = true;
+            const int archivalStatus = 1;
             var uploadFileMetadata = new UploadFileMetadata()
             {
                 ContentType = "application/json",
@@ -117,7 +117,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     FileType = 100,
                     DataType = 202,
                     UserDate = new UnixTimeUtc(0),
-                    IsArchived = isArchived
+                    ArchivalStatus = archivalStatus
                 }
             };
 
@@ -139,7 +139,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     QueryParams = new FileQueryParams()
                     {
                         TargetDrive = uploadContext.TestAppContext.TargetDrive,
-                        IsArchived = isArchived
+                        ArchivalStatus = archivalStatus
                     },
 
                     ResultOptionsRequest = new QueryBatchResultOptionsRequest()
@@ -155,7 +155,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 var batch = response.Content;
 
                 Assert.IsNotNull(batch);
-                Assert.IsNotNull(batch.SearchResults.Single(item => item.FileMetadata.AppData.IsArchived == isArchived));
+                Assert.IsNotNull(batch.SearchResults.Single(item => item.FileMetadata.AppData.ArchivalStatus == archivalStatus));
             }
         }
 
@@ -243,7 +243,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         public async Task CanQueryDriveModifiedArchivedItems()
         {
             var identity = TestIdentities.Samwise;
-            const bool isArchived = true;
+            const int archivalStatus = 1;
             
             TransitTestUtilsOptions options = new TransitTestUtilsOptions()
             {
@@ -265,7 +265,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     FileType = 100,
                     DataType = 202,
                     UserDate = new UnixTimeUtc(0),
-                    IsArchived = !isArchived
+                    ArchivalStatus = 0
                 }
             };
 
@@ -283,7 +283,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     FileType = 100,
                     DataType = 202,
                     UserDate = new UnixTimeUtc(0),
-                    IsArchived = isArchived
+                    ArchivalStatus = archivalStatus
                 }
             };
             
@@ -296,7 +296,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 var qp = new FileQueryParams()
                 {
                     TargetDrive = uploadContext.TestAppContext.TargetDrive,
-                    IsArchived = isArchived
+                    ArchivalStatus = archivalStatus
                 };
 
                 var resultOptions = new QueryBatchResultOptionsRequest()
@@ -329,7 +329,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.IsNotEmpty(theFileResult.FileMetadata.AppData.JsonContent);
 
                 Assert.IsTrue(theFileResult.FileMetadata.AppData.FileType == uploadFileMetadata_archived.AppData.FileType);
-                Assert.IsTrue(theFileResult.FileMetadata.AppData.IsArchived == uploadFileMetadata_archived.AppData.IsArchived);
+                Assert.IsTrue(theFileResult.FileMetadata.AppData.ArchivalStatus == uploadFileMetadata_archived.AppData.ArchivalStatus);
                 Assert.IsTrue(theFileResult.FileMetadata.AppData.DataType == uploadFileMetadata_archived.AppData.DataType);
                 Assert.IsTrue(theFileResult.FileMetadata.AppData.UserDate == uploadFileMetadata_archived.AppData.UserDate);
                 Assert.IsTrue(theFileResult.FileMetadata.ContentType == uploadFileMetadata_archived.ContentType);

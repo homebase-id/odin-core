@@ -28,7 +28,7 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
         
         public IEnumerable<ImageDataHeader> AdditionalThumbnails { get; set; }
         
-        public bool IsArchived { get; set; }
+        public int ArchivalStatus { get; set; }
     }
 
 }

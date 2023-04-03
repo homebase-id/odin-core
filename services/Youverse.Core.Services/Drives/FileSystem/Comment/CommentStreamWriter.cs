@@ -151,7 +151,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
                 ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete,
                 PreviewThumbnail = uploadDescriptor.FileMetadata.AppData.PreviewThumbnail,
                 AdditionalThumbnails = uploadDescriptor.FileMetadata.AppData.AdditionalThumbnails,
-                IsArchived = uploadDescriptor.FileMetadata.AppData.IsArchived,
+                ArchivalStatus = uploadDescriptor.FileMetadata.AppData.ArchivalStatus,
 
                 //Hijack the groupId by setting it to referenced file
                 GroupId = uploadDescriptor.FileMetadata.ReferencedFile.GlobalTransitId,

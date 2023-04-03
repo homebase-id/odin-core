@@ -56,7 +56,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
             aclAnyOf: aclList,
             tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
             tagsAllOf: qp.TagsMatchAll?.ToList(),
-            isArchivedAnyOf: qp.IsArchived.HasValue ? new List<int>() { qp.IsArchived.Value ? 1 : 0 } : null);
+            archivalStatusAnyOf: qp.ArchivalStatus.HasValue ? new List<int>() { qp.ArchivalStatus.Value } : null);
 
         return Task.FromResult((cursor.uniqueTime, results.AsEnumerable()));
     }
@@ -87,7 +87,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
             uniqueIdAnyOf: qp.ClientUniqueIdAtLeastOne?.ToList(),
             tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
             tagsAllOf: qp.TagsMatchAll?.ToList(),
-            isArchivedAnyOf: qp.IsArchived.HasValue ? new List<int>() { qp.IsArchived.Value ? 1 : 0 } : null);
+            archivalStatusAnyOf: qp.ArchivalStatus.HasValue ? new List<int>() { qp.ArchivalStatus.Value } : null);
 
         return Task.FromResult((cursor, results.Select(r => r)));
     }
@@ -150,7 +150,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
                 senderId: sender,
                 groupId: metadata.AppData.GroupId,
                 uniqueId: metadata.AppData.UniqueId,
-                isArchived: metadata.AppData.IsArchived ? 1 : 0,
+                archivalStatus: metadata.AppData.ArchivalStatus,
                 userDate: metadata.AppData.UserDate,
                 requiredSecurityGroup: securityGroup,
                 accessControlList: acl,
@@ -167,7 +167,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
                 senderId: sender,
                 groupId: metadata.AppData.GroupId,
                 uniqueId: metadata.AppData.UniqueId,
-                isArchived: metadata.AppData.IsArchived ? 1 : 0,
+                archivalStatus: metadata.AppData.ArchivalStatus,
                 userDate: metadata.AppData.UserDate.GetValueOrDefault(),
                 requiredSecurityGroup: securityGroup,
                 accessControlList: acl,

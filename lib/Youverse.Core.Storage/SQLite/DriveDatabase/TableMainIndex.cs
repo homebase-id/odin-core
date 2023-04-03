@@ -90,7 +90,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             byte[] senderId = null,
             Guid? groupId = null,
             Guid? uniqueId = null,
-            Int32? isArchived = null,
+            Int32? archivalStatus = null,
             UnixTimeUtc? userDate = null,
             Int32? requiredSecurityGroup = null)
         {
@@ -138,7 +138,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     _uparam9.ParameterName = "$globaltransitid";
                     _updateCommand.Parameters.Add(_uparam9);
 
-                    _uparam10.ParameterName = "$isarchived";
+                    _uparam10.ParameterName = "$archivalStatus";
                     _updateCommand.Parameters.Add(_uparam10);
                 }
 
@@ -171,8 +171,8 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 if (requiredSecurityGroup != null)
                     stm += ", requiredSecurityGroup = $requiredSecurityGroup ";
 
-                if (isArchived != null)
-                    stm += ", isarchived = $isarchived";
+                if (archivalStatus != null)
+                    stm += ", archivalStatus = $archivalStatus";
 
                 _updateCommand.CommandText =
                     $"UPDATE mainindex SET " + stm + $" WHERE fileid = x'{Convert.ToHexString(fileId.ToByteArray())}'";
@@ -186,7 +186,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _uparam7.Value = userDate?.milliseconds ?? (object)DBNull.Value;
                 _uparam8.Value = requiredSecurityGroup ?? (object)DBNull.Value;
                 _uparam9.Value = globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
-                _uparam10.Value = isArchived ?? (object)DBNull.Value;
+                _uparam10.Value = archivalStatus ?? (object)DBNull.Value;
 
                 _database.ExecuteNonQuery(_updateCommand);
             }

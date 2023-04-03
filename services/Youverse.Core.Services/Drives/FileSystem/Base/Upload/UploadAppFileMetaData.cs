@@ -17,7 +17,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
 
         public Guid? GroupId { get; set; }
 
-        public bool IsArchived { get; set; }
+        public int ArchivalStatus { get; set; }
 
         public bool ContentIsComplete { get; set; }
 
