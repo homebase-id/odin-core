@@ -28,14 +28,14 @@ namespace DriveDatabaseTests
 
             // Do twice on each to ensure nothing changes state wise
 
-            var result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange);
+            var result = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(cursor.currentBoundaryCursor == null);
+            Debug.Assert(cursor.stopAtBoundary == null);
             Debug.Assert(cursor.pagingCursor == null);
 
-            result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange);
+            result = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(cursor.currentBoundaryCursor == null);
+            Debug.Assert(cursor.stopAtBoundary == null);
             Debug.Assert(cursor.pagingCursor == null);
 
             UnixTimeUtcUnique outCursor = UnixTimeUtcUnique.ZeroTime;
@@ -76,7 +76,7 @@ namespace DriveDatabaseTests
 
             QueryBatchCursor cursor = null;
 
-            var result = _testDatabase.QueryBatch(100, ref cursor, requiredSecurityGroup: allIntRange);
+            var result = _testDatabase.QueryBatchAuto(100, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 5); // Check we got everything, we are done because result.Count < 100
 
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f5) == 0);
@@ -84,22 +84,22 @@ namespace DriveDatabaseTests
 
             Debug.Assert(cursor.pagingCursor == null);
             Debug.Assert(cursor.nextBoundaryCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(result[0].ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0].ToByteArray(), cursor.stopAtBoundary) == 0);
 
             // We do a refresh a few seconds later and since no new items have hit the DB nothing more is returned
-            result = _testDatabase.QueryBatch(100, ref cursor, requiredSecurityGroup: allIntRange);
+            result = _testDatabase.QueryBatchAuto(100, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.stopAtBoundary) == 0);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
 
 
             // We do a refresh a few seconds later and since no new items have hit the DB nothing more is returned
-            result = _testDatabase.QueryBatch(100, ref cursor, requiredSecurityGroup: allIntRange);
+            result = _testDatabase.QueryBatchAuto(100, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(cursor.pagingCursor == null);
             Debug.Assert(cursor.nextBoundaryCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.stopAtBoundary) == 0);
         }
 
         /// <summary>
@@ -127,35 +127,35 @@ namespace DriveDatabaseTests
             _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null);
 
             QueryBatchCursor cursor = null;
-            var result = _testDatabase.QueryBatch(2, ref cursor, requiredSecurityGroup: allIntRange);
+            var result = _testDatabase.QueryBatchAuto(2, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
-            Debug.Assert(cursor.currentBoundaryCursor == null);
+            Debug.Assert(cursor.stopAtBoundary == null);
             Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.nextBoundaryCursor) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(f4.ToByteArray(), cursor.pagingCursor) == 0);
 
-            result = _testDatabase.QueryBatch(2, ref cursor, requiredSecurityGroup: allIntRange);
+            result = _testDatabase.QueryBatchAuto(2, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
-            Debug.Assert(cursor.currentBoundaryCursor == null);
+            Debug.Assert(cursor.stopAtBoundary == null);
             Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.nextBoundaryCursor) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(f2.ToByteArray(), cursor.pagingCursor) == 0);
 
-            result = _testDatabase.QueryBatch(2, ref cursor, requiredSecurityGroup: allIntRange);
+            result = _testDatabase.QueryBatchAuto(2, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.stopAtBoundary) == 0);
 
-            result = _testDatabase.QueryBatch(2, ref cursor, requiredSecurityGroup: allIntRange);
+            result = _testDatabase.QueryBatchAuto(2, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.stopAtBoundary) == 0);
 
-            result = _testDatabase.QueryBatch(2, ref cursor, requiredSecurityGroup: allIntRange);
+            result = _testDatabase.QueryBatchAuto(2, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.stopAtBoundary) == 0);
         }
 
         /// <summary>
@@ -182,18 +182,18 @@ namespace DriveDatabaseTests
             _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null);
 
             QueryBatchCursor cursor = null;
-            var result = _testDatabase.QueryBatch(100, ref cursor, requiredSecurityGroup: allIntRange);
+            var result = _testDatabase.QueryBatchAuto(100, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 5);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.stopAtBoundary) == 0);
 
             // Now there should be no more items
-            result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange);
+            result = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.stopAtBoundary) == 0);
 
             // Add two more items
             var f6 = SequentialGuid.CreateGuid();
@@ -203,25 +203,25 @@ namespace DriveDatabaseTests
 
             // Later we do a new query, with a NULL startFromCursor, because then we'll get the newest items first.
             // But stop at stopAtBoundaryCursor: pagingCursor
-            result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange);
+            result = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), cursor.stopAtBoundary) == 0);
 
             // Now there should be no more items
-            result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange);
+            result = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), cursor.stopAtBoundary) == 0);
 
             // Double check
-            result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange);
+            result = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), cursor.stopAtBoundary) == 0);
         }
 
 
@@ -251,7 +251,7 @@ namespace DriveDatabaseTests
             int c = 0;
             for (int i = 1; i < 100; i++)
             {
-                var result = _testDatabase.QueryBatch(2, ref cursor, requiredSecurityGroup: allIntRange);
+                var result = _testDatabase.QueryBatchAuto(2, ref cursor, requiredSecurityGroup: allIntRange);
                 c += result.Count;
                 if (result.Count == 0)
                     break;
@@ -267,7 +267,7 @@ namespace DriveDatabaseTests
             c = 0;
             for (int i = 1; i < 100; i++)
             {
-                var result = _testDatabase.QueryBatch(2, ref cursor, requiredSecurityGroup: allIntRange);
+                var result = _testDatabase.QueryBatchAuto(2, ref cursor, requiredSecurityGroup: allIntRange);
                 c += result.Count;
                 if (result.Count == 0)
                     break;
@@ -286,7 +286,7 @@ namespace DriveDatabaseTests
             c = 0;
             for (int i = 1; i < 100; i++)
             {
-                var result = _testDatabase.QueryBatch(2, ref cursor, requiredSecurityGroup: allIntRange);
+                var result = _testDatabase.QueryBatchAuto(2, ref cursor, requiredSecurityGroup: allIntRange);
                 c += result.Count;
                 if (result.Count == 0)
                     break;
@@ -317,22 +317,22 @@ namespace DriveDatabaseTests
             _testDatabase.AddEntry(SequentialGuid.CreateGuid(), Guid.NewGuid(), 1, 1, s1, t1, null, 2, new UnixTimeUtc(0), 0, null, null);
 
             QueryBatchCursor cursor = null;
-            var result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange);
+            var result = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 6);
             cursor = null;
-            result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange, isArchivedAnyOf: new List<Int32>() { 0 });
+            result = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange, isArchivedAnyOf: new List<Int32>() { 0 });
             Debug.Assert(result.Count == 3);
 
             cursor = null;
-            result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange, isArchivedAnyOf: new List<Int32>() { 1 });
+            result = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange, isArchivedAnyOf: new List<Int32>() { 1 });
             Debug.Assert(result.Count == 2);
 
             cursor = null;
-            result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange, isArchivedAnyOf: new List<Int32>() { 2 });
+            result = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange, isArchivedAnyOf: new List<Int32>() { 2 });
             Debug.Assert(result.Count == 1);
 
             cursor = null;
-            result = _testDatabase.QueryBatch(10, ref cursor, isArchivedAnyOf: new List<Int32>() { 0,1 }, requiredSecurityGroup: allIntRange);
+            result = _testDatabase.QueryBatchAuto(10, ref cursor, isArchivedAnyOf: new List<Int32>() { 0,1 }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 5);
 
             UnixTimeUtcUnique c2 = new UnixTimeUtcUnique(0);
@@ -346,13 +346,13 @@ namespace DriveDatabaseTests
             Debug.Assert(result.Count == 1);
 
             cursor = null;
-            result = _testDatabase.QueryBatch(10, ref cursor, isArchivedAnyOf: new List<Int32>() { 0 }, requiredSecurityGroup: allIntRange);
+            result = _testDatabase.QueryBatchAuto(10, ref cursor, isArchivedAnyOf: new List<Int32>() { 0 }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
 
             _testDatabase.UpdateEntry(f2, isArchived: 7);
 
             cursor = null;
-            result = _testDatabase.QueryBatch(10, ref cursor, isArchivedAnyOf: new List<Int32>() { 0 }, requiredSecurityGroup: allIntRange);
+            result = _testDatabase.QueryBatchAuto(10, ref cursor, isArchivedAnyOf: new List<Int32>() { 0 }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
         }
 
@@ -381,11 +381,11 @@ namespace DriveDatabaseTests
             _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 3, null, null);
 
             QueryBatchCursor cursor = null;
-            var result = _testDatabase.QueryBatch(100, ref cursor, requiredSecurityGroup: allIntRange);
+            var result = _testDatabase.QueryBatchAuto(100, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 5);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.stopAtBoundary) == 0);
 
             // Add two more items
             var f6 = SequentialGuid.CreateGuid();
@@ -394,23 +394,23 @@ namespace DriveDatabaseTests
             _testDatabase.AddEntry(f7, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
 
             // Now there should be no more items (recursive call in QueryBatch())
-            result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange);
+            result = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), cursor.stopAtBoundary) == 0);
 
             // Now there should be no more items (recursive call in QueryBatch())
-            result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange);
+            result = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), cursor.stopAtBoundary) == 0);
         }
 
 
         /// <summary>
-        /// READ THIS EXAMPLE TO UNDERSTAND HOW THE CURSOR WORKS IN A RAL LIFE SCENARIO
+        /// READ THIS EXAMPLE TO UNDERSTAND HOW THE AUTO CURSOR WORKS IN A REAL LIFE SCENARIO
         /// 
         /// Scenario: First we get the entire chat history of five items.
         /// Then three new items are added. 
@@ -423,7 +423,7 @@ namespace DriveDatabaseTests
         /// 
         /// </summary>
         [Test]
-        public void CursorsBatch07Test()
+        public void CursorsBatch07ExampleTest()
         {
             using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
@@ -445,23 +445,23 @@ namespace DriveDatabaseTests
 
             // Get everything from the chat database
             QueryBatchCursor cursor = null;
-            var result = _testDatabase.QueryBatch(100, ref cursor, requiredSecurityGroup: allIntRange);
+            var result = _testDatabase.QueryBatchAuto(100, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 5);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f5) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(result[1], f4) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(result[2], f3) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(result[3], f2) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(result[4], f1) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.stopAtBoundary) == 0);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
 
             // Now there should be no more items
-            result = _testDatabase.QueryBatch(10, ref cursor, requiredSecurityGroup: allIntRange);
+            result = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.stopAtBoundary) == 0);
 
             // Now add three more items
             var f6 = SequentialGuid.CreateGuid();
@@ -472,12 +472,12 @@ namespace DriveDatabaseTests
             _testDatabase.AddEntry(f8, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
 
             // Now we get two of the three new items, we get the newest first f8 & f7
-            result = _testDatabase.QueryBatch(2, ref cursor, requiredSecurityGroup: allIntRange);
+            result = _testDatabase.QueryBatchAuto(2, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f8) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(result[1], f7) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(f7.ToByteArray(), cursor.pagingCursor) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f5.ToByteArray(), cursor.stopAtBoundary) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(f8.ToByteArray(), cursor.nextBoundaryCursor) == 0);
 
 
@@ -493,27 +493,297 @@ namespace DriveDatabaseTests
             // so f10, f6. Note that you'll get a gap between {f8,f7,f6} and {f10,f9}, i.e. f9 still
             // waiting for the next query
             //
-            result = _testDatabase.QueryBatch(2, ref cursor, requiredSecurityGroup: allIntRange);
+            result = _testDatabase.QueryBatchAuto(2, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f10) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(result[1], f6) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(f10.ToByteArray(), cursor.pagingCursor) == 0);
-            Debug.Assert(ByteArrayUtil.muidcmp(f8.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f8.ToByteArray(), cursor.stopAtBoundary) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(f10.ToByteArray(), cursor.nextBoundaryCursor) == 0);
 
 
             // Now we get two more items, only one should be left (f9)
-            result = _testDatabase.QueryBatch(2, ref cursor, requiredSecurityGroup: allIntRange);
+            result = _testDatabase.QueryBatchAuto(2, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f9) == 0);
 
             Debug.Assert(cursor.nextBoundaryCursor == null);
             Debug.Assert(cursor.pagingCursor == null);
-            Debug.Assert(ByteArrayUtil.muidcmp(f10.ToByteArray(), cursor.currentBoundaryCursor) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f10.ToByteArray(), cursor.stopAtBoundary) == 0);
+        }
+
+
+        [Test]
+        public void QueryBatchCursorNewestHasRows01()
+        {
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            _testDatabase.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var s1 = SequentialGuid.CreateGuid().ToByteArray();
+            var t1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+
+            QueryBatchCursor cursor = null;
+            var (result, hasRows) = _testDatabase.QueryBatch(2, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 2);
+            Debug.Assert(hasRows == true);
+
+            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 1);
+            Debug.Assert(hasRows == false);
+
+            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 0);
+            Debug.Assert(hasRows == false);
+        }
+
+        [Test]
+        public void QueryBatchCursorOldestHasRows01()
+        {
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            _testDatabase.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var s1 = SequentialGuid.CreateGuid().ToByteArray();
+            var t1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+
+            QueryBatchCursor cursor = null;
+            var (result, hasRows) = _testDatabase.QueryBatch(2, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 2);
+            Debug.Assert(hasRows == true);
+
+            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 1);
+            Debug.Assert(hasRows == false);
+
+            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 0);
+            Debug.Assert(hasRows == false);
+        }
+
+
+        [Test]
+        public void QueryBatchCursorNewest01()
+        {
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            _testDatabase.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid(); // Oldest
+            var s1 = SequentialGuid.CreateGuid().ToByteArray();
+            var t1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid(); // Newest
+
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+
+            QueryBatchCursor cursor = null;
+            var (result, hasRows) = _testDatabase.QueryBatch(2, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 2);
+            Debug.Assert(hasRows == true);
+            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f2.ToByteArray()) == 0);
+
+            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 1);
+            Debug.Assert(hasRows == false);
+            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f1.ToByteArray()) == 0);
+
+            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 0);
+            Debug.Assert(hasRows == false);
+            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f1.ToByteArray()) == 0);
+        }
+
+
+        [Test]
+        public void QueryBatchCursorOldest01()
+        {
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            _testDatabase.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid(); // Oldest
+            var s1 = SequentialGuid.CreateGuid().ToByteArray();
+            var t1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid(); // Newest
+
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+
+            QueryBatchCursor cursor = null;
+            var (result, hasRows) = _testDatabase.QueryBatch(2, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 2);
+            Debug.Assert(hasRows == true);
+            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f2.ToByteArray()) == 0);
+
+            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 1);
+            Debug.Assert(hasRows == false);
+            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f3.ToByteArray()) == 0);
+
+            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 0);
+            Debug.Assert(hasRows == false);
+            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f3.ToByteArray()) == 0);
+        }
+
+
+        [Test]
+        public void QueryBatchCursorOldestNewest01()
+        {
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            _testDatabase.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid(); // Oldest
+            var s1 = SequentialGuid.CreateGuid().ToByteArray();
+            var t1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid(); // Newest
+
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+
+            // Check we get the oldest and newest items
+
+            QueryBatchCursor cursor = null;
+            var (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f3) == 0);
+
+            cursor = null;
+            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f1) == 0);
+        }
+
+        [Test]
+        public void QueryBatchCreateCursor()
+        {
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            _testDatabase.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid(); // Oldest
+            var s1 = SequentialGuid.CreateGuid().ToByteArray();
+            var t1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+            var f4 = SequentialGuid.CreateGuid(); 
+            var f5 = SequentialGuid.CreateGuid(); 
+            var f6 = SequentialGuid.CreateGuid(); // Newest
+
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+
+            // Set the boundary item to f3 (which we didn't put in the DB)
+            var cursor = new QueryBatchCursor(f3.ToByteArray());
+
+            // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
+            var (result, hasRows) = _testDatabase.QueryBatch(10, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 3);
+            Debug.Assert(hasRows == false);
+            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f4.ToByteArray()) == 0);
+
+            // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
+            (result, hasRows) = _testDatabase.QueryBatch(10, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 0);
+            Debug.Assert(hasRows == false);
+            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f4.ToByteArray()) == 0);
+
+            //
+            // ====== Now do the same, oldest first
+            //
+            // Set the boundary item to f3 (which we didn't put in the DB)
+            cursor = new QueryBatchCursor(f3.ToByteArray());
+
+            // Get all the oldest items. We should get f1, f2 and no more because f3 is the boundary.
+            (result, hasRows) = _testDatabase.QueryBatch(10, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 2);
+            Debug.Assert(hasRows == false);
+            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f2.ToByteArray()) == 0);
+
+            // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
+            (result, hasRows) = _testDatabase.QueryBatch(10, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 0);
+            Debug.Assert(hasRows == false);
+            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f2.ToByteArray()) == 0);
+
         }
 
 
 
+        [Test]
+        public void QueryBatchCreateCursorTime()
+        {
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            _testDatabase.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid(); // Oldest
+            var s1 = SequentialGuid.CreateGuid().ToByteArray();
+            var t1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            Thread.Sleep(1);
+            var t3 = UnixTimeUtc.Now();
+            Thread.Sleep(1);
+            var f4 = SequentialGuid.CreateGuid();
+            var f5 = SequentialGuid.CreateGuid();
+            var f6 = SequentialGuid.CreateGuid(); // Newest
+
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+
+            // Set the boundary item to f3 (which we didn't put in the DB)
+            var cursor = new QueryBatchCursor(t3);
+
+            // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
+            var (result, hasRows) = _testDatabase.QueryBatch(10, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 3);
+            Debug.Assert(hasRows == false);
+            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f4.ToByteArray()) == 0);
+
+            // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
+            (result, hasRows) = _testDatabase.QueryBatch(10, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 0);
+            Debug.Assert(hasRows == false);
+            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f4.ToByteArray()) == 0);
+
+            //
+            // ====== Now do the same, oldest first
+            //
+            // Set the boundary item to f3 (which we didn't put in the DB)
+            cursor = new QueryBatchCursor(t3);
+
+            // Get all the oldest items. We should get f1, f2 and no more because f3 is the boundary.
+            (result, hasRows) = _testDatabase.QueryBatch(10, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 2);
+            Debug.Assert(hasRows == false);
+            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f2.ToByteArray()) == 0);
+
+            // Get all the newest items. We should get f6,f5,f4 and no more because f3 is the boundary.
+            (result, hasRows) = _testDatabase.QueryBatch(10, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 0);
+            Debug.Assert(hasRows == false);
+            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f2.ToByteArray()) == 0);
+
+        }
 
         /// <summary>
         /// Scenario: A newly installed chat client downloads the entire database. Gets everything in one go.
@@ -617,31 +887,31 @@ namespace DriveDatabaseTests
 
             QueryBatchCursor cursor = null;
 
-            var result = _testDatabase.QueryBatch(400, ref cursor, requiredSecurityGroup: allIntRange);
+            var result = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 5);
 
             cursor = null;
-            result = _testDatabase.QueryBatch(400, ref cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0));
+            result = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0));
             Debug.Assert(result.Count == 1);
 
             cursor = null;
-            result = _testDatabase.QueryBatch(400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1));
+            result = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1));
             Debug.Assert(result.Count == 1);
 
             cursor = null;
-            result = _testDatabase.QueryBatch(400, ref cursor, requiredSecurityGroup: new IntRange(start: 2, end: 2));
+            result = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: new IntRange(start: 2, end: 2));
             Debug.Assert(result.Count == 2);
 
             cursor = null;
-            result = _testDatabase.QueryBatch(400, ref cursor, requiredSecurityGroup: new IntRange(start: 3, end: 3));
+            result = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: new IntRange(start: 3, end: 3));
             Debug.Assert(result.Count == 1);
 
             cursor = null;
-            result = _testDatabase.QueryBatch(400, ref cursor, requiredSecurityGroup: new IntRange(start: 4, end: 10));
+            result = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: new IntRange(start: 4, end: 10));
             Debug.Assert(result.Count == 0);
 
             cursor = null;
-            result = _testDatabase.QueryBatch(400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 2));
+            result = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 2));
             Debug.Assert(result.Count == 3);
         }
 
@@ -732,37 +1002,37 @@ namespace DriveDatabaseTests
 
             // For any security group, we should have 5 entries
             cursor = null;
-            var result = _testDatabase.QueryBatch(400, ref cursor, requiredSecurityGroup: allIntRange);
+            var result = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 5);
 
             // For any security group, and an ACL, then the OR statement ignores the ACL, we should still have 5 entries
             cursor = null;
-            result = _testDatabase.QueryBatch(400, ref cursor, requiredSecurityGroup: allIntRange, aclAnyOf: new List<Guid>() { a4 });
+            result = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: allIntRange, aclAnyOf: new List<Guid>() { a4 });
             Debug.Assert(result.Count == 5);
 
             // For NO valid security group, and a valid ACL, just the valid ACLs
             cursor = null;
-            result = _testDatabase.QueryBatch(400, ref cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a1 });
+            result = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a1 });
             Debug.Assert(result.Count == 2);
 
             // For just security Group 1 we have 2 entries
             cursor = null;
-            result = _testDatabase.QueryBatch(400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1));
+            result = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1));
             Debug.Assert(result.Count == 2);
 
             // For security Group 1 or any of the ACLs a1 we have 3
             cursor = null;
-            result = _testDatabase.QueryBatch(400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1), aclAnyOf: new List<Guid>() { a1 });
+            result = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1), aclAnyOf: new List<Guid>() { a1 });
             Debug.Assert(result.Count == 3);
 
             // For security Group 1 or any of the ACLs a3, a4 we have 3
             cursor = null;
-            result = _testDatabase.QueryBatch(400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1), aclAnyOf: new List<Guid>() { a3, a4 });
+            result = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: new IntRange(start: 1, end: 1), aclAnyOf: new List<Guid>() { a3, a4 });
             Debug.Assert(result.Count == 3);
 
             // For no security Group 1 getting ACLs a1we have 2
             cursor = null;
-            result = _testDatabase.QueryBatch(400, ref cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a1 });
+            result = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: new IntRange(start: 0, end: 0), aclAnyOf: new List<Guid>() { a1 });
             Debug.Assert(result.Count == 2);
         }
 
@@ -783,7 +1053,7 @@ namespace DriveDatabaseTests
 
             QueryBatchCursor cursor = null;
             cursor = null;
-            var result = _testDatabase.QueryBatch(400, ref cursor, requiredSecurityGroup: allIntRange);
+            var result = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f1) == 0);
             var data = _testDatabase.TblMainIndex.Get(f1);
@@ -808,7 +1078,7 @@ namespace DriveDatabaseTests
             _testDatabase.AddEntry(f2, g2, 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
 
             QueryBatchCursor cursor = null;
-            var result = _testDatabase.QueryBatch(400, ref cursor, requiredSecurityGroup: allIntRange);
+            var result = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f2) == 0);
             var data = _testDatabase.TblMainIndex.Get(f2);
@@ -861,7 +1131,7 @@ namespace DriveDatabaseTests
 
             QueryBatchCursor cursor = null;
             cursor = null;
-            var result = _testDatabase.QueryBatch(400, ref cursor, requiredSecurityGroup: allIntRange);
+            var result = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f1) == 0);
             var data = _testDatabase.TblMainIndex.Get(f1);
@@ -886,11 +1156,11 @@ namespace DriveDatabaseTests
             QueryBatchCursor cursor = null;
             cursor = null;
             // We shouldn't be able to find any like this:
-            var result = _testDatabase.QueryBatch(1, ref cursor, globalTransitIdAnyOf: new List<Guid>() { t1 }, requiredSecurityGroup: allIntRange);
+            var result = _testDatabase.QueryBatchAuto(1, ref cursor, globalTransitIdAnyOf: new List<Guid>() { t1 }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
 
             // Now we should be able to find it
-            result = _testDatabase.QueryBatch(1, ref cursor, globalTransitIdAnyOf: new List<Guid>() { t1, g1 }, requiredSecurityGroup: allIntRange);
+            result = _testDatabase.QueryBatchAuto(1, ref cursor, globalTransitIdAnyOf: new List<Guid>() { t1, g1 }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
 
             UnixTimeUtcUnique outCursor = UnixTimeUtcUnique.ZeroTime;
@@ -946,7 +1216,7 @@ namespace DriveDatabaseTests
 
             QueryBatchCursor cursor = null;
             cursor = null;
-            var result = _testDatabase.QueryBatch(400, ref cursor, requiredSecurityGroup: allIntRange);
+            var result = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f1) == 0);
             var data = _testDatabase.TblMainIndex.Get(f1);
@@ -971,7 +1241,7 @@ namespace DriveDatabaseTests
             _testDatabase.AddEntry(f2, null, 1, 1, s1, t1, u2, 42, new UnixTimeUtc(0), 1, null, null);
 
             QueryBatchCursor cursor = null;
-            var result = _testDatabase.QueryBatch(400, ref cursor, requiredSecurityGroup: allIntRange);
+            var result = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f2) == 0);
             var data = _testDatabase.TblMainIndex.Get(f2);
@@ -1024,7 +1294,7 @@ namespace DriveDatabaseTests
 
             QueryBatchCursor cursor = null;
             cursor = null;
-            var result = _testDatabase.QueryBatch(400, ref cursor, requiredSecurityGroup: allIntRange);
+            var result = _testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f1) == 0);
             var data = _testDatabase.TblMainIndex.Get(f1);
@@ -1049,11 +1319,11 @@ namespace DriveDatabaseTests
             QueryBatchCursor cursor = null;
             cursor = null;
             // We shouldn't be able to find any like this:
-            var result = _testDatabase.QueryBatch(1, ref cursor, uniqueIdAnyOf: new List<Guid>() { t1 }, requiredSecurityGroup: allIntRange);
+            var result = _testDatabase.QueryBatchAuto(1, ref cursor, uniqueIdAnyOf: new List<Guid>() { t1 }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
 
             // Now we should be able to find it
-            result = _testDatabase.QueryBatch(1, ref cursor, uniqueIdAnyOf: new List<Guid>() { t1, u1 }, requiredSecurityGroup: allIntRange);
+            result = _testDatabase.QueryBatchAuto(1, ref cursor, uniqueIdAnyOf: new List<Guid>() { t1, u1 }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
 
             UnixTimeUtcUnique outCursor = UnixTimeUtcUnique.ZeroTime;
@@ -1158,7 +1428,7 @@ namespace DriveDatabaseTests
             // var cursorTimestamp = testDatabase.GetTimestamp();
             QueryBatchCursor cursor = null;
 
-            var result = testDatabase.QueryBatch(400, ref cursor, requiredSecurityGroup: allIntRange);
+            var result = testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 400);
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], fileId[fileId.Count - 1]) == 0);
             Debug.Assert(ByteArrayUtil.muidcmp(result[399], fileId[fileId.Count - 400]) == 0);
@@ -1174,17 +1444,17 @@ namespace DriveDatabaseTests
             Debug.Assert(p2.Count == 4);
 
 
-            result = testDatabase.QueryBatch(400, ref cursor, requiredSecurityGroup: allIntRange);
+            result = testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 400);
 
-            result = testDatabase.QueryBatch(400, ref cursor, requiredSecurityGroup: allIntRange);
+            result = testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 200); // We put 1,000 lines into the index. 400+400+200 = 1,000
 
             stopWatch.Stop();
             Utils.StopWatchStatus("Built in QueryBatch()", stopWatch);
 
             // Try to get a batch stopping at boundaryCursor. We should get none.
-            result = testDatabase.QueryBatch(400, ref cursor, requiredSecurityGroup: allIntRange);
+            result = testDatabase.QueryBatchAuto(400, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0); // There should be no more
 
             UnixTimeUtcUnique outCursor = UnixTimeUtcUnique.ZeroTime;
@@ -1217,7 +1487,7 @@ namespace DriveDatabaseTests
             // Test that if we fetch the first record, it is the latest fileId
             //
             cursor = null;
-            result = testDatabase.QueryBatch(1, ref cursor, requiredSecurityGroup: allIntRange);
+            result = testDatabase.QueryBatchAuto(1, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
 
             if (testDatabase.GetKind() == DatabaseIndexKind.TimeSeries)
@@ -1229,7 +1499,7 @@ namespace DriveDatabaseTests
                 throw new Exception("What to expect here?");
             }
 
-            result = testDatabase.QueryBatch(1, ref cursor, requiredSecurityGroup: allIntRange);
+            result = testDatabase.QueryBatchAuto(1, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
             if (testDatabase.GetKind() == DatabaseIndexKind.TimeSeries)
             {
@@ -1244,14 +1514,14 @@ namespace DriveDatabaseTests
             // Test that fileType works. We know row #1 has filetype 0.
             //
             cursor = null;
-            result = testDatabase.QueryBatch(10, ref cursor, filetypesAnyOf: new List<int>() { 0, 4 }, requiredSecurityGroup: allIntRange);
+            result = testDatabase.QueryBatchAuto(10, ref cursor, filetypesAnyOf: new List<int>() { 0, 4 }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count >= 1);
 
             //
             // Test that we can find a row with Tags. We know row 0 has tag 0..3
             //
             cursor = null;
-            result = testDatabase.QueryBatch(10, ref cursor,
+            result = testDatabase.QueryBatchAuto(10, ref cursor,
                 tagsAnyOf: new List<Guid>() { tags[0], tags[1], tags[2] }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count >= 1);
 
@@ -1260,7 +1530,7 @@ namespace DriveDatabaseTests
             // Test that we can find a row with Acls. We know row 0 has acl 0..3
             //
             cursor = null;
-            result = testDatabase.QueryBatch(10, ref cursor,
+            result = testDatabase.QueryBatchAuto(10, ref cursor,
                 aclAnyOf: new List<Guid>() { aclMembers[0], aclMembers[1], aclMembers[2] }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count >= 1);
 
@@ -1270,17 +1540,17 @@ namespace DriveDatabaseTests
             // From three on it's a repeat code.
             //
             cursor = null;
-            result = testDatabase.QueryBatch(10, ref cursor,
+            result = testDatabase.QueryBatchAuto(10, ref cursor,
                 tagsAllOf: new List<Guid>() { tags[0] }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count >= 1);
 
             cursor = null;
-            result = testDatabase.QueryBatch(10, ref cursor,
+            result = testDatabase.QueryBatchAuto(10, ref cursor,
                 tagsAllOf: new List<Guid>() { tags[0], tags[1] }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count >= 1);
 
             cursor = null;
-            result = testDatabase.QueryBatch(1, ref cursor,
+            result = testDatabase.QueryBatchAuto(1, ref cursor,
                 tagsAllOf: new List<Guid>() { tags[0], tags[1], tags[2] }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count >= 1);
 
@@ -1288,7 +1558,7 @@ namespace DriveDatabaseTests
             // Test that we can execute a query with all main attributes set
             //
             cursor = null;
-            result = testDatabase.QueryBatch(10,
+            result = testDatabase.QueryBatchAuto(10,
                 ref cursor,
                 filetypesAnyOf: new List<int>() { 0, 1, 2, 3, 4, 5 },
                 datatypesAnyOf: new List<int>() { 0, 1, 2, 3, 4, 5 },
@@ -1301,7 +1571,7 @@ namespace DriveDatabaseTests
             // Test that we can find a row with Acls AND Tags
             //
             cursor = null;
-            result = testDatabase.QueryBatch(10, ref cursor,
+            result = testDatabase.QueryBatchAuto(10, ref cursor,
                 tagsAnyOf: new List<Guid>() { tags[0], tags[1], tags[2] },
                 aclAnyOf: new List<Guid>() { aclMembers[0], aclMembers[1], aclMembers[2] },
                 requiredSecurityGroup: allIntRange);
@@ -1311,7 +1581,7 @@ namespace DriveDatabaseTests
             // Test that we can find a row with Acls AND Tags
             //
             cursor = null;
-            result = testDatabase.QueryBatch(100, ref cursor,
+            result = testDatabase.QueryBatchAuto(100, ref cursor,
                 tagsAllOf: new List<Guid>() { tags[0], tags[1], tags[2] },
                 aclAnyOf: new List<Guid>() { aclMembers[0], aclMembers[1], aclMembers[2] },
                 requiredSecurityGroup: allIntRange);
