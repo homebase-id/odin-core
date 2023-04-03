@@ -112,7 +112,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
             }
 
 
-            //
             // System apps should be in place
             //
             // var samOwnerClient = _scaffold.CreateOwnerApiClient(identity);

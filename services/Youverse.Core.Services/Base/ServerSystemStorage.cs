@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using Youverse.Core.Identity;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Storage.Sqlite;
 using Youverse.Core.Storage.Sqlite.ServerDatabase;
@@ -35,6 +36,16 @@ public class ServerSystemStorage : IDisposable
     public DatabaseBase.LogicCommitUnit CreateCommitUnitOfWork()
     {
         return _db.CreateCommitUnitOfWork();
+    }
+
+    public void EnqueueJob(OdinId odinId, CronJobType jobType, byte[] data)
+    {
+        this.tblCron.Insert(new CronRecord()
+        {
+            identityId = odinId,
+            type = (Int32)jobType,
+            data = data
+        });
     }
 
     public void Dispose()

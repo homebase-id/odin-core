@@ -1,6 +1,7 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Youverse.Core;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Hosting.Controllers.Anonymous;
 using Youverse.Hosting.Controllers.Base;
@@ -13,9 +14,11 @@ namespace Youverse.Hosting.Controllers.ClientToken.YouAuth.Follow
     [AuthorizeValidExchangeGrant]
     public class YouAuthFollowerController : FollowerControllerBase
     {
+        private readonly DotYouContextAccessor _contextAccessor;
         /// <summary />
-        public YouAuthFollowerController(FollowerService fs) : base(fs)
+        public YouAuthFollowerController(FollowerService fs, DotYouContextAccessor contextAccessor) : base(fs)
         {
+            _contextAccessor = contextAccessor;
         }
 
         /// <summary />
@@ -25,5 +28,17 @@ namespace Youverse.Hosting.Controllers.ClientToken.YouAuth.Follow
             var result = await base.GetWhoIFollow(max, cursor);
             return result;
         }
+        
+        /// <summary>
+        /// Returns information indicating if the authenticated identity follows the current tenant
+        /// </summary>
+        /// <returns></returns>
+        [HttpGet("FollowerConfiguration")]
+        public async Task<object> GetFollowerConfig()
+        {
+            var follower = await base.GetFollower(_contextAccessor.GetCurrent().Caller.OdinId);
+            return follower;
+        }
+
     }
 }

@@ -56,7 +56,6 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             }
 
             //TODO: use the exchange grant service to create the access reg and CAT 
-            // var accessToken = await _appRegistrationService.RegisterClientRaw(SystemAppConstants.FeedAppId, $"Feed App Client for {request.OdinId}");
 
             var followRequest = new PerimterFollowRequest()
             {
@@ -133,7 +132,12 @@ namespace Youverse.Core.Services.DataSubscription.Follower
 
         public async Task<FollowerDefinition> GetFollower(OdinId odinId)
         {
-            _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadWhoIFollow);
+            //a follower is allowed to read their own configuration
+            if (odinId != _contextAccessor.GetCurrent().Caller.OdinId)
+            {
+                _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadWhoIFollow);
+            }
+            
             return await GetFollowerInternal(odinId);
         }
 

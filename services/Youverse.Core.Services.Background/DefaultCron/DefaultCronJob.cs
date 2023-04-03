@@ -4,10 +4,11 @@ using System.Linq;
 using System.Threading.Tasks;
 using Quartz;
 using Youverse.Core.Identity;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Certificate.Renewal;
 using Youverse.Core.Services.Registry;
-using Youverse.Core.Services.Workers.Transit;
+using Youverse.Core.Services.Workers.FeedDistributionApp;
 
 namespace Youverse.Core.Services.Workers.DefaultCron
 {
@@ -31,17 +32,16 @@ namespace Youverse.Core.Services.Workers.DefaultCron
             {
                 return;
             }
-            
+
             Dictionary<Guid, CertificateOrderStatus> statusMap = new();
-            
             
             var markers = new List<Guid>() { items.First().popStamp.GetValueOrDefault() };
 
             foreach (var item in items)
             {
-                var identity = (OdinId)item.data.ToStringFromUtf8Bytes();
-                if (item.type == 1)
+                if (item.type == (Int32)CronJobType.PendingTransfer)
                 {
+                    var identity = (OdinId)item.data.ToStringFromUtf8Bytes();
                     var success = await StokeOutbox(identity, batchSize: 1);
                     if (success)
                     {
@@ -53,14 +53,28 @@ namespace Youverse.Core.Services.Workers.DefaultCron
                     }
                 }
 
-                if (item.type == 2)
+                if (item.type == (Int32)CronJobType.GenerateCertificate)
                 {
+                    var identity = (OdinId)item.data.ToStringFromUtf8Bytes();
                     var status = await GenerateCertificate(identity);
 
                     statusMap.Add(identity.ToHashId(), status);
 
-                    if (statusMap.Values.ToList()
-                        .TrueForAll(s => s == CertificateOrderStatus.CertificateUpdateComplete))
+                    if (statusMap.Values.ToList().TrueForAll(s => s == CertificateOrderStatus.CertificateUpdateComplete))
+                    {
+                        _serverSystemStorage.tblCron.PopCommitList(markers);
+                    }
+                    else
+                    {
+                        _serverSystemStorage.tblCron.PopCancelList(markers);
+                    }
+                }
+
+                if (item.type == (Int32)CronJobType.FeedDistribution)
+                {
+                    var job = new FeedDistributionJob();
+                    var success = await job.Execute(item);
+                    if (success)
                     {
                         _serverSystemStorage.tblCron.PopCommitList(markers);
                     }
@@ -74,9 +88,7 @@ namespace Youverse.Core.Services.Workers.DefaultCron
 
         private async Task<bool> StokeOutbox(OdinId identity, int batchSize)
         {
-            // _logger.LogInformation($"Stoke running for {identity}");
-
-            var svc = SystemHttpClient.CreateHttps<IOutboxHttpClient>(identity);
+            var svc = SystemHttpClient.CreateHttps<ICronHttpClient>(identity);
             var response = await svc.ProcessOutbox(batchSize);
             return response.IsSuccessStatusCode;
         }
