@@ -90,27 +90,7 @@ namespace Youverse.Core.Services.DataSubscription
 
             if (notification is ReactionPreviewUpdatedNotification && _contextAccessor.GetCurrent().Caller.IsOwner == false)
             {
-                var item = new ReactionPreviewDistributionItem()
-                {
-                    DriveNotificationType = notification.DriveNotificationType,
-                    SourceFile = notification.ServerFileHeader.FileMetadata!.File,
-                    FileSystemType = notification.ServerFileHeader.ServerMetadata.FileSystemType
-                };
-
-                var bytes = HashUtil.ReduceSHA256Hash(ByteArrayUtil.Combine(item.SourceFile.FileId.ToByteArray(), item.SourceFile.DriveId.ToByteArray()));
-                var fileKey = new Guid(bytes);
-
-                _tenantSystemStorage.ThreeKeyValueStorage.Upsert(fileKey, _feedItemCategory, null, item);
-
-                //tell the job we this tenant needs to have their queue processed
-                var jobInfo = new FeedDistributionInfo()
-                {
-                    OdinId = _tenantContext.HostOdinId,
-                };
-
-                _serverSystemStorage.EnqueueJob(_tenantContext.HostOdinId, CronJobType.FeedDistribution,
-                    DotYouSystemSerializer.Serialize(jobInfo).ToUtf8ByteArray());
-
+                await SendUpdatedReactionPreview(notification);
                 return;
             }
 
@@ -119,7 +99,7 @@ namespace Youverse.Core.Services.DataSubscription
                 await this.DistributeFullFile(notification);
             }
         }
-
+        
         public async Task DistributeReactionPreviews()
         {
             var items = _tenantSystemStorage.ThreeKeyValueStorage.GetByKey2<ReactionPreviewDistributionItem>(_feedItemCategory);
@@ -258,6 +238,30 @@ namespace Youverse.Core.Services.DataSubscription
                 ClientAccessTokenSource.Auto);
         }
 
+        private async Task SendUpdatedReactionPreview(IDriveNotification notification)
+        {
+            var item = new ReactionPreviewDistributionItem()
+            {
+                DriveNotificationType = notification.DriveNotificationType,
+                SourceFile = notification.ServerFileHeader.FileMetadata!.File,
+                FileSystemType = notification.ServerFileHeader.ServerMetadata.FileSystemType
+            };
+
+            var bytes = HashUtil.ReduceSHA256Hash(ByteArrayUtil.Combine(item.SourceFile.FileId.ToByteArray(), item.SourceFile.DriveId.ToByteArray()));
+            var fileKey = new Guid(bytes);
+
+            _tenantSystemStorage.ThreeKeyValueStorage.Upsert(fileKey, _feedItemCategory, null, item);
+
+            //tell the job we this tenant needs to have their queue processed
+            var jobInfo = new FeedDistributionInfo()
+            {
+                OdinId = _tenantContext.HostOdinId,
+            };
+
+            _serverSystemStorage.EnqueueJob(_tenantContext.HostOdinId, CronJobType.FeedDistribution,
+                DotYouSystemSerializer.Serialize(jobInfo).ToUtf8ByteArray());
+        }
+        
         private async Task<bool> SupportsSubscription(Guid driveId)
         {
             var drive = await _driveManager.GetDrive(driveId, false);
