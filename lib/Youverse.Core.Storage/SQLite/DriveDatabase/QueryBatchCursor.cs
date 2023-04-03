@@ -43,7 +43,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
         {
             pagingCursor = null;
             nextBoundaryCursor = null;
-            var _g = SequentialGuid.CreateGuid(new UnixTimeUtc(stopAtBoundaryUtc));
+            var _g = SequentialGuid.CreateGuid(stopAtBoundaryUtc);
             stopAtBoundary = new byte[16];
             _g.ToByteArray().CopyTo(stopAtBoundary, 0);
             userDatePagingCursor = null;
@@ -61,7 +61,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             pagingCursor = null;
             nextBoundaryCursor = null;
             stopAtBoundary = new byte[16];
-            stopAtBoundary.CopyTo(stopAtBoundary, 0);
+            stopAtBoundaryItem.CopyTo(stopAtBoundary, 0);
             userDatePagingCursor = null;
             userDateStopAtBoundary = null;
             userDateNextBoundaryCursor = null;

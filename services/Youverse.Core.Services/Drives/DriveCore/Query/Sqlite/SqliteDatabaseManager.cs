@@ -71,7 +71,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         var aclList = GetAcl(dotYouContext);
 
         var cursor = options.Cursor;
-        var results = _db.QueryBatch(
+        var results = _db.QueryBatchAuto(
             noOfItems: options.MaxRecords,
             cursor: ref cursor,
             fileSystemType: (Int32)fileSystemType,
@@ -148,6 +148,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
                 senderId: sender,
                 groupId: metadata.AppData.GroupId,
                 uniqueId: metadata.AppData.UniqueId,
+                // TODO TODD ADD isArchived: value here
                 userDate: metadata.AppData.UserDate,
                 requiredSecurityGroup: securityGroup,
                 accessControlList: acl,
@@ -164,6 +165,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
                 senderId: sender,
                 groupId: metadata.AppData.GroupId,
                 uniqueId: metadata.AppData.UniqueId,
+                isArchived: 0, // TODO TODD ADD VALUE HERE
                 userDate: metadata.AppData.UserDate.GetValueOrDefault(),
                 requiredSecurityGroup: securityGroup,
                 accessControlList: acl,
