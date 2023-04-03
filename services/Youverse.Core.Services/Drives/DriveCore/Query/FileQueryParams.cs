@@ -10,6 +10,8 @@ public class FileQueryParams
     public IEnumerable<int> FileType { get; set; } = null;
     public IEnumerable<int> DataType { get; set; } = null;
 
+    public int? ArchivalStatus { get; set; } = null;
+
     /// <summary>
     /// List of byte[] where the content is a lower-cased UTF8 encoded byte array of the identity.
     /// </summary>

@@ -27,6 +27,8 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
         public ImageDataContent PreviewThumbnail { get; set; }
         
         public IEnumerable<ImageDataHeader> AdditionalThumbnails { get; set; }
+        
+        public int ArchivalStatus { get; set; }
     }
 
 }

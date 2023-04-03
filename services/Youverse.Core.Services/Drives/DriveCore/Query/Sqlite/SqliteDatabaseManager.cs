@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
@@ -55,41 +53,47 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
             userdateSpan: qp.UserDate,
             aclAnyOf: aclList,
             tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
-            tagsAllOf: qp.TagsMatchAll?.ToList());
+            tagsAllOf: qp.TagsMatchAll?.ToList(),
+            archivalStatusAnyOf: qp.ArchivalStatus.HasValue ? new List<int>() { qp.ArchivalStatus.Value } : null);
 
         return Task.FromResult((cursor.uniqueTime, results.AsEnumerable()));
     }
 
 
-    public Task<(QueryBatchCursor, IEnumerable<Guid>)> GetBatch(DotYouContext dotYouContext,
+    public Task<(QueryBatchCursor, IEnumerable<Guid>, bool? hasMoreRows)> GetBatch(DotYouContext dotYouContext,
         FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options)
     {
         Guard.Argument(dotYouContext, nameof(dotYouContext)).NotNull();
 
         var securityRange = new IntRange(0, (int)dotYouContext.Caller.SecurityLevel);
-
         var aclList = GetAcl(dotYouContext);
-
         var cursor = options.Cursor;
-        var results = _db.QueryBatchAuto(
-            noOfItems: options.MaxRecords,
-            cursor: ref cursor,
-            fileSystemType: (Int32)fileSystemType,
-            requiredSecurityGroup: securityRange,
-            globalTransitIdAnyOf: qp.GlobalTransitId?.ToList(),
-            filetypesAnyOf: qp.FileType?.ToList(),
-            datatypesAnyOf: qp.DataType?.ToList(),
-            senderidAnyOf: qp.Sender?.ToList(),
-            groupIdAnyOf: qp.GroupId?.Select(g => g).ToList(),
-            userdateSpan: qp.UserDate,
-            aclAnyOf: aclList?.ToList(),
-            uniqueIdAnyOf: qp.ClientUniqueIdAtLeastOne?.ToList(),
-            tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
-            tagsAllOf: qp.TagsMatchAll?.ToList());
 
-        return Task.FromResult((cursor, results.Select(r => r)));
+        if (options.Ordering == Ordering.Default)
+        {
+            var results = _db.QueryBatchAuto(
+                noOfItems: options.MaxRecords,
+                cursor: ref cursor,
+                fileSystemType: (Int32)fileSystemType,
+                requiredSecurityGroup: securityRange,
+                globalTransitIdAnyOf: qp.GlobalTransitId?.ToList(),
+                filetypesAnyOf: qp.FileType?.ToList(),
+                datatypesAnyOf: qp.DataType?.ToList(),
+                senderidAnyOf: qp.Sender?.ToList(),
+                groupIdAnyOf: qp.GroupId?.Select(g => g).ToList(),
+                userdateSpan: qp.UserDate,
+                aclAnyOf: aclList?.ToList(),
+                uniqueIdAnyOf: qp.ClientUniqueIdAtLeastOne?.ToList(),
+                tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
+                tagsAllOf: qp.TagsMatchAll?.ToList(),
+                archivalStatusAnyOf: qp.ArchivalStatus.HasValue ? new List<int>() { qp.ArchivalStatus.Value } : null);
+
+            return Task.FromResult((cursor, results.Select(r => r), (bool?)null));
+        }
+
+        // if the caller was explicit in how they want results...
+        return GetBatchExplicitOrdering(dotYouContext, fileSystemType, qp, options);
     }
-
 
     private List<Guid> GetAcl(DotYouContext dotYouContext)
     {
@@ -148,7 +152,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
                 senderId: sender,
                 groupId: metadata.AppData.GroupId,
                 uniqueId: metadata.AppData.UniqueId,
-                // TODO TODD ADD isArchived: value here
+                archivalStatus: metadata.AppData.ArchivalStatus,
                 userDate: metadata.AppData.UserDate,
                 requiredSecurityGroup: securityGroup,
                 accessControlList: acl,
@@ -165,7 +169,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
                 senderId: sender,
                 groupId: metadata.AppData.GroupId,
                 uniqueId: metadata.AppData.UniqueId,
-                isArchived: 0, // TODO TODD ADD VALUE HERE
+                archivalStatus: metadata.AppData.ArchivalStatus,
                 userDate: metadata.AppData.UserDate.GetValueOrDefault(),
                 requiredSecurityGroup: securityGroup,
                 accessControlList: acl,
@@ -214,7 +218,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         _db.TblCmdMsgQueue.DeleteRow(fileIds);
         return Task.CompletedTask;
     }
-    
+
     public void Dispose()
     {
         _db.Commit();
@@ -288,6 +292,38 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         ).ToList();
 
         return (results, nextCursor);
+    }
+
+    private Task<(QueryBatchCursor cursor, IEnumerable<Guid> fileIds, bool? hasMoreRows)> GetBatchExplicitOrdering(DotYouContext dotYouContext,
+        FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options)
+    {
+        Guard.Argument(dotYouContext, nameof(dotYouContext)).NotNull();
+
+        var securityRange = new IntRange(0, (int)dotYouContext.Caller.SecurityLevel);
+
+        var aclList = GetAcl(dotYouContext);
+
+        var cursor = options.Cursor;
+
+        var (results, hasMoreRows) = _db.QueryBatch(
+            noOfItems: options.MaxRecords,
+            cursor: ref cursor,
+            newestFirstOrder: options.Ordering == Ordering.NewestFirst,
+            fileSystemType: (Int32)fileSystemType,
+            requiredSecurityGroup: securityRange,
+            globalTransitIdAnyOf: qp.GlobalTransitId?.ToList(),
+            filetypesAnyOf: qp.FileType?.ToList(),
+            datatypesAnyOf: qp.DataType?.ToList(),
+            senderidAnyOf: qp.Sender?.ToList(),
+            groupIdAnyOf: qp.GroupId?.Select(g => g).ToList(),
+            userdateSpan: qp.UserDate,
+            aclAnyOf: aclList?.ToList(),
+            uniqueIdAnyOf: qp.ClientUniqueIdAtLeastOne?.ToList(),
+            tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
+            tagsAllOf: qp.TagsMatchAll?.ToList(),
+            archivalStatusAnyOf: qp.ArchivalStatus.HasValue ? new List<int>() { qp.ArchivalStatus.Value } : null);
+
+        return Task.FromResult((cursor, results.Select(r => r), (bool?)hasMoreRows));
     }
 }
 

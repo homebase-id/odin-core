@@ -44,7 +44,39 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
         {
             var appId = Guid.NewGuid();
             var name = "API Tests Sample App-register";
-            var newId = await AddSampleAppNoDrive(appId, name);
+            var corsHostName = "photos.odin.earth";
+
+            var newId = await AddSampleAppNoDrive(appId, name, corsHostName);
+        }
+
+        [Test]
+        public async Task FailToRegisterNewAppWithInvalidCorsHostName()
+        {
+            var applicationId = Guid.NewGuid();
+            var name = "API Tests Sample App-register";
+            var corsHostName = "*.odin.earth";
+
+            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+            {
+                var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var request = new AppRegistrationRequest
+                {
+                    AppId = applicationId,
+                    Name = name,
+                    PermissionSet = null,
+                    Drives = null,
+                    CorsHostName = corsHostName
+                };
+
+                var response = await svc.RegisterApp(request);
+
+                Assert.IsFalse(response.IsSuccessStatusCode, $"Should have failed to add app registration.  Status code was {response.StatusCode}");
+                var appReg = response.Content;
+
+                var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = applicationId });
+                Assert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {applicationId}");
+                Assert.IsNull(appResponse.Content, "There should be no app");
+            }
         }
 
         [Test]
@@ -107,7 +139,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
                 CollectionAssert.AreEquivalent(savedApp.AuthorizedCircles, request.AuthorizedCircles);
 
-                CollectionAssert.AreEquivalent(savedApp.Grant.DriveGrants.Select(d => d.PermissionedDrive).ToList(), request.Drives.Select(p => p.PermissionedDrive));
+                CollectionAssert.AreEquivalent(savedApp.Grant.DriveGrants.Select(d => d.PermissionedDrive).ToList(),
+                    request.Drives.Select(p => p.PermissionedDrive));
                 Assert.IsTrue(savedApp.Grant.PermissionSet == request.PermissionSet);
 
                 CollectionAssert.AreEquivalent(savedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
@@ -172,7 +205,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
                 CollectionAssert.AreEquivalent(savedApp.AuthorizedCircles, request.AuthorizedCircles);
 
-                CollectionAssert.AreEquivalent(savedApp.Grant.DriveGrants.Select(d => d.PermissionedDrive).ToList(), request.Drives.Select(p => p.PermissionedDrive));
+                CollectionAssert.AreEquivalent(savedApp.Grant.DriveGrants.Select(d => d.PermissionedDrive).ToList(),
+                    request.Drives.Select(p => p.PermissionedDrive));
                 Assert.IsTrue(savedApp.Grant.PermissionSet == request.PermissionSet);
 
                 CollectionAssert.AreEquivalent(savedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
@@ -193,8 +227,9 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
         {
             var appId = Guid.NewGuid();
             var name = "API Tests Sample App-revoke";
+            var corsHostName = "photos.odin.earth";
 
-            var newId = await AddSampleAppNoDrive(appId, name);
+            var newId = await AddSampleAppNoDrive(appId, name, corsHostName);
 
             using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
             {
@@ -216,8 +251,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             var rsa = new RsaFullKeyData(ref RsaKeyListManagement.zeroSensitiveKey, 1);
             var appId = Guid.NewGuid();
             var name = "API Tests Sample App-reg-app-device";
-
-            await AddSampleAppNoDrive(appId, name);
+            var corsHostName = "app.somewhere.org";
+            await AddSampleAppNoDrive(appId, name, corsHostName);
 
             using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.OdinId, out var ownerSharedSecret))
             {
@@ -324,7 +359,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
                 CollectionAssert.AreEquivalent(savedApp.AuthorizedCircles, request.AuthorizedCircles);
 
-                CollectionAssert.AreEquivalent(savedApp.Grant.DriveGrants.Select(d => d.PermissionedDrive).ToList(), request.Drives.Select(p => p.PermissionedDrive));
+                CollectionAssert.AreEquivalent(savedApp.Grant.DriveGrants.Select(d => d.PermissionedDrive).ToList(),
+                    request.Drives.Select(p => p.PermissionedDrive));
                 Assert.IsTrue(savedApp.Grant.PermissionSet == request.PermissionSet);
 
                 CollectionAssert.AreEquivalent(savedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
@@ -342,7 +378,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
                 var updatedApp = await GetSampleApp(applicationId);
                 // be sure the permissions are updated 
-                CollectionAssert.AreEquivalent(updatedApp.Grant.DriveGrants.Select(d => d.PermissionedDrive).ToList(), updateRequest.Drives.Select(p => p.PermissionedDrive));
+                CollectionAssert.AreEquivalent(updatedApp.Grant.DriveGrants.Select(d => d.PermissionedDrive).ToList(),
+                    updateRequest.Drives.Select(p => p.PermissionedDrive));
                 Assert.IsTrue(updatedApp.Grant.PermissionSet == updateRequest.PermissionSet);
 
                 // be sure the other fields did not change
@@ -426,7 +463,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
                 CollectionAssert.AreEquivalent(savedApp.AuthorizedCircles, request.AuthorizedCircles);
 
-                CollectionAssert.AreEquivalent(savedApp.Grant.DriveGrants.Select(d => d.PermissionedDrive).ToList(), request.Drives.Select(p => p.PermissionedDrive));
+                CollectionAssert.AreEquivalent(savedApp.Grant.DriveGrants.Select(d => d.PermissionedDrive).ToList(),
+                    request.Drives.Select(p => p.PermissionedDrive));
                 Assert.IsTrue(savedApp.Grant.PermissionSet == request.PermissionSet);
 
                 CollectionAssert.AreEquivalent(savedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
@@ -451,16 +489,17 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 CollectionAssert.AreEquivalent(updatedApp.AuthorizedCircles, updateRequest.AuthorizedCircles);
                 CollectionAssert.AreEquivalent(updatedApp.CircleMemberPermissionSetGrantRequest.Drives.Select(d => d.PermissionedDrive).ToList(),
                     updateRequest.CircleMemberPermissionGrant.Drives.Select(p => p.PermissionedDrive).ToList());
-                
+
                 Assert.IsTrue(updatedApp.CircleMemberPermissionSetGrantRequest.PermissionSet == updateRequest.CircleMemberPermissionGrant.PermissionSet);
                 // be sure the other fields did not change
 
-                CollectionAssert.AreEquivalent(updatedApp.Grant.DriveGrants.Select(d => d.PermissionedDrive).ToList(), request.Drives.Select(p => p.PermissionedDrive));
+                CollectionAssert.AreEquivalent(updatedApp.Grant.DriveGrants.Select(d => d.PermissionedDrive).ToList(),
+                    request.Drives.Select(p => p.PermissionedDrive));
                 Assert.IsTrue(updatedApp.Grant.PermissionSet == request.PermissionSet);
             }
         }
 
-        private async Task<RedactedAppRegistration> AddSampleAppNoDrive(Guid applicationId, string name)
+        private async Task<RedactedAppRegistration> AddSampleAppNoDrive(Guid applicationId, string name, string corsHostName)
         {
             using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
             {
@@ -470,7 +509,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                     AppId = applicationId,
                     Name = name,
                     PermissionSet = null,
-                    Drives = null
+                    Drives = null,
+                    CorsHostName = corsHostName
                 };
 
                 var response = await svc.RegisterApp(request);
@@ -482,6 +522,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 var savedApp = await GetSampleApp(applicationId);
                 Assert.IsTrue(savedApp.AppId == request.AppId);
                 Assert.IsTrue(savedApp.Name == request.Name);
+                Assert.IsTrue(savedApp.CorsHostName == request.CorsHostName);
 
                 return appReg;
             }

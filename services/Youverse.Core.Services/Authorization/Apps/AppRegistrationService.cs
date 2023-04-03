@@ -16,6 +16,7 @@ using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Storage;
+using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Authorization.Apps
 {
@@ -58,6 +59,11 @@ namespace Youverse.Core.Services.Authorization.Apps
             Guard.Argument(request.Name, nameof(request.Name)).NotNull().NotEmpty();
             Guard.Argument(request.AppId, nameof(request.AppId)).Require(request.AppId != Guid.Empty);
 
+            if (!string.IsNullOrEmpty(request.CorsHostName))
+            {
+                DomainNameValidator.AssertValidDomain(request.CorsHostName);
+            }
+
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var appGrant = await _exchangeGrantService.CreateExchangeGrant(request.PermissionSet, request.Drives, masterKey);
 
@@ -70,6 +76,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 Name = request.Name,
                 Grant = appGrant,
 
+                CorsHostName = request.CorsHostName,
                 CircleMemberPermissionGrant = request.CircleMemberPermissionGrant,
                 AuthorizedCircles = request.AuthorizedCircles
             };
@@ -141,18 +148,18 @@ namespace Youverse.Core.Services.Authorization.Apps
                 throw new YouverseClientException("App must be registered to add a client", YouverseClientErrorCode.AppNotRegistered);
             }
 
-            var (accessRegistration, cat) = await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, _contextAccessor.GetCurrent().Caller.GetMasterKey(), ClientTokenType.Other);
+            var (accessRegistration, cat) =
+                await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, _contextAccessor.GetCurrent().Caller.GetMasterKey(), ClientTokenType.Other);
 
             var appClient = new AppClient(appId, friendlyName, accessRegistration);
             this.SaveClient(appClient);
             return cat;
         }
-        
+
         public async Task<AppClientRegistrationResponse> RegisterClientSecure(GuidId appId, byte[] clientPublicKey, string friendlyName)
         {
-
             var cat = await this.RegisterClientRaw(appId, friendlyName);
-            
+
             //RSA encrypt using the public key and send to client
             var data = cat.ToPortableBytes();
             var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(clientPublicKey);
@@ -190,12 +197,29 @@ namespace Youverse.Core.Services.Authorization.Apps
                     throw new YouverseSecurityException("Invalid token");
                 }
 
+                if (!string.IsNullOrEmpty(appReg.CorsHostName))
+                {
+                    //just in case something changed in the db record
+                    DomainNameValidator.AssertValidDomain(appReg.CorsHostName);
+                }
+
                 var grantDictionary = new Dictionary<string, ExchangeGrant> { { "app_exchange_grant", appReg.Grant } };
 
                 //Note: isOwner = true because we passed ValidateClientAuthToken for an ap token above 
-                var permissionContext = _exchangeGrantService.CreatePermissionContext(token, grantDictionary, accessReg, includeAnonymousDrives: true).GetAwaiter().GetResult();
+                var permissionContext = _exchangeGrantService.CreatePermissionContext(token, grantDictionary, accessReg, includeAnonymousDrives: true)
+                    .GetAwaiter().GetResult();
 
-                var dotYouContext = new DotYouContext() { Caller = new CallerContext(odinId: _tenantContext.HostOdinId, masterKey: null, securityLevel: SecurityGroupType.Owner) };
+                var dotYouContext = new DotYouContext()
+                {
+                    Caller = new CallerContext(
+                        odinId: _tenantContext.HostOdinId,
+                        masterKey: null, 
+                        securityLevel: SecurityGroupType.Owner,
+                        appContext: new OdinAppContext()
+                        {
+                            CorsAppName = appReg.CorsHostName
+                        })
+                };
 
                 dotYouContext.SetPermissionContext(permissionContext);
                 return dotYouContext;
@@ -205,7 +229,8 @@ namespace Youverse.Core.Services.Authorization.Apps
             return result;
         }
 
-        public async Task<(bool isValid, AccessRegistration accessReg, AppRegistration appRegistration)> ValidateClientAuthToken(ClientAuthenticationToken authToken)
+        public async Task<(bool isValid, AccessRegistration accessReg, AppRegistration appRegistration)> ValidateClientAuthToken(
+            ClientAuthenticationToken authToken)
         {
             var appClient = _appClientValueStorage.Get<AppClient>(authToken.Id);
             if (null == appClient)

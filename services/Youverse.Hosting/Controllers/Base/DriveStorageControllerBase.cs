@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Quartz.Util;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Acl;
@@ -67,7 +68,6 @@ namespace Youverse.Hosting.Controllers.Base
             HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, header.FileMetadata.ContentType);
             HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader64);
             AddCacheHeader();
-            AddCorsHeader();
             return new FileStreamResult(payload, header.FileMetadata.PayloadIsEncrypted ? "application/octet-stream" : header.FileMetadata.ContentType);
         }
 
@@ -92,7 +92,6 @@ namespace Youverse.Hosting.Controllers.Base
             HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, header.FileMetadata.ContentType);
             HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader64);
 
-            AddCorsHeader();
             AddCacheHeader();
             return new FileStreamResult(payload, header.FileMetadata.PayloadIsEncrypted ? "application/octet-stream" : header.FileMetadata.ContentType);
         }
@@ -106,7 +105,7 @@ namespace Youverse.Hosting.Controllers.Base
         {
             var driveId = DotYouContext.PermissionsContext.GetDriveId(request.File.TargetDrive);
             var requestRecipients = request.Recipients;
-            
+
             var file = new InternalDriveFileId()
             {
                 DriveId = driveId,
@@ -138,7 +137,7 @@ namespace Youverse.Hosting.Controllers.Base
                         GlobalTransitId = header.FileMetadata.GlobalTransitId.GetValueOrDefault(),
                         TargetDrive = request.File.TargetDrive
                     };
-                    
+
                     //send the deleted file
                     var map = await _transitService.SendDeleteLinkedFileRequest(remoteGlobalTransitIdentifier,
                         new SendFileOptions()
@@ -186,14 +185,6 @@ namespace Youverse.Hosting.Controllers.Base
             if (DotYouContext.AuthContext == ClientTokenConstants.YouAuthScheme)
             {
                 this.Response.Headers.Add("Cache-Control", "max-age=3600");
-            }
-        }
-
-        private void AddCorsHeader()
-        {
-            if (DotYouContext.Caller.SecurityLevel != SecurityGroupType.Anonymous)
-            {
-                HttpContext.Response.Headers.Add("Access-Control-Allow-Origin", DotYouContext.GetCallerOdinIdOrFail().DomainName);
             }
         }
     }

@@ -12,9 +12,15 @@ namespace Youverse.Core.Services.Authorization.Apps
         {
             
         }
+        
         public GuidId AppId { get; set; }
 
         public string Name { get; set; }
+        
+        /// <summary>
+        /// The host name used for CORS to allow the app to access the identity from a browser
+        /// </summary>
+        public string CorsHostName { get; set; }
 
         /// <summary>
         /// Permissions to be granted to this app

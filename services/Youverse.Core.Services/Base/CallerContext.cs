@@ -15,7 +15,8 @@ namespace Youverse.Core.Services.Base
     {
         private readonly SensitiveByteArray _masterKey;
 
-        public CallerContext(OdinId? odinId, SensitiveByteArray masterKey, SecurityGroupType securityLevel, List<GuidId> circleIds = null,
+        public CallerContext(OdinId? odinId, SensitiveByteArray masterKey, SecurityGroupType securityLevel, OdinAppContext appContext = null,
+            List<GuidId> circleIds = null,
             ClientTokenType tokenType = ClientTokenType.Other)
         {
             this.OdinId = odinId;
@@ -23,6 +24,7 @@ namespace Youverse.Core.Services.Base
             this.SecurityLevel = securityLevel;
             this.Circles = circleIds ?? new List<GuidId>();
             this.ClientTokenType = tokenType;
+            this.AppContext = appContext;
         }
 
         /// <summary>
@@ -38,6 +40,8 @@ namespace Youverse.Core.Services.Base
         /// Specifies the <see cref="Identity.OdinId"/> of the individual calling the API
         /// </summary>
         public OdinId? OdinId { get; }
+
+        public OdinAppContext AppContext { get; init; }
 
         public bool HasMasterKey
         {
@@ -93,6 +97,5 @@ namespace Youverse.Core.Services.Base
     {
         public OdinId? OdinId { get; init; }
         public SecurityGroupType SecurityLevel { get; init; }
-        
     }
 }

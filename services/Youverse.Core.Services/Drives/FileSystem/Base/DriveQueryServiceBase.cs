@@ -61,7 +61,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
 
             if (TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
-                var (cursor, fileIdList) = await queryManager.GetBatch(ContextAccessor.GetCurrent(),
+                var (cursor, fileIdList, hasMoreRows) = await queryManager.GetBatch(ContextAccessor.GetCurrent(),
                     GetFileSystemType(),
                     qp,
                     options);
@@ -71,7 +71,8 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
                 {
                     IncludeMetadataHeader = options.IncludeJsonContent,
                     Cursor = cursor,
-                    SearchResults = headers
+                    SearchResults = headers,
+                    HasMoreRows = hasMoreRows
                 };
             }
 
@@ -202,7 +203,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
 
             if (TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
-                var (_, fileIdList) = await queryManager.GetBatch(ContextAccessor.GetCurrent(),
+                var (_, fileIdList, _) = await queryManager.GetBatch(ContextAccessor.GetCurrent(),
                     GetFileSystemType(),
                     qp,
                     options);

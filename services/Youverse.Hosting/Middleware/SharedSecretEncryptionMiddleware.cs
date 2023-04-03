@@ -228,6 +228,11 @@ namespace Youverse.Hosting.Middleware
                 return false;
             }
 
+            if (context.Request.Method.ToUpper() == "OPTIONS")
+            {
+                return false;
+            }
+
             return !_ignoredPathsForRequests.Any(p => context.Request.Path.StartsWithSegments(p));
         }
 

@@ -296,7 +296,7 @@ namespace DriveDatabaseTests
         }
 
         [Test]
-        public void IsArchivedTest()
+        public void ArchivalStatusTest()
         {
             using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
@@ -320,39 +320,39 @@ namespace DriveDatabaseTests
             var result = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 6);
             cursor = null;
-            result = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange, isArchivedAnyOf: new List<Int32>() { 0 });
+            result = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange, archivalStatusAnyOf: new List<Int32>() { 0 });
             Debug.Assert(result.Count == 3);
 
             cursor = null;
-            result = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange, isArchivedAnyOf: new List<Int32>() { 1 });
+            result = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange, archivalStatusAnyOf: new List<Int32>() { 1 });
             Debug.Assert(result.Count == 2);
 
             cursor = null;
-            result = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange, isArchivedAnyOf: new List<Int32>() { 2 });
+            result = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange, archivalStatusAnyOf: new List<Int32>() { 2 });
             Debug.Assert(result.Count == 1);
 
             cursor = null;
-            result = _testDatabase.QueryBatchAuto(10, ref cursor, isArchivedAnyOf: new List<Int32>() { 0,1 }, requiredSecurityGroup: allIntRange);
+            result = _testDatabase.QueryBatchAuto(10, ref cursor, archivalStatusAnyOf: new List<Int32>() { 0,1 }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 5);
 
             UnixTimeUtcUnique c2 = new UnixTimeUtcUnique(0);
             result = _testDatabase.QueryModified(10, ref c2, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
 
-            _testDatabase.UpdateEntryZapZap(f1, isArchived: 7);
+            _testDatabase.UpdateEntryZapZap(f1, archivalStatus: 7);
 
             c2 = new UnixTimeUtcUnique(0);
             result = _testDatabase.QueryModified(10, ref c2, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
 
             cursor = null;
-            result = _testDatabase.QueryBatchAuto(10, ref cursor, isArchivedAnyOf: new List<Int32>() { 0 }, requiredSecurityGroup: allIntRange);
+            result = _testDatabase.QueryBatchAuto(10, ref cursor, archivalStatusAnyOf: new List<Int32>() { 0 }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 2);
 
-            _testDatabase.UpdateEntry(f2, isArchived: 7);
+            _testDatabase.UpdateEntry(f2, archivalStatus: 7);
 
             cursor = null;
-            result = _testDatabase.QueryBatchAuto(10, ref cursor, isArchivedAnyOf: new List<Int32>() { 0 }, requiredSecurityGroup: allIntRange);
+            result = _testDatabase.QueryBatchAuto(10, ref cursor, archivalStatusAnyOf: new List<Int32>() { 0 }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 1);
         }
 
@@ -1189,7 +1189,7 @@ namespace DriveDatabaseTests
             var data = _testDatabase.TblMainIndex.Get(f1);
             Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g1) == 0);
 
-            _testDatabase.UpdateEntry(f1, globalTransitId: g2, isArchived: 7);
+            _testDatabase.UpdateEntry(f1, globalTransitId: g2, archivalStatus: 7);
             data = _testDatabase.TblMainIndex.Get(f1);
             Debug.Assert(ByteArrayUtil.muidcmp(data.globalTransitId, g2) == 0);
 

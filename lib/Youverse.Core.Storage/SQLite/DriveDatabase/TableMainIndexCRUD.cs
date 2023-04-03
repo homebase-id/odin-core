@@ -57,14 +57,14 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                   _dataType = value;
                }
         }
-        private Int32 _isArchived;
-        public Int32 isArchived
+        private Int32 _archivalStatus;
+        public Int32 archivalStatus
         {
            get {
-                   return _isArchived;
+                   return _archivalStatus;
                }
            set {
-                  _isArchived = value;
+                  _archivalStatus = value;
                }
         }
         private Int32 _isHistory;
@@ -249,7 +249,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                      +"userDate INT NOT NULL, "
                      +"fileType INT NOT NULL, "
                      +"dataType INT NOT NULL, "
-                     +"isArchived INT NOT NULL, "
+                     +"archivalStatus INT NOT NULL, "
                      +"isHistory INT NOT NULL, "
                      +"senderId STRING , "
                      +"groupId BLOB , "
@@ -274,8 +274,8 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 if (_insertCommand == null)
                 {
                     _insertCommand = _database.CreateCommand();
-                    _insertCommand.CommandText = "INSERT INTO mainIndex (fileId,globalTransitId,userDate,fileType,dataType,isArchived,isHistory,senderId,groupId,uniqueId,requiredSecurityGroup,fileSystemType,created,modified) " +
-                                                 "VALUES ($fileId,$globalTransitId,$userDate,$fileType,$dataType,$isArchived,$isHistory,$senderId,$groupId,$uniqueId,$requiredSecurityGroup,$fileSystemType,$created,$modified)";
+                    _insertCommand.CommandText = "INSERT INTO mainIndex (fileId,globalTransitId,userDate,fileType,dataType,archivalStatus,isHistory,senderId,groupId,uniqueId,requiredSecurityGroup,fileSystemType,created,modified) " +
+                                                 "VALUES ($fileId,$globalTransitId,$userDate,$fileType,$dataType,$archivalStatus,$isHistory,$senderId,$groupId,$uniqueId,$requiredSecurityGroup,$fileSystemType,$created,$modified)";
                     _insertParam1 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam1);
                     _insertParam1.ParameterName = "$fileId";
@@ -293,7 +293,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     _insertParam5.ParameterName = "$dataType";
                     _insertParam6 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam6);
-                    _insertParam6.ParameterName = "$isArchived";
+                    _insertParam6.ParameterName = "$archivalStatus";
                     _insertParam7 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam7);
                     _insertParam7.ParameterName = "$isHistory";
@@ -325,7 +325,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _insertParam3.Value = item.userDate.milliseconds;
                 _insertParam4.Value = item.fileType;
                 _insertParam5.Value = item.dataType;
-                _insertParam6.Value = item.isArchived;
+                _insertParam6.Value = item.archivalStatus;
                 _insertParam7.Value = item.isHistory;
                 _insertParam8.Value = item.senderId ?? (object)DBNull.Value;
                 _insertParam9.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
@@ -345,10 +345,10 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 if (_upsertCommand == null)
                 {
                     _upsertCommand = _database.CreateCommand();
-                    _upsertCommand.CommandText = "INSERT INTO mainIndex (fileId,globalTransitId,userDate,fileType,dataType,isArchived,isHistory,senderId,groupId,uniqueId,requiredSecurityGroup,fileSystemType,created,modified) " +
-                                                 "VALUES ($fileId,$globalTransitId,$userDate,$fileType,$dataType,$isArchived,$isHistory,$senderId,$groupId,$uniqueId,$requiredSecurityGroup,$fileSystemType,$created,$modified)"+
+                    _upsertCommand.CommandText = "INSERT INTO mainIndex (fileId,globalTransitId,userDate,fileType,dataType,archivalStatus,isHistory,senderId,groupId,uniqueId,requiredSecurityGroup,fileSystemType,created,modified) " +
+                                                 "VALUES ($fileId,$globalTransitId,$userDate,$fileType,$dataType,$archivalStatus,$isHistory,$senderId,$groupId,$uniqueId,$requiredSecurityGroup,$fileSystemType,$created,$modified)"+
                                                  "ON CONFLICT (fileId) DO UPDATE "+
-                                                 "SET globalTransitId = $globalTransitId,userDate = $userDate,fileType = $fileType,dataType = $dataType,isArchived = $isArchived,isHistory = $isHistory,senderId = $senderId,groupId = $groupId,uniqueId = $uniqueId,requiredSecurityGroup = $requiredSecurityGroup,fileSystemType = $fileSystemType,modified = $modified;";
+                                                 "SET globalTransitId = $globalTransitId,userDate = $userDate,fileType = $fileType,dataType = $dataType,archivalStatus = $archivalStatus,isHistory = $isHistory,senderId = $senderId,groupId = $groupId,uniqueId = $uniqueId,requiredSecurityGroup = $requiredSecurityGroup,fileSystemType = $fileSystemType,modified = $modified;";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
                     _upsertParam1.ParameterName = "$fileId";
@@ -366,7 +366,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     _upsertParam5.ParameterName = "$dataType";
                     _upsertParam6 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam6);
-                    _upsertParam6.ParameterName = "$isArchived";
+                    _upsertParam6.ParameterName = "$archivalStatus";
                     _upsertParam7 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam7);
                     _upsertParam7.ParameterName = "$isHistory";
@@ -398,7 +398,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _upsertParam3.Value = item.userDate.milliseconds;
                 _upsertParam4.Value = item.fileType;
                 _upsertParam5.Value = item.dataType;
-                _upsertParam6.Value = item.isArchived;
+                _upsertParam6.Value = item.archivalStatus;
                 _upsertParam7.Value = item.isHistory;
                 _upsertParam8.Value = item.senderId ?? (object)DBNull.Value;
                 _upsertParam9.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
@@ -419,7 +419,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 {
                     _updateCommand = _database.CreateCommand();
                     _updateCommand.CommandText = "UPDATE mainIndex " +
-                                                 "SET globalTransitId = $globalTransitId,userDate = $userDate,fileType = $fileType,dataType = $dataType,isArchived = $isArchived,isHistory = $isHistory,senderId = $senderId,groupId = $groupId,uniqueId = $uniqueId,requiredSecurityGroup = $requiredSecurityGroup,fileSystemType = $fileSystemType,modified = $modified "+
+                                                 "SET globalTransitId = $globalTransitId,userDate = $userDate,fileType = $fileType,dataType = $dataType,archivalStatus = $archivalStatus,isHistory = $isHistory,senderId = $senderId,groupId = $groupId,uniqueId = $uniqueId,requiredSecurityGroup = $requiredSecurityGroup,fileSystemType = $fileSystemType,modified = $modified "+
                                                  "WHERE (fileId = $fileId)";
                     _updateParam1 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam1);
@@ -438,7 +438,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     _updateParam5.ParameterName = "$dataType";
                     _updateParam6 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam6);
-                    _updateParam6.ParameterName = "$isArchived";
+                    _updateParam6.ParameterName = "$archivalStatus";
                     _updateParam7 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam7);
                     _updateParam7.ParameterName = "$isHistory";
@@ -470,7 +470,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _updateParam3.Value = item.userDate.milliseconds;
                 _updateParam4.Value = item.fileType;
                 _updateParam5.Value = item.dataType;
-                _updateParam6.Value = item.isArchived;
+                _updateParam6.Value = item.archivalStatus;
                 _updateParam7.Value = item.isHistory;
                 _updateParam8.Value = item.senderId ?? (object)DBNull.Value;
                 _updateParam9.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
@@ -483,7 +483,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             } // Lock
         }
 
-        // SELECT fileId,globalTransitId,userDate,fileType,dataType,isArchived,isHistory,senderId,groupId,uniqueId,requiredSecurityGroup,fileSystemType,created,modified
+        // SELECT fileId,globalTransitId,userDate,fileType,dataType,archivalStatus,isHistory,senderId,groupId,uniqueId,requiredSecurityGroup,fileSystemType,created,modified
         public MainIndexRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
         {
             var result = new List<MainIndexRecord>();
@@ -539,7 +539,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.isArchived = rdr.GetInt32(5);
+                item.archivalStatus = rdr.GetInt32(5);
             }
 
             if (rdr.IsDBNull(6))
@@ -671,7 +671,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.isArchived = rdr.GetInt32(4);
+                item.archivalStatus = rdr.GetInt32(4);
             }
 
             if (rdr.IsDBNull(5))
@@ -745,7 +745,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 if (_get0Command == null)
                 {
                     _get0Command = _database.CreateCommand();
-                    _get0Command.CommandText = "SELECT globalTransitId,userDate,fileType,dataType,isArchived,isHistory,senderId,groupId,uniqueId,requiredSecurityGroup,fileSystemType,created,modified FROM mainIndex " +
+                    _get0Command.CommandText = "SELECT globalTransitId,userDate,fileType,dataType,archivalStatus,isHistory,senderId,groupId,uniqueId,requiredSecurityGroup,fileSystemType,created,modified FROM mainIndex " +
                                                  "WHERE fileId = $fileId LIMIT 1;";
                     _get0Param1 = _get0Command.CreateParameter();
                     _get0Command.Parameters.Add(_get0Param1);

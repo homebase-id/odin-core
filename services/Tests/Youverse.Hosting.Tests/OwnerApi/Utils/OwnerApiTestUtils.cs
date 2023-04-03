@@ -60,7 +60,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
         private readonly string _password = "EnSøienØ";
         private readonly Dictionary<string, OwnerAuthTokenContext> _ownerLoginTokens = new(StringComparer.InvariantCultureIgnoreCase);
 
-        private static bool ServerCertificateCustomValidation(HttpRequestMessage requestMessage, X509Certificate2 certificate, X509Chain chain, SslPolicyErrors sslErrors)
+        private static bool ServerCertificateCustomValidation(HttpRequestMessage requestMessage, X509Certificate2 certificate, X509Chain chain,
+            SslPolicyErrors sslErrors)
         {
             // It is possible to inspect the certificate provided by the server.
             Console.WriteLine($"Requested URI: {requestMessage.RequestUri}");
@@ -204,12 +205,14 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             }
         }
 
-        public HttpClient CreateOwnerApiHttpClient(TestIdentity identity, out SensitiveByteArray sharedSecret, FileSystemType fileSystemType = FileSystemType.Standard)
+        public HttpClient CreateOwnerApiHttpClient(TestIdentity identity, out SensitiveByteArray sharedSecret,
+            FileSystemType fileSystemType = FileSystemType.Standard)
         {
             return this.CreateOwnerApiHttpClient(identity.OdinId, out sharedSecret, fileSystemType);
         }
 
-        public HttpClient CreateOwnerApiHttpClient(OdinId identity, out SensitiveByteArray sharedSecret, FileSystemType fileSystemType = FileSystemType.Standard)
+        public HttpClient CreateOwnerApiHttpClient(OdinId identity, out SensitiveByteArray sharedSecret,
+            FileSystemType fileSystemType = FileSystemType.Standard)
         {
             var token = GetOwnerAuthContext(identity).ConfigureAwait(false).GetAwaiter().GetResult();
             var client = CreateOwnerApiHttpClient(identity, token.AuthenticationResult, token.SharedSecret, fileSystemType);
@@ -217,7 +220,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             return client;
         }
 
-        public HttpClient CreateOwnerApiHttpClient(OdinId identity, ClientAuthenticationToken token, SensitiveByteArray sharedSecret, FileSystemType fileSystemType)
+        public HttpClient CreateOwnerApiHttpClient(OdinId identity, ClientAuthenticationToken token, SensitiveByteArray sharedSecret,
+            FileSystemType fileSystemType)
         {
             var cookieJar = new CookieContainer();
             cookieJar.Add(new Cookie(OwnerAuthConstants.CookieName, token.ToString(), null, identity));
@@ -243,7 +247,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             bool driveAllowAnonymousReads = false,
             bool ownerOnlyDrive = false,
             List<Guid> authorizedCircles = null,
-            PermissionSetGrantRequest circleMemberGrantRequest = null)
+            PermissionSetGrantRequest circleMemberGrantRequest = null,
+            string appCorsHostName = null)
         {
             PermissionSet permissionSet;
 
@@ -298,7 +303,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                     PermissionSet = permissionSet,
                     Drives = drives,
                     AuthorizedCircles = authorizedCircles,
-                    CircleMemberPermissionGrant = circleMemberGrantRequest
+                    CircleMemberPermissionGrant = circleMemberGrantRequest,
+                    CorsHostName = appCorsHostName
                 };
 
                 var response = await svc.RegisterApp(request);
@@ -406,7 +412,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             bool driveAllowAnonymousReads = false,
             bool ownerOnlyDrive = false,
             List<Guid> authorizedCircles = null,
-            PermissionSetGrantRequest circleMemberGrantRequest = null)
+            PermissionSetGrantRequest circleMemberGrantRequest = null,
+            string appCorsHostName = null)
         {
             if (null == targetDrive)
             {
@@ -417,7 +424,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 };
             }
 
-            await this.AddAppWithAllDrivePermissions(identity.OdinId, appId, targetDrive, true, canReadConnections, driveAllowAnonymousReads, ownerOnlyDrive, authorizedCircles, circleMemberGrantRequest);
+            await this.AddAppWithAllDrivePermissions(identity.OdinId, appId, targetDrive, true, canReadConnections, driveAllowAnonymousReads, ownerOnlyDrive,
+                authorizedCircles, circleMemberGrantRequest, appCorsHostName: appCorsHostName);
 
             var (authResult, sharedSecret) = await this.AddAppClient(identity.OdinId, appId);
             return new TestAppContext()
@@ -430,7 +438,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 TargetDrive = targetDrive
             };
         }
-        
+
 
         public async Task InitializeIdentity(TestIdentity identity, InitialSetupRequest setupConfig)
         {
@@ -465,14 +473,16 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
         {
             using (var client = this.CreateOwnerApiHttpClient(odinId1, out var ownerSharedSecret))
             {
-                var disconnectResponse = await RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret).Disconnect(new OdinIdRequest() { OdinId = odinId2 });
+                var disconnectResponse = await RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret)
+                    .Disconnect(new OdinIdRequest() { OdinId = odinId2 });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
                 await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Samwise.OdinId, ConnectionStatus.None);
             }
 
             using (var client = this.CreateOwnerApiHttpClient(odinId2, out var ownerSharedSecret))
             {
-                var disconnectResponse = await RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret).Disconnect(new OdinIdRequest() { OdinId = odinId1 });
+                var disconnectResponse = await RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret)
+                    .Disconnect(new OdinIdRequest() { OdinId = odinId1 });
                 Assert.IsTrue(disconnectResponse.IsSuccessStatusCode && disconnectResponse.Content, "failed to disconnect");
                 await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Frodo.OdinId, ConnectionStatus.None);
             }
@@ -555,7 +565,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             {
                 var connectionsService = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
                 var existingConnectionInfo = await connectionsService.GetConnectionInfo(new OdinIdRequest() { OdinId = recipient });
-                if (existingConnectionInfo.IsSuccessStatusCode && existingConnectionInfo.Content != null && existingConnectionInfo.Content.Status == ConnectionStatus.Connected)
+                if (existingConnectionInfo.IsSuccessStatusCode && existingConnectionInfo.Content != null &&
+                    existingConnectionInfo.Content.Status == ConnectionStatus.Connected)
                 {
                     return true;
                 }
@@ -593,7 +604,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 var page = getDrivesResponse.Content;
 
                 Assert.NotNull(page);
-                Assert.NotNull(page.Results.SingleOrDefault(drive => drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type));
+                Assert.NotNull(page.Results.SingleOrDefault(drive =>
+                    drive.TargetDriveInfo.Alias == targetDrive.Alias && drive.TargetDriveInfo.Type == targetDrive.Type));
             }
         }
 
@@ -638,7 +650,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             return await TransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
         }
 
-        public async Task<UploadTestUtilsContext> UploadFile(OdinId identity, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, string payloadData,
+        public async Task<UploadTestUtilsContext> UploadFile(OdinId identity, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata,
+            string payloadData,
             bool encryptPayload = true, ImageDataContent thumbnail = null, KeyHeader keyHeader = null, FileSystemType fileSystemType = FileSystemType.Standard)
         {
             Assert.IsNull(instructionSet.TransitOptions?.Recipients, "This method will not send transfers; please ensure recipients are null");
@@ -702,13 +715,15 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             }
         }
 
-        private async Task<UploadTestUtilsContext> TransferFile(OdinId sender, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options)
+        private async Task<UploadTestUtilsContext> TransferFile(OdinId sender, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata,
+            TransitTestUtilsOptions options)
         {
             var recipients = instructionSet.TransitOptions?.Recipients ?? new List<string>();
 
             if (options.ProcessTransitBox & (recipients.Count == 0 || options.ProcessOutbox == false))
             {
-                throw new Exception("Options not valid.  There must be at least one recipient and ProcessOutbox must be true when ProcessTransitBox is set to true");
+                throw new Exception(
+                    "Options not valid.  There must be at least one recipient and ProcessOutbox must be true when ProcessTransitBox is set to true");
             }
 
             var targetDrive = instructionSet.StorageOptions.Drive;
@@ -770,12 +785,14 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 int outboxBatchSize = 1;
                 if (instructionSet.TransitOptions?.Recipients?.Any() ?? false)
                 {
-                    Assert.IsTrue(transferResult.RecipientStatus.Count == instructionSet.TransitOptions?.Recipients.Count, "expected recipient count does not match");
+                    Assert.IsTrue(transferResult.RecipientStatus.Count == instructionSet.TransitOptions?.Recipients.Count,
+                        "expected recipient count does not match");
 
                     foreach (var recipient in instructionSet.TransitOptions?.Recipients)
                     {
                         Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
-                        Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.TransferKeyCreated, $"transfer key not created for {recipient}");
+                        Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.TransferKeyCreated,
+                            $"transfer key not created for {recipient}");
                     }
 
                     outboxBatchSize = transferResult.RecipientStatus.Count;
@@ -823,7 +840,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             return await this.CreateCircleWithDrive(identity, circleName, permissionKeys, new List<PermissionedDrive>() { drive });
         }
 
-        public async Task<CircleDefinition> CreateCircleWithDrive(OdinId identity, string circleName, IEnumerable<int> permissionKeys, List<PermissionedDrive> drives)
+        public async Task<CircleDefinition> CreateCircleWithDrive(OdinId identity, string circleName, IEnumerable<int> permissionKeys,
+            List<PermissionedDrive> drives)
         {
             using (var client = CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
             {

@@ -35,7 +35,7 @@ namespace DriveDatabaseTests
                 groupId = tid1,
                 uniqueId = Guid.NewGuid(),
                 userDate = ud1,
-                isArchived = 0,
+                archivalStatus = 0,
                 isHistory = 1,
                 requiredSecurityGroup = 44
             });
@@ -69,7 +69,7 @@ namespace DriveDatabaseTests
             if (md.userDate != ud1)
                 Assert.Fail();
 
-            if (md.isArchived != 0)
+            if (md.archivalStatus != 0)
                 Assert.Fail();
 
             if (md.isHistory != 1)
@@ -99,7 +99,7 @@ namespace DriveDatabaseTests
                 groupId = tid1,
                 uniqueId = Guid.NewGuid(),
                 userDate = ud1,
-                isArchived = 0,
+                archivalStatus = 0,
                 isHistory = 1,
                 fileSystemType = 44
             });
@@ -117,7 +117,7 @@ namespace DriveDatabaseTests
                     groupId = tid1,
                     uniqueId = Guid.NewGuid(),
                     userDate = ud1,
-                    isArchived = 0,
+                    archivalStatus = 0,
                     isHistory = 1,
                     fileSystemType = 44
                 });
@@ -152,7 +152,7 @@ namespace DriveDatabaseTests
                 groupId = tid1,
                 uniqueId = Guid.NewGuid(),
                 userDate = ud1,
-                isArchived = 0,
+                archivalStatus = 0,
                 isHistory = 1,
                 requiredSecurityGroup = 44
             });

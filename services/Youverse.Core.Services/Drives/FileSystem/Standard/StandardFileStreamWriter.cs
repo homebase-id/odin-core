@@ -84,7 +84,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
             GlobalTransitId = (package.InstructionSet.TransitOptions?.UseGlobalTransitId ?? false) ? Guid.NewGuid() : null,
             ContentType = uploadDescriptor.FileMetadata.ContentType,
 
-            //Note: this intentionally does not map ReferenceToFile; this can only be done through the feedback system
+            //Note: this intentionally does not map ReferenceToFile; this can only be done through the comment system
             // ReferencedFile = null,
 
             //TODO: need an automapper *sigh
@@ -96,6 +96,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
                 DataType = uploadDescriptor.FileMetadata.AppData.DataType,
                 UserDate = uploadDescriptor.FileMetadata.AppData.UserDate,
                 GroupId = uploadDescriptor.FileMetadata.AppData.GroupId,
+                ArchivalStatus = uploadDescriptor.FileMetadata.AppData.ArchivalStatus,
 
                 JsonContent = uploadDescriptor.FileMetadata.AppData.JsonContent,
                 ContentIsComplete = uploadDescriptor.FileMetadata.AppData.ContentIsComplete,
