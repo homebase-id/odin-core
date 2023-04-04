@@ -12,22 +12,28 @@ namespace Youverse.Hosting.Controllers.System
     /// Runs feed distribution from the system account
     /// </summary>
     [ApiController]
-    [Route(OwnerApiPathConstants.FollowersV1 + "/system")]
+    [Route(OwnerApiPathConstants.FollowersV1 + "/system/distribute")]
     [Authorize(Policy = SystemPolicies.IsSystemProcess, AuthenticationSchemes = SystemAuthConstants.SchemeName)]
     public class FeedDistributionSystemController : ControllerBase
     {
-        private readonly FeedDriveDataSubscriptionDistributionService _distributionService;
+        private readonly FeedDriveDataDistributor _distributionService;
 
-        public FeedDistributionSystemController(FeedDriveDataSubscriptionDistributionService distributionService)
+        public FeedDistributionSystemController(FeedDriveDataDistributor distributionService)
         {
             _distributionService = distributionService;
         }
-
-        [HttpPost("distribute")]
-        public async Task<bool> ProcessDistribution()
+        
+        [HttpPost("files")]
+        public async Task<bool> DistributeFiles()
         {
-            throw new NotImplementedException("_distributionService.DistributeReactionPreviews");
-            // await _distributionService.DistributeReactionPreviews();
+            await _distributionService.DistributeFiles();
+            return true;
+        }
+
+        [HttpPost("reactionpreview")]
+        public async Task<bool> DistributeReactionPreviews()
+        {
+            await _distributionService.DistributeReactionPreviews();
             return true;
         }
     }

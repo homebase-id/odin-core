@@ -7,12 +7,16 @@ using NUnit.Framework;
 using Youverse.Core;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.DriveCore.Query;
 using Youverse.Core.Services.Drives.DriveCore.Storage;
 using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Workers.DefaultCron;
+using Youverse.Core.Services.Workers.FeedDistributionApp;
 using Youverse.Core.Storage;
 using Youverse.Hosting.Tests.OwnerApi.ApiClient;
 
@@ -61,10 +65,14 @@ public class DataSubscriptionTests
 
         // Frodo uploads content to channel drive
         var uploadedContent = "I'm Mr. Underhill";
-        var uploadResult = await UploadStandardFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, FileType);
+        var uploadResult = await UploadStandardUnencryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, FileType);
+
+        //Tell frodo's identity to process the outbox due to feed distribution
+        await frodoOwnerClient.Transit.ProcessOutbox(1);
 
         // Sam should have the same content on his feed drive
         await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
+
 
         var qp = new FileQueryParams()
         {
@@ -107,8 +115,11 @@ public class DataSubscriptionTests
 
         // Frodo uploads content to channel drive
         var uploadedContent = "I'm Mr. Underhill; I think";
-        var firstUploadResult = await UploadStandardFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType);
+        var firstUploadResult = await UploadStandardUnencryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType);
 
+        //Tell frodo's identity to process the outbox
+        await frodoOwnerClient.Transit.ProcessOutbox(1);
+        
         // Sam should have the same content on his feed drive since it was distributed by the backend
         await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
 
@@ -131,6 +142,9 @@ public class DataSubscriptionTests
             client: frodoOwnerClient,
             overwriteFile: firstUploadResult.File,
             updatedContent, fileType);
+
+        //Tell frodo's identity to process the outbox due to feed distribution
+        await frodoOwnerClient.Transit.ProcessOutbox(1);
 
         // Sam should have the same content on his feed drive
         await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
@@ -178,7 +192,7 @@ public class DataSubscriptionTests
 
         // Frodo uploads content to channel drive
         var uploadedContent = "I'm Mr. Underhill; I think";
-        var standardFileUploadResult = await UploadStandardFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType);
+        var standardFileUploadResult = await UploadStandardUnencryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType);
 
         // Sam should have the same content on his feed drive
         await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
@@ -242,8 +256,12 @@ public class DataSubscriptionTests
 
         // Frodo uploads content to channel drive
         var uploadedContent = "I'm Mr. Underhill";
-        var standardFileUploadResult = await UploadStandardFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, standardFileType);
+        var standardFileUploadResult = await UploadStandardUnencryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, standardFileType);
 
+        //Tell frodo's identity to process the outbox due to feed distribution
+        await frodoOwnerClient.Transit.ProcessOutbox(1);
+
+        
         // Sam should have the same content on his feed drive
         await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
 
@@ -298,11 +316,138 @@ public class DataSubscriptionTests
     }
 
     [Test]
-    [Description("Tests that a reaction summary is sent to allow followers when a comment is added")]
-    public async Task ReactionSummaryIsDistributedWhenCommentAdded()
+    public async Task ReactionSummaryIsDistributedWhenCommentAddedByOwnerToStandardUnencryptedFile_WhenConnected()
     {
-        const int standardFileType = 441;
-        const int commentFileType = 9989;
+        const int standardFileType = 1121;
+        const int commentFileType = 383;
+
+        var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
+        var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
+
+        //create a channel drive
+        var frodoChannelDrive = new TargetDrive()
+        {
+            Alias = Guid.NewGuid(),
+            Type = SystemDriveConstants.ChannelDriveType
+        };
+
+        await frodoOwnerClient.Drive.CreateDrive(frodoChannelDrive, "A Channel Drive", "", false, ownerOnly: false, allowSubscriptions: true);
+
+        var securedChannelCircle = await frodoOwnerClient.Network.CreateCircle("Secured channel content", new PermissionSetGrantRequest()
+        {
+            Drives = new List<DriveGrantRequest>()
+            {
+                new DriveGrantRequest()
+                {
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = frodoChannelDrive,
+                        Permission = DrivePermission.ReadWrite
+                    }
+                }
+            }
+        });
+        
+        //
+        // Connect sam and frodo; sam gets access to the secured channel
+        //
+        await frodoOwnerClient.Network.SendConnectionRequest(samOwnerClient.Identity, new List<GuidId>() { securedChannelCircle.Id });
+        await samOwnerClient.Network.AcceptConnectionRequest(frodoOwnerClient.Identity, new List<GuidId>() { });
+
+        
+        // Sam to follow everything from frodo
+        await samOwnerClient.Follower.FollowIdentity(frodoOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
+
+        
+        // Frodo uploads content to channel drive
+        var uploadedContent = "I'm Mr. Underhill";
+        var standardFileUploadResult = await UploadStandardUnencryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, standardFileType);
+
+        var svcx = SystemHttpClient.CreateHttps<ICronHttpClient>(frodoOwnerClient.Identity.OdinId);
+        var processOutboxResponse = await svcx.ProcessOutbox(1);
+        Assert.IsTrue(processOutboxResponse.IsSuccessStatusCode);
+        
+        //TODO: should sam have to process transit instructions for feed items?
+        await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
+
+        var standardFileQueryParams = new FileQueryParams()
+        {
+            TargetDrive = SystemDriveConstants.FeedDrive,
+            FileType = new List<int>() { standardFileType }
+        };
+
+        // Sam should have the blog post from frodo in Sam's feed
+        var batch = await samOwnerClient.Drive.QueryBatch(FileSystemType.Standard, standardFileQueryParams);
+        Assert.IsTrue(batch.SearchResults.Count() == 1);
+        var theFile = batch.SearchResults.First();
+        Assert.IsTrue(theFile.FileState == FileState.Active);
+        Assert.IsTrue(theFile.FileMetadata.AppData.JsonContent == uploadedContent);
+        Assert.IsTrue(theFile.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
+
+        //Now, have sam comment on the file
+        var commentFile = new UploadFileMetadata()
+        {
+            AllowDistribution = true,
+            ContentType = "application/json",
+            PayloadIsEncrypted = false,
+            ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
+            AppData = new()
+            {
+                ContentIsComplete = true,
+                JsonContent = DotYouSystemSerializer.Serialize(new { message = "Are you tho?" }),
+                FileType = commentFileType,
+                DataType = 202,
+                UserDate = UnixTimeUtc.ZeroTime,
+                Tags = default
+            }
+        };
+
+        // Upload a comment from frodo
+        var originalCommentUploadResult = await frodoOwnerClient.Drive.UploadFile(FileSystemType.Comment, frodoChannelDrive, commentFile, "");
+
+        var commentFileQueryParams = new FileQueryParams()
+        {
+            TargetDrive = SystemDriveConstants.FeedDrive,
+            FileType = new List<int>() { commentFileType }
+        };
+
+        await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
+        
+        //
+        // Sam should not have the comment since they are not distributed
+        //
+        var commentBatch = await samOwnerClient.Drive.QueryBatch(FileSystemType.Comment, commentFileQueryParams);
+        Assert.IsTrue(!commentBatch.SearchResults.Any());
+
+        // force frodo's identity to process the feed to distribute the post
+        var svc = SystemHttpClient.CreateHttps<IFeedDistributionCronClient>(frodoOwnerClient.Identity.OdinId);
+        var distributeFeedItemResponse = await svc.DistributeReactionPreviewUpdates();
+        Assert.IsTrue(distributeFeedItemResponse.IsSuccessStatusCode);
+
+        //Tell frodo's identity to process the outbox due to feed distribution
+        await frodoOwnerClient.Transit.ProcessOutbox(1);
+
+        //
+        // Sam should, however, have a reaction summary update for that comment on the original file
+        //
+        var batch2 = await samOwnerClient.Drive.QueryBatch(FileSystemType.Standard, standardFileQueryParams);
+        Assert.IsTrue(batch2.SearchResults.Count() == 1);
+        var theFile2 = batch2.SearchResults.First();
+        Assert.IsTrue(theFile2.FileState == FileState.Active);
+        Assert.IsTrue(theFile2.FileMetadata.AppData.JsonContent == uploadedContent);
+        Assert.IsTrue(theFile2.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
+        Assert.IsTrue(theFile2.FileMetadata.ReactionPreview.TotalCommentCount == 1);
+        Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.JsonContent == commentFile.AppData.JsonContent));
+
+        //All done
+        await samOwnerClient.Follower.UnfollowIdentity(frodoOwnerClient.Identity);
+    }
+    
+    [Test]
+    public async Task ReactionSummaryIsDistributedWhenCommentAddedByOwnerToStandardUnencryptedFile_NotConnected()
+    {
+        const int standardFileType = 1121;
+        const int commentFileType = 383;
 
         var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
         var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
@@ -321,9 +466,13 @@ public class DataSubscriptionTests
 
         // Frodo uploads content to channel drive
         var uploadedContent = "I'm Mr. Underhill";
-        var standardFileUploadResult = await UploadStandardFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, standardFileType);
+        var standardFileUploadResult = await UploadStandardUnencryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, standardFileType);
 
-        // Sam should have the same content on his feed drive
+        var svcx = SystemHttpClient.CreateHttps<ICronHttpClient>(frodoOwnerClient.Identity.OdinId);
+        var processOutboxResponse = await svcx.ProcessOutbox(1);
+        Assert.IsTrue(processOutboxResponse.IsSuccessStatusCode);
+        
+        //TODO: should sam have to process transit instructions for feed items?
         await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
 
         var standardFileQueryParams = new FileQueryParams()
@@ -332,7 +481,7 @@ public class DataSubscriptionTests
             FileType = new List<int>() { standardFileType }
         };
 
-        // Sam should have the blog post
+        // Sam should have the blog post from frodo in Sam's feed
         var batch = await samOwnerClient.Drive.QueryBatch(FileSystemType.Standard, standardFileQueryParams);
         Assert.IsTrue(batch.SearchResults.Count() == 1);
         var theFile = batch.SearchResults.First();
@@ -340,6 +489,7 @@ public class DataSubscriptionTests
         Assert.IsTrue(theFile.FileMetadata.AppData.JsonContent == uploadedContent);
         Assert.IsTrue(theFile.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
 
+        //Now, have sam comment on the file
         var commentFile = new UploadFileMetadata()
         {
             AllowDistribution = true,
@@ -369,12 +519,23 @@ public class DataSubscriptionTests
         await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
 
 
+        //
         // Sam should not have the comment since they are not distributed
+        //
         var commentBatch = await samOwnerClient.Drive.QueryBatch(FileSystemType.Comment, commentFileQueryParams);
         Assert.IsTrue(!commentBatch.SearchResults.Any());
 
-        // Sam should, however, have a reaction summary update for that comment on the original file
+        // force frodo's identity to process the feed to distribute the post
+        var svc = SystemHttpClient.CreateHttps<IFeedDistributionCronClient>(frodoOwnerClient.Identity.OdinId);
+        var distributeFeedItemResponse = await svc.DistributeReactionPreviewUpdates();
+        Assert.IsTrue(distributeFeedItemResponse.IsSuccessStatusCode);
 
+        //Tell frodo's identity to process the outbox due to feed distribution
+        await frodoOwnerClient.Transit.ProcessOutbox(1);
+
+        //
+        // Sam should, however, have a reaction summary update for that comment on the original file
+        //
         var batch2 = await samOwnerClient.Drive.QueryBatch(FileSystemType.Standard, standardFileQueryParams);
         Assert.IsTrue(batch2.SearchResults.Count() == 1);
         var theFile2 = batch2.SearchResults.First();
@@ -383,13 +544,303 @@ public class DataSubscriptionTests
         Assert.IsTrue(theFile2.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
         Assert.IsTrue(theFile2.FileMetadata.ReactionPreview.TotalCommentCount == 1);
         Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.JsonContent == commentFile.AppData.JsonContent));
-        //TODO: test the other file parts here
 
         //All done
         await samOwnerClient.Follower.UnfollowIdentity(frodoOwnerClient.Identity);
     }
 
-    private async Task<UploadResult> UploadStandardFileToChannel(OwnerApiClient client, TargetDrive targetDrive, string uploadedContent, int fileType)
+    [Test]
+    public async Task ReactionSummaryIsDistributedWhenCommentAdded_ByAnother_ConnectedIdentity_ToStandardUnencryptedFile()
+    {
+        const int standardFileType = 441;
+        const int commentFileType = 9989;
+
+        var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
+        var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
+
+        //create a channel drive
+        var frodoChannelDrive = new TargetDrive()
+        {
+            Alias = Guid.NewGuid(),
+            Type = SystemDriveConstants.ChannelDriveType
+        };
+
+        await frodoOwnerClient.Drive.CreateDrive(frodoChannelDrive, "A Channel Drive", "", false, ownerOnly: false, allowSubscriptions: true);
+
+        var securedChannelCircle = await frodoOwnerClient.Network.CreateCircle("Secured channel content", new PermissionSetGrantRequest()
+        {
+            Drives = new List<DriveGrantRequest>()
+            {
+                new DriveGrantRequest()
+                {
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = frodoChannelDrive,
+                        Permission = DrivePermission.ReadWrite
+                    }
+                }
+            }
+        });
+
+        //
+        // Connect sam and frodo; sam gets access to the secured channel
+        //
+        await frodoOwnerClient.Network.SendConnectionRequest(samOwnerClient.Identity, new List<GuidId>() { securedChannelCircle.Id });
+        await samOwnerClient.Network.AcceptConnectionRequest(frodoOwnerClient.Identity, new List<GuidId>() { });
+
+        // Sam to follow everything from frodo
+        await samOwnerClient.Follower.FollowIdentity(frodoOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
+
+        // Frodo uploads content to channel drive
+        var uploadedContent = "I'm Mr. Underhill";
+        var standardFileUploadResult = await UploadStandardUnencryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, standardFileType);
+
+        //Tell frodo's identity to process the outbox
+        await frodoOwnerClient.Transit.ProcessOutbox(1);
+        // var svcx = SystemHttpClient.CreateHttps<ICronHttpClient>(frodoOwnerClient.Identity.OdinId);
+        // var processOutboxResponse = await svcx.ProcessOutbox(1);
+        // Assert.IsTrue(processOutboxResponse.IsSuccessStatusCode);
+
+        //TODO: should sam have to process transit instructions for feed items?
+        // Sam should have the same content on his feed drive
+        await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
+
+        var standardFileQueryParams = new FileQueryParams()
+        {
+            TargetDrive = SystemDriveConstants.FeedDrive,
+            FileType = new List<int>() { standardFileType }
+        };
+
+        // Sam should have the blog post from frodo in Sam's feed
+        var batch = await samOwnerClient.Drive.QueryBatch(FileSystemType.Standard, standardFileQueryParams);
+        Assert.IsTrue(batch.SearchResults.Count() == 1);
+        var theFile = batch.SearchResults.First();
+        Assert.IsTrue(theFile.FileState == FileState.Active);
+        Assert.IsTrue(theFile.FileMetadata.AppData.JsonContent == uploadedContent);
+        Assert.IsTrue(theFile.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
+
+        //Now, have Sam comment on the file
+        var commentFile = new UploadFileMetadata()
+        {
+            AllowDistribution = true,
+            ContentType = "application/json",
+            PayloadIsEncrypted = false,
+            ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
+            AppData = new()
+            {
+                ContentIsComplete = true,
+                JsonContent = DotYouSystemSerializer.Serialize(new { message = "Are you tho?" }),
+                FileType = commentFileType,
+                DataType = 202,
+                UserDate = UnixTimeUtc.ZeroTime,
+                Tags = default
+            }
+        };
+
+        // transfer a comment from Sam directly to frodo
+        var transitResult = await samOwnerClient.Transit.TransferFile(
+            FileSystemType.Comment,
+            commentFile,
+            recipients: new List<string>() { frodoOwnerClient.Identity.OdinId },
+            remoteTargetDrive: frodoChannelDrive,
+            payloadData: "",
+            overwriteGlobalTransitFileId: null,
+            thumbnail: null
+        );
+
+        //comment should have made it directly to the recipient's server
+        Assert.IsTrue(transitResult.RecipientStatus.Count == 1);
+        var s = transitResult.RecipientStatus[frodoOwnerClient.Identity.OdinId];
+        Assert.IsTrue(s == TransferStatus.DeliveredToTargetDrive, $"Status should be DeliveredToTargetDrive but was {s}");
+
+        var commentFileQueryParams = new FileQueryParams()
+        {
+            TargetDrive = SystemDriveConstants.FeedDrive,
+            FileType = new List<int>() { commentFileType }
+        };
+
+        // await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
+
+        //
+        // Sam should not have the comment since they are not distributed
+        //
+        var commentBatch = await samOwnerClient.Drive.QueryBatch(FileSystemType.Comment, commentFileQueryParams);
+        Assert.IsTrue(!commentBatch.SearchResults.Any());
+
+        // force process the feed to distribute the updated reaction preview
+        var svc = SystemHttpClient.CreateHttps<IFeedDistributionCronClient>(frodoOwnerClient.Identity.OdinId);
+        var distributeFeedItemResponse = await svc.DistributeReactionPreviewUpdates();
+        Assert.IsTrue(distributeFeedItemResponse.IsSuccessStatusCode);
+
+        //
+        // Sam should, however, have a reaction summary update for that comment on the original file
+        //
+        var batch2 = await samOwnerClient.Drive.QueryBatch(FileSystemType.Standard, standardFileQueryParams);
+        Assert.IsTrue(batch2.SearchResults.Count() == 1);
+        var theFile2 = batch2.SearchResults.First();
+        Assert.IsTrue(theFile2.FileState == FileState.Active);
+        Assert.IsTrue(theFile2.FileMetadata.AppData.JsonContent == uploadedContent);
+        Assert.IsTrue(theFile2.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
+        Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview, "Reaction Preview is null");
+        Assert.IsTrue(theFile2.FileMetadata.ReactionPreview.TotalCommentCount == 1);
+        Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.JsonContent == commentFile.AppData.JsonContent));
+        //TODO: test the other file parts here
+
+
+        //All done
+
+        await frodoOwnerClient.Network.DisconnectFrom(samOwnerClient.Identity);
+        await samOwnerClient.Network.DisconnectFrom(frodoOwnerClient.Identity);
+
+        await samOwnerClient.Follower.UnfollowIdentity(frodoOwnerClient.Identity);
+    }
+    
+    [Test]
+    public async Task ReactionSummaryIsDistributedWhenCommentAdded_ByAnotherConnectedIdentity_ToStandardEncryptedFile()
+    {
+        const int standardFileType = 9441;
+        const int commentFileType = 9999;
+
+        var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
+        var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
+
+        //create a channel drive
+        var frodoChannelDrive = new TargetDrive()
+        {
+            Alias = Guid.NewGuid(),
+            Type = SystemDriveConstants.ChannelDriveType
+        };
+
+        await frodoOwnerClient.Drive.CreateDrive(frodoChannelDrive, "A Channel Drive", "", false, ownerOnly: false, allowSubscriptions: true);
+
+        var securedChannelCircle = await frodoOwnerClient.Network.CreateCircle("Secured channel content", new PermissionSetGrantRequest()
+        {
+            Drives = new List<DriveGrantRequest>()
+            {
+                new DriveGrantRequest()
+                {
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = frodoChannelDrive,
+                        Permission = DrivePermission.ReadWrite
+                    }
+                }
+            }
+        });
+
+        //
+        // Connect sam and frodo; sam gets access to the secured channel
+        //
+        await frodoOwnerClient.Network.SendConnectionRequest(samOwnerClient.Identity, new List<GuidId>() { securedChannelCircle.Id });
+        await samOwnerClient.Network.AcceptConnectionRequest(frodoOwnerClient.Identity, new List<GuidId>() { });
+
+        // Sam to follow everything from frodo
+        await samOwnerClient.Follower.FollowIdentity(frodoOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
+
+        // Frodo uploads content to channel drive
+        var uploadedContent = "I'm Mr. Underhill";
+        var (standardFileUploadResult, encryptedStandardFileJsonContent64) =
+            await UploadStandardEncryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, standardFileType);
+
+        //Tell frodo's identity to process the outbox
+        await frodoOwnerClient.Transit.ProcessOutbox(1);
+        
+        //TODO: should sam have to process transit instructions for feed items?
+        // Sam should have the same content on his feed drive
+        await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
+
+        var standardFileQueryParams = new FileQueryParams()
+        {
+            TargetDrive = SystemDriveConstants.FeedDrive,
+            FileType = new List<int>() { standardFileType }
+        };
+
+        // Sam should have the blog post from frodo in Sam's feed
+        var batch = await samOwnerClient.Drive.QueryBatch(FileSystemType.Standard, standardFileQueryParams);
+        Assert.IsTrue(batch.SearchResults.Count() == 1, $"Count should be 1 but was {batch.SearchResults.Count()}");
+        var theFile = batch.SearchResults.First();
+        Assert.IsTrue(theFile.FileState == FileState.Active);
+        Assert.IsTrue(theFile.FileMetadata.AppData.JsonContent == encryptedStandardFileJsonContent64);
+        Assert.IsTrue(theFile.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
+
+        //Now, have Sam comment on the file
+        var commentFile = new UploadFileMetadata()
+        {
+            AllowDistribution = true,
+            ContentType = "application/json",
+            PayloadIsEncrypted = true,
+            ReferencedFile = standardFileUploadResult.GlobalTransitIdFileIdentifier,
+            AppData = new()
+            {
+                ContentIsComplete = true,
+                JsonContent = DotYouSystemSerializer.Serialize(new { message = "Are you tho?" }),
+                FileType = commentFileType,
+                DataType = 202,
+                UserDate = UnixTimeUtc.ZeroTime,
+                Tags = default
+            }
+        };
+
+        // transfer a comment from Sam directly to frodo
+        var (transitResult, encryptedJsonContent64) = await samOwnerClient.Transit.TransferEncryptedFile(
+            FileSystemType.Comment,
+            commentFile,
+            recipients: new List<string>() { frodoOwnerClient.Identity.OdinId },
+            remoteTargetDrive: frodoChannelDrive,
+            payloadData: "",
+            overwriteGlobalTransitFileId: null,
+            thumbnail: null
+        );
+
+        //comment should have made it directly to the recipient's server
+        Assert.IsTrue(transitResult.RecipientStatus.Count == 1);
+        var s = transitResult.RecipientStatus[frodoOwnerClient.Identity.OdinId];
+        Assert.IsTrue(s == TransferStatus.DeliveredToTargetDrive, $"Status should be DeliveredToTargetDrive but was {s}");
+
+        var commentFileQueryParams = new FileQueryParams()
+        {
+            TargetDrive = SystemDriveConstants.FeedDrive,
+            FileType = new List<int>() { commentFileType }
+        };
+
+        // await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
+
+        //
+        // Sam should not have the comment since they are not distributed
+        //
+        var commentBatch = await samOwnerClient.Drive.QueryBatch(FileSystemType.Comment, commentFileQueryParams);
+        Assert.IsTrue(!commentBatch.SearchResults.Any());
+
+        // force process the feed to distribute the updated reaction preview
+        var svc = SystemHttpClient.CreateHttps<IFeedDistributionCronClient>(frodoOwnerClient.Identity.OdinId);
+        var distributeFeedItemResponse = await svc.DistributeReactionPreviewUpdates();
+        Assert.IsTrue(distributeFeedItemResponse.IsSuccessStatusCode);
+
+        //
+        // Sam should, however, have a reaction summary update for that comment on the original file
+        //
+        var batch2 = await samOwnerClient.Drive.QueryBatch(FileSystemType.Standard, standardFileQueryParams);
+        Assert.IsTrue(batch2.SearchResults.Count() == 1);
+        var theFile2 = batch2.SearchResults.First();
+        Assert.IsTrue(theFile2.FileState == FileState.Active);
+        Assert.IsTrue(theFile2.FileMetadata.AppData.JsonContent == encryptedStandardFileJsonContent64);
+        Assert.IsTrue(theFile2.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
+        Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview, "Reaction Preview is null");
+        Assert.IsTrue(theFile2.FileMetadata.ReactionPreview.TotalCommentCount == 1);
+        Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.JsonContent == commentFile.AppData.JsonContent));
+        //TODO: test the other file parts here
+
+
+        //All done
+
+        await frodoOwnerClient.Network.DisconnectFrom(samOwnerClient.Identity);
+        await samOwnerClient.Network.DisconnectFrom(frodoOwnerClient.Identity);
+
+        await samOwnerClient.Follower.UnfollowIdentity(frodoOwnerClient.Identity);
+    }
+
+    private async Task<UploadResult> UploadStandardUnencryptedFileToChannel(OwnerApiClient client, TargetDrive targetDrive, string uploadedContent,
+        int fileType)
     {
         var fileMetadata = new UploadFileMetadata()
         {
@@ -404,10 +855,33 @@ public class DataSubscriptionTests
                 GroupId = default,
                 Tags = default
             },
-            AccessControlList = AccessControlList.OwnerOnly
+            AccessControlList = AccessControlList.Connected
         };
 
         return await client.Drive.UploadFile(FileSystemType.Standard, targetDrive, fileMetadata, "");
+    }
+
+    private async Task<(UploadResult uploadResult, string encryptedJsonContent64)> UploadStandardEncryptedFileToChannel(OwnerApiClient client,
+        TargetDrive targetDrive, string uploadedContent,
+        int fileType)
+    {
+        var fileMetadata = new UploadFileMetadata()
+        {
+            AllowDistribution = true,
+            ContentType = "application/json",
+            PayloadIsEncrypted = false,
+            AppData = new()
+            {
+                ContentIsComplete = true,
+                JsonContent = uploadedContent,
+                FileType = fileType,
+                GroupId = default,
+                Tags = default
+            },
+            AccessControlList = AccessControlList.Connected
+        };
+
+        return await client.Drive.UploadEncryptedFile(FileSystemType.Standard, targetDrive, fileMetadata, "");
     }
 
     private async Task<UploadResult> OverwriteStandardFile(OwnerApiClient client, ExternalFileIdentifier overwriteFile, string uploadedContent, int fileType)

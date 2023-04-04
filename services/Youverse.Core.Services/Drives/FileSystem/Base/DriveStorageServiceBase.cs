@@ -105,7 +105,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
 
             await WriteFileHeaderInternal(header);
         }
-
+        
         public Task WritePartStream(InternalDriveFileId file, FilePart filePart, Stream stream)
         {
             AssertCanWriteToDrive(file.DriveId);

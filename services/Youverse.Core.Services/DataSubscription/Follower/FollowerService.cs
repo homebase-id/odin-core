@@ -27,11 +27,10 @@ namespace Youverse.Core.Services.DataSubscription.Follower
         private readonly IPublicKeyService _rsaPublicKeyService;
         private readonly TenantContext _tenantContext;
         private readonly DotYouContextAccessor _contextAccessor;
-        private readonly TransitRegistrationService _transitRegistrationService;
 
         public FollowerService(ITenantSystemStorage tenantStorage, DriveManager driveManager, IDotYouHttpClientFactory httpClientFactory,
             IPublicKeyService rsaPublicKeyService,
-            TenantContext tenantContext, DotYouContextAccessor contextAccessor, TransitRegistrationService transitRegistrationService)
+            TenantContext tenantContext, DotYouContextAccessor contextAccessor)
         {
             _tenantStorage = tenantStorage;
             _driveManager = driveManager;
@@ -39,7 +38,6 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             _rsaPublicKeyService = rsaPublicKeyService;
             _tenantContext = tenantContext;
             _contextAccessor = contextAccessor;
-            _transitRegistrationService = transitRegistrationService;
         }
 
         /// <summary>
@@ -137,7 +135,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             {
                 _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadWhoIFollow);
             }
-            
+
             return await GetFollowerInternal(odinId);
         }
 
@@ -168,7 +166,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
         /// <summary>
         /// Gets a list of identities that follow me
         /// </summary>
-        public async Task<CursoredResult<string>> GetFollowers(Guid driveId, int max, string cursor)
+        public async Task<CursoredResult<OdinId>> GetFollowers(Guid driveId, int max, string cursor)
         {
             _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadMyFollowers);
 
@@ -179,10 +177,10 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             }
 
             var dbResults = _tenantStorage.Followers.GetFollowers(DefaultMax(max), driveId, cursor, out var nextCursor);
-            var result = new CursoredResult<string>()
+            var result = new CursoredResult<OdinId>()
             {
                 Cursor = nextCursor,
-                Results = dbResults
+                Results = dbResults.Select(ident => new OdinId(ident))
             };
 
             return result;
@@ -191,16 +189,16 @@ namespace Youverse.Core.Services.DataSubscription.Follower
         /// <summary>
         /// Gets followers who want notifications for all channels
         /// </summary>
-        public async Task<CursoredResult<string>> GetFollowersOfAllNotifications(int max, string cursor)
+        public async Task<CursoredResult<OdinId>> GetFollowersOfAllNotifications(int max, string cursor)
         {
             _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadMyFollowers);
 
             var dbResults = _tenantStorage.Followers.GetFollowers(DefaultMax(max), Guid.Empty, cursor, out var nextCursor);
 
-            var result = new CursoredResult<string>()
+            var result = new CursoredResult<OdinId>()
             {
                 Cursor = nextCursor,
-                Results = dbResults
+                Results = dbResults.Select(ident => new OdinId(ident))
             };
 
             return await Task.FromResult(result);
@@ -311,6 +309,15 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             return new PermissionContext(groups, sharedSecret);
         }
 
+        public async Task AssertTenantFollowsTheCaller()
+        {
+            var odinId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
+            var definition = await this.GetIdentityIFollowInternal(odinId);
+            if (null == definition)
+            {
+                throw new YouverseSecurityException($"Not following {odinId}");
+            }
+        }
         ///
         private int DefaultMax(int max)
         {

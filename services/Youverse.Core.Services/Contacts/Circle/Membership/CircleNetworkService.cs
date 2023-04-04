@@ -39,7 +39,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         private readonly TableCircleMember _circleMemberStorage;
         private readonly TenantContext _tenantContext;
         private readonly IAppRegistrationService _appRegistrationService;
-        // private readonly FollowerService _followerService;
         private readonly GuidId _icrClientDataType = GuidId.FromString("__icr_client_reg");
         private readonly ThreeKeyValueStorage _icrClientValueStorage;
 
