@@ -156,7 +156,7 @@ namespace Youverse.Hosting
 
             cb.RegisterType<IdentitiesIFollowAuthenticationService>().AsSelf().SingleInstance();
             cb.RegisterType<FollowerAuthenticationService>().AsSelf().SingleInstance();
-            cb.RegisterType<FeedDriveDataDistributor>()
+            cb.RegisterType<FeedDriveDistributionRouter>()
                 .As<INotificationHandler<DriveFileAddedNotification>>()
                 .As<INotificationHandler<DriveFileChangedNotification>>()
                 .As<INotificationHandler<DriveFileDeletedNotification>>()

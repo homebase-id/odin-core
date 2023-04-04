@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership;
@@ -76,18 +77,14 @@ namespace Youverse.Core.Services.DataSubscription.SendingHost
 
         public async Task<Dictionary<string, TransitResponseCode>> SendFiles(InternalDriveFileId file, FileSystemType fileSystemType, List<OdinId> recipients)
         {
-            
             Dictionary<string, TransitResponseCode> result = new Dictionary<string, TransitResponseCode>();
 
             var fs = _fileSystemResolver.ResolveFileSystem(file);
             var header = await fs.Storage.GetServerFileHeader(file);
-
-            //TODO: Handle security??
-
-            if (null == header.FileMetadata.ReactionPreview)
+            
+            if (header.FileMetadata.PayloadIsEncrypted)
             {
-                //TODO?
-                return null;
+                throw new YouverseSecurityException("Cannot send encrypted files to unconnected followers");
             }
 
             var request = new UpdateFeedFileMetadataRequest()

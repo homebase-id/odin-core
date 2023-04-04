@@ -44,7 +44,7 @@ namespace Youverse.Core.Services.DataSubscription.ReceivingHost
             }
 
             InternalDriveFileId? fileId;
-            using (new SecurityContextSwitcher(_contextAccessor))
+            using (new FeedDriveSecurityContext(_contextAccessor))
             {
                 fileId = await this.ResolveInternalFile(request.FileId);
 
@@ -90,7 +90,7 @@ namespace Youverse.Core.Services.DataSubscription.ReceivingHost
             }
 
             InternalDriveFileId? fileId;
-            using (new SecurityContextSwitcher(_contextAccessor))
+            using (new FeedDriveSecurityContext(_contextAccessor))
             {
                 fileId = await this.ResolveInternalFile(request.FileId);
 
@@ -134,16 +134,18 @@ namespace Youverse.Core.Services.DataSubscription.ReceivingHost
         }
     }
 
-    public class SecurityContextSwitcher : IDisposable
+    public class FeedDriveSecurityContext : IDisposable
     {
         private readonly SecurityGroupType _prevSecurityGroupType;
         private readonly DotYouContextAccessor _dotYouContextAccessor;
 
-        public SecurityContextSwitcher(DotYouContextAccessor dotYouContextAccessor)
+        public FeedDriveSecurityContext(DotYouContextAccessor dotYouContextAccessor)
         {
             _dotYouContextAccessor = dotYouContextAccessor;
             _prevSecurityGroupType = _dotYouContextAccessor.GetCurrent().Caller.SecurityLevel;
+            
             _dotYouContextAccessor.GetCurrent().Caller.SecurityLevel = SecurityGroupType.Owner;
+            _dotYouContextAccessor.GetCurrent().SetPermissionContext();
         }
 
         public void Dispose()

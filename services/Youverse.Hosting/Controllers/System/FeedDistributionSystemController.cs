@@ -16,9 +16,9 @@ namespace Youverse.Hosting.Controllers.System
     [Authorize(Policy = SystemPolicies.IsSystemProcess, AuthenticationSchemes = SystemAuthConstants.SchemeName)]
     public class FeedDistributionSystemController : ControllerBase
     {
-        private readonly FeedDriveDataDistributor _distributionService;
+        private readonly FeedDriveDistributionRouter _distributionService;
 
-        public FeedDistributionSystemController(FeedDriveDataDistributor distributionService)
+        public FeedDistributionSystemController(FeedDriveDistributionRouter distributionService)
         {
             _distributionService = distributionService;
         }
@@ -26,7 +26,7 @@ namespace Youverse.Hosting.Controllers.System
         [HttpPost("files")]
         public async Task<bool> DistributeFiles()
         {
-            await _distributionService.DistributeFiles();
+            await _distributionService.DistributeMetadata();
             return true;
         }
 

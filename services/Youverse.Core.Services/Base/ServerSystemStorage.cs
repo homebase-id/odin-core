@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using Youverse.Core.Identity;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Storage.Sqlite;
 using Youverse.Core.Storage.Sqlite.ServerDatabase;
@@ -45,6 +46,16 @@ public class ServerSystemStorage : IDisposable
             identityId = odinId,
             type = (Int32)jobType,
             data = data
+        });
+    }
+    
+    public void EnqueueJob<T>(OdinId odinId, CronJobType jobType, T data)
+    {
+        this.tblCron.Insert(new CronRecord()
+        {
+            identityId = odinId,
+            type = (Int32)jobType,
+            data = DotYouSystemSerializer.Serialize(data).ToUtf8ByteArray()
         });
     }
 

@@ -25,10 +25,10 @@ namespace Youverse.Core.Services.DataSubscription
     /// <summary>
     /// Distributes files from channels to follower's feed drives (and only the feed drive)
     /// </summary>
-    public class FeedDriveDataDistributor : INotificationHandler<IDriveNotification>
+    public class FeedDriveDistributionRouter : INotificationHandler<IDriveNotification>
     {
         private readonly GuidId _feedItemCategory = GuidId.FromString("feed_items");
-        private readonly GuidId _headerFeedItemCategory = GuidId.FromString("header_feed_item");
+        private readonly GuidId _metadataFeedItemCategory = GuidId.FromString("header_feed_item");
         private readonly GuidId _reactionPreviewFeedItemCategory = GuidId.FromString("reaction_preview_feed_item");
         private readonly FollowerService _followerService;
         private readonly DriveManager _driveManager;
@@ -41,7 +41,10 @@ namespace Youverse.Core.Services.DataSubscription
         private readonly ICircleNetworkService _circleNetworkService;
         private readonly FeedDistributorService _feedDistributorService;
 
-        public FeedDriveDataDistributor(
+        /// <summary>
+        /// Routes file changes to drives which allow subscriptions to be sent in a background process
+        /// </summary>
+        public FeedDriveDistributionRouter(
             FollowerService followerService,
             ITransitService transitService, DriveManager driveManager, TenantContext tenantContext, ServerSystemStorage serverSystemStorage,
             FileSystemResolver fileSystemResolver, ITenantSystemStorage tenantSystemStorage, DotYouContextAccessor contextAccessor, ICircleNetworkService circleNetworkService,
@@ -66,19 +69,29 @@ namespace Youverse.Core.Services.DataSubscription
             {
                 if (_contextAccessor.GetCurrent().Caller.IsOwner)
                 {
-                    var unconnectedRecipients = await this.DistributeUsingTransit(notification);
-                    await this.EnqueueFileForDistributionUsingFeedEndpoint(notification, unconnectedRecipients);
+                    if (notification.ServerFileHeader.FileMetadata.PayloadIsEncrypted)
+                    {
+                        await this.DistributeToConnectedFollowersUsingTransit(notification);
+                    }
+                    else
+                    {
+                        this.EnqueueFileMetadataForDistributionUsingFeedEndpoint(notification);
+                    }
+                }
+                else
+                {
+                    // If this is the reaction preview being updated due to an incoming comment or reaction
+                    if (notification is ReactionPreviewUpdatedNotification)
+                    {
+                        EnqueueReactionPreviewForDistributionUsingFeedEndpoint(notification);
+                    }
                 }
 
-                // If this is the reaction preview being updated due to an incoming comment or reaction
-                if (notification is ReactionPreviewUpdatedNotification && _contextAccessor.GetCurrent().Caller.IsOwner == false)
-                {
-                    await EnqueueReactionPreviewForDistributionUsingFeedEndpoint(notification);
-                }
+                //Note: intentionally ignoring when the notification is a file and it's not the owner
             }
         }
 
-        private async Task EnqueueFileForDistributionUsingFeedEndpoint(IDriveNotification notification, List<OdinId> unconnectedRecipients)
+        private void EnqueueFileMetadataForDistributionUsingFeedEndpoint(IDriveNotification notification)
         {
             var item = new ReactionPreviewDistributionItem()
             {
@@ -88,16 +101,13 @@ namespace Youverse.Core.Services.DataSubscription
             };
 
             var fileKey = CreateFileKey(item.SourceFile);
-            _tenantSystemStorage.ThreeKeyValueStorage.Upsert(fileKey, _feedItemCategory, _reactionPreviewFeedItemCategory, item);
+            _tenantSystemStorage.ThreeKeyValueStorage.Upsert(fileKey, _feedItemCategory, _metadataFeedItemCategory, item);
 
-            //tell the job we this tenant needs to have their queue processed
-            var jobInfo = new FeedDistributionInfo()
+            //tell the job this tenant needs to have their queue processed
+            _serverSystemStorage.EnqueueJob(_tenantContext.HostOdinId, CronJobType.FeedReactionPreviewDistribution, new FeedDistributionInfo()
             {
                 OdinId = _tenantContext.HostOdinId,
-            };
-
-            _serverSystemStorage.EnqueueJob(_tenantContext.HostOdinId, CronJobType.FeedReactionPreviewDistribution,
-                DotYouSystemSerializer.Serialize(jobInfo).ToUtf8ByteArray());
+            });
         }
 
         private async Task<bool> ShouldDistribute(IDriveNotification notification)
@@ -134,9 +144,9 @@ namespace Youverse.Core.Services.DataSubscription
             return true;
         }
 
-        public async Task DistributeHeaders()
+        public async Task DistributeMetadata()
         {
-            var items = _tenantSystemStorage.ThreeKeyValueStorage.GetByKey2And3<ReactionPreviewDistributionItem>(_feedItemCategory, _headerFeedItemCategory);
+            var items = _tenantSystemStorage.ThreeKeyValueStorage.GetByKey2And3<ReactionPreviewDistributionItem>(_feedItemCategory, _metadataFeedItemCategory);
 
             foreach (var distroItem in items)
             {
@@ -162,10 +172,6 @@ namespace Youverse.Core.Services.DataSubscription
                     //TODO: Process the results and put into retry queue
                 }
             }
-        }
-
-        public async Task DistributeFiles()
-        {
         }
 
         public async Task DistributeReactionPreviews()
@@ -199,7 +205,11 @@ namespace Youverse.Core.Services.DataSubscription
             }
         }
 
-        private async Task<List<OdinId>> DistributeUsingTransit(IDriveNotification notification)
+        /// <summary>
+        /// Distributes to connected identities that are followers using
+        /// transit; returns the list of unconnected identites
+        /// </summary>
+        private async Task<List<OdinId>> DistributeToConnectedFollowersUsingTransit(IDriveNotification notification)
         {
             var driveId = notification.File.DriveId;
             var file = notification.File;
@@ -243,6 +253,25 @@ namespace Youverse.Core.Services.DataSubscription
             return recipients;
         }
 
+        private async Task SendFileOverTransit(ServerFileHeader header, List<OdinId> recipients)
+        {
+            var transitOptions = new TransitOptions()
+            {
+                Recipients = recipients.Select(r => r.DomainName).ToList(),
+                Schedule = ScheduleOptions.SendLater,
+                IsTransient = false,
+                UseGlobalTransitId = true,
+                SendContents = SendContents.Header,
+                RemoteTargetDrive = SystemDriveConstants.FeedDrive
+            };
+
+            var _ = await _transitService.SendFile(
+                header.FileMetadata.File,
+                transitOptions,
+                TransferFileType.Normal,
+                header.ServerMetadata.FileSystemType);
+        }
+        
         private async Task DeleteFileOverTransit(ServerFileHeader header, List<OdinId> recipients)
         {
             if (header.FileMetadata.GlobalTransitId.HasValue)
@@ -280,27 +309,8 @@ namespace Youverse.Core.Services.DataSubscription
                 // }
             }
         }
-
-        private async Task SendFileOverTransit(ServerFileHeader header, List<OdinId> recipients)
-        {
-            var transitOptions = new TransitOptions()
-            {
-                Recipients = recipients.Select(r => r.DomainName).ToList(),
-                Schedule = ScheduleOptions.SendLater,
-                IsTransient = false,
-                UseGlobalTransitId = true,
-                SendContents = SendContents.Header,
-                RemoteTargetDrive = SystemDriveConstants.FeedDrive
-            };
-
-            var _ = await _transitService.SendFile(
-                header.FileMetadata.File,
-                transitOptions,
-                TransferFileType.Normal,
-                header.ServerMetadata.FileSystemType);
-        }
-
-        private Task EnqueueReactionPreviewForDistributionUsingFeedEndpoint(IDriveNotification notification)
+        
+        private void EnqueueReactionPreviewForDistributionUsingFeedEndpoint(IDriveNotification notification)
         {
             var item = new ReactionPreviewDistributionItem()
             {
@@ -312,16 +322,11 @@ namespace Youverse.Core.Services.DataSubscription
             var fileKey = CreateFileKey(item.SourceFile);
             _tenantSystemStorage.ThreeKeyValueStorage.Upsert(fileKey, _feedItemCategory, _reactionPreviewFeedItemCategory, item);
 
-            //tell the job we this tenant needs to have their queue processed
-            var jobInfo = new FeedDistributionInfo()
+
+            _serverSystemStorage.EnqueueJob(_tenantContext.HostOdinId, CronJobType.FeedFileDistribution, new FeedDistributionInfo()
             {
                 OdinId = _tenantContext.HostOdinId,
-            };
-
-            _serverSystemStorage.EnqueueJob(_tenantContext.HostOdinId, CronJobType.FeedFileDistribution,
-                DotYouSystemSerializer.Serialize(jobInfo).ToUtf8ByteArray());
-
-            return Task.CompletedTask;
+            });
         }
 
         private Guid CreateFileKey(InternalDriveFileId file)
