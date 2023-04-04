@@ -669,8 +669,106 @@ namespace DriveDatabaseTests
             Debug.Assert(ByteArrayUtil.muidcmp(result[0], f1) == 0);
         }
 
+
         [Test]
-        public void QueryBatchCreateCursor()
+        public void TestQueryBatchStartPointGuid()
+        {
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            _testDatabase.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid(); // Oldest
+            var s1 = SequentialGuid.CreateGuid().ToByteArray();
+            var t1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+            var f4 = SequentialGuid.CreateGuid(); 
+            var f5 = SequentialGuid.CreateGuid(); 
+            var f6 = SequentialGuid.CreateGuid(); // Newest
+
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+
+            // Set the start point to f3 (which we didn't put in the DB)
+            var cursor = new QueryBatchCursor();
+            cursor.CursorStartPoint(f3.ToByteArray());
+
+            // Get all the newest items. We should get f2, f1 and no more because f3 is the start point.
+            var (result, hasRows) = _testDatabase.QueryBatch(10, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 2);
+            Debug.Assert(hasRows == false);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f2) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f1.ToByteArray()) == 0);
+
+            //
+            // ====== Now do the same, oldest first
+            //
+            // Set the boundary item to f3 (which we didn't put in the DB)
+            cursor.CursorStartPoint(f3.ToByteArray());
+
+            // Get all the oldest items. We should get f4,f5,f6 because f3 is the start point and we're getting oldest first.
+            (result, hasRows) = _testDatabase.QueryBatch(10, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 3);
+            Debug.Assert(hasRows == false);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f4) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f6.ToByteArray()) == 0);
+        }
+
+
+        [Test]
+        public void TestQueryBatchStartPointTime()
+        {
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            _testDatabase.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid(); // Oldest
+            var s1 = SequentialGuid.CreateGuid().ToByteArray();
+            var t1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+            Thread.Sleep(1);
+            var t3 = UnixTimeUtc.Now();
+            Thread.Sleep(1);
+            var f4 = SequentialGuid.CreateGuid();
+            var f5 = SequentialGuid.CreateGuid();
+            var f6 = SequentialGuid.CreateGuid(); // Newest
+
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+            _testDatabase.AddEntry(f6, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 2, null, null);
+
+            // Set the start point to f3 (which we didn't put in the DB)
+            var cursor = new QueryBatchCursor();
+            cursor.CursorStartPoint(t3);
+
+            // Get all the newest items. We should get f2, f1 and no more because f3 is the start point.
+            var (result, hasRows) = _testDatabase.QueryBatch(10, ref cursor, newestFirstOrder: true, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 2);
+            Debug.Assert(hasRows == false);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f2) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f1.ToByteArray()) == 0);
+
+            //
+            // ====== Now do the same, oldest first
+            //
+            // Set the boundary item to f3 (which we didn't put in the DB)
+            cursor.CursorStartPoint(t3);
+
+            // Get all the oldest items. We should get f4,f5,f6 because f3 is the start point and we're getting oldest first.
+            (result, hasRows) = _testDatabase.QueryBatch(10, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 3);
+            Debug.Assert(hasRows == false);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f4) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f6.ToByteArray()) == 0);
+        }
+
+
+        [Test]
+        public void TestQueryBatchStopBoundaryGuid()
         {
             using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
@@ -728,7 +826,7 @@ namespace DriveDatabaseTests
 
 
         [Test]
-        public void QueryBatchCreateCursorTime()
+        public void TestQueryBatchStopBoundaryTime()
         {
             using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
