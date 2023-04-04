@@ -65,6 +65,7 @@ public enum YouverseClientErrorCode
     AppNotRegistered = 6001,
     AppHasNoAuthorizedCircles = 6700,
     InvalidAccessRegistrationId = 6800,
+    InvalidCorsHostName = 6850,
 
     //Transit errors
     RemoteServerReturnedForbidden = 7403,
@@ -77,5 +78,5 @@ public enum YouverseClientErrorCode
     // System Errors 90xx
     InvalidFlagName = 9001,
     NotInitialized = 9002,
-    UnknownFlagName = 9003,
+    UnknownFlagName = 9003
 }
