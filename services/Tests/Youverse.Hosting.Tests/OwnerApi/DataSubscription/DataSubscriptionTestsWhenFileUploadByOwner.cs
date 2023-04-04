@@ -41,10 +41,16 @@ public class DataSubscriptionTestsWhenFileUploadByOwner
     }
 
     [Test]
-    public async Task EncryptedStandardFile_UploadedByOwner_DistributedToConnectedIdentities_ThatFollowOwner() { }
-    
-    [Test] 
-    public async Task UnencryptedStandardFile_UploadedByOwner_DistributedToConnectedIdentities_ThatFollowOwner() { }
+    public async Task EncryptedStandardFile_UploadedByOwner_DistributedToConnectedIdentities_ThatFollowOwner()
+    {
+        Assert.Inconclusive();
+    }
+
+    [Test]
+    public async Task UnencryptedStandardFile_UploadedByOwner_DistributedToConnectedIdentities_ThatFollowOwner()
+    {
+        Assert.Inconclusive();
+    }
 
     [Test]
     public async Task UnencryptedStandardFile_UploadedByOwner_Distributed_ToFollowers_That_AreNotConnected()
@@ -73,7 +79,10 @@ public class DataSubscriptionTestsWhenFileUploadByOwner
 
         //Tell frodo's identity to process the outbox due to feed distribution
         await frodoOwnerClient.Transit.ProcessOutbox(1);
-
+        
+        //Tell Frodo's identity to process the feed outbox
+        await frodoOwnerClient.Cron.DistributeAllFeedOutboxItems();
+        
         //It should be direct write
         // Sam should have the same content on his feed drive
         // await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
@@ -95,9 +104,13 @@ public class DataSubscriptionTestsWhenFileUploadByOwner
         //All done
         await samOwnerClient.Follower.UnfollowIdentity(frodoOwnerClient.Identity);
     }
-    
-    [Test] 
-    public async Task EncryptedStandardFile_UploadedByOwner_Distributed_ToFollowers_That_AreNotConnected_Fails() { }
+
+    [Test]
+    public async Task EncryptedStandardFile_UploadedByOwner_Distributed_ToFollowers_That_AreNotConnected_Fails()
+    {
+        Assert.Inconclusive();
+
+    }
     
     
     [Test]
@@ -175,71 +188,7 @@ public class DataSubscriptionTestsWhenFileUploadByOwner
         //All done
         await samOwnerClient.Follower.UnfollowIdentity(frodoOwnerClient.Identity);
     }
-
-    [Test]
-    [Ignore("causes other tests to fail when multiple tests are running, need ot figure out w/ Michael")]
-    public async Task CanUploadStandardFileThenDeleteThenDistributeDeletion()
-    {
-        const int fileType = 1117;
-        var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
-        var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
-
-        //create a channel drive
-        var frodoChannelDrive = new TargetDrive()
-        {
-            Alias = Guid.NewGuid(),
-            Type = SystemDriveConstants.ChannelDriveType
-        };
-
-        await frodoOwnerClient.Drive.CreateDrive(frodoChannelDrive, "A Channel Drive", "", allowAnonymousReads: false, ownerOnly: false,
-            allowSubscriptions: true);
-
-        // Sam to follow everything from frodo
-        await samOwnerClient.Follower.FollowIdentity(frodoOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
-
-        // Frodo uploads content to channel drive
-        var uploadedContent = "I'm Mr. Underhill; I think";
-        var standardFileUploadResult = await UploadStandardUnencryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType);
-
-        // Sam should have the same content on his feed drive
-        await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
-
-        var qp = new FileQueryParams()
-        {
-            TargetDrive = SystemDriveConstants.FeedDrive,
-            FileType = new List<int>() { fileType }
-        };
-
-        var batch = await samOwnerClient.Drive.QueryBatch(FileSystemType.Standard, qp);
-        Assert.IsTrue(batch.SearchResults.Count() == 1);
-        var originalFile = batch.SearchResults.First();
-        Assert.IsTrue(originalFile.FileState == FileState.Active);
-        Assert.IsTrue(originalFile.FileMetadata.AppData.JsonContent == uploadedContent);
-        Assert.IsTrue(originalFile.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
-
-        //Frodo now deletes the file
-        await frodoOwnerClient.Drive.DeleteFile(FileSystemType.Standard, standardFileUploadResult.File);
-
-        // Sam should have the same content on his feed drive
-        await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
-
-        var qp2 = new FileQueryParams()
-        {
-            TargetDrive = SystemDriveConstants.FeedDrive,
-            GlobalTransitId = new List<Guid>() { standardFileUploadResult.GlobalTransitId.GetValueOrDefault() }
-        };
-
-        //Sam should have the file marked as deleted
-        var batch2 = await samOwnerClient.Drive.QueryBatch(FileSystemType.Standard, qp2);
-        Assert.IsTrue(batch2.SearchResults.Count() == 1);
-        var deletedFile = batch2.SearchResults.First();
-        Assert.IsTrue(deletedFile.FileState == FileState.Deleted, "File should be deleted");
-        Assert.IsTrue(deletedFile.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
-
-        //All done
-        await samOwnerClient.Follower.UnfollowIdentity(frodoOwnerClient.Identity);
-    }
-
+    
     private async Task<UploadResult> UploadStandardUnencryptedFileToChannel(OwnerApiClient client, TargetDrive targetDrive, string uploadedContent,
         int fileType)
     {

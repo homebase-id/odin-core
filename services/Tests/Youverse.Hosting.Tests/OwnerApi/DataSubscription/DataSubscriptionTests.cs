@@ -597,9 +597,6 @@ public class DataSubscriptionTests
 
         //Tell frodo's identity to process the outbox
         await frodoOwnerClient.Transit.ProcessOutbox(1);
-        // var svcx = SystemHttpClient.CreateHttps<ICronHttpClient>(frodoOwnerClient.Identity.OdinId);
-        // var processOutboxResponse = await svcx.ProcessOutbox(1);
-        // Assert.IsTrue(processOutboxResponse.IsSuccessStatusCode);
 
         //TODO: should sam have to process transit instructions for feed items?
         // Sam should have the same content on his feed drive
