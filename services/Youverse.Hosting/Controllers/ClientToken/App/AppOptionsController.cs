@@ -8,20 +8,12 @@ namespace Youverse.Hosting.Controllers.ClientToken.App
 {
     [ApiController]
     [Route(AppApiPathConstants.BasePathV1)]
-    [AuthorizeValidAppExchangeGrant]
     public class AppOptionsController : OdinControllerBase
     {
         [HttpOptions("{**thePath}")]
         public IActionResult Options(string thePath)
         {
-            // this.Response.Headers.Add("Access-Control-Allow-Origin", (string)this.Request.Headers["Origin"]);
-
-            string appHostName = DotYouContext.Caller.AppContext.CorsAppName;
-            if (!string.IsNullOrEmpty(appHostName))
-            {
-                this.Response.Headers.Add("Access-Control-Allow-Origin", $"https://{appHostName}");
-            }
-            
+            this.Response.Headers.Add("Access-Control-Allow-Origin", (string)this.Request.Headers["Origin"]);
             this.Response.Headers.Add("Access-Control-Allow-Headers",
                 new[]
                 {

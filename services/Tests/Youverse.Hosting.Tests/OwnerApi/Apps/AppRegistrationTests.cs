@@ -80,6 +80,67 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
         }
 
         [Test]
+        public async Task RegisterNewAppWithCorsHostNameAndPort()
+        {
+            var applicationId = Guid.NewGuid();
+            var name = "API Tests Sample App-register";
+            var corsHostName = "somewhere.odin.earth:444";
+
+            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+            {
+                var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var request = new AppRegistrationRequest
+                {
+                    AppId = applicationId,
+                    Name = name,
+                    PermissionSet = null,
+                    Drives = null,
+                    CorsHostName = corsHostName
+                };
+
+                var response = await svc.RegisterApp(request);
+
+                Assert.IsTrue(response.IsSuccessStatusCode, "Status code was {response.StatusCode}");
+                var appReg = response.Content;
+
+                var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = applicationId });
+                Assert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {applicationId}");
+                Assert.IsNotNull(appResponse.Content, "There should be no app");
+                Assert.IsTrue(appResponse.Content.CorsHostName == corsHostName);
+            }
+        }
+
+        [Test]
+        public async Task FailToRegisterNewAppWithCorsHostNameAndInvalidPort()
+        {
+            var applicationId = Guid.NewGuid();
+            var name = "API Tests Sample App-register";
+            var corsHostName = "somewhere.odin.earth:3AC";
+
+            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+            {
+                var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var request = new AppRegistrationRequest
+                {
+                    AppId = applicationId,
+                    Name = name,
+                    PermissionSet = null,
+                    Drives = null,
+                    CorsHostName = corsHostName
+                };
+
+                var response = await svc.RegisterApp(request);
+
+                Assert.IsFalse(response.IsSuccessStatusCode, "Status code was {response.StatusCode}");
+                var appReg = response.Content;
+
+                var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = applicationId });
+                Assert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {applicationId}");
+                Assert.IsNull(appResponse.Content, "There should be no app");
+            }
+        }
+        
+        [Test]
         public async Task RegisterNewAppWithDriveAndPermissions()
         {
             var applicationId = Guid.NewGuid();
