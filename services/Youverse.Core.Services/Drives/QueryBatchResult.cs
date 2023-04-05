@@ -18,8 +18,5 @@ public class QueryBatchResult
     
     public IEnumerable<SharedSecretEncryptedFileHeader> SearchResults { get; set; }
 
-    /// <summary>
-    /// If Ordering.NewestFirst or Ordering.OldestFirst was specified, this value is populated, otherwise it is null
-    /// </summary>
-    public bool? HasMoreRows { get; set; }
+    public bool HasMoreRows { get; set; }
 }
