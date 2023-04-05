@@ -19,7 +19,7 @@ using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Drives.FileSystem.Base
-{   
+{
     public abstract class DriveStorageServiceBase : RequirePermissionsBase
     {
         private readonly IDriveAclAuthorizationService _driveAclAuthorizationService;
@@ -72,7 +72,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             return df;
         }
 
-        public async Task UpdateActiveFileHeader(InternalDriveFileId file, ServerFileHeader header)
+        public async Task UpdateActiveFileHeader(InternalDriveFileId file, ServerFileHeader header, bool raiseEvent = false)
         {
             Guard.Argument(header, nameof(header)).NotNull();
             Guard.Argument(header, nameof(header)).Require(x => x.IsValid());
@@ -84,6 +84,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             //TODO: need to encrypt the metadata parts
             metadata.File = file; //TBH it's strange having this but we need the metadata to have the file and drive embedded
 
+            bool wasAnUpdate = false;
             if (this.FileExists(file))
             {
                 if (metadata.FileState != FileState.Active)
@@ -96,6 +97,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
                 metadata.Created = existingHeader.FileMetadata.Created;
                 metadata.GlobalTransitId = existingHeader.FileMetadata.GlobalTransitId;
                 metadata.FileState = existingHeader.FileMetadata.FileState;
+                wasAnUpdate = true;
             }
             else
             {
@@ -104,8 +106,34 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             }
 
             await WriteFileHeaderInternal(header);
+
+            //HACKed in for Feed drive
+            if (raiseEvent)
+            {
+                if (await ShouldRaiseDriveEvent(file))
+                {
+                    if(wasAnUpdate)
+                    {
+                        await _mediator.Publish(new DriveFileAddedNotification()
+                        {
+                            File = file,
+                            ServerFileHeader = header,
+                            SharedSecretEncryptedFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(header, ContextAccessor)
+                        });
+                    }
+                    else
+                    {
+                        await _mediator.Publish(new DriveFileChangedNotification()
+                        {
+                            File = file,
+                            ServerFileHeader = header,
+                            SharedSecretEncryptedFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(header, ContextAccessor)
+                        });
+                    }
+                }
+            }
         }
-        
+
         public Task WritePartStream(InternalDriveFileId file, FilePart filePart, Stream stream)
         {
             AssertCanWriteToDrive(file.DriveId);
@@ -215,20 +243,11 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             return extenstion;
         }
 
-        public async Task<ServerFileHeader> CreateServerFileHeader(InternalDriveFileId file, KeyHeader keyHeader, FileMetadata fileMetadata,
+        public async Task<ServerFileHeader> CreateServerFileHeader(InternalDriveFileId file, KeyHeader keyHeader, FileMetadata metadata,
             ServerMetadata serverMetadata)
         {
-            serverMetadata.FileSystemType = GetFileSystemType();
-            var sv = new ServerFileHeader()
-            {
-                EncryptedKeyHeader = await this.EncryptKeyHeader(file.DriveId, keyHeader),
-                FileMetadata = fileMetadata,
-                ServerMetadata = serverMetadata
-            };
-
-            return sv;
+            return await CreateServerHeaderInternal(file, keyHeader, metadata, serverMetadata);
         }
-
 
         private async Task<EncryptedKeyHeader> EncryptKeyHeader(Guid driveId, KeyHeader keyHeader)
         {
@@ -242,9 +261,9 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
 
         public async Task<ServerFileHeader> GetServerFileHeader(InternalDriveFileId file)
         {
+            this.AssertCanReadDrive(file.DriveId);
             var header = await GetServerFileHeaderInternal(file);
             AssertValidFileSystemType(header.ServerMetadata);
-
             return header;
         }
 
@@ -254,14 +273,14 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
         /// </summary>
         public async Task<FileSystemType> ResolveFileSystemType(InternalDriveFileId file)
         {
+            this.AssertCanReadOrWriteToDrive(file.DriveId);
+
             var header = await GetServerFileHeaderInternal(file);
             return header.ServerMetadata.FileSystemType;
         }
 
         private async Task<ServerFileHeader> GetServerFileHeaderInternal(InternalDriveFileId file)
         {
-            this.AssertCanReadDrive(file.DriveId);
-
             var header = await GetLongTermStorageManager(file.DriveId).GetServerFileHeader(file.FileId);
 
             if (null == header)
@@ -297,7 +316,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
 
         public bool FileExists(InternalDriveFileId file)
         {
-            this.AssertCanReadDrive(file.DriveId);
+            this.AssertCanReadOrWriteToDrive(file.DriveId);
             return GetLongTermStorageManager(file.DriveId).FileExists(file.FileId);
         }
 
@@ -394,12 +413,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             }
 
             //TODO: calculate payload checksum, put on file metadata
-            var serverHeader = new ServerFileHeader()
-            {
-                EncryptedKeyHeader = metadata.PayloadIsEncrypted ? await this.EncryptKeyHeader(targetFile.DriveId, keyHeader) : EncryptedKeyHeader.Empty(),
-                FileMetadata = metadata,
-                ServerMetadata = serverMetadata
-            };
+            var serverHeader = await CreateServerHeaderInternal(targetFile, keyHeader, metadata, serverMetadata);
 
             await this.UpdateActiveFileHeader(targetFile, serverHeader);
 
@@ -412,6 +426,19 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
                     SharedSecretEncryptedFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverHeader, ContextAccessor)
                 });
             }
+        }
+
+        private async Task<ServerFileHeader> CreateServerHeaderInternal(InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata,
+            ServerMetadata serverMetadata)
+        {
+            serverMetadata.FileSystemType = GetFileSystemType();
+
+            return new ServerFileHeader()
+            {
+                EncryptedKeyHeader = metadata.PayloadIsEncrypted ? await this.EncryptKeyHeader(targetFile.DriveId, keyHeader) : EncryptedKeyHeader.Empty(),
+                FileMetadata = metadata,
+                ServerMetadata = serverMetadata
+            };
         }
 
         public async Task OverwriteFile(InternalDriveFileId tempFile, InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata,

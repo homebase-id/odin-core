@@ -5,8 +5,10 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Core.Services.DataSubscription.SendingHost;
 using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Drives.DriveCore.Storage;
 using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.ReceivingHost;
 
 namespace Youverse.Core.Services.DataSubscription.ReceivingHost
@@ -33,7 +35,7 @@ namespace Youverse.Core.Services.DataSubscription.ReceivingHost
         public async Task<HostTransitResponse> AcceptUpdatedReactionPreview(UpdateReactionSummaryRequest request)
         {
             await _followerService.AssertTenantFollowsTheCaller();
-            
+
             //S0510
             if (request.FileId.TargetDrive != SystemDriveConstants.FeedDrive)
             {
@@ -76,8 +78,6 @@ namespace Youverse.Core.Services.DataSubscription.ReceivingHost
             };
         }
 
-        
-
         public async Task<HostTransitResponse> AcceptUpdatedFileHeader(UpdateFeedFileMetadataRequest request)
         {
             await _followerService.AssertTenantFollowsTheCaller();
@@ -94,28 +94,38 @@ namespace Youverse.Core.Services.DataSubscription.ReceivingHost
             {
                 fileId = await this.ResolveInternalFile(request.FileId);
 
+                var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
                 if (null == fileId)
                 {
-                    return new HostTransitResponse()
+                    var internalFile = _fileSystem.Storage.CreateInternalFileId(driveId);
+
+                    var keyHeader = KeyHeader.Empty();
+                    var serverMetadata = new ServerMetadata()
                     {
-                        Code = TransitResponseCode.Rejected
+                        AccessControlList = AccessControlList.OwnerOnly,
+                        AllowDistribution = false,
                     };
+
+                    var serverFileHeader = await _fileSystem.Storage.CreateServerFileHeader(internalFile, keyHeader, request.FileMetadata, serverMetadata);
+                    await _fileSystem.Storage.UpdateActiveFileHeader(internalFile, serverFileHeader, raiseEvent: true);
                 }
-
-                var header = await _fileSystem.Storage.GetServerFileHeader(fileId.Value);
-
-                //S0510
-                if (header.FileMetadata.SenderOdinId != _contextAccessor.GetCurrent().Caller.OdinId)
+                else
                 {
-                    return new HostTransitResponse()
-                    {
-                        Code = TransitResponseCode.Rejected
-                    };
-                }
+                    var header = await _fileSystem.Storage.GetServerFileHeader(fileId.Value);
 
-                header.FileMetadata = request.FileMetadata;
-                
-                await _fileSystem.Storage.UpdateActiveFileHeader(fileId.Value, header);
+                    //S0510
+                    if (header.FileMetadata.SenderOdinId != _contextAccessor.GetCurrent().Caller.OdinId)
+                    {
+                        return new HostTransitResponse()
+                        {
+                            Code = TransitResponseCode.Rejected
+                        };
+                    }
+
+                    header.FileMetadata = request.FileMetadata;
+
+                    await _fileSystem.Storage.UpdateActiveFileHeader(fileId.Value, header, raiseEvent:true);
+                }
             }
 
             return new HostTransitResponse()
@@ -129,7 +139,7 @@ namespace Youverse.Core.Services.DataSubscription.ReceivingHost
         /// </summary>
         private async Task<InternalDriveFileId?> ResolveInternalFile(GlobalTransitIdFileIdentifier file)
         {
-            var (_, fileId) = await _fileSystemResolver.ResolveFileSystem(file);
+            var (_, fileId) = await _fileSystemResolver.ResolveFileSystem(file, tryCommentDrive: false);
             return fileId;
         }
     }
@@ -143,9 +153,9 @@ namespace Youverse.Core.Services.DataSubscription.ReceivingHost
         {
             _dotYouContextAccessor = dotYouContextAccessor;
             _prevSecurityGroupType = _dotYouContextAccessor.GetCurrent().Caller.SecurityLevel;
-            
+
             _dotYouContextAccessor.GetCurrent().Caller.SecurityLevel = SecurityGroupType.Owner;
-            _dotYouContextAccessor.GetCurrent().SetPermissionContext();
+            // _dotYouContextAccessor.GetCurrent().SetPermissionContext();
         }
 
         public void Dispose()

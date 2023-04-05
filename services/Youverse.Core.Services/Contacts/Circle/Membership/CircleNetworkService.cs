@@ -22,6 +22,7 @@ using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Storage;
 using Youverse.Core.Storage.Sqlite.IdentityDatabase;
+using PermissionSet = Youverse.Core.Services.Authorization.Permissions.PermissionSet;
 
 namespace Youverse.Core.Services.Contacts.Circle.Membership
 {
@@ -783,7 +784,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 }
             }
 
-
             //Add write-ability to drives if this identity follows me
             // var follower = await _followerService.GetFollower(connectionRegistration.OdinId);
             // if (null != follower)
@@ -799,6 +799,21 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             //         follower.Channels
             //     }
             // }
+
+            //TODO: only add this if I follow this identity
+            var feedDriveWriteGrant = await _exchangeGrantService.CreateExchangeGrant(new PermissionSet(), new List<DriveGrantRequest>()
+            {
+                new()
+                {
+                    PermissionedDrive = new()
+                    {
+                        Drive = SystemDriveConstants.FeedDrive,
+                        Permission = DrivePermission.Write
+                    }
+                }
+            }, null);
+
+            grants.Add("feed_drive_writer", feedDriveWriteGrant);
 
             List<int> permissionKeys = new List<int>() { };
             if (_tenantContext.Settings?.AllConnectedIdentitiesCanViewConnections ?? false)
