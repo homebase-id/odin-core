@@ -29,7 +29,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
 
     public StorageDrive Drive { get; init; }
 
-    public Task<(long, IEnumerable<Guid>)> GetModified(DotYouContext dotYouContext, FileSystemType fileSystemType,
+    public Task<(long, IEnumerable<Guid>, bool hasMoreRows)> GetModified(DotYouContext dotYouContext, FileSystemType fileSystemType,
         FileQueryParams qp, QueryModifiedResultOptions options)
     {
         Guard.Argument(dotYouContext, nameof(dotYouContext)).NotNull();
@@ -57,11 +57,11 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
             tagsAllOf: qp.TagsMatchAll?.ToList(),
             archivalStatusAnyOf: qp.ArchivalStatus.HasValue ? new List<int>() { qp.ArchivalStatus.Value } : null);
 
-        return Task.FromResult((cursor.uniqueTime, results.AsEnumerable()));
+        return Task.FromResult((cursor.uniqueTime, results.AsEnumerable(), moreRows));
     }
 
 
-    public Task<(QueryBatchCursor, IEnumerable<Guid>, bool? hasMoreRows)> GetBatch(DotYouContext dotYouContext,
+    public Task<(QueryBatchCursor, IEnumerable<Guid>, bool hasMoreRows)> GetBatch(DotYouContext dotYouContext,
         FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options)
     {
         Guard.Argument(dotYouContext, nameof(dotYouContext)).NotNull();
@@ -90,7 +90,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
                 tagsAllOf: qp.TagsMatchAll?.ToList(),
                 archivalStatusAnyOf: qp.ArchivalStatus.HasValue ? new List<int>() { qp.ArchivalStatus.Value } : null);
 
-            return Task.FromResult((cursor, results.Select(r => r), (bool?)null));
+            return Task.FromResult((cursor, results.Select(r => r), moreRows));
         }
 
         // if the caller was explicit in how they want results...
@@ -296,7 +296,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         return (results, nextCursor);
     }
 
-    private Task<(QueryBatchCursor cursor, IEnumerable<Guid> fileIds, bool? hasMoreRows)> GetBatchExplicitOrdering(DotYouContext dotYouContext,
+    private Task<(QueryBatchCursor cursor, IEnumerable<Guid> fileIds, bool hasMoreRows)> GetBatchExplicitOrdering(DotYouContext dotYouContext,
         FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options)
     {
         Guard.Argument(dotYouContext, nameof(dotYouContext)).NotNull();
@@ -325,7 +325,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
             tagsAllOf: qp.TagsMatchAll?.ToList(),
             archivalStatusAnyOf: qp.ArchivalStatus.HasValue ? new List<int>() { qp.ArchivalStatus.Value } : null);
 
-        return Task.FromResult((cursor, results.Select(r => r), (bool?)hasMoreRows));
+        return Task.FromResult((cursor, results.Select(r => r), hasMoreRows));
     }
 }
 

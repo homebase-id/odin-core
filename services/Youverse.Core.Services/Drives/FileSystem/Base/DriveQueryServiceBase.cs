@@ -39,7 +39,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             AssertCanReadDrive(driveId);
             if (TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
-                var (updatedCursor, fileIdList) =
+                var (updatedCursor, fileIdList,hasMoreRows) =
                     await queryManager.GetModified(ContextAccessor.GetCurrent(), GetFileSystemType(), qp, options);
                 var headers = await CreateClientFileHeaders(driveId, fileIdList, options);
 
@@ -48,7 +48,8 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
                 {
                     IncludesJsonContent = options.IncludeJsonContent,
                     Cursor = updatedCursor,
-                    SearchResults = headers
+                    SearchResults = headers,
+                    HasMoreRows = hasMoreRows
                 };
             }
 
