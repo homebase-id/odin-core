@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Policy;
 using System.Threading.Tasks;
 using Dawn;
 using MediatR;
@@ -61,7 +62,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             if (!string.IsNullOrEmpty(request.CorsHostName))
             {
-                DomainNameValidator.AssertValidDomain(request.CorsHostName);
+                AppUtil.AssertValidCorsHeader(request.CorsHostName);
             }
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
@@ -200,7 +201,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 if (!string.IsNullOrEmpty(appReg.CorsHostName))
                 {
                     //just in case something changed in the db record
-                    DomainNameValidator.AssertValidDomain(appReg.CorsHostName);
+                    AppUtil.AssertValidCorsHeader(appReg.CorsHostName);
                 }
 
                 var grantDictionary = new Dictionary<string, ExchangeGrant> { { "app_exchange_grant", appReg.Grant } };
@@ -213,7 +214,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 {
                     Caller = new CallerContext(
                         odinId: _tenantContext.HostOdinId,
-                        masterKey: null, 
+                        masterKey: null,
                         securityLevel: SecurityGroupType.Owner,
                         appContext: new OdinAppContext()
                         {
