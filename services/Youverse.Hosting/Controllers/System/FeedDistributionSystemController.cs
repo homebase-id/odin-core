@@ -26,7 +26,7 @@ namespace Youverse.Hosting.Controllers.System
         [HttpPost("files")]
         public async Task<bool> DistributeFiles()
         {
-            await _distributionService.DistributeMetadata();
+            await _distributionService.DistributeMetadataItems();
             return true;
         }
 

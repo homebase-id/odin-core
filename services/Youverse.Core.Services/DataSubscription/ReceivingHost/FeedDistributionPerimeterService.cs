@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.DataSubscription.Follower;
@@ -57,11 +58,12 @@ namespace Youverse.Core.Services.DataSubscription.ReceivingHost
                         Code = TransitResponseCode.Rejected
                     };
                 }
-
-                var header = await _fileSystem.Storage.GetServerFileHeader(fileId.Value);
-
-                //S0510
-                if (header.FileMetadata.SenderOdinId != _contextAccessor.GetCurrent().Caller.OdinId)
+                
+                try
+                {
+                    await _fileSystem.Storage.UpdateReactionPreviewOnFeedDrive(fileId.Value, request.ReactionPreview);
+                }
+                catch (YouverseSecurityException)
                 {
                     return new HostTransitResponse()
                     {
@@ -70,15 +72,13 @@ namespace Youverse.Core.Services.DataSubscription.ReceivingHost
                 }
             }
 
-            await _fileSystem.Storage.UpdateReactionPreview(fileId.Value, request.ReactionPreview);
-
             return new HostTransitResponse()
             {
                 Code = TransitResponseCode.AcceptedDirectWrite
             };
         }
 
-        public async Task<HostTransitResponse> AcceptUpdatedFileHeader(UpdateFeedFileMetadataRequest request)
+        public async Task<HostTransitResponse> AcceptUpdatedFileMetadata(UpdateFeedFileMetadataRequest request)
         {
             await _followerService.AssertTenantFollowsTheCaller();
             if (request.FileId.TargetDrive != SystemDriveConstants.FeedDrive)
@@ -106,25 +106,23 @@ namespace Youverse.Core.Services.DataSubscription.ReceivingHost
                         AllowDistribution = false,
                     };
 
+                    request.FileMetadata.SenderOdinId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
                     var serverFileHeader = await _fileSystem.Storage.CreateServerFileHeader(internalFile, keyHeader, request.FileMetadata, serverMetadata);
                     await _fileSystem.Storage.UpdateActiveFileHeader(internalFile, serverFileHeader, raiseEvent: true);
                 }
                 else
                 {
-                    var header = await _fileSystem.Storage.GetServerFileHeader(fileId.Value);
-
-                    //S0510
-                    if (header.FileMetadata.SenderOdinId != _contextAccessor.GetCurrent().Caller.OdinId)
+                    try
+                    {
+                        await _fileSystem.Storage.ReplaceFileMetadataOnFeedDrive(fileId.Value, request.FileMetadata);
+                    }
+                    catch (YouverseSecurityException)
                     {
                         return new HostTransitResponse()
                         {
                             Code = TransitResponseCode.Rejected
                         };
                     }
-
-                    header.FileMetadata = request.FileMetadata;
-
-                    await _fileSystem.Storage.UpdateActiveFileHeader(fileId.Value, header, raiseEvent:true);
                 }
             }
 

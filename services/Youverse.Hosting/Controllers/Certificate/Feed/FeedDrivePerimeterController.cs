@@ -45,10 +45,10 @@ namespace Youverse.Hosting.Controllers.Certificate.Feed
         }
 
         [HttpPost("filemetadata")]
-        public async Task<HostTransitResponse> AcceptUpdatedFileHeader(UpdateFeedFileMetadataRequest payload)
+        public async Task<HostTransitResponse> AcceptUpdatedFileMetadata(UpdateFeedFileMetadataRequest payload)
         {
             var perimeterService = GetPerimeterService();
-            return await perimeterService.AcceptUpdatedFileHeader(payload);
+            return await perimeterService.AcceptUpdatedFileMetadata(payload);
         }
 
         [HttpPost("reactionpreview")]

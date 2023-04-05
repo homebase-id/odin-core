@@ -8,6 +8,7 @@ using Dawn;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Acl;
@@ -15,7 +16,9 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives.DriveCore.Storage;
 using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Services.Mediator;
+using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
+using Youverse.Core.Services.Transit.ReceivingHost;
 using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Drives.FileSystem.Base
@@ -92,11 +95,12 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
                     throw new YouverseClientException("Cannot update non-active file", YouverseClientErrorCode.CannotUpdateNonActiveFile);
                 }
 
-                var existingHeader = await this.GetServerFileHeader(file);
+                var existingHeader = await this.GetServerFileHeaderInternal(file);
                 metadata.Updated = UnixTimeUtc.Now().milliseconds;
                 metadata.Created = existingHeader.FileMetadata.Created;
                 metadata.GlobalTransitId = existingHeader.FileMetadata.GlobalTransitId;
                 metadata.FileState = existingHeader.FileMetadata.FileState;
+                metadata.SenderOdinId = existingHeader.FileMetadata.SenderOdinId;
                 wasAnUpdate = true;
             }
             else
@@ -112,7 +116,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             {
                 if (await ShouldRaiseDriveEvent(file))
                 {
-                    if(wasAnUpdate)
+                    if (wasAnUpdate)
                     {
                         await _mediator.Publish(new DriveFileAddedNotification()
                         {
@@ -508,11 +512,67 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             }
         }
 
+
         public async Task UpdateReactionPreview(InternalDriveFileId targetFile, ReactionSummary summary)
         {
             ContextAccessor.GetCurrent().PermissionsContext.AssertHasDrivePermission(targetFile.DriveId, DrivePermission.WriteReactionsAndComments);
 
             var existingHeader = await GetLongTermStorageManager(targetFile.DriveId).GetServerFileHeader(targetFile.FileId);
+            existingHeader.FileMetadata.ReactionPreview = summary;
+            await WriteFileHeaderInternal(existingHeader);
+
+            if (await ShouldRaiseDriveEvent(targetFile))
+            {
+                await _mediator.Publish(new ReactionPreviewUpdatedNotification()
+                {
+                    File = targetFile,
+                    ServerFileHeader = existingHeader,
+                    SharedSecretEncryptedFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(existingHeader, ContextAccessor)
+                });
+            }
+        }
+
+        // Feed drive hacks
+        public async Task ReplaceFileMetadataOnFeedDrive(InternalDriveFileId file, FileMetadata fileMetadata)
+        {
+            this.AssertCanWriteToDrive(file.DriveId);
+            var header = await GetServerFileHeaderInternal(file);
+            AssertValidFileSystemType(header.ServerMetadata);
+            var feedDriveId = await _driveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive);
+
+            if (file.DriveId != feedDriveId)
+            {
+                throw new YouverseSystemException("Method cannot be used on drive");
+            }
+
+            //S0510
+            if (header.FileMetadata.SenderOdinId != ContextAccessor.GetCurrent().GetCallerOdinIdOrFail())
+            {
+                throw new YouverseSecurityException("Invalid caller");
+            }
+
+            header.FileMetadata = fileMetadata;
+
+            await this.UpdateActiveFileHeader(file, header, raiseEvent: true);
+        }
+
+        public async Task UpdateReactionPreviewOnFeedDrive(InternalDriveFileId targetFile, ReactionSummary summary)
+        {
+            AssertCanWriteToDrive(targetFile.DriveId);
+            var feedDriveId = await _driveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive);
+            if (targetFile.DriveId != feedDriveId)
+            {
+                throw new YouverseSystemException("Cannot update reaction preview on this drive");
+            }
+
+            var existingHeader = await GetLongTermStorageManager(targetFile.DriveId).GetServerFileHeader(targetFile.FileId);
+
+            //S0510
+            if (existingHeader.FileMetadata.SenderOdinId != ContextAccessor.GetCurrent().Caller.OdinId)
+            {
+                throw new YouverseSecurityException("Invalid caller");
+            }
+
             existingHeader.FileMetadata.ReactionPreview = summary;
             await WriteFileHeaderInternal(existingHeader);
 
