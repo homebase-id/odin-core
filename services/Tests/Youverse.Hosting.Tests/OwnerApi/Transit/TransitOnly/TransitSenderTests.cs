@@ -58,7 +58,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.TransitOnly
                     ReferencedFile is distributed to followers
              */
 
-            var sender = TestIdentities.Frodo;
+            var sender = TestIdentities.Frodo; //sender is the one who sends the comment
             var recipient = TestIdentities.Samwise;
 
             var senderOwnerClient = _scaffold.CreateOwnerApiClient(sender);
@@ -592,18 +592,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.TransitOnly
                 allowAnonymousReads: false,
                 allowSubscriptions: false,
                 ownerOnly: false);
-
-            //
-            // Sender needs this same drive in order to send across files
-            //
-            var senderTargetDrive = await senderOwnerClient.Drive.CreateDrive(
-                targetDrive: recipientTargetDrive.TargetDriveInfo,
-                name: "Target drive on sender",
-                metadata: "",
-                allowAnonymousReads: false,
-                allowSubscriptions: false,
-                ownerOnly: false);
-
 
             //
             // Recipient creates a circle with target drive, read and write access

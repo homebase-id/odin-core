@@ -16,7 +16,7 @@
         /// <summary>
         /// Scheme for allowing identities I follow to send me data
         /// </summary>
-        public const string IdentitiesIFollowCertificateAuthScheme = "IdentitiesIFollowCertificateAuthScheme";
+        public const string FeedAuthScheme = "FeedAuthScheme";
 
         /// <summary>
         /// Scheme for allowing my followers to send reactions to my content

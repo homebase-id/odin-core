@@ -20,7 +20,7 @@ public class DriveFileAddedNotification : EventArgs, INotification, IDriveNotifi
     public SharedSecretEncryptedFileHeader SharedSecretEncryptedFileHeader { get; set; }
 }
 
-public class StatisticsUpdatedNotification : EventArgs, INotification, IDriveNotification
+public class ReactionPreviewUpdatedNotification : EventArgs, INotification, IDriveNotification
 {
     public ClientNotificationType NotificationType { get; } = ClientNotificationType.StatisticsChanged;
 

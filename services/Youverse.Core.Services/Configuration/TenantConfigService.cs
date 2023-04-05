@@ -64,17 +64,19 @@ public class TenantConfigService
             await _registry.MarkRegistrationComplete(request.FirstRunToken.GetValueOrDefault());
         }
 
+
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateChatDriveRequest);
+        await CreateDriveIfNotExists(SystemDriveConstants.CreateFeedDriveRequest);
+
         //Note: the order here is important.  if the request or system drives include any anonymous
         //drives, they should be added after the system circle exists
         await _cns.CreateSystemCircle();
 
-        await CreateDriveIfNotExists(SystemDriveConstants.CreateChatDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateContactDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateProfileDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateWalletDriveRequest);
-        await CreateDriveIfNotExists(SystemDriveConstants.CreateFeedDriveRequest);
-        
         await CreateDriveIfNotExists(SystemDriveConstants.CreateTransientTempDriveRequest);
+        
         
         foreach (var rd in request.Drives ?? new List<CreateDriveRequest>())
         {

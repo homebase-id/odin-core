@@ -44,7 +44,7 @@ namespace Youverse.Hosting.Middleware
                 await _next(httpContext);
                 return;
             }
-            
+
             dotYouContext.Tenant = (OdinId)tenant.Name;
 
             if (authType == PerimeterAuthConstants.TransitCertificateAuthScheme)
@@ -55,14 +55,13 @@ namespace Youverse.Hosting.Middleware
                 return;
             }
 
-            // if (authType == PerimeterAuthConstants.IdentitiesIFollowCertificateAuthScheme)
-            // {
-            //     await LoadIdentitiesIFollowContext(httpContext, dotYouContext);
-            //     dotYouContext.AuthContext = PerimeterAuthConstants.IdentitiesIFollowCertificateAuthScheme;
-            //     await _next(httpContext);
-            //     return;
-            // }
-            //
+            if (authType == PerimeterAuthConstants.FeedAuthScheme)
+            {
+                await LoadIdentitiesIFollowContext(httpContext, dotYouContext);
+                await _next(httpContext);
+                return;
+            }
+
             // if (authType == PerimeterAuthConstants.FollowerCertificateAuthScheme)
             // {
             //     await LoadFollowerContext(httpContext, dotYouContext);
@@ -113,20 +112,17 @@ namespace Youverse.Hosting.Middleware
         private async Task LoadIdentitiesIFollowContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
             //No token for now
-            if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[DotYouHeaderNames.ClientAuthToken], out var clientAuthToken))
+            var user = httpContext.User;
+            var authService = httpContext.RequestServices.GetRequiredService<IdentitiesIFollowAuthenticationService>();
+            var odinId = (OdinId)user.Identity!.Name;
+            var ctx = await authService.GetDotYouContext(odinId, null);
+            if (ctx != null)
             {
-                var user = httpContext.User;
-                var authService = httpContext.RequestServices.GetRequiredService<IdentitiesIFollowAuthenticationService>();
-                var odinId = (OdinId)user.Identity!.Name;
-                var ctx = await authService.GetDotYouContext(odinId, clientAuthToken);
-                if (ctx != null)
-                {
-                    dotYouContext.Caller = ctx.Caller;
-                    dotYouContext.SetPermissionContext(ctx.PermissionsContext);
-                    dotYouContext.SetAuthContext(PerimeterAuthConstants.IdentitiesIFollowCertificateAuthScheme);
+                dotYouContext.Caller = ctx.Caller;
+                dotYouContext.SetPermissionContext(ctx.PermissionsContext);
+                dotYouContext.SetAuthContext(PerimeterAuthConstants.FeedAuthScheme);
 
-                    return;
-                }
+                return;
             }
 
             throw new YouverseSecurityException("Cannot load context");

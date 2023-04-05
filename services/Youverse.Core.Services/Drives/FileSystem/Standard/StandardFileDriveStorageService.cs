@@ -1,6 +1,7 @@
 using System;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives.FileSystem.Base;
@@ -35,6 +36,22 @@ namespace Youverse.Core.Services.Drives.FileSystem.Standard
             }
         }
 
+        public override void AssertCanReadOrWriteToDrive(Guid driveId)
+        {
+            var drive = DriveManager.GetDrive(driveId, true).GetAwaiter().GetResult();
+            if (!drive.AllowAnonymousReads)
+            {
+                var pc = ContextAccessor.GetCurrent().PermissionsContext;
+                var hasPermissions = pc.HasDrivePermission(driveId, DrivePermission.Write) ||
+                                     pc.HasDrivePermission(driveId, DrivePermission.Read);
+
+                if (!hasPermissions)
+                {
+                    throw new YouverseSecurityException($"Unauthorized to read or write drive [{driveId}]");
+                }
+            }
+        }
+        
         public override FileSystemType GetFileSystemType()
         {
             return FileSystemType.Standard;

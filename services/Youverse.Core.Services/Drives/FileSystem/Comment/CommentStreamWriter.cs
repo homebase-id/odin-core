@@ -59,14 +59,14 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
     protected override Task ValidateUnpackedData(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
         ServerMetadata serverMetadata)
     {
-        var referenceFileDriveId = _contextAccessor.GetCurrent().PermissionsContext
-            .GetDriveId(metadata.ReferencedFile!.TargetDrive);
-
-        var referenceFileInternal = new InternalDriveFileId()
-        {
-            DriveId = referenceFileDriveId,
-            FileId = metadata.ReferencedFile.GlobalTransitId
-        };
+        // var referenceFileDriveId = _contextAccessor.GetCurrent().PermissionsContext
+        //     .GetDriveId(metadata.ReferencedFile!.TargetDrive);
+        //
+        // var referenceFileInternal = new InternalDriveFileId()
+        // {
+        //     DriveId = referenceFileDriveId,
+        //     FileId = metadata.ReferencedFile.GlobalTransitId
+        // };
 
         //TODO: I removed this feature as more research is required
         // i.e. the file being targeted might be across file systems, etc.

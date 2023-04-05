@@ -74,7 +74,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
             HandleFileDeleted(updatedFileHeader, ref referencedFileReactionPreview);
         }
 
-        await fs.Storage.UpdateStatistics(new InternalDriveFileId()
+        await fs.Storage.UpdateReactionPreview(new InternalDriveFileId()
             {
                 FileId = referencedFileHeader.FileId,
                 DriveId = referenceFileDriveId
@@ -157,7 +157,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
 
         preview.Reactions = dict;
 
-        fs.Storage.UpdateStatistics(targetFile, preview).GetAwaiter().GetResult();
+        fs.Storage.UpdateReactionPreview(targetFile, preview).GetAwaiter().GetResult();
         return Task.CompletedTask;
     }
 }

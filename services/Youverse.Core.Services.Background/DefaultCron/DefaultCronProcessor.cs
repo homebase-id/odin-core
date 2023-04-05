@@ -13,11 +13,12 @@ namespace Youverse.Core.Services.Workers.DefaultCron
             quartz.AddJob<DefaultCronJob>(options => { options.WithIdentity(jobKey); });
 
             var triggerKey = new TriggerKey(jobKey.Name + "-trigger");
+            
             quartz.AddTrigger(config =>
             {
                 config.ForJob(jobKey);
                 config.WithIdentity(triggerKey);
-
+                
                 config.WithSimpleSchedule(schedule => schedule
                     .RepeatForever()
                     .WithInterval(TimeSpan.FromSeconds(youverseConfig.Quartz.CronProcessingInterval))

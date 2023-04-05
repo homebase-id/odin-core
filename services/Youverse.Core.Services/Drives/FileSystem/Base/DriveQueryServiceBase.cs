@@ -188,7 +188,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
         public async Task<InternalDriveFileId?> ResolveFileId(GlobalTransitIdFileIdentifier file)
         {
             var driveId = ContextAccessor.GetCurrent().PermissionsContext.GetDriveId(file.TargetDrive);
-            AssertCanReadDrive(driveId);
+            AssertCanReadOrWriteToDrive(driveId);
 
             var qp = new FileQueryParams()
             {

@@ -20,4 +20,9 @@ public abstract class RequirePermissionsBase
     /// </summary>
     public abstract void AssertCanWriteToDrive(Guid driveId);
 
+    /// <summary>
+    /// Enforces that the caller can read or write to a drive.  Useful basic operations such as file exists
+    /// </summary>
+    public abstract void AssertCanReadOrWriteToDrive(Guid driveId);
+    
 }
