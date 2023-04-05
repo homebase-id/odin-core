@@ -100,7 +100,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 Assert.IsTrue(systemCircle.Id == GuidId.FromString("we_are_connected"));
                 Assert.IsTrue(systemCircle.Name == "System Circle");
                 Assert.IsTrue(systemCircle.Description == "All Connected Identities");
-                Assert.IsTrue(systemCircle.DriveGrants.Count() == 2, "By default, there should be two drive grants (standard profile and chat drive)");
+                Assert.IsTrue(systemCircle.DriveGrants.Count() == 3, "By default, there should be two drive grants (standard profile, chat drive, and feed drive)");
 
                 Assert.IsNotNull(systemCircle.DriveGrants.SingleOrDefault(dg =>
                     dg.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive && dg.PermissionedDrive.Permission == DrivePermission.Read));
@@ -108,6 +108,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 //note: the permission for chat drive is write
                 Assert.IsNotNull(systemCircle.DriveGrants.SingleOrDefault(
                     dg => dg.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive && dg.PermissionedDrive.Permission == DrivePermission.Write));
+                Assert.IsTrue(!systemCircle.Permissions.Keys.Any(), "By default, the system circle should have no permissions");
+                
+                Assert.IsNotNull(systemCircle.DriveGrants.SingleOrDefault(
+                    dg => dg.PermissionedDrive.Drive == SystemDriveConstants.FeedDrive && dg.PermissionedDrive.Permission == DrivePermission.Write));
                 Assert.IsTrue(!systemCircle.Permissions.Keys.Any(), "By default, the system circle should have no permissions");
             }
 

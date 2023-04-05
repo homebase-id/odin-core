@@ -92,9 +92,10 @@ namespace Youverse.Core.Services.DataSubscription.ReceivingHost
             InternalDriveFileId? fileId;
             using (new FeedDriveSecurityContext(_contextAccessor))
             {
+                var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
+                
                 fileId = await this.ResolveInternalFile(request.FileId);
 
-                var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
                 if (null == fileId)
                 {
                     var internalFile = _fileSystem.Storage.CreateInternalFileId(driveId);
