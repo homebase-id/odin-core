@@ -425,7 +425,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
         /// <param name="tagsAnyOf"></param>
         /// <param name="tagsAllOf"></param>
         /// <returns></returns>
-        public List<Guid> QueryBatchAuto(int noOfItems,
+        public (List<Guid>, bool moreRows) QueryBatchAuto(int noOfItems,
             ref QueryBatchCursor cursor,
             Int32? fileSystemType = (int)FileSystemType.Standard,
             IntRange requiredSecurityGroup = null,
@@ -499,7 +499,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     //
                     // Do a recursive call to check there are no more items.
                     //
-                    var r2 = QueryBatchAuto(noOfItems - result.Count, ref cursor,
+                    var (r2, moreRows2) = QueryBatchAuto(noOfItems - result.Count, ref cursor,
                         fileSystemType,
                         requiredSecurityGroup,
                         globalTransitIdAnyOf,
@@ -519,7 +519,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     {
                         // The r2 result set should be newer than the result set
                         r2.AddRange(result);
-                        return r2;
+                        return (r2, moreRows2);
                     }
                 }
             }
@@ -550,7 +550,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 }
             }
 
-            return result;
+            return (result, moreRows);
         }
 
 
@@ -563,7 +563,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
         /// <param name="stopAtModifiedUnixTimeSeconds">Optional. If specified won't get items older than this parameter.</param>
         /// <param name="startFromCursor">Start from the supplied cursor fileId, use null to start at the beginning.</param>
         /// <returns></returns>
-        public List<Guid> QueryModified(int noOfItems,
+        public (List<Guid>, bool moreRows) QueryModified(int noOfItems,
             ref UnixTimeUtcUnique cursor,
             UnixTimeUtcUnique stopAtModifiedUnixTimeSeconds = default(UnixTimeUtcUnique),
             Int32? fileSystemType = (int)FileSystemType.Standard,
@@ -580,8 +580,6 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             List<Guid> tagsAnyOf = null,
             List<Guid> tagsAllOf = null)
         {
-            Stopwatch stopWatch = new Stopwatch();
-
             string stm;
             string strWhere = "";
 
@@ -590,8 +588,6 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             {
                 throw new YouverseSystemException("fileSystemType required in Query Modified");
             }
-            
-            stopWatch.Start();
             
             strWhere += $"modified > {cursor.uniqueTime} ";
 
@@ -681,7 +677,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 strWhere = "WHERE " + strWhere;
             }
 
-            stm = $"SELECT fileid, modified FROM mainindex " + strWhere + $"ORDER BY modified ASC LIMIT {noOfItems}";
+            stm = $"SELECT fileid, modified FROM mainindex " + strWhere + $"ORDER BY modified ASC LIMIT {noOfItems+1}";
 
             var cmd = this.CreateCommand();
             cmd.CommandText = stm;
@@ -693,21 +689,21 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 
             int i = 0;
             long ts = 0;
+
             while (rdr.Read())
             {
                 rdr.GetBytes(0, 0, fileId, 0, 16);
                 result.Add(new Guid(fileId));
                 ts = rdr.GetInt64(1);
                 i++;
+                if (i >= noOfItems)
+                    break;
             }
 
             if (i > 0)
                 cursor = new UnixTimeUtcUnique(ts);
 
-            stopWatch.Stop();
-            // Utils.StopWatchStatus("QueryModified() " + stm, stopWatch);
-
-            return result;
+            return (result, rdr.Read());
         }
 
 
