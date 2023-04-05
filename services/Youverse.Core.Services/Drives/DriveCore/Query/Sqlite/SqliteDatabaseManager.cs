@@ -39,7 +39,8 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         var aclList = GetAcl(dotYouContext);
         var cursor = new UnixTimeUtcUnique(options.Cursor);
 
-        var results = _db.QueryModified(
+        // TODO TODD - use moreRows
+        var (results, moreRows) = _db.QueryModified(
             noOfItems: options.MaxRecords,
             cursor: ref cursor,
             fileSystemType: (Int32)fileSystemType,
@@ -71,7 +72,8 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
 
         if (options.Ordering == Ordering.Default)
         {
-            var results = _db.QueryBatchAuto(
+            // TODO TODD use moreRows
+            var (results, moreRows) = _db.QueryBatchAuto(
                 noOfItems: options.MaxRecords,
                 cursor: ref cursor,
                 fileSystemType: (Int32)fileSystemType,
