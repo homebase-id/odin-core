@@ -23,6 +23,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         public readonly TableKeyThreeValue TblKeyThreeValue = null;
         public readonly TableInbox tblInbox = null;
         public readonly TableOutbox tblOutbox = null;
+        public readonly TableFeedDistributionOutbox tblFeedDistributionOutbox = null;
         public readonly TableImFollowing tblImFollowing = null;
         public readonly TableFollowsMe tblFollowsMe = null;
         public readonly TableCircle tblCircle = null;
@@ -36,6 +37,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             TblKeyThreeValue = new TableKeyThreeValue(this);
             tblInbox = new TableInbox(this);
             tblOutbox = new TableOutbox(this);
+            tblFeedDistributionOutbox = new TableFeedDistributionOutbox(this);
             tblCircle = new TableCircle(this);
             tblCircleMember = new TableCircleMember(this);
             tblFollowsMe = new TableFollowsMe(this);
@@ -53,14 +55,15 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         {
             Commit();
 
-            tblKeyValue.Dispose();;
-            tblKeyTwoValue.Dispose();;
-            TblKeyThreeValue.Dispose();;
-            tblInbox.Dispose();;
-            tblOutbox.Dispose();;
-            tblCircle.Dispose();;
-            tblImFollowing.Dispose();;
-            tblFollowsMe.Dispose();;
+            tblKeyValue.Dispose();
+            tblKeyTwoValue.Dispose();
+            TblKeyThreeValue.Dispose();
+            tblInbox.Dispose();
+            tblOutbox.Dispose();
+            tblFeedDistributionOutbox.Dispose();
+            tblCircle.Dispose();
+            tblImFollowing.Dispose();
+            tblFollowsMe.Dispose();
             tblCircleMember.Dispose();
             tblConnections.Dispose();
 
@@ -79,6 +82,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             // TblKeyUniqueThreeValue.EnsureTableExists(dropExistingTables);
             tblInbox.EnsureTableExists(dropExistingTables);
             tblOutbox.EnsureTableExists(dropExistingTables);
+            tblFeedDistributionOutbox.EnsureTableExists(dropExistingTables);
             tblCircle.EnsureTableExists(dropExistingTables);
             tblCircleMember.EnsureTableExists(dropExistingTables);
             tblImFollowing.EnsureTableExists(dropExistingTables);
