@@ -55,7 +55,14 @@ namespace Youverse.Core.Services.Transit.Encryption
         {
             var empty = Guid.Empty.ToByteArray();
             var emptySba = empty.ToSensitiveByteArray();
-            return EncryptKeyHeaderAes(KeyHeader.Empty(), empty, ref emptySba);
+            return new EncryptedKeyHeader()
+            {
+                EncryptionVersion = 1,
+                Type = EncryptionType.Aes,
+                Iv = empty,
+                EncryptedAesKey = ByteArrayUtil.Combine(empty, empty, empty)
+            };
+            // return EncryptKeyHeaderAes(KeyHeader.Empty(), empty, ref emptySba);
         }
 
         public string ToBase64()

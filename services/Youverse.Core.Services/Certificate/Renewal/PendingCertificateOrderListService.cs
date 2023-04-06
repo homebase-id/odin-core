@@ -24,12 +24,7 @@ namespace Youverse.Core.Services.Certificate.Renewal
         {
             try
             {
-                _serverSystemStorage.tblCron.Insert(new CronRecord()
-                {
-                    identityId = identity,
-                    type = 2,
-                    data = identity.DomainName.ToLower().ToUtf8ByteArray()
-                });
+                _serverSystemStorage.EnqueueJob(identity, CronJobType.GenerateCertificate, identity.DomainName.ToLower().ToUtf8ByteArray());
             }
             catch (Microsoft.Data.Sqlite.SqliteException ex)
             {

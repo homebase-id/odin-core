@@ -22,6 +22,8 @@ namespace Youverse.Core.Services.Configuration
         public LoggingSection Logging { get; }
         public QuartzSection Quartz { get; }
         public CertificateRenewalSection CertificateRenewal { get; set; }
+        
+        public FeedSection Feed { get; }
 
         public YouverseConfiguration(IConfiguration config)
         {
@@ -29,6 +31,8 @@ namespace Youverse.Core.Services.Configuration
             Logging = new LoggingSection(config);
             Quartz = new QuartzSection(config);
             Registry = new RegistrySection(config);
+
+            Feed = new FeedSection(config);
             
             if (config.GetSection("Development") != null)
             {
@@ -39,6 +43,21 @@ namespace Youverse.Core.Services.Configuration
         }
 
         //
+        
+        public class FeedSection
+        {
+            public FeedSection(IConfiguration config)
+            {
+                InstantDistribution = config.Required<bool>("Feed:InstantDistribution");
+            }
+
+            /// <summary>
+            /// If true, the feed files are sent immediately to all
+            /// recipients; This should be false in high traffic environments
+            /// </summary>
+            public bool InstantDistribution { get; }
+
+        }
 
         /// <summary>
         /// Settings specific to the development/demo process

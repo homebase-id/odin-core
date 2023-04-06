@@ -180,7 +180,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
 
             return result;
         }
-
+        
         private async Task<List<SendResult>> SendBatchNow(IEnumerable<TransitOutboxItem> items)
         {
             var tasks = new List<Task<SendResult>>();
@@ -387,9 +387,11 @@ namespace Youverse.Core.Services.Transit.SendingHost
                 throw new YouverseClientException("Cannot transfer a file to the sender; what's the point?", YouverseClientErrorCode.InvalidRecipient);
             }
 
+
             var header = await fs.Storage.GetServerFileHeader(internalFile);
             var storageKey = _contextAccessor.GetCurrent().PermissionsContext.GetDriveStorageKey(internalFile.DriveId);
-            var keyHeader = header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey);
+
+            var keyHeader = header.FileMetadata.PayloadIsEncrypted ? header.EncryptedKeyHeader.DecryptAesToKeyHeader(ref storageKey) : KeyHeader.Empty();
             storageKey.Wipe();
 
             foreach (var r in options.Recipients!)

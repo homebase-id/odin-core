@@ -13,4 +13,6 @@ public class QueryModifiedResult
     public long Cursor { get; set; }
 
     public IEnumerable<SharedSecretEncryptedFileHeader> SearchResults { get; set; }
+    
+    public bool HasMoreRows { get; set; }
 }

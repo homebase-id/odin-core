@@ -69,7 +69,7 @@ namespace Youverse.Hosting
                 .As<INotificationHandler<TransitFileReceivedNotification>>()
                 .As<INotificationHandler<NewFollowerNotification>>()
                 .As<INotificationHandler<ReactionContentAddedNotification>>()
-                .As<INotificationHandler<StatisticsUpdatedNotification>>()
+                .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
                 .AsSelf()
                 .SingleInstance();
 
@@ -156,11 +156,11 @@ namespace Youverse.Hosting
 
             cb.RegisterType<IdentitiesIFollowAuthenticationService>().AsSelf().SingleInstance();
             cb.RegisterType<FollowerAuthenticationService>().AsSelf().SingleInstance();
-            cb.RegisterType<FeedDriveDataSubscriptionDistributionService>()
+            cb.RegisterType<FeedDriveDistributionRouter>()
                 .As<INotificationHandler<DriveFileAddedNotification>>()
                 .As<INotificationHandler<DriveFileChangedNotification>>()
                 .As<INotificationHandler<DriveFileDeletedNotification>>()
-                .As<INotificationHandler<StatisticsUpdatedNotification>>()
+                .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
                 .AsSelf()
                 .SingleInstance();
             

@@ -6,6 +6,7 @@ using Dawn;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
+using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Storage;
 
@@ -113,7 +114,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
 
         public void AssertValidDriveGrants(IEnumerable<DriveGrantRequest> driveGrantRequests)
         {
-            if(null == driveGrantRequests)
+            if (null == driveGrantRequests)
             {
                 return;
             }
@@ -130,7 +131,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
 
                 var drive = _driveManager.GetDrive(driveId.GetValueOrDefault()).GetAwaiter().GetResult();
 
-                if (drive.OwnerOnly)
+                //Allow access when OwnerOnly AND the only permission is Write; TODO: this defeats purpose of owneronly drive, i think
+                if (drive.OwnerOnly && ((int)dgr.PermissionedDrive.Permission != (int)DrivePermission.Write))
                 {
                     throw new YouverseSecurityException("Cannot grant access to owner-only drives to circles");
                 }

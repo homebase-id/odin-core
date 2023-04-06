@@ -17,6 +17,14 @@ public static class CircleConstants
                 Drive = SystemDriveConstants.ChatDrive,
                 Permission = DrivePermission.Write
             }
+        },
+        new DriveGrantRequest()
+        {
+            PermissionedDrive = new PermissionedDrive()
+            {
+                Drive = SystemDriveConstants.FeedDrive,
+                Permission = DrivePermission.Write
+            }
         }
     };
 }

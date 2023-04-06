@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Storage.Sqlite.ServerDatabase;
 
 namespace Youverse.Core.Services.Transit.SendingHost.Outbox
 {
@@ -21,12 +20,7 @@ namespace Youverse.Core.Services.Transit.SendingHost.Outbox
         {
             try
             {
-                _serverSystemStorage.tblCron.Insert(new CronRecord()
-                {
-                    identityId = sender,
-                    type = 1,
-                    data = sender.DomainName.ToLower().ToUtf8ByteArray(),
-                });
+                _serverSystemStorage.EnqueueJob(sender, CronJobType.PendingTransfer, sender.DomainName.ToLower().ToUtf8ByteArray());
             }
             catch (Microsoft.Data.Sqlite.SqliteException ex)
             {

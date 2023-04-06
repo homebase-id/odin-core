@@ -59,7 +59,7 @@ namespace Youverse.Core.Services.Base
             return fs;
         }
 
-        public async Task<(IDriveFileSystem fileSystem, InternalDriveFileId? fileId)> ResolveFileSystem(GlobalTransitIdFileIdentifier globalTransitFileId)
+        public async Task<(IDriveFileSystem fileSystem, InternalDriveFileId? fileId)> ResolveFileSystem(GlobalTransitIdFileIdentifier globalTransitFileId, bool tryCommentDrive = true)
         {
             //TODO: this sucks and is wierd.   i don't know at this point if the target file is 
             // comment or standard; so i have to get a IDriveFileSystem instance and look up
@@ -67,8 +67,8 @@ namespace Youverse.Core.Services.Base
 
             var fs = this.ResolveFileSystem(FileSystemType.Standard);
             var file = await fs.Query.ResolveFileId(globalTransitFileId);
-
-            if (null == file)
+            
+            if (null == file && tryCommentDrive)
             {
                 //try by comment
                 fs = this.ResolveFileSystem(FileSystemType.Comment);

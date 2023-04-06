@@ -131,6 +131,8 @@ namespace Youverse.Hosting
 
                     webBuilder.ConfigureKestrel(options =>
                         {
+                            options.Limits.MaxRequestBodySize = null;
+
                             options.ConfigureHttpsDefaults(opts =>
                             {
                                 opts.ClientCertificateValidation = (certificate2, chain, arg3) =>
