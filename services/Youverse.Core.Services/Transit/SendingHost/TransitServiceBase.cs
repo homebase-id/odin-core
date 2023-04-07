@@ -63,17 +63,18 @@ namespace Youverse.Core.Services.Transit.SendingHost
             var icr = await _circleNetworkService.GetIdentityConnectionRegistration(recipient);
             if (icr?.IsConnected() == false)
             {
-                if(source == ClientAccessTokenSource.Fallback)
+                if (source == ClientAccessTokenSource.Fallback)
                 {
-                    return new ClientAccessToken()
-                    {
-                        Id = Guid.Empty,
-                        AccessTokenHalfKey = Guid.Empty.ToByteArray().ToSensitiveByteArray(),
-                        ClientTokenType = ClientTokenType.Follower,
-                        SharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray(),
-                    };
+                    return null;
+                    // return new ClientAccessToken()
+                    // {
+                    //     Id = Guid.Empty,
+                    //     AccessTokenHalfKey = Guid.Empty.ToByteArray().ToSensitiveByteArray(),
+                    //     ClientTokenType = ClientTokenType.Follower,
+                    //     SharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray(),
+                    // };
                 }
-                
+
                 throw new YouverseClientException("Cannot resolve client access token; not connected", YouverseClientErrorCode.NotAConnectedIdentity);
             }
 
@@ -110,10 +111,21 @@ namespace Youverse.Core.Services.Transit.SendingHost
         {
             var token = await ResolveClientAccessToken(odinId, tokenSource);
 
-            var httpClient = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostReactionHttpClient>(
-                odinId, token?.ToAuthenticationToken(), fileSystemType);
+            if (token == null)
+            {
+                var httpClient = _dotYouHttpClientFactory.CreateClient<ITransitHostReactionHttpClient>(odinId, fileSystemType);
+                return (null, httpClient);
+            }
+            else
+            {
+                var httpClient = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostReactionHttpClient>(odinId, token.ToAuthenticationToken(), fileSystemType);
+                return (token, httpClient);
+            }
 
-            return (token, httpClient);
+
+            // var httpClient = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostReactionHttpClient>(
+            //     odinId, token?.ToAuthenticationToken(), fileSystemType);
+            // return (token, httpClient);
         }
 
         protected async Task<T> DecryptUsingSharedSecret<T>(SharedSecretEncryptedTransitPayload payload, ClientAccessTokenSource tokenSource)
