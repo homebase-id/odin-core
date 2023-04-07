@@ -143,8 +143,7 @@ namespace Youverse.Hosting.Controllers.Base
                         new SendFileOptions()
                         {
                             FileSystemType = header.ServerMetadata.FileSystemType,
-                            TransferFileType = TransferFileType.Normal,
-                            ClientAccessTokenSource = ClientAccessTokenSource.Circle
+                            TransferFileType = TransferFileType.Normal
                         },
                         recipients);
 

@@ -58,24 +58,27 @@ namespace Youverse.Core.Services.Transit.SendingHost
 
         protected async Task<ClientAccessToken> ResolveClientAccessToken(OdinId recipient, ClientAccessTokenSource source)
         {
-            // if (source == ClientAccessTokenSource.Circle)
+            //assume source == ClientAccessTokenSource.Circle)
+
+            var icr = await _circleNetworkService.GetIdentityConnectionRegistration(recipient);
+            if (icr?.IsConnected() == false)
             {
-                var icr = await _circleNetworkService.GetIdentityConnectionRegistration(recipient);
-                if (icr?.IsConnected() == false)
+                if(source == ClientAccessTokenSource.Fallback)
                 {
-                
                     return new ClientAccessToken()
                     {
                         Id = Guid.Empty,
                         AccessTokenHalfKey = Guid.Empty.ToByteArray().ToSensitiveByteArray(),
-                        ClientTokenType = ClientTokenType.DataProvider,
+                        ClientTokenType = ClientTokenType.Follower,
                         SharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray(),
                     };
-                    // throw new YouverseClientException("Cannot resolve client access token; not connected", YouverseClientErrorCode.NotAConnectedIdentity);
                 }
                 
-                return icr!.CreateClientAccessToken();
+                throw new YouverseClientException("Cannot resolve client access token; not connected", YouverseClientErrorCode.NotAConnectedIdentity);
             }
+
+            return icr!.CreateClientAccessToken();
+
 
             // if (source == ClientAccessTokenSource.Follower)
             // {
@@ -112,7 +115,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
 
             return (token, httpClient);
         }
-        
+
         protected async Task<T> DecryptUsingSharedSecret<T>(SharedSecretEncryptedTransitPayload payload, ClientAccessTokenSource tokenSource)
         {
             var caller = DotYouContext.Caller.OdinId;
@@ -123,7 +126,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
             // var sharedSecret = t.SharedSecret;
             // var encryptedBytes = Convert.FromBase64String(payload.Data);
             // var decryptedBytes = AesCbc.Decrypt(encryptedBytes, ref sharedSecret, payload.Iv);
-         
+
             var decryptedBytes = Convert.FromBase64String(payload.Data);
             var json = decryptedBytes.ToStringFromUtf8Bytes();
             return await Task.FromResult(DotYouSystemSerializer.Deserialize<T>(json));

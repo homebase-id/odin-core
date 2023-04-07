@@ -77,7 +77,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
             var sfo = new SendFileOptions()
             {
                 TransferFileType = transferFileType,
-                ClientAccessTokenSource = tokenSource,
+                // ClientAccessTokenSource = tokenSource,
                 FileSystemType = fileSystemType
             };
 
@@ -155,7 +155,8 @@ namespace Youverse.Core.Services.Transit.SendingHost
             {
                 var r = (OdinId)recipient;
 
-                var clientAccessToken = await ResolveClientAccessToken(r, sendFileOptions.ClientAccessTokenSource);
+                // var clientAccessToken = await ResolveClientAccessToken(r, sendFileOptions.ClientAccessTokenSource);
+                var clientAccessToken = await ResolveClientAccessToken(r, ClientAccessTokenSource.Circle);
 
                 var client = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(r, clientAccessToken.ToAuthenticationToken(),
                     fileSystemType: sendFileOptions.FileSystemType);
@@ -400,7 +401,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
                 try
                 {
                     //TODO: i need to resolve the token outside of transit, pass it in as options instead
-                    var clientAuthToken = await ResolveClientAccessToken(recipient, sendFileOptions.ClientAccessTokenSource);
+                    var clientAuthToken = await ResolveClientAccessToken(recipient, ClientAccessTokenSource.Circle);
 
                     transferStatus.Add(recipient, TransferStatus.TransferKeyCreated);
 

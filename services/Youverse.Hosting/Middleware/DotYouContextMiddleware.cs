@@ -86,9 +86,15 @@ namespace Youverse.Hosting.Middleware
             {
                 //HACK - for alpha, wen want to support data subscriptions for the feed but only building it partially
                 //therefore use the transit subsystem but load permissions only for the fee drive
-                if (clientAuthToken.ClientTokenType == ClientTokenType.DataProvider)
+                // if (clientAuthToken.ClientTokenType == ClientTokenType.DataProvider)
+                // {
+                //     await LoadIdentitiesIFollowContext(httpContext, dotYouContext);
+                //     return;
+                // }
+
+                if (clientAuthToken.ClientTokenType == ClientTokenType.Follower)
                 {
-                    await LoadIdentitiesIFollowContext(httpContext, dotYouContext);
+                    await LoadFollowerContext(httpContext, dotYouContext);
                     return;
                 }
 

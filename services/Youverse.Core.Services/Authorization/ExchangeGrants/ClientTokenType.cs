@@ -18,5 +18,10 @@ public enum ClientTokenType
     /// <summary>
     /// The bearer was granted access to send data to this identity 
     /// </summary>
-    DataProvider = 7
+    DataProvider = 7,
+    
+    /// <summary>
+    /// The bearer was granted access to send data to this identity 
+    /// </summary>
+    Follower = 14
 }

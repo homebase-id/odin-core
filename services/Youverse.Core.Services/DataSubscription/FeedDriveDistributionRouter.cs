@@ -313,7 +313,6 @@ namespace Youverse.Core.Services.DataSubscription
                     {
                         FileSystemType = header.ServerMetadata.FileSystemType,
                         TransferFileType = TransferFileType.Normal,
-                        ClientAccessTokenSource = ClientAccessTokenSource.Circle
                     },
                     recipients.Select(r => r.DomainName).ToList());
 
