@@ -63,9 +63,17 @@ namespace Youverse.Core.Services.Transit.SendingHost
                 var icr = await _circleNetworkService.GetIdentityConnectionRegistration(recipient);
                 if (icr?.IsConnected() == false)
                 {
-                    return null;
+                
+                    return new ClientAccessToken()
+                    {
+                        Id = Guid.Empty,
+                        AccessTokenHalfKey = Guid.Empty.ToByteArray().ToSensitiveByteArray(),
+                        ClientTokenType = ClientTokenType.DataProvider,
+                        SharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray(),
+                    };
                     // throw new YouverseClientException("Cannot resolve client access token; not connected", YouverseClientErrorCode.NotAConnectedIdentity);
                 }
+                
                 return icr!.CreateClientAccessToken();
             }
 
