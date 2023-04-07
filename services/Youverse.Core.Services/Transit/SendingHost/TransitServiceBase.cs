@@ -58,39 +58,40 @@ namespace Youverse.Core.Services.Transit.SendingHost
 
         protected async Task<ClientAccessToken> ResolveClientAccessToken(OdinId recipient, ClientAccessTokenSource source)
         {
-            if (source == ClientAccessTokenSource.Circle)
+            // if (source == ClientAccessTokenSource.Circle)
             {
                 var icr = await _circleNetworkService.GetIdentityConnectionRegistration(recipient);
                 if (icr?.IsConnected() == false)
                 {
-                    throw new YouverseClientException("Cannot resolve client access token; not connected", YouverseClientErrorCode.NotAConnectedIdentity);
+                    return null;
+                    // throw new YouverseClientException("Cannot resolve client access token; not connected", YouverseClientErrorCode.NotAConnectedIdentity);
                 }
                 return icr!.CreateClientAccessToken();
             }
 
-            if (source == ClientAccessTokenSource.Follower)
-            {
-                var def = await _followerService.GetFollower(recipient);
-                if (null == def)
-                {
-                    throw new YouverseClientException("Not a follower", YouverseClientErrorCode.NotAFollowerIdentity);
-                }
-                
-                return def!.CreateClientAccessToken();
-            }
-            
-            if (source == ClientAccessTokenSource.IdentityIFollow)
-            {
-                var def = await _followerService.GetIdentityIFollow(recipient);
-                if (null == def)
-                {
-                    throw new YouverseClientException("Identity is not followed", YouverseClientErrorCode.IdentityNotFollowed);
-                }
-                
-                return def!.CreateClientAccessToken();
-            }
-
-            throw new ArgumentException("Invalid ClientAccessTokenSource");
+            // if (source == ClientAccessTokenSource.Follower)
+            // {
+            //     var def = await _followerService.GetFollower(recipient);
+            //     if (null == def)
+            //     {
+            //         throw new YouverseClientException("Not a follower", YouverseClientErrorCode.NotAFollowerIdentity);
+            //     }
+            //     
+            //     return def!.CreateClientAccessToken();
+            // }
+            //
+            // if (source == ClientAccessTokenSource.IdentityIFollow)
+            // {
+            //     var def = await _followerService.GetIdentityIFollow(recipient);
+            //     if (null == def)
+            //     {
+            //         throw new YouverseClientException("Identity is not followed", YouverseClientErrorCode.IdentityNotFollowed);
+            //     }
+            //     
+            //     return def!.CreateClientAccessToken();
+            // }
+            //
+            // throw new ArgumentException("Invalid ClientAccessTokenSource");
         }
 
         protected async Task<(ClientAccessToken token, ITransitHostReactionHttpClient client)> CreateReactionContentClient(OdinId odinId, ClientAccessTokenSource tokenSource,
@@ -99,7 +100,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
             var token = await ResolveClientAccessToken(odinId, tokenSource);
 
             var httpClient = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostReactionHttpClient>(
-                odinId, token.ToAuthenticationToken(), fileSystemType);
+                odinId, token?.ToAuthenticationToken(), fileSystemType);
 
             return (token, httpClient);
         }
