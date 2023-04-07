@@ -194,8 +194,14 @@ public class TransitQueryService
         var icr = await _circleNetworkService.GetIdentityConnectionRegistration(odinId);
 
         var authToken = icr.IsConnected() ? icr.CreateClientAuthToken() : null;
-        var httpClient = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(odinId, authToken, fileSystemType);
-        return (icr, httpClient);
+        if (authToken == null)
+        {
+            var httpClient = _dotYouHttpClientFactory.CreateClient<ITransitHostHttpClient>(odinId, fileSystemType);
+            return (icr, httpClient);
+        } else {
+            var httpClient = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(odinId, authToken, fileSystemType);
+            return (icr, httpClient);
+        }
     }
 
     private List<SharedSecretEncryptedFileHeader> TransformSharedSecret(IEnumerable<SharedSecretEncryptedFileHeader> headers,
