@@ -192,8 +192,9 @@ public class TransitQueryService
     private async Task<(IdentityConnectionRegistration, ITransitHostHttpClient)> CreateClient(OdinId odinId, FileSystemType? fileSystemType)
     {
         var icr = await _circleNetworkService.GetIdentityConnectionRegistration(odinId);
-        var httpClient = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(odinId, icr.CreateClientAuthToken(), fileSystemType);
 
+        var authToken = icr.IsConnected() ? icr.CreateClientAuthToken() : null;
+        var httpClient = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(odinId, authToken, fileSystemType);
         return (icr, httpClient);
     }
 
