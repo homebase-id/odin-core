@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Contacts.Circle;
@@ -102,7 +103,7 @@ namespace Youverse.Core.Services.DataSubscription
                 SourceFile = notification.ServerFileHeader.FileMetadata!.File,
                 FileSystemType = notification.ServerFileHeader.ServerMetadata.FileSystemType
             };
-            
+
             if (_youverseConfiguration.Feed.InstantDistribution)
             {
                 await DistributeMetadata(item);
@@ -208,7 +209,12 @@ namespace Youverse.Core.Services.DataSubscription
             var driveId = distroItem.SourceFile.DriveId;
             var file = distroItem.SourceFile;
 
-            var recipients = await GetFollowers(driveId);
+            List<OdinId> recipients;
+            using (new ReadFollowersContext(_contextAccessor))
+            {
+                recipients = await GetFollowers(driveId);
+            }
+
             if (!recipients.Any())
             {
                 return;
@@ -364,6 +370,25 @@ namespace Youverse.Core.Services.DataSubscription
         {
             var drive = await _driveManager.GetDrive(driveId, false);
             return drive.AllowSubscriptions && drive.TargetDriveInfo.Type == SystemDriveConstants.ChannelDriveType;
+        }
+    }
+
+    public class ReadFollowersContext : IDisposable
+    {
+        private readonly SecurityGroupType _prevSecurityGroupType;
+        private readonly DotYouContextAccessor _dotYouContextAccessor;
+
+        public ReadFollowersContext(DotYouContextAccessor dotYouContextAccessor)
+        {
+            _dotYouContextAccessor = dotYouContextAccessor;
+            _prevSecurityGroupType = _dotYouContextAccessor.GetCurrent().Caller.SecurityLevel;
+
+            _dotYouContextAccessor.GetCurrent().Caller.SecurityLevel = SecurityGroupType.System;
+        }
+
+        public void Dispose()
+        {
+            _dotYouContextAccessor.GetCurrent().Caller.SecurityLevel = _prevSecurityGroupType;
         }
     }
 }
