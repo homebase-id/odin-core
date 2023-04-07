@@ -42,7 +42,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
         protected SharedSecretEncryptedTransitPayload CreateSharedSecretEncryptedPayload(ClientAccessToken token, object o)
         {
             var iv = ByteArrayUtil.GetRndByteArray(16);
-            var key = token.SharedSecret;
+            var key = token?.SharedSecret ?? new SensitiveByteArray(Guid.Empty.ToByteArray());
             var jsonBytes = DotYouSystemSerializer.Serialize(o).ToUtf8ByteArray();
             // var encryptedBytes = AesCbc.Encrypt(jsonBytes, ref key, iv);
             var encryptedBytes = jsonBytes;
