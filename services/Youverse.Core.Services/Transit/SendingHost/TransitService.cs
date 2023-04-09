@@ -36,8 +36,6 @@ namespace Youverse.Core.Services.Transit.SendingHost
         private readonly FollowerService _followerService;
         private readonly IPublicKeyService _publicKeyService;
 
-        private readonly IDriveFileSystem _fileSystem;
-
         public TransitService(
             DotYouContextAccessor contextAccessor,
             ITransitOutbox transitOutbox,
@@ -48,7 +46,6 @@ namespace Youverse.Core.Services.Transit.SendingHost
             IPublicKeyService publicKeyService,
             FollowerService followerService,
             DriveManager driveManager,
-            IDriveFileSystem fileSystem,
             FileSystemResolver fileSystemResolver) : base(dotYouHttpClientFactory, circleNetworkService, contextAccessor, followerService, fileSystemResolver)
         {
             _contextAccessor = contextAccessor;
@@ -59,7 +56,6 @@ namespace Youverse.Core.Services.Transit.SendingHost
             _publicKeyService = publicKeyService;
             _followerService = followerService;
             _driveManager = driveManager;
-            _fileSystem = fileSystem;
             _fileSystemResolver = fileSystemResolver;
 
             _transferKeyEncryptionQueueService = new TransferKeyEncryptionQueueService(tenantSystemStorage);
@@ -191,7 +187,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
 
             await Task.WhenAll(tasks);
 
-            List<InternalDriveFileId> filesForDeletion = new List<InternalDriveFileId>();
+            List<TransitOutboxItem> filesForDeletion = new List<TransitOutboxItem>();
             tasks.ForEach(task =>
             {
                 var sendResult = task.Result;
@@ -201,7 +197,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
                 {
                     if (sendResult.OutboxItem.IsTransientFile)
                     {
-                        filesForDeletion.Add(sendResult.OutboxItem.File);
+                        filesForDeletion.Add(sendResult.OutboxItem);
                     }
 
                     _transitOutbox.MarkComplete(sendResult.OutboxItem.Marker);
@@ -212,10 +208,11 @@ namespace Youverse.Core.Services.Transit.SendingHost
                 }
             });
 
-            foreach (var fileId in filesForDeletion)
+            //TODO: optimization point; I need to see if this sort of deletion code is needed anymore; now that we have the transient temp drive
+            foreach (var item in filesForDeletion)
             {
-                //TODO: add logging?
-                await _fileSystem.Storage.HardDeleteLongTermFile(fileId);
+                var fs = _fileSystemResolver.ResolveFileSystem(item.TransferInstructionSet.FileSystemType);
+                await fs.Storage.HardDeleteLongTermFile(item.File);
             }
 
             return results;
