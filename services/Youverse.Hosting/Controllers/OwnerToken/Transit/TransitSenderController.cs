@@ -114,8 +114,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
                 new SendFileOptions()
                 {
                     FileSystemType = request.FileSystemType,
-                    TransferFileType = TransferFileType.Normal,
-                    ClientAccessTokenSource = ClientAccessTokenSource.Circle
+                    TransferFileType = TransferFileType.Normal
                 },
                 request.Recipients);
 

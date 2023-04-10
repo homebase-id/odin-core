@@ -109,7 +109,7 @@ namespace Youverse.Hosting
             cb.RegisterType<StandardFileDriveQueryService>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardDriveCommandService>().AsSelf().InstancePerDependency();
             //Note As<IDriveFileSystem> means this will be the default in cases where we do not resolve the filesystem
-            cb.RegisterType<StandardFileSystem>().AsSelf().As<IDriveFileSystem>().InstancePerDependency();
+            cb.RegisterType<StandardFileSystem>().AsSelf().InstancePerDependency();
             
             cb.RegisterType<CommentStreamWriter>().AsSelf().InstancePerDependency();
             cb.RegisterType<CommentFileStorageService>().AsSelf().InstancePerDependency();

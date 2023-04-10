@@ -30,8 +30,8 @@ namespace Youverse.Core.Services.Base
         public T CreateClientUsingAccessToken<T>(OdinId odinId, ClientAuthenticationToken clientAuthenticationToken, FileSystemType? fileSystemType = null)
         {
             Guard.Argument(clientAuthenticationToken, nameof(clientAuthenticationToken)).NotNull();
-            Guard.Argument(clientAuthenticationToken.Id, nameof(clientAuthenticationToken.Id)).Require(x => x != Guid.Empty);
-            Guard.Argument(clientAuthenticationToken.AccessTokenHalfKey, nameof(clientAuthenticationToken.AccessTokenHalfKey)).Require(x => x.IsSet());
+            // Guard.Argument(clientAuthenticationToken.Id, nameof(clientAuthenticationToken.Id)).Require(x => x != Guid.Empty);
+            // Guard.Argument(clientAuthenticationToken.AccessTokenHalfKey, nameof(clientAuthenticationToken.AccessTokenHalfKey)).Require(x => x.IsSet());
             Guard.Argument(clientAuthenticationToken, nameof(clientAuthenticationToken)).NotNull();
 
             return this.CreateClientInternal<T>(odinId, clientAuthenticationToken, fileSystemType);

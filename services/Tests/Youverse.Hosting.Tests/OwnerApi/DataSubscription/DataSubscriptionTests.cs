@@ -307,7 +307,7 @@ public class DataSubscriptionTests
 
         // Sam to follow everything from frodo
         await samOwnerClient.Follower.FollowIdentity(frodoOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
-        
+
         // Frodo uploads content to channel drive
         var uploadedContent = "I'm Mr. Underhill";
         var standardFileUploadResult = await UploadStandardUnencryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, standardFileType);
@@ -958,7 +958,7 @@ public class DataSubscriptionTests
 
         await frodoOwnerClient.Drive.CreateDrive(frodoChannelDrive, "A Channel Drive", "", allowAnonymousReads: false, ownerOnly: false,
             allowSubscriptions: true);
-        
+
         // Sam to follow everything from frodo
         await samOwnerClient.Follower.FollowIdentity(frodoOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
 
@@ -968,7 +968,7 @@ public class DataSubscriptionTests
 
         //Process the outbox since we're sending an encrypted file
         await frodoOwnerClient.Transit.ProcessOutbox(1);
-        
+
         await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
 
         var qp = new FileQueryParams()
@@ -985,7 +985,82 @@ public class DataSubscriptionTests
 
         await samOwnerClient.Follower.UnfollowIdentity(frodoOwnerClient.Identity);
     }
-    
+
+    [Test]
+    public async Task UnencryptedStandardFile_UploadedByOwner_DistributeTo_Both_ConnectedAndUnconnected_Followers()
+    {
+        const int fileType = 1111;
+
+        var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
+        var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
+        var merryOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Merry);
+        var pippinOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
+
+        //create a channel drive
+        var frodoChannelDrive = new TargetDrive()
+        {
+            Alias = Guid.NewGuid(),
+            Type = SystemDriveConstants.ChannelDriveType
+        };
+
+        await frodoOwnerClient.Drive.CreateDrive(frodoChannelDrive, "A Channel Drive", "", allowAnonymousReads: true, ownerOnly: false,
+            allowSubscriptions: true);
+
+        // Sam is connected to follow everything from frodo
+        await frodoOwnerClient.Network.SendConnectionRequest(samOwnerClient.Identity, new List<GuidId>() { });
+        await samOwnerClient.Network.AcceptConnectionRequest(frodoOwnerClient.Identity, new List<GuidId>() { });
+        await samOwnerClient.Follower.FollowIdentity(frodoOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
+
+        //Pippin and merry follow a channel
+        await pippinOwnerClient.Follower.FollowIdentity(frodoOwnerClient.Identity, FollowerNotificationType.SelectedChannels,
+            new List<TargetDrive>() { frodoChannelDrive });
+        await merryOwnerClient.Follower.FollowIdentity(frodoOwnerClient.Identity, FollowerNotificationType.SelectedChannels,
+            new List<TargetDrive>() { frodoChannelDrive });
+
+
+        // Frodo uploads content to channel drive
+        const string uploadedContent = "I'm Mr. Underhill";
+        var uploadResult = await UploadStandardUnencryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType);
+
+        //Process the outbox since we're sending an encrypted file
+        await frodoOwnerClient.Transit.ProcessOutbox(1);
+
+        await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
+        // await pippinOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
+        // await merryOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
+
+
+        var qp = new FileQueryParams()
+        {
+            TargetDrive = SystemDriveConstants.FeedDrive,
+            // FileType = new List<int>() { fileType }
+            GlobalTransitId = new List<Guid>() { uploadResult.GlobalTransitId.GetValueOrDefault() }
+        };
+        
+        //All should have the file
+        await AssertFeedDriveHasFile(samOwnerClient, qp, uploadedContent, uploadResult);
+        await AssertFeedDriveHasFile(pippinOwnerClient, qp, uploadedContent, uploadResult);
+        await AssertFeedDriveHasFile(merryOwnerClient, qp, uploadedContent, uploadResult);
+        
+        //All done
+        await frodoOwnerClient.Network.DisconnectFrom(samOwnerClient.Identity);
+        await samOwnerClient.Network.DisconnectFrom(frodoOwnerClient.Identity);
+        await samOwnerClient.Follower.UnfollowIdentity(frodoOwnerClient.Identity);
+
+        await pippinOwnerClient.Follower.UnfollowIdentity(frodoOwnerClient.Identity);
+        await merryOwnerClient.Follower.UnfollowIdentity(frodoOwnerClient.Identity);
+    }
+
+    private async Task AssertFeedDriveHasFile(OwnerApiClient client, FileQueryParams queryParams, string expectedContent, UploadResult expectedUploadResult)
+    {
+        var batch = await client.Drive.QueryBatch(FileSystemType.Standard, queryParams);
+        Assert.IsTrue(batch.SearchResults.Count() == 1, $"Count should be 1 but was {batch.SearchResults.Count()}");
+        var theFile = batch.SearchResults.First();
+        Assert.IsTrue(theFile.FileState == FileState.Active);
+        Assert.IsTrue(theFile.FileMetadata.AppData.JsonContent == expectedContent);
+        Assert.IsTrue(theFile.FileMetadata.GlobalTransitId == expectedUploadResult.GlobalTransitId);
+    }
+
     private async Task<UploadResult> UploadStandardUnencryptedFileToChannel(OwnerApiClient client, TargetDrive targetDrive, string uploadedContent,
         int fileType)
     {

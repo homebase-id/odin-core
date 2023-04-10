@@ -23,12 +23,14 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         public readonly TableKeyThreeValue TblKeyThreeValue = null;
         public readonly TableInbox tblInbox = null;
         public readonly TableOutbox tblOutbox = null;
+        public readonly TableFeedDistributionOutbox tblFeedDistributionOutbox = null;
         public readonly TableImFollowing tblImFollowing = null;
         public readonly TableFollowsMe tblFollowsMe = null;
         public readonly TableCircle tblCircle = null;
         public readonly TableCircleMember tblCircleMember = null;
         public readonly TableConnections tblConnections = null;
 
+        public readonly string CN;
         public IdentityDatabase(string connectionString, long commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
         {
             tblKeyValue = new TableKeyValue(this);
@@ -36,11 +38,14 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             TblKeyThreeValue = new TableKeyThreeValue(this);
             tblInbox = new TableInbox(this);
             tblOutbox = new TableOutbox(this);
+            tblFeedDistributionOutbox = new TableFeedDistributionOutbox(this);
             tblCircle = new TableCircle(this);
             tblCircleMember = new TableCircleMember(this);
             tblFollowsMe = new TableFollowsMe(this);
             tblImFollowing = new TableImFollowing(this);
             tblConnections = new TableConnections(this);
+
+            CN = connectionString;
         }
 
 
@@ -53,14 +58,15 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         {
             Commit();
 
-            tblKeyValue.Dispose();;
-            tblKeyTwoValue.Dispose();;
-            TblKeyThreeValue.Dispose();;
-            tblInbox.Dispose();;
-            tblOutbox.Dispose();;
-            tblCircle.Dispose();;
-            tblImFollowing.Dispose();;
-            tblFollowsMe.Dispose();;
+            tblKeyValue.Dispose();
+            tblKeyTwoValue.Dispose();
+            TblKeyThreeValue.Dispose();
+            tblInbox.Dispose();
+            tblOutbox.Dispose();
+            tblFeedDistributionOutbox.Dispose();
+            tblCircle.Dispose();
+            tblImFollowing.Dispose();
+            tblFollowsMe.Dispose();
             tblCircleMember.Dispose();
             tblConnections.Dispose();
 
@@ -79,6 +85,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             // TblKeyUniqueThreeValue.EnsureTableExists(dropExistingTables);
             tblInbox.EnsureTableExists(dropExistingTables);
             tblOutbox.EnsureTableExists(dropExistingTables);
+            tblFeedDistributionOutbox.EnsureTableExists(dropExistingTables);
             tblCircle.EnsureTableExists(dropExistingTables);
             tblCircleMember.EnsureTableExists(dropExistingTables);
             tblImFollowing.EnsureTableExists(dropExistingTables);
