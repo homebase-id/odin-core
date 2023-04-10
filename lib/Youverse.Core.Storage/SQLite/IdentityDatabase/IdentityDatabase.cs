@@ -30,6 +30,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         public readonly TableCircleMember tblCircleMember = null;
         public readonly TableConnections tblConnections = null;
 
+        public readonly string CN;
         public IdentityDatabase(string connectionString, long commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
         {
             tblKeyValue = new TableKeyValue(this);
@@ -43,6 +44,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             tblFollowsMe = new TableFollowsMe(this);
             tblImFollowing = new TableImFollowing(this);
             tblConnections = new TableConnections(this);
+
+            CN = connectionString;
         }
 
 

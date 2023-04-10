@@ -200,8 +200,7 @@ public class DriveManager
         {
             if (failIfInvalid)
             {
-                throw new YouverseClientException($"Invalid drive id {targetDrive.ToString()}", YouverseClientErrorCode.InvalidTargetDrive);
-
+                throw new YouverseClientException($"Invalid drive id {targetDrive}", YouverseClientErrorCode.InvalidTargetDrive);
             }
 
             return null;

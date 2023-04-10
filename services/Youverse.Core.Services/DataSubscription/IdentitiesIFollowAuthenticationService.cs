@@ -14,11 +14,13 @@ namespace Youverse.Core.Services.DataSubscription;
 public class IdentitiesIFollowAuthenticationService
 {
     private readonly DotYouContextCache _cache;
+    private readonly TenantContext _tenantContext;
     private readonly FollowerService _followerService;
 
-    public IdentitiesIFollowAuthenticationService(YouverseConfiguration config, FollowerService followerService)
+    public IdentitiesIFollowAuthenticationService(YouverseConfiguration config, FollowerService followerService, TenantContext tenantContext)
     {
         _followerService = followerService;
+        _tenantContext = tenantContext;
         _cache = new DotYouContextCache(config.Host.CacheSlidingExpirationSeconds);
     }
 
@@ -32,11 +34,12 @@ public class IdentitiesIFollowAuthenticationService
         // therefore, just fabricate a token
 
         //TODO: i still dont think this is secure.  hmm let me think
-        var guidId = callerOdinId.ToHashId();
+        var callerGuidId = callerOdinId.ToHashId();
+        var recipientGuidId = _tenantContext.HostOdinId.ToHashId();
         var tempToken = new ClientAuthenticationToken()
         {
-            Id = guidId,
-            AccessTokenHalfKey = guidId.ToByteArray().ToSensitiveByteArray(),
+            Id = callerGuidId,
+            AccessTokenHalfKey = recipientGuidId.ToByteArray().ToSensitiveByteArray(),
             ClientTokenType = ClientTokenType.DataProvider
         };
 
@@ -59,7 +62,8 @@ public class IdentitiesIFollowAuthenticationService
         return await _cache.GetOrAddContext(tempToken, creator);
     }
 
-    private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContext(OdinId callerOdinId, ClientAuthenticationToken token)
+    private async Task<(CallerContext callerContext, PermissionContext permissionContext)> GetPermissionContext(OdinId callerOdinId,
+        ClientAuthenticationToken token)
     {
         var permissionContext = await _followerService.CreatePermissionContextForIdentityIFollow(callerOdinId, token);
         var cc = new CallerContext(
