@@ -41,6 +41,7 @@ namespace Youverse.Core.Services.Base
             Inbox = _db.tblInbox;
             WhoIFollow = _db.tblImFollowing;
             Followers = _db.tblFollowsMe;
+            Feedbox = _db.tblFeedDistributionOutbox;
         }
 
         /// <summary>
@@ -53,6 +54,8 @@ namespace Youverse.Core.Services.Base
         /// </summary>
         public ThreeKeyValueStorage ThreeKeyValueStorage { get; }
 
+        public TableFeedDistributionOutbox Feedbox { get; }
+        
         public TableOutbox Outbox { get; }
 
         public TableInbox Inbox { get; }

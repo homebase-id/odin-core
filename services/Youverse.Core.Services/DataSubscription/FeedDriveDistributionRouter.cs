@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Youverse.Core.Identity;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Configuration;
@@ -110,13 +111,37 @@ namespace Youverse.Core.Services.DataSubscription
             }
             else
             {
-                var fileKey = CreateFileKey(item.SourceFile);
-                _tenantSystemStorage.ThreeKeyValueStorage.Upsert(fileKey, _feedItemCategory, _metadataFeedItemCategory, item);
-
-                //tell the job this tenant needs to have their queue processed
+                await EnqueueFollowers(notification);
                 _serverSystemStorage.EnqueueJob(_tenantContext.HostOdinId, CronJobType.FeedReactionPreviewDistribution, new FeedDistributionInfo()
                 {
                     OdinId = _tenantContext.HostOdinId,
+                });
+            }
+        }
+
+        private async Task EnqueueFollowers(IDriveNotification notification)
+        {
+            var item = new ReactionPreviewDistributionItem()
+            {
+                DriveNotificationType = notification.DriveNotificationType,
+                SourceFile = notification.ServerFileHeader.FileMetadata!.File,
+                FileSystemType = notification.ServerFileHeader.ServerMetadata.FileSystemType
+            };
+            
+            var recipients = await GetFollowers(notification.File.DriveId);
+            if (!recipients.Any())
+            {
+                return;
+            }
+            
+            foreach(var recipient in recipients)
+            {
+                _tenantSystemStorage.Feedbox.Upsert(new()
+                {
+                    recipient = recipient,
+                    fileId = notification.ServerFileHeader.FileMetadata.File.FileId,
+                    driveId = notification.ServerFileHeader.FileMetadata.File.DriveId,
+                    value = DotYouSystemSerializer.Serialize(item).ToUtf8ByteArray()
                 });
             }
         }
@@ -158,7 +183,7 @@ namespace Youverse.Core.Services.DataSubscription
         public async Task DistributeMetadataItems()
         {
             var items = _tenantSystemStorage.ThreeKeyValueStorage.GetByKey2And3<ReactionPreviewDistributionItem>(_feedItemCategory, _metadataFeedItemCategory);
-
+            
             foreach (var distroItem in items)
             {
                 await DistributeMetadata(distroItem);
@@ -181,9 +206,6 @@ namespace Youverse.Core.Services.DataSubscription
 
         private async Task DistributeMetadata(ReactionPreviewDistributionItem distroItem)
         {
-            //TODO: this needs a Pop queue, etc.
-            //TODO when happens when one fails?
-
             var driveId = distroItem.SourceFile.DriveId;
             var file = distroItem.SourceFile;
 
