@@ -237,10 +237,9 @@ namespace Youverse.Core.Services.DataSubscription
         /// </summary>
         private async Task<List<OdinId>> DistributeToConnectedFollowersUsingTransit(IDriveNotification notification)
         {
-            var driveId = notification.File.DriveId;
             var file = notification.File;
 
-            var recipients = await GetFollowers(driveId);
+            var recipients = await GetFollowers(notification.File.DriveId);
             if (!recipients.Any())
             {
                 return new List<OdinId>();
@@ -269,7 +268,9 @@ namespace Youverse.Core.Services.DataSubscription
         private async Task<List<OdinId>> GetFollowers(Guid driveId)
         {
             int maxRecords = 10000; //TODO: cursor thru batches instead
-            var driveFollowers = await _followerService.GetFollowers(driveId, maxRecords, cursor: "");
+
+            var td = _contextAccessor.GetCurrent().PermissionsContext.GetTargetDrive(driveId);
+            var driveFollowers = await _followerService.GetFollowers(td, maxRecords, cursor: "");
             var allDriveFollowers = await _followerService.GetFollowersOfAllNotifications(maxRecords, cursor: "");
 
             var recipients = new List<OdinId>();

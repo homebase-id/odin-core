@@ -166,17 +166,22 @@ namespace Youverse.Core.Services.DataSubscription.Follower
         /// <summary>
         /// Gets a list of identities that follow me
         /// </summary>
-        public async Task<CursoredResult<OdinId>> GetFollowers(Guid driveId, int max, string cursor)
+        public async Task<CursoredResult<OdinId>> GetFollowers(TargetDrive targetDrive, int max, string cursor)
         {
             _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadMyFollowers);
-
-            var drive = await _driveManager.GetDrive(driveId, true);
-            if (drive.TargetDriveInfo.Type != SystemDriveConstants.ChannelDriveType)
+            
+            // var drive = await _driveManager.GetDrive(driveAlias, true);
+            // if (drive.TargetDriveInfo.Type != SystemDriveConstants.ChannelDriveType)
+            // {
+            //     throw new YouverseClientException("Invalid Drive Type", YouverseClientErrorCode.InvalidTargetDrive);
+            // }
+            
+            if (targetDrive.Type != SystemDriveConstants.ChannelDriveType)
             {
                 throw new YouverseClientException("Invalid Drive Type", YouverseClientErrorCode.InvalidTargetDrive);
             }
 
-            var dbResults = _tenantStorage.Followers.GetFollowers(DefaultMax(max), driveId, cursor, out var nextCursor);
+            var dbResults = _tenantStorage.Followers.GetFollowers(DefaultMax(max), targetDrive.Alias, cursor, out var nextCursor);
             var result = new CursoredResult<OdinId>()
             {
                 Cursor = nextCursor,

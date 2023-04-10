@@ -55,6 +55,7 @@ public enum YouverseClientErrorCode
     CannotUseReferencedFileOnStandardFiles = 4123,
     CannotUseGroupIdInTextReactions = 4124,
     InvalidFileSystemType = 4125,
+    InvalidDrive = 4126,
 
     // Connection errors 50xx
     CannotSendConnectionRequestToExistingIncomingRequest = 5001,

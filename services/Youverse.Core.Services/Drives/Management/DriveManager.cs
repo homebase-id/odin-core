@@ -54,12 +54,14 @@ public class DriveManager
 
         if (request.OwnerOnly && request.AllowAnonymousReads)
         {
-            throw new YouverseClientException("A drive cannot be owner-only and allow anonymous reads", YouverseClientErrorCode.CannotAllowAnonymousReadsOnOwnerOnlyDrive);
+            throw new YouverseClientException("A drive cannot be owner-only and allow anonymous reads",
+                YouverseClientErrorCode.CannotAllowAnonymousReadsOnOwnerOnlyDrive);
         }
-        
+
         if (request.OwnerOnly && request.AllowSubscriptions)
         {
-            throw new YouverseClientException("A drive cannot be owner-only and allow subscriptions", YouverseClientErrorCode.CannotAllowSubscriptionsOnOwnerOnlyDrive);
+            throw new YouverseClientException("A drive cannot be owner-only and allow subscriptions",
+                YouverseClientErrorCode.CannotAllowSubscriptionsOnOwnerOnlyDrive);
         }
 
         var mk = _contextAccessor.GetCurrent().Caller.GetMasterKey();
@@ -174,7 +176,7 @@ public class DriveManager
         {
             if (failIfInvalid)
             {
-                throw new InvalidDriveClientException(driveId);
+                throw new YouverseClientException($"Invalid drive id {driveId}", YouverseClientErrorCode.InvalidDrive);
             }
 
             return null;
@@ -198,7 +200,8 @@ public class DriveManager
         {
             if (failIfInvalid)
             {
-                throw new InvalidDriveClientException(targetDrive.Alias);
+                throw new YouverseClientException($"Invalid drive id {targetDrive.ToString()}", YouverseClientErrorCode.InvalidTargetDrive);
+
             }
 
             return null;

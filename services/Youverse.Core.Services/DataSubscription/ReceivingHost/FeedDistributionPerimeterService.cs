@@ -46,10 +46,9 @@ namespace Youverse.Core.Services.DataSubscription.ReceivingHost
                 };
             }
 
-            InternalDriveFileId? fileId;
             using (new FeedDriveSecurityContext(_contextAccessor))
             {
-                fileId = await this.ResolveInternalFile(request.FileId);
+                var fileId = await this.ResolveInternalFile(request.FileId);
 
                 if (null == fileId)
                 {
@@ -89,12 +88,11 @@ namespace Youverse.Core.Services.DataSubscription.ReceivingHost
                 };
             }
 
-            InternalDriveFileId? fileId;
             using (new FeedDriveSecurityContext(_contextAccessor))
             {
                 var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(SystemDriveConstants.FeedDrive);
                 
-                fileId = await this.ResolveInternalFile(request.FileId);
+                var fileId = await this.ResolveInternalFile(request.FileId);
 
                 if (null == fileId)
                 {
