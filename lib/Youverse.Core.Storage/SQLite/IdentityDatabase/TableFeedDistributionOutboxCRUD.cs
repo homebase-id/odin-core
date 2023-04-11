@@ -179,7 +179,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                      +"popStamp BLOB , "
                      +"created INT NOT NULL, "
                      +"modified INT  "
-                     +", PRIMARY KEY (fileId,driveId)"
+                     +", PRIMARY KEY (fileId,driveId,recipient)"
                      +");"
                      +"CREATE INDEX IF NOT EXISTS Idx0TableFeedDistributionOutboxCRUD ON feedDistributionOutbox(timeStamp);"
                      +"CREATE INDEX IF NOT EXISTS Idx1TableFeedDistributionOutboxCRUD ON feedDistributionOutbox(popStamp);"
@@ -245,7 +245,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _upsertCommand = _database.CreateCommand();
                     _upsertCommand.CommandText = "INSERT INTO feedDistributionOutbox (fileId,driveId,recipient,timeStamp,value,popStamp,created,modified) " +
                                                  "VALUES ($fileId,$driveId,$recipient,$timeStamp,$value,$popStamp,$created,$modified)"+
-                                                 "ON CONFLICT (fileId,driveId) DO UPDATE "+
+                                                 "ON CONFLICT (fileId,driveId,recipient) DO UPDATE "+
                                                  "SET recipient = $recipient,timeStamp = $timeStamp,value = $value,popStamp = $popStamp,modified = $modified;";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
