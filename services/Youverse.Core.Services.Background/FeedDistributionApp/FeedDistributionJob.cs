@@ -20,7 +20,7 @@ namespace Youverse.Core.Services.Workers.FeedDistributionApp
     {
         public async Task<bool> Execute(CronRecord record)
         {
-            if (record.type == (Int32)CronJobType.FeedReactionPreviewDistribution)
+            if (record.type == (Int32)CronJobType.FeedDistribution)
             {
                 var distroTask = DotYouSystemSerializer.Deserialize<FeedDistributionInfo>(record.data.ToStringFromUtf8Bytes());
                 return await DistributeReactionPreview(distroTask);

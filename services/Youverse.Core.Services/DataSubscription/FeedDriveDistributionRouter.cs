@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
@@ -30,7 +31,6 @@ namespace Youverse.Core.Services.DataSubscription
     public class FeedDriveDistributionRouter : INotificationHandler<IDriveNotification>
     {
         private readonly GuidId _feedItemCategory = GuidId.FromString("feed_items");
-        private readonly GuidId _metadataFeedItemCategory = GuidId.FromString("header_feed_item");
         private readonly GuidId _reactionPreviewFeedItemCategory = GuidId.FromString("reaction_preview_feed_item");
         private readonly FollowerService _followerService;
         private readonly DriveManager _driveManager;
@@ -102,48 +102,35 @@ namespace Youverse.Core.Services.DataSubscription
             {
                 DriveNotificationType = notification.DriveNotificationType,
                 SourceFile = notification.ServerFileHeader.FileMetadata!.File,
-                FileSystemType = notification.ServerFileHeader.ServerMetadata.FileSystemType
+                FileSystemType = notification.ServerFileHeader.ServerMetadata.FileSystemType,
+                FeedDistroType = FeedDistroType.FileMetadata
             };
 
             if (_youverseConfiguration.Feed.InstantDistribution)
             {
-                await DistributeMetadata(item);
+                await DistributeMetadataNow(item);
             }
             else
             {
                 await EnqueueFollowers(notification);
-                _serverSystemStorage.EnqueueJob(_tenantContext.HostOdinId, CronJobType.FeedReactionPreviewDistribution, new FeedDistributionInfo()
-                {
-                    OdinId = _tenantContext.HostOdinId,
-                });
+                EnqueueCronJob();
             }
         }
 
         private async Task EnqueueFollowers(IDriveNotification notification)
         {
-            var item = new ReactionPreviewDistributionItem()
-            {
-                DriveNotificationType = notification.DriveNotificationType,
-                SourceFile = notification.ServerFileHeader.FileMetadata!.File,
-                FileSystemType = notification.ServerFileHeader.ServerMetadata.FileSystemType
-            };
-            
             var recipients = await GetFollowers(notification.File.DriveId);
             if (!recipients.Any())
             {
                 return;
             }
-            
-            foreach(var recipient in recipients)
-            {
-                _tenantSystemStorage.Feedbox.Upsert(new()
-                {
-                    recipient = recipient,
-                    fileId = notification.ServerFileHeader.FileMetadata.File.FileId,
-                    driveId = notification.ServerFileHeader.FileMetadata.File.DriveId,
-                    value = DotYouSystemSerializer.Serialize(item).ToUtf8ByteArray()
-                });
-            }
+
+            throw new NotImplementedException("need to address multiple feed distro types");
+
+            // foreach (var recipient in recipients)
+            // {
+            //     AddToFeedOutbox(recipient, item);
+            // }
         }
 
         private async Task<bool> ShouldDistribute(IDriveNotification notification)
@@ -180,13 +167,47 @@ namespace Youverse.Core.Services.DataSubscription
             return true;
         }
 
-        public async Task DistributeMetadataItems()
+        public async Task DistributeQueuedMetadataItems(int batchSize)
         {
-            var items = _tenantSystemStorage.ThreeKeyValueStorage.GetByKey2And3<ReactionPreviewDistributionItem>(_feedItemCategory, _metadataFeedItemCategory);
-            
-            foreach (var distroItem in items)
+            var batch = _tenantSystemStorage.Feedbox.Pop(batchSize);
+            foreach (var item in batch)
             {
-                await DistributeMetadata(distroItem);
+                var distroItem = DotYouSystemSerializer.Deserialize<ReactionPreviewDistributionItem>(item.value.ToStringFromUtf8Bytes());
+                bool success;
+
+                if (distroItem.FeedDistroType == FeedDistroType.FileMetadata)
+                {
+                    success = await _feedDistributorService.SendFile(new InternalDriveFileId()
+                        {
+                            FileId = item.fileId,
+                            DriveId = item.driveId
+                        },
+                        distroItem.FileSystemType,
+                        (OdinId)item.recipient);
+                }
+                else if (distroItem.FeedDistroType == FeedDistroType.ReactionPreview)
+                {
+                    success = await _feedDistributorService.SendFile(new InternalDriveFileId()
+                        {
+                            FileId = item.fileId,
+                            DriveId = item.driveId
+                        },
+                        distroItem.FileSystemType,
+                        (OdinId)item.recipient);
+                }
+                else
+                {
+                    throw new YouverseSystemException("Unhandled Feed distro type");
+                }
+
+                if (success)
+                {
+                    _tenantSystemStorage.Feedbox.PopCommitAll(item.popStamp.GetValueOrDefault());
+                }
+                else
+                {
+                    _tenantSystemStorage.Feedbox.PopCancelAll(item.popStamp.GetValueOrDefault());
+                }
             }
         }
 
@@ -195,38 +216,30 @@ namespace Youverse.Core.Services.DataSubscription
             var items = _tenantSystemStorage.ThreeKeyValueStorage.GetByKey2And3<ReactionPreviewDistributionItem>(_feedItemCategory,
                 _reactionPreviewFeedItemCategory);
 
-            //TODO: this needs a Pop queue, etc.
-            //TODO when happens when one fails?
-
             foreach (var distroItem in items)
             {
-                await DistributeReactionPreview(distroItem);
+                await DistributeReactionPreviewNow(distroItem);
             }
         }
 
-        private async Task DistributeMetadata(ReactionPreviewDistributionItem distroItem)
+        private async Task DistributeMetadataNow(ReactionPreviewDistributionItem distroItem)
         {
             var driveId = distroItem.SourceFile.DriveId;
             var file = distroItem.SourceFile;
 
             var recipients = await GetFollowers(driveId);
-            if (!recipients.Any())
+            foreach (var recipient in recipients)
             {
-                return;
-            }
-
-            var results = await _feedDistributorService.SendFiles(file, distroItem.FileSystemType, recipients);
-            if (null != results)
-            {
-                var failedRecipients = recipients.Where(r =>
-                    results.TryGetValue(r, out var status) &&
-                    status != TransitResponseCode.AcceptedDirectWrite);
-
-                //TODO: Process the results and put into retry queue
+                var success = await _feedDistributorService.SendFile(file, distroItem.FileSystemType, recipient);
+                if (success)
+                {
+                    // fall back to queue
+                    AddToFeedOutbox(recipient, distroItem);
+                }
             }
         }
 
-        private async Task DistributeReactionPreview(ReactionPreviewDistributionItem distroItem)
+        private async Task DistributeReactionPreviewNow(ReactionPreviewDistributionItem distroItem)
         {
             var driveId = distroItem.SourceFile.DriveId;
             var file = distroItem.SourceFile;
@@ -237,25 +250,19 @@ namespace Youverse.Core.Services.DataSubscription
                 recipients = await GetFollowers(driveId);
             }
 
-            if (!recipients.Any())
+            foreach (var recipient in recipients)
             {
-                return;
-            }
-
-            var results = await _feedDistributorService.SendReactionPreview(file, distroItem.FileSystemType, recipients);
-            if (null != results)
-            {
-                var failedRecipients = recipients.Where(r =>
-                    results.TryGetValue(r, out var status) &&
-                    status != TransitResponseCode.AcceptedDirectWrite);
-
-                //TODO: Process the results and put into retry queue
+                var success = await _feedDistributorService.SendReactionPreview(file, distroItem.FileSystemType, recipient);
+                if (!success)
+                {
+                    AddToFeedOutbox(recipient, distroItem);
+                }
             }
         }
 
         /// <summary>
         /// Distributes to connected identities that are followers using
-        /// transit; returns the list of unconnected identites
+        /// transit; returns the list of unconnected identities
         /// </summary>
         private async Task<List<OdinId>> DistributeToConnectedFollowersUsingTransit(IDriveNotification notification)
         {
@@ -364,22 +371,27 @@ namespace Youverse.Core.Services.DataSubscription
             {
                 DriveNotificationType = notification.DriveNotificationType,
                 SourceFile = notification.ServerFileHeader.FileMetadata!.File,
-                FileSystemType = notification.ServerFileHeader.ServerMetadata.FileSystemType
+                FileSystemType = notification.ServerFileHeader.ServerMetadata.FileSystemType,
+                FeedDistroType = FeedDistroType.ReactionPreview
             };
 
             if (_youverseConfiguration.Feed.InstantDistribution)
             {
-                await this.DistributeReactionPreview(item);
+                await this.DistributeReactionPreviewNow(item);
             }
             else
             {
-                var fileKey = CreateFileKey(item.SourceFile);
-                _tenantSystemStorage.ThreeKeyValueStorage.Upsert(fileKey, _feedItemCategory, _reactionPreviewFeedItemCategory, item);
-                _serverSystemStorage.EnqueueJob(_tenantContext.HostOdinId, CronJobType.FeedFileDistribution, new FeedDistributionInfo()
-                {
-                    OdinId = _tenantContext.HostOdinId,
-                });
+                await EnqueueFollowers(notification);
+                EnqueueCronJob();
             }
+        }
+
+        private void EnqueueCronJob()
+        {
+            _serverSystemStorage.EnqueueJob(_tenantContext.HostOdinId, CronJobType.FeedDistribution, new FeedDistributionInfo()
+            {
+                OdinId = _tenantContext.HostOdinId,
+            });
         }
 
         private Guid CreateFileKey(InternalDriveFileId file)
@@ -392,6 +404,17 @@ namespace Youverse.Core.Services.DataSubscription
         {
             var drive = await _driveManager.GetDrive(driveId, false);
             return drive.AllowSubscriptions && drive.TargetDriveInfo.Type == SystemDriveConstants.ChannelDriveType;
+        }
+
+        private void AddToFeedOutbox(OdinId recipient, ReactionPreviewDistributionItem item)
+        {
+            _tenantSystemStorage.Feedbox.Upsert(new()
+            {
+                recipient = recipient,
+                fileId = item.SourceFile.FileId,
+                driveId = item.SourceFile.DriveId,
+                value = DotYouSystemSerializer.Serialize(item).ToUtf8ByteArray()
+            });
         }
     }
 

@@ -4,6 +4,5 @@ public enum CronJobType
 {
     PendingTransfer = 101,
     GenerateCertificate = 202,
-    FeedReactionPreviewDistribution = 303,
-    FeedFileDistribution = 350
+    FeedDistribution = 303
 }

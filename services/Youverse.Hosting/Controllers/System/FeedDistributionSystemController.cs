@@ -22,11 +22,11 @@ namespace Youverse.Hosting.Controllers.System
         {
             _distributionService = distributionService;
         }
-        
+
         [HttpPost("files")]
-        public async Task<bool> DistributeFiles()
+        public async Task<bool> DistributeFiles(int batchSize = 10)
         {
-            await _distributionService.DistributeMetadataItems();
+            await _distributionService.DistributeQueuedMetadataItems(batchSize);
             return true;
         }
 

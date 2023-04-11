@@ -70,7 +70,7 @@ namespace Youverse.Core.Services.Workers.DefaultCron
                     }
                 }
 
-                if (item.type == (Int32)CronJobType.FeedReactionPreviewDistribution)
+                if (item.type == (Int32)CronJobType.FeedDistribution)
                 {
                     var job = new FeedDistributionJob();
                     var success = await job.Execute(item);
