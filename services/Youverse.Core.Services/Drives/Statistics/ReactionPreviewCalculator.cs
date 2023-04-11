@@ -39,7 +39,6 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
             return;
         }
 
-
         //look up the fileId by  updatedFileHeader.FileMetadata.ReferencedFile.GlobalTransitId
         var (fs, _) = _fileSystemResolver.ResolveFileSystem(updatedFileHeader.FileMetadata.ReferencedFile).GetAwaiter().GetResult();
         if (null == fs)
@@ -107,6 +106,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
                 Created = updatedFileHeader.FileMetadata.Created,
                 Updated = updatedFileHeader.FileMetadata.Updated,
                 OdinId = _contextAccessor.GetCurrent().Caller.OdinId,
+                IsEncrypted = updatedFileHeader.FileMetadata.PayloadIsEncrypted,
                 JsonContent = updatedFileHeader.FileMetadata.AppData.JsonContent,
                 Reactions = new List<ReactionContentPreview>()
             };
@@ -129,6 +129,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
             Created = updatedFileHeader.FileMetadata.Created,
             Updated = updatedFileHeader.FileMetadata.Updated,
             OdinId = _contextAccessor.GetCurrent().Caller.OdinId,
+            IsEncrypted = updatedFileHeader.FileMetadata.PayloadIsEncrypted,
             JsonContent = updatedFileHeader.FileMetadata.AppData.JsonContent,
             Reactions = new List<ReactionContentPreview>()
         });

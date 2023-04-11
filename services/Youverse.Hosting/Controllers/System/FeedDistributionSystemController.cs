@@ -31,9 +31,9 @@ namespace Youverse.Hosting.Controllers.System
         }
 
         [HttpPost("reactionpreview")]
-        public async Task<bool> DistributeReactionPreviews()
+        public async Task<bool> DistributeReactionPreviews(int batchSize = 10)
         {
-            await _distributionService.DistributeReactionPreviews();
+            await _distributionService.DistributeQueuedReactionPreviews(batchSize);
             return true;
         }
     }

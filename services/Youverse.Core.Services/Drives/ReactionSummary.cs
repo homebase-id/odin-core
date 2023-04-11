@@ -34,4 +34,5 @@ public class CommentPreview
     public List<ReactionContentPreview> Reactions { get; set; } = new();
     public long Created { get; set; }
     public long Updated { get; set; }
+    public bool IsEncrypted { get; set; }
 }

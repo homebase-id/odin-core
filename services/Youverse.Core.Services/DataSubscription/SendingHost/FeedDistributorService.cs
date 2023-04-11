@@ -69,11 +69,6 @@ namespace Youverse.Core.Services.DataSubscription.SendingHost
             var fs = _fileSystemResolver.ResolveFileSystem(file);
             var header = await fs.Storage.GetServerFileHeader(file);
 
-            if (header.FileMetadata.PayloadIsEncrypted)
-            {
-                throw new YouverseSecurityException("Cannot send encrypted files to unconnected followers");
-            }
-
             var request = new UpdateFeedFileMetadataRequest()
             {
                 FileId = new GlobalTransitIdFileIdentifier()

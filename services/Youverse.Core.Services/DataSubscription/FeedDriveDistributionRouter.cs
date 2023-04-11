@@ -7,7 +7,6 @@ using MediatR;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
-using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Contacts.Circle;
@@ -88,7 +87,9 @@ namespace Youverse.Core.Services.DataSubscription
                     // If this is the reaction preview being updated due to an incoming comment or reaction
                     if (notification is ReactionPreviewUpdatedNotification)
                     {
-                        await EnqueueReactionPreviewForDistributionUsingFeedEndpoint(notification);
+                        //TEMP: waiting on feedback from michael
+                        await this.EnqueueFileMetadataForDistributionUsingFeedEndpoint(notification);
+                        // await EnqueueReactionPreviewForDistributionUsingFeedEndpoint(notification);
                     }
                 }
 
@@ -112,12 +113,12 @@ namespace Youverse.Core.Services.DataSubscription
             }
             else
             {
-                await EnqueueFollowers(notification);
+                await EnqueueFollowers(notification, item);
                 EnqueueCronJob();
             }
         }
 
-        private async Task EnqueueFollowers(IDriveNotification notification)
+        private async Task EnqueueFollowers(IDriveNotification notification, ReactionPreviewDistributionItem item)
         {
             var recipients = await GetFollowers(notification.File.DriveId);
             if (!recipients.Any())
@@ -125,12 +126,10 @@ namespace Youverse.Core.Services.DataSubscription
                 return;
             }
 
-            throw new NotImplementedException("need to address multiple feed distro types");
-
-            // foreach (var recipient in recipients)
-            // {
-            //     AddToFeedOutbox(recipient, item);
-            // }
+            foreach (var recipient in recipients)
+            {
+                AddToFeedOutbox(recipient, item);
+            }
         }
 
         private async Task<bool> ShouldDistribute(IDriveNotification notification)
@@ -175,30 +174,38 @@ namespace Youverse.Core.Services.DataSubscription
                 var distroItem = DotYouSystemSerializer.Deserialize<ReactionPreviewDistributionItem>(item.value.ToStringFromUtf8Bytes());
                 bool success;
 
-                if (distroItem.FeedDistroType == FeedDistroType.FileMetadata)
-                {
-                    success = await _feedDistributorService.SendFile(new InternalDriveFileId()
-                        {
-                            FileId = item.fileId,
-                            DriveId = item.driveId
-                        },
-                        distroItem.FileSystemType,
-                        (OdinId)item.recipient);
-                }
-                else if (distroItem.FeedDistroType == FeedDistroType.ReactionPreview)
-                {
-                    success = await _feedDistributorService.SendFile(new InternalDriveFileId()
-                        {
-                            FileId = item.fileId,
-                            DriveId = item.driveId
-                        },
-                        distroItem.FileSystemType,
-                        (OdinId)item.recipient);
-                }
-                else
-                {
-                    throw new YouverseSystemException("Unhandled Feed distro type");
-                }
+                success = await _feedDistributorService.SendFile(new InternalDriveFileId()
+                    {
+                        FileId = item.fileId,
+                        DriveId = item.driveId
+                    },
+                    distroItem.FileSystemType,
+                    (OdinId)item.recipient);
+                //
+                // if (distroItem.FeedDistroType == FeedDistroType.FileMetadata)
+                // {
+                //     success = await _feedDistributorService.SendFile(new InternalDriveFileId()
+                //         {
+                //             FileId = item.fileId,
+                //             DriveId = item.driveId
+                //         },
+                //         distroItem.FileSystemType,
+                //         (OdinId)item.recipient);
+                // }
+                // else if (distroItem.FeedDistroType == FeedDistroType.ReactionPreview)
+                // {
+                //     success = await _feedDistributorService.SendFile(new InternalDriveFileId()
+                //         {
+                //             FileId = item.fileId,
+                //             DriveId = item.driveId
+                //         },
+                //         distroItem.FileSystemType,
+                //         (OdinId)item.recipient);
+                // }
+                // else
+                // {
+                //     throw new YouverseSystemException("Unhandled Feed distro type");
+                // }
 
                 if (success)
                 {
@@ -211,15 +218,10 @@ namespace Youverse.Core.Services.DataSubscription
             }
         }
 
-        public async Task DistributeReactionPreviews()
+        public async Task DistributeQueuedReactionPreviews(int batchSize)
         {
-            var items = _tenantSystemStorage.ThreeKeyValueStorage.GetByKey2And3<ReactionPreviewDistributionItem>(_feedItemCategory,
-                _reactionPreviewFeedItemCategory);
-
-            foreach (var distroItem in items)
-            {
-                await DistributeReactionPreviewNow(distroItem);
-            }
+            //TODO: for now, just send metadta items until i talk with michael
+            await this.DistributeQueuedMetadataItems(batchSize);
         }
 
         private async Task DistributeMetadataNow(ReactionPreviewDistributionItem distroItem)
@@ -231,7 +233,7 @@ namespace Youverse.Core.Services.DataSubscription
             foreach (var recipient in recipients)
             {
                 var success = await _feedDistributorService.SendFile(file, distroItem.FileSystemType, recipient);
-                if (success)
+                if (!success)
                 {
                     // fall back to queue
                     AddToFeedOutbox(recipient, distroItem);
@@ -381,7 +383,7 @@ namespace Youverse.Core.Services.DataSubscription
             }
             else
             {
-                await EnqueueFollowers(notification);
+                await EnqueueFollowers(notification, item);
                 EnqueueCronJob();
             }
         }
@@ -415,25 +417,6 @@ namespace Youverse.Core.Services.DataSubscription
                 driveId = item.SourceFile.DriveId,
                 value = DotYouSystemSerializer.Serialize(item).ToUtf8ByteArray()
             });
-        }
-    }
-
-    public class ReadFollowersContext : IDisposable
-    {
-        private readonly SecurityGroupType _prevSecurityGroupType;
-        private readonly DotYouContextAccessor _dotYouContextAccessor;
-
-        public ReadFollowersContext(DotYouContextAccessor dotYouContextAccessor)
-        {
-            _dotYouContextAccessor = dotYouContextAccessor;
-            _prevSecurityGroupType = _dotYouContextAccessor.GetCurrent().Caller.SecurityLevel;
-
-            _dotYouContextAccessor.GetCurrent().Caller.SecurityLevel = SecurityGroupType.System;
-        }
-
-        public void Dispose()
-        {
-            _dotYouContextAccessor.GetCurrent().Caller.SecurityLevel = _prevSecurityGroupType;
         }
     }
 }

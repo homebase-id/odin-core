@@ -23,12 +23,6 @@ namespace Youverse.Core.Services.Workers.FeedDistributionApp
             if (record.type == (Int32)CronJobType.FeedDistribution)
             {
                 var distroTask = DotYouSystemSerializer.Deserialize<FeedDistributionInfo>(record.data.ToStringFromUtf8Bytes());
-                return await DistributeReactionPreview(distroTask);
-            }
-
-            if (record.type == (Int32)CronJobType.FeedFileDistribution)
-            {
-                var distroTask = DotYouSystemSerializer.Deserialize<FeedDistributionInfo>(record.data.ToStringFromUtf8Bytes());
                 return await DistributeFile(distroTask);
             }
             
@@ -37,15 +31,18 @@ namespace Youverse.Core.Services.Workers.FeedDistributionApp
 
         private async Task<bool> DistributeReactionPreview(FeedDistributionInfo info)
         {
+            const int batchSize = 10;  //TODO: config
+
             var svc = SystemHttpClient.CreateHttps<IFeedDistributionCronClient>(info.OdinId);
-            var response = await svc.DistributeReactionPreviewUpdates();
+            var response = await svc.DistributeReactionPreviewUpdates(batchSize);
             return response.IsSuccessStatusCode;
         }
         
         private async Task<bool> DistributeFile(FeedDistributionInfo info)
         {
+            const int batchSize = 10; //TODO: config
             var svc = SystemHttpClient.CreateHttps<IFeedDistributionCronClient>(info.OdinId);
-            var response = await svc.DistributeFiles();
+            var response = await svc.DistributeFiles(batchSize);
             return response.IsSuccessStatusCode;
         }
     }

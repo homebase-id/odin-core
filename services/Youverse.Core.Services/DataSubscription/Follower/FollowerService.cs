@@ -416,7 +416,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
                 NotificationType = FollowerNotificationType.SelectedChannels,
                 Channels = dbRecords.Select(record => new TargetDrive()
                 {
-                    Alias = record.driveId,
+                    Alias = record.driveId, //Note: i really store the alias
                     Type = SystemDriveConstants.ChannelDriveType
                 }).ToList()
             };

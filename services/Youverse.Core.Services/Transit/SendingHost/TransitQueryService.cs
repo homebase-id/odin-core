@@ -198,7 +198,9 @@ public class TransitQueryService
         {
             var httpClient = _dotYouHttpClientFactory.CreateClient<ITransitHostHttpClient>(odinId, fileSystemType);
             return (icr, httpClient);
-        } else {
+        }
+        else
+        {
             var httpClient = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(odinId, authToken, fileSystemType);
             return (icr, httpClient);
         }
