@@ -27,7 +27,7 @@ namespace IdentityDatabaseTests
             db.tblFeedDistributionOutbox.Insert(new FeedDistributionOutboxRecord() { driveId = driveId, fileId = f2, recipient = "frodo.baggins.me", value = v2 });
             var tshi = UnixTimeUtc.Now();
 
-            var r = db.tblFeedDistributionOutbox.Get(f1, driveId);
+            var r = db.tblFeedDistributionOutbox.Get(f1, driveId, "frodo.baggins.me");
             if (ByteArrayUtil.muidcmp(r.fileId, f1) != 0)
                 Assert.Fail();
             if (ByteArrayUtil.muidcmp(r.value, v1) != 0)
@@ -35,7 +35,7 @@ namespace IdentityDatabaseTests
             if ((r.timeStamp < tslo) || (r.timeStamp > tshi))
                 Assert.Fail();
 
-            r = db.tblFeedDistributionOutbox.Get(f2, driveId);
+            r = db.tblFeedDistributionOutbox.Get(f2, driveId, "frodo.baggins.me");
             if (ByteArrayUtil.muidcmp(r.fileId, f2) != 0)
                 Assert.Fail();
             if (ByteArrayUtil.muidcmp(r.value, v2) != 0)
