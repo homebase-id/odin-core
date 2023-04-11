@@ -39,7 +39,7 @@ namespace Youverse.Core.Services.Workers.DefaultCron
 
             foreach (var item in items)
             {
-                if (item.type == (Int32)CronJobType.PendingTransfer)
+                if (item.type == (Int32)CronJobType.PendingTransitTransfer)
                 {
                     var identity = (OdinId)item.data.ToStringFromUtf8Bytes();
                     var success = await StokeOutbox(identity, batchSize: 1);

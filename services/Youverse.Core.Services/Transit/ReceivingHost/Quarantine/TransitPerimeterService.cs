@@ -356,12 +356,14 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
         private async Task<bool> TryDirectWriteFile(IncomingTransferStateItem stateItem, FileMetadata metadata)
         {
             _fileSystem.Storage.AssertCanWriteToDrive(stateItem.TempFile.DriveId);
-
+            
             //HACK: if it's not a connected token
             if (_contextAccessor.GetCurrent().AuthContext.ToLower() != "TransitCertificate".ToLower())
             {
                 return false;
             }
+            
+            //TODO: check if any apps are online adn we can snag the storage key
 
             TransitFileWriter writer = new TransitFileWriter(_contextAccessor, _fileSystemResolver);
             var sender = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();

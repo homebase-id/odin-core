@@ -87,7 +87,6 @@ namespace Youverse.Core.Services.DataSubscription
                     // If this is the reaction preview being updated due to an incoming comment or reaction
                     if (notification is ReactionPreviewUpdatedNotification)
                     {
-                        //TEMP: waiting on feedback from michael
                         await this.EnqueueFileMetadataForDistributionUsingFeedEndpoint(notification);
                         // await EnqueueReactionPreviewForDistributionUsingFeedEndpoint(notification);
                     }
@@ -172,40 +171,13 @@ namespace Youverse.Core.Services.DataSubscription
             foreach (var item in batch)
             {
                 var distroItem = DotYouSystemSerializer.Deserialize<ReactionPreviewDistributionItem>(item.value.ToStringFromUtf8Bytes());
-                bool success;
-
-                success = await _feedDistributorService.SendFile(new InternalDriveFileId()
+                bool success = await _feedDistributorService.SendFile(new InternalDriveFileId()
                     {
                         FileId = item.fileId,
                         DriveId = item.driveId
                     },
                     distroItem.FileSystemType,
                     (OdinId)item.recipient);
-                //
-                // if (distroItem.FeedDistroType == FeedDistroType.FileMetadata)
-                // {
-                //     success = await _feedDistributorService.SendFile(new InternalDriveFileId()
-                //         {
-                //             FileId = item.fileId,
-                //             DriveId = item.driveId
-                //         },
-                //         distroItem.FileSystemType,
-                //         (OdinId)item.recipient);
-                // }
-                // else if (distroItem.FeedDistroType == FeedDistroType.ReactionPreview)
-                // {
-                //     success = await _feedDistributorService.SendFile(new InternalDriveFileId()
-                //         {
-                //             FileId = item.fileId,
-                //             DriveId = item.driveId
-                //         },
-                //         distroItem.FileSystemType,
-                //         (OdinId)item.recipient);
-                // }
-                // else
-                // {
-                //     throw new YouverseSystemException("Unhandled Feed distro type");
-                // }
 
                 if (success)
                 {

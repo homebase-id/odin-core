@@ -287,15 +287,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             var sharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray(); //TODO: what shared secret for this?
             
             var driveId = (await _driveManager.GetDriveIdByAlias(feedDrive, true)).GetValueOrDefault();
-            var thing = new
-            {
-                Caller = odinId,
-                Recipient = _tenantContext.HostOdinId,
-                DriveId = driveId,
-            };
-
-            Debug.WriteLine($"Caller={thing.Caller}\tRecipient={thing.Recipient}\tDriveId={thing.DriveId}");
-
+            
             var driveGrants = new List<DriveGrant>()
             {
                 new()

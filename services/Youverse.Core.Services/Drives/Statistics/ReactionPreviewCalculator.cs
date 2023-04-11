@@ -123,14 +123,15 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
             return;
         }
 
+        var isEncrypted = updatedFileHeader.FileMetadata.PayloadIsEncrypted;
         targetFileReactionPreview.Comments.Add(new CommentPreview()
         {
             FileId = updatedFileHeader.FileMetadata.File.FileId,
             Created = updatedFileHeader.FileMetadata.Created,
             Updated = updatedFileHeader.FileMetadata.Updated,
             OdinId = _contextAccessor.GetCurrent().Caller.OdinId,
-            IsEncrypted = updatedFileHeader.FileMetadata.PayloadIsEncrypted,
-            JsonContent = updatedFileHeader.FileMetadata.AppData.JsonContent,
+            IsEncrypted = isEncrypted,
+            JsonContent = isEncrypted ? "" : updatedFileHeader.FileMetadata.AppData.JsonContent,
             Reactions = new List<ReactionContentPreview>()
         });
     }

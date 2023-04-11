@@ -20,7 +20,7 @@ namespace Youverse.Core.Services.Transit.SendingHost.Outbox
         {
             try
             {
-                _serverSystemStorage.EnqueueJob(sender, CronJobType.PendingTransfer, sender.DomainName.ToLower().ToUtf8ByteArray());
+                _serverSystemStorage.EnqueueJob(sender, CronJobType.PendingTransitTransfer, sender.DomainName.ToLower().ToUtf8ByteArray());
             }
             catch (Microsoft.Data.Sqlite.SqliteException ex)
             {
