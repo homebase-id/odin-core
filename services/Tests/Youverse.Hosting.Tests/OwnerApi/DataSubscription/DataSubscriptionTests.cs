@@ -1024,19 +1024,16 @@ public class DataSubscriptionTests
         await pippinOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
         await merryOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
 
-
         var qp = new FileQueryParams()
         {
             TargetDrive = SystemDriveConstants.FeedDrive,
             // FileType = new List<int>() { fileType }
             GlobalTransitId = new List<Guid>() { uploadResult.GlobalTransitId.GetValueOrDefault() }
         };
-
         //All should have the file
         await AssertFeedDriveHasFile(samOwnerClient, qp, uploadedContent, uploadResult);
         await AssertFeedDriveHasFile(pippinOwnerClient, qp, uploadedContent, uploadResult);
         await AssertFeedDriveHasFile(merryOwnerClient, qp, uploadedContent, uploadResult);
-
         //All done
         await frodoOwnerClient.Network.DisconnectFrom(samOwnerClient.Identity);
         await samOwnerClient.Network.DisconnectFrom(frodoOwnerClient.Identity);

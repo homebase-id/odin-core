@@ -1,4 +1,4 @@
-﻿using System.Threading.Tasks;
+using System.Threading.Tasks;
 using Refit;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;

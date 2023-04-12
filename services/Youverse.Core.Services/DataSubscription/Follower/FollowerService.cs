@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -287,7 +287,6 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             var sharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray(); //TODO: what shared secret for this?
             
             var driveId = (await _driveManager.GetDriveIdByAlias(feedDrive, true)).GetValueOrDefault();
-            
             var driveGrants = new List<DriveGrant>()
             {
                 new()
