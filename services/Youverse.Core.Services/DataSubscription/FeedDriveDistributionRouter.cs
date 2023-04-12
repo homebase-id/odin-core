@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Contacts.Circle;
@@ -102,7 +103,7 @@ namespace Youverse.Core.Services.DataSubscription
                 SourceFile = notification.ServerFileHeader.FileMetadata!.File,
                 FileSystemType = notification.ServerFileHeader.ServerMetadata.FileSystemType
             };
-            
+
             if (_youverseConfiguration.Feed.InstantDistribution)
             {
                 await DistributeMetadata(item);
@@ -208,7 +209,12 @@ namespace Youverse.Core.Services.DataSubscription
             var driveId = distroItem.SourceFile.DriveId;
             var file = distroItem.SourceFile;
 
-            var recipients = await GetFollowers(driveId);
+            List<OdinId> recipients;
+            using (new ReadFollowersContext(_contextAccessor))
+            {
+                recipients = await GetFollowers(driveId);
+            }
+
             if (!recipients.Any())
             {
                 return;
@@ -231,10 +237,9 @@ namespace Youverse.Core.Services.DataSubscription
         /// </summary>
         private async Task<List<OdinId>> DistributeToConnectedFollowersUsingTransit(IDriveNotification notification)
         {
-            var driveId = notification.File.DriveId;
             var file = notification.File;
 
-            var recipients = await GetFollowers(driveId);
+            var recipients = await GetFollowers(notification.File.DriveId);
             if (!recipients.Any())
             {
                 return new List<OdinId>();
@@ -263,7 +268,9 @@ namespace Youverse.Core.Services.DataSubscription
         private async Task<List<OdinId>> GetFollowers(Guid driveId)
         {
             int maxRecords = 10000; //TODO: cursor thru batches instead
-            var driveFollowers = await _followerService.GetFollowers(driveId, maxRecords, cursor: "");
+
+            var td = _contextAccessor.GetCurrent().PermissionsContext.GetTargetDrive(driveId);
+            var driveFollowers = await _followerService.GetFollowers(td, maxRecords, cursor: "");
             var allDriveFollowers = await _followerService.GetFollowersOfAllNotifications(maxRecords, cursor: "");
 
             var recipients = new List<OdinId>();
@@ -307,7 +314,6 @@ namespace Youverse.Core.Services.DataSubscription
                     {
                         FileSystemType = header.ServerMetadata.FileSystemType,
                         TransferFileType = TransferFileType.Normal,
-                        ClientAccessTokenSource = ClientAccessTokenSource.Circle
                     },
                     recipients.Select(r => r.DomainName).ToList());
 
@@ -364,6 +370,25 @@ namespace Youverse.Core.Services.DataSubscription
         {
             var drive = await _driveManager.GetDrive(driveId, false);
             return drive.AllowSubscriptions && drive.TargetDriveInfo.Type == SystemDriveConstants.ChannelDriveType;
+        }
+    }
+
+    public class ReadFollowersContext : IDisposable
+    {
+        private readonly SecurityGroupType _prevSecurityGroupType;
+        private readonly DotYouContextAccessor _dotYouContextAccessor;
+
+        public ReadFollowersContext(DotYouContextAccessor dotYouContextAccessor)
+        {
+            _dotYouContextAccessor = dotYouContextAccessor;
+            _prevSecurityGroupType = _dotYouContextAccessor.GetCurrent().Caller.SecurityLevel;
+
+            _dotYouContextAccessor.GetCurrent().Caller.SecurityLevel = SecurityGroupType.System;
+        }
+
+        public void Dispose()
+        {
+            _dotYouContextAccessor.GetCurrent().Caller.SecurityLevel = _prevSecurityGroupType;
         }
     }
 }

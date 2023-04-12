@@ -42,7 +42,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
         protected SharedSecretEncryptedTransitPayload CreateSharedSecretEncryptedPayload(ClientAccessToken token, object o)
         {
             var iv = ByteArrayUtil.GetRndByteArray(16);
-            var key = token.SharedSecret;
+            var key = token?.SharedSecret ?? new SensitiveByteArray(Guid.Empty.ToByteArray());
             var jsonBytes = DotYouSystemSerializer.Serialize(o).ToUtf8ByteArray();
             // var encryptedBytes = AesCbc.Encrypt(jsonBytes, ref key, iv);
             var encryptedBytes = jsonBytes;
@@ -58,39 +58,52 @@ namespace Youverse.Core.Services.Transit.SendingHost
 
         protected async Task<ClientAccessToken> ResolveClientAccessToken(OdinId recipient, ClientAccessTokenSource source)
         {
-            if (source == ClientAccessTokenSource.Circle)
+            //assume source == ClientAccessTokenSource.Circle)
+
+            var icr = await _circleNetworkService.GetIdentityConnectionRegistration(recipient);
+            if (icr?.IsConnected() == false)
             {
-                var icr = await _circleNetworkService.GetIdentityConnectionRegistration(recipient);
-                if (icr?.IsConnected() == false)
+                if (source == ClientAccessTokenSource.Fallback)
                 {
-                    throw new YouverseClientException("Cannot resolve client access token; not connected", YouverseClientErrorCode.NotAConnectedIdentity);
+                    return null;
+                    // return new ClientAccessToken()
+                    // {
+                    //     Id = Guid.Empty,
+                    //     AccessTokenHalfKey = Guid.Empty.ToByteArray().ToSensitiveByteArray(),
+                    //     ClientTokenType = ClientTokenType.Follower,
+                    //     SharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray(),
+                    // };
                 }
-                return icr!.CreateClientAccessToken();
+
+                throw new YouverseClientException("Cannot resolve client access token; not connected", YouverseClientErrorCode.NotAConnectedIdentity);
             }
 
-            if (source == ClientAccessTokenSource.Follower)
-            {
-                var def = await _followerService.GetFollower(recipient);
-                if (null == def)
-                {
-                    throw new YouverseClientException("Not a follower", YouverseClientErrorCode.NotAFollowerIdentity);
-                }
-                
-                return def!.CreateClientAccessToken();
-            }
-            
-            if (source == ClientAccessTokenSource.IdentityIFollow)
-            {
-                var def = await _followerService.GetIdentityIFollow(recipient);
-                if (null == def)
-                {
-                    throw new YouverseClientException("Identity is not followed", YouverseClientErrorCode.IdentityNotFollowed);
-                }
-                
-                return def!.CreateClientAccessToken();
-            }
+            return icr!.CreateClientAccessToken();
 
-            throw new ArgumentException("Invalid ClientAccessTokenSource");
+
+            // if (source == ClientAccessTokenSource.Follower)
+            // {
+            //     var def = await _followerService.GetFollower(recipient);
+            //     if (null == def)
+            //     {
+            //         throw new YouverseClientException("Not a follower", YouverseClientErrorCode.NotAFollowerIdentity);
+            //     }
+            //     
+            //     return def!.CreateClientAccessToken();
+            // }
+            //
+            // if (source == ClientAccessTokenSource.IdentityIFollow)
+            // {
+            //     var def = await _followerService.GetIdentityIFollow(recipient);
+            //     if (null == def)
+            //     {
+            //         throw new YouverseClientException("Identity is not followed", YouverseClientErrorCode.IdentityNotFollowed);
+            //     }
+            //     
+            //     return def!.CreateClientAccessToken();
+            // }
+            //
+            // throw new ArgumentException("Invalid ClientAccessTokenSource");
         }
 
         protected async Task<(ClientAccessToken token, ITransitHostReactionHttpClient client)> CreateReactionContentClient(OdinId odinId, ClientAccessTokenSource tokenSource,
@@ -98,12 +111,23 @@ namespace Youverse.Core.Services.Transit.SendingHost
         {
             var token = await ResolveClientAccessToken(odinId, tokenSource);
 
-            var httpClient = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostReactionHttpClient>(
-                odinId, token.ToAuthenticationToken(), fileSystemType);
+            if (token == null)
+            {
+                var httpClient = _dotYouHttpClientFactory.CreateClient<ITransitHostReactionHttpClient>(odinId, fileSystemType);
+                return (null, httpClient);
+            }
+            else
+            {
+                var httpClient = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostReactionHttpClient>(odinId, token.ToAuthenticationToken(), fileSystemType);
+                return (token, httpClient);
+            }
 
-            return (token, httpClient);
+
+            // var httpClient = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostReactionHttpClient>(
+            //     odinId, token?.ToAuthenticationToken(), fileSystemType);
+            // return (token, httpClient);
         }
-        
+
         protected async Task<T> DecryptUsingSharedSecret<T>(SharedSecretEncryptedTransitPayload payload, ClientAccessTokenSource tokenSource)
         {
             var caller = DotYouContext.Caller.OdinId;
@@ -114,7 +138,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
             // var sharedSecret = t.SharedSecret;
             // var encryptedBytes = Convert.FromBase64String(payload.Data);
             // var decryptedBytes = AesCbc.Decrypt(encryptedBytes, ref sharedSecret, payload.Iv);
-         
+
             var decryptedBytes = Convert.FromBase64String(payload.Data);
             var json = decryptedBytes.ToStringFromUtf8Bytes();
             return await Task.FromResult(DotYouSystemSerializer.Deserialize<T>(json));

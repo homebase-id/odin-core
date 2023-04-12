@@ -27,6 +27,6 @@ namespace Youverse.Core.Storage
         TableCircleMember CircleMemberStorage { get; }
 
         DatabaseBase.LogicCommitUnit CreateCommitUnitOfWork();
-
+        
     }
 }

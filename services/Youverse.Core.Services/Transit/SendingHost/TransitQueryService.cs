@@ -192,9 +192,16 @@ public class TransitQueryService
     private async Task<(IdentityConnectionRegistration, ITransitHostHttpClient)> CreateClient(OdinId odinId, FileSystemType? fileSystemType)
     {
         var icr = await _circleNetworkService.GetIdentityConnectionRegistration(odinId);
-        var httpClient = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(odinId, icr.CreateClientAuthToken(), fileSystemType);
 
-        return (icr, httpClient);
+        var authToken = icr.IsConnected() ? icr.CreateClientAuthToken() : null;
+        if (authToken == null)
+        {
+            var httpClient = _dotYouHttpClientFactory.CreateClient<ITransitHostHttpClient>(odinId, fileSystemType);
+            return (icr, httpClient);
+        } else {
+            var httpClient = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(odinId, authToken, fileSystemType);
+            return (icr, httpClient);
+        }
     }
 
     private List<SharedSecretEncryptedFileHeader> TransformSharedSecret(IEnumerable<SharedSecretEncryptedFileHeader> headers,

@@ -14,13 +14,18 @@ public enum ClientAccessTokenSource
     /// </summary>
     Circle = 1,
     
-    /// <summary>
-    /// Get the recipient's token from the <see cref="FollowerService"/> of an identity that follows me
-    /// </summary>
-    Follower = 2,
+    // /// <summary>
+    // /// Get the recipient's token from the <see cref="FollowerService"/> of an identity that follows me
+    // /// </summary>
+    // Follower = 2,
+    //
+    // /// <summary>
+    // /// Get the recipient's token from the <see cref="FollowerService"/> of an identity I follow
+    // /// </summary>
+    // IdentityIFollow = 3,
     
     /// <summary>
-    /// Get the recipient's token from the <see cref="FollowerService"/> of an identity I follow
+    /// 
     /// </summary>
-    IdentityIFollow = 3
+    Fallback = 96
 }
