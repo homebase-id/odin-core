@@ -131,10 +131,12 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         private static Object _delete0Lock = new Object();
         private SqliteParameter _delete0Param1 = null;
         private SqliteParameter _delete0Param2 = null;
+        private SqliteParameter _delete0Param3 = null;
         private SqliteCommand _get0Command = null;
         private static Object _get0Lock = new Object();
         private SqliteParameter _get0Param1 = null;
         private SqliteParameter _get0Param2 = null;
+        private SqliteParameter _get0Param3 = null;
 
         public TableFeedDistributionOutboxCRUD(IdentityDatabase db) : base(db)
         {
@@ -179,7 +181,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                      +"popStamp BLOB , "
                      +"created INT NOT NULL, "
                      +"modified INT  "
-                     +", PRIMARY KEY (fileId,driveId)"
+                     +", PRIMARY KEY (fileId,driveId,recipient)"
                      +");"
                      +"CREATE INDEX IF NOT EXISTS Idx0TableFeedDistributionOutboxCRUD ON feedDistributionOutbox(timeStamp);"
                      +"CREATE INDEX IF NOT EXISTS Idx1TableFeedDistributionOutboxCRUD ON feedDistributionOutbox(popStamp);"
@@ -245,8 +247,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _upsertCommand = _database.CreateCommand();
                     _upsertCommand.CommandText = "INSERT INTO feedDistributionOutbox (fileId,driveId,recipient,timeStamp,value,popStamp,created,modified) " +
                                                  "VALUES ($fileId,$driveId,$recipient,$timeStamp,$value,$popStamp,$created,$modified)"+
-                                                 "ON CONFLICT (fileId,driveId) DO UPDATE "+
-                                                 "SET recipient = $recipient,timeStamp = $timeStamp,value = $value,popStamp = $popStamp,modified = $modified;";
+                                                 "ON CONFLICT (fileId,driveId,recipient) DO UPDATE "+
+                                                 "SET timeStamp = $timeStamp,value = $value,popStamp = $popStamp,modified = $modified;";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
                     _upsertParam1.ParameterName = "$fileId";
@@ -293,8 +295,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 {
                     _updateCommand = _database.CreateCommand();
                     _updateCommand.CommandText = "UPDATE feedDistributionOutbox " +
-                                                 "SET recipient = $recipient,timeStamp = $timeStamp,value = $value,popStamp = $popStamp,modified = $modified "+
-                                                 "WHERE (fileId = $fileId,driveId = $driveId)";
+                                                 "SET timeStamp = $timeStamp,value = $value,popStamp = $popStamp,modified = $modified "+
+                                                 "WHERE (fileId = $fileId,driveId = $driveId,recipient = $recipient)";
                     _updateParam1 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam1);
                     _updateParam1.ParameterName = "$fileId";
@@ -417,31 +419,41 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             return item;
        }
 
-        public int Delete(Guid fileId,Guid driveId)
+        public int Delete(Guid fileId,Guid driveId,string recipient)
         {
+            if (recipient == null) throw new Exception("Cannot be null");
+            if (recipient?.Length < 0) throw new Exception("Too short");
+            if (recipient?.Length > 65535) throw new Exception("Too long");
             lock (_delete0Lock)
             {
                 if (_delete0Command == null)
                 {
                     _delete0Command = _database.CreateCommand();
                     _delete0Command.CommandText = "DELETE FROM feedDistributionOutbox " +
-                                                 "WHERE fileId = $fileId AND driveId = $driveId";
+                                                 "WHERE fileId = $fileId AND driveId = $driveId AND recipient = $recipient";
                     _delete0Param1 = _delete0Command.CreateParameter();
                     _delete0Command.Parameters.Add(_delete0Param1);
                     _delete0Param1.ParameterName = "$fileId";
                     _delete0Param2 = _delete0Command.CreateParameter();
                     _delete0Command.Parameters.Add(_delete0Param2);
                     _delete0Param2.ParameterName = "$driveId";
+                    _delete0Param3 = _delete0Command.CreateParameter();
+                    _delete0Command.Parameters.Add(_delete0Param3);
+                    _delete0Param3.ParameterName = "$recipient";
                     _delete0Command.Prepare();
                 }
                 _delete0Param1.Value = fileId.ToByteArray();
                 _delete0Param2.Value = driveId.ToByteArray();
+                _delete0Param3.Value = recipient;
                 return _database.ExecuteNonQuery(_delete0Command);
             } // Lock
         }
 
-        public FeedDistributionOutboxRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid fileId,Guid driveId)
+        public FeedDistributionOutboxRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid fileId,Guid driveId,string recipient)
         {
+            if (recipient == null) throw new Exception("Cannot be null");
+            if (recipient?.Length < 0) throw new Exception("Too short");
+            if (recipient?.Length > 65535) throw new Exception("Too long");
             var result = new List<FeedDistributionOutboxRecord>();
             byte[] _tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
@@ -451,26 +463,20 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             var item = new FeedDistributionOutboxRecord();
             item.fileId = fileId;
             item.driveId = driveId;
+            item.recipient = recipient;
 
             if (rdr.IsDBNull(0))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.recipient = rdr.GetString(0);
+                item.timeStamp = new UnixTimeUtc(rdr.GetInt64(0));
             }
 
             if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.timeStamp = new UnixTimeUtc(rdr.GetInt64(1));
-            }
-
-            if (rdr.IsDBNull(2))
                 item.value = null;
             else
             {
-                bytesRead = rdr.GetBytes(2, 0, _tmpbuf, 0, 65535+1);
+                bytesRead = rdr.GetBytes(1, 0, _tmpbuf, 0, 65535+1);
                 if (bytesRead > 65535)
                     throw new Exception("Too much data in value...");
                 if (bytesRead < 0)
@@ -479,56 +485,63 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 Buffer.BlockCopy(_tmpbuf, 0, item.value, 0, (int) bytesRead);
             }
 
-            if (rdr.IsDBNull(3))
+            if (rdr.IsDBNull(2))
                 item.popStamp = null;
             else
             {
-                bytesRead = rdr.GetBytes(3, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(2, 0, _guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in popStamp...");
                 item.popStamp = new Guid(_guid);
             }
 
-            if (rdr.IsDBNull(4))
+            if (rdr.IsDBNull(3))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.created = new UnixTimeUtcUnique(rdr.GetInt64(4));
+                item.created = new UnixTimeUtcUnique(rdr.GetInt64(3));
             }
 
-            if (rdr.IsDBNull(5))
+            if (rdr.IsDBNull(4))
                 item.modified = null;
             else
             {
-                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(5));
+                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(4));
             }
             return item;
        }
 
-        public FeedDistributionOutboxRecord Get(Guid fileId,Guid driveId)
+        public FeedDistributionOutboxRecord Get(Guid fileId,Guid driveId,string recipient)
         {
+            if (recipient == null) throw new Exception("Cannot be null");
+            if (recipient?.Length < 0) throw new Exception("Too short");
+            if (recipient?.Length > 65535) throw new Exception("Too long");
             lock (_get0Lock)
             {
                 if (_get0Command == null)
                 {
                     _get0Command = _database.CreateCommand();
-                    _get0Command.CommandText = "SELECT recipient,timeStamp,value,popStamp,created,modified FROM feedDistributionOutbox " +
-                                                 "WHERE fileId = $fileId AND driveId = $driveId LIMIT 1;";
+                    _get0Command.CommandText = "SELECT timeStamp,value,popStamp,created,modified FROM feedDistributionOutbox " +
+                                                 "WHERE fileId = $fileId AND driveId = $driveId AND recipient = $recipient LIMIT 1;";
                     _get0Param1 = _get0Command.CreateParameter();
                     _get0Command.Parameters.Add(_get0Param1);
                     _get0Param1.ParameterName = "$fileId";
                     _get0Param2 = _get0Command.CreateParameter();
                     _get0Command.Parameters.Add(_get0Param2);
                     _get0Param2.ParameterName = "$driveId";
+                    _get0Param3 = _get0Command.CreateParameter();
+                    _get0Command.Parameters.Add(_get0Param3);
+                    _get0Param3.ParameterName = "$recipient";
                     _get0Command.Prepare();
                 }
                 _get0Param1.Value = fileId.ToByteArray();
                 _get0Param2.Value = driveId.ToByteArray();
+                _get0Param3.Value = recipient;
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                         return null;
-                    return ReadRecordFromReader0(rdr, fileId,driveId);
+                    return ReadRecordFromReader0(rdr, fileId,driveId,recipient);
                 } // using
             } // lock
         }
