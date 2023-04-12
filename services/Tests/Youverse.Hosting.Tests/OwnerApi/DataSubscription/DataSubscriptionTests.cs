@@ -15,8 +15,6 @@ using Youverse.Core.Services.Drives.DriveCore.Query;
 using Youverse.Core.Services.Drives.DriveCore.Storage;
 using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Workers.DefaultCron;
-using Youverse.Core.Services.Workers.FeedDistributionApp;
 using Youverse.Core.Storage;
 using Youverse.Hosting.Tests.OwnerApi.ApiClient;
 
