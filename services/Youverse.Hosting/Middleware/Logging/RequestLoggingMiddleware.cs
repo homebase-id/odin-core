@@ -28,13 +28,13 @@ namespace Youverse.Hosting.Middleware.Logging
             var method = context.Request.Method;
             var path = context.Request.Path + context.Request.QueryString;
 
-            // _logger.LogInformation(
-            //     "{RemoteIp} request starting |> {Protocol} {Method} {Path}",
-            //     remoteIp,
-            //     protocol,
-            //     method, 
-            //     path
-            // );
+            _logger.LogInformation(
+                "{RemoteIp} request starting |> {Protocol} {Method} {Path}",
+                remoteIp,
+                protocol,
+                method, 
+                path
+            );
 
             // Log request headers
             if (_logger.IsEnabled(LogLevel.Debug))
@@ -44,14 +44,14 @@ namespace Youverse.Hosting.Middleware.Logging
 
             await _next(context);
 
-            // _logger.LogInformation("{RemoteIp} request finished |> {Protocol} {Method} {Path} in {Elapsed}ms {Status}",
-            //     remoteIp,
-            //     protocol,
-            //     method,
-            //     path,
-            //     stopwatch.Elapsed.TotalMilliseconds,
-            //     context.Response.StatusCode
-            // );
+            _logger.LogInformation("{RemoteIp} request finished |> {Protocol} {Method} {Path} in {Elapsed}ms {Status}",
+                remoteIp,
+                protocol,
+                method,
+                path,
+                stopwatch.Elapsed.TotalMilliseconds,
+                context.Response.StatusCode
+            );
         }
 
         // 
