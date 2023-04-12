@@ -19,8 +19,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
         /// <summary>
         /// Processes and sends any files in the outbox across all drives
         /// </summary>
-        /// <param name="batchSize"></param>
-        Task ProcessOutbox(int batchSize);
+        Task ProcessOutbox();
 
         /// <summary>
         /// Notifies the recipients the file with the <param name="globalTransitId"/> must be deleted

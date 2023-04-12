@@ -319,7 +319,7 @@ public class DataSubscriptionTests
         var standardFileUploadResult = await UploadStandardUnencryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, standardFileType);
 
         // await frodoOwnerClient.Transit.ProcessOutbox(1);
-        await frodoOwnerClient.Cron.DistributeFeedFiles(10);
+        await frodoOwnerClient.Cron.DistributeFeedFiles();
 
         await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
 
@@ -372,7 +372,7 @@ public class DataSubscriptionTests
         var commentBatch = await samOwnerClient.Drive.QueryBatch(FileSystemType.Comment, commentFileQueryParams);
         Assert.IsTrue(!commentBatch.SearchResults.Any());
 
-        await frodoOwnerClient.Cron.DistributeReactionPreviewUpdates(10);
+        await frodoOwnerClient.Cron.DistributeFeedFiles();
 
 
         //
@@ -420,7 +420,7 @@ public class DataSubscriptionTests
         var standardFileUploadResult = await UploadStandardUnencryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, standardFileType);
 
         // await frodoOwnerClient.Cron.ProcessTransitOutbox(1);
-        await frodoOwnerClient.Cron.DistributeFeedFiles(10);
+        await frodoOwnerClient.Cron.DistributeFeedFiles();
 
         //TODO: should sam have to process transit instructions for feed items?
         await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
@@ -476,7 +476,7 @@ public class DataSubscriptionTests
         Assert.IsTrue(!commentBatch.SearchResults.Any());
 
         // force frodo's identity to process the feed to distribute the post
-        await frodoOwnerClient.Cron.DistributeReactionPreviewUpdates();
+        await frodoOwnerClient.Cron.DistributeFeedFiles();
 
         //Tell frodo's identity to process the outbox due to feed distribution
         await frodoOwnerClient.Transit.ProcessOutbox(1);
@@ -556,7 +556,7 @@ public class DataSubscriptionTests
             GlobalTransitId = new List<Guid>() { standardFileUploadResult.GlobalTransitId.GetValueOrDefault() }
         };
 
-        await frodoOwnerClient.Cron.DistributeReactionPreviewUpdates();
+        await frodoOwnerClient.Cron.DistributeFeedFiles();
         // Sam should have the blog post from frodo in Sam's feed
         var batch = await samOwnerClient.Drive.QueryBatch(FileSystemType.Standard, standardFileQueryParams);
         Assert.IsTrue(batch.SearchResults.Count() == 1);
@@ -613,7 +613,7 @@ public class DataSubscriptionTests
         var commentBatch = await samOwnerClient.Drive.QueryBatch(FileSystemType.Comment, commentFileQueryParams);
         Assert.IsTrue(!commentBatch.SearchResults.Any());
 
-        await frodoOwnerClient.Cron.DistributeReactionPreviewUpdates();
+        await frodoOwnerClient.Cron.DistributeFeedFiles();
 
         //
         // Sam should, however, have a reaction summary update for that comment on the original file
@@ -639,7 +639,7 @@ public class DataSubscriptionTests
     }
 
     [Test]
-    public async Task ReactionSummaryIsDistributedWhenCommentAdded_ByAnotherConnectedIdentity_ToStandardEncryptedFile()
+    public async Task ReactionSummaryIsDistributedWhenCommentAdded_ByAnotherConnectedIdentity_ToStandardEncryptedFile_AndJsonContentIsEmpty()
     {
         const int standardFileType = 9441;
         const int commentFileType = 9999;
@@ -755,7 +755,7 @@ public class DataSubscriptionTests
         Assert.IsTrue(!commentBatch.SearchResults.Any());
 
         // force process the feed to distribute the updated reaction preview
-        await frodoOwnerClient.Cron.DistributeReactionPreviewUpdates();
+        await frodoOwnerClient.Cron.DistributeFeedFiles();
 
         // Sam should, however, have a reaction summary update for that comment on the original file
         //
@@ -767,7 +767,9 @@ public class DataSubscriptionTests
         Assert.IsTrue(theFile2.FileMetadata.GlobalTransitId == standardFileUploadResult.GlobalTransitId);
         Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview, "Reaction Preview is null");
         Assert.IsTrue(theFile2.FileMetadata.ReactionPreview.TotalCommentCount == 1);
-        Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.JsonContent == commentFile.AppData.JsonContent));
+        Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.IsEncrypted));
+        Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.JsonContent == ""));
+        // Assert.IsNotNull(theFile2.FileMetadata.ReactionPreview.Comments.SingleOrDefault(c => c.JsonContent == commentFile.AppData.JsonContent));
         //TODO: test the other file parts here
 
 

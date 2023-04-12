@@ -5,11 +5,8 @@ namespace Youverse.Core.Services.Workers.FeedDistributionApp
 {
     public interface IFeedDistributionCronClient
     {
-        [Post("/api/owner/v1/followers/system/distribute/reactionpreview")]
-        Task<ApiResponse<bool>> DistributeReactionPreviewUpdates(int batchSize);
-        
         [Post("/api/owner/v1/followers/system/distribute/files")]
-        Task<ApiResponse<bool>> DistributeFiles(int batchSize);
+        Task<ApiResponse<bool>> DistributeFiles();
     }
 }
 

@@ -24,16 +24,9 @@ namespace Youverse.Hosting.Controllers.System
         }
 
         [HttpPost("files")]
-        public async Task<bool> DistributeFiles(int batchSize = 10)
+        public async Task<bool> DistributeFiles()
         {
-            await _distributionService.DistributeQueuedMetadataItems(batchSize);
-            return true;
-        }
-
-        [HttpPost("reactionpreview")]
-        public async Task<bool> DistributeReactionPreviews(int batchSize = 10)
-        {
-            await _distributionService.DistributeQueuedReactionPreviews(batchSize);
+            await _distributionService.DistributeQueuedMetadataItems();
             return true;
         }
     }

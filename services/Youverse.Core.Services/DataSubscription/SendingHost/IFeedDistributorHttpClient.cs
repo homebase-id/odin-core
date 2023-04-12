@@ -11,8 +11,5 @@ namespace Youverse.Core.Services.DataSubscription.SendingHost
         [Post(RootPath + "/filemetadata")]
         Task<ApiResponse<HostTransitResponse>> SendFeedFileMetadata([Body] UpdateFeedFileMetadataRequest request);
         
-        [Post(RootPath + "/reactionpreview")]
-        Task<ApiResponse<HostTransitResponse>> SendReactionPreview([Body] UpdateReactionSummaryRequest request);
-
     }
 }

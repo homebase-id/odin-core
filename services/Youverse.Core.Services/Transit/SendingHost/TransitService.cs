@@ -10,6 +10,7 @@ using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Core.Services.Drives;
@@ -32,10 +33,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
         private readonly TenantContext _tenantContext;
-        private readonly ICircleNetworkService _circleNetworkService;
-        private readonly FollowerService _followerService;
-        private readonly IPublicKeyService _publicKeyService;
-
+        private readonly YouverseConfiguration _youverseConfiguration;
         public TransitService(
             DotYouContextAccessor contextAccessor,
             ITransitOutbox transitOutbox,
@@ -43,20 +41,17 @@ namespace Youverse.Core.Services.Transit.SendingHost
             IDotYouHttpClientFactory dotYouHttpClientFactory,
             TenantContext tenantContext,
             ICircleNetworkService circleNetworkService,
-            IPublicKeyService publicKeyService,
             FollowerService followerService,
             DriveManager driveManager,
-            FileSystemResolver fileSystemResolver) : base(dotYouHttpClientFactory, circleNetworkService, contextAccessor, followerService, fileSystemResolver)
+            FileSystemResolver fileSystemResolver, YouverseConfiguration youverseConfiguration) : base(dotYouHttpClientFactory, circleNetworkService, contextAccessor, followerService, fileSystemResolver)
         {
             _contextAccessor = contextAccessor;
             _transitOutbox = transitOutbox;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
             _tenantContext = tenantContext;
-            _circleNetworkService = circleNetworkService;
-            _publicKeyService = publicKeyService;
-            _followerService = followerService;
             _driveManager = driveManager;
             _fileSystemResolver = fileSystemResolver;
+            _youverseConfiguration = youverseConfiguration;
 
             _transferKeyEncryptionQueueService = new TransferKeyEncryptionQueueService(tenantSystemStorage);
         }
@@ -126,8 +121,10 @@ namespace Youverse.Core.Services.Transit.SendingHost
             _transferKeyEncryptionQueueService.Enqueue(item);
         }
 
-        public async Task ProcessOutbox(int batchSize)
+        public async Task ProcessOutbox()
         {
+            var batchSize = _youverseConfiguration.Transit.OutboxBatchSize;
+            
             //Note: here we can prioritize outbox processing by drive if need be
             var page = await _driveManager.GetDrives(PageOptions.All);
 

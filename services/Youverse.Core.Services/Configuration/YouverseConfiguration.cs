@@ -6,6 +6,7 @@ using System.Net;
 using Microsoft.Extensions.Configuration;
 using Serilog;
 using Youverse.Core.Configuration;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Certificate;
 using Youverse.Core.Services.Certificate.Renewal;
 using Youverse.Core.Util;
@@ -22,8 +23,9 @@ namespace Youverse.Core.Services.Configuration
         public LoggingSection Logging { get; }
         public QuartzSection Quartz { get; }
         public CertificateRenewalSection CertificateRenewal { get; set; }
-        
+
         public FeedSection Feed { get; }
+        public TransitSection Transit { get; }
 
         public YouverseConfiguration(IConfiguration config)
         {
@@ -33,7 +35,8 @@ namespace Youverse.Core.Services.Configuration
             Registry = new RegistrySection(config);
 
             Feed = new FeedSection(config);
-            
+            Transit = new TransitSection(config);
+
             if (config.GetSection("Development") != null)
             {
                 Development = new DevelopmentSection(config);
@@ -43,20 +46,42 @@ namespace Youverse.Core.Services.Configuration
         }
 
         //
-        
+
+        public class TransitSection
+        {
+            public TransitSection(IConfiguration config)
+            {
+                OutboxBatchSize = config.Required<int>($"Transit:{nameof(OutboxBatchSize)}");
+
+                if (OutboxBatchSize <= 0)
+                {
+                    throw new YouverseSystemException($"{nameof(OutboxBatchSize)} must be greater than 0");
+                }
+            }
+
+            public int OutboxBatchSize { get; set; }
+        }
+
         public class FeedSection
         {
             public FeedSection(IConfiguration config)
             {
                 InstantDistribution = config.Required<bool>("Feed:InstantDistribution");
+                DistributionBatchSize = config.Required<int>("Feed:DistributionBatchSize");
+
+                if (DistributionBatchSize <= 0)
+                {
+                    throw new YouverseSystemException($"{nameof(DistributionBatchSize)} must be greater than 0");
+                }
             }
+
+            public int DistributionBatchSize { get; set; }
 
             /// <summary>
             /// If true, the feed files are sent immediately to all
             /// recipients; This should be false in high traffic environments
             /// </summary>
             public bool InstantDistribution { get; }
-
         }
 
         /// <summary>
@@ -92,6 +117,7 @@ namespace Youverse.Core.Services.Configuration
                 DnsTargetAddress = config.Required<string>("Registry:DnsTargetAddress");
             }
         }
+
         public class HostSection
         {
             public string TenantDataRootPath { get; }
@@ -155,6 +181,11 @@ namespace Youverse.Core.Services.Configuration
             /// </summary>
             public int ProcessPendingCertificateOrderIntervalInSeconds { get; }
 
+            /// <summary>
+            ///  The number of items to query from the cron queue each time the job runs 
+            /// </summary>
+            public int CronBatchSize { get; }
+
             public bool EnableQuartzBackgroundService { get; }
 
             public QuartzSection(IConfiguration config)
@@ -174,6 +205,7 @@ namespace Youverse.Core.Services.Configuration
             public string LogFilePath { get; }
 
             public LoggingLevel Level { get; }
+
             public LoggingSection(IConfiguration config)
             {
                 LogFilePath = config.Required<string>("Logging:LogFilePath");

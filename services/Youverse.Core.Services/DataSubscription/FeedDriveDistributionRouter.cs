@@ -20,6 +20,7 @@ using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Core.Storage;
+using Youverse.Core.Storage.Sqlite.IdentityDatabase;
 using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.DataSubscription
@@ -29,8 +30,6 @@ namespace Youverse.Core.Services.DataSubscription
     /// </summary>
     public class FeedDriveDistributionRouter : INotificationHandler<IDriveNotification>
     {
-        private readonly GuidId _feedItemCategory = GuidId.FromString("feed_items");
-        private readonly GuidId _reactionPreviewFeedItemCategory = GuidId.FromString("reaction_preview_feed_item");
         private readonly FollowerService _followerService;
         private readonly DriveManager _driveManager;
         private readonly ITransitService _transitService;
@@ -64,7 +63,7 @@ namespace Youverse.Core.Services.DataSubscription
             _circleNetworkService = circleNetworkService;
             _youverseConfiguration = youverseConfiguration;
 
-            _feedDistributorService = new FeedDistributorService(fileSystemResolver, contextAccessor, dotYouHttpClientFactory, circleNetworkService);
+            _feedDistributorService = new FeedDistributorService(fileSystemResolver, dotYouHttpClientFactory);
         }
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
@@ -88,7 +87,6 @@ namespace Youverse.Core.Services.DataSubscription
                     if (notification is ReactionPreviewUpdatedNotification)
                     {
                         await this.EnqueueFileMetadataForDistributionUsingFeedEndpoint(notification);
-                        // await EnqueueReactionPreviewForDistributionUsingFeedEndpoint(notification);
                     }
                 }
 
@@ -165,35 +163,31 @@ namespace Youverse.Core.Services.DataSubscription
             return true;
         }
 
-        public async Task DistributeQueuedMetadataItems(int batchSize)
+        public async Task DistributeQueuedMetadataItems()
         {
-            var batch = _tenantSystemStorage.Feedbox.Pop(batchSize);
-            foreach (var item in batch)
+            async Task<(FeedDistributionOutboxRecord record, bool success)> SendFile(FeedDistributionOutboxRecord record)
             {
-                var distroItem = DotYouSystemSerializer.Deserialize<ReactionPreviewDistributionItem>(item.value.ToStringFromUtf8Bytes());
+                var distroItem = DotYouSystemSerializer.Deserialize<ReactionPreviewDistributionItem>(record.value.ToStringFromUtf8Bytes());
+                var recipient = (OdinId)record.recipient;
                 bool success = await _feedDistributorService.SendFile(new InternalDriveFileId()
                     {
-                        FileId = item.fileId,
-                        DriveId = item.driveId
+                        FileId = record.fileId,
+                        DriveId = record.driveId
                     },
                     distroItem.FileSystemType,
-                    (OdinId)item.recipient);
-
-                if (success)
-                {
-                    _tenantSystemStorage.Feedbox.PopCommitAll(item.popStamp.GetValueOrDefault());
-                }
-                else
-                {
-                    _tenantSystemStorage.Feedbox.PopCancelAll(item.popStamp.GetValueOrDefault());
-                }
+                    recipient);
+                return (record, success);
             }
-        }
 
-        public async Task DistributeQueuedReactionPreviews(int batchSize)
-        {
-            //TODO: for now, just send metadta items until i talk with michael
-            await this.DistributeQueuedMetadataItems(batchSize);
+            var batch = _tenantSystemStorage.Feedbox.Pop(_youverseConfiguration.Feed.DistributionBatchSize);
+            var tasks = new List<Task<(FeedDistributionOutboxRecord record, bool success)>>(batch.Select(SendFile));
+            await Task.WhenAll(tasks);
+
+            var successes = tasks.Where(t => t.Result.success).Select(t => t.Result.record.popStamp.GetValueOrDefault()).ToList();
+            successes.ForEach(_tenantSystemStorage.Feedbox.PopCommitAll);
+            
+            var failures = tasks.Where(t => !t.Result.success).Select(t => t.Result.record.popStamp.GetValueOrDefault()).ToList();
+            failures.ForEach(_tenantSystemStorage.Feedbox.PopCancelAll);
         }
 
         private async Task DistributeMetadataNow(ReactionPreviewDistributionItem distroItem)
@@ -208,27 +202,6 @@ namespace Youverse.Core.Services.DataSubscription
                 if (!success)
                 {
                     // fall back to queue
-                    AddToFeedOutbox(recipient, distroItem);
-                }
-            }
-        }
-
-        private async Task DistributeReactionPreviewNow(ReactionPreviewDistributionItem distroItem)
-        {
-            var driveId = distroItem.SourceFile.DriveId;
-            var file = distroItem.SourceFile;
-
-            List<OdinId> recipients;
-            using (new ReadFollowersContext(_contextAccessor))
-            {
-                recipients = await GetFollowers(driveId);
-            }
-
-            foreach (var recipient in recipients)
-            {
-                var success = await _feedDistributorService.SendReactionPreview(file, distroItem.FileSystemType, recipient);
-                if (!success)
-                {
                     AddToFeedOutbox(recipient, distroItem);
                 }
             }
@@ -339,39 +312,12 @@ namespace Youverse.Core.Services.DataSubscription
             }
         }
 
-        private async Task EnqueueReactionPreviewForDistributionUsingFeedEndpoint(IDriveNotification notification)
-        {
-            var item = new ReactionPreviewDistributionItem()
-            {
-                DriveNotificationType = notification.DriveNotificationType,
-                SourceFile = notification.ServerFileHeader.FileMetadata!.File,
-                FileSystemType = notification.ServerFileHeader.ServerMetadata.FileSystemType,
-                FeedDistroType = FeedDistroType.ReactionPreview
-            };
-
-            if (_youverseConfiguration.Feed.InstantDistribution)
-            {
-                await this.DistributeReactionPreviewNow(item);
-            }
-            else
-            {
-                await EnqueueFollowers(notification, item);
-                EnqueueCronJob();
-            }
-        }
-
         private void EnqueueCronJob()
         {
             _serverSystemStorage.EnqueueJob(_tenantContext.HostOdinId, CronJobType.FeedDistribution, new FeedDistributionInfo()
             {
                 OdinId = _tenantContext.HostOdinId,
             });
-        }
-
-        private Guid CreateFileKey(InternalDriveFileId file)
-        {
-            var bytes = HashUtil.ReduceSHA256Hash(ByteArrayUtil.Combine(file.FileId.ToByteArray(), file.DriveId.ToByteArray()));
-            return new Guid(bytes);
         }
 
         private async Task<bool> SupportsSubscription(Guid driveId)

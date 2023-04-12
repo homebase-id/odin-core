@@ -24,31 +24,13 @@ public class CronApiClient
         _identity = identity;
     }
 
-
-    public async Task DistributeAllFeedOutboxItems()
-    {
-        await this.DistributeFeedFiles();
-        await this.DistributeReactionPreviewUpdates();
-    }
-
-    public async Task DistributeReactionPreviewUpdates(int batchSize = 10)
+    public async Task DistributeFeedFiles()
     {
         using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
         {
             var transitSvc = RestService.For<IFeedDistributionCronClient>(client);
             client.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
-            var resp = await transitSvc.DistributeReactionPreviewUpdates(batchSize);
-            Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
-        }
-    }
-
-    public async Task DistributeFeedFiles(int batchSize = 10)
-    {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
-        {
-            var transitSvc = RestService.For<IFeedDistributionCronClient>(client);
-            client.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
-            var resp = await transitSvc.DistributeFiles(batchSize);
+            var resp = await transitSvc.DistributeFiles();
             Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
         }
     }

@@ -8,7 +8,7 @@ namespace Youverse.Core.Services.Workers.DefaultCron
         private const string TransitRootEndpoint = "/api/owner/v1/transit/outbox/processor";
 
         [Post(TransitRootEndpoint + "/process")]
-        Task<ApiResponse<bool>> ProcessOutbox(int batchSize);
+        Task<ApiResponse<bool>> ProcessOutbox();
         
     }
 }
