@@ -477,6 +477,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             else
             {
                 bytesRead = rdr.GetBytes(1, 0, _tmpbuf, 0, 65535+1);
+
                 if (bytesRead > 65535)
                     throw new Exception("Too much data in value...");
                 if (bytesRead < 0)
@@ -490,6 +491,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             else
             {
                 bytesRead = rdr.GetBytes(2, 0, _guid, 0, 16);
+
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in popStamp...");
                 item.popStamp = new Guid(_guid);

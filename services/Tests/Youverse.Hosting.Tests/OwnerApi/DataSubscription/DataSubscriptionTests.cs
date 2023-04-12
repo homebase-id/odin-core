@@ -1022,7 +1022,6 @@ public class DataSubscriptionTests
         await pippinOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
         await merryOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
 
-
         var qp = new FileQueryParams()
         {
             TargetDrive = SystemDriveConstants.FeedDrive,
