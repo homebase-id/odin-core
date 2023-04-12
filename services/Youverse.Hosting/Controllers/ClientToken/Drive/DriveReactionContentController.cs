@@ -73,7 +73,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("summary")]
-        public GetReactionCountsResponse GetReactionCountsByFile([FromBody] GetReactionsRequest request)
+        public GetReactionCountsResponse GetReactionCountsByFile([FromBody] GetReactionsRequest request)    
         {
             return base.GetReactionCounts(request);
         }

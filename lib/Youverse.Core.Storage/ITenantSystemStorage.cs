@@ -17,6 +17,8 @@ namespace Youverse.Core.Storage
         TableOutbox Outbox { get; }
 
         TableInbox Inbox { get; }
+        
+        public TableFeedDistributionOutbox Feedbox { get; }
 
         TableImFollowing WhoIFollow { get; }
 

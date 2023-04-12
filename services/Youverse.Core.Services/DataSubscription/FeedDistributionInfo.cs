@@ -13,4 +13,12 @@ public class ReactionPreviewDistributionItem
     public DriveNotificationType DriveNotificationType { get; set; }
     public InternalDriveFileId SourceFile { get; set; }
     public FileSystemType FileSystemType { get; set; }
+    
+    public FeedDistroType FeedDistroType { get; set; }
+}
+
+public enum FeedDistroType
+{
+    ReactionPreview = 1,
+    FileMetadata = 2
 }

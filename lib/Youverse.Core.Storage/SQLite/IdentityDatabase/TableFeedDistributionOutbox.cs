@@ -82,7 +82,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         {
             if (item.timeStamp.milliseconds == 0)
                 item.timeStamp = UnixTimeUtc.Now();
-            return base.Insert(item);
+            return base.Upsert(item);
         }
 
 

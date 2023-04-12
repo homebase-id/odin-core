@@ -26,7 +26,7 @@ namespace Youverse.Hosting.Controllers.System
         [HttpPost("process")]
         public async Task<bool> ProcessOutbox(int batchSize)
         {
-            await _transit.ProcessOutbox(batchSize);
+            await _transit.ProcessOutbox();
             return true;
         }
     }

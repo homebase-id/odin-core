@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -287,15 +287,6 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             var sharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray(); //TODO: what shared secret for this?
             
             var driveId = (await _driveManager.GetDriveIdByAlias(feedDrive, true)).GetValueOrDefault();
-            var thing = new
-            {
-                Caller = odinId,
-                Recipient = _tenantContext.HostOdinId,
-                DriveId = driveId,
-            };
-
-            Debug.WriteLine($"Caller={thing.Caller}\tRecipient={thing.Recipient}\tDriveId={thing.DriveId}");
-
             var driveGrants = new List<DriveGrant>()
             {
                 new()
@@ -416,7 +407,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
                 NotificationType = FollowerNotificationType.SelectedChannels,
                 Channels = dbRecords.Select(record => new TargetDrive()
                 {
-                    Alias = record.driveId,
+                    Alias = record.driveId, //Note: i really store the alias
                     Type = SystemDriveConstants.ChannelDriveType
                 }).ToList()
             };

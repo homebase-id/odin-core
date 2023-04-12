@@ -22,18 +22,11 @@ namespace Youverse.Hosting.Controllers.System
         {
             _distributionService = distributionService;
         }
-        
+
         [HttpPost("files")]
         public async Task<bool> DistributeFiles()
         {
-            await _distributionService.DistributeMetadataItems();
-            return true;
-        }
-
-        [HttpPost("reactionpreview")]
-        public async Task<bool> DistributeReactionPreviews()
-        {
-            await _distributionService.DistributeReactionPreviews();
+            await _distributionService.DistributeQueuedMetadataItems();
             return true;
         }
     }

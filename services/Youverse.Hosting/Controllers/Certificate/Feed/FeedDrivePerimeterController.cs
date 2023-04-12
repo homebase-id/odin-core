@@ -51,13 +51,7 @@ namespace Youverse.Hosting.Controllers.Certificate.Feed
             return await perimeterService.AcceptUpdatedFileMetadata(payload);
         }
 
-        [HttpPost("reactionpreview")]
-        public async Task<HostTransitResponse> AcceptUpdatedReactionPreview(UpdateReactionSummaryRequest payload)
-        {
-            var perimeterService = GetPerimeterService();
-            return await perimeterService.AcceptUpdatedReactionPreview(payload);
-        }
-
+      
         private FeedDistributionPerimeterService GetPerimeterService()
         {
             var fileSystem = base.GetFileSystemResolver().ResolveFileSystem();
