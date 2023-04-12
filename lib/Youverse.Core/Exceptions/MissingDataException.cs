@@ -3,7 +3,7 @@ using System.Runtime.Serialization;
 
 namespace Youverse.Core.Exceptions
 {
-    public class MissingDataException : Exception
+    public class MissingDataException : YouverseException
     {
         public MissingDataException()
         {

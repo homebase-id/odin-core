@@ -3,7 +3,7 @@ using System.Runtime.Serialization;
 
 namespace Youverse.Core.Exceptions;
 
-public class YouverseSystemException : Exception
+public class YouverseSystemException : YouverseException
 {
         
     public YouverseSystemException()
