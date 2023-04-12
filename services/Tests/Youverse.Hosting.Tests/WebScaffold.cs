@@ -64,7 +64,6 @@ namespace Youverse.Hosting.Tests
             Environment.SetEnvironmentVariable("Logging__LogFilePath", TempDataPath);
             Environment.SetEnvironmentVariable("Logging__Level", "ErrorsOnly"); //Verbose
 
-
             Environment.SetEnvironmentVariable("Quartz__EnableQuartzBackgroundService", "false");
             Environment.SetEnvironmentVariable("Quartz__CronBatchSize", "100");
             Environment.SetEnvironmentVariable("Quartz__BackgroundJobStartDelaySeconds", "10");

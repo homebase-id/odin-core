@@ -193,6 +193,7 @@ namespace Youverse.Core.Services.Configuration
                 BackgroundJobStartDelaySeconds = config.Required<int>("Quartz:BackgroundJobStartDelaySeconds");
                 EnableQuartzBackgroundService = config.Required<bool>("Quartz:EnableQuartzBackgroundService");
                 CronProcessingInterval = config.Required<int>("Quartz:CronProcessingInterval");
+                CronBatchSize = config.Required<int>("Quartz:CronBatchSize");
                 EnsureCertificateProcessorIntervalSeconds = config.Required<int>("Quartz:EnsureCertificateProcessorIntervalSeconds");
                 ProcessPendingCertificateOrderIntervalInSeconds = config.Required<int>("Quartz:ProcessPendingCertificateOrderIntervalInSeconds");
             }
