@@ -1,8 +1,10 @@
 using Youverse.Core.Services.Drives;
 
-namespace Youverse.Hosting.Controllers.ClientToken.Transit;
+namespace Youverse.Core.Services.Transit.ReceivingHost;
 
 public class ProcessInboxRequest
 {
     public TargetDrive TargetDrive { get; set; }
+    
+    public int BatchSize { get; set; }
 }

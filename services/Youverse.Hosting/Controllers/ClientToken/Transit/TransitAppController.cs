@@ -27,7 +27,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Transit
                 throw new YouverseClientException("Invalid target drive", YouverseClientErrorCode.InvalidTargetDrive);
             }
 
-            var result = await _transitInboxProcessor.ProcessInbox(request.TargetDrive);
+            var result = await _transitInboxProcessor.ProcessInbox(request.TargetDrive, request.BatchSize);
             return result;
         }
     }
