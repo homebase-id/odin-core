@@ -20,15 +20,15 @@ namespace Youverse.Hosting.Controllers.ClientToken.Transit
         }
 
         [HttpPost("process")]
-        public async Task<IActionResult> ProcessTransfers([FromBody] ProcessInboxRequest request)
+        public async Task<InboxStatus> ProcessTransfers([FromBody] ProcessInboxRequest request)
         {
             if ((request.TargetDrive?.IsValid() ?? false) == false)
             {
                 throw new YouverseClientException("Invalid target drive", YouverseClientErrorCode.InvalidTargetDrive);
             }
 
-            var result =  await _transitInboxProcessor.ProcessInbox(request.TargetDrive);
-            return new JsonResult(result);
+            var result = await _transitInboxProcessor.ProcessInbox(request.TargetDrive);
+            return result;
         }
     }
 }

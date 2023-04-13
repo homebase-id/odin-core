@@ -37,7 +37,6 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Incoming
             var p = _tenantSystemStorage.Inbox.PopStatusSpecificBox(driveId);
             return new InboxStatus()
             {
-                DriveId = driveId,
                 TotalItems = p.totalCount,
                 PoppedCount = p.poppedCount,
                 OldestItemTimestamp = p.oldestItemTime,
