@@ -62,19 +62,19 @@ public class DrivePayloadChunkingTests
         Assert.IsTrue(payloadContent == uploadedPayload);
 
         // const string expectedChunk = "I knew I’d want it";
-        const string expectedChunk = "is happening";
+        // const string expectedChunk = "is happening";
+        const string expectedChunk = "encoding!?";
 
         //get a chunk of the payload
         var chunk1 = new FileChunk()
         {
-            Start = 5,
-            Length = expectedChunk.Length
+            Start = 27,
+            Length = expectedChunk.Length + 10
         };
 
         var getPayloadResponseChunk1 = await ownerClient.Drive.GetPayload(FileSystemType.Standard, uploadedContentResult.File, chunk1);
         string payloadContentChunk1 = await getPayloadResponseChunk1.ReadAsStringAsync();
         Assert.IsTrue(payloadContentChunk1 == expectedChunk,$"expected [{expectedChunk}] but value was [{payloadContentChunk1}]");
-        Assert.IsTrue(chunk1.Length == payloadContentChunk1.Length);
     }
 
     private async Task<UploadResult> UploadStandardFileToChannel(OwnerApiClient client, TargetDrive targetDrive, string uploadedContent, string payload)

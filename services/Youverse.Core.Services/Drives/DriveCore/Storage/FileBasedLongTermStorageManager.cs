@@ -57,18 +57,25 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
             if (null != chunk)
             {
                 var buffer = new byte[chunk.Length];
-                if (fileStream.Length < chunk.Start)
+                if (chunk.Start > fileStream.Length)
                 {
                     throw new YouverseClientException("Chunk start position is greater than length", YouverseClientErrorCode.InvalidChunkStart);
                 }
 
                 fileStream.Position = chunk.Start;
-                // var bytesRead = fileStream.Read(buffer, 0, chunk.Count);
                 var bytesRead = fileStream.Read(buffer);
                 fileStream.Close();
+
+                // if(bytesRead == 0) //TODO: handle end of stream?
+
+                //resize if lenght requested was too large (happens if we hit the end of the stream)
+                if (bytesRead < buffer.Length)
+                {
+                    Array.Resize(ref buffer, bytesRead);
+                }
+                
                 return Task.FromResult((Stream)new MemoryStream(buffer, false));
 
-                // if(bytesRead == 0) //end of stream
             }
 
             return Task.FromResult((Stream)fileStream);
