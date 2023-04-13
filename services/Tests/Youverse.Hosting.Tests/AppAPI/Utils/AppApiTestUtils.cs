@@ -24,6 +24,7 @@ using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Core.Storage;
 using Youverse.Hosting.Authentication.ClientToken;
+using Youverse.Hosting.Controllers.Base;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Controllers.OwnerToken.Drive;
 using Youverse.Hosting.Tests.AppAPI.Drive;
@@ -427,7 +428,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
             using (var client = this.CreateAppApiHttpClient(appContext))
             {
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, appContext.SharedSecret);
-                var payloadResponse = await driveSvc.GetPayloadAsPost(file);
+                var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest() { File = file });
                 return payloadResponse;
             }
         }

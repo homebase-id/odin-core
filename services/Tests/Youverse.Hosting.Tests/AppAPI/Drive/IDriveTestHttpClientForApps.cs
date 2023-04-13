@@ -29,7 +29,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderAsPost(ExternalFileIdentifier file);
 
         [Post(RootEndpoint + "/files/payload")]
-        Task<ApiResponse<HttpContent>> GetPayloadAsPost(ExternalFileIdentifier file);
+        Task<ApiResponse<HttpContent>> GetPayloadAsPost(GetPayloadRequest request);
 
         [Post(RootEndpoint + "/files/thumb")]
         Task<ApiResponse<HttpContent>> GetThumbnailAsPost(GetThumbnailRequest request);
@@ -38,7 +38,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         Task<ApiResponse<HttpContent>> GetThumbnail(Guid fileId, Guid alias, Guid type, int width, int height);
 
         [Get(RootEndpoint + "/files/payload")]
-        Task<ApiResponse<HttpContent>> GetPayload(Guid fileId, Guid alias, Guid type);
+        Task<ApiResponse<HttpContent>> GetPayload(Guid fileId, Guid alias, Guid type, long? offsetPosition);
 
         [Get(RootEndpoint + "/files/header")]
         Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader(Guid fileId, Guid alias, Guid type);
