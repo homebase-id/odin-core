@@ -25,12 +25,12 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
         /// Writes a stream for a given file and part to the configured provider.
         /// </summary>
         Task WritePartStream(Guid fileId, FilePart part, Stream stream);
-        
+
         /// <summary>
         /// Gets a read stream for the given <see cref="FilePart"/>
         /// </summary>
         /// <returns></returns>
-        Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart);
+        Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart, long? offsetPosition = null);
 
         /// <summary>
         /// Gets a read stream of the thumbnail

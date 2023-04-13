@@ -56,7 +56,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("payload")]
-        public new async Task<IActionResult> GetPayloadStream([FromBody] ExternalFileIdentifier request)
+        public new async Task<IActionResult> GetPayloadStream([FromBody] GetPayloadRequest request)
         {
             return await base.GetPayloadStream(request);
         }
@@ -67,17 +67,22 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpGet("payload")]
-        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type)
+        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] long? offsetPosition)
         {
-            return await base.GetPayloadStream(new ExternalFileIdentifier()
-            {
-                FileId = fileId,
-                TargetDrive = new()
+            return await base.GetPayloadStream(
+                new GetPayloadRequest()
                 {
-                    Alias = alias,
-                    Type = type
-                }
-            });
+                    File = new ExternalFileIdentifier()
+                    {
+                        FileId = fileId,
+                        TargetDrive = new()
+                        {
+                            Alias = alias,
+                            Type = type
+                        }
+                    },
+                    OffsetPosition = offsetPosition
+                });
         }
 
         /// <summary>
@@ -149,6 +154,5 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             await base.GetFileSystemResolver().ResolveFileSystem().Storage.HardDeleteLongTermFile(file);
             return Ok();
         }
-
     }
 }

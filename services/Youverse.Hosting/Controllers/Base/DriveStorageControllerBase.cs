@@ -49,13 +49,13 @@ namespace Youverse.Hosting.Controllers.Base
         /// <summary>
         /// Returns the payload for a given file
         /// </summary>
-        protected async Task<IActionResult> GetPayloadStream(ExternalFileIdentifier request)
+        protected async Task<IActionResult> GetPayloadStream(GetPayloadRequest request)
         {
-            var file = MapToInternalFile(request);
+            var file = MapToInternalFile(request.File);
 
             var fs = this.GetFileSystemResolver().ResolveFileSystem();
 
-            var payload = await fs.Storage.GetPayloadStream(file);
+            var payload = await fs.Storage.GetPayloadStream(file, request.OffsetPosition);
             if (payload == Stream.Null)
             {
                 return NotFound();
@@ -187,4 +187,11 @@ namespace Youverse.Hosting.Controllers.Base
             }
         }
     }
+
+    public class GetPayloadRequest
+    {
+        public ExternalFileIdentifier File { get; set; }
+        public long? OffsetPosition { get; set; }
+    }
+    
 }

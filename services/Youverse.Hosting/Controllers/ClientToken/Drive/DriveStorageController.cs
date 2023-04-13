@@ -66,24 +66,29 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         /// <returns></returns>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("files/payload")]
-        public new async Task<IActionResult> GetPayloadStream([FromBody] ExternalFileIdentifier request)
+        public new async Task<IActionResult> GetPayloadStream([FromBody] GetPayloadRequest request)
         {
             return await base.GetPayloadStream(request);
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpGet("files/payload")]
-        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type)
+        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] long? offsetPosition)
         {
-            return await GetPayloadStream(new ExternalFileIdentifier()
-            {
-                FileId = fileId,
-                TargetDrive = new()
+            return await base.GetPayloadStream(
+                new GetPayloadRequest()
                 {
-                    Alias = alias,
-                    Type = type
-                }
-            });
+                    File = new ExternalFileIdentifier()
+                    {
+                        FileId = fileId,
+                        TargetDrive = new()
+                        {
+                            Alias = alias,
+                            Type = type
+                        }
+                    },
+                    OffsetPosition = offsetPosition
+                });
         }
 
         /// <summary>

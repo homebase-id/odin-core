@@ -48,10 +48,16 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
             return WriteFile(filePath, tempFilePath, stream);
         }
 
-        public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart)
+        public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart, long? offsetPosition = null)
         {
             string path = GetFilenameAndPath(fileId, filePart);
             var fileStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+
+            if (offsetPosition.HasValue)
+            {
+                fileStream.Seek(offsetPosition.Value, SeekOrigin.Begin);
+            }
+
             return Task.FromResult((Stream)fileStream);
         }
 
@@ -96,7 +102,7 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
             {
                 return false;
             }
-            
+
             var header = this.GetServerFileHeader(fileId).GetAwaiter().GetResult();
             if (!header.FileMetadata.AppData.ContentIsComplete) //there should be a payload
             {
@@ -133,7 +139,7 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
         {
             var dest = GetFilenameAndPath(targetFileId, part, ensureDirectoryExists: true);
             Directory.CreateDirectory(Path.GetDirectoryName(dest));
-            
+
             File.Move(sourcePath, dest, true);
             _logger.LogInformation($"File Moved to {dest}");
             return Task.CompletedTask;
