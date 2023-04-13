@@ -50,6 +50,19 @@ namespace Youverse.Core
             _milliseconds = nodaTime.ToUnixTimeMilliseconds();
         }
 
+
+        // Define cast to Int64
+        public static implicit operator UnixTimeUtc(Int64 milliseconds)
+        {
+            return new UnixTimeUtc(milliseconds);
+        }
+
+        public static explicit operator Int64(UnixTimeUtc ut)
+        {
+            return ut.milliseconds;
+        }
+
+
         /// <summary>
         /// Returns a new UnixTimeUtc object with the seconds added.
         /// </summary>
