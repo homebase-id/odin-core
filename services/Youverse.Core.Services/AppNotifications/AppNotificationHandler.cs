@@ -192,6 +192,11 @@ namespace Youverse.Core.Services.AppNotifications
                     await _transitInboxProcessor.ProcessInbox(d.TargetDrive);
                     break;
 
+                case SocketCommandType.ProcessInbox:
+                    var request = DotYouSystemSerializer.Deserialize<ProcessInboxRequest>(command.Data);
+                    await _transitInboxProcessor.ProcessInbox(request.TargetDrive, request.BatchSize);
+                    break;
+                
                 default:
                     throw new Exception("Invalid command");
             }

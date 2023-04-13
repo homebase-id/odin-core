@@ -42,19 +42,17 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Incoming
                 OldestItemTimestamp = p.oldestItemTime,
             };
         }
-        
-        public async Task<List<TransferInboxItem>> GetPendingItems(Guid driveId)
+
+        public async Task<List<TransferInboxItem>> GetPendingItems(Guid driveId, int batchSize)
         {
             //CRITICAL NOTE: we can only get back one item since we want to make sure the marker is for that one item in-case the operation fails
-            var records = this._tenantSystemStorage.Inbox.PopSpecificBox(driveId, 1);
+            var records = this._tenantSystemStorage.Inbox.PopSpecificBox(driveId, batchSize == 0 ? 1 : batchSize);
             
-            var record = records.SingleOrDefault();
-            
-            if (null == record)
+            if (null == records)
             {
                 return new List<TransferInboxItem>();
             }
-            
+
             var items = records.Select(r =>
             {
                 var item = DotYouSystemSerializer.Deserialize<TransferInboxItem>(r.value.ToStringFromUtf8Bytes());

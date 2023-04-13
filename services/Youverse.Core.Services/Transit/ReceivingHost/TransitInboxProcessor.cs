@@ -34,10 +34,10 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
         /// Processes incoming transfers by converting their transfer
         /// keys and moving files to long term storage.  Returns the number of items in the inbox
         /// </summary>
-        public async Task<InboxStatus> ProcessInbox(TargetDrive targetDrive)
+        public async Task<InboxStatus> ProcessInbox(TargetDrive targetDrive, int batchSize = 1)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(targetDrive);
-            var items = await _transitInboxBoxStorage.GetPendingItems(driveId);
+            var items = await _transitInboxBoxStorage.GetPendingItems(driveId, batchSize);
 
             TransitFileWriter writer = new TransitFileWriter(_contextAccessor, _fileSystemResolver);
 
