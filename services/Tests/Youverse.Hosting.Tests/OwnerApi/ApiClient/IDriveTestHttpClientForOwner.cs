@@ -8,6 +8,7 @@ using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.ReceivingHost;
 using Youverse.Hosting.Controllers;
+using Youverse.Hosting.Controllers.Base;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Controllers.OwnerToken;
 using Youverse.Hosting.Controllers.OwnerToken.Drive;
@@ -37,7 +38,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.ApiClient
         Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderAsPost(ExternalFileIdentifier file);
 
         [Post(RootStorageEndpoint + "/payload")]
-        Task<ApiResponse<HttpContent>> GetPayloadPost(ExternalFileIdentifier file);
+        Task<ApiResponse<HttpContent>> GetPayloadPost(GetPayloadRequest request);
 
         [Post(RootStorageEndpoint + "/thumb")]
         Task<ApiResponse<HttpContent>> GetThumbnailPost(GetThumbnailRequest request);
