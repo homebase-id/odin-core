@@ -1,10 +1,18 @@
 using Refit;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using System.Reflection;
 using System.Threading.Tasks;
 using Youverse.Core.Services.Authentication;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Youverse.Core.Services.Authorization.Permissions;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
+using Youverse.Hosting.Tests.Anonymous.ApiClient;
+using Youverse.Hosting.Tests.AppAPI.ApiClient.Auth;
+using Youverse.Hosting.Tests.OwnerApi.ApiClient;
 using Youverse.Hosting.Tests.OwnerApi.Authentication;
 
 namespace Youverse.Hosting.Tests.AppAPI.Authentication
@@ -29,108 +37,41 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         }
 
         [Test]
-        [Ignore("convert to test the exchange grant")]
-        public async Task CanValidateAppToken()
+        public async Task AppCanLogoutItself()
         {
-            Guid appId = Guid.NewGuid();
-            var identity = TestIdentities.Samwise;
-            await _scaffold.OldOwnerApi.AddAppWithAllDrivePermissions(identity.OdinId, appId, TargetDrive.NewTargetDrive());
-            var (clientAuthToken, sharedSecret) = await _scaffold.OldOwnerApi.AddAppClient(identity.OdinId, appId);
+            var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
 
-            using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId))
+            var appDrive = await ownerClient.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Chat Drive 1", "", false);
+            var appId = Guid.NewGuid();
+
+            var appPermissionsGrant = new PermissionSetGrantRequest()
             {
-                var appAuthSvc = RestService.For<IAppAuthenticationClient>(appClient);
-                var validateResponse = await appAuthSvc.ValidateClientToken(clientAuthToken.ToString());
-                Assert.That(validateResponse.IsSuccessStatusCode, Is.True);
-                Assert.That(validateResponse.Content, Is.Not.Null);
-                Assert.That(validateResponse.Content.IsValid, Is.True);
-            }
+                Drives = new List<DriveGrantRequest>()
+                {
+                    new()
+                    {
+                        PermissionedDrive = new PermissionedDrive()
+                        {
+                            Drive = appDrive.TargetDriveInfo,
+                            Permission = DrivePermission.All
+                        }
+                    }
+                },
+                PermissionSet = new PermissionSet(PermissionKeys.All)
+            };
+
+            var appRegistration = await ownerClient.Apps.RegisterApp(appId, appPermissionsGrant);
+            var appApiClient = _scaffold.CreateAppClient(TestIdentities.Samwise, appId);
+
+            var clients = await ownerClient.Apps.GetRegisteredClients();
+            Assert.IsNotNull(clients.SingleOrDefault(c => c.AppId == appId && c.AccessRegistrationId == appApiClient.AccessRegistrationId));
+            
+            await appApiClient.Logout();
+
+            //log out the app
+            var updatedClients = await ownerClient.Apps.GetRegisteredClients();
+            Assert.IsTrue(!updatedClients.Any());
         }
-
-        [Test]
-        [Ignore("convert to test the exchange grant")]
-        public async Task FailToValidateOnRevokedApp()
-        {
-            Guid appId = Guid.NewGuid();
-            var identity = TestIdentities.Samwise;
-            await _scaffold.OldOwnerApi.AddAppWithAllDrivePermissions(identity.OdinId, appId, TargetDrive.NewTargetDrive());
-            var (clientAuthToken, sharedSecret) = await _scaffold.OldOwnerApi.AddAppClient(identity.OdinId, appId);
-
-            using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId))
-            {
-                var appAuthSvc = RestService.For<IAppAuthenticationClient>(appClient);
-                var validateResponse = await appAuthSvc.ValidateClientToken(clientAuthToken.ToString());
-                Assert.That(validateResponse.IsSuccessStatusCode, Is.True);
-                Assert.That(validateResponse.Content, Is.Not.Null);
-
-                Assert.That(validateResponse.Content.IsValid, Is.True);
-            }
-
-            await _scaffold.OldOwnerApi.RevokeSampleApp(identity.OdinId, appId);
-
-            using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId))
-            {
-                var appAuthSvc = RestService.For<IAppAuthenticationClient>(appClient);
-                var validateResponse = await appAuthSvc.ValidateClientToken(clientAuthToken.ToString());
-                Assert.That(validateResponse.IsSuccessStatusCode, Is.True);
-                Assert.That(validateResponse.Content, Is.Not.Null);
-
-                Assert.That(validateResponse.Content.IsValid, Is.False);
-            }
-        }
-
-        [Test]
-        [Ignore("convert to test the exchange grant")]
-        public async Task FailToAuthenticateRevokedClient()
-        {
-            Guid appId = Guid.NewGuid();
-            var identity = TestIdentities.Samwise;
-            await _scaffold.OldOwnerApi.AddAppWithAllDrivePermissions(identity.OdinId, appId, TargetDrive.NewTargetDrive());
-            var (clientAuthToken, sharedSecret) = await _scaffold.OldOwnerApi.AddAppClient(identity.OdinId, appId);
-
-            using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId))
-            {
-                var appAuthSvc = RestService.For<IAppAuthenticationClient>(appClient);
-                var validateResponse = await appAuthSvc.ValidateClientToken(clientAuthToken.ToString());
-                Assert.That(validateResponse.IsSuccessStatusCode, Is.True);
-                Assert.That(validateResponse.Content, Is.Not.Null);
-                Assert.That(validateResponse.Content.IsValid, Is.True);
-            }
-        }
-
-        [Test]
-        [Ignore("convert to test the exchange grant")]
-        public async Task CanRevokeAppMidSession()
-        {
-            var identity = TestIdentities.Samwise;
-
-            Guid appId = Guid.NewGuid();
-            await _scaffold.OldOwnerApi.AddAppWithAllDrivePermissions(identity.OdinId, appId, TargetDrive.NewTargetDrive());
-            var (clientAuthToken, sharedSecret) = await _scaffold.OldOwnerApi.AddAppClient(identity.OdinId, appId);
-
-            using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId))
-            {
-                var svc = RestService.For<IAppAuthenticationClient>(appClient);
-                var validateResponse = await svc.ValidateClientToken(clientAuthToken.ToString());
-                Assert.That(validateResponse.IsSuccessStatusCode, Is.True);
-                Assert.That(validateResponse.Content, Is.Not.Null);
-                var result = validateResponse.Content;
-
-                Assert.That(result.IsValid, Is.True);
-            }
-
-            await _scaffold.OldOwnerApi.RevokeSampleApp(identity.OdinId, appId);
-
-            using (var appClient = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId))
-            {
-                var svc = RestService.For<IAppAuthenticationClient>(appClient);
-                var validateResponse = await svc.ValidateClientToken(clientAuthToken.ToString());
-                Assert.That(validateResponse.IsSuccessStatusCode, Is.True);
-                Assert.That(validateResponse.Content, Is.Not.Null);
-                var result = validateResponse.Content;
-
-                Assert.That(result.IsValid, Is.False);
-            }
-        }
+        
     }
 }

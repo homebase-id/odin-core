@@ -140,7 +140,7 @@ public class ChatServerContext
         using (var rClient = Scaffold.AppApi.CreateAppApiHttpClient(_appContext))
         {
             var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
-            var resp = await transitAppSvc.ProcessIncomingInstructions(new ProcessTransitInstructionRequest() { TargetDrive = _appContext.TargetDrive });
+            var resp = await transitAppSvc.ProcessInbox(new ProcessInboxRequest() { TargetDrive = _appContext.TargetDrive });
             Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
         }
     }

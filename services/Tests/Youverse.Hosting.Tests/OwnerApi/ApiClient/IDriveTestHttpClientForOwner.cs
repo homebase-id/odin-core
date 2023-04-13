@@ -64,6 +64,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.ApiClient
         Task<ApiResponse<bool>> ProcessOutbox(int batchSize);
 
         [Post(OwnerApiPathConstants.TransitV1 + "/inbox/processor/process")]
-        Task<ApiResponse<bool>> ProcessIncomingInstructions([Body] ProcessTransitInstructionRequest request);
+        Task<ApiResponse<bool>> ProcessInbox([Body] ProcessInboxRequest request);
     }
 }

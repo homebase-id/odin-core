@@ -11,7 +11,7 @@ using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Transit.ReceivingHost
 {
-    public class TransitInboxProcessor : ITransitInboxProcessor
+    public class TransitInboxProcessor 
     {
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
@@ -19,7 +19,6 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
         private readonly IPublicKeyService _publicKeyService;
         private readonly ITenantSystemStorage _tenantSystemStorage;
 
-        
         public TransitInboxProcessor(DotYouContextAccessor contextAccessor,
             TransitInboxBoxStorage transitInboxBoxStorage,
             FileSystemResolver fileSystemResolver, IPublicKeyService publicKeyService, ITenantSystemStorage tenantSystemStorage)
@@ -31,13 +30,17 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
             _tenantSystemStorage = tenantSystemStorage;
         }
 
-        public async Task ProcessIncomingTransitInstructions(TargetDrive targetDrive)
+        /// <summary>
+        /// Processes incoming transfers by converting their transfer
+        /// keys and moving files to long term storage.  Returns the number of items in the inbox
+        /// </summary>
+        public async Task<InboxStatus> ProcessInbox(TargetDrive targetDrive)
         {
             var driveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(targetDrive);
             var items = await _transitInboxBoxStorage.GetPendingItems(driveId);
 
             TransitFileWriter writer = new TransitFileWriter(_contextAccessor, _fileSystemResolver);
-            
+
             foreach (var inboxItem in items)
             {
                 using (_tenantSystemStorage.CreateCommitUnitOfWork())
@@ -96,6 +99,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
                 }
             }
 
+            return _transitInboxBoxStorage.GetPendingCount(driveId);
         }
 
         public Task<PagedResult<TransferInboxItem>> GetQuarantinedItems(PageOptions pageOptions)

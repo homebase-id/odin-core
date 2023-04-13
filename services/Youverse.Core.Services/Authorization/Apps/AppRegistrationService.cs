@@ -38,7 +38,6 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         private readonly IMediator _mediator;
 
-
         public AppRegistrationService(DotYouContextAccessor contextAccessor, ILogger<IAppRegistrationService> logger, ITenantSystemStorage tenantSystemStorage,
             ExchangeGrantService exchangeGrantService, YouverseConfiguration config, TenantContext tenantContext, IMediator mediator)
         {
@@ -90,13 +89,13 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         public async Task UpdateAppPermissions(UpdateAppPermissionsRequest request)
         {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
             var appReg = await this.GetAppRegistrationInternal(request.AppId);
             if (null == appReg)
             {
                 throw new YouverseClientException("Invalid AppId", YouverseClientErrorCode.AppNotRegistered);
             }
-
-            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var keyStoreKey = appReg.Grant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
@@ -136,30 +135,9 @@ namespace Youverse.Core.Services.Authorization.Apps
             ResetAppPermissionContextCache();
         }
 
-        public async Task<ClientAccessToken> RegisterClientRaw(GuidId appId, string friendlyName)
+        public async Task<AppClientRegistrationResponse> RegisterClient(GuidId appId, byte[] clientPublicKey, string friendlyName)
         {
-            Guard.Argument(appId, nameof(appId)).Require(x => x != Guid.Empty);
-            Guard.Argument(friendlyName, nameof(friendlyName)).NotNull().NotEmpty();
-
-            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-
-            var appReg = await this.GetAppRegistrationInternal(appId);
-            if (appReg == null)
-            {
-                throw new YouverseClientException("App must be registered to add a client", YouverseClientErrorCode.AppNotRegistered);
-            }
-
-            var (accessRegistration, cat) =
-                await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, _contextAccessor.GetCurrent().Caller.GetMasterKey(), ClientTokenType.Other);
-
-            var appClient = new AppClient(appId, friendlyName, accessRegistration);
-            this.SaveClient(appClient);
-            return cat;
-        }
-
-        public async Task<AppClientRegistrationResponse> RegisterClientSecure(GuidId appId, byte[] clientPublicKey, string friendlyName)
-        {
-            var cat = await this.RegisterClientRaw(appId, friendlyName);
+            var cat = await this.RegisterClientInternal(appId, friendlyName);
 
             //RSA encrypt using the public key and send to client
             var data = cat.ToPortableBytes();
@@ -174,11 +152,6 @@ namespace Youverse.Core.Services.Authorization.Apps
                 Token = cat.Id,
                 Data = encryptedData
             };
-        }
-
-        private void SaveClient(AppClient appClient)
-        {
-            _appClientValueStorage.Upsert(appClient.AccessRegistration.Id, appClient.AppId, _appClientDataType, appClient);
         }
 
         public async Task<RedactedAppRegistration> GetAppRegistration(GuidId appId)
@@ -218,7 +191,8 @@ namespace Youverse.Core.Services.Authorization.Apps
                         securityLevel: SecurityGroupType.Owner,
                         appContext: new OdinAppContext()
                         {
-                            CorsAppName = appReg.CorsHostName
+                            CorsAppName = appReg.CorsHostName,
+                            AccessRegistrationId = accessReg.Id
                         })
                 };
 
@@ -301,6 +275,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         public async Task RevokeClient(GuidId accessRegistrationId)
         {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
             var client = _appClientValueStorage.Get<AppClient>(accessRegistrationId);
 
             if (null == client)
@@ -313,8 +288,52 @@ namespace Youverse.Core.Services.Authorization.Apps
             await Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Deletes the current client calling into the system.  This is used to 'logout' an app
+        /// </summary>
+        public async Task DeleteCurrentAppClient()
+        {
+            var context = _contextAccessor.GetCurrent();
+            var accessRegistrationId = context.Caller.AppContext?.AccessRegistrationId;
+
+            var validAccess = accessRegistrationId != null &&
+                              context.Caller.SecurityLevel == SecurityGroupType.Owner;
+
+            if (!validAccess)
+            {
+                throw new YouverseSecurityException("Invalid call to Delete app client");
+            }
+
+            var client = _appClientValueStorage.Get<AppClient>(accessRegistrationId);
+
+            if (null == client)
+            {
+                throw new YouverseClientException("Invalid access reg id", YouverseClientErrorCode.InvalidAccessRegistrationId);
+            }
+
+            _appClientValueStorage.Delete(accessRegistrationId);
+            await Task.CompletedTask;
+        }
+
+        public async Task DeleteClient(GuidId accessRegistrationId)
+        {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
+            var client = _appClientValueStorage.Get<AppClient>(accessRegistrationId);
+
+            if (null == client)
+            {
+                throw new YouverseClientException("Invalid access reg id", YouverseClientErrorCode.InvalidAccessRegistrationId);
+            }
+
+            _appClientValueStorage.Delete(accessRegistrationId);
+            await Task.CompletedTask;
+        }
+
         public async Task AllowClient(GuidId accessRegistrationId)
         {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
             var client = _appClientValueStorage.Get<AppClient>(accessRegistrationId);
 
             if (null == client)
@@ -329,6 +348,8 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         public async Task DeleteApp(GuidId appId)
         {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
             var app = await GetAppRegistrationInternal(appId);
 
             if (null == app)
@@ -340,24 +361,18 @@ namespace Youverse.Core.Services.Authorization.Apps
             await Task.CompletedTask;
         }
 
-        public async Task DeleteClient(GuidId accessRegistrationId)
-        {
-            var client = _appClientValueStorage.Get<AppClient>(accessRegistrationId);
-
-            if (null == client)
-            {
-                throw new YouverseClientException("Invalid access reg id", YouverseClientErrorCode.InvalidAccessRegistrationId);
-            }
-
-            _appClientValueStorage.Delete(accessRegistrationId);
-            await Task.CompletedTask;
-        }
-
         public async Task<List<RedactedAppRegistration>> GetRegisteredApps()
         {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
             var apps = _appRegistrationValueStorage.GetByKey3<AppRegistration>(_appRegistrationDataType);
             var redactedList = apps.Select(app => app.Redacted()).ToList();
             return await Task.FromResult(redactedList);
+        }
+
+        private void SaveClient(AppClient appClient)
+        {
+            _appClientValueStorage.Upsert(appClient.AccessRegistration.Id, appClient.AppId, _appClientDataType, appClient);
         }
 
         private async Task<AppRegistration> GetAppRegistrationInternal(GuidId appId)
@@ -381,6 +396,27 @@ namespace Youverse.Core.Services.Authorization.Apps
         private void ResetAppPermissionContextCache()
         {
             _cache.Reset();
+        }
+
+        private async Task<ClientAccessToken> RegisterClientInternal(GuidId appId, string friendlyName)
+        {
+            Guard.Argument(appId, nameof(appId)).Require(x => x != Guid.Empty);
+            Guard.Argument(friendlyName, nameof(friendlyName)).NotNull().NotEmpty();
+
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
+            var appReg = await this.GetAppRegistrationInternal(appId);
+            if (appReg == null)
+            {
+                throw new YouverseClientException("App must be registered to add a client", YouverseClientErrorCode.AppNotRegistered);
+            }
+
+            var (accessRegistration, cat) =
+                await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, _contextAccessor.GetCurrent().Caller.GetMasterKey(), ClientTokenType.Other);
+
+            var appClient = new AppClient(appId, friendlyName, accessRegistration);
+            this.SaveClient(appClient);
+            return cat;
         }
     }
 }

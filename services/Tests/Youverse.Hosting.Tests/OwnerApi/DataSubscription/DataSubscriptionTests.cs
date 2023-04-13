@@ -70,7 +70,7 @@ public class DataSubscriptionTests
         await frodoOwnerClient.Cron.DistributeFeedFiles();
 
         // Sam should have the same content on his feed drive since it was distributed by the backend
-        await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
 
         var qp = new FileQueryParams()
         {
@@ -99,7 +99,7 @@ public class DataSubscriptionTests
         await frodoOwnerClient.Cron.DistributeFeedFiles();
 
         // Sam should have the same content on his feed drive
-        await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
 
         //Sam should have changes; note - we're using the same query params intentionally
         var batch2 = await samOwnerClient.Drive.QueryBatch(FileSystemType.Standard, qp);
@@ -147,7 +147,7 @@ public class DataSubscriptionTests
         var standardFileUploadResult = await UploadStandardUnencryptedFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent, fileType);
 
         // Sam should have the same content on his feed drive
-        await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
 
         var qp = new FileQueryParams()
         {
@@ -166,7 +166,7 @@ public class DataSubscriptionTests
         await frodoOwnerClient.Drive.DeleteFile(FileSystemType.Standard, standardFileUploadResult.File);
 
         // Sam should have the same content on his feed drive
-        await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
 
         var qp2 = new FileQueryParams()
         {
@@ -217,7 +217,7 @@ public class DataSubscriptionTests
         await frodoOwnerClient.Cron.DistributeFeedFiles();
 
         // Sam should have the same content on his feed drive
-        await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
 
         var standardFileQueryParams = new FileQueryParams()
         {
@@ -259,7 +259,7 @@ public class DataSubscriptionTests
             FileType = new List<int>() { commentFileType }
         };
 
-        await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
 
         // Sam should not have the comment since they are not distributed
         var commentBatch = await samOwnerClient.Drive.QueryBatch(FileSystemType.Comment, commentFileQueryParams);
@@ -319,7 +319,7 @@ public class DataSubscriptionTests
         // await frodoOwnerClient.Transit.ProcessOutbox(1);
         await frodoOwnerClient.Cron.DistributeFeedFiles();
 
-        await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
 
         var standardFileQueryParams = new FileQueryParams()
         {
@@ -362,7 +362,7 @@ public class DataSubscriptionTests
             FileType = new List<int>() { commentFileType }
         };
 
-        await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
 
         //
         // Sam should not have the comment since they are not distributed
@@ -421,7 +421,7 @@ public class DataSubscriptionTests
         await frodoOwnerClient.Cron.DistributeFeedFiles();
 
         //TODO: should sam have to process transit instructions for feed items?
-        await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
 
         var standardFileQueryParams = new FileQueryParams()
         {
@@ -464,7 +464,7 @@ public class DataSubscriptionTests
             FileType = new List<int>() { commentFileType }
         };
 
-        await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
 
 
         //
@@ -546,7 +546,7 @@ public class DataSubscriptionTests
 
         //TODO: should sam have to process transit instructions for feed items?
         // Sam should have the same content on his feed drive
-        await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
 
         var standardFileQueryParams = new FileQueryParams()
         {
@@ -688,7 +688,7 @@ public class DataSubscriptionTests
 
         //TODO: should sam have to process transit instructions for feed items?
         // Sam should have the same content on his feed drive
-        await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
 
         var standardFileQueryParams = new FileQueryParams()
         {
@@ -911,7 +911,7 @@ public class DataSubscriptionTests
         await frodoOwnerClient.Transit.ProcessOutbox(1);
 
 
-        await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
 
         var qp = new FileQueryParams()
         {
@@ -962,7 +962,7 @@ public class DataSubscriptionTests
         //Process the outbox since we're sending an encrypted file
         await frodoOwnerClient.Transit.ProcessOutbox(1);
 
-        await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
 
         var qp = new FileQueryParams()
         {
@@ -1018,9 +1018,9 @@ public class DataSubscriptionTests
         //Process the outbox since we're sending an encrypted file
         await frodoOwnerClient.Cron.DistributeFeedFiles();
 
-        await samOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
-        await pippinOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
-        await merryOwnerClient.Transit.ProcessIncomingInstructionSet(SystemDriveConstants.FeedDrive);
+        await samOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await pippinOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
+        await merryOwnerClient.Transit.ProcessInbox(SystemDriveConstants.FeedDrive);
 
         var qp = new FileQueryParams()
         {

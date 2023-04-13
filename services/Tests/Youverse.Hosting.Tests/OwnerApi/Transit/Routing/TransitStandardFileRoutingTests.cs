@@ -138,7 +138,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Routing
             Assert.IsFalse(emptyBatch.SearchResults.Any());
 
             //
-            await recipientOwnerClient.Transit.ProcessIncomingInstructionSet(targetDrive);
+            await recipientOwnerClient.Transit.ProcessInbox(targetDrive);
             //
 
             // Now the File should be on recipient server and accessible by global transit id

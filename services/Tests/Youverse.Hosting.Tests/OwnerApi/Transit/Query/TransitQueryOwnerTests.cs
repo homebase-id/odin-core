@@ -176,8 +176,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
             {
                 //First force transfers to be put into their long term location
                 var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);
-                var resp = await transitAppSvc.ProcessIncomingInstructions(
-                    new ProcessTransitInstructionRequest() { TargetDrive = recipientContext.TargetDrive });
+                var resp = await transitAppSvc.ProcessInbox(
+                    new ProcessInboxRequest() { TargetDrive = recipientContext.TargetDrive });
                 Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
 
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, recipientContext.SharedSecret);
@@ -441,8 +441,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
             {
                 //First force transfers to be put into their long term location
                 var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);
-                var resp = await transitAppSvc.ProcessIncomingInstructions(
-                    new ProcessTransitInstructionRequest() { TargetDrive = recipientContext.TargetDrive });
+                var resp = await transitAppSvc.ProcessInbox(
+                    new ProcessInboxRequest() { TargetDrive = recipientContext.TargetDrive });
                 Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
 
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, recipientContext.SharedSecret);
@@ -923,8 +923,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
             {
                 //First force transfers to be put into their long term location
                 var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);
-                var resp = await transitAppSvc.ProcessIncomingInstructions(
-                    new ProcessTransitInstructionRequest() { TargetDrive = recipientContext.TargetDrive });
+                var resp = await transitAppSvc.ProcessInbox(
+                    new ProcessInboxRequest() { TargetDrive = recipientContext.TargetDrive });
                 Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
 
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, recipientContext.SharedSecret);
@@ -1185,8 +1185,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
             {
                 //First force transfers to be put into their long term location
                 var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);
-                var resp = await transitAppSvc.ProcessIncomingInstructions(
-                    new ProcessTransitInstructionRequest() { TargetDrive = recipientContext.TargetDrive });
+                var resp = await transitAppSvc.ProcessInbox(
+                    new ProcessInboxRequest() { TargetDrive = recipientContext.TargetDrive });
                 Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
 
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, recipientContext.SharedSecret);

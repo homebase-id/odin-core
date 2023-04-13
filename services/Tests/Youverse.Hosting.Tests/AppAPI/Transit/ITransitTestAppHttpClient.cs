@@ -16,6 +16,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
 
         [Post(RootEndpoint + "/process")]
-        Task<ApiResponse<bool>> ProcessIncomingInstructions([Body] ProcessTransitInstructionRequest request);
+        Task<ApiResponse<bool>> ProcessInbox([Body] ProcessInboxRequest request);
     }
 }

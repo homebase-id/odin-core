@@ -5,15 +5,12 @@ using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
-using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.AppNotifications.ClientNotifications;
-using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Services.Mediator;
-using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.ReceivingHost;
 
 namespace Youverse.Core.Services.AppNotifications
@@ -23,10 +20,10 @@ namespace Youverse.Core.Services.AppNotifications
     {
         private readonly DeviceSocketCollection _deviceSocketCollection;
         private readonly DotYouContextAccessor _contextAccessor;
-        private readonly ITransitInboxProcessor _transitInboxProcessor;
+        private readonly TransitInboxProcessor _transitInboxProcessor;
         private readonly DriveManager _driveManager;
 
-        public AppNotificationHandler(DotYouContextAccessor contextAccessor, ITransitInboxProcessor transitInboxProcessor, DriveManager driveManager)
+        public AppNotificationHandler(DotYouContextAccessor contextAccessor, TransitInboxProcessor transitInboxProcessor, DriveManager driveManager)
         {
             _contextAccessor = contextAccessor;
             _transitInboxProcessor = transitInboxProcessor;
@@ -192,7 +189,7 @@ namespace Youverse.Core.Services.AppNotifications
             {
                 case SocketCommandType.ProcessTransitInstructions:
                     var d = DotYouSystemSerializer.Deserialize<ExternalFileIdentifier>(command.Data);
-                    await _transitInboxProcessor.ProcessIncomingTransitInstructions(d.TargetDrive);
+                    await _transitInboxProcessor.ProcessInbox(d.TargetDrive);
                     break;
 
                 default:
