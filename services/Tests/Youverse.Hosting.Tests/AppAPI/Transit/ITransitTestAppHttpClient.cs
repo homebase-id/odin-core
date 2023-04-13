@@ -2,6 +2,7 @@
 using System.Threading.Tasks;
 using Refit;
 using Youverse.Core;
+using Youverse.Core.Services.Transit.ReceivingHost;
 using Youverse.Hosting.Controllers.ClientToken;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
 
@@ -16,6 +17,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Transit
 
 
         [Post(RootEndpoint + "/process")]
-        Task<ApiResponse<bool>> ProcessInbox([Body] ProcessInboxRequest request);
+        Task<ApiResponse<InboxStatus>> ProcessInbox([Body] ProcessInboxRequest request);
     }
 }
