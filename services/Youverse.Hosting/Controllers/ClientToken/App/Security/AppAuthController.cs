@@ -1,24 +1,25 @@
 ﻿#nullable enable
 using System.Net;
-using Microsoft.AspNetCore.Authorization;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
-using Youverse.Core.Services.Tenant;
+using Youverse.Core.Services.Authorization.Apps;
 
-namespace Youverse.Hosting.Controllers.ClientToken.App
+namespace Youverse.Hosting.Controllers.ClientToken.App.Security
 {
     [ApiController]
     [Route(AppApiPathConstants.AuthV1)]
     [AuthorizeValidAppExchangeGrant]
     public class AppAuthController : Controller
     {
-        private readonly string _currentTenant;
+        private readonly IAppRegistrationService _appRegistrationService;
 
-        public AppAuthController(ITenantProvider tenantProvider)
+        public AppAuthController(IAppRegistrationService appRegistrationService)
         {
-            _currentTenant = tenantProvider.GetCurrentTenant()!.Name;
+            _appRegistrationService = appRegistrationService;
         }
-        
+
+
         /// <summary>
         /// Verifies the ClientAuthToken (provided as a cookie) is Valid.
         /// </summary>
@@ -29,6 +30,15 @@ namespace Youverse.Hosting.Controllers.ClientToken.App
         public ActionResult VerifyToken()
         {
             return Ok(true);
+        }
+        
+        /// <summary>
+        /// Deletes the client by it's access registration Id
+        /// </summary>
+        [HttpPost("logout")]
+        public async Task DeleteClient()
+        {
+            await _appRegistrationService.DeleteCurrentAppClient();
         }
     }
 }

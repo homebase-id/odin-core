@@ -18,15 +18,12 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.DriveCore.Query;
 using Youverse.Core.Services.Drives.DriveCore.Storage;
-using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Core.Storage;
 using Youverse.Hosting.Authentication.ClientToken;
-using Youverse.Hosting.Controllers;
-using Youverse.Hosting.Controllers.ClientToken.Drive;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Controllers.OwnerToken.Drive;
 using Youverse.Hosting.Tests.AppAPI.Drive;
@@ -210,7 +207,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                         using (var rClient = this.CreateAppApiHttpClient(rCtx.Value))
                         {
                             var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
-                            var resp = await transitAppSvc.ProcessIncomingInstructions(new ProcessTransitInstructionRequest() { TargetDrive = rCtx.Value.TargetDrive });
+                            var resp = await transitAppSvc.ProcessInbox(new ProcessInboxRequest() { TargetDrive = rCtx.Value.TargetDrive });
                             Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
                         }
                     }
@@ -408,7 +405,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                     using (var rClient = this.CreateAppApiHttpClient(rCtx))
                     {
                         var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
-                        var resp = await transitAppSvc.ProcessIncomingInstructions(new ProcessTransitInstructionRequest() { TargetDrive = rCtx.TargetDrive });
+                        var resp = await transitAppSvc.ProcessInbox(new ProcessInboxRequest() { TargetDrive = rCtx.TargetDrive });
                         Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
                     }
                 }

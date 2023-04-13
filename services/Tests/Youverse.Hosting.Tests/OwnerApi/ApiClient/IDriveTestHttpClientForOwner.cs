@@ -6,6 +6,7 @@ using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 using Youverse.Core.Services.Transit;
+using Youverse.Core.Services.Transit.ReceivingHost;
 using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Controllers.OwnerToken;
@@ -64,6 +65,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.ApiClient
         Task<ApiResponse<bool>> ProcessOutbox(int batchSize);
 
         [Post(OwnerApiPathConstants.TransitV1 + "/inbox/processor/process")]
-        Task<ApiResponse<bool>> ProcessIncomingInstructions([Body] ProcessTransitInstructionRequest request);
+        Task<ApiResponse<InboxStatus>> ProcessInbox([Body] ProcessInboxRequest request);
     }
 }

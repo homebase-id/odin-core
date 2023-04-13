@@ -14,6 +14,7 @@ using Youverse.Core.Services.Registry;
 using Youverse.Core.Storage;
 using Youverse.Core.Util;
 using Youverse.Hosting._dev;
+using Youverse.Hosting.Tests.AppAPI.ApiClient;
 using Youverse.Hosting.Tests.AppAPI.Utils;
 using Youverse.Hosting.Tests.OwnerApi.ApiClient;
 using Youverse.Hosting.Tests.OwnerApi.Utils;
@@ -23,14 +24,17 @@ namespace Youverse.Hosting.Tests
     public class WebScaffold
     {
         private readonly string _folder;
+
         // private readonly string _password = "EnSøienØ";
         private IHost _webserver;
+
         private readonly OwnerApiTestUtils _oldOwnerApi;
+
         // private readonly OwnerApiClient _ownerApiClient;
         private AppApiTestUtils _appApi;
         private ScenarioBootstrapper _scenarios;
         private IIdentityRegistry _registry;
-        private string _uniqueSubPath;
+        private readonly string _uniqueSubPath;
         private string _testInstancePrefix;
 
         public WebScaffold(string folder)
@@ -42,14 +46,14 @@ namespace Youverse.Hosting.Tests
 
         public void RunBeforeAnyTests(bool initializeIdentity = true)
         {
-
             _testInstancePrefix = Guid.NewGuid().ToString("N");
-            
+
             Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
             Environment.SetEnvironmentVariable("DOTYOU_ENVIRONMENT", "Development");
 
             Environment.SetEnvironmentVariable("Development__SslSourcePath", "./https/");
-            Environment.SetEnvironmentVariable("Development__PreconfiguredDomains", "[\"frodo.digital\",\"samwise.digital\", \"merry.youfoundation.id\",\"pippin.youfoundation.id\"]");
+            Environment.SetEnvironmentVariable("Development__PreconfiguredDomains",
+                "[\"frodo.digital\",\"samwise.digital\", \"merry.youfoundation.id\",\"pippin.youfoundation.id\"]");
 
             Environment.SetEnvironmentVariable("Registry__ProvisioningDomain", "provisioning-dev.youfoundation.id");
             Environment.SetEnvironmentVariable("Registry__ManagedDomains", "[\"dev.dominion.id\"]");
@@ -109,15 +113,22 @@ namespace Youverse.Hosting.Tests
                 _webserver.StopAsync().GetAwaiter().GetResult();
                 _webserver.Dispose();
             }
+
             this.DeleteData();
             this.DeleteLogs();
         }
 
-        public OwnerApiTestUtils OldOwnerApi => this._oldOwnerApi ?? throw new NullReferenceException("Check if the owner app was initialized in method RunBeforeAnyTests");
+        public OwnerApiTestUtils OldOwnerApi =>
+            this._oldOwnerApi ?? throw new NullReferenceException("Check if the owner app was initialized in method RunBeforeAnyTests");
 
         public OwnerApiClient CreateOwnerApiClient(TestIdentity identity)
         {
             return new OwnerApiClient(this._oldOwnerApi, identity);
+        }
+
+        public AppApiClient CreateAppClient(TestIdentity identity, Guid appId)
+        {
+            return new AppApiClient(this._oldOwnerApi, identity, appId);
         }
 
         public AppApiTestUtils AppApi => this._appApi ?? throw new NullReferenceException("Check if the owner app was initialized in method RunBeforeAnyTests");
@@ -170,14 +181,13 @@ namespace Youverse.Hosting.Tests
                 Console.WriteLine($"Removing data in [{TestDataPath}]");
                 Directory.Delete(TestDataPath, true);
             }
-           
+
 
             if (Directory.Exists(TempDataPath))
             {
                 Console.WriteLine($"Removing data in [{TempDataPath}]");
                 Directory.Delete(TempDataPath, true);
             }
-           
         }
 
         private void CreateLogs()

@@ -31,7 +31,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// </summary>
         /// <returns></returns>
         Task UpdateAuthorizedCircles(UpdateAuthorizedCirclesRequest request);
-        
+
         Task<(bool isValid, AccessRegistration? accessReg, AppRegistration? appRegistration)> ValidateClientAuthToken(ClientAuthenticationToken authToken);
 
         /// <summary>
@@ -55,13 +55,6 @@ namespace Youverse.Core.Services.Authorization.Apps
         Task RemoveAppRevocation(GuidId appId);
 
         /// <summary>
-        /// Registers an application on a given device.  Returns the information required by the client.
-        ///
-        /// Only intended for server-side use.  For WebAPI you must use the <see cref="RegisterClientSecure"/> method
-        /// </summary>
-        Task<ClientAccessToken> RegisterClientRaw(GuidId appId, string friendlyName);
-        
-        /// <summary>
         /// Registers an application on a given device.  Returns the information required by the device
         /// </summary>
         /// <param name="appId"></param>
@@ -69,20 +62,24 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <param name="friendlyName"></param>
         /// >
         /// <returns></returns>
-        Task<AppClientRegistrationResponse> RegisterClientSecure(GuidId appId, byte[] clientPublicKey, string friendlyName);
-        
+        Task<AppClientRegistrationResponse> RegisterClient(GuidId appId, byte[] clientPublicKey, string friendlyName);
+
         Task<List<RegisteredAppClientResponse>> GetRegisteredClients();
-        
+
         /// <summary>
         /// Revokes a client from using the app
         /// </summary>
         Task RevokeClient(GuidId accessRegistrationId);
 
         Task DeleteClient(GuidId accessRegistrationId);
-        
+
         Task AllowClient(GuidId accessRegistrationId);
 
         Task DeleteApp(GuidId appId);
 
+        /// <summary>
+        /// Deletes the current client calling into the system.  This is used to 'logout' an app
+        /// </summary>
+        Task DeleteCurrentAppClient();
     }
 }

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Xml.Schema;
 using Dawn;
 using Youverse.Core.Serialization;
 using Youverse.Core.Storage;
@@ -31,6 +32,18 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Incoming
             return Task.CompletedTask;
         }
 
+        public InboxStatus GetPendingCount(Guid driveId)
+        {
+            var p = _tenantSystemStorage.Inbox.PopStatusSpecificBox(driveId);
+            return new InboxStatus()
+            {
+                DriveId = driveId,
+                TotalItems = p.totalCount,
+                PoppedCount = p.poppedCount,
+                OldestItemTimestamp = p.oldestItemTime,
+            };
+        }
+        
         public async Task<List<TransferInboxItem>> GetPendingItems(Guid driveId)
         {
             //CRITICAL NOTE: we can only get back one item since we want to make sure the marker is for that one item in-case the operation fails

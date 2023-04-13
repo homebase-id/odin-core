@@ -14,12 +14,12 @@ namespace Youverse.Core.Services.Authentication.Transit;
 
 //TODO: the name 'registration' is not accurate here because nothing is being registered.  this is just a cache loader
 //
-public class TransitRegistrationService : INotificationHandler<IdentityConnectionRegistrationChangedNotification>
+public class TransitAuthenticationService : INotificationHandler<IdentityConnectionRegistrationChangedNotification>
 {
     private readonly DotYouContextCache _cache;
     private readonly ICircleNetworkService _circleNetworkService;
 
-    public TransitRegistrationService(ICircleNetworkService circleNetworkService, YouverseConfiguration config)
+    public TransitAuthenticationService(ICircleNetworkService circleNetworkService, YouverseConfiguration config)
     {
         _circleNetworkService = circleNetworkService;
         _cache = new DotYouContextCache(config.Host.CacheSlidingExpirationSeconds);

@@ -44,12 +44,12 @@ public class TransitApiClient
         }
     }
 
-    public async Task ProcessIncomingInstructionSet(TargetDrive drive)
+    public async Task ProcessInbox(TargetDrive drive)
     {
         using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
         {
             var transitSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
-            var resp = await transitSvc.ProcessIncomingInstructions(new ProcessTransitInstructionRequest() { TargetDrive = drive });
+            var resp = await transitSvc.ProcessInbox(new ProcessInboxRequest() { TargetDrive = drive });
             Assert.IsTrue(resp.IsSuccessStatusCode, resp.ReasonPhrase);
         }
     }

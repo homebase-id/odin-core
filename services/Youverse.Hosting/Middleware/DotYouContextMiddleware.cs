@@ -99,7 +99,7 @@ namespace Youverse.Hosting.Middleware
                 }
 
                 var user = httpContext.User;
-                var transitRegService = httpContext.RequestServices.GetRequiredService<TransitRegistrationService>();
+                var transitRegService = httpContext.RequestServices.GetRequiredService<TransitAuthenticationService>();
                 var callerOdinId = (OdinId)user.Identity!.Name;
                 var ctx = await transitRegService.GetDotYouContext(callerOdinId, clientAuthToken);
 

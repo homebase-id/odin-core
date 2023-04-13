@@ -210,7 +210,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         /// </summary>
         /// <returns>Number of total items in box, number of popped items, the oldest popped item (ZeroTime if none)</returns>
         /// <exception cref="Exception"></exception>
-        public (int, int, UnixTimeUtc) PopStatusSpecificBox(Guid boxId)
+        public (int totalCount, int poppedCount, UnixTimeUtc oldestItemTime) PopStatusSpecificBox(Guid boxId)
         {
             lock (_popLock)
             {
