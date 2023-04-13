@@ -6,6 +6,7 @@ using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
+using Youverse.Core.Services.Drives.FileSystem.Base;
 
 namespace Youverse.Core.Services.Drives.DriveCore.Storage
 {
@@ -48,14 +49,26 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
             return WriteFile(filePath, tempFilePath, stream);
         }
 
-        public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart, long? offsetPosition = null)
+        public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart, FileChunk chunk = null)
         {
             string path = GetFilenameAndPath(fileId, filePart);
             var fileStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
-            if (offsetPosition.HasValue)
+            if (null != chunk)
             {
-                fileStream.Seek(offsetPosition.Value, SeekOrigin.Begin);
+                var buffer = new byte[chunk.Length];
+                if (fileStream.Length < chunk.Start)
+                {
+                    throw new YouverseClientException("Chunk start position is greater than length", YouverseClientErrorCode.InvalidChunkStart);
+                }
+
+                fileStream.Position = chunk.Start;
+                // var bytesRead = fileStream.Read(buffer, 0, chunk.Count);
+                var bytesRead = fileStream.Read(buffer);
+                fileStream.Close();
+                return Task.FromResult((Stream)new MemoryStream(buffer, false));
+
+                // if(bytesRead == 0) //end of stream
             }
 
             return Task.FromResult((Stream)fileStream);

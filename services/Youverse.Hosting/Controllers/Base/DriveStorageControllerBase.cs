@@ -9,6 +9,7 @@ using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Drives.FileSystem.Base;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Hosting.Authentication.ClientToken;
@@ -55,7 +56,7 @@ namespace Youverse.Hosting.Controllers.Base
 
             var fs = this.GetFileSystemResolver().ResolveFileSystem();
 
-            var payload = await fs.Storage.GetPayloadStream(file, request.OffsetPosition);
+            var payload = await fs.Storage.GetPayloadStream(file, request.Chunk);
             if (payload == Stream.Null)
             {
                 return NotFound();
@@ -191,7 +192,6 @@ namespace Youverse.Hosting.Controllers.Base
     public class GetPayloadRequest
     {
         public ExternalFileIdentifier File { get; set; }
-        public long? OffsetPosition { get; set; }
+        public FileChunk Chunk { get; set; }
     }
-    
 }

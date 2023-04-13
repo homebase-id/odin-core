@@ -6,6 +6,7 @@ using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Drives.FileSystem.Base;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Hosting.Controllers.Base;
@@ -67,8 +68,17 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpGet("payload")]
-        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] long? offsetPosition)
+        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type,
+            [FromQuery] int? chunkStart, [FromQuery] int? chunkLength)
         {
+            var chunk = chunkStart.HasValue
+                ? new FileChunk()
+                {
+                    Start = chunkStart.GetValueOrDefault(),
+                    Length = chunkLength.GetValueOrDefault(int.MaxValue)
+                }
+                : null;
+
             return await base.GetPayloadStream(
                 new GetPayloadRequest()
                 {
@@ -81,7 +91,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
                             Type = type
                         }
                     },
-                    OffsetPosition = offsetPosition
+                    Chunk = chunk
                 });
         }
 
@@ -103,7 +113,8 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         /// See GET files/header
         /// </summary>
         [HttpGet("thumb")]
-        public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] int width, [FromQuery] int height)
+        public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] int width,
+            [FromQuery] int height)
         {
             return await base.GetThumbnail(new GetThumbnailRequest()
             {

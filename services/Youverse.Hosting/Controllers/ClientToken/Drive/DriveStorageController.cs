@@ -9,6 +9,7 @@ using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Drives.FileSystem.Base;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Hosting.Authentication.ClientToken;
@@ -73,8 +74,16 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpGet("files/payload")]
-        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] long? offsetPosition)
+        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] int? chunkStart, [FromQuery]int? chunkLength)
         {
+            var chunk = chunkStart.HasValue
+                ? new FileChunk()
+                {
+                    Start = chunkStart.GetValueOrDefault(),
+                    Length =  chunkLength.GetValueOrDefault(int.MaxValue)
+                }
+                : null;
+            
             return await base.GetPayloadStream(
                 new GetPayloadRequest()
                 {
@@ -87,7 +96,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
                             Type = type
                         }
                     },
-                    OffsetPosition = offsetPosition
+                    Chunk = chunk
                 });
         }
 

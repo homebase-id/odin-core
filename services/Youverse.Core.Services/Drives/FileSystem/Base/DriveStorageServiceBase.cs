@@ -297,7 +297,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             return header;
         }
 
-        public async Task<Stream> GetPayloadStream(InternalDriveFileId file, long? offsetPosition = null)
+        public async Task<Stream> GetPayloadStream(InternalDriveFileId file, FileChunk chunk)
         {
             this.AssertCanReadDrive(file.DriveId);
 
@@ -306,7 +306,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             var header = await this.GetServerFileHeader(file);
             if (header.FileMetadata.AppData.ContentIsComplete == false)
             {
-                var stream = await GetLongTermStorageManager(file.DriveId).GetFilePartStream(file.FileId, FilePart.Payload, offsetPosition);
+                var stream = await GetLongTermStorageManager(file.DriveId).GetFilePartStream(file.FileId, FilePart.Payload, chunk);
                 return stream;
             }
 

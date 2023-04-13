@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using Youverse.Core.Services.Drives.FileSystem.Base;
 
 namespace Youverse.Core.Services.Drives.DriveCore.Storage
 {
@@ -30,7 +31,7 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
         /// Gets a read stream for the given <see cref="FilePart"/>
         /// </summary>
         /// <returns></returns>
-        Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart, long? offsetPosition = null);
+        Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart, FileChunk chunk = null);
 
         /// <summary>
         /// Gets a read stream of the thumbnail
