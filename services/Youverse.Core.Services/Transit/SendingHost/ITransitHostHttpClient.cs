@@ -38,7 +38,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
         Task<ApiResponse<HttpContent>> GetThumbnailStream([Body] GetThumbnailRequest request);
 
         [Post(RootPath + "/payload")]
-        Task<ApiResponse<HttpContent>> GetPayloadStream([Body] ExternalFileIdentifier file);
+        Task<ApiResponse<HttpContent>> GetPayloadStream([Body] GetPayloadRequest request);
 
         [Post(RootPath + "/metadata/type")]
         Task<ApiResponse<IEnumerable<PerimeterDriveData>>> GetDrives([Body] GetDrivesByTypeRequest request);

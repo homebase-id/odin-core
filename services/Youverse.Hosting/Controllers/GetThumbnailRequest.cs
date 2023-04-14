@@ -1,4 +1,5 @@
 using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Drives.FileSystem.Base;
 using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers.OwnerToken.Drive;
 
@@ -14,6 +15,8 @@ public class TransitExternalFileIdentifier
     public string OdinId { get; set; }
 
     public ExternalFileIdentifier File { get; set; }
+
+    public FileChunk Chunk { get; set; }
 }
 
 public class TransitGetDrivesByTypeRequest : GetDrivesByTypeRequest

@@ -188,10 +188,4 @@ namespace Youverse.Hosting.Controllers.Base
             }
         }
     }
-
-    public class GetPayloadRequest
-    {
-        public ExternalFileIdentifier File { get; set; }
-        public FileChunk Chunk { get; set; }
-    }
 }
