@@ -73,7 +73,7 @@ namespace Youverse.Hosting.Tests.YouAuthApi.Drive
                             TargetDrive = uploadContext.UploadedFile.TargetDrive,
                             FileId = uploadContext.UploadedFile.FileId
                         }
-                    };
+                    });
                 Assert.IsTrue(getPayloadStreamResponse.StatusCode == HttpStatusCode.Forbidden, $"Failed status code.  Value was {getPayloadStreamResponse.StatusCode}");
                 Assert.IsNull(getPayloadStreamResponse.Content);
             }
