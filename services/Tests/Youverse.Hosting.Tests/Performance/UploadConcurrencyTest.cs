@@ -83,6 +83,10 @@ namespace Youverse.Hosting.Tests.Performance
             var appRegistration = await ownerClient.Apps.RegisterApp(appId, appPermissionsGrant);
             var appApiClient = _scaffold.CreateAppClient(TestIdentities.Samwise, appId);
 
+            //upload a file
+            
+            //upload the same file from multiple threads
+
             //
             // Prepare environment by uploading secured files
             //
