@@ -11,6 +11,7 @@ using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Drives.FileSystem.Base;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.ReceivingHost.Quarantine;
 using Youverse.Core.Storage;
@@ -67,11 +68,13 @@ public class TransitQueryService
         return header;
     }
 
-    public async Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, bool payloadIsEncrypted, string decryptedContentType, Stream payload)>
-        GetPayloadStream(OdinId odinId, ExternalFileIdentifier file, FileSystemType fileSystemType)
+    public async
+        Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, bool payloadIsEncrypted, string
+            decryptedContentType, Stream payload)> GetPayloadStream(OdinId odinId, ExternalFileIdentifier file,
+            FileChunk chunk, FileSystemType fileSystemType)
     {
         var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
-        var response = await httpClient.GetPayloadStream(file);
+        var response = await httpClient.GetPayloadStream(new GetPayloadRequest(){  File = file,Chunk = chunk} );
 
         if (response.StatusCode == HttpStatusCode.NotFound)
         {

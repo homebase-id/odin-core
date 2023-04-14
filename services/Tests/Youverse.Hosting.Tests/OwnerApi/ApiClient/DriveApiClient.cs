@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
@@ -12,12 +13,14 @@ using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.DriveCore.Query;
 using Youverse.Core.Services.Drives.DriveCore.Storage;
 using Youverse.Core.Services.Drives.FileSystem;
+using Youverse.Core.Services.Drives.FileSystem.Base;
 using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Core.Storage;
+using Youverse.Hosting.Controllers.Base;
 using Youverse.Hosting.Controllers.OwnerToken.Drive;
 using Youverse.Hosting.Tests.AppAPI.Utils;
 using Youverse.Hosting.Tests.OwnerApi.Drive;
@@ -274,6 +277,23 @@ public class DriveApiClient
         }
     }
 
+    public async Task<HttpContent> GetPayload(FileSystemType fileSystemType, ExternalFileIdentifier file, FileChunk chunk = null)
+    {
+        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType))
+        {
+            //wth - refit is not sending headers when you do GET request - why not!?
+            var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, sharedSecret);
+            var apiResponse = await svc.GetPayloadPost(new GetPayloadRequest()
+            {
+                File = file,
+                Chunk = chunk
+            });
+            
+            return apiResponse.Content;
+        }
+    }
+
+    
     public async Task DeleteFile(FileSystemType fileSystemType, ExternalFileIdentifier file, List<string> recipients = null)
     {
         using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType))

@@ -9,6 +9,7 @@ using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Drives.FileSystem.Base;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Hosting.Authentication.ClientToken;
@@ -66,24 +67,37 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         /// <returns></returns>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpPost("files/payload")]
-        public new async Task<IActionResult> GetPayloadStream([FromBody] ExternalFileIdentifier request)
+        public new async Task<IActionResult> GetPayloadStream([FromBody] GetPayloadRequest request)
         {
             return await base.GetPayloadStream(request);
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpGet("files/payload")]
-        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type)
+        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] int? chunkStart, [FromQuery]int? chunkLength)
         {
-            return await GetPayloadStream(new ExternalFileIdentifier()
-            {
-                FileId = fileId,
-                TargetDrive = new()
+            var chunk = chunkStart.HasValue
+                ? new FileChunk()
                 {
-                    Alias = alias,
-                    Type = type
+                    Start = chunkStart.GetValueOrDefault(),
+                    Length =  chunkLength.GetValueOrDefault(int.MaxValue)
                 }
-            });
+                : null;
+            
+            return await base.GetPayloadStream(
+                new GetPayloadRequest()
+                {
+                    File = new ExternalFileIdentifier()
+                    {
+                        FileId = fileId,
+                        TargetDrive = new()
+                        {
+                            Alias = alias,
+                            Type = type
+                        }
+                    },
+                    Chunk = chunk
+                });
         }
 
         /// <summary>

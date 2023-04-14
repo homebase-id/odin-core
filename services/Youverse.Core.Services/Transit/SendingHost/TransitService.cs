@@ -34,6 +34,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
         private readonly TenantContext _tenantContext;
         private readonly YouverseConfiguration _youverseConfiguration;
+
         public TransitService(
             DotYouContextAccessor contextAccessor,
             ITransitOutbox transitOutbox,
@@ -43,7 +44,8 @@ namespace Youverse.Core.Services.Transit.SendingHost
             ICircleNetworkService circleNetworkService,
             FollowerService followerService,
             DriveManager driveManager,
-            FileSystemResolver fileSystemResolver, YouverseConfiguration youverseConfiguration) : base(dotYouHttpClientFactory, circleNetworkService, contextAccessor, followerService, fileSystemResolver)
+            FileSystemResolver fileSystemResolver, YouverseConfiguration youverseConfiguration) : base(dotYouHttpClientFactory, circleNetworkService,
+            contextAccessor, followerService, fileSystemResolver)
         {
             _contextAccessor = contextAccessor;
             _transitOutbox = transitOutbox;
@@ -124,7 +126,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
         public async Task ProcessOutbox()
         {
             var batchSize = _youverseConfiguration.Transit.OutboxBatchSize;
-            
+
             //Note: here we can prioritize outbox processing by drive if need be
             var page = await _driveManager.GetDrives(PageOptions.All);
 
@@ -174,7 +176,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
 
             return result;
         }
-        
+
         private async Task<List<SendResult>> SendBatchNow(IEnumerable<TransitOutboxItem> items)
         {
             var tasks = new List<Task<SendResult>>();
@@ -300,7 +302,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
                 {
                     var payloadStream = metadata.AppData.ContentIsComplete
                         ? Stream.Null
-                        : await fs.Storage.GetPayloadStream(file);
+                        : await fs.Storage.GetPayloadStream(file, null);
                     var payload = new StreamPart(payloadStream, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartHostTransferParts.Payload));
                     additionalStreamParts.Add(payload);
                 }

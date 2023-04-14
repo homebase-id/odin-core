@@ -79,11 +79,11 @@ namespace Youverse.Hosting.Controllers.Certificate
         /// Retrieves a file's encrypted payload
         /// </summary>
         [HttpPost("payload")]
-        public async Task<IActionResult> GetPayloadStream([FromBody] ExternalFileIdentifier request)
+        public async Task<IActionResult> GetPayloadStream([FromBody] GetPayloadRequest request)
         {
             var perimeterService = GetPerimeterService();
             var (encryptedKeyHeader64, payloadIsEncrypted, decryptedContentType, payload) =
-                await perimeterService.GetPayloadStream(request.TargetDrive, request.FileId);
+                await perimeterService.GetPayloadStream(request.File.TargetDrive, request.File.FileId, request.Chunk);
 
             if (payload == Stream.Null)
             {

@@ -12,6 +12,7 @@ using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
+using Youverse.Hosting.Controllers.Base;
 using Youverse.Hosting.Tests.AppAPI.Utils;
 
 namespace Youverse.Hosting.Tests.AppAPI.Drive
@@ -135,7 +136,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.That(fileKey, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
 
                 //get the payload and decrypt, then compare
-                var payloadResponse = await driveSvc.GetPayloadAsPost(new ExternalFileIdentifier() { TargetDrive = targetDrive, FileId = fileId });
+                var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest() { File =new ExternalFileIdentifier() { TargetDrive = targetDrive, FileId = fileId }});
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 

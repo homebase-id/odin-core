@@ -45,7 +45,8 @@ public class StaticFileContentService
     private readonly DotYouContextAccessor _contextAccessor;
     private readonly ITenantSystemStorage _tenantSystemStorage;
 
-    public StaticFileContentService(TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITenantSystemStorage tenantSystemStorage, DriveManager driveManager, StandardFileSystem fileSystem)
+    public StaticFileContentService(TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITenantSystemStorage tenantSystemStorage,
+        DriveManager driveManager, StandardFileSystem fileSystem)
     {
         _tenantContext = tenantContext;
         _contextAccessor = contextAccessor;
@@ -136,7 +137,7 @@ public class StaticFileContentService
 
                 if (section.ResultOptions.IncludePayload)
                 {
-                    var payloadStream = await _fileSystem.Storage.GetPayloadStream(internalFileId);
+                    var payloadStream = await _fileSystem.Storage.GetPayloadStream(internalFileId, null);
                     payload = payloadStream.ToByteArray();
                 }
 

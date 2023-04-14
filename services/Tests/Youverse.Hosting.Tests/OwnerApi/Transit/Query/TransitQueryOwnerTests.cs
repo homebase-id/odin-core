@@ -22,6 +22,7 @@ using Youverse.Core.Services.Transit.ReceivingHost;
 using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Core.Storage;
 using Youverse.Hosting.Controllers;
+using Youverse.Hosting.Controllers.Base;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Controllers.OwnerToken.Transit;
 using Youverse.Hosting.Tests.AppAPI.Drive;
@@ -235,7 +236,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 // Get the payload that was uploaded, test it
                 // 
 
-                var payloadResponse = await driveSvc.GetPayloadAsPost(uploadedFile);
+                var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest() { File = uploadedFile });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 
@@ -500,7 +501,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 // Get the payload that was uploaded, test it
                 // 
 
-                var payloadResponse = await driveSvc.GetPayloadAsPost(uploadedFile);
+                var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest() { File = uploadedFile });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 
@@ -972,7 +973,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 // Get the payload that was uploaded, test it
                 // 
 
-                var payloadResponse = await driveSvc.GetPayloadAsPost(uploadedFile);
+                var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest() { File = uploadedFile });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 
@@ -1229,12 +1230,12 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(clientFileHeader.FileMetadata.AppData.ContentIsComplete, Is.EqualTo(descriptor.FileMetadata.AppData.ContentIsComplete));
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
-                
+
                 //
                 // Get the payload that was uploaded, test it
                 // 
 
-                var payloadResponse = await driveSvc.GetPayloadAsPost(uploadedFile);
+                var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest() { File = uploadedFile });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 

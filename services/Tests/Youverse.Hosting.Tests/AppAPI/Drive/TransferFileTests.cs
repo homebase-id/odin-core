@@ -22,6 +22,7 @@ using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.ReceivingHost;
 using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Hosting.Controllers;
+using Youverse.Hosting.Controllers.Base;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Tests.AppAPI.Transit;
 using Youverse.Hosting.Tests.AppAPI.Utils;
@@ -121,7 +122,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             var getSenderPayloadResponse = await _scaffold.AppApi.GetFilePayload(ctx.TestAppContext, ctx.UploadedFile);
             Assert.IsTrue(getSenderPayloadResponse.StatusCode == HttpStatusCode.NotFound);
         }
-        
+
 
         [Test]
         public async Task CanDeleteFileOnRecipientServerUsingGlobalTransitId()
@@ -420,7 +421,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 // Get the payload that was uploaded, test it
                 // 
 
-                var payloadResponse = await driveSvc.GetPayloadAsPost(uploadedFile);
+                var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest() { File = uploadedFile });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 
@@ -701,7 +702,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 // Get the payload that was uploaded, test it
                 // 
 
-                var payloadResponse = await driveSvc.GetPayloadAsPost(uploadedFile);
+                var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest() { File = uploadedFile });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 

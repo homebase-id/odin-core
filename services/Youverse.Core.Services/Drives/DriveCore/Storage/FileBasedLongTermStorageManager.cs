@@ -6,6 +6,7 @@ using Dawn;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
+using Youverse.Core.Services.Drives.FileSystem.Base;
 
 namespace Youverse.Core.Services.Drives.DriveCore.Storage
 {
@@ -48,10 +49,35 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
             return WriteFile(filePath, tempFilePath, stream);
         }
 
-        public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart)
+        public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart, FileChunk chunk = null)
         {
             string path = GetFilenameAndPath(fileId, filePart);
             var fileStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+
+            if (null != chunk)
+            {
+                var buffer = new byte[chunk.Length];
+                if (chunk.Start > fileStream.Length)
+                {
+                    throw new YouverseClientException("Chunk start position is greater than length", YouverseClientErrorCode.InvalidChunkStart);
+                }
+
+                fileStream.Position = chunk.Start;
+                var bytesRead = fileStream.Read(buffer);
+                fileStream.Close();
+
+                // if(bytesRead == 0) //TODO: handle end of stream?
+
+                //resize if lenght requested was too large (happens if we hit the end of the stream)
+                if (bytesRead < buffer.Length)
+                {
+                    Array.Resize(ref buffer, bytesRead);
+                }
+                
+                return Task.FromResult((Stream)new MemoryStream(buffer, false));
+
+            }
+
             return Task.FromResult((Stream)fileStream);
         }
 
@@ -96,7 +122,7 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
             {
                 return false;
             }
-            
+
             var header = this.GetServerFileHeader(fileId).GetAwaiter().GetResult();
             if (!header.FileMetadata.AppData.ContentIsComplete) //there should be a payload
             {
@@ -133,7 +159,7 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
         {
             var dest = GetFilenameAndPath(targetFileId, part, ensureDirectoryExists: true);
             Directory.CreateDirectory(Path.GetDirectoryName(dest));
-            
+
             File.Move(sourcePath, dest, true);
             _logger.LogInformation($"File Moved to {dest}");
             return Task.CompletedTask;

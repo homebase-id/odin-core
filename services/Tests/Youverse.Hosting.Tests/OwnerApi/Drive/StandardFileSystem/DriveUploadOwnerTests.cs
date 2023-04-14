@@ -19,6 +19,7 @@ using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Storage;
+using Youverse.Hosting.Controllers.Base;
 using Youverse.Hosting.Tests.AppAPI.Utils;
 using Youverse.Hosting.Tests.OwnerApi.ApiClient;
 
@@ -325,7 +326,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 // Get the payload that was uploaded, test it
                 // 
 
-                var payloadResponse = await getFilesDriveSvc.GetPayloadPost(uploadedFile);
+                var payloadResponse = await getFilesDriveSvc.GetPayloadPost(new GetPayloadRequest() {File = uploadedFile});
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 

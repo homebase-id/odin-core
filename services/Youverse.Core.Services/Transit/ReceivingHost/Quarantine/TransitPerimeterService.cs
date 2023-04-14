@@ -14,6 +14,7 @@ using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.DriveCore.Query;
 using Youverse.Core.Services.Drives.DriveCore.Storage;
 using Youverse.Core.Services.Drives.FileSystem;
+using Youverse.Core.Services.Drives.FileSystem.Base;
 using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Services.EncryptionKeyService;
 using Youverse.Core.Services.Mediator;
@@ -246,7 +247,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
         }
 
         public async Task<(string encryptedKeyHeader64, bool payloadIsEncrypted, string decryptedContentType, Stream stream)> GetPayloadStream(
-            TargetDrive targetDrive, Guid fileId)
+            TargetDrive targetDrive, Guid fileId, FileChunk chunk)
         {
             var file = new InternalDriveFileId()
             {
@@ -262,7 +263,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
             }
 
             string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
-            var payload = await _fileSystem.Storage.GetPayloadStream(file);
+            var payload = await _fileSystem.Storage.GetPayloadStream(file, chunk);
 
             return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, header.FileMetadata.ContentType, payload);
         }

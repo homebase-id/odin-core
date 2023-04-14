@@ -123,34 +123,6 @@ public class ReactionPreviewTests
         Assert.NotNull(blogPostHeader.FileMetadata.ReactionPreview.Comments.SingleOrDefault(x => x.JsonContent == commentFile3.AppData.JsonContent));
     }
 
-    
-    public async Task AddingReactionUpdatesReactionPreview()
-    {
-        var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
-
-        //create a channel drive
-        var frodoChannelDrive = new TargetDrive()
-        {
-            Alias = Guid.NewGuid(),
-            Type = SystemDriveConstants.ChannelDriveType
-        };
-
-        await frodoOwnerClient.Drive.CreateDrive(frodoChannelDrive, "A Channel Drive", "", false, false);
-
-        // Frodo uploads content to channel drive
-        var uploadedContent = "I'm Mr. Underhill";
-        var uploadedContentResult = await UploadStandardFileToChannel(frodoOwnerClient, frodoChannelDrive, uploadedContent);
-
-
-        Assert.Inconclusive("TODO");
-        
-        
-        // get the target blog file
-        var blogPostHeader = await frodoOwnerClient.Drive.GetFileHeader(FileSystemType.Standard, uploadedContentResult.File);
-
-    }
-
-    
     private async Task<UploadResult> UploadStandardFileToChannel(OwnerApiClient client, TargetDrive targetDrive, string uploadedContent)
     {
         var fileMetadata = new UploadFileMetadata()
