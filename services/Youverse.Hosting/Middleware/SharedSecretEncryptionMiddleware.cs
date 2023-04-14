@@ -18,6 +18,7 @@ using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
+using Youverse.Hosting.Controllers.ClientToken;
 using Youverse.Hosting.Controllers.OwnerToken;
 
 namespace Youverse.Hosting.Middleware
@@ -58,6 +59,7 @@ namespace Youverse.Hosting.Middleware
                 "/api/apps/v1/drive/files/upload",
                 "/api/youauth/v1/drive/files/upload",
                 "/api/youauth/v1/auth/is-authenticated",
+                $"{AppApiPathConstants.AuthV1}/logout"
                 //"/api/owner/v1/config/ownerapp/settings/list"
             };
 
