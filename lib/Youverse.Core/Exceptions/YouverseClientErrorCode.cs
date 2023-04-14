@@ -56,6 +56,7 @@ public enum YouverseClientErrorCode
     CannotUseGroupIdInTextReactions = 4124,
     InvalidFileSystemType = 4125,
     InvalidDrive = 4126,
+    UploadedFileLocked = 4127,
 
     // Connection errors 50xx
     CannotSendConnectionRequestToExistingIncomingRequest = 5001,

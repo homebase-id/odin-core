@@ -26,8 +26,8 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         TenantContext tenantContext,
         DotYouContextAccessor contextAccessor,
         ITransitService transitService,
-        DriveManager driveManager)
-        : base(fileSystem, tenantContext, contextAccessor, driveManager)
+        DriveManager driveManager, UploadLock uploadLock)
+        : base(fileSystem, tenantContext, contextAccessor, driveManager, uploadLock)
     {
         _contextAccessor = contextAccessor;
         _transitService = transitService;

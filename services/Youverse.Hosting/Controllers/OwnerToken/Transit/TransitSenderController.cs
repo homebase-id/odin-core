@@ -63,19 +63,19 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
 
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Metadata);
-            await driveUploadService.AddMetadata(packageId, section!.Body);
+            await driveUploadService.AddMetadata(section!.Body);
 
             //
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Payload);
-            await driveUploadService.AddPayload(packageId, section!.Body);
+            await driveUploadService.AddPayload(section!.Body);
 
             //
             section = await reader.ReadNextSectionAsync();
             while (null != section)
             {
                 AssertIsValidThumbnailPart(section, MultipartUploadParts.Thumbnail, out var fileSection, out var width, out var height);
-                await driveUploadService.AddThumbnail(packageId, width, height, fileSection.Section.ContentType, fileSection.FileStream);
+                await driveUploadService.AddThumbnail(width, height, fileSection.Section.ContentType, fileSection.FileStream);
                 section = await reader.ReadNextSectionAsync();
             }
 

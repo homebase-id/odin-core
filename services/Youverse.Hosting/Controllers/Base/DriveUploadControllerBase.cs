@@ -2,12 +2,10 @@
 using System.Linq;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
-using Youverse.Core.Services.Transit;
 
 namespace Youverse.Hosting.Controllers.Base
 {
@@ -37,19 +35,19 @@ namespace Youverse.Hosting.Controllers.Base
 
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Metadata);
-            await driveUploadService.AddMetadata(packageId, section!.Body);
+            await driveUploadService.AddMetadata(section!.Body);
 
             //
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Payload);
-            await driveUploadService.AddPayload(packageId, section!.Body);
+            await driveUploadService.AddPayload(section!.Body);
 
             //
             section = await reader.ReadNextSectionAsync();
             while (null != section)
             {
                 AssertIsValidThumbnailPart(section, MultipartUploadParts.Thumbnail, out var fileSection, out var width, out var height);
-                await driveUploadService.AddThumbnail(packageId, width, height, fileSection.Section.ContentType, fileSection.FileStream);
+                await driveUploadService.AddThumbnail(width, height, fileSection.Section.ContentType, fileSection.FileStream);
                 section = await reader.ReadNextSectionAsync();
             }
 
@@ -65,7 +63,8 @@ namespace Youverse.Hosting.Controllers.Base
             }
         }
 
-        private protected void AssertIsValidThumbnailPart(MultipartSection section, MultipartUploadParts expectedPart, out FileMultipartSection fileSection, out int width, out int height)
+        private protected void AssertIsValidThumbnailPart(MultipartSection section, MultipartUploadParts expectedPart, out FileMultipartSection fileSection,
+            out int width, out int height)
         {
             if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)
             {
@@ -75,13 +74,15 @@ namespace Youverse.Hosting.Controllers.Base
             fileSection = section.AsFileSection();
             if (null == fileSection)
             {
-                throw new YouverseClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')", YouverseClientErrorCode.InvalidThumnbnailName);
+                throw new YouverseClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')",
+                    YouverseClientErrorCode.InvalidThumnbnailName);
             }
 
             string[] parts = fileSection.FileName.Split('x');
             if (!Int32.TryParse(parts[0], out width) || !Int32.TryParse(parts[1], out height))
             {
-                throw new YouverseClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')", YouverseClientErrorCode.InvalidThumnbnailName);
+                throw new YouverseClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')",
+                    YouverseClientErrorCode.InvalidThumnbnailName);
             }
         }
 
@@ -110,6 +111,5 @@ namespace Youverse.Hosting.Controllers.Base
             var cd = ContentDispositionHeaderValue.Parse(contentDisposition);
             return cd.Name?.Trim('"');
         }
-
     }
 }

@@ -31,5 +31,6 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
                 : null;
 
         public Dictionary<string, TransferStatus> RecipientStatus { get; set; }
+        
     }
 }

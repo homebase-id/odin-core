@@ -19,6 +19,12 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
             this.InternalFile = internalFile;
             this.InstructionSet = instructionSet;
             this.IsUpdateOperation = isUpdateOperation;
+            // this.SourceFile = new InternalDriveFileId()
+            // {
+            //     FileId = SequentialGuid.CreateGuid(),
+            //     DriveId = internalFile.DriveId
+            // };
+
         }
 
         public Guid Id { get; init; }
@@ -26,6 +32,11 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
         public UploadInstructionSet InstructionSet { get; init; }
 
         public InternalDriveFileId InternalFile { get; init; }
+
+        /// <summary>
+        /// The file that was uploaded to the staging/temp area
+        /// </summary>
+        // public InternalDriveFileId SourceFile { get; init; }
 
         public bool IsUpdateOperation { get; init; }
         
