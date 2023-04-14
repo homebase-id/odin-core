@@ -130,5 +130,17 @@ namespace Youverse.Core.Tests
             var ut2 = new UnixTimeUtc(nt);
             Assert.AreEqual(nt.ToUnixTimeMilliseconds(), ut2.milliseconds);
         }
+
+        [Test]
+        public void UnitTimeType10()
+        {
+            var ut = UnixTimeUtc.Now();
+            Int64 i = (Int64) ut;
+
+            Assert.AreEqual(i, (Int64) ut);
+
+            UnixTimeUtc ut2 = i;
+            Assert.AreEqual(i, (Int64) ut2);
+        }
     }
 }
