@@ -76,6 +76,50 @@ public class DrivePayloadChunkingTests
         string payloadContentChunk1 = await getPayloadResponseChunk1.ReadAsStringAsync();
         Assert.IsTrue(payloadContentChunk1 == expectedChunk,$"expected [{expectedChunk}] but value was [{payloadContentChunk1}]");
     }
+    
+    [Test]
+    [Ignore("for testing")]
+    public async Task CanGetPayloadInChunks_Weird()
+    {
+        var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
+
+        //create a channel drive
+        var frodoChannelDrive = new TargetDrive()
+        {
+            Alias = Guid.NewGuid(),
+            Type = SystemDriveConstants.ChannelDriveType
+        };
+
+        await ownerClient.Drive.CreateDrive(frodoChannelDrive, "A Channel Drive", "", false, false);
+
+        // Frodo uploads content to channel drive
+        const string uploadedContent = "I'm Mr. Underhill";
+
+        var uploadedPayload = "‘Rope!’ muttered Sam. ‘I knew I’d want it, if I hadn’t got it!’";
+        // var uploadedPayload = "What is happening with the encoding!?";
+
+        var uploadedContentResult = await UploadStandardFileToChannel(ownerClient, frodoChannelDrive, uploadedContent, uploadedPayload);
+
+        //Test whole payload is there
+        var getPayloadResponse = await ownerClient.Drive.GetPayload(FileSystemType.Standard, uploadedContentResult.File);
+        string payloadContent = await getPayloadResponse.ReadAsStringAsync();
+        Assert.IsTrue(payloadContent == uploadedPayload);
+
+        const string expectedChunk = "I knew I’d want it";
+        // const string expectedChunk = "is happening";
+        // const string expectedChunk = "encoding!?";
+
+        //get a chunk of the payload
+        var chunk1 = new FileChunk()
+        {
+            Start = 23,
+            Length = expectedChunk.Length
+        };
+
+        var getPayloadResponseChunk1 = await ownerClient.Drive.GetPayload(FileSystemType.Standard, uploadedContentResult.File, chunk1);
+        string payloadContentChunk1 = await getPayloadResponseChunk1.ReadAsStringAsync();
+        Assert.IsTrue(payloadContentChunk1 == expectedChunk,$"expected [{expectedChunk}] but value was [{payloadContentChunk1}]");
+    }
 
     private async Task<UploadResult> UploadStandardFileToChannel(OwnerApiClient client, TargetDrive targetDrive, string uploadedContent, string payload)
     {
