@@ -6,6 +6,7 @@ using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Drives.FileSystem.Base;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Hosting.Controllers.Base;
@@ -56,7 +57,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("payload")]
-        public new async Task<IActionResult> GetPayloadStream([FromBody] ExternalFileIdentifier request)
+        public new async Task<IActionResult> GetPayloadStream([FromBody] GetPayloadRequest request)
         {
             return await base.GetPayloadStream(request);
         }
@@ -67,17 +68,31 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpGet("payload")]
-        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type)
+        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type,
+            [FromQuery] int? chunkStart, [FromQuery] int? chunkLength)
         {
-            return await base.GetPayloadStream(new ExternalFileIdentifier()
-            {
-                FileId = fileId,
-                TargetDrive = new()
+            var chunk = chunkStart.HasValue
+                ? new FileChunk()
                 {
-                    Alias = alias,
-                    Type = type
+                    Start = chunkStart.GetValueOrDefault(),
+                    Length = chunkLength.GetValueOrDefault(int.MaxValue)
                 }
-            });
+                : null;
+
+            return await base.GetPayloadStream(
+                new GetPayloadRequest()
+                {
+                    File = new ExternalFileIdentifier()
+                    {
+                        FileId = fileId,
+                        TargetDrive = new()
+                        {
+                            Alias = alias,
+                            Type = type
+                        }
+                    },
+                    Chunk = chunk
+                });
         }
 
         /// <summary>
@@ -98,7 +113,8 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         /// See GET files/header
         /// </summary>
         [HttpGet("thumb")]
-        public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] int width, [FromQuery] int height)
+        public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] int width,
+            [FromQuery] int height)
         {
             return await base.GetThumbnail(new GetThumbnailRequest()
             {
@@ -149,6 +165,5 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             await base.GetFileSystemResolver().ResolveFileSystem().Storage.HardDeleteLongTermFile(file);
             return Ok();
         }
-
     }
 }

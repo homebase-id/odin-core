@@ -9,6 +9,7 @@ using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Drives.FileSystem.Base;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Hosting.Authentication.ClientToken;
@@ -49,13 +50,13 @@ namespace Youverse.Hosting.Controllers.Base
         /// <summary>
         /// Returns the payload for a given file
         /// </summary>
-        protected async Task<IActionResult> GetPayloadStream(ExternalFileIdentifier request)
+        protected async Task<IActionResult> GetPayloadStream(GetPayloadRequest request)
         {
-            var file = MapToInternalFile(request);
+            var file = MapToInternalFile(request.File);
 
             var fs = this.GetFileSystemResolver().ResolveFileSystem();
 
-            var payload = await fs.Storage.GetPayloadStream(file);
+            var payload = await fs.Storage.GetPayloadStream(file, request.Chunk);
             if (payload == Stream.Null)
             {
                 return NotFound();

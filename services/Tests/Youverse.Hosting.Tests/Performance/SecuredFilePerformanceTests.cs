@@ -18,6 +18,7 @@ using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 using Youverse.Core.Services.Optimization.Cdn;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
+using Youverse.Hosting.Controllers.Base;
 using Youverse.Hosting.Controllers.OwnerToken.Cdn;
 using Youverse.Hosting.Tests.AppAPI;
 using Youverse.Hosting.Tests.AppAPI.Drive;
@@ -271,7 +272,7 @@ namespace Youverse.Hosting.Tests.Performance
 
 
             // var payload1Response2 = await frodoDriveService.GetPayload(uploadedFile1.FileId, uploadedFile1.TargetDrive.Alias, uploadedFile1.TargetDrive.Type);
-            var payload1Response2 = await frodoDriveService.GetPayloadAsPost(uploadedFile1);
+            var payload1Response2 = await frodoDriveService.GetPayloadAsPost(new GetPayloadRequest() { File = uploadedFile1 });
             Assert.IsTrue(payload1Response2.IsSuccessStatusCode);
             Assert.IsNotNull(payload1Response2.Content);
             // System.Threading.Thread.Sleep(2000);
@@ -284,7 +285,7 @@ namespace Youverse.Hosting.Tests.Performance
                 sw.Restart();
 
                 // var payload1Response = await frodoDriveService.GetPayload(uploadedFile1.FileId, uploadedFile1.TargetDrive.Alias, uploadedFile1.TargetDrive.Type);
-                var payload1Response = await frodoDriveService.GetPayloadAsPost(uploadedFile1);
+                var payload1Response = await frodoDriveService.GetPayloadAsPost(new GetPayloadRequest() { File = uploadedFile1 });
                 // var contentType = payloadResponse.Headers.SingleOrDefault(h => h.Key == HttpHeaderConstants.DecryptedContentType);
                 Assert.IsTrue(payload1Response.IsSuccessStatusCode);
                 Assert.IsNotNull(payload1Response.Content);
@@ -445,7 +446,7 @@ namespace Youverse.Hosting.Tests.Performance
                 // Get the payload that was uploaded, test it
                 // 
 
-                var payloadResponse = await getFilesDriveSvc.GetPayloadPost(uploadedFile);
+                var payloadResponse = await getFilesDriveSvc.GetPayloadPost(new GetPayloadRequest() {File = uploadedFile });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 

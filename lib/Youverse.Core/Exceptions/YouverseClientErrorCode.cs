@@ -56,6 +56,7 @@ public enum YouverseClientErrorCode
     CannotUseGroupIdInTextReactions = 4124,
     InvalidFileSystemType = 4125,
     InvalidDrive = 4126,
+    InvalidChunkStart = 4127,
 
     // Connection errors 50xx
     CannotSendConnectionRequestToExistingIncomingRequest = 5001,
@@ -79,5 +80,5 @@ public enum YouverseClientErrorCode
     // System Errors 90xx
     InvalidFlagName = 9001,
     NotInitialized = 9002,
-    UnknownFlagName = 9003
+    UnknownFlagName = 9003,
 }

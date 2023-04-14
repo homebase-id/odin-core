@@ -21,7 +21,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
         Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader(ExternalFileIdentifier file);
 
         [Post(RootEndpoint + "/files/payload")]
-        Task<ApiResponse<HttpContent>> GetPayload(ExternalFileIdentifier file);
+        Task<ApiResponse<HttpContent>> GetPayload(GetPayloadRequest request);
         
         [Post(RootEndpoint + "/thumb")]
         Task<ApiResponse<HttpContent>> GetThumbnail(GetThumbnailRequest request);

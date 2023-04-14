@@ -84,7 +84,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         [HttpPost("payload")]
         public async Task<IActionResult> GetPayloadStream([FromBody] TransitExternalFileIdentifier request)
         {
-            var (encryptedKeyHeader, payloadIsEncrypted, decryptedContentType, payload) = await _transitQueryService.GetPayloadStream((OdinId)request.OdinId, request.File, GetFileSystemResolver().GetFileSystemType());
+            var (encryptedKeyHeader, payloadIsEncrypted, decryptedContentType, payload) = await _transitQueryService.GetPayloadStream((OdinId)request.OdinId, request.File, request.Chunk, GetFileSystemResolver().GetFileSystemType());
 
             if (payload == Stream.Null)
             {
