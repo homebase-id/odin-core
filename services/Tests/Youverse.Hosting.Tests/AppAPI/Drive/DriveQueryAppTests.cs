@@ -90,7 +90,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     }
                 };
 
-                var response = await svc.QueryBatch(request);
+                var response = await svc.GetBatch(request);
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
 
@@ -150,7 +150,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     }
                 };
 
-                var response = await svc.QueryBatch(request);
+                var response = await svc.GetBatch(request);
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
 
@@ -212,7 +212,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     ResultOptionsRequest = resultOptions
                 };
 
-                var response = await svc.QueryBatch(request);
+                var response = await svc.GetBatch(request);
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
                 Assert.IsNotNull(batch);
@@ -312,7 +312,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     ResultOptionsRequest = resultOptions
                 };
 
-                var response = await svc.QueryBatch(request);
+                var response = await svc.GetBatch(request);
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
                 Assert.IsNotNull(batch);
@@ -391,7 +391,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     ResultOptionsRequest = resultOptions
                 };
 
-                var response = await svc.QueryBatch(request);
+                var response = await svc.GetBatch(request);
                 Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
                 var batch = response.Content;
                 Assert.IsNotNull(batch);

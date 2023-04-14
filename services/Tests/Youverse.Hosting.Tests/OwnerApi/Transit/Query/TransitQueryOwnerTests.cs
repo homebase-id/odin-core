@@ -185,7 +185,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, recipientContext.SharedSecret);
 
                 //lookup the fileId by the fileTag from earlier
-                var queryBatchResponse = await driveSvc.QueryBatch(new QueryBatchRequest()
+                var queryBatchResponse = await driveSvc.GetBatch(new QueryBatchRequest()
                 {
                     QueryParams = fileTagQueryParams,
                     ResultOptionsRequest = new QueryBatchResultOptionsRequest()
@@ -450,7 +450,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, recipientContext.SharedSecret);
 
                 //lookup the fileId by the fileTag from earlier
-                var queryBatchResponse = await driveSvc.QueryBatch(new QueryBatchRequest()
+                var queryBatchResponse = await driveSvc.GetBatch(new QueryBatchRequest()
                 {
                     QueryParams = fileTagQueryParams,
                     ResultOptionsRequest = new QueryBatchResultOptionsRequest()
@@ -932,7 +932,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, recipientContext.SharedSecret);
 
                 //lookup the fileId by the fileTag from earlier
-                var queryBatchResponse = await driveSvc.QueryBatch(new QueryBatchRequest()
+                var queryBatchResponse = await driveSvc.GetBatch(new QueryBatchRequest()
                 {
                     QueryParams = fileTagQueryParams,
                     ResultOptionsRequest = new QueryBatchResultOptionsRequest()
@@ -1194,7 +1194,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, recipientContext.SharedSecret);
 
                 //lookup the fileId by the fileTag from earlier
-                var queryBatchResponse = await driveSvc.QueryBatch(new QueryBatchRequest()
+                var queryBatchResponse = await driveSvc.GetBatch(new QueryBatchRequest()
                 {
                     QueryParams = fileTagQueryParams,
                     ResultOptionsRequest = new QueryBatchResultOptionsRequest()

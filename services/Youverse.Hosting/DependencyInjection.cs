@@ -27,6 +27,7 @@ using Youverse.Core.Services.DataSubscription;
 using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.FileSystem;
+using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 using Youverse.Core.Services.Drives.FileSystem.Comment;
 using Youverse.Core.Services.Drives.FileSystem.Standard;
 using Youverse.Core.Services.Drives.Management;
@@ -55,6 +56,8 @@ namespace Youverse.Hosting
         internal static void ConfigureMultiTenantServices(ContainerBuilder cb, Tenant tenant)
         {
             RegisterMediator(ref cb);
+
+            cb.RegisterType<UploadLock>().AsSelf().SingleInstance();
 
             // cb.RegisterType<ServerSystemStorage>().AsSelf().SingleInstance();
             cb.RegisterType<TenantSystemStorage>().As<ITenantSystemStorage>().SingleInstance();

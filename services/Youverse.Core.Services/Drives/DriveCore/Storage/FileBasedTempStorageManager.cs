@@ -30,7 +30,7 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
         public Task<Stream> GetStream(Guid fileId, string extension)
         {
             string path = GetFilenameAndPath(fileId, extension);
-            var fileStream = File.Open(path, FileMode.Open, FileAccess.ReadWrite);
+            var fileStream = File.Open(path, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite);
             return Task.FromResult((Stream)fileStream);
         }
 

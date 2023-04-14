@@ -59,27 +59,27 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
             AssertIsPart(section, MultipartUploadParts.Instructions);
             var uploadInstructionSet = await MapTransitInstructionSet(section!.Body);
 
-            var packageId = await driveUploadService.CreatePackage(uploadInstructionSet);
+            await driveUploadService.CreatePackage(uploadInstructionSet);
 
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Metadata);
-            await driveUploadService.AddMetadata(packageId, section!.Body);
+            await driveUploadService.AddMetadata(section!.Body);
 
             //
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Payload);
-            await driveUploadService.AddPayload(packageId, section!.Body);
+            await driveUploadService.AddPayload(section!.Body);
 
             //
             section = await reader.ReadNextSectionAsync();
             while (null != section)
             {
                 AssertIsValidThumbnailPart(section, MultipartUploadParts.Thumbnail, out var fileSection, out var width, out var height);
-                await driveUploadService.AddThumbnail(packageId, width, height, fileSection.Section.ContentType, fileSection.FileStream);
+                await driveUploadService.AddThumbnail(width, height, fileSection.Section.ContentType, fileSection.FileStream);
                 section = await reader.ReadNextSectionAsync();
             }
 
-            var uploadResult = await driveUploadService.FinalizeUpload(packageId);
+            var uploadResult = await driveUploadService.FinalizeUpload();
 
             //TODO: this should come from the transit system
             // We need to return the remote information instead of the local drive information

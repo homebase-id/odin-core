@@ -28,12 +28,15 @@ using Youverse.Hosting.Authentication.ClientToken;
 using Youverse.Hosting.Controllers.Base;
 using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Controllers.OwnerToken.Drive;
+using Youverse.Hosting.Tests.AppAPI.ApiClient;
 using Youverse.Hosting.Tests.AppAPI.Drive;
 using Youverse.Hosting.Tests.AppAPI.Transit;
 using Youverse.Hosting.Tests.OwnerApi.Utils;
 
 namespace Youverse.Hosting.Tests.AppAPI.Utils
 {
+    //TODO: make this a base class when everything is
+    //switched to the using the client pattern
     public class AppApiTestUtils
     {
         private readonly OwnerApiTestUtils _ownerApi;
@@ -68,6 +71,11 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
         public HttpClient CreateAppApiHttpClient(TestAppContext appTestContext, FileSystemType fileSystemType = FileSystemType.Standard)
         {
             return CreateAppApiHttpClient(appTestContext.Identity, appTestContext.ClientAuthenticationToken, appTestContext.SharedSecret, fileSystemType);
+        }
+        
+        public HttpClient CreateAppApiHttpClient(AppClientToken token, FileSystemType fileSystemType = FileSystemType.Standard)
+        {
+            return CreateAppApiHttpClient(token.OdinId, token.ClientAuthToken, token.SharedSecret, fileSystemType);
         }
 
         public async Task<AppTransitTestUtilsContext> CreateAppAndUploadFileMetadata(TestIdentity identity, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options = null)
@@ -457,7 +465,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
             {
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, appContext.SharedSecret);
 
-                var queryBatchResponse = await driveSvc.QueryBatch(new QueryBatchRequest()
+                var queryBatchResponse = await driveSvc.GetBatch(new QueryBatchRequest()
                 {
                     QueryParams = queryParams,
                     ResultOptionsRequest = options
