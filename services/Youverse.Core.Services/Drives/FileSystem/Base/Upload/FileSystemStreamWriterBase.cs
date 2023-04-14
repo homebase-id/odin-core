@@ -45,7 +45,7 @@ public abstract class FileSystemStreamWriterBase
 
     protected IDriveFileSystem FileSystem { get; }
 
-    public virtual async Task<Guid> CreatePackage(UploadInstructionSet instructionSet)
+    public virtual async Task CreatePackage(UploadInstructionSet instructionSet)
     {
         Guard.Argument(instructionSet, nameof(instructionSet)).NotNull();
         instructionSet?.AssertIsValid();
@@ -77,25 +77,20 @@ public abstract class FileSystemStreamWriterBase
             };
         }
 
-        var key = new Guid(ByteArrayUtil.EquiByteArrayXor(file.FileId.ToByteArray(), file.DriveId.ToByteArray()));
-        if (!_uploadLock.Locks.TryAdd(key, file.FileId))
-        {
-            throw new YouverseClientException("File is locked", YouverseClientErrorCode.UploadedFileLocked);
-        }
+        _uploadLock.LockOrFail(file);
 
-        var pkgId = Guid.NewGuid();
-        this._package = new UploadPackage(pkgId, file, instructionSet!, isUpdateOperation);
+        this._package = new UploadPackage( file, instructionSet!, isUpdateOperation);
 
-        return await Task.FromResult(pkgId);
+        await Task.CompletedTask;
     }
 
-    public virtual async Task<Guid> CreatePackageFromInstructionSet(Stream data)
+    public virtual async Task CreatePackageFromInstructionSet(Stream data)
     {
         //TODO: need to partially encrypt upload instruction set
         string json = await new StreamReader(data).ReadToEndAsync();
         var instructionSet = DotYouSystemSerializer.Deserialize<UploadInstructionSet>(json);
 
-        return await this.CreatePackage(instructionSet);
+        await this.CreatePackage(instructionSet);
     }
 
     public virtual async Task AddMetadata(Stream data)
@@ -118,17 +113,11 @@ public abstract class FileSystemStreamWriterBase
         await FileSystem.Storage.WriteTempStream(_package.InternalFile, extenstion, data);
     }
 
-    public virtual async Task<UploadPackage> GetPackage()
-    {
-        return await Task.FromResult<UploadPackage>(_package);
-    }
-
     /// <summary>
     /// Processes the instruction set on the specified packaged.  Used when all parts have been uploaded.
     /// </summary>
-    public async Task<UploadResult> FinalizeUpload(Guid packageId)
+    public async Task<UploadResult> FinalizeUpload()
     {
-
         var (keyHeader, metadata, serverMetadata) = await UnpackMetadata(_package);
 
         await this.ValidateUploadCore(_package, keyHeader, metadata, serverMetadata);
@@ -182,8 +171,7 @@ public abstract class FileSystemStreamWriterBase
             await ProcessNewFileUpload(_package, keyHeader, metadata, serverMetadata);
         }
 
-        var key = new Guid(ByteArrayUtil.EquiByteArrayXor(metadata.File.FileId.ToByteArray(), metadata.File.DriveId.ToByteArray()));
-        _uploadLock.Locks.TryRemove(key, out var _);
+        _uploadLock.ReleaseLock(metadata.File);
 
         Dictionary<string, TransferStatus> recipientStatus = await ProcessTransitInstructions(_package);
 
@@ -241,7 +229,7 @@ public abstract class FileSystemStreamWriterBase
         var decryptedJsonBytes = AesCbc.Decrypt(metadataStream.ToByteArray(), ref clientSharedSecret, package.InstructionSet.TransferIv);
         metadataStream.Close();
 
-        var json = global::System.Text.Encoding.UTF8.GetString(decryptedJsonBytes);
+        var json = System.Text.Encoding.UTF8.GetString(decryptedJsonBytes);
 
         var uploadDescriptor = DotYouSystemSerializer.Deserialize<UploadFileDescriptor>(json);
 

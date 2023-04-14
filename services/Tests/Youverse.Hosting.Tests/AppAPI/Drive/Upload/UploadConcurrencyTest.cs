@@ -1,12 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
-using Youverse.Core;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
@@ -15,20 +13,12 @@ using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
-using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Core.Storage;
-using Youverse.Hosting.Tests.AppAPI.ApiClient;
-using Youverse.Hosting.Tests.AppAPI.Utils;
 
 namespace Youverse.Hosting.Tests.AppAPI.Drive.Upload
 {
     public class UploadConcurrencyTest
     {
-        // For the performance test
-        private const int MAXTHREADS = 3; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
-        const int MAXITERATIONS = 5; // A number high enough to get warmed up and reliable
-
         private WebScaffold _scaffold;
 
         [OneTimeSetUp]
@@ -101,7 +91,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.Upload
             }
 
             //
-            var tasks = new System.Collections.Generic.List<Task<(UploadInstructionSet instructionSet, ApiResponse<UploadResult>)>>();
+            var tasks = new List<Task<(UploadInstructionSet instructionSet, ApiResponse<UploadResult>)>>();
             for (int i = 0; i < 15; i++)
             {
                 tasks.Add(OverwriteFile());

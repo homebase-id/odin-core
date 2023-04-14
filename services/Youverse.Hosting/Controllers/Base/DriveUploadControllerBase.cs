@@ -31,7 +31,7 @@ namespace Youverse.Hosting.Controllers.Base
 
             var section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Instructions);
-            var packageId = await driveUploadService.CreatePackageFromInstructionSet(section!.Body);
+             await driveUploadService.CreatePackageFromInstructionSet(section!.Body);
 
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Metadata);
@@ -51,7 +51,7 @@ namespace Youverse.Hosting.Controllers.Base
                 section = await reader.ReadNextSectionAsync();
             }
 
-            var status = await driveUploadService.FinalizeUpload(packageId);
+            var status = await driveUploadService.FinalizeUpload();
             return status;
         }
 

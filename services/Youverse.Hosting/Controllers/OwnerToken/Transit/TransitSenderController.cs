@@ -59,7 +59,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
             AssertIsPart(section, MultipartUploadParts.Instructions);
             var uploadInstructionSet = await MapTransitInstructionSet(section!.Body);
 
-            var packageId = await driveUploadService.CreatePackage(uploadInstructionSet);
+            await driveUploadService.CreatePackage(uploadInstructionSet);
 
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Metadata);
@@ -79,7 +79,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
                 section = await reader.ReadNextSectionAsync();
             }
 
-            var uploadResult = await driveUploadService.FinalizeUpload(packageId);
+            var uploadResult = await driveUploadService.FinalizeUpload();
 
             //TODO: this should come from the transit system
             // We need to return the remote information instead of the local drive information

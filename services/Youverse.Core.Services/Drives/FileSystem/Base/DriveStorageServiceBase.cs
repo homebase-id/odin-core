@@ -462,6 +462,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
                 throw new YouverseClientException("Cannot update a non-active file", YouverseClientErrorCode.CannotUpdateNonActiveFile);
             }
 
+            
             metadata.Updated = UnixTimeUtc.Now().milliseconds;
             metadata.Created = existingServerHeader.FileMetadata.Created;
             metadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
