@@ -232,7 +232,7 @@ namespace Youverse.Hosting.Tests.Performance
 
                 var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, recipientAppContext.SharedSecret);
 
-                var queryBatchResponse = await driveSvc.QueryBatch(new QueryBatchRequest()
+                var queryBatchResponse = await driveSvc.GetBatch(new QueryBatchRequest()
                 {
                     QueryParams = new FileQueryParams()
                     {

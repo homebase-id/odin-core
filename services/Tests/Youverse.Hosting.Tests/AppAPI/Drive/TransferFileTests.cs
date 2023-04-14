@@ -357,7 +357,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
                 //lookup the fileId by the fileTag from earlier
 
-                var queryBatchResponse = await driveSvc.QueryBatch(new QueryBatchRequest()
+                var queryBatchResponse = await driveSvc.GetBatch(new QueryBatchRequest()
                 {
                     QueryParams = new FileQueryParams()
                     {
@@ -638,7 +638,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
                 //lookup the fileId by the fileTag from earlier
 
-                var queryBatchResponse = await driveSvc.QueryBatch(new QueryBatchRequest()
+                var queryBatchResponse = await driveSvc.GetBatch(new QueryBatchRequest()
                 {
                     QueryParams = new FileQueryParams()
                     {

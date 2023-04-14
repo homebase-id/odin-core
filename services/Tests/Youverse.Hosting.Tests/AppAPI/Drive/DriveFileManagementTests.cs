@@ -202,7 +202,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, appContext.SharedSecret);
 
                 //validate the file is in the index
-                var fileIsInIndexResponse = await svc.QueryBatch(new QueryBatchRequest()
+                var fileIsInIndexResponse = await svc.GetBatch(new QueryBatchRequest()
                 {
                     QueryParams = FileQueryParams.FromFileType(appContext.TargetDrive, SomeFileType),
                     ResultOptionsRequest = new QueryBatchResultOptionsRequest()
@@ -222,7 +222,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 //
                 // Should still be in index
                 //
-                var qbResponse = await svc.QueryBatch(new QueryBatchRequest()
+                var qbResponse = await svc.GetBatch(new QueryBatchRequest()
                 {
                     QueryParams = FileQueryParams.FromFileType(appContext.TargetDrive),
                     ResultOptionsRequest = new QueryBatchResultOptionsRequest()
@@ -237,7 +237,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 DotYouTestAssertions.FileHeaderIsMarkedDeleted(qbDeleteFileEntry);
 
                 // crucial - it should return in query modified so apps can sync locally
-                var queryModifiedResponse = await svc.QueryModified(new QueryModifiedRequest()
+                var queryModifiedResponse = await svc.GetModified(new QueryModifiedRequest()
                 {
                     QueryParams = FileQueryParams.FromFileType(appContext.TargetDrive, SomeFileType),
                     ResultOptions = new QueryModifiedResultOptions()

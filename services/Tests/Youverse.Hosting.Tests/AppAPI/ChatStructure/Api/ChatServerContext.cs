@@ -59,7 +59,7 @@ public class ChatServerContext
                 }
             };
 
-            var response = await svc.QueryBatch(request);
+            var response = await svc.GetBatch(request);
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
             var batch = response.Content!;
 
@@ -95,7 +95,7 @@ public class ChatServerContext
                 }
             };
 
-            var response = await svc.QueryBatch(request);
+            var response = await svc.GetBatch(request);
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
             var batch = response.Content!;
 
@@ -128,7 +128,7 @@ public class ChatServerContext
                 }
             };
 
-            var response = await svc.QueryBatch(request);
+            var response = await svc.GetBatch(request);
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
             var batch = response.Content!;
             return batch;
