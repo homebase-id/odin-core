@@ -68,6 +68,11 @@ public abstract class FileSystemStreamWriterBase
         }
         else
         {
+            if (instructionSet?.StorageOptions?.ConcurrencyToken == null)
+            {
+                throw new YouverseClientException("Invalid concurrency token", YouverseClientErrorCode.InvalidConcurrencyToken);
+            }
+            
             isUpdateOperation = true;
             //file to overwrite
             file = new InternalDriveFileId()

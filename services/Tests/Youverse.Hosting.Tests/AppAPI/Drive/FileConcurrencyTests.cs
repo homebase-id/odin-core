@@ -15,9 +15,9 @@ using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 using Youverse.Core.Storage;
 
-namespace Youverse.Hosting.Tests.AppAPI.Drive.Upload
+namespace Youverse.Hosting.Tests.AppAPI.Drive
 {
-    public class UploadConcurrencyTest
+    public class FileConcurrencyTests
     {
         private WebScaffold _scaffold;
 
@@ -79,8 +79,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.Upload
                 AccessControlList = AccessControlList.OwnerOnly
             };
 
-            //upload a file
-            var uploadResult = await appApiClient.Drive.UploadFile(FileSystemType.Standard, appDrive.TargetDriveInfo, fileMetadata, payload);
+            //upload a new file
+            var uploadResult = await appApiClient.Drive.UploadFile(FileSystemType.Standard, appDrive.TargetDriveInfo, fileMetadata, payload, concurrencyToken: null);
 
             async Task<(UploadInstructionSet instructionSet, ApiResponse<UploadResult>)> OverwriteFile()
             {

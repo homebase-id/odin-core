@@ -33,5 +33,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
         /// </summary>
         // public virtual ExternalFileIdentifier ReferencedFile { get; set; }
         public virtual GlobalTransitIdFileIdentifier ReferencedFile { get; set; }
+
+        
     }
 }
