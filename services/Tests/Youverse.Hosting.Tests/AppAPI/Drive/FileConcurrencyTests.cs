@@ -36,7 +36,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         }
 
         [Test]
-        public async Task UploadFileLockedExceptionThrownWhenMultipleUploadsForSameFileHappenConcurrently()
+        public async Task NewConcurrencyTokenSetWhenFileUploaded()
         {
             var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
 
@@ -76,55 +76,83 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     GroupId = default,
                     // UniqueId = message.Id,
                 },
+                ConcurrencyToken = default, //new file
                 AccessControlList = AccessControlList.OwnerOnly
             };
 
             //upload a new file
-            var uploadResult = await appApiClient.Drive.UploadFile(FileSystemType.Standard, appDrive.TargetDriveInfo, fileMetadata, payload, concurrencyToken: null);
+            var uploadResult = await appApiClient.Drive.UploadFile(FileSystemType.Standard, appDrive.TargetDriveInfo, fileMetadata, payload);
 
-            async Task<(UploadInstructionSet instructionSet, ApiResponse<UploadResult>)> OverwriteFile()
+            //get the uploaded file
+            var uploadedFile = await appApiClient.Drive.GetFileHeader(FileSystemType.Standard, uploadResult.File);
+
+            Assert.IsFalse(uploadedFile.FileMetadata.ConcurrencyToken == Guid.Empty, "Server should have set a concurrency token on a new file");
+        }
+
+        [Test]
+        public async Task UploadStaleConcurrencyTokenFails_AndReturns_BadRequest_ConcurrencyTokenMismatch()
+        {
+            var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
+
+            var appDrive = await ownerClient.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Chat Drive 1", "", false);
+            var appId = Guid.NewGuid();
+
+            var appPermissionsGrant = new PermissionSetGrantRequest()
             {
-                var (instructionSet, result) = await appApiClient.Drive.UploadRaw(FileSystemType.Standard, uploadResult.File.TargetDrive, fileMetadata, "",
-                    overwriteFileId: uploadResult.File.FileId);
-
-                return (instructionSet, result);
-            }
-
-            //
-            var tasks = new List<Task<(UploadInstructionSet instructionSet, ApiResponse<UploadResult>)>>();
-            for (int i = 0; i < 15; i++)
-            {
-                tasks.Add(OverwriteFile());
-            }
-
-            try
-            {
-                await Task.WhenAll(tasks.ToArray());
-
-                bool atLeastOneLockException = false;
-                //see if any of the uploads failed by checking for null.
-                tasks.ForEach(task =>
+                Drives = new List<DriveGrantRequest>()
                 {
-                    var (instructionSet, response) = task.Result;
-                    if (response.StatusCode == HttpStatusCode.BadRequest)
+                    new()
                     {
-                        var details = DotYouSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!);
-                        Assert.IsTrue((YouverseClientErrorCode)int.Parse(details.Extensions["errorCode"].ToString()!) ==
-                                      YouverseClientErrorCode.UploadedFileLocked);
-                        atLeastOneLockException = true;
+                        PermissionedDrive = new PermissionedDrive()
+                        {
+                            Drive = appDrive.TargetDriveInfo,
+                            Permission = DrivePermission.All
+                        }
                     }
-                });
-                Assert.IsTrue(atLeastOneLockException, "There should have been at least one lock exception");
-            }
-            catch (AggregateException ae)
-            {
-                foreach (var ex in ae.InnerExceptions)
-                {
-                    Console.WriteLine(ex.Message);
-                }
+                },
+                PermissionSet = new PermissionSet(PermissionKeys.All)
+            };
 
-                Assert.Fail($"{ae.InnerExceptions.Count} exceptions were thrown.");
-            }
+            var appRegistration = await ownerClient.Apps.RegisterApp(appId, appPermissionsGrant);
+            var appApiClient = _scaffold.CreateAppClient(TestIdentities.Samwise, appId);
+            const string payload = "";
+
+            var fileMetadata = new UploadFileMetadata()
+            {
+                ContentType = "application/json",
+                AllowDistribution = false,
+                PayloadIsEncrypted = false,
+                AppData = new()
+                {
+                    ContentIsComplete = true,
+                    JsonContent = "some content",
+                    FileType = 101,
+                    GroupId = default,
+                    // UniqueId = message.Id,
+                },
+                ConcurrencyToken = default, //new file
+                AccessControlList = AccessControlList.OwnerOnly
+            };
+
+            //upload a new file
+            var uploadResult = await appApiClient.Drive.UploadFile(FileSystemType.Standard, appDrive.TargetDriveInfo, fileMetadata, payload);
+
+            //get the uploaded file
+            var uploadedFile = await appApiClient.Drive.GetFileHeader(FileSystemType.Standard, uploadResult.File);
+
+            Assert.IsFalse(uploadedFile.FileMetadata.ConcurrencyToken == Guid.Empty, "Server should have set a concurrency token on a new file");
+
+            //just send a random token
+            fileMetadata.ConcurrencyToken = Guid.Parse("7215bd54-c832-4f08-84fc-ebfb6193ee52");
+
+            var (_, apiResponse) = await appApiClient.Drive.UploadRaw(FileSystemType.Standard, appDrive.TargetDriveInfo, fileMetadata, payload,
+                overwriteFileId: uploadResult.File.FileId);
+            
+            Assert.IsTrue(apiResponse.StatusCode == HttpStatusCode.BadRequest);
+
+            var details = DotYouSystemSerializer.Deserialize<ProblemDetails>(apiResponse!.Error!.Content!);
+            Assert.IsTrue((YouverseClientErrorCode)int.Parse(details.Extensions["errorCode"].ToString()!) ==
+                          YouverseClientErrorCode.ConcurrencyTokenMismatch);
         }
     }
 }

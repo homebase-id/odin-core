@@ -11,6 +11,8 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
             this.AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Owner };
         }
 
+        public Guid? ConcurrencyToken { get; set; }
+        
         public string ContentType { get; set; }
 
         /// <summary>

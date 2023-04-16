@@ -83,7 +83,8 @@ public static class Utility
             PayloadIsEncrypted = fileMetadata.PayloadIsEncrypted,
             SenderOdinId = fileMetadata.SenderOdinId,
             ReferencedFile = fileMetadata.ReferencedFile,
-            ReactionPreview = fileMetadata.ReactionPreview
+            ReactionPreview = fileMetadata.ReactionPreview,
+            ConcurrencyToken = fileMetadata.ConcurrencyToken.GetValueOrDefault()
         };
         return clientFile;
     }

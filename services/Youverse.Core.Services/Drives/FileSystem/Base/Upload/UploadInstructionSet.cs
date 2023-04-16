@@ -40,11 +40,6 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
                 throw new YouverseClientException("Target drive is invalid", YouverseClientErrorCode.InvalidTargetDrive);
             }
             
-            if (StorageOptions?.OverwriteFileId !=null && StorageOptions?.ConcurrencyToken == null)
-            {
-                throw new YouverseClientException("Invalid concurrency token", YouverseClientErrorCode.InvalidConcurrencyToken);
-            }
-            
             //Removed because this conflicts with AllowDistribution flag.
             //Having UseGlobalTransitId with a transient file does not hurt anything;  
             //it's just illogical because the file is going to be deleted

@@ -68,11 +68,6 @@ public abstract class FileSystemStreamWriterBase
         }
         else
         {
-            if (instructionSet?.StorageOptions?.ConcurrencyToken == null)
-            {
-                throw new YouverseClientException("Invalid concurrency token", YouverseClientErrorCode.InvalidConcurrencyToken);
-            }
-            
             isUpdateOperation = true;
             //file to overwrite
             file = new InternalDriveFileId()
@@ -137,7 +132,12 @@ public abstract class FileSystemStreamWriterBase
                 throw new YouverseClientException("OverwriteFileId is specified but file does not exist",
                     YouverseClientErrorCode.CannotOverwriteNonExistentFile);
             }
-
+            
+            if (metadata.ConcurrencyToken == null)
+            {
+                throw new YouverseClientException("Missing concurrency token for update operation", YouverseClientErrorCode.MissingConcurrencyToken);
+            }
+            
             // If the uniqueId is being changed, validate that uniqueId is not in use by another file
             if (metadata.AppData.UniqueId.HasValue)
             {
@@ -252,7 +252,7 @@ public abstract class FileSystemStreamWriterBase
         await ValidateUploadDescriptor(uploadDescriptor);
 
         var metadata = await MapUploadToMetadata(package, uploadDescriptor);
-
+        
         var serverMetadata = new ServerMetadata()
         {
             AccessControlList = uploadDescriptor.FileMetadata.AccessControlList,
@@ -263,7 +263,7 @@ public abstract class FileSystemStreamWriterBase
     }
 
     /// <summary>
-    /// Validates rules that apply to all files; regardless of being feedback, normal, or some other type we've not yet conceived
+    /// Validates rules that apply to all files; regardless of being comment, standard, or some other type we've not yet conceived
     /// </summary>
     private async Task ValidateUploadCore(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
     {

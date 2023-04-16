@@ -79,10 +79,9 @@ public class AppDriveApiClient : AppApiTestUtils
     public async Task<UploadResult> UploadFile(FileSystemType fileSystemType, TargetDrive targetDrive, UploadFileMetadata fileMetadata,
         string payloadData = "",
         ImageDataContent thumbnail = null,
-        Guid? overwriteFileId = null,
-        Guid? concurrencyToken = null)
+        Guid? overwriteFileId = null)
     {
-        var (_, response) = await this.UploadFileInternal(fileSystemType, targetDrive, fileMetadata, payloadData, thumbnail, overwriteFileId, concurrencyToken);
+        var (_, response) = await this.UploadFileInternal(fileSystemType, targetDrive, fileMetadata, payloadData, thumbnail, overwriteFileId);
 
         var uploadResult = response.Content;
         Assert.That(response.IsSuccessStatusCode, Is.True);
@@ -214,11 +213,11 @@ public class AppDriveApiClient : AppApiTestUtils
 //
     private async Task<(UploadInstructionSet uploadedInstructionSet, ApiResponse<UploadResult> response)> UploadFileInternal(
         FileSystemType fileSystemType,
-        TargetDrive targetDrive, UploadFileMetadata fileMetadata,
+        TargetDrive targetDrive, 
+        UploadFileMetadata fileMetadata,
         string payloadData = "",
         ImageDataContent thumbnail = null,
-        Guid? overwriteFileId = null,
-        Guid? concurrencyToken = null)
+        Guid? overwriteFileId = null)
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
@@ -229,8 +228,7 @@ public class AppDriveApiClient : AppApiTestUtils
             StorageOptions = new()
             {
                 Drive = targetDrive,
-                OverwriteFileId = overwriteFileId,
-                ConcurrencyToken = concurrencyToken
+                OverwriteFileId = overwriteFileId
             },
             TransitOptions = new TransitOptions()
             {

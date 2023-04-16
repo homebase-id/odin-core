@@ -103,11 +103,14 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
 
                 PreviewThumbnail = uploadDescriptor.FileMetadata.AppData.PreviewThumbnail,
                 AdditionalThumbnails = uploadDescriptor.FileMetadata.AppData.AdditionalThumbnails,
+                
             },
 
             PayloadIsEncrypted = uploadDescriptor.FileMetadata.PayloadIsEncrypted,
             OriginalRecipientList = package.InstructionSet.TransitOptions?.Recipients,
-            SenderOdinId = "" //Note: in this case, this is who uploaded the file therefore should be empty; until we support youauth uploads
+            SenderOdinId = "", //Note: in this case, this is who uploaded the file therefore should be empty; until we support youauth uploads
+            
+            ConcurrencyToken = uploadDescriptor.FileMetadata.ConcurrencyToken
         };
 
         return Task.FromResult(metadata);
