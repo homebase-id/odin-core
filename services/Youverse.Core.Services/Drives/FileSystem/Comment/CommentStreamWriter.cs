@@ -161,7 +161,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
             OriginalRecipientList = package.InstructionSet.TransitOptions?.Recipients,
             SenderOdinId = _contextAccessor.GetCurrent().Caller.OdinId,
             
-            ConcurrencyToken = uploadDescriptor.FileMetadata.ConcurrencyToken
+            VersionTag = uploadDescriptor.FileMetadata.VersionTag
 
         };
 

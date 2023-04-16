@@ -17,8 +17,6 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
         /// </summary>
         public Guid? OverwriteFileId { get; set; }
         
-        public Guid? ConcurrencyToken { get; set; }
-
         // public bool IgnoreMissingReferencedFile { get; set; }
     }
 }

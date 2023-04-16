@@ -133,9 +133,9 @@ public abstract class FileSystemStreamWriterBase
                     YouverseClientErrorCode.CannotOverwriteNonExistentFile);
             }
             
-            if (metadata.ConcurrencyToken == null)
+            if (metadata.VersionTag == null)
             {
-                throw new YouverseClientException("Missing concurrency token for update operation", YouverseClientErrorCode.MissingConcurrencyToken);
+                throw new YouverseClientException("Missing concurrency token for update operation", YouverseClientErrorCode.MissingVersionTag);
             }
             
             // If the uniqueId is being changed, validate that uniqueId is not in use by another file

@@ -290,7 +290,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
                     SenderOdinId = string.Empty,
                     OriginalRecipientList = null,
                     ReferencedFile = metadata.ReferencedFile,
-                    ConcurrencyToken = metadata.ConcurrencyToken
+                    VersionTag = metadata.VersionTag
                 };
 
                 var json = DotYouSystemSerializer.Serialize(redactedMetadata);

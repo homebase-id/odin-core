@@ -462,9 +462,9 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
                 throw new YouverseClientException("Cannot update a non-active file", YouverseClientErrorCode.CannotUpdateNonActiveFile);
             }
 
-            if (existingServerHeader.FileMetadata.ConcurrencyToken != metadata.ConcurrencyToken)
+            if (existingServerHeader.FileMetadata.VersionTag != metadata.VersionTag)
             {
-                throw new YouverseClientException($"Invalid {metadata.ConcurrencyToken}", YouverseClientErrorCode.ConcurrencyTokenMismatch);
+                throw new YouverseClientException($"Invalid {metadata.VersionTag}", YouverseClientErrorCode.VersionTagMismatch);
             }
             
             metadata.Updated = UnixTimeUtc.Now().milliseconds;
@@ -610,7 +610,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
 
         private async Task WriteFileHeaderInternal(ServerFileHeader header)
         {
-            header.FileMetadata.ConcurrencyToken = SequentialGuid.CreateGuid();
+            header.FileMetadata.VersionTag = SequentialGuid.CreateGuid();
             
             var json = DotYouSystemSerializer.Serialize(header);
             var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));

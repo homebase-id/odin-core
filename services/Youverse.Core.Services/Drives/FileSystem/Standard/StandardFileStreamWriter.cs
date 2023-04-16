@@ -110,7 +110,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
             OriginalRecipientList = package.InstructionSet.TransitOptions?.Recipients,
             SenderOdinId = "", //Note: in this case, this is who uploaded the file therefore should be empty; until we support youauth uploads
             
-            ConcurrencyToken = uploadDescriptor.FileMetadata.ConcurrencyToken
+            VersionTag = uploadDescriptor.FileMetadata.VersionTag
         };
 
         return Task.FromResult(metadata);

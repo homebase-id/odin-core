@@ -17,7 +17,7 @@ using Youverse.Core.Storage;
 
 namespace Youverse.Hosting.Tests.AppAPI.Drive
 {
-    public class FileConcurrencyTests
+    public class FileVersionTagTests
     {
         private WebScaffold _scaffold;
 
@@ -36,7 +36,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         }
 
         [Test]
-        public async Task NewConcurrencyTokenSetWhenFileUploaded()
+        public async Task NewVersionTagSetWhenFileUploaded()
         {
             var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
 
@@ -76,7 +76,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     GroupId = default,
                     // UniqueId = message.Id,
                 },
-                ConcurrencyToken = default, //new file
+                VersionTag = default, //new file
                 AccessControlList = AccessControlList.OwnerOnly
             };
 
@@ -86,11 +86,11 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             //get the uploaded file
             var uploadedFile = await appApiClient.Drive.GetFileHeader(FileSystemType.Standard, uploadResult.File);
 
-            Assert.IsFalse(uploadedFile.FileMetadata.ConcurrencyToken == Guid.Empty, "Server should have set a concurrency token on a new file");
+            Assert.IsFalse(uploadedFile.FileMetadata.VersionTag == Guid.Empty, "Server should have set a VersionTag on a new file");
         }
 
         [Test]
-        public async Task UploadStaleConcurrencyTokenFails_AndReturns_BadRequest_ConcurrencyTokenMismatch()
+        public async Task UploadStaleVersionTagFails_AndReturns_BadRequest_VersionTagMismatch()
         {
             var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
 
@@ -130,7 +130,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     GroupId = default,
                     // UniqueId = message.Id,
                 },
-                ConcurrencyToken = default, //new file
+                VersionTag = default, //new file
                 AccessControlList = AccessControlList.OwnerOnly
             };
 
@@ -140,10 +140,10 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             //get the uploaded file
             var uploadedFile = await appApiClient.Drive.GetFileHeader(FileSystemType.Standard, uploadResult.File);
 
-            Assert.IsFalse(uploadedFile.FileMetadata.ConcurrencyToken == Guid.Empty, "Server should have set a concurrency token on a new file");
+            Assert.IsFalse(uploadedFile.FileMetadata.VersionTag == Guid.Empty, "Server should have set a VersionTag on a new file");
 
             //just send a random token
-            fileMetadata.ConcurrencyToken = Guid.Parse("7215bd54-c832-4f08-84fc-ebfb6193ee52");
+            fileMetadata.VersionTag = Guid.Parse("7215bd54-c832-4f08-84fc-ebfb6193ee52");
 
             var (_, apiResponse) = await appApiClient.Drive.UploadRaw(FileSystemType.Standard, appDrive.TargetDriveInfo, fileMetadata, payload,
                 overwriteFileId: uploadResult.File.FileId);
@@ -152,7 +152,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
             var details = DotYouSystemSerializer.Deserialize<ProblemDetails>(apiResponse!.Error!.Content!);
             Assert.IsTrue((YouverseClientErrorCode)int.Parse(details.Extensions["errorCode"].ToString()!) ==
-                          YouverseClientErrorCode.ConcurrencyTokenMismatch);
+                          YouverseClientErrorCode.VersionTagMismatch);
         }
     }
 }

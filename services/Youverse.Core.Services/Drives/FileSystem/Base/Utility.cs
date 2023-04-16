@@ -84,7 +84,7 @@ public static class Utility
             SenderOdinId = fileMetadata.SenderOdinId,
             ReferencedFile = fileMetadata.ReferencedFile,
             ReactionPreview = fileMetadata.ReactionPreview,
-            ConcurrencyToken = fileMetadata.ConcurrencyToken.GetValueOrDefault()
+            VersionTag = fileMetadata.VersionTag.GetValueOrDefault()
         };
         return clientFile;
     }

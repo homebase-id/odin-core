@@ -58,8 +58,8 @@ public enum YouverseClientErrorCode
     InvalidDrive = 4126,
     UploadedFileLocked = 4127,
     InvalidChunkStart = 4128,
-    MissingConcurrencyToken = 4159,
-    ConcurrencyTokenMismatch = 4160,
+    MissingVersionTag = 4159,
+    VersionTagMismatch = 4160,
 
     // Connection errors 50xx
     CannotSendConnectionRequestToExistingIncomingRequest = 5001,

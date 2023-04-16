@@ -83,6 +83,6 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
         
         public AppFileMetaData AppData { get; set; }
 
-        public Guid? ConcurrencyToken { get; set; }
+        public Guid? VersionTag { get; set; }
     }
 }
