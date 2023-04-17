@@ -253,6 +253,8 @@ public class AppDriveApiClient : AppApiTestUtils
             var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
 
             var payloadStream = new MemoryStream(payloadData.ToUtf8ByteArray());
+            fileMetadata.AppData.ContentIsComplete = payloadStream.Length == 0;
+            
             // var bytesUploaded = instructionStream.Length + fileDescriptorCipher.Length + payloadData.Length;
             List<StreamPart> parts = new()
             {

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
+using Microsoft.OpenApi.Models;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core.Exceptions;
@@ -82,11 +83,17 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.Upload
             //upload a file
             var uploadResult = await appApiClient.Drive.UploadFile(FileSystemType.Standard, appDrive.TargetDriveInfo, fileMetadata, payload);
 
+            var uploadedFile = await appApiClient.Drive.GetFileHeader(FileSystemType.Standard, uploadResult.File);
+            Assert.IsTrue(uploadedFile.FileMetadata.VersionTag == uploadResult.NewVersionTag);
+
+            fileMetadata.VersionTag = uploadResult.NewVersionTag;
+
             async Task<(UploadInstructionSet instructionSet, ApiResponse<UploadResult>)> OverwriteFile()
             {
                 var (instructionSet, result) = await appApiClient.Drive.UploadRaw(FileSystemType.Standard, uploadResult.File.TargetDrive, fileMetadata, "",
                     overwriteFileId: uploadResult.File.FileId);
 
+                fileMetadata.VersionTag = result.Content.NewVersionTag;
                 return (instructionSet, result);
             }
 
@@ -109,8 +116,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.Upload
                     if (response.StatusCode == HttpStatusCode.BadRequest)
                     {
                         var details = DotYouSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!);
-                        Assert.IsTrue((YouverseClientErrorCode)int.Parse(details.Extensions["errorCode"].ToString()!) ==
-                                      YouverseClientErrorCode.UploadedFileLocked);
+                        var code = (YouverseClientErrorCode)int.Parse(details.Extensions["errorCode"].ToString()!);
+                        Assert.IsTrue(code == YouverseClientErrorCode.UploadedFileLocked, $"Expected {nameof(YouverseClientErrorCode.UploadedFileLocked)} but received {code}");
                         atLeastOneLockException = true;
                     }
                 });

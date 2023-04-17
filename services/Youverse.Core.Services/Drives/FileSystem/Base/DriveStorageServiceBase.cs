@@ -464,7 +464,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
 
             if (existingServerHeader.FileMetadata.VersionTag != metadata.VersionTag)
             {
-                throw new YouverseClientException($"Invalid {metadata.VersionTag}", YouverseClientErrorCode.VersionTagMismatch);
+                throw new YouverseClientException($"Invalid version tag {metadata.VersionTag}", YouverseClientErrorCode.VersionTagMismatch);
             }
             
             metadata.Updated = UnixTimeUtc.Now().milliseconds;
