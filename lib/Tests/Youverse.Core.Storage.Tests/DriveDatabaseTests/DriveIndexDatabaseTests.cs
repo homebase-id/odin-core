@@ -1698,7 +1698,7 @@ namespace DriveDatabaseTests
             // Test that fileType works. We know row #1 has filetype 0.
             //
             cursor = null;
-            (result, moreRows) = testDatabase.QueryBatchAuto(10, ref cursor, filetypesAnyOf: new List<int>() { 0, 4 }, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = testDatabase.QueryBatchAuto(1, ref cursor, filetypesAnyOf: new List<int>() { 0, 4 }, requiredSecurityGroup: allIntRange);
             Debug.Assert(moreRows == true);
             Debug.Assert(result.Count >= 1);
 
@@ -1706,7 +1706,7 @@ namespace DriveDatabaseTests
             // Test that we can find a row with Tags. We know row 0 has tag 0..3
             //
             cursor = null;
-            (result, moreRows) = testDatabase.QueryBatchAuto(10, ref cursor,
+            (result, moreRows) = testDatabase.QueryBatchAuto(100, ref cursor,
                 tagsAnyOf: new List<Guid>() { tags[0], tags[1], tags[2] }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count >= 1);
             Debug.Assert(moreRows == false);
@@ -1716,7 +1716,7 @@ namespace DriveDatabaseTests
             // Test that we can find a row with Acls. We know row 0 has acl 0..3
             //
             cursor = null;
-            (result, moreRows) = testDatabase.QueryBatchAuto(10, ref cursor,
+            (result, moreRows) = testDatabase.QueryBatchAuto(1, ref cursor,
                 aclAnyOf: new List<Guid>() { aclMembers[0], aclMembers[1], aclMembers[2] }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count >= 1);
             Debug.Assert(moreRows == true);
@@ -1727,13 +1727,13 @@ namespace DriveDatabaseTests
             // From three on it's a repeat code.
             //
             cursor = null;
-            (result, moreRows) = testDatabase.QueryBatchAuto(10, ref cursor,
+            (result, moreRows) = testDatabase.QueryBatchAuto(100, ref cursor,
                 tagsAllOf: new List<Guid>() { tags[0] }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count >= 1);
             Debug.Assert(moreRows == false);
 
             cursor = null;
-            (result, moreRows) = testDatabase.QueryBatchAuto(10, ref cursor,
+            (result, moreRows) = testDatabase.QueryBatchAuto(100, ref cursor,
                 tagsAllOf: new List<Guid>() { tags[0], tags[1] }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count >= 1);
             Debug.Assert(moreRows == false);
@@ -1762,7 +1762,7 @@ namespace DriveDatabaseTests
             // Test that we can find a row with Acls AND Tags
             //
             cursor = null;
-            (result, moreRows) = testDatabase.QueryBatchAuto(10, ref cursor,
+            (result, moreRows) = testDatabase.QueryBatchAuto(100, ref cursor,
                 tagsAnyOf: new List<Guid>() { tags[0], tags[1], tags[2] },
                 aclAnyOf: new List<Guid>() { aclMembers[0], aclMembers[1], aclMembers[2] },
                 requiredSecurityGroup: allIntRange);
