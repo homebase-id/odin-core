@@ -20,7 +20,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine.Filter
         public Task<FilterResult> Apply(IFilterContext context, MultipartHostTransferParts part, Stream data)
         {
             var dotYouContext = _contextAccessor.GetCurrent();
-            if (dotYouContext.Caller.IsConnected || dotYouContext.Caller.ClientTokenType == ClientTokenType.DataProvider)
+            if (dotYouContext.Caller.IsConnected)
             {
                 return Task.FromResult(new FilterResult()
                 {

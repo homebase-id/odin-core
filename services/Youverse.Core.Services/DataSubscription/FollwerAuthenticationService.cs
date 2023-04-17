@@ -40,7 +40,8 @@ public class FollowerAuthenticationService
         {
             Id = guidId,
             AccessTokenHalfKey = guidId.ToByteArray().ToSensitiveByteArray(),
-            ClientTokenType = ClientTokenType.DataProvider
+            ClientTokenType = default
+            // ClientTokenType = ClientTokenType.DataProvider
         };
 
         var creator = new Func<Task<DotYouContext>>(async delegate
@@ -70,7 +71,8 @@ public class FollowerAuthenticationService
             masterKey: null,
             securityLevel: SecurityGroupType.Authenticated,
             circleIds: null,
-            tokenType: ClientTokenType.DataProvider);
+            tokenType: default);
+        // tokenType: ClientTokenType.DataProvider);
 
         return (cc, permissionContext);
     }
