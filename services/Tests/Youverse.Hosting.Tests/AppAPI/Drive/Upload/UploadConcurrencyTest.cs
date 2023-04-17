@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -93,7 +94,11 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.Upload
                 var (instructionSet, result) = await appApiClient.Drive.UploadRaw(FileSystemType.Standard, uploadResult.File.TargetDrive, fileMetadata, "",
                     overwriteFileId: uploadResult.File.FileId);
 
-                fileMetadata.VersionTag = result.Content.NewVersionTag;
+                if (result.IsSuccessStatusCode)
+                {
+                    fileMetadata.VersionTag = result.Content.NewVersionTag;
+                }
+
                 return (instructionSet, result);
             }
 
@@ -108,19 +113,17 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.Upload
             {
                 await Task.WhenAll(tasks.ToArray());
 
-                bool atLeastOneLockException = false;
-                //see if any of the uploads failed by checking for null.
-                tasks.ForEach(task =>
+                var atLeastOneLockException = tasks.ToList().Any(task =>
                 {
                     var (instructionSet, response) = task.Result;
-                    if (response.StatusCode == HttpStatusCode.BadRequest)
+                    if(!response.IsSuccessStatusCode)
                     {
-                        var details = DotYouSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!);
-                        var code = (YouverseClientErrorCode)int.Parse(details.Extensions["errorCode"].ToString()!);
-                        Assert.IsTrue(code == YouverseClientErrorCode.UploadedFileLocked, $"Expected {nameof(YouverseClientErrorCode.UploadedFileLocked)} but received {code}");
-                        atLeastOneLockException = true;
+                        return ErrorUtils.MatchesClientErrorCode(response!.Error, YouverseClientErrorCode.UploadedFileLocked);
                     }
+
+                    return false;
                 });
+                
                 Assert.IsTrue(atLeastOneLockException, "There should have been at least one lock exception");
             }
             catch (AggregateException ae)
