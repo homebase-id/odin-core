@@ -212,7 +212,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     _select4Command.Prepare();
                 }
 
-                _s4param1.Value = postId;
+                _s4param1.Value = postId.ToByteArray();
 
                 using (SqliteDataReader rdr = _database.ExecuteReader(_select4Command, System.Data.CommandBehavior.Default))
                 {
