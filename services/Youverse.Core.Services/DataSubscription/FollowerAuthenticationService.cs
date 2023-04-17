@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Youverse.Core.Identity;
@@ -12,16 +12,18 @@ using Youverse.Core.Services.DataSubscription.Follower;
 namespace Youverse.Core.Services.DataSubscription;
 
 /// <summary>
-/// Authenticates calls using the 
 /// </summary>
 public class FollowerAuthenticationService
 {
     private readonly DotYouContextCache _cache;
     private readonly FollowerService _followerService;
+    private readonly TenantContext _tenantContext;
 
-    public FollowerAuthenticationService(YouverseConfiguration config, FollowerService followerService)
+
+    public FollowerAuthenticationService(YouverseConfiguration config, FollowerService followerService, TenantContext tenantContext)
     {
         _followerService = followerService;
+        _tenantContext = tenantContext;
         _cache = new DotYouContextCache(config.Host.CacheSlidingExpirationSeconds);
     }
 
@@ -34,16 +36,15 @@ public class FollowerAuthenticationService
         // for authentication, we manually check against the list of people I follow
         // therefore, just fabricate a token
 
-        //TODO: i still dont think this is secure.  hmm let me think
-        var guidId = callerOdinId.ToHashId();
+        var callerGuidId = callerOdinId.ToHashId();
+        var recipientGuidId = _tenantContext.HostOdinId.ToHashId();
         var tempToken = new ClientAuthenticationToken()
         {
-            Id = guidId,
-            AccessTokenHalfKey = guidId.ToByteArray().ToSensitiveByteArray(),
+            Id = callerGuidId,
+            AccessTokenHalfKey = recipientGuidId.ToByteArray().ToSensitiveByteArray(),
             ClientTokenType = default
-            // ClientTokenType = ClientTokenType.DataProvider
         };
-
+        
         var creator = new Func<Task<DotYouContext>>(async delegate
         {
             var dotYouContext = new DotYouContext();
@@ -72,7 +73,6 @@ public class FollowerAuthenticationService
             securityLevel: SecurityGroupType.Authenticated,
             circleIds: null,
             tokenType: default);
-        // tokenType: ClientTokenType.DataProvider);
 
         return (cc, permissionContext);
     }

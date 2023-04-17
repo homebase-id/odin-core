@@ -7,6 +7,7 @@ using MediatR;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Contacts.Circle;
@@ -50,7 +51,8 @@ namespace Youverse.Core.Services.DataSubscription
             ITransitService transitService, DriveManager driveManager, TenantContext tenantContext, ServerSystemStorage serverSystemStorage,
             FileSystemResolver fileSystemResolver, ITenantSystemStorage tenantSystemStorage, DotYouContextAccessor contextAccessor,
             ICircleNetworkService circleNetworkService,
-            IDotYouHttpClientFactory dotYouHttpClientFactory, YouverseConfiguration youverseConfiguration)
+            IDotYouHttpClientFactory dotYouHttpClientFactory, YouverseConfiguration youverseConfiguration,
+            IDriveAclAuthorizationService aclAuthorizationService, FollowerAuthenticationService followerAuthenticationService)
         {
             _followerService = followerService;
             _transitService = transitService;
@@ -63,7 +65,8 @@ namespace Youverse.Core.Services.DataSubscription
             _circleNetworkService = circleNetworkService;
             _youverseConfiguration = youverseConfiguration;
 
-            _feedDistributorService = new FeedDistributorService(fileSystemResolver, dotYouHttpClientFactory);
+            _feedDistributorService =
+                new FeedDistributorService(fileSystemResolver, dotYouHttpClientFactory, followerAuthenticationService, aclAuthorizationService);
         }
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
@@ -165,27 +168,27 @@ namespace Youverse.Core.Services.DataSubscription
 
         public async Task DistributeQueuedMetadataItems()
         {
-            async Task<(FeedDistributionOutboxRecord record, bool success)> SendFile(FeedDistributionOutboxRecord record)
+            async Task<(FeedDistributionOutboxRecord record, bool success, bool shouldRetry)> SendFile(FeedDistributionOutboxRecord record)
             {
                 var distroItem = DotYouSystemSerializer.Deserialize<ReactionPreviewDistributionItem>(record.value.ToStringFromUtf8Bytes());
                 var recipient = (OdinId)record.recipient;
-                bool success = await _feedDistributorService.SendFile(new InternalDriveFileId()
+                var (success, shouldRetry) = await _feedDistributorService.SendFile(new InternalDriveFileId()
                     {
                         FileId = record.fileId,
                         DriveId = record.driveId
                     },
                     distroItem.FileSystemType,
                     recipient);
-                return (record, success);
+                return (record, success, shouldRetry);
             }
 
             var batch = _tenantSystemStorage.Feedbox.Pop(_youverseConfiguration.Feed.DistributionBatchSize);
-            var tasks = new List<Task<(FeedDistributionOutboxRecord record, bool success)>>(batch.Select(SendFile));
+            var tasks = new List<Task<(FeedDistributionOutboxRecord record, bool success, bool shouldRetry)>>(batch.Select(SendFile));
             await Task.WhenAll(tasks);
 
             var successes = tasks.Where(t => t.Result.success).Select(t => t.Result.record.popStamp.GetValueOrDefault()).ToList();
             successes.ForEach(_tenantSystemStorage.Feedbox.PopCommitAll);
-            
+
             var failures = tasks.Where(t => !t.Result.success).Select(t => t.Result.record.popStamp.GetValueOrDefault()).ToList();
             failures.ForEach(_tenantSystemStorage.Feedbox.PopCancelAll);
         }
@@ -198,8 +201,8 @@ namespace Youverse.Core.Services.DataSubscription
             var recipients = await GetFollowers(driveId);
             foreach (var recipient in recipients)
             {
-                var success = await _feedDistributorService.SendFile(file, distroItem.FileSystemType, recipient);
-                if (!success)
+                var (success, shouldRetry) = await _feedDistributorService.SendFile(file, distroItem.FileSystemType, recipient);
+                if (!success && shouldRetry)
                 {
                     // fall back to queue
                     AddToFeedOutbox(recipient, distroItem);

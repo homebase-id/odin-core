@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Youverse.Core.Services.Base;
 
 namespace Youverse.Core.Services.Authorization.Acl
 {
@@ -10,8 +11,8 @@ namespace Youverse.Core.Services.Authorization.Acl
 
         Task<bool> CallerHasPermission(AccessControlList acl);
 
-        Task<bool> CallerIsConnected();
-
+        Task<bool> CallerHasPermission(CallerContext caller, AccessControlList acl);
+        
         Task<bool> CallerIsInYouverseNetwork();
 
         Task<bool> CallerIsInList(List<string> odinIdList);

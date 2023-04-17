@@ -2,12 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
+using Dawn;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Contacts.Circle;
-using Youverse.Core.Services.Contacts.Circle.Membership;
 
 namespace Youverse.Core.Services.Authorization.Acl
 {
@@ -29,7 +27,13 @@ namespace Youverse.Core.Services.Authorization.Acl
 
         public Task<bool> CallerHasPermission(AccessControlList acl)
         {
-            var caller = _contextAccessor.GetCurrent().Caller;
+            return CallerHasPermission(_contextAccessor.GetCurrent().Caller, acl);
+        }
+
+        public Task<bool> CallerHasPermission(CallerContext caller, AccessControlList acl)
+        {
+            Guard.Argument(caller, nameof(caller)).NotNull();
+
             if (caller?.IsOwner ?? false)
             {
                 return Task.FromResult(true);
@@ -53,30 +57,36 @@ namespace Youverse.Core.Services.Authorization.Acl
                 return Task.FromResult(false);
             }
 
-            if (acl.GetRequiredIdentities().Any())
+            var authorizedIdentities = acl.GetRequiredIdentities().ToList();
+            bool requiresAuthorizedIdentity = authorizedIdentities.Any();
+            bool hasRequiredIdentity = false;
+            if (requiresAuthorizedIdentity)
             {
-                throw new NotImplementedException("TODO: enforce logic for required identities");
+                //does the caller match one of these identities
+                hasRequiredIdentity = authorizedIdentities.Any(id => (OdinId)id == caller!.OdinId);
             }
 
+            bool matchesSecurityGroup = false;
             switch (acl.RequiredSecurityGroup)
             {
                 case SecurityGroupType.Anonymous:
                     return Task.FromResult(true);
 
                 case SecurityGroupType.Authenticated:
-                    return Task.FromResult(caller!.IsInYouverseNetwork);
+                    matchesSecurityGroup = caller!.IsInYouverseNetwork;
+                    break;
 
                 case SecurityGroupType.Connected:
-                    return CallerIsConnected();
+                    matchesSecurityGroup = _contextAccessor.GetCurrent().Caller.IsConnected;
+                    break;
             }
 
-            return Task.FromResult(false);
-        }
+            if (requiresAuthorizedIdentity)
+            {
+                return Task.FromResult(hasRequiredIdentity && matchesSecurityGroup);
+            }
 
-        public async Task<bool> CallerIsConnected()
-        {
-            //TODO: cache result - 
-            return await Task.FromResult(_contextAccessor.GetCurrent().Caller.IsConnected);
+            return Task.FromResult(matchesSecurityGroup);
         }
 
         public Task<bool> CallerIsInYouverseNetwork()
@@ -86,7 +96,8 @@ namespace Youverse.Core.Services.Authorization.Acl
 
         public Task<bool> CallerIsInList(List<string> odinIdList)
         {
-            var inList = odinIdList.Any(s => s.Equals(_contextAccessor.GetCurrent().GetCallerOdinIdOrFail().DomainName, StringComparison.InvariantCultureIgnoreCase));
+            var inList = odinIdList.Any(s =>
+                s.Equals(_contextAccessor.GetCurrent().GetCallerOdinIdOrFail().DomainName, StringComparison.InvariantCultureIgnoreCase));
             return Task.FromResult(inList);
         }
 

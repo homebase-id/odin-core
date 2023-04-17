@@ -1,6 +1,7 @@
 using System.Threading.Tasks;
 using Refit;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Transit;
@@ -13,19 +14,33 @@ namespace Youverse.Core.Services.DataSubscription.SendingHost
     {
         private readonly FileSystemResolver _fileSystemResolver;
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
+        private readonly FollowerAuthenticationService _followerAuthentication;
+        private readonly IDriveAclAuthorizationService _aclAuthorizationService;
 
-        public FeedDistributorService(FileSystemResolver fileSystemResolver, IDotYouHttpClientFactory dotYouHttpClientFactory)
+        public FeedDistributorService(FileSystemResolver fileSystemResolver, IDotYouHttpClientFactory dotYouHttpClientFactory,
+            FollowerAuthenticationService followerAuthentication, IDriveAclAuthorizationService aclAuthorizationService)
         {
             _fileSystemResolver = fileSystemResolver;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
+            _followerAuthentication = followerAuthentication;
+            _aclAuthorizationService = aclAuthorizationService;
         }
-        
-        public async Task<bool> SendFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient)
-        {
-            //TODO: check if recipient can actually get the file
 
+        public async Task<(bool success, bool shouldRetry)> SendFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient)
+        {
+            var caller = new CallerContext(
+                odinId: recipient,
+                masterKey: null,
+                securityLevel: SecurityGroupType.Authenticated,
+                circleIds: null,
+                tokenType: default);
+            
             var fs = _fileSystemResolver.ResolveFileSystem(file);
             var header = await fs.Storage.GetServerFileHeader(file);
+            if (!await _aclAuthorizationService.CallerHasPermission(caller, header.ServerMetadata.AccessControlList))
+            {
+                return (false, false);
+            }
 
             var request = new UpdateFeedFileMetadataRequest()
             {
@@ -41,7 +56,7 @@ namespace Youverse.Core.Services.DataSubscription.SendingHost
             var client = _dotYouHttpClientFactory.CreateClient<IFeedDistributorHttpClient>(recipient, fileSystemType: fileSystemType);
             var httpResponse = await client.SendFeedFileMetadata(request);
 
-            return IsSuccess(httpResponse);
+            return (IsSuccess(httpResponse), true);
         }
 
         bool IsSuccess(ApiResponse<HostTransitResponse> httpResponse)

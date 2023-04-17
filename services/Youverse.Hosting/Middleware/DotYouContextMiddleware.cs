@@ -62,14 +62,6 @@ namespace Youverse.Hosting.Middleware
                 return;
             }
 
-            // if (authType == PerimeterAuthConstants.FollowerCertificateAuthScheme)
-            // {
-            //     await LoadFollowerContext(httpContext, dotYouContext);
-            //     dotYouContext.AuthContext = PerimeterAuthConstants.FollowerCertificateAuthScheme;
-            //     await _next(httpContext);
-            //     return;
-            // }
-
             if (authType == PerimeterAuthConstants.PublicTransitAuthScheme)
             {
                 await LoadPublicTransitContext(httpContext, dotYouContext);
@@ -84,20 +76,6 @@ namespace Youverse.Hosting.Middleware
         {
             if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[DotYouHeaderNames.ClientAuthToken], out var clientAuthToken))
             {
-                //HACK - for alpha, wen want to support data subscriptions for the feed but only building it partially
-                //therefore use the transit subsystem but load permissions only for the fee drive
-                // if (clientAuthToken.ClientTokenType == ClientTokenType.DataProvider)
-                // {
-                //     await LoadIdentitiesIFollowContext(httpContext, dotYouContext);
-                //     return;
-                // }
-
-                if (clientAuthToken.ClientTokenType == ClientTokenType.Follower)
-                {
-                    await LoadFollowerContext(httpContext, dotYouContext);
-                    return;
-                }
-
                 var user = httpContext.User;
                 var transitRegService = httpContext.RequestServices.GetRequiredService<TransitAuthenticationService>();
                 var callerOdinId = (OdinId)user.Identity!.Name;
@@ -133,34 +111,7 @@ namespace Youverse.Hosting.Middleware
 
             throw new YouverseSecurityException("Cannot load context");
         }
-
-        private async Task LoadFollowerContext(HttpContext httpContext, DotYouContext dotYouContext)
-        {
-            //No token for now
-            if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[DotYouHeaderNames.ClientAuthToken], out var clientAuthToken))
-            {
-                var user = httpContext.User;
-                var odinId = (OdinId)user.Identity!.Name;
-                var authService = httpContext.RequestServices.GetRequiredService<FollowerAuthenticationService>();
-                var ctx = await authService.GetDotYouContext(odinId, clientAuthToken);
-
-                //load in transit context
-                // var transitRegService = httpContext.RequestServices.GetRequiredService<TransitRegistrationService>();
-                // var transitCtx = await transitRegService.GetDotYouContext(odinId, clientAuthToken);
-
-                // transitCtx.PermissionsContext.Redacted().PermissionGroups.First().DriveGrants.First().PermissionedDrive.
-
-                if (ctx != null)
-                {
-                    dotYouContext.Caller = ctx.Caller;
-                    dotYouContext.SetPermissionContext(ctx.PermissionsContext);
-                    dotYouContext.SetAuthContext(PerimeterAuthConstants.FollowerCertificateAuthScheme);
-                    return;
-                }
-            }
-
-            throw new YouverseSecurityException("Cannot load context");
-        }
+        
 
         private async Task LoadPublicTransitContext(HttpContext httpContext, DotYouContext dotYouContext)
         {
