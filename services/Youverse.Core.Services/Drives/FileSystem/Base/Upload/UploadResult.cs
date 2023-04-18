@@ -32,5 +32,10 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
 
         public Dictionary<string, TransferStatus> RecipientStatus { get; set; }
         
+        /// <summary>
+        /// The version tag that resulted as of this upload
+        /// </summary>
+        public Guid NewVersionTag { get; set; }
+        
     }
 }

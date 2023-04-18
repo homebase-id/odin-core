@@ -159,7 +159,10 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
 
             PayloadIsEncrypted = uploadDescriptor.FileMetadata.PayloadIsEncrypted,
             OriginalRecipientList = package.InstructionSet.TransitOptions?.Recipients,
-            SenderOdinId = _contextAccessor.GetCurrent().Caller.OdinId
+            SenderOdinId = _contextAccessor.GetCurrent().Caller.OdinId,
+            
+            VersionTag = uploadDescriptor.FileMetadata.VersionTag
+
         };
 
         return Task.FromResult(metadata);

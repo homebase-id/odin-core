@@ -45,7 +45,16 @@ public abstract class FileSystemStreamWriterBase
 
     protected IDriveFileSystem FileSystem { get; }
 
-    public virtual async Task CreatePackage(UploadInstructionSet instructionSet)
+    public virtual async Task StartUpload(Stream data)
+    {
+        //TODO: need to partially encrypt upload instruction set
+        string json = await new StreamReader(data).ReadToEndAsync();
+        var instructionSet = DotYouSystemSerializer.Deserialize<UploadInstructionSet>(json);
+
+        await this.StartUpload(instructionSet);
+    }
+
+    public virtual async Task StartUpload(UploadInstructionSet instructionSet)
     {
         Guard.Argument(instructionSet, nameof(instructionSet)).NotNull();
         instructionSet?.AssertIsValid();
@@ -77,30 +86,21 @@ public abstract class FileSystemStreamWriterBase
             };
         }
 
+        this._package = new UploadPackage(file, instructionSet!, isUpdateOperation);
         _uploadLock.LockOrFail(file);
-
-        this._package = new UploadPackage( file, instructionSet!, isUpdateOperation);
-
         await Task.CompletedTask;
-    }
-
-    public virtual async Task CreatePackageFromInstructionSet(Stream data)
-    {
-        //TODO: need to partially encrypt upload instruction set
-        string json = await new StreamReader(data).ReadToEndAsync();
-        var instructionSet = DotYouSystemSerializer.Deserialize<UploadInstructionSet>(json);
-
-        await this.CreatePackage(instructionSet);
     }
 
     public virtual async Task AddMetadata(Stream data)
     {
-        await FileSystem.Storage.WriteTempStream(_package.InternalFile, MultipartUploadParts.Metadata.ToString(), data);
+        await UnlockIfFailure(FileSystem.Storage.WriteTempStream(_package.InternalFile, MultipartUploadParts.Metadata.ToString(), data));
     }
+
 
     public virtual async Task AddPayload(Stream data)
     {
-        var bytesWritten = await FileSystem.Storage.WriteTempStream(_package.InternalFile, MultipartUploadParts.Payload.ToString(), data);
+        var bytesWritten = await UnlockIfFailure(FileSystem.Storage.WriteTempStream(_package.InternalFile, MultipartUploadParts.Payload.ToString(), data));
+        // var bytesWritten = await FileSystem.Storage.WriteTempStream(_package.InternalFile, MultipartUploadParts.Payload.ToString(), data);
         _package.HasPayload = bytesWritten > 0;
     }
 
@@ -110,7 +110,7 @@ public abstract class FileSystemStreamWriterBase
 
         //TODO: should i validate width and height are > 0?
         string extenstion = FileSystem.Storage.GetThumbnailFileExtension(width, height);
-        await FileSystem.Storage.WriteTempStream(_package.InternalFile, extenstion, data);
+        await UnlockIfFailure(FileSystem.Storage.WriteTempStream(_package.InternalFile, extenstion, data));
     }
 
     /// <summary>
@@ -118,77 +118,89 @@ public abstract class FileSystemStreamWriterBase
     /// </summary>
     public async Task<UploadResult> FinalizeUpload()
     {
-        var (keyHeader, metadata, serverMetadata) = await UnpackMetadata(_package);
-
-        await this.ValidateUploadCore(_package, keyHeader, metadata, serverMetadata);
-
-        await this.ValidateUnpackedData(_package, keyHeader, metadata, serverMetadata);
-
-        if (_package.IsUpdateOperation)
+        try
         {
-            // Validate the file exists by the Id
-            if (!FileSystem.Storage.FileExists(_package.InternalFile))
-            {
-                throw new YouverseClientException("OverwriteFileId is specified but file does not exist",
-                    YouverseClientErrorCode.CannotOverwriteNonExistentFile);
-            }
+            var (keyHeader, metadata, serverMetadata) = await UnpackMetadata(_package);
 
-            // If the uniqueId is being changed, validate that uniqueId is not in use by another file
-            if (metadata.AppData.UniqueId.HasValue)
-            {
-                var incomingClientUniqueId = metadata.AppData.UniqueId.Value;
-                var existingFileHeader = await FileSystem.Storage.GetServerFileHeader(_package.InternalFile);
+            await this.ValidateUploadCore(_package, keyHeader, metadata, serverMetadata);
 
-                var isChangingUniqueId = incomingClientUniqueId != existingFileHeader.FileMetadata.AppData.UniqueId;
-                if (isChangingUniqueId)
+            await this.ValidateUnpackedData(_package, keyHeader, metadata, serverMetadata);
+
+            if (_package.IsUpdateOperation)
+            {
+                // Validate the file exists by the Id
+                if (!FileSystem.Storage.FileExists(_package.InternalFile))
                 {
-                    var existingFile = await FileSystem.Query.GetFileByClientUniqueId(_package.InternalFile.DriveId, incomingClientUniqueId);
-                    if (null != existingFile && existingFile.FileId != existingFileHeader.FileMetadata.File.FileId)
+                    throw new YouverseClientException("OverwriteFileId is specified but file does not exist",
+                        YouverseClientErrorCode.CannotOverwriteNonExistentFile);
+                }
+
+                if (metadata.VersionTag == null)
+                {
+                    throw new YouverseClientException("Missing concurrency token for update operation", YouverseClientErrorCode.MissingVersionTag);
+                }
+
+                // If the uniqueId is being changed, validate that uniqueId is not in use by another file
+                if (metadata.AppData.UniqueId.HasValue)
+                {
+                    var incomingClientUniqueId = metadata.AppData.UniqueId.Value;
+                    var existingFileHeader = await FileSystem.Storage.GetServerFileHeader(_package.InternalFile);
+
+                    var isChangingUniqueId = incomingClientUniqueId != existingFileHeader.FileMetadata.AppData.UniqueId;
+                    if (isChangingUniqueId)
                     {
-                        throw new YouverseClientException(
-                            $"It looks like the uniqueId is being changed but a file already exists with ClientUniqueId: [{incomingClientUniqueId}]",
+                        var existingFile = await FileSystem.Query.GetFileByClientUniqueId(_package.InternalFile.DriveId, incomingClientUniqueId);
+                        if (null != existingFile && existingFile.FileId != existingFileHeader.FileMetadata.File.FileId)
+                        {
+                            throw new YouverseClientException(
+                                $"It looks like the uniqueId is being changed but a file already exists with ClientUniqueId: [{incomingClientUniqueId}]",
+                                YouverseClientErrorCode.ExistingFileWithUniqueId);
+                        }
+                    }
+                }
+
+                await ProcessExistingFileUpload(_package, keyHeader, metadata, serverMetadata);
+            }
+            else
+            {
+                // New file with UniqueId must not exist
+                if (metadata.AppData.UniqueId.HasValue)
+                {
+                    var incomingClientUniqueId = metadata.AppData.UniqueId.Value;
+                    var existingFile = await FileSystem.Query.GetFileByClientUniqueId(_package.InternalFile.DriveId, incomingClientUniqueId);
+                    if (null != existingFile)
+                    {
+                        throw new YouverseClientException($"File already exists with ClientUniqueId: [{incomingClientUniqueId}]",
                             YouverseClientErrorCode.ExistingFileWithUniqueId);
                     }
                 }
+
+                await ProcessNewFileUpload(_package, keyHeader, metadata, serverMetadata);
             }
 
-            await ProcessExistingFileUpload(_package, keyHeader, metadata, serverMetadata);
-        }
-        else
-        {
-            // New file with UniqueId must not exist
-            if (metadata.AppData.UniqueId.HasValue)
+            _uploadLock.ReleaseLock(metadata.File);
+
+            Dictionary<string, TransferStatus> recipientStatus = await ProcessTransitInstructions(_package);
+
+            var uploadResult = new UploadResult()
             {
-                var incomingClientUniqueId = metadata.AppData.UniqueId.Value;
-                var existingFile = await FileSystem.Query.GetFileByClientUniqueId(_package.InternalFile.DriveId, incomingClientUniqueId);
-                if (null != existingFile)
+                NewVersionTag = metadata.VersionTag.GetValueOrDefault(),
+                File = new ExternalFileIdentifier()
                 {
-                    throw new YouverseClientException($"File already exists with ClientUniqueId: [{incomingClientUniqueId}]",
-                        YouverseClientErrorCode.ExistingFileWithUniqueId);
-                }
-            }
+                    TargetDrive = _driveManager.GetDrive(_package.InternalFile.DriveId).Result.TargetDriveInfo,
+                    FileId = _package.InternalFile.FileId
+                },
+                GlobalTransitId = metadata.GlobalTransitId,
+                RecipientStatus = recipientStatus
+            };
 
-            await ProcessNewFileUpload(_package, keyHeader, metadata, serverMetadata);
+            return uploadResult;
         }
-
-        _uploadLock.ReleaseLock(metadata.File);
-
-        Dictionary<string, TransferStatus> recipientStatus = await ProcessTransitInstructions(_package);
-
-        var uploadResult = new UploadResult()
+        finally
         {
-            File = new ExternalFileIdentifier()
-            {
-                TargetDrive = _driveManager.GetDrive(_package.InternalFile.DriveId).Result.TargetDriveInfo,
-                FileId = _package.InternalFile.FileId
-            },
-            GlobalTransitId = metadata.GlobalTransitId,
-            RecipientStatus = recipientStatus
-        };
-
-        return uploadResult;
+            _uploadLock.ReleaseLock(_package.InternalFile);
+        }
     }
-
 
     /// <summary>
     /// Validates the uploaded data is correct before mapping to its final form.
@@ -258,7 +270,7 @@ public abstract class FileSystemStreamWriterBase
     }
 
     /// <summary>
-    /// Validates rules that apply to all files; regardless of being feedback, normal, or some other type we've not yet conceived
+    /// Validates rules that apply to all files; regardless of being comment, standard, or some other type we've not yet conceived
     /// </summary>
     private async Task ValidateUploadCore(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
     {
@@ -319,6 +331,18 @@ public abstract class FileSystemStreamWriterBase
                     "UseGlobalTransitId must be true when AllowDistribution is true. (Yes, yes I know, i could just do it for you but then you would be all - htf is this GlobalTransitId getting set.. ooommmggg?!  Then you would hunt through the code and we would end up with long debate in the issue list.  #aintnobodygottimeforthat <3.  just love me and set the param",
                     YouverseClientErrorCode.InvalidTransitOptions);
             }
+        }
+    }
+
+    private async Task<T> UnlockIfFailure<T>(Task<T> action)
+    {
+        try
+        {
+            return await action;
+        }
+        finally
+        {
+            _uploadLock.ReleaseLock(this._package.InternalFile);
         }
     }
 }

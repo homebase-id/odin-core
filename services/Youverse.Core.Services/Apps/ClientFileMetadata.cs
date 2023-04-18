@@ -45,4 +45,6 @@ public class ClientFileMetadata
     
     public GlobalTransitIdFileIdentifier ReferencedFile { get; set; }
     public ReactionSummary ReactionPreview { get; set; }
+    
+    public Guid VersionTag { get; set; }
 }

@@ -82,5 +82,7 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
         public List<string> OriginalRecipientList { get; set; }
         
         public AppFileMetaData AppData { get; set; }
+
+        public Guid? VersionTag { get; set; }
     }
 }
