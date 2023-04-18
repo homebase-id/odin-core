@@ -8,6 +8,7 @@ using Refit;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
+using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Configuration;
@@ -34,6 +35,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
         private readonly TenantContext _tenantContext;
         private readonly YouverseConfiguration _youverseConfiguration;
+        private readonly IDriveAclAuthorizationService _aclAuthorizationService;
 
         public TransitService(
             DotYouContextAccessor contextAccessor,
@@ -44,7 +46,8 @@ namespace Youverse.Core.Services.Transit.SendingHost
             ICircleNetworkService circleNetworkService,
             FollowerService followerService,
             DriveManager driveManager,
-            FileSystemResolver fileSystemResolver, YouverseConfiguration youverseConfiguration) : base(dotYouHttpClientFactory, circleNetworkService,
+            FileSystemResolver fileSystemResolver, YouverseConfiguration youverseConfiguration, IDriveAclAuthorizationService aclAuthorizationService) : base(
+            dotYouHttpClientFactory, circleNetworkService,
             contextAccessor, followerService, fileSystemResolver)
         {
             _contextAccessor = contextAccessor;
@@ -54,6 +57,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
             _driveManager = driveManager;
             _fileSystemResolver = fileSystemResolver;
             _youverseConfiguration = youverseConfiguration;
+            _aclAuthorizationService = aclAuthorizationService;
 
             _transferKeyEncryptionQueueService = new TransferKeyEncryptionQueueService(tenantSystemStorage);
         }
@@ -221,11 +225,11 @@ namespace Youverse.Core.Services.Transit.SendingHost
         {
             IDriveFileSystem fs = _fileSystemResolver.ResolveFileSystem(outboxItem.TransferInstructionSet.FileSystemType);
 
+            
             OdinId recipient = outboxItem.Recipient;
             var file = outboxItem.File;
             var options = outboxItem.OriginalTransitOptions;
-
-
+            
             TransferFailureReason tfr = TransferFailureReason.UnknownError;
             bool success = false;
             TransitResponseCode transitResponseCode = TransitResponseCode.Rejected;
@@ -258,6 +262,15 @@ namespace Youverse.Core.Services.Transit.SendingHost
                     Enum.GetName(MultipartHostTransferParts.TransferKeyHeader));
 
                 var header = await fs.Storage.GetServerFileHeader(file);
+                
+                // var caller = new CallerContext(
+                //     odinId: recipient,
+                //     masterKey: null,
+                //     securityLevel: SecurityGroupType.Authenticated,
+                //     circleIds: null,
+                //     tokenType: default);
+                // var canReceiveFile = await _aclAuthorizationService.CallerHasPermission(caller, header.ServerMetadata.AccessControlList);
+
                 if (header.ServerMetadata.AllowDistribution == false)
                 {
                     return new SendResult()

@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Threading.Tasks;
 using Refit;
 using Youverse.Core.Identity;
@@ -14,29 +15,29 @@ namespace Youverse.Core.Services.DataSubscription.SendingHost
     {
         private readonly FileSystemResolver _fileSystemResolver;
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
-        private readonly FollowerAuthenticationService _followerAuthentication;
         private readonly IDriveAclAuthorizationService _aclAuthorizationService;
 
         public FeedDistributorService(FileSystemResolver fileSystemResolver, IDotYouHttpClientFactory dotYouHttpClientFactory,
-            FollowerAuthenticationService followerAuthentication, IDriveAclAuthorizationService aclAuthorizationService)
+            IDriveAclAuthorizationService aclAuthorizationService)
         {
             _fileSystemResolver = fileSystemResolver;
             _dotYouHttpClientFactory = dotYouHttpClientFactory;
-            _followerAuthentication = followerAuthentication;
             _aclAuthorizationService = aclAuthorizationService;
         }
 
         public async Task<(bool success, bool shouldRetry)> SendFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient)
         {
+            //TODO: validate the user has rights to follow the channel
             var caller = new CallerContext(
                 odinId: recipient,
                 masterKey: null,
-                securityLevel: SecurityGroupType.Authenticated,
+                securityLevel: SecurityGroupType.Anonymous,
                 circleIds: null,
                 tokenType: default);
-            
+
             var fs = _fileSystemResolver.ResolveFileSystem(file);
             var header = await fs.Storage.GetServerFileHeader(file);
+            
             if (!await _aclAuthorizationService.CallerHasPermission(caller, header.ServerMetadata.AccessControlList))
             {
                 return (false, false);

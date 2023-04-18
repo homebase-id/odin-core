@@ -52,7 +52,7 @@ namespace Youverse.Core.Services.DataSubscription
             FileSystemResolver fileSystemResolver, ITenantSystemStorage tenantSystemStorage, DotYouContextAccessor contextAccessor,
             ICircleNetworkService circleNetworkService,
             IDotYouHttpClientFactory dotYouHttpClientFactory, YouverseConfiguration youverseConfiguration,
-            IDriveAclAuthorizationService aclAuthorizationService, FollowerAuthenticationService followerAuthenticationService)
+            IDriveAclAuthorizationService aclAuthorizationService)
         {
             _followerService = followerService;
             _transitService = transitService;
@@ -66,7 +66,7 @@ namespace Youverse.Core.Services.DataSubscription
             _youverseConfiguration = youverseConfiguration;
 
             _feedDistributorService =
-                new FeedDistributorService(fileSystemResolver, dotYouHttpClientFactory, followerAuthenticationService, aclAuthorizationService);
+                new FeedDistributorService(fileSystemResolver, dotYouHttpClientFactory, aclAuthorizationService);
         }
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
