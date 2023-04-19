@@ -127,7 +127,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.Upload
                         Assert.Fail($"Error thrown but does not match expected error.  Error was {response!.Error!.Content}");
                     }
 
-                    return false;
+                    return matches;
                 });
 
                 Assert.IsTrue(atLeastOneLockException, "There should have been at least one lock exception");
