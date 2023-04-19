@@ -90,7 +90,9 @@ public class DataSubscriptionTests
         var uploadResult2 = await OverwriteStandardFile(
             client: frodoOwnerClient,
             overwriteFile: firstUploadResult.File,
-            updatedContent, fileType);
+            updatedContent,
+            fileType,
+            versionTag: firstUploadResult.NewVersionTag);
 
         //Tell frodo's identity to process the outbox due to feed distribution
         await frodoOwnerClient.Transit.ProcessOutbox(1);
@@ -1096,13 +1098,15 @@ public class DataSubscriptionTests
         return await client.Drive.UploadEncryptedFile(FileSystemType.Standard, targetDrive, fileMetadata, "");
     }
 
-    private async Task<UploadResult> OverwriteStandardFile(OwnerApiClient client, ExternalFileIdentifier overwriteFile, string uploadedContent, int fileType)
+    private async Task<UploadResult> OverwriteStandardFile(OwnerApiClient client, ExternalFileIdentifier overwriteFile, string uploadedContent, int fileType,
+        Guid versionTag)
     {
         var fileMetadata = new UploadFileMetadata()
         {
             AllowDistribution = true,
             ContentType = "application/json",
             PayloadIsEncrypted = false,
+            VersionTag = versionTag,
             AppData = new()
             {
                 ContentIsComplete = true,

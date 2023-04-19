@@ -21,13 +21,14 @@ namespace Youverse.Hosting.Tests
         /// The payload data that was uploaded
         /// </summary>
         public string PayloadData { get; set; }
-        
+
         /// <summary>
         /// The uploaded file information.
         /// </summary>
-        public ExternalFileIdentifier UploadedFile { get; set; }
+        public ExternalFileIdentifier UploadedFile => this.UploadResult.File;
 
         public byte[] PayloadCipher { get; set; }
         public FileSystemType FileSystemType { get; set; }
+        public UploadResult UploadResult { get; set; }
     }
 }

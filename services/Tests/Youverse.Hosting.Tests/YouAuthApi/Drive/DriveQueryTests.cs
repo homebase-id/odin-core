@@ -91,8 +91,10 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
             var anonymousFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, null, tag, SecurityGroupType.Anonymous, "another payload");
 
             //overwrite them to ensure the updated timestamp is set
-            securedFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, securedFileUploadContext.UploadedFile.FileId, tag, SecurityGroupType.Connected, "payload");
-            anonymousFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, anonymousFileUploadContext.UploadedFile.FileId, tag, SecurityGroupType.Anonymous, "payload");
+            securedFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, securedFileUploadContext.UploadedFile.FileId, tag,
+                SecurityGroupType.Connected, "payload", versionTag: securedFileUploadContext.UploadResult.NewVersionTag);
+            anonymousFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, anonymousFileUploadContext.UploadedFile.FileId, tag,
+                SecurityGroupType.Anonymous, "payload", versionTag: anonymousFileUploadContext.UploadResult.NewVersionTag);
 
             using (var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId))
             {
@@ -122,7 +124,8 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 var batch = getModifiedResponse.Content;
 
                 Assert.IsNotNull(batch);
-                Assert.True(batch.SearchResults.Count() == 1, $"Actual count was {batch.SearchResults.Count()}"); //should only be the anonymous file we uploaded
+                Assert.True(batch.SearchResults.Count() == 1,
+                    $"Actual count was {batch.SearchResults.Count()}"); //should only be the anonymous file we uploaded
                 Assert.True(batch.SearchResults.Single().FileId == anonymousFileUploadContext.UploadedFile.FileId);
             }
         }
@@ -261,7 +264,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 
         private async Task<UploadTestUtilsContext> UploadFile(OdinId identity, Guid tag, SecurityGroupType requiredSecurityGroup)
         {
-            List<Guid> tags = new List<Guid>() { tag};
+            List<Guid> tags = new List<Guid>() { tag };
 
             var uploadFileMetadata = new UploadFileMetadata()
             {
@@ -296,7 +299,8 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
             return await _scaffold.OldOwnerApi.Upload(identity, uploadFileMetadata, options);
         }
 
-        private async Task<UploadTestUtilsContext> UploadFile2(OdinId identity, TargetDrive drive, Guid? overwriteFileId, Guid tag, SecurityGroupType requiredSecurityGroup, string payload)
+        private async Task<UploadTestUtilsContext> UploadFile2(OdinId identity, TargetDrive drive, Guid? overwriteFileId, Guid tag,
+            SecurityGroupType requiredSecurityGroup, string payload, Guid? versionTag = null)
         {
             var instructionSet = new UploadInstructionSet()
             {
@@ -314,6 +318,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
                 ContentType = "application/json",
                 AllowDistribution = false,
                 PayloadIsEncrypted = false,
+                VersionTag = versionTag,
                 AppData = new()
                 {
                     ContentIsComplete = false,

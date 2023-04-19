@@ -72,13 +72,14 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
         {
             return CreateAppApiHttpClient(appTestContext.Identity, appTestContext.ClientAuthenticationToken, appTestContext.SharedSecret, fileSystemType);
         }
-        
+
         public HttpClient CreateAppApiHttpClient(AppClientToken token, FileSystemType fileSystemType = FileSystemType.Standard)
         {
             return CreateAppApiHttpClient(token.OdinId, token.ClientAuthToken, token.SharedSecret, fileSystemType);
         }
 
-        public async Task<AppTransitTestUtilsContext> CreateAppAndUploadFileMetadata(TestIdentity identity, UploadFileMetadata fileMetadata, TransitTestUtilsOptions options = null)
+        public async Task<AppTransitTestUtilsContext> CreateAppAndUploadFileMetadata(TestIdentity identity, UploadFileMetadata fileMetadata,
+            TransitTestUtilsOptions options = null)
         {
             var transferIv = ByteArrayUtil.GetRndByteArray(16);
             var targetDrive = new TargetDrive()
@@ -98,7 +99,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                 TransitOptions = null
             };
 
-            return (AppTransitTestUtilsContext)await CreateAppAndTransferFile(identity, instructionSet, fileMetadata, options ?? TransitTestUtilsOptions.Default);
+            return (AppTransitTestUtilsContext)await CreateAppAndTransferFile(identity, instructionSet, fileMetadata,
+                options ?? TransitTestUtilsOptions.Default);
         }
 
         public async Task<AppTransitTestUtilsContext> TransferFile(TestAppContext senderAppContext,
@@ -113,7 +115,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
 
             if (options.ProcessTransitBox & (recipients.Count == 0 || options.ProcessOutbox == false))
             {
-                throw new Exception("Options not valid.  There must be at least one recipient and ProcessOutbox must be true when ProcessTransitBox is set to true");
+                throw new Exception(
+                    "Options not valid.  There must be at least one recipient and ProcessOutbox must be true when ProcessTransitBox is set to true");
             }
 
             var payloadData = options?.PayloadData ?? "{payload:true, image:'b64 data'}";
@@ -140,7 +143,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                     };
 
                     var thumbnail1CipherBytes = keyHeader.EncryptDataAes(TestMedia.ThumbnailBytes300);
-                    thumbnails.Add(new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
+                    thumbnails.Add(new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType,
+                        Enum.GetName(MultipartUploadParts.Thumbnail)));
                     thumbnailsAdded.Add(thumbnail1);
                     fileMetadata.AppData.AdditionalThumbnails = thumbnailsAdded;
                 }
@@ -182,7 +186,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                 int batchSize = 1;
                 if (instructionSet.TransitOptions?.Recipients?.Any() ?? false)
                 {
-                    Assert.IsTrue(transferResult.RecipientStatus.Count == instructionSet.TransitOptions?.Recipients.Count, "expected recipient count does not match");
+                    Assert.IsTrue(transferResult.RecipientStatus.Count == instructionSet.TransitOptions?.Recipients.Count,
+                        "expected recipient count does not match");
 
                     foreach (var recipient in instructionSet.TransitOptions?.Recipients)
                     {
@@ -190,12 +195,14 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
 
                         if (instructionSet!.TransitOptions!.Schedule == ScheduleOptions.SendNowAwaitResponse)
                         {
-                            Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.DeliveredToTargetDrive, $"file was not delivered to {recipient}");
+                            Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.DeliveredToTargetDrive,
+                                $"file was not delivered to {recipient}");
                         }
 
                         if (instructionSet.TransitOptions.Schedule == ScheduleOptions.SendLater)
                         {
-                            Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.TransferKeyCreated, $"transfer key not created for {recipient}");
+                            Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.TransferKeyCreated,
+                                $"transfer key not created for {recipient}");
                         }
                     }
 
@@ -232,14 +239,15 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                     RecipientContexts = recipientContexts,
                     PayloadData = payloadData,
                     TestAppContext = senderAppContext,
-                    UploadedFile = transferResult.File,
+                    UploadResult = transferResult,
                     GlobalTransitId = transferResult.GlobalTransitId,
                 };
             }
         }
 
 
-        public async Task<UploadTestUtilsContext> UploadFile(TestAppContext identityAppContext, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata, bool includeThumbnail,
+        public async Task<UploadTestUtilsContext> UploadFile(TestAppContext identityAppContext, UploadInstructionSet instructionSet,
+            UploadFileMetadata fileMetadata, bool includeThumbnail,
             string payloadData)
         {
             Guard.Argument(instructionSet, nameof(instructionSet)).NotNull();
@@ -267,7 +275,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                     };
 
                     var thumbnail1CipherBytes = keyHeader.EncryptDataAes(TestMedia.ThumbnailBytes300);
-                    thumbnails.Add(new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
+                    thumbnails.Add(new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType,
+                        Enum.GetName(MultipartUploadParts.Thumbnail)));
                     thumbnailsAdded.Add(thumbnail1);
                     fileMetadata.AppData.AdditionalThumbnails = thumbnailsAdded;
                 }
@@ -308,12 +317,14 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                 int batchSize = 1;
                 if (instructionSet.TransitOptions?.Recipients?.Any() ?? false)
                 {
-                    Assert.IsTrue(transferResult.RecipientStatus.Count == instructionSet.TransitOptions?.Recipients.Count, "expected recipient count does not match");
+                    Assert.IsTrue(transferResult.RecipientStatus.Count == instructionSet.TransitOptions?.Recipients.Count,
+                        "expected recipient count does not match");
 
                     foreach (var recipient in instructionSet.TransitOptions?.Recipients)
                     {
                         Assert.IsTrue(transferResult.RecipientStatus.ContainsKey(recipient), $"Could not find matching recipient {recipient}");
-                        Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.TransferKeyCreated, $"transfer key not created for {recipient}");
+                        Assert.IsTrue(transferResult.RecipientStatus[recipient] == TransferStatus.TransferKeyCreated,
+                            $"transfer key not created for {recipient}");
                     }
 
                     batchSize = instructionSet.TransitOptions?.Recipients?.Count ?? 1;
@@ -326,25 +337,28 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                     InstructionSet = instructionSet,
                     UploadFileMetadata = fileMetadata,
                     PayloadData = payloadData,
-                    UploadedFile = transferResult.File
+                    UploadResult = transferResult
                 };
             }
         }
 
-        public async Task<AppTransitTestUtilsContext> CreateAppAndTransferFile(TestIdentity sender, UploadInstructionSet instructionSet, UploadFileMetadata fileMetadata,
+        public async Task<AppTransitTestUtilsContext> CreateAppAndTransferFile(TestIdentity sender, UploadInstructionSet instructionSet,
+            UploadFileMetadata fileMetadata,
             TransitTestUtilsOptions options)
         {
             var recipients = instructionSet.TransitOptions?.Recipients ?? new List<string>();
 
             if (options.ProcessTransitBox & (recipients.Count == 0 || options.ProcessOutbox == false))
             {
-                throw new Exception("Options not valid.  There must be at least one recipient and ProcessOutbox must be true when ProcessTransitBox is set to true");
+                throw new Exception(
+                    "Options not valid.  There must be at least one recipient and ProcessOutbox must be true when ProcessTransitBox is set to true");
             }
 
             var targetDrive = instructionSet.StorageOptions.Drive;
 
             Guid appId = Guid.NewGuid();
-            var testAppContext = await _ownerApi.SetupTestSampleApp(appId, sender, canReadConnections: true, instructionSet.StorageOptions.Drive, options.DriveAllowAnonymousReads);
+            var testAppContext = await _ownerApi.SetupTestSampleApp(appId, sender, canReadConnections: true, instructionSet.StorageOptions.Drive,
+                options.DriveAllowAnonymousReads);
 
             var senderCircleDef =
                 await _ownerApi.CreateCircleWithDrive(sender.OdinId, $"Sender ({sender.OdinId}) Circle",
@@ -459,7 +473,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
             }
         }
 
-        public async Task<ApiResponse<QueryBatchResponse>> QueryBatch(TestAppContext appContext, FileQueryParams queryParams, QueryBatchResultOptionsRequest options)
+        public async Task<ApiResponse<QueryBatchResponse>> QueryBatch(TestAppContext appContext, FileQueryParams queryParams,
+            QueryBatchResultOptionsRequest options)
         {
             using (var client = this.CreateAppApiHttpClient(appContext))
             {

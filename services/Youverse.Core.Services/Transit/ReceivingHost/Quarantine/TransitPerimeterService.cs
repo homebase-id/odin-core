@@ -364,7 +364,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
                 return false;
             }
             
-            //TODO: check if any apps are online adn we can snag the storage key
+            //TODO: check if any apps are online and we can snag the storage key
 
             TransitFileWriter writer = new TransitFileWriter(_contextAccessor, _fileSystemResolver);
             var sender = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();

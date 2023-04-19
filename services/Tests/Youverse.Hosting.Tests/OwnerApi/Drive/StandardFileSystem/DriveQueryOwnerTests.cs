@@ -140,6 +140,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
 
             var instructionSet = UploadInstructionSet.WithTargetDrive(uploadContext.UploadedFile.TargetDrive);
             instructionSet.StorageOptions.OverwriteFileId = uploadContext.UploadedFile.FileId;
+            uploadFileMetadata.VersionTag = uploadContext.UploadResult.NewVersionTag;
 
             uploadFileMetadata.AppData.DataType = 10844;
             var _ = await _scaffold.OldOwnerApi.UploadFile(identity.OdinId, instructionSet, uploadFileMetadata, "a new payload", true);

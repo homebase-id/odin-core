@@ -174,6 +174,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
             //
             // validate recipient got the file
             //
+            Guid recipientVersionTag;
             using (var client = _scaffold.AppApi.CreateAppApiHttpClient(recipientContext))
             {
                 //First force transfers to be put into their long term location
@@ -226,6 +227,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.EqualTo(Guid.Empty.ToByteArray()), "Iv was all zeros");
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
 
+                recipientVersionTag = clientFileHeader.FileMetadata.VersionTag;
                 var ss = recipientContext.SharedSecret.ToSensitiveByteArray();
                 var decryptedKeyHeader = clientFileHeader.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ss);
 
@@ -268,6 +270,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
             };
 
             descriptor.FileMetadata.AllowDistribution = false;
+            descriptor.FileMetadata.VersionTag = recipientVersionTag;
             instructionSet.TransitOptions = null;
 
             await _scaffold.OldOwnerApi.UploadFile(recipient.OdinId, instructionSet, descriptor.FileMetadata, payloadData, true);
@@ -439,6 +442,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
             //
             // Validate recipient got the file
             //
+            Guid recipientVersionTag;
             using (var client = _scaffold.AppApi.CreateAppApiHttpClient(recipientContext))
             {
                 //First force transfers to be put into their long term location
@@ -491,6 +495,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Iv, Is.Not.EqualTo(Guid.Empty.ToByteArray()), "Iv was all zeros");
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader.Type, Is.EqualTo(EncryptionType.Aes));
 
+                recipientVersionTag = clientFileHeader.FileMetadata.VersionTag;
+                
                 var ss = recipientContext.SharedSecret.ToSensitiveByteArray();
                 var decryptedKeyHeader = clientFileHeader.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref ss);
 
@@ -545,6 +551,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
 
             instructionSet.TransitOptions = null;
             descriptor.FileMetadata.AllowDistribution = false;
+            descriptor.FileMetadata.VersionTag = recipientVersionTag;
 
             var reuploadedContext = await _scaffold.OldOwnerApi.UploadFile(recipient.OdinId, instructionSet, descriptor.FileMetadata, originalPayloadData, true,
                 new ImageDataContent()
@@ -918,6 +925,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
             };
 
 
+            Guid recipientVersionTag;
             //
             // validate recipient got the file
             //
@@ -969,6 +977,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
 
+                recipientVersionTag = clientFileHeader.FileMetadata.VersionTag;
+                
                 //
                 // Get the payload that was uploaded, test it
                 // 
@@ -993,6 +1003,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
             };
 
             descriptor.FileMetadata.AllowDistribution = false;
+            descriptor.FileMetadata.VersionTag = recipientVersionTag;
+                
             instructionSet.TransitOptions = null;
 
             await _scaffold.OldOwnerApi.UploadFile(recipient.OdinId, instructionSet, descriptor.FileMetadata, payloadData, true,
@@ -1146,6 +1158,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
             //
             // upload and send the file 
             //
+            Guid senderUploadVersionTag;
             using (var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext, FileSystemType.Comment))
             {
                 var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
@@ -1159,10 +1172,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 Assert.That(response.IsSuccessStatusCode, Is.True);
                 Assert.That(response.Content, Is.Not.Null);
                 var transferResult = response.Content;
-
                 Assert.That(transferResult.File, Is.Not.Null);
                 Assert.That(transferResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
                 Assert.IsTrue(transferResult.File.TargetDrive.IsValid());
+                senderUploadVersionTag = transferResult.NewVersionTag;
 
                 foreach (var r in instructionSet.TransitOptions.Recipients)
                 {
@@ -1183,6 +1196,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
             //
             // Validate recipient got the file
             //
+            Guid recipientVersionTag;
             using (var client = _scaffold.AppApi.CreateAppApiHttpClient(recipientContext, FileSystemType.Comment))
             {
                 //First force transfers to be put into their long term location
@@ -1231,6 +1245,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
 
                 Assert.That(clientFileHeader.SharedSecretEncryptedKeyHeader, Is.Not.Null);
 
+                recipientVersionTag = clientFileHeader.FileMetadata.VersionTag;
+                
                 //
                 // Get the payload that was uploaded, test it
                 // 
@@ -1266,6 +1282,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
 
             instructionSet.TransitOptions = null;
             descriptor.FileMetadata.AllowDistribution = false;
+            descriptor.FileMetadata.VersionTag = recipientVersionTag;
 
             var reuploadedContext = await _scaffold.OldOwnerApi.UploadFile(recipient.OdinId, instructionSet, descriptor.FileMetadata, originalPayloadData, true,
                 new ImageDataContent()

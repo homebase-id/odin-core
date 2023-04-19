@@ -11,6 +11,7 @@ using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.DriveCore.Storage;
 using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 using Youverse.Core.Services.Drives.Reactions;
+using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.ReceivingHost;
 using Youverse.Core.Services.Transit.ReceivingHost.Reactions;
@@ -292,7 +293,15 @@ public class TransitApiClient
             Assert.That(response.IsSuccessStatusCode, Is.True);
             Assert.That(response.Content, Is.Not.Null);
             var transitResult = response.Content;
+            
 
+            foreach(var recipient in recipients)
+            {
+                var status = transitResult.RecipientStatus[recipient];
+                bool wasDelivered = status == TransferStatus.DeliveredToInbox || status == TransferStatus.DeliveredToTargetDrive;
+                Assert.IsTrue(wasDelivered, $"failed to deliver to {recipient}; status was {status}");
+            }
+            
             Assert.That(transitResult.RemoteGlobalTransitIdFileIdentifier, Is.Not.Null);
             Assert.That(transitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId, Is.Not.EqualTo(Guid.Empty));
             Assert.IsNotNull(transitResult.RemoteGlobalTransitIdFileIdentifier.TargetDrive);
