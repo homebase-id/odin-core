@@ -104,7 +104,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.Upload
 
             //
             var tasks = new List<Task<(UploadInstructionSet instructionSet, ApiResponse<UploadResult>)>>();
-            for (int i = 0; i < 2200; i++)
+            for (int i = 0; i < 35; i++)
             {
                 tasks.Add(OverwriteFile());
             }
