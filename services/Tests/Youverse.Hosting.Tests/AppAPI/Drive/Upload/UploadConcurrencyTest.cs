@@ -104,7 +104,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.Upload
 
             //
             var tasks = new List<Task<(UploadInstructionSet instructionSet, ApiResponse<UploadResult>)>>();
-            for (int i = 0; i < 15; i++)
+            for (int i = 0; i < 35; i++)
             {
                 tasks.Add(OverwriteFile());
             }
@@ -116,14 +116,20 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.Upload
                 var atLeastOneLockException = tasks.ToList().Any(task =>
                 {
                     var (instructionSet, response) = task.Result;
-                    if(!response.IsSuccessStatusCode)
+                    if (response.IsSuccessStatusCode)
                     {
-                        return ErrorUtils.MatchesClientErrorCode(response!.Error, YouverseClientErrorCode.UploadedFileLocked);
+                        return false;
                     }
 
-                    return false;
+                    var matches = ErrorUtils.MatchesClientErrorCode(response!.Error, YouverseClientErrorCode.UploadedFileLocked);
+                    if (!matches)
+                    {
+                        Assert.Fail($"Error thrown but does not match expected error.  Error was {response!.Error!.Content}");
+                    }
+
+                    return matches;
                 });
-                
+
                 Assert.IsTrue(atLeastOneLockException, "There should have been at least one lock exception");
             }
             catch (AggregateException ae)
