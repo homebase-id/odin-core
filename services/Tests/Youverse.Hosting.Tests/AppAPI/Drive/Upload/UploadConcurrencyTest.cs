@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
+using Microsoft.OpenApi.Models;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core.Exceptions;
@@ -82,17 +84,27 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.Upload
             //upload a file
             var uploadResult = await appApiClient.Drive.UploadFile(FileSystemType.Standard, appDrive.TargetDriveInfo, fileMetadata, payload);
 
+            var uploadedFile = await appApiClient.Drive.GetFileHeader(FileSystemType.Standard, uploadResult.File);
+            Assert.IsTrue(uploadedFile.FileMetadata.VersionTag == uploadResult.NewVersionTag);
+
+            fileMetadata.VersionTag = uploadResult.NewVersionTag;
+
             async Task<(UploadInstructionSet instructionSet, ApiResponse<UploadResult>)> OverwriteFile()
             {
                 var (instructionSet, result) = await appApiClient.Drive.UploadRaw(FileSystemType.Standard, uploadResult.File.TargetDrive, fileMetadata, "",
                     overwriteFileId: uploadResult.File.FileId);
+
+                if (result.IsSuccessStatusCode)
+                {
+                    fileMetadata.VersionTag = result.Content.NewVersionTag;
+                }
 
                 return (instructionSet, result);
             }
 
             //
             var tasks = new List<Task<(UploadInstructionSet instructionSet, ApiResponse<UploadResult>)>>();
-            for (int i = 0; i < 15; i++)
+            for (int i = 0; i < 35; i++)
             {
                 tasks.Add(OverwriteFile());
             }
@@ -101,19 +113,23 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.Upload
             {
                 await Task.WhenAll(tasks.ToArray());
 
-                bool atLeastOneLockException = false;
-                //see if any of the uploads failed by checking for null.
-                tasks.ForEach(task =>
+                var atLeastOneLockException = tasks.ToList().Any(task =>
                 {
                     var (instructionSet, response) = task.Result;
-                    if (response.StatusCode == HttpStatusCode.BadRequest)
+                    if (response.IsSuccessStatusCode)
                     {
-                        var details = DotYouSystemSerializer.Deserialize<ProblemDetails>(response.Error.Content);
-                        Assert.IsTrue((YouverseClientErrorCode)int.Parse(details.Extensions["errorCode"].ToString()) ==
-                                      YouverseClientErrorCode.UploadedFileLocked);
-                        atLeastOneLockException = true;
+                        return false;
                     }
+
+                    var matches = ErrorUtils.MatchesClientErrorCode(response!.Error, YouverseClientErrorCode.UploadedFileLocked);
+                    if (!matches)
+                    {
+                        Assert.Fail($"Error thrown but does not match expected error.  Error was {response!.Error!.Content}");
+                    }
+
+                    return matches;
                 });
+
                 Assert.IsTrue(atLeastOneLockException, "There should have been at least one lock exception");
             }
             catch (AggregateException ae)

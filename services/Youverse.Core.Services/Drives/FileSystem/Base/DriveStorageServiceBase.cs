@@ -462,6 +462,10 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
                 throw new YouverseClientException("Cannot update a non-active file", YouverseClientErrorCode.CannotUpdateNonActiveFile);
             }
 
+            if (existingServerHeader.FileMetadata.VersionTag != metadata.VersionTag)
+            {
+                throw new YouverseClientException($"Invalid version tag {metadata.VersionTag}", YouverseClientErrorCode.VersionTagMismatch);
+            }
             
             metadata.Updated = UnixTimeUtc.Now().milliseconds;
             metadata.Created = existingServerHeader.FileMetadata.Created;
@@ -606,6 +610,8 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
 
         private async Task WriteFileHeaderInternal(ServerFileHeader header)
         {
+            header.FileMetadata.VersionTag = SequentialGuid.CreateGuid();
+            
             var json = DotYouSystemSerializer.Serialize(header);
             var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
             await GetLongTermStorageManager(header.FileMetadata.File.DriveId).WritePartStream(header.FileMetadata.File.FileId, FilePart.Header, stream);

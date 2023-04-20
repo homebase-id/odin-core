@@ -689,6 +689,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                         ContentType = "application/json",
                         AllowDistribution = false,
                         PayloadIsEncrypted = true,
+                        VersionTag = secondFileUploadResult.NewVersionTag,
                         AppData = new()
                         {
                             UniqueId = uid1, //here we try to reuse the uniqueId associated with first upload

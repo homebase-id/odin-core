@@ -211,11 +211,13 @@ public class AppDriveApiClient : AppApiTestUtils
 
 
 //
-    private async Task<(UploadInstructionSet uploadedInstructionSet, ApiResponse<UploadResult> response)> UploadFileInternal(FileSystemType fileSystemType,
-        TargetDrive targetDrive, UploadFileMetadata fileMetadata,
+    private async Task<(UploadInstructionSet uploadedInstructionSet, ApiResponse<UploadResult> response)> UploadFileInternal(
+        FileSystemType fileSystemType,
+        TargetDrive targetDrive, 
+        UploadFileMetadata fileMetadata,
         string payloadData = "",
         ImageDataContent thumbnail = null,
-        Guid? overwriteFileId = null, bool assertSuccess = true)
+        Guid? overwriteFileId = null)
     {
         var transferIv = ByteArrayUtil.GetRndByteArray(16);
         var keyHeader = KeyHeader.NewRandom16();
@@ -251,6 +253,8 @@ public class AppDriveApiClient : AppApiTestUtils
             var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
 
             var payloadStream = new MemoryStream(payloadData.ToUtf8ByteArray());
+            fileMetadata.AppData.ContentIsComplete = payloadStream.Length == 0;
+            
             // var bytesUploaded = instructionStream.Length + fileDescriptorCipher.Length + payloadData.Length;
             List<StreamPart> parts = new()
             {

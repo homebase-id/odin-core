@@ -59,7 +59,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
             AssertIsPart(section, MultipartUploadParts.Instructions);
             var uploadInstructionSet = await MapTransitInstructionSet(section!.Body);
 
-            await driveUploadService.CreatePackage(uploadInstructionSet);
+            await driveUploadService.StartUpload(uploadInstructionSet);
 
             section = await reader.ReadNextSectionAsync();
             AssertIsPart(section, MultipartUploadParts.Metadata);

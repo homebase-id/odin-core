@@ -58,6 +58,8 @@ public enum YouverseClientErrorCode
     InvalidDrive = 4126,
     UploadedFileLocked = 4127,
     InvalidChunkStart = 4128,
+    MissingVersionTag = 4159,
+    VersionTagMismatch = 4160,
 
     // Connection errors 50xx
     CannotSendConnectionRequestToExistingIncomingRequest = 5001,
@@ -81,6 +83,5 @@ public enum YouverseClientErrorCode
     // System Errors 90xx
     InvalidFlagName = 9001,
     NotInitialized = 9002,
-    UnknownFlagName = 9003,
-    
+    UnknownFlagName = 9003
 }

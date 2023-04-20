@@ -11,6 +11,8 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
             this.AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Owner };
         }
 
+        public Guid? VersionTag { get; set; }
+        
         public string ContentType { get; set; }
 
         /// <summary>
@@ -33,5 +35,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
         /// </summary>
         // public virtual ExternalFileIdentifier ReferencedFile { get; set; }
         public virtual GlobalTransitIdFileIdentifier ReferencedFile { get; set; }
+
+        
     }
 }

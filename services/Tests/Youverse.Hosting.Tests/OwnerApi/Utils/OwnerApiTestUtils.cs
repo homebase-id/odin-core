@@ -709,7 +709,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                     InstructionSet = instructionSet,
                     UploadFileMetadata = fileMetadata,
                     PayloadData = payloadData,
-                    UploadedFile = transferResult.File,
+                    UploadResult = transferResult,
                     PayloadCipher = payloadCipherBytes,
                     FileSystemType = fileSystemType
                 };
@@ -831,7 +831,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                     InstructionSet = instructionSet,
                     UploadFileMetadata = fileMetadata,
                     PayloadData = payloadData,
-                    UploadedFile = transferResult.File
+                    UploadResult = transferResult,
                 };
             }
         }

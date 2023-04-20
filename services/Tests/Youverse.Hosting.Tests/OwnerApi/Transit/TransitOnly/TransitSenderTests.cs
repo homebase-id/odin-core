@@ -261,7 +261,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.TransitOnly
             var (commentTransitResult, encryptedCommentJsonContent64) = await this.TransferComment(senderOwnerClient,
                 standardFileUploadResult.GlobalTransitIdFileIdentifier,
                 uploadedContent: commentFileContent,
-                encrypted: commentIsEncrypted, recipient);
+                encrypted: commentIsEncrypted,
+                recipient);
 
             Assert.IsTrue(commentTransitResult.RecipientStatus.TryGetValue(recipient.OdinId, out var recipientStatus));
             Assert.IsTrue(recipientStatus == TransferStatus.DeliveredToTargetDrive,
@@ -300,7 +301,8 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.TransitOnly
                 uploadedContent: updatedCommentFileContent,
                 encrypted: commentIsEncrypted,
                 recipient: recipient,
-                overwriteFile: commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId);
+                overwriteFile: commentTransitResult.RemoteGlobalTransitIdFileIdentifier.GlobalTransitId,
+                versionTag: receivedFile.FileMetadata.VersionTag);
 
             var updatedBatch = await recipientOwnerClient.Drive.QueryBatch(FileSystemType.Comment, qp);
             Assert.IsTrue(updatedBatch.SearchResults.Count() == 1);
@@ -518,10 +520,12 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.TransitOnly
             string uploadedContent,
             bool encrypted,
             TestIdentity recipient,
-            Guid? overwriteFile = null)
+            Guid? overwriteFile = null,
+            Guid? versionTag = null)
         {
             var fileMetadata = new UploadFileMetadata()
             {
+                VersionTag = versionTag,
                 AllowDistribution = true,
                 ContentType = "application/json",
                 PayloadIsEncrypted = encrypted,

@@ -18,7 +18,7 @@ using Youverse.Core.Storage;
 namespace Youverse.Core.Services.Transit.ReceivingHost
 {
     //TODO: this should be split into a file writer for comments and a file writer for standard files.
-    
+
     /// <summary>
     /// Handles the process of writing a file from temp storage to long-term storage
     /// </summary>
@@ -34,8 +34,8 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
             _fileSystemResolver = fileSystemResolver;
         }
 
-        public async Task HandleFile(InternalDriveFileId tempFile, 
-            IDriveFileSystem fs, 
+        public async Task HandleFile(InternalDriveFileId tempFile,
+            IDriveFileSystem fs,
             KeyHeader decryptedKeyHeader,
             OdinId sender,
             FileSystemType fileSystemType,
@@ -90,7 +90,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
                 {
                     throw new YouverseRemoteIdentityException("Referenced filed and metadata payload encryption do not match");
                 }
-                
+
                 targetAcl = referencedFile.ServerMetadata.AccessControlList;
             }
 
@@ -204,6 +204,10 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
                     DriveId = targetDriveId
                 };
 
+                //Use the version tag from the recipient's server because it won't match the sender (this is due to the fact a new
+                //one is written any time you save a header)
+                metadata.VersionTag = existingFileBySharedSecretEncryptedUniqueId.FileMetadata.VersionTag;
+
                 //note: we also update the key header because it might have been changed by the sender
                 await fs.Storage.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata, "payload");
                 return;
@@ -264,6 +268,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
                     DriveId = targetDriveId
                 };
 
+                metadata.VersionTag = existingFileByGlobalTransitId.FileMetadata.VersionTag;
                 //note: we also update the key header because it might have been changed by the sender
                 await fs.Storage.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata, "payload");
                 return;
