@@ -18,6 +18,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
     public class IdentityDatabase : DatabaseBase
     {
+        public readonly TableAppGrants tblAppGrants = null;
         public readonly TableKeyValue tblKeyValue = null;
         public readonly TableKeyTwoValue tblKeyTwoValue = null;
         public readonly TableKeyThreeValue TblKeyThreeValue = null;
@@ -33,6 +34,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         public readonly string CN;
         public IdentityDatabase(string connectionString, long commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
         {
+            tblAppGrants = new TableAppGrants(this);
             tblKeyValue = new TableKeyValue(this);
             tblKeyTwoValue = new TableKeyTwoValue(this);
             TblKeyThreeValue = new TableKeyThreeValue(this);
@@ -58,6 +60,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         {
             Commit();
 
+            tblAppGrants.Dispose();
             tblKeyValue.Dispose();
             tblKeyTwoValue.Dispose();
             TblKeyThreeValue.Dispose();
@@ -79,6 +82,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         /// </summary>
         public override void CreateDatabase(bool dropExistingTables = true)
         {
+            tblAppGrants.EnsureTableExists(dropExistingTables);
             tblKeyValue.EnsureTableExists(dropExistingTables);
             tblKeyTwoValue.EnsureTableExists(dropExistingTables);
             TblKeyThreeValue.EnsureTableExists(dropExistingTables);
