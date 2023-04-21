@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.Apps;
@@ -14,7 +15,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
     /// </summary>
     public interface ICircleNetworkService
     {
-
         /// <summary>
         /// Disconnects you from the specified <see cref="OdinId"/>
         /// </summary>
@@ -39,8 +39,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <summary>
         /// Returns a list of identities which are connected to this DI
         /// </summary>
-        /// <returns></returns>
-        Task<PagedResult<IdentityConnectionRegistration>> GetConnectedIdentities(PageOptions req);
+        Task<CursoredResult<long, IdentityConnectionRegistration>> GetConnectedIdentities(int count, long cursor);
 
         /// <summary>
         /// Gets the current connection info
@@ -94,9 +93,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         /// <summary>
         /// Gets profiles that have been marked as <see cref="ConnectionStatus.Blocked"/>
         /// </summary>
-        /// <param name="req"></param>
-        /// <returns></returns>
-        Task<PagedResult<IdentityConnectionRegistration>> GetBlockedProfiles(PageOptions req);
+        Task<CursoredResult<long, IdentityConnectionRegistration>> GetBlockedProfiles(int count, long cursor);
 
         /// <summary>
         /// Gets the access registration granted to the <param name="odinId"></param>
@@ -133,11 +130,11 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
         Task<IEnumerable<OdinId>> GetCircleMembers(GuidId circleId);
 
-        Task<Dictionary<string, CircleGrant>> CreateCircleGrantList(List<GuidId> circleIds,
+        Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantList(List<GuidId> circleIds,
             SensitiveByteArray keyStoreKey);
 
         //TODO: need to create a dedicated type for appgrants
-        Task<Dictionary<string, Dictionary<string, AppCircleGrant>>> CreateAppCircleGrantList(List<GuidId> circleIds,
+        Task<Dictionary<Guid, Dictionary<Guid, AppCircleGrant>>> CreateAppCircleGrantList(List<GuidId> circleIds,
             SensitiveByteArray keyStoreKey);
 
         /// <summary>

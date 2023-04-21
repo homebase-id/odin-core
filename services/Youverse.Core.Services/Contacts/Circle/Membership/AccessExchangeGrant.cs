@@ -15,8 +15,8 @@ public class AccessExchangeGrant
     //TODO: this is a horrible name.  fix. 
     public AccessExchangeGrant()
     {
-        this.CircleGrants = new(StringComparer.Ordinal);
-        this.AppGrants = new(StringComparer.Ordinal);
+        this.CircleGrants = new();
+        this.AppGrants = new();
     }
 
     public SymmetricKeyEncryptedAes MasterKeyEncryptedKeyStoreKey { get; set; }
@@ -24,12 +24,12 @@ public class AccessExchangeGrant
     /// <summary>
     /// The permissions granted from a given circle.  The key is the circle Id.
     /// </summary>
-    public Dictionary<string, CircleGrant> CircleGrants { get; set; }
+    public Dictionary<Guid, CircleGrant> CircleGrants { get; set; }
 
     /// <summary>
     /// The permissions granted from being with-in a circle that has been authorized by an App.  The main key is the AppId
     /// </summary>
-    public Dictionary<string, Dictionary<string, AppCircleGrant>> AppGrants { get; set; }
+    public Dictionary<Guid, Dictionary<Guid, AppCircleGrant>> AppGrants { get; set; }
 
     public AccessRegistration AccessRegistration { get; set; }
 
@@ -58,5 +58,5 @@ public class RedactedAccessExchangeGrant
 {
     public bool IsRevoked { get; set; }
     public List<RedactedCircleGrant> CircleGrants { get; set; }
-    public Dictionary<string, IEnumerable<RedactedAppCircleGrant>> AppGrants { get; set; }
+    public Dictionary<Guid, IEnumerable<RedactedAppCircleGrant>> AppGrants { get; set; }
 }

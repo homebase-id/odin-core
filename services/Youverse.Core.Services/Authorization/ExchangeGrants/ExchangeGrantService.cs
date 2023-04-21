@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
@@ -121,7 +122,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
             return (accessReg, clientAccessToken);
         }
 
-        public async Task<PermissionContext> CreatePermissionContext(ClientAuthenticationToken authToken, Dictionary<string, ExchangeGrant> grants, AccessRegistration accessReg,
+        public async Task<PermissionContext> CreatePermissionContext(ClientAuthenticationToken authToken, Dictionary<Guid, ExchangeGrant> grants, AccessRegistration accessReg,
             List<int>? additionalPermissionKeys = null, bool includeAnonymousDrives = false)
         {
             //TODO: Need to decide if we store shared secret clear text or decrypt just in time.
@@ -134,7 +135,7 @@ namespace Youverse.Core.Services.Authorization.ExchangeGrants
                 {
                     var exchangeGrant = grants[key];
                     var pg = new PermissionGroup(exchangeGrant.PermissionSet, exchangeGrant.KeyStoreKeyEncryptedDriveGrants, grantKeyStoreKey);
-                    permissionGroupMap.Add(key, pg);
+                    permissionGroupMap.Add(key.ToString(), pg);
 
                     foreach (var x in exchangeGrant.KeyStoreKeyEncryptedDriveGrants)
                     {

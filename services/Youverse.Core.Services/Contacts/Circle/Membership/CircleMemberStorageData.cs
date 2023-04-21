@@ -1,6 +1,9 @@
+using Youverse.Core.Identity;
+
 namespace Youverse.Core.Services.Contacts.Circle.Membership;
 
 public record CircleMemberStorageData
 {
-    public byte[] DotYouName { get; set; }
+    public OdinId OdinId { get; set; }
+    public CircleGrant CircleGrant { get; set; }
 }

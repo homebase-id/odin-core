@@ -30,10 +30,10 @@ namespace Youverse.Core.Services.Certificate.Renewal
         private readonly TenantContext _tenantContext;
         private readonly ITenantCertificateService _tenantCertificateService;
         private readonly PendingCertificateOrderListService _certificateOrderList;
-        private readonly ITenantSystemStorage _tenantSystemStorage;
+        private readonly TenantSystemStorage _tenantSystemStorage;
 
         public LetsEncryptTenantCertificateRenewalService(ILogger<LetsEncryptTenantCertificateRenewalService> logger, TenantContext tenantContext,
-            ITenantCertificateService tenantCertificateService, PendingCertificateOrderListService certificateOrderList, ITenantSystemStorage tenantSystemStorage)
+            ITenantCertificateService tenantCertificateService, PendingCertificateOrderListService certificateOrderList, TenantSystemStorage tenantSystemStorage)
         {
             _logger = logger;
             _tenantContext = tenantContext;

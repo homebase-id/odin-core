@@ -43,9 +43,9 @@ public class StaticFileContentService
     private readonly StandardFileSystem _fileSystem;
     private readonly TenantContext _tenantContext;
     private readonly DotYouContextAccessor _contextAccessor;
-    private readonly ITenantSystemStorage _tenantSystemStorage;
+    private readonly TenantSystemStorage _tenantSystemStorage;
 
-    public StaticFileContentService(TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITenantSystemStorage tenantSystemStorage,
+    public StaticFileContentService(TenantContext tenantContext, DotYouContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage,
         DriveManager driveManager, StandardFileSystem fileSystem)
     {
         _tenantContext = tenantContext;

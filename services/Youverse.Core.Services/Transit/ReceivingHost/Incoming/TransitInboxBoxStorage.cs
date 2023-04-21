@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Xml.Schema;
 using Dawn;
 using Youverse.Core.Serialization;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Storage;
 using Youverse.Core.Storage.Sqlite.IdentityDatabase;
 
@@ -15,9 +16,9 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Incoming
     /// </summary>
     public class TransitInboxBoxStorage
     {
-        private readonly ITenantSystemStorage _tenantSystemStorage;
+        private readonly TenantSystemStorage _tenantSystemStorage;
 
-        public TransitInboxBoxStorage(ITenantSystemStorage tenantSystemStorage)
+        public TransitInboxBoxStorage(TenantSystemStorage tenantSystemStorage)
         {
             _tenantSystemStorage = tenantSystemStorage;
         }

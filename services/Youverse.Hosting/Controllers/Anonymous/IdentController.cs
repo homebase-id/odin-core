@@ -15,10 +15,10 @@ namespace Youverse.Hosting.Controllers.Anonymous
         [Produces("application/json")]
         public async Task<IActionResult> GetInfo()
         {
-            return new JsonResult(new
+            return await Task.FromResult(new JsonResult(new
             {
                 id = 42
-            });
+            }));
         }
     }
 }

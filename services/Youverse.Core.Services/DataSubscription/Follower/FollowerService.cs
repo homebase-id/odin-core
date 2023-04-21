@@ -21,14 +21,14 @@ namespace Youverse.Core.Services.DataSubscription.Follower
     /// <summary/>
     public class FollowerService
     {
-        private readonly ITenantSystemStorage _tenantStorage;
+        private readonly TenantSystemStorage _tenantStorage;
         private readonly DriveManager _driveManager;
         private readonly IDotYouHttpClientFactory _httpClientFactory;
         private readonly IPublicKeyService _rsaPublicKeyService;
         private readonly TenantContext _tenantContext;
         private readonly DotYouContextAccessor _contextAccessor;
 
-        public FollowerService(ITenantSystemStorage tenantStorage, DriveManager driveManager, IDotYouHttpClientFactory httpClientFactory,
+        public FollowerService(TenantSystemStorage tenantStorage, DriveManager driveManager, IDotYouHttpClientFactory httpClientFactory,
             IPublicKeyService rsaPublicKeyService,
             TenantContext tenantContext, DotYouContextAccessor contextAccessor)
         {

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Transit.SendingHost
@@ -7,9 +8,9 @@ namespace Youverse.Core.Services.Transit.SendingHost
     public class TransferKeyEncryptionQueueService
     {
         private readonly GuidId _queueKey = GuidId.FromString("tkequeue__");
-        private readonly ITenantSystemStorage _tenantSystemStorage;
+        private readonly TenantSystemStorage _tenantSystemStorage;
 
-        public TransferKeyEncryptionQueueService(ITenantSystemStorage tenantSystemStorage)
+        public TransferKeyEncryptionQueueService(TenantSystemStorage tenantSystemStorage)
         {
             _tenantSystemStorage = tenantSystemStorage;
         }

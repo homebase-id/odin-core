@@ -42,7 +42,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
             IPublicKeyService publicKeyService,
             DriveManager driveManager,
             IDriveFileSystem fileSystem,
-            ITenantSystemStorage tenantSystemStorage,
+            TenantSystemStorage tenantSystemStorage,
             IMediator mediator,
             FileSystemResolver fileSystemResolver)
         {
