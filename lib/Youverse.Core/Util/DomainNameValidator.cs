@@ -2,6 +2,7 @@
 using DnsClient.Protocol;
 using System;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
@@ -21,37 +22,51 @@ namespace Youverse.Core.Util
 
         // Validate if a DNS *label* is OK
         // false not OK. true OK.
-        public static bool ValidLabel(string label)
+        public static bool ValidLabel(string punyCodeLabel)
         {
-            if (label.Length < 1 || label.Length > MAX_DNS_LABEL)
+            if (punyCodeLabel.Length < 1 || punyCodeLabel.Length > MAX_DNS_LABEL)
                 return false; // Too short or long
 
             // The first and last character cannot be the hyphen
-            if ("abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ".IndexOf(label[0]) == -1)
+            if ("abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ".IndexOf(punyCodeLabel[0]) == -1)
                 return false; // Starts with illegal character
 
-            var ln = label.Length - 1;
+            IdnMapping idn = new IdnMapping();
+            try
+            {
+                var _ = idn.GetUnicode(punyCodeLabel).ToUtf8ByteArray();
+            }
+            catch
+            {
+                return false;
+            }
 
-            if ("abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ".IndexOf(label[ln]) == -1)
+            return true;
+/*
+            var ln = punyCodeLabel.Length - 1;
+
+            if ("abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ".IndexOf(punyCodeLabel[ln]) == -1)
                 return false; // Ends with illegal character
 
             for (ln--; ln > 0; ln--)
-                if ("-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ".IndexOf(label[ln]) == -1)
+                if ("-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ".IndexOf(punyCodeLabel[ln]) == -1)
                     return false; // Ends with illegal character
 
             return true;
+*/
         }
 
         // Check the whole domain name. Throw an exception if it is invalid.
-        public static void AssertValidDomain(string domain)
+
+        public static void AssertValidDomain(string punyCodeDomain)
         {
-            if (domain.Length > MAX_DNS_DOMAIN)
+            if (punyCodeDomain.Length > MAX_DNS_DOMAIN)
                 throw new DomainTooLongException(); // Too long
 
-            if (domain.Length < 3)
+            if (punyCodeDomain.Length < 3)
                 throw new DomainTooShortException(); // Too short (a.a minimum)
 
-            var labels = domain.Split('.');
+            var labels = punyCodeDomain.Split('.');
 
             if (labels.Length < 2)
                 throw new DomainNeedsTwoLabelsException(); // Need at least two labels

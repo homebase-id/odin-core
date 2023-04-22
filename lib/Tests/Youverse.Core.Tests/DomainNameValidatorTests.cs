@@ -128,6 +128,38 @@ namespace Youverse.Core.Tests
             Assert.Fail();
         }
 
+        [Test(Description = "Invalid domain name with =")]
+        public void DomainOddTest()
+        {
+            try
+            {
+                DomainNameValidator.AssertValidDomain("=xyyaa.com");
+                Assert.Fail();
+            }
+            catch (Exception)
+            {
+                Assert.Pass();
+                return;
+            }
+        }
+
+        [Test(Description = "Puny code international domain name")]
+        public void DomainInternationalTest()
+        {
+            try
+            {
+                DomainNameValidator.AssertValidDomain("xn--hxajbheg2az3al.xn--jxalpdlp");
+            }
+            catch (Exception)
+            {
+                Assert.Fail();
+                return;
+            }
+
+            Assert.Pass();
+        }
+
+
         [Test(Description = "Test period invalid")]
         public void DomainDotFailTest()
         {
