@@ -41,8 +41,6 @@ namespace Youverse.Core.Util
                 return false;
             }
 
-            return true;
-/*
             var ln = punyCodeLabel.Length - 1;
 
             if ("abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ".IndexOf(punyCodeLabel[ln]) == -1)
@@ -53,7 +51,6 @@ namespace Youverse.Core.Util
                     return false; // Ends with illegal character
 
             return true;
-*/
         }
 
         // Check the whole domain name. Throw an exception if it is invalid.
