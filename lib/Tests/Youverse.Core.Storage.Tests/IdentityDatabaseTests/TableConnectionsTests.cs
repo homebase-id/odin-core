@@ -57,6 +57,11 @@ namespace IdentityDatabaseTests
             r = db.tblConnections.PagingByIdentity(2, outCursor, out outCursor);
             Debug.Assert(r.Count == 1, message:"rdr.HasRows is the sinner");
             Debug.Assert(outCursor == null);
+
+
+            // Try the filter ones
+            r = db.tblConnections.PagingByIdentity(2, 42, null, out outCursor);
+            Debug.Assert(r.Count == 1);
         }
 
 
@@ -176,6 +181,10 @@ namespace IdentityDatabaseTests
             Debug.Assert(r.Count == 2);
             Debug.Assert(r[0].identity == "gandalf.white.me");
             Debug.Assert(r[1].identity == "samwise.gamgee.me");
+
+            r = db.tblConnections.PagingByCreated(2, 43, null, out timeCursor);
+            Debug.Assert(r.Count == 1);
+
 
             // PagingByCreated is NOT designed to be used with anything except the first page.
             // Hollow if you need pages and pages of 'most recent'. Hopefully just getting the
