@@ -95,7 +95,7 @@ namespace Youverse.Core.Tests
 
             try
             {
-                t.AddDomain(new string('a', 254), Guid.NewGuid());
+                t.AddDomain(new string('a', 256), Guid.NewGuid());
             }
             catch (DomainTooLongException)
             {

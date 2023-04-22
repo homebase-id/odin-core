@@ -17,7 +17,7 @@ namespace Youverse.Core.Util
     public class DomainNameValidator
     {
         public const int MAX_DNS_LABEL  =  63;  // as per DNS RFC
-        public const int MAX_DNS_DOMAIN = 253;  // as per DNS RFC, max 254 characters in total
+        public const int MAX_DNS_DOMAIN = 255;  // as per DNS RFC, max 255 characters in total
 
 
         // Validate if a DNS *label* is OK
