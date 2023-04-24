@@ -78,6 +78,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         private SqliteCommand _get0Command = null;
         private static Object _get0Lock = new Object();
         private SqliteParameter _get0Param1 = null;
+        private SqliteCommand _get1Command = null;
+        private static Object _get1Lock = new Object();
+        private SqliteParameter _get1Param1 = null;
 
         public TableAppGrantsCRUD(IdentityDatabase db) : base(db)
         {
@@ -100,6 +103,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             _delete0Command = null;
             _get0Command?.Dispose();
             _get0Command = null;
+            _get1Command?.Dispose();
+            _get1Command = null;
             _disposed = true;
         }
 
@@ -343,7 +348,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             return item;
        }
 
-        public AppGrantsRecord Get(Guid odinHashId)
+        public List<AppGrantsRecord> GetByOdinHashId(Guid odinHashId)
         {
             lock (_get0Lock)
             {
@@ -351,18 +356,95 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 {
                     _get0Command = _database.CreateCommand();
                     _get0Command.CommandText = "SELECT appId,circleId,data FROM appGrants " +
-                                                 "WHERE odinHashId = $odinHashId LIMIT 1;";
+                                                 "WHERE odinHashId = $odinHashId;";
                     _get0Param1 = _get0Command.CreateParameter();
                     _get0Command.Parameters.Add(_get0Param1);
                     _get0Param1.ParameterName = "$odinHashId";
                     _get0Command.Prepare();
                 }
                 _get0Param1.Value = odinHashId.ToByteArray();
-                using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
+                using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.Default))
                 {
                     if (!rdr.Read())
                         return null;
-                    return ReadRecordFromReader0(rdr, odinHashId);
+                    var result = new List<AppGrantsRecord>();
+                    while (true)
+                    {
+                        result.Add(ReadRecordFromReader0(rdr, odinHashId));
+                        if (!rdr.Read())
+                            break;
+                    }
+                    return result;
+                } // using
+            } // lock
+        }
+
+        public AppGrantsRecord ReadRecordFromReader1(SqliteDataReader rdr, Guid odinHashId)
+        {
+            var result = new List<AppGrantsRecord>();
+            byte[] _tmpbuf = new byte[65535+1];
+#pragma warning disable CS0168
+            long bytesRead;
+#pragma warning restore CS0168
+            var _guid = new byte[16];
+            var item = new AppGrantsRecord();
+            item.odinHashId = odinHashId;
+
+            if (rdr.IsDBNull(0))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in appId...");
+                item.appId = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(1))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                bytesRead = rdr.GetBytes(1, 0, _guid, 0, 16);
+                if (bytesRead != 16)
+                    throw new Exception("Not a GUID in circleId...");
+                item.circleId = new Guid(_guid);
+            }
+
+            if (rdr.IsDBNull(2))
+                item.data = null;
+            else
+            {
+                bytesRead = rdr.GetBytes(2, 0, _tmpbuf, 0, 65535+1);
+                if (bytesRead > 65535)
+                    throw new Exception("Too much data in data...");
+                if (bytesRead < 0)
+                    throw new Exception("Too little data in data...");
+                item.data = new byte[bytesRead];
+                Buffer.BlockCopy(_tmpbuf, 0, item.data, 0, (int) bytesRead);
+            }
+            return item;
+       }
+
+        public AppGrantsRecord Get(Guid odinHashId)
+        {
+            lock (_get1Lock)
+            {
+                if (_get1Command == null)
+                {
+                    _get1Command = _database.CreateCommand();
+                    _get1Command.CommandText = "SELECT appId,circleId,data FROM appGrants " +
+                                                 "WHERE odinHashId = $odinHashId LIMIT 1;";
+                    _get1Param1 = _get1Command.CreateParameter();
+                    _get1Command.Parameters.Add(_get1Param1);
+                    _get1Param1.ParameterName = "$odinHashId";
+                    _get1Command.Prepare();
+                }
+                _get1Param1.Value = odinHashId.ToByteArray();
+                using (SqliteDataReader rdr = _database.ExecuteReader(_get1Command, System.Data.CommandBehavior.SingleRow))
+                {
+                    if (!rdr.Read())
+                        return null;
+                    return ReadRecordFromReader1(rdr, odinHashId);
                 } // using
             } // lock
         }
