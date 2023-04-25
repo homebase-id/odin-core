@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Autofac;
 using Dawn;
+using DnsClient;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -22,6 +23,8 @@ using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Certificate.Renewal;
 using Youverse.Core.Services.Configuration;
+using Youverse.Core.Services.Dns;
+using Youverse.Core.Services.Dns.PowerDns;
 using Youverse.Core.Services.Logging;
 using Youverse.Core.Services.Registry.Registration;
 using Youverse.Core.Services.Transit.SendingHost.Outbox;
@@ -161,6 +164,10 @@ namespace Youverse.Hosting
             
             // In production, the React files will be served from this directory
             services.AddSpaStaticFiles(configuration => { configuration.RootPath = "client/"; });
+
+            // Provisioning specifics
+            services.AddSingleton<ILookupClient>(new LookupClient());
+            services.AddSingleton<IDnsRestClient, PowerDnsRestClient>();
         }
 
         // ConfigureContainer is where you can register things directly
@@ -198,6 +205,9 @@ namespace Youverse.Hosting
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILogger<Startup> logger)
         {
             // var config = new YouverseConfiguration(Configuration);
+            
+            app.UseLoggingMiddleware();
+            app.UseMiddleware<ExceptionHandlingMiddleware>();
 
             bool IsProvisioningSite(HttpContext context)
             {
@@ -216,8 +226,6 @@ namespace Youverse.Hosting
             app.MapWhen(IsProvisioningSite, app => Provisioning.Map(app, env, logger));
             app.MapWhen(IsPathUsedForCertificateCreation, app => Certificate.Map(app, env, logger));
             
-            app.UseLoggingMiddleware();
-            app.UseMiddleware<ExceptionHandlingMiddleware>();
             app.UseMultiTenancy();
 
             app.UseDefaultFiles();

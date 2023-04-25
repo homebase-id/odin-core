@@ -17,7 +17,7 @@ namespace Youverse.Core.Services.Configuration
     {
         public HostSection Host { get; }
 
-        public RegistrySection Registry { get; }
+        public virtual RegistrySection Registry { get; }
         public DevelopmentSection? Development { get; }
 
         public LoggingSection Logging { get; }
@@ -102,22 +102,35 @@ namespace Youverse.Core.Services.Configuration
 
         public class RegistrySection
         {
+            public virtual string PowerDnsHostAddress { get; }
+            public virtual string PowerDnsApiKey { get; }
+            
             public string ProvisioningDomain { get; }
             public List<string> ManagedDomains { get; }
-
-            public string DnsTargetRecordType { get; }
-
-            public string DnsTargetAddress { get; }
+            
+            public List<DnsRecord> BackendDnsRecords { get; }
+            public List<DnsRecord> FrontendDnsRecords { get; }
+            public List<DnsRecord> StorageDnsRecords { get; }
 
             public RegistrySection(IConfiguration config)
             {
+                PowerDnsHostAddress = config.Required<string>("Registry:PowerDnsHostAddress");
+                PowerDnsApiKey = config.Required<string>("Registry:PowerDnsApiKey");
                 ProvisioningDomain = config.Required<string>("Registry:ProvisioningDomain");
                 ManagedDomains = config.Required<List<string>>("Registry:ManagedDomains");
-                DnsTargetRecordType = config.Required<string>("Registry:DnsTargetRecordType");
-                DnsTargetAddress = config.Required<string>("Registry:DnsTargetAddress");
+                BackendDnsRecords = config.Required<List<DnsRecord>>("Registry:BackendDnsRecords");
+                FrontendDnsRecords = config.Required<List<DnsRecord>>("Registry:FrontendDnsRecords");
+                StorageDnsRecords = config.Required<List<DnsRecord>>("Registry:StorageDnsRecords");
+            }
+            public class DnsRecord
+            {
+                public string Type { get; set; } = "";
+                public string Name { get; set; } = "";
+                public string Value { get; set; } = "";
+                public string Description { get; set; } = "";
             }
         }
-
+        
         public class HostSection
         {
             public string TenantDataRootPath { get; }

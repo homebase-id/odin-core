@@ -53,7 +53,10 @@ namespace Youverse.Core.Services.Registry.Registration
         /// Returns a list of domains managed by this identity host.
         /// </summary>
         /// <returns></returns>
-        Task<List<string>> GetManagedDomains();
+        Task<List<string>> GetManagedDomainApexes();
+
+        Task<bool> IsManagedDomainAvailable(string prefix, string apex);
+        public Task CreateManagedDomain(string prefix, string apex);
 
         /// <summary>
         /// Returns the required <see cref="DnsConfig"/> for the domain
@@ -61,5 +64,11 @@ namespace Youverse.Core.Services.Registry.Registration
         /// <param name="domain"></param>
         /// <returns></returns>
         Task<DnsConfigurationSet> GetDnsConfiguration(string domain);
+        
+        /// <summary>
+        /// Verifies if DNS records are correctly configured on own-domain
+        /// </summary>
+        /// <returns></returns>
+        Task<(bool, DnsConfigurationSet)> VerifyOwnDomain(string domain);
     }
 }

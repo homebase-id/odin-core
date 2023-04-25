@@ -284,7 +284,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         try
         {
             var svc = SystemHttpClient.CreateHttp<ICertificateStatusHttpClient>((OdinId)domain);
-            var response = await svc.InitializeCertificate();
+            var response = await svc.InitializeCertificate(); // => InitializeCertificate()
             await response.EnsureSuccessStatusCodeAsync();
         }
         catch (ApiException e)
