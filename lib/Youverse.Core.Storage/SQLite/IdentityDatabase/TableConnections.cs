@@ -92,7 +92,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             if (count < 1)
                 throw new Exception("Count must be at least 1.");
             if (inCursor == null)
-                inCursor = new UnixTimeUtcUnique(0);
+                inCursor = new UnixTimeUtcUnique(long.MaxValue);
 
             lock (_getPaging6Lock)
             {
@@ -100,7 +100,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 {
                     _getPaging6Command = _database.CreateCommand();
                     _getPaging6Command.CommandText = "SELECT identity,displayName,status,accessIsRevoked,data,created,modified FROM connections " +
-                                                 "WHERE created > $created AND status=$status ORDER BY created DESC LIMIT $_count;";
+                                                 "WHERE created < $created AND status=$status ORDER BY created DESC LIMIT $_count;";
                     _getPaging6Param1 = _getPaging6Command.CreateParameter();
                     _getPaging6Command.Parameters.Add(_getPaging6Param1);
                     _getPaging6Param1.ParameterName = "$created";
