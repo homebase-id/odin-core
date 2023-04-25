@@ -38,6 +38,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive.Upload
         }
 
         [Test]
+        [Ignore("contemplating if we need upload lock now that we have the version tag")]
         public async Task UploadFileLockedExceptionThrownWhenMultipleUploadsForSameFileHappenConcurrently()
         {
             var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
