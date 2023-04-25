@@ -135,9 +135,9 @@ namespace Youverse.Core.Services.Authorization.Apps
             ResetAppPermissionContextCache();
         }
 
-        public async Task<AppClientRegistrationResponse> RegisterClient(GuidId appId, byte[] clientPublicKey, string friendlyName)
+        public async Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClient(GuidId appId, byte[] clientPublicKey, string friendlyName)
         {
-            var cat = await this.RegisterClientInternal(appId, friendlyName);
+            var (cat, corsHostName) = await this.RegisterClientInternal(appId, friendlyName);
 
             //RSA encrypt using the public key and send to client
             var data = cat.ToPortableBytes();
@@ -146,12 +146,14 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             data.WriteZeros();
 
-            return new AppClientRegistrationResponse()
+            var response =  new AppClientRegistrationResponse()
             {
                 EncryptionVersion = 1,
                 Token = cat.Id,
                 Data = encryptedData
             };
+
+            return (response, corsHostName);
         }
 
         public async Task<RedactedAppRegistration> GetAppRegistration(GuidId appId)
@@ -398,7 +400,7 @@ namespace Youverse.Core.Services.Authorization.Apps
             _cache.Reset();
         }
 
-        private async Task<ClientAccessToken> RegisterClientInternal(GuidId appId, string friendlyName)
+        private async Task<(ClientAccessToken cat, string corsHostName)> RegisterClientInternal(GuidId appId, string friendlyName)
         {
             Guard.Argument(appId, nameof(appId)).Require(x => x != Guid.Empty);
             Guard.Argument(friendlyName, nameof(friendlyName)).NotNull().NotEmpty();
@@ -416,7 +418,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             var appClient = new AppClient(appId, friendlyName, accessRegistration);
             this.SaveClient(appClient);
-            return cat;
+            return (cat, appReg.CorsHostName);
         }
     }
 }

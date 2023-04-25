@@ -62,7 +62,7 @@ namespace Youverse.Core.Services.Authorization.Apps
         /// <param name="friendlyName"></param>
         /// >
         /// <returns></returns>
-        Task<AppClientRegistrationResponse> RegisterClient(GuidId appId, byte[] clientPublicKey, string friendlyName);
+        Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClient(GuidId appId, byte[] clientPublicKey, string friendlyName);
 
         Task<List<RegisteredAppClientResponse>> GetRegisteredClients();
 
