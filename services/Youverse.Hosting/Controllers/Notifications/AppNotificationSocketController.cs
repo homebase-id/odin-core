@@ -32,7 +32,10 @@ namespace Youverse.Hosting.Controllers.Notifications
         {
             if (HttpContext.WebSockets.IsWebSocketRequest)
             {
-                using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
+                using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync(new WebSocketAcceptContext
+                {
+                    DangerousEnableCompression = true
+                });
                 await _notificationHandler.EstablishConnection(webSocket);
             }
             else

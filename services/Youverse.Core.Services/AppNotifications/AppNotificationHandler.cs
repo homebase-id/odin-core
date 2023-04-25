@@ -63,12 +63,11 @@ namespace Youverse.Core.Services.AppNotifications
         /// </summary>
         public async Task EstablishConnection(WebSocket webSocket)
         {
-            
             var buffer = new byte[1024 * 4];
-            
+
             //Wait for the caller to request the connection parameters
             var receiveResult = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-            
+
             EstablishConnectionRequest request = null;
             if (receiveResult.MessageType == WebSocketMessageType.Text) //must be JSON
             {
@@ -206,7 +205,7 @@ namespace Youverse.Core.Services.AppNotifications
                 await socket.SendAsync(
                     buffer: new ArraySegment<byte>(jsonBytes, 0, json.Length),
                     messageType: WebSocketMessageType.Text,
-                    endOfMessage: true,
+                    messageFlags: GetMessageFlags(endOfMessage: true, compressMessage: true),
                     cancellationToken: CancellationToken.None);
             }
             catch (Exception e)
@@ -234,6 +233,23 @@ namespace Youverse.Core.Services.AppNotifications
                 default:
                     throw new Exception("Invalid command");
             }
+        }
+
+        private static WebSocketMessageFlags GetMessageFlags(bool endOfMessage, bool compressMessage)
+        {
+            WebSocketMessageFlags flags = WebSocketMessageFlags.None;
+
+            if (endOfMessage)
+            {
+                flags |= WebSocketMessageFlags.EndOfMessage;
+            }
+
+            if (!compressMessage)
+            {
+                flags |= WebSocketMessageFlags.DisableCompression;
+            }
+
+            return flags;
         }
     }
 }
