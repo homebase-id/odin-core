@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Linq;
 using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
@@ -17,7 +18,6 @@ public class CircleNetworkStorage
     private readonly GuidId _key = GuidId.FromString("circle_network_storage");
     private readonly TenantSystemStorage _tenantSystemStorage;
     private readonly CircleDefinitionService _circleDefinitionService;
-
 
     public CircleNetworkStorage(TenantSystemStorage tenantSystemStorage, CircleDefinitionService circleDefinitionService)
     {
@@ -108,7 +108,7 @@ public class CircleNetworkStorage
                 displayName = "",
                 data = DotYouSystemSerializer.Serialize(icrAccessRecord).ToUtf8ByteArray()
             };
-            
+
             _tenantSystemStorage.Connections.Upsert(record);
         }
     }
@@ -126,11 +126,8 @@ public class CircleNetworkStorage
     public IEnumerable<IdentityConnectionRegistration> GetList(int count, UnixTimeUtcUnique? cursor, out UnixTimeUtcUnique? nextCursor,
         ConnectionStatus connectionStatus)
     {
-        var records = _tenantSystemStorage.Connections.PagingByCreated(count, cursor, out nextCursor);
-
-        //TODO: waiting on michael to add connectionStatus to the above query; until then...
-
-        return records.Select(MapFromStorage).Where(c => c.Status == connectionStatus);
+        var records = _tenantSystemStorage.Connections.PagingByCreated(count, (int)connectionStatus, cursor, out nextCursor);
+        return records.Select(MapFromStorage);
     }
 
     private IdentityConnectionRegistration MapFromStorage(ConnectionsRecord record)
@@ -147,23 +144,15 @@ public class CircleNetworkStorage
             data.AccessGrant.CircleGrants.Add(circleMemberRecord.circleId, sd.CircleGrant);
         }
 
-        //TODO: this only returns one appgrant. i need the whole list
-        var allAppGrants = _tenantSystemStorage.AppGrants.Get(odinHashId);
+        //TODO: this only returns one app grant. i need the whole list
+        var allAppGrants = _tenantSystemStorage.AppGrants.GetByOdinHashId(odinHashId) ?? new List<AppGrantsRecord>();
 
-        var appGroups = allAppGrants.GroupBy(g => new { g.appId, g.circleId });
-        foreach (var group in appGroups.ToList())
+        foreach (var appGrantRecord in allAppGrants)
         {
-            var appId = group.Key.appId;
-            var circleId = group.Key.circleId;
-
-            var circleGrants = new Dictionary<Guid, AppCircleGrant>();
-            foreach (var circleGrantRecord in group)
-            {
-                var appCircleGrant = DotYouSystemSerializer.Deserialize<AppCircleGrant>(circleGrantRecord.data.ToStringFromUtf8Bytes());
-                circleGrants.Add(circleId, appCircleGrant);
-            }
-
-            data.AccessGrant.AppGrants.Add(appId, circleGrants);
+            // var appId = appGrantRecord.appId;
+            // var circleId = appGrantRecord.circleId;
+            var appCircleGrant = DotYouSystemSerializer.Deserialize<AppCircleGrant>(appGrantRecord.data.ToStringFromUtf8Bytes());
+            data.AccessGrant.AddUpdateAppCircleGrant(appCircleGrant);
         }
 
         // data.AccessGrant.AppGrants

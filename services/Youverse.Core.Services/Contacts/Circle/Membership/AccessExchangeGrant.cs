@@ -38,6 +38,18 @@ public class AccessExchangeGrant
     /// </summary>
     public bool IsRevoked { get; set; }
 
+    public void AddUpdateAppCircleGrant(AppCircleGrant appCircleGrant)
+    {
+        var appKey = appCircleGrant.AppId;
+        if (!this.AppGrants.Remove(appKey, out var appCircleGrantsDictionary))
+        {
+            appCircleGrantsDictionary = new();
+        }
+
+        appCircleGrantsDictionary[appCircleGrant.CircleId] = appCircleGrant;
+        this.AppGrants[appKey] = appCircleGrantsDictionary;
+    }
+
     public bool IsValid()
     {
         return !IsRevoked && !this.AccessRegistration.IsRevoked;

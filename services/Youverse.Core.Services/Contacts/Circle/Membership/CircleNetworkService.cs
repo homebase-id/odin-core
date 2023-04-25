@@ -304,8 +304,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             }
 
             //TODO: need to scan the YouAuthService to see if this user has a YouAuthRegistration
-
-
+            
             //2. add the record to the list of connections
             var newConnection = new IdentityConnectionRegistration()
             {
@@ -359,21 +358,11 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             foreach (var app in appsThatGrantThisCircle)
             {
-                var appKey = app.AppId.Value;
-                //ensure the circle is granted to the identity
                 var appCircleGrant = await this.CreateAppCircleGrant(app, circleId, keyStoreKey, masterKey);
-
-                if (!icr.AccessGrant.AppGrants.Remove(appKey, out var appCircleGrantsDictionary))
-                {
-                    appCircleGrantsDictionary = new();
-                }
-
-                appCircleGrantsDictionary[circleId.Value] = appCircleGrant;
-                icr.AccessGrant.AppGrants[appKey] = appCircleGrantsDictionary;
+                icr.AccessGrant.AddUpdateAppCircleGrant(appCircleGrant);
             }
 
             keyStoreKey.Wipe();
-
             this.SaveIcr(icr);
         }
 
@@ -437,7 +426,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             {
                 var appsThatGrantThisCircle = allApps.Where(reg => reg?.AuthorizedCircles?.Any(c => c == circleId) ?? false);
 
-                foreach (var app in appsThatGrantThisCircle)
+                foreach (var app in appsThatGrantThisCircle ?? new List<RedactedAppRegistration>())
                 {
                     var appKey = app.AppId.Value;
                     var appCircleGrant = await this.CreateAppCircleGrant(app, circleId, keyStoreKey, masterKey);
