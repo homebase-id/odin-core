@@ -32,7 +32,7 @@ public class TenantConfigService
     private readonly DriveManager _driveManager;
 
     public TenantConfigService(ICircleNetworkService cns, DotYouContextAccessor contextAccessor,
-        ITenantSystemStorage storage, TenantContext tenantContext,
+        TenantSystemStorage storage, TenantContext tenantContext,
         IIdentityRegistry registry, IAppRegistrationService appRegistrationService, DriveManager driveManager)
     {
         _cns = cns;

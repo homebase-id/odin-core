@@ -87,7 +87,7 @@ public abstract class FileSystemStreamWriterBase
         }
 
         this._package = new UploadPackage(file, instructionSet!, isUpdateOperation);
-        _uploadLock.LockOrFail(file);
+        // _uploadLock.LockOrFail(file);
         await Task.CompletedTask;
     }
 
@@ -178,7 +178,7 @@ public abstract class FileSystemStreamWriterBase
                 await ProcessNewFileUpload(_package, keyHeader, metadata, serverMetadata);
             }
 
-            _uploadLock.ReleaseLock(metadata.File);
+            // _uploadLock.ReleaseLock(metadata.File);
 
             Dictionary<string, TransferStatus> recipientStatus = await ProcessTransitInstructions(_package);
 
@@ -198,7 +198,7 @@ public abstract class FileSystemStreamWriterBase
         }
         finally
         {
-            _uploadLock.ReleaseLock(_package.InternalFile);
+            // _uploadLock.ReleaseLock(_package.InternalFile);
         }
     }
 

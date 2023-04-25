@@ -6,6 +6,7 @@ using Dawn;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Storage;
@@ -19,7 +20,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership.Definition
         private readonly GuidId _circleDataType = GuidId.FromString("circle__");
         private readonly ThreeKeyValueStorage _circleValueStorage;
 
-        public CircleDefinitionService(ITenantSystemStorage tenantSystemStorage, DriveManager driveManager)
+        public CircleDefinitionService(TenantSystemStorage tenantSystemStorage, DriveManager driveManager)
         {
             _driveManager = driveManager;
             _circleValueStorage = tenantSystemStorage.ThreeKeyValueStorage;

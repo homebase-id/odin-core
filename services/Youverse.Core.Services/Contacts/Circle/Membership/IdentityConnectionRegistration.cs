@@ -10,10 +10,21 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
     /// <summary>
     /// Specifies that an identity shares a connection with another identity (i.e. friend request)
     /// </summary>
-    public class IdentityConnectionRegistration : OdinIdBase
+    public class IdentityConnectionRegistration
     {
         private ConnectionStatus _status;
 
+        public Guid Id
+        {
+            get { return this.OdinId; }
+            set
+            {
+                //no-op
+            }
+        }
+
+        public OdinId OdinId { get; init; }
+        
         public ConnectionStatus Status
         {
             get { return _status; }

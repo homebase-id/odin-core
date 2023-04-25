@@ -17,11 +17,11 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
         private readonly FileSystemResolver _fileSystemResolver;
         private readonly IPublicKeyService _publicKeyService;
-        private readonly ITenantSystemStorage _tenantSystemStorage;
+        private readonly TenantSystemStorage _tenantSystemStorage;
 
         public TransitInboxProcessor(DotYouContextAccessor contextAccessor,
             TransitInboxBoxStorage transitInboxBoxStorage,
-            FileSystemResolver fileSystemResolver, IPublicKeyService publicKeyService, ITenantSystemStorage tenantSystemStorage)
+            FileSystemResolver fileSystemResolver, IPublicKeyService publicKeyService, TenantSystemStorage tenantSystemStorage)
         {
             _contextAccessor = contextAccessor;
             _transitInboxBoxStorage = transitInboxBoxStorage;

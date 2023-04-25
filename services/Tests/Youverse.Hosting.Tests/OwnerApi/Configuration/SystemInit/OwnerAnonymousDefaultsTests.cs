@@ -53,7 +53,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
             using (var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId))
             {
                 var youAuthCircleSvc = RestService.For<ICircleNetworkYouAuthClient>(client);
-                var getConnectionsResponse = await youAuthCircleSvc.GetConnectedProfiles(1, 100);
+                var getConnectionsResponse = await youAuthCircleSvc.GetConnectedProfiles(1, 0);
                 Assert.IsTrue(getConnectionsResponse.StatusCode == HttpStatusCode.Forbidden, "Should have failed to get connections with 403 status code.");
             }
 
@@ -63,7 +63,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
             {
                 var youAuthCircleSvc = RestService.For<ICircleNetworkYouAuthClient>(client);
 
-                var getConnectionsResponse = await youAuthCircleSvc.GetConnectedProfiles(1, 100);
+                var getConnectionsResponse = await youAuthCircleSvc.GetConnectedProfiles(1, 0);
                 Assert.IsTrue(getConnectionsResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(getConnectionsResponse.Content);
                 Assert.IsTrue(getConnectionsResponse.Content.Results.Any());
@@ -73,10 +73,16 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
         }
 
         [Test]
-        public async Task SystemDefault_AnonymousAnonymousVisitorsCannotViewConnections()
+        public async Task SystemDefault_AnonymousVisitorsCannotViewConnections()
         {
             var utils = new ConfigurationTestUtilities(_scaffold);
             await _scaffold.OldOwnerApi.InitializeIdentity(TestIdentities.Frodo, new InitialSetupRequest()
+            {
+                Drives = null,
+                Circles = null
+            });
+            
+            await _scaffold.OldOwnerApi.InitializeIdentity(TestIdentities.Samwise, new InitialSetupRequest()
             {
                 Drives = null,
                 Circles = null

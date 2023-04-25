@@ -16,10 +16,10 @@ namespace Youverse.Core.Services.Authentication.Owner
         private readonly GuidId _passwordKey = GuidId.FromString("_passwordKey");
         private readonly GuidId _rsaKeyStorageId = GuidId.FromString("_rsaKeyStorageId");
 
-        private readonly ITenantSystemStorage _tenantSystemStorage;
+        private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly TenantContext _tenantContext;
 
-        public OwnerSecretService(TenantContext tenantContext, ITenantSystemStorage tenantSystemStorage)
+        public OwnerSecretService(TenantContext tenantContext, TenantSystemStorage tenantSystemStorage)
         {
             _tenantContext = tenantContext;
             _tenantSystemStorage = tenantSystemStorage;

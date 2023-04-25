@@ -36,7 +36,7 @@ namespace Youverse.Core.Services.DataSubscription
         private readonly TenantContext _tenantContext;
         private readonly ServerSystemStorage _serverSystemStorage;
         private readonly FileSystemResolver _fileSystemResolver;
-        private readonly ITenantSystemStorage _tenantSystemStorage;
+        private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly ICircleNetworkService _circleNetworkService;
         private readonly FeedDistributorService _feedDistributorService;
@@ -48,7 +48,7 @@ namespace Youverse.Core.Services.DataSubscription
         public FeedDriveDistributionRouter(
             FollowerService followerService,
             ITransitService transitService, DriveManager driveManager, TenantContext tenantContext, ServerSystemStorage serverSystemStorage,
-            FileSystemResolver fileSystemResolver, ITenantSystemStorage tenantSystemStorage, DotYouContextAccessor contextAccessor,
+            FileSystemResolver fileSystemResolver, TenantSystemStorage tenantSystemStorage, DotYouContextAccessor contextAccessor,
             ICircleNetworkService circleNetworkService,
             IDotYouHttpClientFactory dotYouHttpClientFactory, YouverseConfiguration youverseConfiguration)
         {

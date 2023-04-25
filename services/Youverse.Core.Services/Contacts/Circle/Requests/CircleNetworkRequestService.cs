@@ -31,7 +31,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         private readonly ILogger<ICircleNetworkRequestService> _logger;
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
 
-        private readonly ITenantSystemStorage _tenantSystemStorage;
+        private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly IMediator _mediator;
         private readonly TenantContext _tenantContext;
         private readonly IPublicKeyService _rsaPublicKeyService;
@@ -45,7 +45,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             DotYouContextAccessor contextAccessor,
             ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger,
             IDotYouHttpClientFactory dotYouHttpClientFactory,
-            ITenantSystemStorage tenantSystemStorage,
+            TenantSystemStorage tenantSystemStorage,
             IMediator mediator,
             TenantContext tenantContext,
             IPublicKeyService rsaPublicKeyService,

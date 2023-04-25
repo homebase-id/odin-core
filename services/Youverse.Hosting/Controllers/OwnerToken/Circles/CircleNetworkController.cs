@@ -57,18 +57,27 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Circles
         }
 
         [HttpPost("connected")]
-        public async Task<PagedResult<RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int pageNumber, int pageSize,
+        public async Task<CursoredResult<long, RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int count,long cursor,
             bool omitContactData = false)
         {
-            var result = await _circleNetwork.GetConnectedIdentities(new PageOptions(pageNumber, pageSize));
-            return RedactIcr(result, omitContactData);
+            var result = await _circleNetwork.GetConnectedIdentities(count, cursor);
+            return new CursoredResult<long, RedactedIdentityConnectionRegistration>()
+            {
+                Cursor = result.Cursor,
+                Results = result.Results.Select(p => p.Redacted(omitContactData)).ToList()
+            };
         }
-
+        
         [HttpPost("blocked")]
-        public async Task<PagedResult<RedactedIdentityConnectionRegistration>> GetBlockedProfiles(int pageNumber, int pageSize, bool omitContactData = true)
+        public async Task<CursoredResult<long, RedactedIdentityConnectionRegistration>> GetBlockedProfiles(int count,long cursor,
+            bool omitContactData = false)
         {
-            var result = await _circleNetwork.GetBlockedProfiles(new PageOptions(pageNumber, pageSize));
-            return RedactIcr(result, omitContactData);
+            var result = await _circleNetwork.GetBlockedProfiles(count, cursor);
+            return new CursoredResult<long, RedactedIdentityConnectionRegistration>()
+            {
+                Cursor = result.Cursor,
+                Results = result.Results.Select(p => p.Redacted(omitContactData)).ToList()
+            };
         }
 
         [HttpPost("circles/list")]

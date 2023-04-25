@@ -14,10 +14,10 @@ namespace Youverse.Core.Services.DataSubscription.Follower
     /// <summary/>
     public class FollowerPerimeterService
     {
-        private readonly ITenantSystemStorage _tenantStorage;
+        private readonly TenantSystemStorage _tenantStorage;
         private readonly DotYouContextAccessor _contextAccessor;
 
-        public FollowerPerimeterService(ITenantSystemStorage tenantStorage, DotYouContextAccessor contextAccessor)
+        public FollowerPerimeterService(TenantSystemStorage tenantStorage, DotYouContextAccessor contextAccessor)
         {
             _tenantStorage = tenantStorage;
             _contextAccessor = contextAccessor;

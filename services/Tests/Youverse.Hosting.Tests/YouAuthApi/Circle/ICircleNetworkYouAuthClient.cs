@@ -14,6 +14,6 @@ namespace Youverse.Hosting.Tests.YouAuthApi.Circle
         private const string root_path = YouAuthApiPathConstants.CirclesV1 + "/connections";
         
         [Get(root_path + "/connected")]
-        Task<ApiResponse<PagedResult<RedactedIdentityConnectionRegistration>>> GetConnectedProfiles(int pageNumber, int pageSize, bool omitContactData = true);
+        Task<ApiResponse<PagedResult<RedactedIdentityConnectionRegistration>>> GetConnectedProfiles(int count, long cursor, bool omitContactData = true);
     }
 }

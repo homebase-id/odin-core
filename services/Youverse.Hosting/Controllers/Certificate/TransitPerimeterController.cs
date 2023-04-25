@@ -38,7 +38,7 @@ namespace Youverse.Hosting.Controllers.Certificate
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly IPublicKeyService _publicKeyService;
         private readonly DriveManager _driveManager;
-        private readonly ITenantSystemStorage _tenantSystemStorage;
+        private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly FileSystemResolver _fileSystemResolver;
         private ITransitPerimeterService _perimeterService;
         private IDriveFileSystem _fileSystem;
@@ -47,7 +47,7 @@ namespace Youverse.Hosting.Controllers.Certificate
 
         /// <summary />
         public TransitPerimeterController(DotYouContextAccessor contextAccessor, IPublicKeyService publicKeyService, DriveManager driveManager,
-            ITenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver)
+            TenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver)
         {
             _contextAccessor = contextAccessor;
             _publicKeyService = publicKeyService;

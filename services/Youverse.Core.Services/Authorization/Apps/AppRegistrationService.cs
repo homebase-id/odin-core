@@ -24,7 +24,7 @@ namespace Youverse.Core.Services.Authorization.Apps
     public class AppRegistrationService : IAppRegistrationService
     {
         private readonly DotYouContextAccessor _contextAccessor;
-        private readonly ITenantSystemStorage _tenantSystemStorage;
+        private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly ExchangeGrantService _exchangeGrantService;
 
         private readonly GuidId _appRegistrationDataType = GuidId.FromString("__app_reg");
@@ -38,7 +38,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
         private readonly IMediator _mediator;
 
-        public AppRegistrationService(DotYouContextAccessor contextAccessor, ILogger<IAppRegistrationService> logger, ITenantSystemStorage tenantSystemStorage,
+        public AppRegistrationService(DotYouContextAccessor contextAccessor, ILogger<IAppRegistrationService> logger, TenantSystemStorage tenantSystemStorage,
             ExchangeGrantService exchangeGrantService, YouverseConfiguration config, TenantContext tenantContext, IMediator mediator)
         {
             _contextAccessor = contextAccessor;
@@ -177,7 +177,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                     AppUtil.AssertValidCorsHeader(appReg.CorsHostName);
                 }
 
-                var grantDictionary = new Dictionary<string, ExchangeGrant> { { "app_exchange_grant", appReg.Grant } };
+                var grantDictionary = new Dictionary<Guid, ExchangeGrant> { { HashUtil.ReduceSHA256Hash("app_exchange_grant"), appReg.Grant } };
 
                 //Note: isOwner = true because we passed ValidateClientAuthToken for an ap token above 
                 var permissionContext = _exchangeGrantService.CreatePermissionContext(token, grantDictionary, accessReg, includeAnonymousDrives: true)

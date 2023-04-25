@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security;
@@ -9,7 +10,6 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
-using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
@@ -17,11 +17,10 @@ using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Contacts.Circle.Requests;
-using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Storage;
-using Youverse.Core.Storage.Sqlite.IdentityDatabase;
+using Youverse.Core.Util;
 using PermissionSet = Youverse.Core.Services.Authorization.Permissions.PermissionSet;
 
 namespace Youverse.Core.Services.Contacts.Circle.Membership
@@ -33,31 +32,27 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         INotificationHandler<AppRegistrationChangedNotification>
     {
         private readonly DotYouContextAccessor _contextAccessor;
-        private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
         private readonly ExchangeGrantService _exchangeGrantService;
         private readonly CircleNetworkStorage _storage;
         private readonly CircleDefinitionService _circleDefinitionService;
-        private readonly TableCircleMember _circleMemberStorage;
         private readonly TenantContext _tenantContext;
         private readonly IAppRegistrationService _appRegistrationService;
         private readonly GuidId _icrClientDataType = GuidId.FromString("__icr_client_reg");
         private readonly ThreeKeyValueStorage _icrClientValueStorage;
 
-        public CircleNetworkService(DotYouContextAccessor contextAccessor, ILogger<ICircleNetworkService> logger, ITenantSystemStorage tenantSystemStorage,
-            IDotYouHttpClientFactory dotYouHttpClientFactory, ExchangeGrantService exchangeGrantService, TenantContext tenantContext,
+        public CircleNetworkService(DotYouContextAccessor contextAccessor, ILogger<ICircleNetworkService> logger,
+            ExchangeGrantService exchangeGrantService, TenantContext tenantContext,
             CircleDefinitionService circleDefinitionService,
-            IAppRegistrationService appRegistrationService)
+            IAppRegistrationService appRegistrationService, TenantSystemStorage tenantSystemStorage)
         {
             _contextAccessor = contextAccessor;
-            _dotYouHttpClientFactory = dotYouHttpClientFactory;
             _exchangeGrantService = exchangeGrantService;
             _tenantContext = tenantContext;
             _circleDefinitionService = circleDefinitionService;
             _appRegistrationService = appRegistrationService;
 
-            _storage = new CircleNetworkStorage(tenantSystemStorage);
+            _storage = new CircleNetworkStorage(tenantSystemStorage, circleDefinitionService);
 
-            _circleMemberStorage = tenantSystemStorage.CircleMemberStorage;
             _icrClientValueStorage = tenantSystemStorage.IcrClientStorage;
         }
 
@@ -159,13 +154,14 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             var info = await this.GetIdentityConnectionRegistration(odinId);
             if (info is { Status: ConnectionStatus.Connected })
             {
+                _storage.Delete(odinId);
+
                 //destroy all access
-                info.AccessGrant = null;
-
+                // info.AccessGrant = null;
                 //TODO: remove ICR clients
-
-                info.Status = ConnectionStatus.None;
-                this.SaveIcr(info);
+                // _icrClientValueStorage.Delete();
+                // info.Status = ConnectionStatus.None;
+                // this.SaveIcr(info);
 
                 return true;
             }
@@ -207,16 +203,14 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             return false;
         }
 
-        public async Task<PagedResult<IdentityConnectionRegistration>> GetBlockedProfiles(PageOptions req)
+        public async Task<CursoredResult<long, IdentityConnectionRegistration>> GetBlockedProfiles(int count, long cursor)
         {
-            var connectionsPage = await this.GetConnectionsInternal(req, ConnectionStatus.Blocked);
-            return connectionsPage;
+            return await Task.FromResult(this.GetConnectionsInternal(count, cursor, ConnectionStatus.Blocked));
         }
 
-        public async Task<PagedResult<IdentityConnectionRegistration>> GetConnectedIdentities(PageOptions req)
+        public async Task<CursoredResult<long, IdentityConnectionRegistration>> GetConnectedIdentities(int count, long cursor)
         {
-            var connectionsPage = await this.GetConnectionsInternal(req, ConnectionStatus.Connected);
-            return connectionsPage;
+            return await Task.FromResult(this.GetConnectionsInternal(count, cursor, ConnectionStatus.Connected));
         }
 
         public async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(OdinId odinId, bool overrideHack = false)
@@ -276,10 +270,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         public async Task<IEnumerable<OdinId>> GetCircleMembers(GuidId circleId)
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);
-
-            //Note: this list is a cache of members for a circle.  the source of truth is the IdentityConnectionRegistration.AccessExchangeGrant.CircleGrants property for each OdinId
-            var memberBytesList = _circleMemberStorage.GetCircleMembers(circleId);
-            var result = memberBytesList.Select(item => OdinId.FromByteArray(DeserializeCircleMemberRecordStorage(item).DotYouName));
+            var result = _storage.GetCircleMembers(circleId);
             return await Task.FromResult(result);
         }
 
@@ -313,8 +304,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             }
 
             //TODO: need to scan the YouAuthService to see if this user has a YouAuthRegistration
-
-
+            
             //2. add the record to the list of connections
             var newConnection = new IdentityConnectionRegistration()
             {
@@ -330,20 +320,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             };
 
             this.SaveIcr(newConnection);
-
-            foreach (var kvp in newConnection.AccessGrant.CircleGrants)
-            {
-                var circleId = kvp.Value.CircleId;
-                var circleMembers = _circleMemberStorage.GetCircleMembers(circleId);
-                var isMember = circleMembers.Any(item => item.memberId == odinId.ToHashId());
-                if (!isMember)
-                {
-                    _circleMemberStorage.AddCircleMembers(new List<CircleMemberRecord>()
-                    {
-                        CreateCircleMemberRecordStorage(circleId, odinId)
-                    });
-                }
-            }
         }
 
         /// <summary>
@@ -360,7 +336,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 throw new YouverseSecurityException($"{odinId} must have valid connection to be added to a circle");
             }
 
-            if (icr.AccessGrant.CircleGrants.TryGetValue(circleId.ToBase64(), out var _))
+            if (icr.AccessGrant.CircleGrants.TryGetValue(circleId, out var _))
             {
                 //TODO: Here we should ensure it's in the _circleMemberStorage just in case this was called because it's out of sync
                 throw new YouverseClientException($"{odinId} is already member of circle", YouverseClientErrorCode.IdentityAlreadyMemberOfCircle);
@@ -371,7 +347,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
             var circleGrant = await this.CreateCircleGrant(circleDefinition, keyStoreKey, masterKey);
 
-            icr.AccessGrant.CircleGrants.Add(circleGrant.CircleId.ToBase64(), circleGrant);
+            icr.AccessGrant.CircleGrants.Add(circleGrant.CircleId, circleGrant);
 
             //
             // Check the apps.  If the circle being granted is authorized by an app
@@ -382,26 +358,11 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
             foreach (var app in appsThatGrantThisCircle)
             {
-                var appKey = app.AppId.Value.ToString();
-                //ensure the circle is granted to the identity
                 var appCircleGrant = await this.CreateAppCircleGrant(app, circleId, keyStoreKey, masterKey);
-
-                if (!icr.AccessGrant.AppGrants.Remove(appKey, out var appCircleGrantsDictionary))
-                {
-                    appCircleGrantsDictionary = new();
-                }
-
-                appCircleGrantsDictionary[circleId.Value.ToString()] = appCircleGrant;
-                icr.AccessGrant.AppGrants[appKey] = appCircleGrantsDictionary;
+                icr.AccessGrant.AddUpdateAppCircleGrant(appCircleGrant);
             }
 
             keyStoreKey.Wipe();
-
-            _circleMemberStorage.AddCircleMembers(new List<CircleMemberRecord>()
-            {
-                CreateCircleMemberRecordStorage(circleId, odinId)
-            });
-
             this.SaveIcr(icr);
         }
 
@@ -415,31 +376,28 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 return;
             }
 
-            var circle64 = circleId.ToBase64();
-            if (icr.AccessGrant.CircleGrants.ContainsKey(circle64))
+            if (icr.AccessGrant.CircleGrants.ContainsKey(circleId))
             {
-                if (!icr.AccessGrant.CircleGrants.Remove(circleId.ToBase64()))
+                if (!icr.AccessGrant.CircleGrants.Remove(circleId))
                 {
-                    throw new YouverseClientException($"Failed to remove {circle64} from {odinId}");
+                    throw new YouverseClientException($"Failed to remove {circleId} from {odinId}");
                 }
             }
 
             //find the circle grant across all appsgrants and remove it
             foreach (var (appKey, appCircleGrants) in icr.AccessGrant.AppGrants)
             {
-                appCircleGrants.Remove(circleId.Value.ToString());
+                appCircleGrants.Remove(circleId.Value);
             }
 
-
-            _circleMemberStorage.RemoveCircleMembers(circleId, new List<Guid>() { odinId.ToHashId() });
             this.SaveIcr(icr);
         }
 
-        public async Task<Dictionary<string, CircleGrant>> CreateCircleGrantList(List<GuidId> circleIds, SensitiveByteArray keyStoreKey)
+        public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantList(List<GuidId> circleIds, SensitiveByteArray keyStoreKey)
         {
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
 
-            var circleGrants = new Dictionary<string, CircleGrant>();
+            var circleGrants = new Dictionary<Guid, CircleGrant>();
 
             // Always put identities in the system circle
             var cids = circleIds ?? new List<GuidId>();
@@ -450,35 +408,35 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 var def = _circleDefinitionService.GetCircle(id);
 
                 var cg = await this.CreateCircleGrant(def, keyStoreKey, masterKey);
-                circleGrants.Add(id.ToBase64(), cg);
+                circleGrants.Add(id.Value, cg);
             }
 
             return circleGrants;
         }
 
-        public async Task<Dictionary<string, Dictionary<string, AppCircleGrant>>> CreateAppCircleGrantList(List<GuidId> circleIds,
+        public async Task<Dictionary<Guid, Dictionary<Guid, AppCircleGrant>>> CreateAppCircleGrantList(List<GuidId> circleIds,
             SensitiveByteArray keyStoreKey)
         {
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
 
             var allApps = await _appRegistrationService.GetRegisteredApps();
-            var appGrants = new Dictionary<string, Dictionary<string, AppCircleGrant>>(StringComparer.Ordinal);
+            var appGrants = new Dictionary<Guid, Dictionary<Guid, AppCircleGrant>>();
 
             foreach (var circleId in circleIds)
             {
                 var appsThatGrantThisCircle = allApps.Where(reg => reg?.AuthorizedCircles?.Any(c => c == circleId) ?? false);
 
-                foreach (var app in appsThatGrantThisCircle)
+                foreach (var app in appsThatGrantThisCircle ?? new List<RedactedAppRegistration>())
                 {
-                    var appKey = app.AppId.Value.ToString();
+                    var appKey = app.AppId.Value;
                     var appCircleGrant = await this.CreateAppCircleGrant(app, circleId, keyStoreKey, masterKey);
 
                     if (!appGrants.TryGetValue(appKey, out var appCircleGrantsDictionary))
                     {
-                        appCircleGrantsDictionary = new Dictionary<string, AppCircleGrant>(StringComparer.Ordinal);
+                        appCircleGrantsDictionary = new Dictionary<Guid, AppCircleGrant>();
                     }
 
-                    appCircleGrantsDictionary[circleId.Value.ToString()] = appCircleGrant;
+                    appCircleGrantsDictionary[circleId.Value] = appCircleGrant;
                     appGrants[appKey] = appCircleGrantsDictionary;
                 }
             }
@@ -518,7 +476,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             {
                 var icr = await this.GetIdentityConnectionRegistrationInternal(odinId);
 
-                var circleKey = circleDef.Id.ToBase64();
+                var circleKey = circleDef.Id;
                 var hasCg = icr.AccessGrant.CircleGrants.Remove(circleKey, out _);
 
                 if (icr.IsConnected() && hasCg)
@@ -733,7 +691,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
             //Map CircleGrants and AppCircleGrants to Exchange grants
             // Note: remember that all connected users are added to a system
             // circle; this circle has grants to all drives marked allowAnonymous == true
-            var grants = new Dictionary<string, ExchangeGrant>();
+            var grants = new Dictionary<Guid, ExchangeGrant>();
             var enabledCircles = new List<GuidId>();
             foreach (var kvp in connectionRegistration.AccessGrant.CircleGrants)
             {
@@ -813,7 +771,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                 }
             }, null);
 
-            grants.Add("feed_drive_writer", feedDriveWriteGrant);
+            grants.Add(HashUtil.ReduceSHA256Hash("feed_drive_writer"), feedDriveWriteGrant);
 
             List<int> permissionKeys = new List<int>() { };
             if (_tenantContext.Settings?.AllConnectedIdentitiesCanViewConnections ?? false)
@@ -837,14 +795,18 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         }
 
 
-        private async Task<PagedResult<IdentityConnectionRegistration>> GetConnectionsInternal(PageOptions req, ConnectionStatus status)
+        private CursoredResult<long, IdentityConnectionRegistration> GetConnectionsInternal(int count, long cursor, ConnectionStatus status)
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnections);
 
-            var list = _storage.GetList().Where(icr => icr.Status == status);
-            var result = new PagedResult<IdentityConnectionRegistration>(req, 1, list.ToList());
-            return await Task.FromResult(result);
+            var list = _storage.GetList(count, new UnixTimeUtcUnique(cursor), out var nextCursor, status);
+            return new CursoredResult<long, IdentityConnectionRegistration>()
+            {
+                Cursor = nextCursor.GetValueOrDefault().uniqueTime,
+                Results = list
+            };
         }
+
 
         private async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistrationInternal(OdinId odinId)
         {
@@ -865,13 +827,15 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
         private void SaveIcr(IdentityConnectionRegistration icr)
         {
+            //TODO: this is a critical change; need to audit this
             if (icr.Status == ConnectionStatus.None)
             {
-                _circleMemberStorage.DeleteMembersFromAllCircles(new List<Guid>() { icr.OdinId.ToHashId() });
+                _storage.Delete(icr.OdinId);
             }
-
-            //TODO: this is a critical change; need to audit this
-            _storage.Upsert(icr);
+            else
+            {
+                _storage.Upsert(icr);
+            }
 
             //notify anyone caching data for this identity, we need to reset the cache
             // _mediator.Publish(new IdentityConnectionRegistrationChangedNotification()
@@ -883,7 +847,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         private async Task ReconcileAuthorizedCircles(AppRegistration oldAppRegistration, AppRegistration newAppRegistration)
         {
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-            var appKey = newAppRegistration.AppId.Value.ToString();
+            var appKey = newAppRegistration.AppId.Value;
 
             //TODO: use _db.CreateCommitUnitOfWork()
             if (null != oldAppRegistration)
@@ -900,7 +864,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
                     {
                         var icr = await this.GetIdentityConnectionRegistrationInternal(odinId);
                         var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
-                        icr.AccessGrant.AppGrants[appKey]?.Remove(circleId.ToString());
+                        icr.AccessGrant.AppGrants[appKey]?.Remove(circleId);
                         keyStoreKey.Wipe();
                         this.SaveIcr(icr);
                     }
@@ -921,10 +885,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
                     if (!icr.AccessGrant.AppGrants.TryGetValue(appKey, out var appCircleGrantDictionary))
                     {
-                        appCircleGrantDictionary = new Dictionary<string, AppCircleGrant>();
+                        appCircleGrantDictionary = new Dictionary<Guid, AppCircleGrant>();
                     }
 
-                    appCircleGrantDictionary[appCircleGrant.CircleId.ToString()] = appCircleGrant;
+                    appCircleGrantDictionary[appCircleGrant.CircleId] = appCircleGrant;
                     icr.AccessGrant.AppGrants[appKey] = appCircleGrantDictionary;
 
                     keyStoreKey.Wipe();
@@ -935,29 +899,6 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
 
 
             //
-        }
-
-        private CircleMemberRecord CreateCircleMemberRecordStorage(GuidId circleId, OdinId odinId)
-        {
-            return new()
-            {
-                circleId = circleId,
-                memberId = odinId.ToHashId(),
-                data = DotYouSystemSerializer.Serialize(new CircleMemberStorageData
-                {
-                    DotYouName = odinId.ToByteArray()
-                }).ToUtf8ByteArray()
-            };
-        }
-
-        private CircleMemberStorageData DeserializeCircleMemberRecordStorage(CircleMemberRecord item)
-        {
-            if (item.data?.Length > 0)
-            {
-                return DotYouSystemSerializer.Deserialize<CircleMemberStorageData>(item.data.ToStringFromUtf8Bytes());
-            }
-
-            throw new YouverseSystemException($"Circle member {item.circleId} data is corrupt");
         }
     }
 }
