@@ -126,7 +126,9 @@ public class CircleNetworkStorage
     public IEnumerable<IdentityConnectionRegistration> GetList(int count, UnixTimeUtcUnique? cursor, out UnixTimeUtcUnique? nextCursor,
         ConnectionStatus connectionStatus)
     {
-        var records = _tenantSystemStorage.Connections.PagingByCreated(count, (int)connectionStatus, cursor, out nextCursor);
+        var adjustedCursor = cursor.HasValue ? cursor.GetValueOrDefault().uniqueTime == 0 ? null : cursor : null;
+        var records = _tenantSystemStorage.Connections.PagingByCreated(count, (int)connectionStatus, adjustedCursor,
+            out nextCursor);
         return records.Select(MapFromStorage);
     }
 
