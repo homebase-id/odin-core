@@ -75,8 +75,11 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         private SqliteCommand _delete0Command = null;
         private static Object _delete0Lock = new Object();
         private SqliteParameter _delete0Param1 = null;
-        private SqliteParameter _delete0Param2 = null;
-        private SqliteParameter _delete0Param3 = null;
+        private SqliteCommand _delete1Command = null;
+        private static Object _delete1Lock = new Object();
+        private SqliteParameter _delete1Param1 = null;
+        private SqliteParameter _delete1Param2 = null;
+        private SqliteParameter _delete1Param3 = null;
         private SqliteCommand _get0Command = null;
         private static Object _get0Lock = new Object();
         private SqliteParameter _get0Param1 = null;
@@ -105,6 +108,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             _upsertCommand = null;
             _delete0Command?.Dispose();
             _delete0Command = null;
+            _delete1Command?.Dispose();
+            _delete1Command = null;
             _get0Command?.Dispose();
             _get0Command = null;
             _get1Command?.Dispose();
@@ -287,7 +292,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             return item;
        }
 
-        public int Delete(Guid odinHashId,Guid appId,Guid circleId)
+        public int Delete(Guid odinHashId)
         {
             lock (_delete0Lock)
             {
@@ -295,22 +300,41 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 {
                     _delete0Command = _database.CreateCommand();
                     _delete0Command.CommandText = "DELETE FROM appGrants " +
-                                                 "WHERE odinHashId = $odinHashId AND appId = $appId AND circleId = $circleId";
+                                                 "WHERE odinHashId = $odinHashId";
                     _delete0Param1 = _delete0Command.CreateParameter();
                     _delete0Command.Parameters.Add(_delete0Param1);
                     _delete0Param1.ParameterName = "$odinHashId";
-                    _delete0Param2 = _delete0Command.CreateParameter();
-                    _delete0Command.Parameters.Add(_delete0Param2);
-                    _delete0Param2.ParameterName = "$appId";
-                    _delete0Param3 = _delete0Command.CreateParameter();
-                    _delete0Command.Parameters.Add(_delete0Param3);
-                    _delete0Param3.ParameterName = "$circleId";
                     _delete0Command.Prepare();
                 }
                 _delete0Param1.Value = odinHashId.ToByteArray();
-                _delete0Param2.Value = appId.ToByteArray();
-                _delete0Param3.Value = circleId.ToByteArray();
                 return _database.ExecuteNonQuery(_delete0Command);
+            } // Lock
+        }
+
+        public int Delete(Guid odinHashId,Guid appId,Guid circleId)
+        {
+            lock (_delete1Lock)
+            {
+                if (_delete1Command == null)
+                {
+                    _delete1Command = _database.CreateCommand();
+                    _delete1Command.CommandText = "DELETE FROM appGrants " +
+                                                 "WHERE odinHashId = $odinHashId AND appId = $appId AND circleId = $circleId";
+                    _delete1Param1 = _delete1Command.CreateParameter();
+                    _delete1Command.Parameters.Add(_delete1Param1);
+                    _delete1Param1.ParameterName = "$odinHashId";
+                    _delete1Param2 = _delete1Command.CreateParameter();
+                    _delete1Command.Parameters.Add(_delete1Param2);
+                    _delete1Param2.ParameterName = "$appId";
+                    _delete1Param3 = _delete1Command.CreateParameter();
+                    _delete1Command.Parameters.Add(_delete1Param3);
+                    _delete1Param3.ParameterName = "$circleId";
+                    _delete1Command.Prepare();
+                }
+                _delete1Param1.Value = odinHashId.ToByteArray();
+                _delete1Param2.Value = appId.ToByteArray();
+                _delete1Param3.Value = circleId.ToByteArray();
+                return _database.ExecuteNonQuery(_delete1Command);
             } // Lock
         }
 
