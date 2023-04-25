@@ -75,12 +75,19 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         private SqliteCommand _delete0Command = null;
         private static Object _delete0Lock = new Object();
         private SqliteParameter _delete0Param1 = null;
+        private SqliteCommand _delete1Command = null;
+        private static Object _delete1Lock = new Object();
+        private SqliteParameter _delete1Param1 = null;
+        private SqliteParameter _delete1Param2 = null;
+        private SqliteParameter _delete1Param3 = null;
         private SqliteCommand _get0Command = null;
         private static Object _get0Lock = new Object();
         private SqliteParameter _get0Param1 = null;
         private SqliteCommand _get1Command = null;
         private static Object _get1Lock = new Object();
         private SqliteParameter _get1Param1 = null;
+        private SqliteParameter _get1Param2 = null;
+        private SqliteParameter _get1Param3 = null;
 
         public TableAppGrantsCRUD(IdentityDatabase db) : base(db)
         {
@@ -101,6 +108,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             _upsertCommand = null;
             _delete0Command?.Dispose();
             _delete0Command = null;
+            _delete1Command?.Dispose();
+            _delete1Command = null;
             _get0Command?.Dispose();
             _get0Command = null;
             _get1Command?.Dispose();
@@ -123,7 +132,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                      +"appId BLOB NOT NULL, "
                      +"circleId BLOB NOT NULL, "
                      +"data BLOB  "
-                     +", PRIMARY KEY (odinHashId, appId, circleId)"
+                     +", PRIMARY KEY (odinHashId,appId,circleId)"
                      +");"
                      ;
                 _database.ExecuteNonQuery(cmd);
@@ -171,7 +180,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _upsertCommand = _database.CreateCommand();
                     _upsertCommand.CommandText = "INSERT INTO appGrants (odinHashId,appId,circleId,data) " +
                                                  "VALUES ($odinHashId,$appId,$circleId,$data)"+
-                                                 "ON CONFLICT (odinHashId, appId, circleId) DO UPDATE "+
+                                                 "ON CONFLICT (odinHashId,appId,circleId) DO UPDATE "+
                                                  "SET data = $data;";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
@@ -203,8 +212,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 {
                     _updateCommand = _database.CreateCommand();
                     _updateCommand.CommandText = "UPDATE appGrants " +
-                                                 "SET appId = $appId,circleId = $circleId,data = $data "+
-                                                 "WHERE (odinHashId = $odinHashId)";
+                                                 "SET data = $data "+
+                                                 "WHERE (odinHashId = $odinHashId,appId = $appId,circleId = $circleId)";
                     _updateParam1 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam1);
                     _updateParam1.ParameterName = "$odinHashId";
@@ -302,6 +311,33 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // Lock
         }
 
+        public int Delete(Guid odinHashId,Guid appId,Guid circleId)
+        {
+            lock (_delete1Lock)
+            {
+                if (_delete1Command == null)
+                {
+                    _delete1Command = _database.CreateCommand();
+                    _delete1Command.CommandText = "DELETE FROM appGrants " +
+                                                 "WHERE odinHashId = $odinHashId AND appId = $appId AND circleId = $circleId";
+                    _delete1Param1 = _delete1Command.CreateParameter();
+                    _delete1Command.Parameters.Add(_delete1Param1);
+                    _delete1Param1.ParameterName = "$odinHashId";
+                    _delete1Param2 = _delete1Command.CreateParameter();
+                    _delete1Command.Parameters.Add(_delete1Param2);
+                    _delete1Param2.ParameterName = "$appId";
+                    _delete1Param3 = _delete1Command.CreateParameter();
+                    _delete1Command.Parameters.Add(_delete1Param3);
+                    _delete1Param3.ParameterName = "$circleId";
+                    _delete1Command.Prepare();
+                }
+                _delete1Param1.Value = odinHashId.ToByteArray();
+                _delete1Param2.Value = appId.ToByteArray();
+                _delete1Param3.Value = circleId.ToByteArray();
+                return _database.ExecuteNonQuery(_delete1Command);
+            } // Lock
+        }
+
         public AppGrantsRecord ReadRecordFromReader0(SqliteDataReader rdr, Guid odinHashId)
         {
             var result = new List<AppGrantsRecord>();
@@ -379,7 +415,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             } // lock
         }
 
-        public AppGrantsRecord ReadRecordFromReader1(SqliteDataReader rdr, Guid odinHashId)
+        public AppGrantsRecord ReadRecordFromReader1(SqliteDataReader rdr, Guid odinHashId,Guid appId,Guid circleId)
         {
             var result = new List<AppGrantsRecord>();
             byte[] _tmpbuf = new byte[65535+1];
@@ -389,32 +425,14 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             var _guid = new byte[16];
             var item = new AppGrantsRecord();
             item.odinHashId = odinHashId;
+            item.appId = appId;
+            item.circleId = circleId;
 
             if (rdr.IsDBNull(0))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(0, 0, _guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in appId...");
-                item.appId = new Guid(_guid);
-            }
-
-            if (rdr.IsDBNull(1))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                bytesRead = rdr.GetBytes(1, 0, _guid, 0, 16);
-                if (bytesRead != 16)
-                    throw new Exception("Not a GUID in circleId...");
-                item.circleId = new Guid(_guid);
-            }
-
-            if (rdr.IsDBNull(2))
                 item.data = null;
             else
             {
-                bytesRead = rdr.GetBytes(2, 0, _tmpbuf, 0, 65535+1);
+                bytesRead = rdr.GetBytes(0, 0, _tmpbuf, 0, 65535+1);
                 if (bytesRead > 65535)
                     throw new Exception("Too much data in data...");
                 if (bytesRead < 0)
@@ -425,26 +443,34 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             return item;
        }
 
-        public AppGrantsRecord Get(Guid odinHashId)
+        public AppGrantsRecord Get(Guid odinHashId,Guid appId,Guid circleId)
         {
             lock (_get1Lock)
             {
                 if (_get1Command == null)
                 {
                     _get1Command = _database.CreateCommand();
-                    _get1Command.CommandText = "SELECT appId,circleId,data FROM appGrants " +
-                                                 "WHERE odinHashId = $odinHashId LIMIT 1;";
+                    _get1Command.CommandText = "SELECT data FROM appGrants " +
+                                                 "WHERE odinHashId = $odinHashId AND appId = $appId AND circleId = $circleId LIMIT 1;";
                     _get1Param1 = _get1Command.CreateParameter();
                     _get1Command.Parameters.Add(_get1Param1);
                     _get1Param1.ParameterName = "$odinHashId";
+                    _get1Param2 = _get1Command.CreateParameter();
+                    _get1Command.Parameters.Add(_get1Param2);
+                    _get1Param2.ParameterName = "$appId";
+                    _get1Param3 = _get1Command.CreateParameter();
+                    _get1Command.Parameters.Add(_get1Param3);
+                    _get1Param3.ParameterName = "$circleId";
                     _get1Command.Prepare();
                 }
                 _get1Param1.Value = odinHashId.ToByteArray();
+                _get1Param2.Value = appId.ToByteArray();
+                _get1Param3.Value = circleId.ToByteArray();
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get1Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                         return null;
-                    return ReadRecordFromReader1(rdr, odinHashId);
+                    return ReadRecordFromReader1(rdr, odinHashId,appId,circleId);
                 } // using
             } // lock
         }

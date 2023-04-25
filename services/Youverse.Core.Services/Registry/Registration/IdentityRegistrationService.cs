@@ -12,6 +12,9 @@ using Youverse.Core.Services.Configuration;
 
 namespace Youverse.Core.Services.Registry.Registration
 {
+    /// <summary>
+    /// Handles creating an identity on this host
+    /// </summary>
     public class IdentityRegistrationService : IIdentityRegistrationService
     {
         private readonly ILogger<IdentityRegistrationService> _logger;
