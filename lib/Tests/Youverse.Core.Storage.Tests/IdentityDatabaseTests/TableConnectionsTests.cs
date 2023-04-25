@@ -158,7 +158,7 @@ namespace IdentityDatabaseTests
             {
                 identity = new OdinId("gandalf.white.me"),
                 displayName = "G",
-                status = 44,
+                status = 42,
                 accessIsRevoked = 0,
                 data = g3.ToByteArray()
             };
@@ -175,15 +175,29 @@ namespace IdentityDatabaseTests
             Debug.Assert(r[0].identity == "samwise.gamgee.me");
             Debug.Assert(outCursor == null);
 
+            // TEST HAND CODED STATUS FILTER
+            r = db.tblConnections.PagingByIdentity(1, 42, null, out outCursor);
+            Debug.Assert(r.Count == 1);
+            Debug.Assert(r[0].identity == "frodo.baggins.me");
+            Debug.Assert(outCursor != null);
+            r = db.tblConnections.PagingByIdentity(1, 42, outCursor, out outCursor);
+            Debug.Assert(r[0].identity == "gandalf.white.me");
+            Debug.Assert(outCursor == null);
+
+
+
             // Get most recent (will be a different order)
-            UnixTimeUtcUnique? timeCursor = null;
-            r = db.tblConnections.PagingByCreated(2, timeCursor, out timeCursor);
+            r = db.tblConnections.PagingByCreated(2, null, out var timeCursor);
             Debug.Assert(r.Count == 2);
             Debug.Assert(r[0].identity == "gandalf.white.me");
             Debug.Assert(r[1].identity == "samwise.gamgee.me");
+            Debug.Assert(timeCursor != null);
 
+            // TEST THE HANDCODED
             r = db.tblConnections.PagingByCreated(2, 43, null, out timeCursor);
             Debug.Assert(r.Count == 1);
+            Debug.Assert(r[0].identity == "samwise.gamgee.me");
+            Debug.Assert(timeCursor == null);
 
 
             // PagingByCreated is NOT designed to be used with anything except the first page.
