@@ -109,7 +109,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _getPaging6Param2.ParameterName = "$_count";
                     _getPaging6Param3 = _getPaging6Command.CreateParameter();
                     _getPaging6Command.Parameters.Add(_getPaging6Param3);
-                    _getPaging6Param3.ParameterName = "status";
+                    _getPaging6Param3.ParameterName = "$status";
                     _getPaging6Command.Prepare();
                 }
                 _getPaging6Param1.Value = inCursor?.uniqueTime;
