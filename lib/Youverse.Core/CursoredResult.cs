@@ -2,9 +2,11 @@ using System.Collections.Generic;
 
 namespace Youverse.Core;
 
-public class CursoredResult<T>
+public class CursoredResult<TResult> : CursoredResult<string, TResult>{}
+
+public class CursoredResult<TCursor, TResult>
 {
-    public string Cursor { get; set; }
-    
-    public IEnumerable<T> Results { get; set; }
+    public TCursor Cursor { get; set; }
+
+    public IEnumerable<TResult> Results { get; set; }
 }

@@ -16,11 +16,11 @@ namespace Youverse.Core.Services.EncryptionKeyService
     {
         private readonly Guid _rsaKeyStorageId = Guid.Parse("AAAAAAAF-0f85-EEEE-E77E-e8e0b06c2777");
 
-        private readonly ITenantSystemStorage _tenantSystemStorage;
+        private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
 
-        public RsaKeyService(ITenantSystemStorage tenantSystemStorage, DotYouContextAccessor contextAccessor, IDotYouHttpClientFactory dotYouHttpClientFactory)
+        public RsaKeyService(TenantSystemStorage tenantSystemStorage, DotYouContextAccessor contextAccessor, IDotYouHttpClientFactory dotYouHttpClientFactory)
         {
             _tenantSystemStorage = tenantSystemStorage;
             _contextAccessor = contextAccessor;

@@ -123,7 +123,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                      +"appId BLOB NOT NULL, "
                      +"circleId BLOB NOT NULL, "
                      +"data BLOB  "
-                     +", PRIMARY KEY (odinHashId)"
+                     +", PRIMARY KEY (odinHashId, appId, circleId)"
                      +");"
                      ;
                 _database.ExecuteNonQuery(cmd);
@@ -171,8 +171,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _upsertCommand = _database.CreateCommand();
                     _upsertCommand.CommandText = "INSERT INTO appGrants (odinHashId,appId,circleId,data) " +
                                                  "VALUES ($odinHashId,$appId,$circleId,$data)"+
-                                                 "ON CONFLICT (odinHashId) DO UPDATE "+
-                                                 "SET appId = $appId,circleId = $circleId,data = $data;";
+                                                 "ON CONFLICT (odinHashId, appId, circleId) DO UPDATE "+
+                                                 "SET data = $data;";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
                     _upsertParam1.ParameterName = "$odinHashId";

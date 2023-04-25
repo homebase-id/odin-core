@@ -35,7 +35,7 @@ namespace Youverse.Core.Services.Authentication.Owner
     /// </summary>
     public class OwnerAuthenticationService : IOwnerAuthenticationService, INotificationHandler<DriveDefinitionAddedNotification>
     {
-        private readonly ITenantSystemStorage _tenantSystemStorage;
+        private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly IOwnerSecretService _secretService;
 
         private readonly DotYouContextCache _cache;
@@ -44,7 +44,7 @@ namespace Youverse.Core.Services.Authentication.Owner
 
         private readonly TenantContext _tenantContext;
 
-        public OwnerAuthenticationService(ILogger<IOwnerAuthenticationService> logger, IOwnerSecretService secretService, ITenantSystemStorage tenantSystemStorage,
+        public OwnerAuthenticationService(ILogger<IOwnerAuthenticationService> logger, IOwnerSecretService secretService, TenantSystemStorage tenantSystemStorage,
             TenantContext tenantContext, YouverseConfiguration config, DriveManager driveManager)
         {
             _logger = logger;

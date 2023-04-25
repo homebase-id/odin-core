@@ -30,10 +30,10 @@ namespace Youverse.Core.Services.Transit.SendingHost.Outbox
     public class TransitOutbox : ITransitOutbox
     {
         private readonly IPendingTransfersService _pendingTransfers;
-        private readonly ITenantSystemStorage _tenantSystemStorage;
+        private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly TenantContext _tenantContext;
 
-        public TransitOutbox(IPendingTransfersService pendingTransfers, ITenantSystemStorage tenantSystemStorage, TenantContext tenantContext)
+        public TransitOutbox(IPendingTransfersService pendingTransfers, TenantSystemStorage tenantSystemStorage, TenantContext tenantContext)
         {
             _pendingTransfers = pendingTransfers;
             _tenantSystemStorage = tenantSystemStorage;

@@ -26,14 +26,14 @@ namespace Youverse.Hosting.Controllers.Certificate.Feed
         private readonly DotYouContextAccessor _contextAccessor;
         private readonly IPublicKeyService _publicKeyService;
         private readonly DriveManager _driveManager;
-        private readonly ITenantSystemStorage _tenantSystemStorage;
+        private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly IMediator _mediator;
         private readonly FileSystemResolver _fileSystemResolver;
         private readonly FollowerService _followerService;
 
         /// <summary />
         public FeedDrivePerimeterController(DotYouContextAccessor contextAccessor, IPublicKeyService publicKeyService, DriveManager driveManager,
-            ITenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver, FollowerService followerService)
+            TenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver, FollowerService followerService)
         {
             _contextAccessor = contextAccessor;
             this._publicKeyService = publicKeyService;

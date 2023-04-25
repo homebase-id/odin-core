@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using NUnit.Framework;
+using Youverse.Core.Trie;
 using Youverse.Core.Util;
 
 namespace Youverse.Core.Tests
@@ -128,6 +129,38 @@ namespace Youverse.Core.Tests
             Assert.Fail();
         }
 
+        [Test(Description = "Invalid domain name with =")]
+        public void DomainOddTest()
+        {
+            try
+            {
+                DomainNameValidator.AssertValidDomain("=xyyaa.com");
+                Assert.Fail();
+            }
+            catch (Exception)
+            {
+                Assert.Pass();
+                return;
+            }
+        }
+
+        [Test(Description = "Puny code international domain name")]
+        public void DomainInternationalTest()
+        {
+            try
+            {
+                DomainNameValidator.AssertValidDomain("xn--hxajbheg2az3al.xn--jxalpdlp");
+            }
+            catch (Exception)
+            {
+                Assert.Fail();
+                return;
+            }
+
+            Assert.Pass();
+        }
+
+
         [Test(Description = "Test period invalid")]
         public void DomainDotFailTest()
         {
@@ -172,6 +205,62 @@ namespace Youverse.Core.Tests
             }
             Assert.Fail();
         }
+
+
+        [Test]
+        public void NameTooShortFails()
+        {
+            try
+            {
+                DomainNameValidator.AssertValidDomain("a.");
+                Assert.Fail();
+            }
+            catch (Exception)
+            {
+                Assert.Pass();
+            }
+            try
+            {
+                DomainNameValidator.AssertValidDomain(".a");
+                Assert.Fail();
+            }
+            catch (Exception)
+            {
+                Assert.Pass();
+            }
+        }
+
+        [Test]
+        public void NameTooLongFails()
+        {
+            var lbl = new string('a', 9) + ".";
+            string dom = "";
+
+            for (int i = 0; i < 25; i++)
+                dom += lbl;
+
+            // Now we have a 250 character long dom.
+            // 
+            Assert.IsTrue(dom.Length == 250);
+
+            dom = "a" + dom + "como";
+            Assert.IsTrue(dom.Length == 255);
+            DomainNameValidator.AssertValidDomain(dom);
+
+            dom = "a" + dom;
+            Assert.IsTrue(dom.Length == 256);
+
+            try
+            {
+                DomainNameValidator.AssertValidDomain(dom);
+                Assert.Fail();
+            }
+            catch (Exception)
+            {
+            }
+            Assert.Pass();
+        }
+
 
         [Test]
         public void MiscTestsMovedFromOtherCode()

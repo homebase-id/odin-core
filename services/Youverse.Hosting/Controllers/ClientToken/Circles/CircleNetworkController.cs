@@ -23,18 +23,17 @@ namespace Youverse.Hosting.Controllers.ClientToken.Circles
         /// <summary>
         /// Gets a list of connected identities
         /// </summary>
-        /// <param name="pageNumber"></param>
-        /// <param name="pageSize"></param>
-        /// <param name="omitContactData">If true, the OriginalContactData field is not returned; default is true</param>
         /// <returns></returns>
         [HttpGet("connected")]
-        public async Task<PagedResult<RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int pageNumber, int pageSize, bool omitContactData = false)
+        public async Task<CursoredResult<long, RedactedIdentityConnectionRegistration>> GetConnectedIdentities(int count, long cursor,
+            bool omitContactData = false)
         {
-            var result = await _circleNetwork.GetConnectedIdentities(new PageOptions(pageNumber, pageSize));
-            return new PagedResult<RedactedIdentityConnectionRegistration>(
-                result.Request,
-                result.TotalPages,
-                result.Results.Select(p => p.Redacted(omitContactData)).ToList());
+            var result = await _circleNetwork.GetConnectedIdentities(count, cursor);
+            return new CursoredResult<long, RedactedIdentityConnectionRegistration>()
+            {
+                Cursor = result.Cursor,
+                Results = result.Results.Select(p => p.Redacted(omitContactData)).ToList()
+            };
         }
     }
 }

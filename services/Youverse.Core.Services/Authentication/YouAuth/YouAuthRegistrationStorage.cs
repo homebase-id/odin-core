@@ -1,4 +1,5 @@
 using System;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Storage;
 
 #nullable enable
@@ -7,9 +8,9 @@ namespace Youverse.Core.Services.Authentication.YouAuth
 {
     public class YouAuthRegistrationStorage : IYouAuthRegistrationStorage
     {
-        private readonly ITenantSystemStorage _tenantSystemStorage;
+        private readonly TenantSystemStorage _tenantSystemStorage;
 
-        public YouAuthRegistrationStorage(ITenantSystemStorage tenantSystemStorage)
+        public YouAuthRegistrationStorage(TenantSystemStorage tenantSystemStorage)
         {
             _tenantSystemStorage = tenantSystemStorage;
         }

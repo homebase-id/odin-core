@@ -60,7 +60,7 @@ namespace Youverse.Hosting
             cb.RegisterType<UploadLock>().AsSelf().SingleInstance();
 
             // cb.RegisterType<ServerSystemStorage>().AsSelf().SingleInstance();
-            cb.RegisterType<TenantSystemStorage>().As<ITenantSystemStorage>().SingleInstance();
+            cb.RegisterType<TenantSystemStorage>().AsSelf().SingleInstance();
 
             cb.RegisterType<AppNotificationHandler>()
                 .As<INotificationHandler<FileAddedNotification>>()

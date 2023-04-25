@@ -38,7 +38,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
         public TransitService(
             DotYouContextAccessor contextAccessor,
             ITransitOutbox transitOutbox,
-            ITenantSystemStorage tenantSystemStorage,
+            TenantSystemStorage tenantSystemStorage,
             IDotYouHttpClientFactory dotYouHttpClientFactory,
             TenantContext tenantContext,
             ICircleNetworkService circleNetworkService,
