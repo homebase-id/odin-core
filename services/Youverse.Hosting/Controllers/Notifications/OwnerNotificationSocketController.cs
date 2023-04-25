@@ -23,13 +23,11 @@ namespace Youverse.Hosting.Controllers.Notifications
     [Route(OwnerApiPathConstants.NotificationsV1)]
     public class OwnerNotificationSocketController : Controller
     {
-        private readonly string _currentTenant;
-        private AppNotificationHandler _notificationHandler;
+        private readonly AppNotificationHandler _notificationHandler;
 
-        public OwnerNotificationSocketController(ITenantProvider tenantProvider, AppNotificationHandler notificationHandler)
+        public OwnerNotificationSocketController(AppNotificationHandler notificationHandler)
         {
             _notificationHandler = notificationHandler;
-            _currentTenant = tenantProvider.GetCurrentTenant()!.Name;
         }
 
         /// <summary />
@@ -39,64 +37,12 @@ namespace Youverse.Hosting.Controllers.Notifications
             if (HttpContext.WebSockets.IsWebSocketRequest)
             {
                 using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
-
-                var request = await ReceiveConfiguration(webSocket);
-                if (null != request)
-                {
-                    await _notificationHandler.Connect(webSocket, request);
-                }
+                await _notificationHandler.EstablishConnection(webSocket);
             }
             else
             {
                 HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
             }
-        }
-
-        private async Task<EstablishConnectionRequest?> ReceiveConfiguration(WebSocket webSocket)
-        {
-            var buffer = new byte[1024 * 4];
-            var receiveResult = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-
-            EstablishConnectionRequest? request = null;
-            if (receiveResult.MessageType == WebSocketMessageType.Text) //must be JSON
-            {
-                Array.Resize(ref buffer, receiveResult.Count);
-                request = await DotYouSystemSerializer.Deserialize<EstablishConnectionRequest>(buffer.ToMemoryStream());
-            }
-
-            if (null == request)
-            {
-                //send a close method
-                await webSocket.SendAsync(
-                    new ArraySegment<byte>(buffer, 0, 0),
-                    WebSocketMessageType.Close,
-                    WebSocketMessageFlags.EndOfMessage,
-                    CancellationToken.None);
-            }
-
-            return request;
-        }
-
-        private static async Task Echo(WebSocket webSocket)
-        {
-            var buffer = new byte[1024 * 4];
-            var receiveResult = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-
-            while (!receiveResult.CloseStatus.HasValue)
-            {
-                await webSocket.SendAsync(
-                    new ArraySegment<byte>(buffer, 0, receiveResult.Count),
-                    receiveResult.MessageType,
-                    receiveResult.EndOfMessage,
-                    CancellationToken.None);
-
-                receiveResult = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-            }
-
-            await webSocket.CloseAsync(
-                receiveResult.CloseStatus.Value,
-                receiveResult.CloseStatusDescription,
-                CancellationToken.None);
         }
     }
 }

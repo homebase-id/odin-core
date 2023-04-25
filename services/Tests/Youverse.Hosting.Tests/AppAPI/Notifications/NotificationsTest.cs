@@ -11,6 +11,7 @@ using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.AppNotifications;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
 using Youverse.Hosting.Authentication.ClientToken;
 using Youverse.Hosting.Controllers.ClientToken;
@@ -82,20 +83,28 @@ public class NotificationsTest
         {
             Drives = new List<TargetDrive>() { testAppContext.TargetDrive }
         };
-        var buffer = new ArraySegment<byte>(DotYouSystemSerializer.Serialize(request).ToUtf8ByteArray());
-        await socket.SendAsync(buffer, WebSocketMessageType.Text, true, tokenSource.Token);
+
+        var ssp = SharedSecretEncryptedPayload.Encrypt(
+            DotYouSystemSerializer.Serialize(request).ToUtf8ByteArray(),
+            deviceSharedSecret.ToSensitiveByteArray());
+        var sendBuffer = DotYouSystemSerializer.Serialize(ssp).ToUtf8ByteArray();
+        await socket.SendAsync(new ArraySegment<byte>(sendBuffer), WebSocketMessageType.Text, true, tokenSource.Token);
 
         //
         // Wait for the reply 
         //
-        var receiveResult = await socket.ReceiveAsync(buffer, tokenSource.Token);
+        // var innerBuffer = new byte[200];
+        var receiveBuffer = new ArraySegment<byte>(new byte[200]);
+        var receiveResult = await socket.ReceiveAsync(receiveBuffer, tokenSource.Token);
         if (receiveResult.MessageType == WebSocketMessageType.Text)
         {
-            var array = buffer.Array;
+            var array = receiveBuffer.Array;
             Array.Resize(ref array, receiveResult.Count);
 
             var json = array.ToStringFromUtf8Bytes();
-            var response = DotYouSystemSerializer.Deserialize<EstablishConnectionResponse>(json);
+            var decryptedResponse = SharedSecretEncryptedPayload.Decrypt(json, deviceSharedSecret.ToSensitiveByteArray());
+            var response = DotYouSystemSerializer.Deserialize<EstablishConnectionResponse>(decryptedResponse);
+
             Assert.IsNotNull(response);
             Assert.IsTrue(response.NotificationType == ClientNotificationType.DeviceHandshakeSuccess);
         }
