@@ -39,6 +39,10 @@ public static class DotYouSystemSerializer
         return json;
     }
 
+    public static T? Deserialize<T>(byte[] jsonBytes)
+    {
+        return JsonSerializer.Deserialize<T>(jsonBytes, JsonSerializerOptions);
+    }
     public static T? Deserialize<T>(string json)
     {
         return JsonSerializer.Deserialize<T>(json, JsonSerializerOptions);
