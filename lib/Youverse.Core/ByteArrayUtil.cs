@@ -17,6 +17,16 @@ namespace Youverse.Core
             return new byte[] { (byte)(i >> 56 & 0xFF), (byte)(i >> 48 & 0xFF), (byte)(i >> 40 & 0xFF), (byte)(i >> 32 & 0xFF), (byte)(i >> 24 & 0xFF), (byte)(i >> 16 & 0xFF), (byte)(i >> 8 & 0xFF), (byte)(i & 0xFF) };
         }
 
+        public static byte[] Int8ToBytes(sbyte i)
+        {
+            return new byte[] { (byte)i };
+        }
+
+        public static byte[] Int16ToBytes(Int16 i)
+        {
+            return new byte[] { (byte)(i >> 8 & 0xFF), (byte)(i & 0xFF) };
+        }
+
         public static byte[] Int32ToBytes(Int32 i)
         {
             return new byte[] { (byte)(i >> 24 & 0xFF), (byte)(i >> 16 & 0xFF), (byte)(i >> 8 & 0xFF), (byte)(i & 0xFF) };
@@ -26,6 +36,51 @@ namespace Youverse.Core
         {
             return new byte[] { (byte)(i >> 56 & 0xFF), (byte)(i >> 48 & 0xFF), (byte)(i >> 40 & 0xFF), (byte)(i >> 32 & 0xFF), (byte)(i >> 24 & 0xFF), (byte)(i >> 16 & 0xFF), (byte)(i >> 8 & 0xFF), (byte)(i & 0xFF) };
         }
+
+        public static Int64 BytesToInt64(byte[] bytes)
+        {
+            if (bytes == null || bytes.Length != 8)
+                throw new ArgumentException("Input byte array must have exactly 8 elements.");
+
+            return ((Int64)bytes[0] << 56)
+                | ((Int64)bytes[1] << 48)
+                | ((Int64)bytes[2] << 40)
+                | ((Int64)bytes[3] << 32)
+                | ((Int64)bytes[4] << 24)
+                | ((Int64)bytes[5] << 16)
+                | ((Int64)bytes[6] << 8)
+                | (Int64)bytes[7];
+        }
+
+
+        public static Int32 BytesToInt32(byte[] bytes)
+        {
+            if (bytes == null || bytes.Length != 4)
+                throw new ArgumentException("Input byte array must have exactly 4 elements.");
+
+            return (bytes[0] << 24)
+                | (bytes[1] << 16)
+                | (bytes[2] << 8)
+                | bytes[3];
+        }
+
+
+        public static Int16 BytesToInt16(byte[] bytes)
+        {
+            if (bytes == null || bytes.Length != 2)
+                throw new ArgumentException("Input byte array must have exactly 2 elements.");
+
+            return (Int16)((bytes[0] << 8) | bytes[1]);
+        }
+
+        public static sbyte BytesToInt8(byte[] bytes)
+        {
+            if (bytes == null || bytes.Length != 1)
+                throw new ArgumentException("Input byte array must have exactly 1 element.");
+
+            return (sbyte)bytes[0];
+        }
+
 
         public static byte[] Combine(byte[] first, byte[] second)
         {
