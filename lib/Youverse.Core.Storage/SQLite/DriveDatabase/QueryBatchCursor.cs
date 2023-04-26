@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Org.BouncyCastle.Crypto.Engines;
+using System;
 using System.Linq;
 
 namespace Youverse.Core.Storage.Sqlite.DriveDatabase
@@ -17,11 +18,11 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
         /// 
         /// </summary>
         public byte[] pagingCursor;
-        public Int64? userDatePagingCursor;
+        public UnixTimeUtc? userDatePagingCursor;
         public byte[] stopAtBoundary;
-        public Int64? userDateStopAtBoundary;
+        public UnixTimeUtc? userDateStopAtBoundary;
         public byte[] nextBoundaryCursor;
-        public Int64? userDateNextBoundaryCursor;
+        public UnixTimeUtc? userDateNextBoundaryCursor;
 
         public QueryBatchCursor()
         {
@@ -97,19 +98,50 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
         public QueryBatchCursor(string base64CursorState)
         {
             var bytes = Convert.FromBase64String(base64CursorState);
-            if (bytes.Length != 3 * 16)
+            if (bytes.Length == 3 * 16)
+            {
+                (pagingCursor, stopAtBoundary, nextBoundaryCursor) = ByteArrayUtil.Split(bytes, 16, 16, 16);
+
+                if (ByteArrayUtil.EquiByteArrayCompare(pagingCursor, Guid.Empty.ToByteArray()))
+                    pagingCursor = null;
+
+                if (ByteArrayUtil.EquiByteArrayCompare(stopAtBoundary, Guid.Empty.ToByteArray()))
+                    stopAtBoundary = null;
+
+                if (ByteArrayUtil.EquiByteArrayCompare(nextBoundaryCursor, Guid.Empty.ToByteArray()))
+                    nextBoundaryCursor = null;
+            }
+            else if (bytes.Length == 3 * 16 + 3 * 1 + 3 * 8)
+            {
+                var (c1, nullBytes, c2) = ByteArrayUtil.Split(bytes, 3*16, 3*1, 3*8);
+
+                (pagingCursor, stopAtBoundary, nextBoundaryCursor) = ByteArrayUtil.Split(c1, 16, 16, 16);
+
+                if (ByteArrayUtil.EquiByteArrayCompare(pagingCursor, Guid.Empty.ToByteArray()))
+                    pagingCursor = null;
+
+                if (ByteArrayUtil.EquiByteArrayCompare(stopAtBoundary, Guid.Empty.ToByteArray()))
+                    stopAtBoundary = null;
+
+                if (ByteArrayUtil.EquiByteArrayCompare(nextBoundaryCursor, Guid.Empty.ToByteArray()))
+                    nextBoundaryCursor = null;
+
+                var (bd1,bd2,bd3) = ByteArrayUtil.Split(c2, 8, 8, 8);
+
+                userDatePagingCursor = ByteArrayUtil.BytesToInt64(bd1);
+                if (nullBytes[0] == 0)
+                    userDatePagingCursor = null;
+
+                userDateStopAtBoundary = ByteArrayUtil.BytesToInt64(bd2);
+                if (nullBytes[1] == 0)
+                    userDateStopAtBoundary = null;
+
+                userDateNextBoundaryCursor = ByteArrayUtil.BytesToInt64(bd3);
+                if (nullBytes[2] == 0)
+                    userDateNextBoundaryCursor = null;
+            }
+            else
                 throw new Exception("Invalid cursor state");
-
-            (pagingCursor, stopAtBoundary, nextBoundaryCursor) = ByteArrayUtil.Split(bytes, 16, 16, 16);
-
-            if (ByteArrayUtil.EquiByteArrayCompare(pagingCursor, Guid.Empty.ToByteArray()))
-                pagingCursor = null;
-
-            if (ByteArrayUtil.EquiByteArrayCompare(stopAtBoundary, Guid.Empty.ToByteArray()))
-                stopAtBoundary = null;
-
-            if (ByteArrayUtil.EquiByteArrayCompare(nextBoundaryCursor, Guid.Empty.ToByteArray()))
-                nextBoundaryCursor = null;
         }
 
 
@@ -120,6 +152,20 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 this.stopAtBoundary ?? Guid.Empty.ToByteArray(),
                 this.nextBoundaryCursor ?? Guid.Empty.ToByteArray());
             
+            if ((userDatePagingCursor == null) && (userDateStopAtBoundary == null) && (userDateNextBoundaryCursor == null))
+                return bytes.ToBase64();
+
+            var nullBytes = ByteArrayUtil.Combine(
+                this.userDatePagingCursor == null ? new byte[] { 0 } : new byte[] { 1 },
+                this.userDateStopAtBoundary == null ? new byte[] { 0 } : new byte[] { 1 },
+                this.userDateNextBoundaryCursor == null ? new byte[] { 0 } : new byte[] { 1 });
+
+            var bytes2 = ByteArrayUtil.Combine(ByteArrayUtil.Int64ToBytes(this.userDatePagingCursor?.milliseconds ?? long.MinValue),
+                                      ByteArrayUtil.Int64ToBytes(this.userDateStopAtBoundary?.milliseconds ?? long.MinValue),
+                                      ByteArrayUtil.Int64ToBytes(this.userDateNextBoundaryCursor?.milliseconds ?? long.MinValue));
+
+            bytes = ByteArrayUtil.Combine(bytes, nullBytes, bytes2);
+
             return bytes.ToBase64();
         }
     }
