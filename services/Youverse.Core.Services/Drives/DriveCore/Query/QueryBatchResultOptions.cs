@@ -6,7 +6,7 @@ public class QueryBatchResultOptions : ResultOptions
 {
     public QueryBatchCursor Cursor { get; set; }
 
-    public Ordering Ordering { get; set; }
+    public Ordering Ordering { get; set; } = Ordering.Default;
 }
 
 public enum Ordering

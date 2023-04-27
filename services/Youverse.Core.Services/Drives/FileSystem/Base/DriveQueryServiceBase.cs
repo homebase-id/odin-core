@@ -39,7 +39,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             AssertCanReadDrive(driveId);
             if (TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
-                var (updatedCursor, fileIdList,hasMoreRows) =
+                var (updatedCursor, fileIdList, hasMoreRows) =
                     await queryManager.GetModified(ContextAccessor.GetCurrent(), GetFileSystemType(), qp, options);
                 var headers = await CreateClientFileHeaders(driveId, fileIdList, options);
 
@@ -103,8 +103,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
 
         public async Task<QueryBatchCollectionResponse> GetBatchCollection(QueryBatchCollectionRequest request)
         {
-            foreach (var driveId in request.Queries.Select(q =>
-                         ContextAccessor.GetCurrent().PermissionsContext.GetDriveId(q.QueryParams.TargetDrive)))
+            foreach (var driveId in request.Queries.Select(q => ContextAccessor.GetCurrent().PermissionsContext.GetDriveId(q.QueryParams.TargetDrive)))
             {
                 AssertCanReadDrive(driveId);
             }
@@ -112,10 +111,8 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             var collection = new QueryBatchCollectionResponse();
             foreach (var query in request.Queries)
             {
-                var driveId = (await DriveManager.GetDriveIdByAlias(query.QueryParams.TargetDrive, true))
-                    .GetValueOrDefault();
-                var result = await this.GetBatch(driveId, query.QueryParams,
-                    query.ResultOptionsRequest.ToQueryBatchResultOptions());
+                var driveId = (await DriveManager.GetDriveIdByAlias(query.QueryParams.TargetDrive, true)).GetValueOrDefault();
+                var result = await this.GetBatch(driveId, query.QueryParams, query.ResultOptionsRequest.ToQueryBatchResultOptions());
 
                 var response = QueryBatchResponse.FromResult(result);
                 response.Name = query.Name;

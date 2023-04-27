@@ -10,6 +10,7 @@ using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.FileSystem.Base;
+using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Hosting.Authentication.ClientToken;
@@ -180,6 +181,28 @@ namespace Youverse.Hosting.Controllers.Base
             return new JsonResult(result);
         }
 
+        // protected async Task UpdateMetadata(UploadMetadataRequest request)
+        // {
+        //     request.StorageOptions.
+        // }
+
+        protected async Task<IActionResult> DeleteThumbnail(GetThumbnailRequest request)
+        {
+            var file = MapToInternalFile(request.File);
+
+            var fs = this.GetFileSystemResolver().ResolveFileSystem();
+            await fs.Storage.DeleteThumbnail(file, request.Width, request.Height);
+            return Ok();
+        }
+
+        protected async Task<IActionResult> DeletePayload(GetPayloadRequest request)
+        {
+            var file = MapToInternalFile(request.File);
+            var fs = this.GetFileSystemResolver().ResolveFileSystem();
+            await fs.Storage.DeletePayload(file);
+            return Ok();
+        }
+
         private void AddCacheHeader()
         {
             if (DotYouContext.AuthContext == ClientTokenConstants.YouAuthScheme)
@@ -187,5 +210,11 @@ namespace Youverse.Hosting.Controllers.Base
                 this.Response.Headers.Add("Cache-Control", "max-age=3600");
             }
         }
+    }
+
+    public class UploadMetadataRequest
+    {
+        public StorageOptions StorageOptions { get; set; }
+        public UploadFileMetadata UploadFileMetadata { get; set; }
     }
 }

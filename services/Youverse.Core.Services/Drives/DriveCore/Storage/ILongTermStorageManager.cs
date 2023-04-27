@@ -89,5 +89,9 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
         /// Removes all thumbnails on disk which are not in the provided list.
         /// </summary>
         Task ReconcileThumbnailsOnDisk(Guid fileId, List<ImageDataHeader> thumbnailsToKeep);
+
+        Task DeleteThumbnail(Guid fileId, int width, int height);
+        
+        Task DeleteFilePartStream(Guid fileId, FilePart payload);
     }
 }

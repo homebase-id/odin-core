@@ -72,7 +72,6 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
 
         if (options.Ordering == Ordering.Default)
         {
-            // TODO TODD use moreRows
             var (results, moreRows) = _db.QueryBatchAuto(
                 noOfItems: options.MaxRecords,
                 cursor: ref cursor,

@@ -234,6 +234,46 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             return await GetLongTermStorageManager(file.DriveId).GetThumbnail(file.FileId, nextSizeUp.PixelWidth, nextSizeUp.PixelHeight);
         }
 
+        public async Task DeleteThumbnail(InternalDriveFileId file, int width, int height)
+        {
+            this.AssertCanWriteToDrive(file.DriveId);
+
+            //Note: calling to get the file header so we can ensure the caller can read this file
+            var header = await this.GetServerFileHeader(file);
+            var thumbs = header?.FileMetadata?.AppData?.AdditionalThumbnails?.ToList();
+            if (null == thumbs || !thumbs.Any())
+            {
+                return;
+            }
+
+            var directMatchingThumb = thumbs.SingleOrDefault(t => t.PixelHeight == height && t.PixelWidth == width);
+            if (null != directMatchingThumb)
+            {
+                // Update the metadata 
+                var updatedThumbs = header.FileMetadata.AppData.AdditionalThumbnails.Where(t => !(t.PixelHeight == height && t.PixelWidth == width));
+                header.FileMetadata.AppData.AdditionalThumbnails = updatedThumbs;
+                await this.UpdateActiveFileHeader(file, header);
+                await GetLongTermStorageManager(file.DriveId).DeleteThumbnail(file.FileId, width, height);
+            }
+
+            return;
+        }
+
+        public async Task DeletePayload(InternalDriveFileId file)
+        {
+            this.AssertCanWriteToDrive(file.DriveId);
+
+            //Note: calling to get the file header so we can ensure the caller can read this file
+            var header = await this.GetServerFileHeader(file);
+
+            if (header.FileMetadata.AppData.ContentIsComplete == false)
+            {
+                header.FileMetadata.AppData.ContentIsComplete = true;
+                await UpdateActiveFileHeader(file, header);
+                await GetLongTermStorageManager(file.DriveId).DeleteFilePartStream(file.FileId, FilePart.Payload);
+            }
+        }
+
         public async Task WriteThumbnailStream(InternalDriveFileId file, int width, int height, Stream stream)
         {
             AssertCanWriteToDrive(file.DriveId);
@@ -466,7 +506,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             {
                 throw new YouverseClientException($"Invalid version tag {metadata.VersionTag}", YouverseClientErrorCode.VersionTagMismatch);
             }
-            
+
             metadata.Updated = UnixTimeUtc.Now().milliseconds;
             metadata.Created = existingServerHeader.FileMetadata.Created;
             metadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
@@ -611,7 +651,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
         private async Task WriteFileHeaderInternal(ServerFileHeader header)
         {
             header.FileMetadata.VersionTag = SequentialGuid.CreateGuid();
-            
+
             var json = DotYouSystemSerializer.Serialize(header);
             var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
             await GetLongTermStorageManager(header.FileMetadata.File.DriveId).WritePartStream(header.FileMetadata.File.FileId, FilePart.Header, stream);

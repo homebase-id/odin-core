@@ -49,6 +49,13 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
             return WriteFile(filePath, tempFilePath, stream);
         }
 
+        public Task DeleteFilePartStream(Guid fileId, FilePart filePart)
+        {
+            string path = GetFilenameAndPath(fileId, filePart);
+            File.Delete(path);
+            return Task.CompletedTask;
+        }
+
         public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart, FileChunk chunk = null)
         {
             string path = GetFilenameAndPath(fileId, filePart);
@@ -88,6 +95,16 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
             string path = Path.Combine(dir, fileName);
             var fileStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             return Task.FromResult((Stream)fileStream);
+        }
+
+        public Task DeleteThumbnail(Guid fileId, int width, int height)
+        {
+            string fileName = GetThumbnailFileName(fileId, width, height);
+            string dir = GetFilePath(fileId, false);
+            string path = Path.Combine(dir, fileName);
+            
+            File.Delete(path);
+            return Task.CompletedTask;
         }
 
         private string GetThumbnailFileName(Guid fileId, int width, int height)
