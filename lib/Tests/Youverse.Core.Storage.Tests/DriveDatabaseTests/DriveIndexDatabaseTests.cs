@@ -583,6 +583,38 @@ namespace DriveDatabaseTests
             Debug.Assert(hasRows == false);
         }
 
+
+        [Test]
+        public void QueryBatchUserDateCursorNewestHasRows01()
+        {
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            _testDatabase.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var s1 = SequentialGuid.CreateGuid().ToByteArray();
+            var t1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null);
+
+            QueryBatchCursor cursor = null;
+            var (result, hasRows) = _testDatabase.QueryBatch(2, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 2);
+            Debug.Assert(hasRows == true);
+
+            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 1);
+            Debug.Assert(hasRows == false);
+
+            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 0);
+            Debug.Assert(hasRows == false);
+        }
+
+
         [Test]
         public void QueryBatchCursorOldestHasRows01()
         {
@@ -609,6 +641,37 @@ namespace DriveDatabaseTests
             Debug.Assert(hasRows == false);
 
             (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 0);
+            Debug.Assert(hasRows == false);
+        }
+
+
+        [Test]
+        public void QueryBatchUserDateCursorOldestHasRows01()
+        {
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            _testDatabase.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var s1 = SequentialGuid.CreateGuid().ToByteArray();
+            var t1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 1, null, null);
+            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null);
+
+            QueryBatchCursor cursor = null;
+            var (result, hasRows) = _testDatabase.QueryBatch(2, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 2);
+            Debug.Assert(hasRows == true);
+
+            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 1);
+            Debug.Assert(hasRows == false);
+
+            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
         }
@@ -647,6 +710,41 @@ namespace DriveDatabaseTests
             Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f1.ToByteArray()) == 0);
         }
 
+        [Test]
+        public void QueryBatchUserDateCursorNewest01()
+        {
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            _testDatabase.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid(); // Oldest
+            var s1 = SequentialGuid.CreateGuid().ToByteArray();
+            var t1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid(); // Newest
+
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(42), 1, null, null);
+            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null);
+
+            QueryBatchCursor cursor = null;
+            var (result, hasRows) = _testDatabase.QueryBatch(2, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 2);
+            Debug.Assert(hasRows == true);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f3) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[1], f1) == 0);
+
+            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 1);
+            Debug.Assert(hasRows == false);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f2) == 0);
+
+            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 0);
+            Debug.Assert(hasRows == false);
+            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f2.ToByteArray()) == 0);
+            Debug.Assert(cursor.userDatePagingCursor.Value.milliseconds == 42);
+        }
+
 
         [Test]
         public void QueryBatchCursorOldest01()
@@ -676,6 +774,43 @@ namespace DriveDatabaseTests
             Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f3.ToByteArray()) == 0);
 
             (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: false, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 0);
+            Debug.Assert(hasRows == false);
+            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f3.ToByteArray()) == 0);
+        }
+
+
+        [Test]
+        public void QueryBatchUserDateCursorOldest01()
+        {
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            _testDatabase.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid(); // Oldest
+            var s1 = SequentialGuid.CreateGuid().ToByteArray();
+            var t1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid(); // Newest
+
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 0, null, null);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(42), 1, null, null);
+            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null);
+
+            QueryBatchCursor cursor = null;
+            var (result, hasRows) = _testDatabase.QueryBatch(2, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 2);
+            Debug.Assert(hasRows == true);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f2) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[1], f1) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f1.ToByteArray()) == 0);
+
+            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 1);
+            Debug.Assert(hasRows == false);
+            Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f3.ToByteArray()) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(result[0], f3) == 0);
+
+            (result, hasRows) = _testDatabase.QueryBatch(1, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 0);
             Debug.Assert(hasRows == false);
             Debug.Assert(ByteArrayUtil.muidcmp(cursor.pagingCursor, f3.ToByteArray()) == 0);
