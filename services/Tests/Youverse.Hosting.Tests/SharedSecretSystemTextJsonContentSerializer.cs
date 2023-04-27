@@ -12,6 +12,7 @@ using Refit;
 using Youverse.Core;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Serialization;
+using Youverse.Core.Services.Base;
 
 #nullable enable
 

@@ -58,6 +58,37 @@ namespace Youverse.Core.Services.AppNotifications
             await AwaitCommands(deviceSocket);
         }
 
+        /// <summary>
+        /// Awaits the configuration when establishing a new web socket connection
+        /// </summary>
+        public async Task EstablishConnection(WebSocket webSocket)
+        {
+            var buffer = new byte[1024 * 4];
+
+            //Wait for the caller to request the connection parameters
+            var receiveResult = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+
+            EstablishConnectionRequest request = null;
+            if (receiveResult.MessageType == WebSocketMessageType.Text) //must be JSON
+            {
+                Array.Resize(ref buffer, receiveResult.Count);
+                var decryptedBytes = SharedSecretEncryptedPayload.Decrypt(buffer, _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey);
+                request = DotYouSystemSerializer.Deserialize<EstablishConnectionRequest>(decryptedBytes);
+            }
+
+            if (null == request)
+            {
+                //send a close method
+                await webSocket.SendAsync(
+                    new ArraySegment<byte>(buffer, 0, 0),
+                    WebSocketMessageType.Close,
+                    WebSocketMessageFlags.EndOfMessage,
+                    CancellationToken.None);
+            }
+
+            await this.Connect(webSocket, request);
+        }
+
         private async Task AwaitCommands(DeviceSocket deviceSocket)
         {
             var buffer = new byte[1024 * 4];
@@ -77,11 +108,8 @@ namespace Youverse.Core.Services.AppNotifications
                 if (receiveResult.MessageType == WebSocketMessageType.Text) //must be JSON
                 {
                     Array.Resize(ref buffer, receiveResult.Count);
-                    var json = buffer.ToStringFromUtf8Bytes();
-
-                    //TODO: i need a method to keep the data field as a string so i can further deserialize it based on the command
-                    var command = await DotYouSystemSerializer.Deserialize<SocketCommand>(buffer.ToMemoryStream());
-
+                    var decryptedBytes = SharedSecretEncryptedPayload.Decrypt(buffer, _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey);
+                    var command = DotYouSystemSerializer.Deserialize<SocketCommand>(decryptedBytes);
                     if (null != command)
                     {
                         await ProcessCommand(command);
@@ -169,10 +197,15 @@ namespace Youverse.Core.Services.AppNotifications
 
             try
             {
+                var key = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
+                var encryptedPayload = SharedSecretEncryptedPayload.Encrypt(message.ToUtf8ByteArray(), key);
+                var json = DotYouSystemSerializer.Serialize(encryptedPayload);
+                var jsonBytes = json.ToUtf8ByteArray();
+
                 await socket.SendAsync(
-                    buffer: new ArraySegment<byte>(message.ToUtf8ByteArray(), 0, message.Length),
+                    buffer: new ArraySegment<byte>(jsonBytes, 0, json.Length),
                     messageType: WebSocketMessageType.Text,
-                    endOfMessage: true,
+                    messageFlags: GetMessageFlags(endOfMessage: true, compressMessage: true),
                     cancellationToken: CancellationToken.None);
             }
             catch (Exception e)
@@ -196,10 +229,27 @@ namespace Youverse.Core.Services.AppNotifications
                     var request = DotYouSystemSerializer.Deserialize<ProcessInboxRequest>(command.Data);
                     await _transitInboxProcessor.ProcessInbox(request.TargetDrive, request.BatchSize);
                     break;
-                
+
                 default:
                     throw new Exception("Invalid command");
             }
+        }
+
+        private static WebSocketMessageFlags GetMessageFlags(bool endOfMessage, bool compressMessage)
+        {
+            WebSocketMessageFlags flags = WebSocketMessageFlags.None;
+
+            if (endOfMessage)
+            {
+                flags |= WebSocketMessageFlags.EndOfMessage;
+            }
+
+            if (!compressMessage)
+            {
+                flags |= WebSocketMessageFlags.DisableCompression;
+            }
+
+            return flags;
         }
     }
 }
