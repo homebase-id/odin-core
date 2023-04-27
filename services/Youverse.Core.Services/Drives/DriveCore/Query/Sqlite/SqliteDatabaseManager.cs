@@ -309,6 +309,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         var (results, hasMoreRows) = _db.QueryBatch(
             noOfItems: options.MaxRecords,
             cursor: ref cursor,
+            fileIdSort: options.Sorting == Sorting.FileId,
             newestFirstOrder: options.Ordering == Ordering.NewestFirst,
             fileSystemType: (Int32)fileSystemType,
             requiredSecurityGroup: securityRange,
