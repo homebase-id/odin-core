@@ -189,7 +189,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             //let this happen in the background w/o blocking
             _mediator.Publish(new ConnectionRequestReceived()
             {
-                Sender = sender
+                Sender = sender,
+                Recipient = recipient
             });
 #pragma warning restore CS4014
 
@@ -317,7 +318,8 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
             await _mediator.Publish(new ConnectionRequestAccepted()
             {
-                Sender = (OdinId)originalRequest.SenderOdinId
+                Sender = (OdinId)originalRequest.SenderOdinId,
+                Recipient = (OdinId)originalRequest.Recipient
             });
         }
 

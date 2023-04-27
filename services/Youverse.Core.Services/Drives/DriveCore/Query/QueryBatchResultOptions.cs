@@ -8,13 +8,13 @@ public class QueryBatchResultOptions : ResultOptions
 
     public Ordering Ordering { get; set; } = Ordering.Default;
 
-    public Sorting Sorting { get; set; } = Sorting.UserDate;
+    public Sorting Sorting { get; set; } = Sorting.FileId;
 }
 
 public enum Sorting
 {
-    UserDate = 0,
-    FileId = 1
+    FileId = 0,
+    UserDate = 1
 }
 
 public enum Ordering
