@@ -228,6 +228,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
         /// <param name="noOfItems">Maximum number of results you want back</param>
         /// <param name="cursor">Pass null to get a complete set of data. Continue to pass the cursor to get the next page. pagingCursor will be updated. When no more data is available, pagingCursor is set to null (query will restart if you keep passing it)</param>
         /// <param name="newestFirstOrder">true to get pages from the newest item first, false to get pages from the oldest item first.</param>
+        /// <param name="fileIdSort">true to order by fileId, false to order by usedDate, fileId</param>
         /// <param name="requiredSecurityGroup"></param>
         /// <param name="filetypesAnyOf"></param>
         /// <param name="datatypesAnyOf"></param>
@@ -241,6 +242,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
         public (List<Guid>, bool moreRows) QueryBatch(int noOfItems,
             ref QueryBatchCursor cursor,
             bool newestFirstOrder,
+            bool fileIdSort = true,
             Int32? fileSystemType = (int)FileSystemType.Standard,
             IntRange requiredSecurityGroup = null,
             List<Guid> globalTransitIdAnyOf = null,
@@ -271,27 +273,51 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             }
 
             //
-            // OPPOSITE DIRECTION CHANGES...
-            // For opposite direction, reverse < to > and > to < and 
-            // DESC to ASC
+            // Set order for appropriate direction
             //
+            char sign;
+            char isign;
+            string direction;
+
+            if (newestFirstOrder)
+            {
+                sign = '<';
+                isign = '>';
+                direction = "DESC";
+            }
+            else
+            {
+                sign = '>';
+                isign = '<';
+                direction = "ASC";
+            }
 
             var listWhereAnd = new List<string>();
 
             if (cursor.pagingCursor != null)
             {
-                if (newestFirstOrder)
-                    listWhereAnd.Add($"fileid < x'{Convert.ToHexString(cursor.pagingCursor)}'");
+                if (fileIdSort)
+                    listWhereAnd.Add($"fileid {sign} x'{Convert.ToHexString(cursor.pagingCursor)}'");
                 else
-                    listWhereAnd.Add($"fileid > x'{Convert.ToHexString(cursor.pagingCursor)}'");
+                {
+                    if (cursor.userDatePagingCursor == null)
+                        throw new Exception("userDatePagingCursor cannot be null, cursor initialized incorrectly");
+
+                    listWhereAnd.Add($"((userDate = {cursor.userDatePagingCursor.Value.milliseconds} AND fileid {sign} x'{Convert.ToHexString(cursor.pagingCursor)}') OR (userDate {sign} {cursor.userDatePagingCursor.Value.milliseconds}))");
+                }
             }
 
             if (cursor.stopAtBoundary != null)
             {
-                if (newestFirstOrder)
-                    listWhereAnd.Add($"fileid > x'{Convert.ToHexString(cursor.stopAtBoundary)}'");
+                if (fileIdSort)
+                    listWhereAnd.Add($"fileid {isign} x'{Convert.ToHexString(cursor.stopAtBoundary)}'");
                 else
-                    listWhereAnd.Add($"fileid < x'{Convert.ToHexString(cursor.stopAtBoundary)}'");
+                {
+                    if (cursor.userDateStopAtBoundary == null)
+                        throw new Exception("userDateStopAtBoundary cannot be null, cursor initialized incorrectly");
+
+                    listWhereAnd.Add($"((userDate = {cursor.userDateStopAtBoundary.Value.milliseconds} AND fileid {sign} x'{Convert.ToHexString(cursor.pagingCursor)}') OR (userDate {sign} {cursor.userDateStopAtBoundary.Value.milliseconds}))");
+                }
             }
 
             if (requiredSecurityGroup == null)
@@ -374,14 +400,24 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 strWhere = " WHERE " + string.Join(" AND ", listWhereAnd);
             }
 
-            string order;
-            if (newestFirstOrder)
-                order = "DESC";
+            string selectOutputFields;
+            if (fileIdSort)
+                selectOutputFields = "fileId";
             else
-                order = "ASC";
+                selectOutputFields = "fileId, userDate";
+
+            string order;
+            if (fileIdSort)
+            {
+                order = "fileId " + direction;
+            }
+            else
+            {
+                order = "userDate " + direction+", fileId " + direction;
+            }
 
             // Read +1 more than requested to see if we're at the end of the dataset
-            string stm = $"SELECT fileid FROM mainindex" + strWhere + $" ORDER BY fileid {order} LIMIT {noOfItems + 1}";
+            string stm = $"SELECT {selectOutputFields} FROM mainindex" + strWhere + $" ORDER BY {order} LIMIT {noOfItems + 1}";
 
             var cmd = this.CreateCommand();
             cmd.CommandText = stm;
@@ -390,19 +426,28 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 
             var result = new List<Guid>();
             var _fileId = new byte[16];
+            long _userDate = 0;
 
             int i = 0;
             while (rdr.Read())
             {
                 rdr.GetBytes(0, 0, _fileId, 0, 16);
                 result.Add(new Guid(_fileId));
+
+                if (fileIdSort == false)
+                    _userDate = rdr.GetInt64(1);
+
                 i++;
                 if (i >= noOfItems)
                     break;
             }
 
             if (i > 0)
+            {
                 cursor.pagingCursor = _fileId; // The last result, ought to be a lone copy
+                if (fileIdSort == false)
+                    cursor.userDatePagingCursor = new UnixTimeUtc(_userDate);
+            }
 
             bool HasMoreRows = rdr.Read(); // Unfortunately, this seems like the only way to know if there's more rows
 
@@ -447,6 +492,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 QueryBatch(noOfItems, 
                               ref cursor,
                               newestFirstOrder: true,
+                              fileIdSort: true,
                               fileSystemType,
                               requiredSecurityGroup,
                               globalTransitIdAnyOf,

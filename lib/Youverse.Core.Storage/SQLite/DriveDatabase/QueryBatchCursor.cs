@@ -24,6 +24,11 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
         public byte[] nextBoundaryCursor;
         public UnixTimeUtc? userDateNextBoundaryCursor;
 
+        public bool IsUserDateSort()
+        {
+            return userDatePagingCursor != null || userDateNextBoundaryCursor != null || userDateStopAtBoundary != null;
+        }
+
         public QueryBatchCursor()
         {
             pagingCursor = null;
