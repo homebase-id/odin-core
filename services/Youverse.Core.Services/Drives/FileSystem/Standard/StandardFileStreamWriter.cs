@@ -22,8 +22,8 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
 
     /// <summary />
     public StandardFileStreamWriter(StandardFileSystem fileSystem, TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITransitService transitService,
-        DriveManager driveManager, UploadLock uploadLock)
-        : base(fileSystem, tenantContext, contextAccessor, driveManager, uploadLock)
+        DriveManager driveManager)
+        : base(fileSystem, tenantContext, contextAccessor, driveManager)
     {
         _transitService = transitService;
     }
@@ -56,12 +56,23 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
 
     protected override async Task ProcessExistingFileUpload(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
     {
-        await FileSystem.Storage.OverwriteFile(tempFile: package.InternalFile,
-            targetFile: package.InternalFile,
-            keyHeader: keyHeader,
-            metadata: metadata,
-            serverMetadata: serverMetadata,
-            "payload");
+        if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.MetadataOnly)
+        {
+            await FileSystem.Storage.OverwriteMetadata(tempFile: package.InternalFile,
+                targetFile: package.InternalFile,
+                keyHeader: keyHeader,
+                newMetadata: metadata,
+                serverMetadata: serverMetadata);
+        }
+      
+        if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.Overwrite)
+        {
+            await FileSystem.Storage.OverwriteFile(tempFile: package.InternalFile,
+                targetFile: package.InternalFile,
+                keyHeader: keyHeader,
+                metadata: metadata,
+                serverMetadata: serverMetadata);
+        }
     }
 
     protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(UploadPackage package)

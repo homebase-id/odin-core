@@ -55,6 +55,39 @@ namespace Youverse.Hosting.Controllers.Base
             return status;
         }
 
+        /// <summary>
+        /// Uploads a file
+        /// </summary>
+        protected async Task<UploadResult> UpsertMetadata()
+        {
+            if (!IsMultipartContentType(HttpContext.Request.ContentType))
+            {
+                throw new YouverseClientException("Data is not multi-part content", YouverseClientErrorCode.MissingUploadData);
+            }
+
+            var boundary = GetBoundary(HttpContext.Request.ContentType);
+            var reader = new MultipartReader(boundary, HttpContext.Request.Body);
+
+            var driveUploadService = this.GetFileSystemResolver().ResolveFileSystemWriter();
+
+            var section = await reader.ReadNextSectionAsync();
+            AssertIsPart(section, MultipartUploadParts.Instructions);
+            await driveUploadService.StartUpload(section!.Body);
+
+            section = await reader.ReadNextSectionAsync();
+            AssertIsPart(section, MultipartUploadParts.Metadata);
+            await driveUploadService.AddMetadata(section!.Body);
+
+            //
+            section = await reader.ReadNextSectionAsync();
+            if (null != section)
+            {
+                throw new YouverseClientException("Method only supports uploading metadata", YouverseClientErrorCode.InvalidInstructionSet);
+            }
+
+            var status = await driveUploadService.FinalizeUpload();
+            return status;
+        }
         private protected void AssertIsPart(MultipartSection section, MultipartUploadParts expectedPart)
         {
             if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)

@@ -56,9 +56,7 @@ namespace Youverse.Hosting
         internal static void ConfigureMultiTenantServices(ContainerBuilder cb, Tenant tenant)
         {
             RegisterMediator(ref cb);
-
-            cb.RegisterType<UploadLock>().AsSelf().SingleInstance();
-
+            
             // cb.RegisterType<ServerSystemStorage>().AsSelf().SingleInstance();
             cb.RegisterType<TenantSystemStorage>().AsSelf().SingleInstance();
 

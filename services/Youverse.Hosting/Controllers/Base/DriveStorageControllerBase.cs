@@ -1,7 +1,9 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Dawn;
 using Microsoft.AspNetCore.Mvc;
 using Quartz.Util;
 using Youverse.Core.Exceptions;
@@ -180,11 +182,6 @@ namespace Youverse.Hosting.Controllers.Base
 
             return new JsonResult(result);
         }
-
-        // protected async Task UpdateMetadata(UploadMetadataRequest request)
-        // {
-        //     request.StorageOptions.
-        // }
 
         protected async Task<IActionResult> DeleteThumbnail(GetThumbnailRequest request)
         {
