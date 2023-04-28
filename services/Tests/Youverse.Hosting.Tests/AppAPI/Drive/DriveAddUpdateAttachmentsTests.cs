@@ -96,6 +96,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             var updatedHeader = await appApiClient.Drive.GetFileHeader(targetFile);
 
             Assert.IsTrue(updatedHeader.FileMetadata.VersionTag != originalFile.FileMetadata.VersionTag, "Version tag should have been updated");
+            Assert.IsTrue(updatedHeader.FileMetadata.Updated > originalFile.FileMetadata.Updated, "header modified date should have been updated");
             Assert.IsTrue(updatedHeader.FileMetadata.VersionTag == uploadAttachmentsResult.NewVersionTag);
             Assert.IsTrue(updatedHeader.FileMetadata.AppData.AdditionalThumbnails.Count() == finalThumbnailList.Count(),
                 $"Count was {updatedHeader.FileMetadata.AppData.AdditionalThumbnails.Count()} but should be {finalThumbnailList.Count()} ");
