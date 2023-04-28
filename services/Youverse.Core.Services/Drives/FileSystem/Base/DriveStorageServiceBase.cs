@@ -568,7 +568,8 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             }
         }
 
-        public async Task<Guid> UpdateAttachments(InternalDriveFileId sourceFile, InternalDriveFileId targetFile, IEnumerable<ImageDataHeader> incomingThumbnails)
+        public async Task<Guid> UpdateAttachments(InternalDriveFileId sourceFile, InternalDriveFileId targetFile,
+            IEnumerable<ImageDataHeader> incomingThumbnails)
         {
             const string payloadExtension = "payload";
             AssertCanWriteToDrive(targetFile.DriveId);
@@ -590,13 +591,17 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             var existingThumbnails = existingServerHeader.FileMetadata.AppData.AdditionalThumbnails?.ToList() ?? new List<ImageDataHeader>();
             await storageManager.ReconcileThumbnailsOnDisk(targetFile.FileId, existingThumbnails); //clean up
 
-            foreach (var thumb in  incomingThumbnails ?? new List<ImageDataHeader>())
+            foreach (var thumb in incomingThumbnails ?? new List<ImageDataHeader>())
             {
                 //TODO: de-dupe the records
                 var extension = this.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight);
                 var sourceThumbnail = await tempStorageManager.GetPath(sourceFile.FileId, extension);
                 await storageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, thumb.PixelWidth, thumb.PixelHeight);
-                existingThumbnails.Add(thumb);
+
+                if (!existingThumbnails.Contains(thumb))
+                {
+                    existingThumbnails.Add(thumb);
+                }
             }
 
             existingServerHeader.FileMetadata.AppData.AdditionalThumbnails = existingThumbnails;

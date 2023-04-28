@@ -29,7 +29,9 @@ using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 using Youverse.Core.Services.Drives.FileSystem.Comment;
+using Youverse.Core.Services.Drives.FileSystem.Comment.Attachments;
 using Youverse.Core.Services.Drives.FileSystem.Standard;
+using Youverse.Core.Services.Drives.FileSystem.Standard.Attachments;
 using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Services.Drives.Reactions;
 using Youverse.Core.Services.Drives.Statistics;
@@ -106,6 +108,7 @@ namespace Youverse.Hosting
             cb.RegisterType<FileSystemHttpRequestResolver>().AsSelf().InstancePerDependency();
             
             cb.RegisterType<StandardFileStreamWriter>().AsSelf().InstancePerDependency();
+            cb.RegisterType<StandardFileAttachmentStreamWriter>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileDriveStorageService>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileDriveQueryService>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardDriveCommandService>().AsSelf().InstancePerDependency();
@@ -113,6 +116,7 @@ namespace Youverse.Hosting
             cb.RegisterType<StandardFileSystem>().AsSelf().InstancePerDependency();
             
             cb.RegisterType<CommentStreamWriter>().AsSelf().InstancePerDependency();
+            cb.RegisterType<CommentAttachmentStreamWriter>().AsSelf().InstancePerDependency();
             cb.RegisterType<CommentFileStorageService>().AsSelf().InstancePerDependency();
             cb.RegisterType<CommentFileQueryService>().AsSelf().InstancePerDependency();
             cb.RegisterType<CommentFileSystem>().AsSelf().InstancePerDependency();

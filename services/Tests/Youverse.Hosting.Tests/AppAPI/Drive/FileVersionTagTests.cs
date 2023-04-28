@@ -84,7 +84,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             var uploadResult = await appApiClient.Drive.UploadFile(FileSystemType.Standard, appDrive.TargetDriveInfo, fileMetadata, payload);
 
             //get the uploaded file
-            var uploadedFile = await appApiClient.Drive.GetFileHeader(FileSystemType.Standard, uploadResult.File);
+            var uploadedFile = await appApiClient.Drive.GetFileHeader(uploadResult.File);
 
             Assert.IsFalse(uploadedFile.FileMetadata.VersionTag == Guid.Empty, "Server should have set a VersionTag on a new file");
         }
@@ -138,7 +138,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             var uploadResult = await appApiClient.Drive.UploadFile(FileSystemType.Standard, appDrive.TargetDriveInfo, fileMetadata, payload);
 
             //get the uploaded file
-            var uploadedFile = await appApiClient.Drive.GetFileHeader(FileSystemType.Standard, uploadResult.File);
+            var uploadedFile = await appApiClient.Drive.GetFileHeader(uploadResult.File);
 
             Assert.IsFalse(uploadedFile.FileMetadata.VersionTag == Guid.Empty, "Server should have set a VersionTag on a new file");
 
@@ -147,7 +147,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
             var (_, apiResponse) = await appApiClient.Drive.UploadRaw(FileSystemType.Standard, appDrive.TargetDriveInfo, fileMetadata, payload,
                 overwriteFileId: uploadResult.File.FileId);
-            
+
             Assert.IsTrue(apiResponse.StatusCode == HttpStatusCode.BadRequest);
 
             var details = DotYouSystemSerializer.Deserialize<ProblemDetails>(apiResponse!.Error!.Content!);

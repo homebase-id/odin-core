@@ -20,15 +20,12 @@ public abstract class AttachmentStreamWriterBase
     private readonly DotYouContextAccessor _contextAccessor;
 
     private AttachmentPackage _package;
-    private readonly DriveManager _driveManager;
 
     /// <summary />
-    protected AttachmentStreamWriterBase(IDriveFileSystem fileSystem, DotYouContextAccessor contextAccessor, DriveManager driveManager)
+    protected AttachmentStreamWriterBase(IDriveFileSystem fileSystem, DotYouContextAccessor contextAccessor)
     {
         FileSystem = fileSystem;
-
         _contextAccessor = contextAccessor;
-        _driveManager = driveManager;
     }
 
     protected IDriveFileSystem FileSystem { get; }
@@ -85,7 +82,7 @@ public abstract class AttachmentStreamWriterBase
 
         //validate caller can write to this file (checking ACL too)
 
-        await this.ValidateUploadCore(_package, serverHeader);
+        await this.ValidateUploadCore(serverHeader);
 
         await this.ValidateAttachments(_package, serverHeader);
 
@@ -115,10 +112,8 @@ public abstract class AttachmentStreamWriterBase
     /// <summary>
     /// Validates rules that apply to all files; regardless of being comment, standard, or some other type we've not yet conceived
     /// </summary>
-    private async Task ValidateUploadCore(AttachmentPackage package, ServerFileHeader header)
+    private async Task ValidateUploadCore(ServerFileHeader header)
     {
-        throw new NotImplementedException("work in process");
-        
         // Validate the file exists by the Id
         if (!FileSystem.Storage.FileExists(_package.InternalFile))
         {
@@ -128,15 +123,12 @@ public abstract class AttachmentStreamWriterBase
         // Check header.FileMetadata.AppData.ContentIsComplete
         // Check header.FileMetadata.AppData.AdditionalThumbnails
 
-        if (package.HasPayload)
-        {
-            //any rules for payload?
-        }
-
-        // if (metadata.AppData.ContentIsComplete && package.HasPayload)
+        // if (package.HasPayload)
         // {
-        //     throw new YouverseClientException("Content is marked complete in metadata but there is also a payload", YouverseClientErrorCode.InvalidPayload);
+        //     //any rules for payload?
         // }
+
+        await Task.CompletedTask;
     }
 
     protected InternalDriveFileId MapToInternalFile(ExternalFileIdentifier file)

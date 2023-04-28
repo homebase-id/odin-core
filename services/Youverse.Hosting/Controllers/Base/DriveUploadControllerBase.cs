@@ -85,19 +85,19 @@ namespace Youverse.Hosting.Controllers.Base
             section = await reader.ReadNextSectionAsync();
             while (null != section)
             {
+                //TODO: parse payload or thumbnail
                 AssertIsValidThumbnailPart(section, MultipartUploadParts.Thumbnail, out var fileSection, out var width, out var height);
                 await writer.AddThumbnail(width, height, fileSection.Section.ContentType, fileSection.FileStream);
                 section = await reader.ReadNextSectionAsync();
             }
 
             //
-            section = await reader.ReadNextSectionAsync();
-            AssertIsPart(section, MultipartUploadParts.Payload);
-            await writer.AddPayload(section!.Body);
+            // section = await reader.ReadNextSectionAsync();
+            // AssertIsPart(section, MultipartUploadParts.Payload);
+            // await writer.AddPayload(section!.Body);
 
-            var status =await writer.FinalizeUpload();
+            var status = await writer.FinalizeUpload();
             return status;
-
         }
 
         private protected void AssertIsPart(MultipartSection section, MultipartUploadParts expectedPart)

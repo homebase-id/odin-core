@@ -15,11 +15,6 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload.Attachments
             TargetFile = new ExternalFileIdentifier();
         }
 
-        /// <summary>
-        /// The transfer initialization vector used to encrypt the KeyHeader
-        /// </summary>
-        public byte[] TransferIv { get; set; }
-
         public ExternalFileIdentifier TargetFile { get; set; }
 
         /// <summary>
@@ -34,12 +29,6 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload.Attachments
         
         public void AssertIsValid()
         {
-            if (null == TransferIv || ByteArrayUtil.EquiByteArrayCompare(TransferIv, Guid.Empty.ToByteArray()))
-            {
-                throw new YouverseClientException("Invalid or missing instruction set or transfer initialization vector",
-                    YouverseClientErrorCode.InvalidInstructionSet);
-            }
-
             if (!TargetFile.HasValue())
             {
                 throw new YouverseClientException("OverwriteFile is invalid", YouverseClientErrorCode.InvalidFile);
