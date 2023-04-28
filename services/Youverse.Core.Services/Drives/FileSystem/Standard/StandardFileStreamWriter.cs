@@ -51,7 +51,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
 
     protected override async Task ProcessNewFileUpload(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
     {
-        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, "payload");
+        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata);
     }
 
     protected override async Task ProcessExistingFileUpload(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
@@ -73,6 +73,9 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
                 metadata: metadata,
                 serverMetadata: serverMetadata);
         }
+        
+        throw new YouverseSystemException("Unhandled Storage Intent");
+
     }
 
     protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(UploadPackage package)

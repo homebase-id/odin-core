@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -97,7 +98,6 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
                 }
 
                 var existingHeader = await this.GetServerFileHeaderInternal(file);
-                metadata.Updated = UnixTimeUtc.Now().milliseconds;
                 metadata.Created = existingHeader.FileMetadata.Created;
                 metadata.GlobalTransitId = existingHeader.FileMetadata.GlobalTransitId;
                 metadata.FileState = existingHeader.FileMetadata.FileState;
@@ -235,6 +235,11 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             return await GetLongTermStorageManager(file.DriveId).GetThumbnail(file.FileId, nextSizeUp.PixelWidth, nextSizeUp.PixelHeight);
         }
 
+        public Task AddThumbnail(InternalDriveFileId file, int width, int height, Stream stream)
+        {
+            throw new NotImplementedException("TODO");
+        }
+
         public async Task DeleteThumbnail(InternalDriveFileId file, int width, int height)
         {
             this.AssertCanWriteToDrive(file.DriveId);
@@ -261,11 +266,6 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
         }
 
         public Task AddPayload(InternalDriveFileId file, Stream payload)
-        {
-            throw new NotImplementedException("TODO");
-        }
-
-        public Task AddThumbnail(InternalDriveFileId file, int width, int height, Stream stream)
         {
             throw new NotImplementedException("TODO");
         }
@@ -428,9 +428,10 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             return result;
         }
 
-        public async Task CommitNewFile(InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata,
-            string payloadExtension)
+        public async Task CommitNewFile(InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
         {
+            const string payloadExtension = "payload";
+
             AssertCanWriteToDrive(targetFile.DriveId);
 
             metadata.File = targetFile;
@@ -518,7 +519,6 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
                 throw new YouverseClientException($"Invalid version tag {metadata.VersionTag}", YouverseClientErrorCode.VersionTagMismatch);
             }
 
-            metadata.Updated = UnixTimeUtc.Now().milliseconds;
             metadata.Created = existingServerHeader.FileMetadata.Created;
             metadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
             metadata.FileState = existingServerHeader.FileMetadata.FileState;
@@ -568,9 +568,67 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             }
         }
 
+        public async Task<Guid> UpdateAttachments(InternalDriveFileId sourceFile, InternalDriveFileId targetFile, IEnumerable<ImageDataHeader> incomingThumbnails)
+        {
+            const string payloadExtension = "payload";
+            AssertCanWriteToDrive(targetFile.DriveId);
+
+            var existingServerHeader = await this.GetServerFileHeader(targetFile);
+            if (null == existingServerHeader)
+            {
+                throw new YouverseClientException("Cannot overwrite file that does not exist", YouverseClientErrorCode.FileNotFound);
+            }
+
+            if (existingServerHeader.FileMetadata.FileState != FileState.Active)
+            {
+                throw new YouverseClientException("Cannot update a non-active file", YouverseClientErrorCode.CannotUpdateNonActiveFile);
+            }
+
+            var storageManager = GetLongTermStorageManager(targetFile.DriveId);
+            var tempStorageManager = GetTempStorageManager(sourceFile.DriveId);
+
+            var existingThumbnails = existingServerHeader.FileMetadata.AppData.AdditionalThumbnails?.ToList() ?? new List<ImageDataHeader>();
+            await storageManager.ReconcileThumbnailsOnDisk(targetFile.FileId, existingThumbnails); //clean up
+
+            foreach (var thumb in  incomingThumbnails ?? new List<ImageDataHeader>())
+            {
+                //TODO: de-dupe the records
+                var extension = this.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight);
+                var sourceThumbnail = await tempStorageManager.GetPath(sourceFile.FileId, extension);
+                await storageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, thumb.PixelWidth, thumb.PixelHeight);
+                existingThumbnails.Add(thumb);
+            }
+
+            existingServerHeader.FileMetadata.AppData.AdditionalThumbnails = existingThumbnails;
+
+            //update the existing file metadata with new attachments data
+            if (existingServerHeader.FileMetadata.AppData.ContentIsComplete == false)
+            {
+                string sourceFilePath = await tempStorageManager.GetPath(sourceFile.FileId, payloadExtension);
+                existingServerHeader.FileMetadata.PayloadSize = new FileInfo(sourceFilePath).Length;
+                await storageManager.MoveToLongTerm(targetFile.FileId, sourceFilePath, FilePart.Payload);
+            }
+
+            await WriteFileHeaderInternal(existingServerHeader);
+
+            if (await ShouldRaiseDriveEvent(targetFile))
+            {
+                await _mediator.Publish(new DriveFileChangedNotification()
+                {
+                    File = targetFile,
+                    ServerFileHeader = existingServerHeader,
+                    SharedSecretEncryptedFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(existingServerHeader, ContextAccessor)
+                });
+            }
+
+            return existingServerHeader.FileMetadata.VersionTag.GetValueOrDefault();
+        }
+
         public async Task OverwriteMetadata(InternalDriveFileId tempFile, InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata newMetadata,
             ServerMetadata serverMetadata)
         {
+            throw new NotImplementedException("TODO: need to refactor duplicate code between OverwriteMetadata and OverwriteFile");
+
             AssertCanWriteToDrive(targetFile.DriveId);
 
             var existingServerHeader = await this.GetServerFileHeader(targetFile);
@@ -603,7 +661,6 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
                     YouverseClientErrorCode.MalformedMetadata);
             }
 
-            newMetadata.Updated = UnixTimeUtc.Now().milliseconds;
             newMetadata.Created = existingServerHeader.FileMetadata.Created;
             newMetadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
             newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
@@ -740,6 +797,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
         private async Task WriteFileHeaderInternal(ServerFileHeader header)
         {
             header.FileMetadata.VersionTag = SequentialGuid.CreateGuid();
+            header.FileMetadata.Updated = UnixTimeUtc.Now().milliseconds;
 
             var json = DotYouSystemSerializer.Serialize(header);
             var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));

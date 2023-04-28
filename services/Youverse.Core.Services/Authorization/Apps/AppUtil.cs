@@ -17,7 +17,7 @@ public static class AppUtil
         if (parts.Length == 2)
         {
             DomainNameValidator.AssertValidDomain(parts[0]);
-            if (!short.TryParse(parts[1], out var _))
+            if (!int.TryParse(parts[1], out var port) || port > 65535)
             {
                 throw new YouverseClientException("Invalid host name for CORS; port must be a number", YouverseClientErrorCode.InvalidCorsHostName);
             }
@@ -26,5 +26,6 @@ public static class AppUtil
         if (parts.Length == 1)
         {
             DomainNameValidator.AssertValidDomain(corsHostName);
-        }        }
+        }
+    }
 }

@@ -10,7 +10,7 @@ public class FileQueryParams
     public IEnumerable<int> FileType { get; set; } = null;
     public IEnumerable<int> DataType { get; set; } = null;
 
-    public int? ArchivalStatus { get; set; } = null;
+    public IEnumerable<int> ArchivalStatus { get; set; } = null;
 
     /// <summary>
     /// List of byte[] where the content is a lower-cased UTF8 encoded byte array of the identity.
@@ -25,7 +25,7 @@ public class FileQueryParams
     public IEnumerable<Guid> TagsMatchAtLeastOne { get; set; } = null;
 
     public IEnumerable<Guid> TagsMatchAll { get; set; } = null;
-    
+
     public IEnumerable<Guid> GlobalTransitId { get; set; }
 
     public void AssertIsValid()

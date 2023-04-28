@@ -70,11 +70,10 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         // this point, we have validated the ReferenceToFile already exists
         //
 
-        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, "payload");
+        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata);
     }
 
-    protected override async Task ProcessExistingFileUpload(UploadPackage package, KeyHeader keyHeader,
-        FileMetadata metadata, ServerMetadata serverMetadata)
+    protected override async Task ProcessExistingFileUpload(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
     {
         //target is same file because it's set earlier in the upload process
         //using overwrite here so we can ensure the right event is called
@@ -97,6 +96,8 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
                 metadata: metadata,
                 serverMetadata: serverMetadata);
         }
+
+        throw new YouverseSystemException("Unhandled Storage Intent");
     }
 
     protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(UploadPackage package)

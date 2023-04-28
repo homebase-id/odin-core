@@ -139,7 +139,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     QueryParams = new FileQueryParams()
                     {
                         TargetDrive = uploadContext.TestAppContext.TargetDrive,
-                        ArchivalStatus = archivalStatus
+                        ArchivalStatus = new List<int>() { archivalStatus }
                     },
 
                     ResultOptionsRequest = new QueryBatchResultOptionsRequest()
@@ -244,7 +244,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         {
             var identity = TestIdentities.Samwise;
             const int archivalStatus = 1;
-            
+
             TransitTestUtilsOptions options = new TransitTestUtilsOptions()
             {
                 PayloadData = "some payload data for good measure",
@@ -252,7 +252,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 ProcessTransitBox = false,
                 DisconnectIdentitiesAfterTransfer = true,
             };
-            
+
             var uploadFileMetadata_not_archived = new UploadFileMetadata()
             {
                 ContentType = "application/json",
@@ -270,7 +270,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             };
 
             var notArchivedUploadContext = await _scaffold.AppApi.CreateAppAndUploadFileMetadata(identity, uploadFileMetadata_not_archived, options);
-            
+
             var uploadFileMetadata_archived = new UploadFileMetadata()
             {
                 ContentType = "application/json",
@@ -286,7 +286,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     ArchivalStatus = archivalStatus
                 }
             };
-            
+
             var uploadContext = await _scaffold.AppApi.CreateAppAndUploadFileMetadata(identity, uploadFileMetadata_archived, options);
 
             using (var client = _scaffold.AppApi.CreateAppApiHttpClient(uploadContext.TestAppContext))
@@ -296,7 +296,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 var qp = new FileQueryParams()
                 {
                     TargetDrive = uploadContext.TestAppContext.TargetDrive,
-                    ArchivalStatus = archivalStatus
+                    ArchivalStatus =  new List<int>() { archivalStatus }
                 };
 
                 var resultOptions = new QueryBatchResultOptionsRequest()

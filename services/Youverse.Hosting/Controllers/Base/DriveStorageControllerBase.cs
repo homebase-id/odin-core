@@ -182,7 +182,7 @@ namespace Youverse.Hosting.Controllers.Base
 
             return new JsonResult(result);
         }
-
+        
         protected async Task<IActionResult> DeleteThumbnail(GetThumbnailRequest request)
         {
             var file = MapToInternalFile(request.File);

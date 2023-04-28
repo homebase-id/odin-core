@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using Dawn;
 using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.SendingHost;
 
 namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
@@ -32,14 +31,15 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
         {
             if (null == TransferIv || ByteArrayUtil.EquiByteArrayCompare(TransferIv, Guid.Empty.ToByteArray()))
             {
-                throw new YouverseClientException("Invalid or missing instruction set or transfer initialization vector", YouverseClientErrorCode.InvalidInstructionSet);
+                throw new YouverseClientException("Invalid or missing instruction set or transfer initialization vector",
+                    YouverseClientErrorCode.InvalidInstructionSet);
             }
 
             if (!StorageOptions?.Drive?.IsValid() ?? false)
             {
                 throw new YouverseClientException("Target drive is invalid", YouverseClientErrorCode.InvalidTargetDrive);
             }
-            
+
             //Removed because this conflicts with AllowDistribution flag.
             //Having UseGlobalTransitId with a transient file does not hurt anything;  
             //it's just illogical because the file is going to be deleted
@@ -51,7 +51,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
             //     }
             // }
         }
-        
+
         public static UploadInstructionSet WithRecipients(TargetDrive drive, IEnumerable<string> recipients)
         {
             return WithRecipients(drive, recipients.ToArray());

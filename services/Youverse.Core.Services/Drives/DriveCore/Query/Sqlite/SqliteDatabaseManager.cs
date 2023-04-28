@@ -55,7 +55,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
             aclAnyOf: aclList,
             tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
             tagsAllOf: qp.TagsMatchAll?.ToList(),
-            archivalStatusAnyOf: qp.ArchivalStatus.HasValue ? new List<int>() { qp.ArchivalStatus.Value } : null);
+            archivalStatusAnyOf: qp.ArchivalStatus?.ToList());
 
         return Task.FromResult((cursor.uniqueTime, results.AsEnumerable(), moreRows));
     }
@@ -87,7 +87,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
                 uniqueIdAnyOf: qp.ClientUniqueIdAtLeastOne?.ToList(),
                 tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
                 tagsAllOf: qp.TagsMatchAll?.ToList(),
-                archivalStatusAnyOf: qp.ArchivalStatus.HasValue ? new List<int>() { qp.ArchivalStatus.Value } : null);
+                archivalStatusAnyOf: qp.ArchivalStatus?.ToList());
 
             return Task.FromResult((cursor, results.Select(r => r), moreRows));
         }
@@ -323,7 +323,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
             uniqueIdAnyOf: qp.ClientUniqueIdAtLeastOne?.ToList(),
             tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
             tagsAllOf: qp.TagsMatchAll?.ToList(),
-            archivalStatusAnyOf: qp.ArchivalStatus.HasValue ? new List<int>() { qp.ArchivalStatus.Value } : null);
+            archivalStatusAnyOf: qp.ArchivalStatus?.ToList());
 
         return Task.FromResult((cursor, results.Select(r => r), hasMoreRows));
     }

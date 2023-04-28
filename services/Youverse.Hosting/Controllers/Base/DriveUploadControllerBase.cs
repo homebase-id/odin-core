@@ -1,11 +1,16 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
+using Youverse.Core.Services.Drives.FileSystem.Base.Upload.Attachments;
+using Youverse.Core.Services.Transit;
 
 namespace Youverse.Hosting.Controllers.Base
 {
@@ -15,9 +20,9 @@ namespace Youverse.Hosting.Controllers.Base
     public abstract class DriveUploadControllerBase : OdinControllerBase
     {
         /// <summary>
-        /// Uploads a file
+        /// Receives a stream for a new file being uploaded or existing file being overwritten
         /// </summary>
-        protected async Task<UploadResult> ReceiveStream()
+        protected async Task<UploadResult> ReceiveFileStream()
         {
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
@@ -56,9 +61,9 @@ namespace Youverse.Hosting.Controllers.Base
         }
 
         /// <summary>
-        /// Uploads a file
+        /// Receives the stream for a new thumbnail being added to an existing file
         /// </summary>
-        protected async Task<UploadResult> UpsertMetadata()
+        protected async Task<UploadAttachmentsResult> ReceiveAttachmentStream()
         {
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
@@ -68,26 +73,33 @@ namespace Youverse.Hosting.Controllers.Base
             var boundary = GetBoundary(HttpContext.Request.ContentType);
             var reader = new MultipartReader(boundary, HttpContext.Request.Body);
 
-            var driveUploadService = this.GetFileSystemResolver().ResolveFileSystemWriter();
+            var writer = this.GetFileSystemResolver().ResolveAttachmentStreamWriter();
 
             var section = await reader.ReadNextSectionAsync();
-            AssertIsPart(section, MultipartUploadParts.Instructions);
-            await driveUploadService.StartUpload(section!.Body);
+            AssertIsPart(section, MultipartUploadParts.ThumbnailInstructions);
 
-            section = await reader.ReadNextSectionAsync();
-            AssertIsPart(section, MultipartUploadParts.Metadata);
-            await driveUploadService.AddMetadata(section!.Body);
+            await writer.StartUpload(section!.Body);
+
 
             //
             section = await reader.ReadNextSectionAsync();
-            if (null != section)
+            while (null != section)
             {
-                throw new YouverseClientException("Method only supports uploading metadata", YouverseClientErrorCode.InvalidInstructionSet);
+                AssertIsValidThumbnailPart(section, MultipartUploadParts.Thumbnail, out var fileSection, out var width, out var height);
+                await writer.AddThumbnail(width, height, fileSection.Section.ContentType, fileSection.FileStream);
+                section = await reader.ReadNextSectionAsync();
             }
 
-            var status = await driveUploadService.FinalizeUpload();
+            //
+            section = await reader.ReadNextSectionAsync();
+            AssertIsPart(section, MultipartUploadParts.Payload);
+            await writer.AddPayload(section!.Body);
+
+            var status =await writer.FinalizeUpload();
             return status;
+
         }
+
         private protected void AssertIsPart(MultipartSection section, MultipartUploadParts expectedPart)
         {
             if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)

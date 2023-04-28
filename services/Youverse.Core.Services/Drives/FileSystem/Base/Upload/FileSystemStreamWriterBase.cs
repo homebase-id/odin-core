@@ -16,8 +16,6 @@ using Youverse.Core.Services.Transit.Encryption;
 
 namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 
-//TODO: remove old packageId from methods
-
 /// <summary>
 /// Enables the writing of file streams from external sources and
 /// rule enforcement specific to the type of file system
@@ -70,7 +68,7 @@ public abstract class FileSystemStreamWriterBase
 
         if (overwriteFileId == Guid.Empty)
         {
-            //get a new fileid
+            //get a new file id
             file = FileSystem.Storage.CreateInternalFileId(driveId);
         }
         else
@@ -131,7 +129,7 @@ public abstract class FileSystemStreamWriterBase
 
             if (metadata.VersionTag == null)
             {
-                throw new YouverseClientException("Missing concurrency token for update operation", YouverseClientErrorCode.MissingVersionTag);
+                throw new YouverseClientException("Missing version tag for update operation", YouverseClientErrorCode.MissingVersionTag);
             }
 
             // If the uniqueId is being changed, validate that uniqueId is not in use by another file
@@ -139,7 +137,7 @@ public abstract class FileSystemStreamWriterBase
             {
                 var incomingClientUniqueId = metadata.AppData.UniqueId.Value;
                 var existingFileHeader = await FileSystem.Storage.GetServerFileHeader(_package.InternalFile);
-                
+
                 var isChangingUniqueId = incomingClientUniqueId != existingFileHeader.FileMetadata.AppData.UniqueId;
                 if (isChangingUniqueId)
                 {
@@ -322,4 +320,14 @@ public abstract class FileSystemStreamWriterBase
             }
         }
     }
+    
+    protected InternalDriveFileId MapToInternalFile(ExternalFileIdentifier file)
+    {
+        return  new InternalDriveFileId()
+        {
+            FileId = file.FileId,
+            DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(file.TargetDrive)
+        };
+    }
+    
 }

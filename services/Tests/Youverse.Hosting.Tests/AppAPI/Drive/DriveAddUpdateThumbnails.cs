@@ -8,16 +8,20 @@ using Refit;
 using Youverse.Core;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Youverse.Core.Services.Authorization.Permissions;
+using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
+using Youverse.Core.Storage;
 using Youverse.Hosting.Controllers.Base;
 using Youverse.Hosting.Tests.AppAPI.Utils;
 
 namespace Youverse.Hosting.Tests.AppAPI.Drive
 {
-    public class DriveUploadAppTests
+    public class DriveAddUpdateThumbnails
     {
         private WebScaffold _scaffold;
 
@@ -35,8 +39,23 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             _scaffold.RunAfterAnyTests();
         }
 
-        [Test(Description = "Test Upload only; no expire, no drive; no transfer")]
-        public async Task CanUploadFile()
+        [Test]
+        public async Task FailToAddThumbnailToFileThatDoesNotExist()
+        {
+            Assert.Inconclusive("TODO");
+        }
+
+        [Test]
+        public async Task CanRemoveThumbnail()
+        {
+            // upload file with thumbnail
+            // remove thumbnail
+            // validate metadata is automatically updated
+            Assert.Inconclusive("TODO");
+        }
+
+        [Test]
+        public async Task CanAddThumbnailToExistingFile()
         {
             var identity = TestIdentities.Frodo;
 
@@ -136,7 +155,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.That(fileKey, Is.Not.EqualTo(Guid.Empty.ToByteArray()));
 
                 //get the payload and decrypt, then compare
-                var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest() { File =new ExternalFileIdentifier() { TargetDrive = targetDrive, FileId = fileId }});
+                var payloadResponse = await driveSvc.GetPayloadAsPost(new GetPayloadRequest()
+                    { File = new ExternalFileIdentifier() { TargetDrive = targetDrive, FileId = fileId } });
                 Assert.That(payloadResponse.IsSuccessStatusCode, Is.True);
                 Assert.That(payloadResponse.Content, Is.Not.Null);
 
@@ -161,69 +181,69 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             key.Wipe();
         }
 
-        [Test(Description = "")]
-        public async Task CannotUploadEncryptedFileForAnonymousGroups()
+
+        private async Task UploadFileWithThumbnails(TestIdentity identity)
         {
-            var identity = TestIdentities.Frodo;
+            var ownerClient = _scaffold.CreateOwnerApiClient(identity);
 
-            var testContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(identity);
+            var appDrive = await ownerClient.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Chat Drive 1", "", false);
+            var appId = Guid.NewGuid();
 
-            var transferIv = ByteArrayUtil.GetRndByteArray(16);
-            var keyHeader = KeyHeader.NewRandom16();
-
-            var instructionSet = new UploadInstructionSet()
+            var appPermissionsGrant = new PermissionSetGrantRequest()
             {
-                TransferIv = transferIv,
-                StorageOptions = new StorageOptions()
+                Drives = new List<DriveGrantRequest>()
                 {
-                    Drive = testContext.TargetDrive
-                }
-            };
-
-            var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
-            var instructionStream = new MemoryStream(bytes);
-
-            var sba = testContext.SharedSecret.ToSensitiveByteArray();
-            var descriptor = new UploadFileDescriptor()
-            {
-                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref sba),
-                FileMetadata = new()
-                {
-                    ContentType = "application/json",
-                    AllowDistribution = true,
-                    PayloadIsEncrypted = true,
-                    AppData = new()
+                    new()
                     {
-                        Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
-                        ContentIsComplete = true,
-                        JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
-                    },
-                    AccessControlList = new AccessControlList()
-                    {
-                        RequiredSecurityGroup = SecurityGroupType.Anonymous
+                        PermissionedDrive = new PermissionedDrive()
+                        {
+                            Drive = appDrive.TargetDriveInfo,
+                            Permission = DrivePermission.All
+                        }
                     }
-                }
+                },
+                PermissionSet = new PermissionSet(PermissionKeys.All)
             };
 
-            var key = testContext.SharedSecret.ToSensitiveByteArray();
-            var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref key);
+            var appRegistration = await ownerClient.Apps.RegisterApp(appId, appPermissionsGrant);
+            var appApiClient = _scaffold.CreateAppClient(TestIdentities.Samwise, appId);
+            const string payload = "";
 
-            var payloadDataRaw = "{payload:true, image:'b64 data'}";
-            var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadDataRaw);
-
-            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(testContext))
+            var fileMetadata = new UploadFileMetadata()
             {
-                var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
-                var response = await transitSvc.Upload(
-                    new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
-                    new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
-                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+                ContentType = "application/json",
+                AllowDistribution = false,
+                PayloadIsEncrypted = false,
+                AppData = new()
+                {
+                    ContentIsComplete = true,
+                    JsonContent = "some content",
+                    FileType = 101,
+                    GroupId = default,
+                },
+                AccessControlList = AccessControlList.OwnerOnly
+            };
 
-                Assert.False(response.IsSuccessStatusCode);
+            //upload a file
+            var uploadResult = await appApiClient.Drive.UploadFile(FileSystemType.Standard, appDrive.TargetDriveInfo, fileMetadata, payload);
+
+            var uploadedFile = await appApiClient.Drive.GetFileHeader(FileSystemType.Standard, uploadResult.File);
+            Assert.IsTrue(uploadedFile.FileMetadata.VersionTag == uploadResult.NewVersionTag);
+
+            fileMetadata.VersionTag = uploadResult.NewVersionTag;
+
+            async Task<(UploadInstructionSet instructionSet, ApiResponse<UploadResult>)> OverwriteFile()
+            {
+                var (instructionSet, result) = await appApiClient.Drive.UploadRaw(FileSystemType.Standard, uploadResult.File.TargetDrive, fileMetadata, "",
+                    overwriteFileId: uploadResult.File.FileId);
+
+                if (result.IsSuccessStatusCode)
+                {
+                    fileMetadata.VersionTag = result.Content.NewVersionTag;
+                }
+
+                return (instructionSet, result);
             }
-
-            keyHeader.AesKey.Wipe();
-            key.Wipe();
         }
     }
 }

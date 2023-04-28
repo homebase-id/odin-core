@@ -5,6 +5,8 @@ namespace Youverse.Core.Services.Drives
         Instructions,
         Metadata,
         Payload,
-        Thumbnail
+        Thumbnail,
+        ThumbnailInstructions,
+        
     }
 }
