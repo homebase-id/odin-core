@@ -28,14 +28,14 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private readonly Trie.Trie<IdentityRegistration> _trie;
     private readonly string _tenantDataRootPath;
     private readonly CertificateRenewalConfig _certificateRenewalConfig;
-    
+
     public FileSystemIdentityRegistry(string tenantDataRootPath, CertificateRenewalConfig certificateRenewalConfig)
     {
         if (!Directory.Exists(tenantDataRootPath))
         {
             throw new InvalidDataException($"Could find or access path at [{tenantDataRootPath}]");
         }
-        
+
         _cache = new Dictionary<Guid, IdentityRegistration>();
         _trie = new Trie<IdentityRegistration>();
         _tenantDataRootPath = tenantDataRootPath;
@@ -55,7 +55,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     public Task<bool> IsIdentityRegistered(string domain)
     {
-        return Task.FromResult(_trie.LookupName(domain) != null);
+        return Task.FromResult(domain != null && _trie.LookupName(domain) != null);
     }
 
     public async Task<Guid> AddRegistration(IdentityRegistrationRequest request)
@@ -80,7 +80,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         }
         else
         {
-            //optionally, let an ssl certificate be provided 
+            //optionally, let an ssl certificate be provided
             //TODO: is there a way to pull a specific tenant's service config from Autofac?
             ITenantCertificateService tc = new TenantCertificateService(TenantContext.Create(registration.Id, request.OdinId, _tenantDataRootPath, _certificateRenewalConfig));
             await tc.SaveSslCertificate(registration.Id, request.OdinId.DomainName, request.OptionalCertificatePemContent);

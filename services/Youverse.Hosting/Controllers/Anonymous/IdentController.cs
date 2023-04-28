@@ -28,6 +28,9 @@ namespace Youverse.Hosting.Controllers.Anonymous
         public async Task<IActionResult> GetInfo()
         {
             var tenant = _dotYouContextAccessor.GetCurrent().Tenant;
+
+            HttpContext.Response.Headers.Add("Access-Control-Allow-Origin", "*");
+
             if(await _registry.IsIdentityRegistered(tenant))
             {
                 return await Task.FromResult(new JsonResult(new
@@ -35,7 +38,7 @@ namespace Youverse.Hosting.Controllers.Anonymous
                     OdinId = tenant
                 }));
             }
-            
+
             return await Task.FromResult(new JsonResult(new
             {
                 OdinId = string.Empty
