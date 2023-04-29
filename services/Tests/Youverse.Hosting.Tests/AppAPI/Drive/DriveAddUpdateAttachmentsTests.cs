@@ -54,7 +54,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             var originalFile = await appApiClient.Drive.GetFileHeader(targetFile);
 
             var thumbnailToRemove = originalThumbnails.First();
-            var deleteThumbnailResult = await appApiClient.Drive.DeleteThumbnail(uploadResult.File, thumbnailToRemove.PixelWidth, thumbnailToRemove.PixelHeight);
+            var deleteThumbnailResult =
+                await appApiClient.Drive.DeleteThumbnail(uploadResult.File, thumbnailToRemove.PixelWidth, thumbnailToRemove.PixelHeight);
 
             //header should have all thumbnails from original upload and the new ones
             var updatedHeader = await appApiClient.Drive.GetFileHeader(targetFile);
@@ -62,9 +63,11 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             Assert.IsTrue(updatedHeader.FileMetadata.VersionTag != originalFile.FileMetadata.VersionTag, "Version tag should have been updated");
             Assert.IsTrue(updatedHeader.FileMetadata.Updated > originalFile.FileMetadata.Updated, "header modified date should have been updated");
             Assert.IsTrue(updatedHeader.FileMetadata.VersionTag == deleteThumbnailResult.NewVersionTag);
-            Assert.IsTrue(updatedHeader.FileMetadata.AppData.AdditionalThumbnails.Count() == originalFile.FileMetadata.AppData.AdditionalThumbnails.Count() - 1);
+            Assert.IsTrue(updatedHeader.FileMetadata.AppData.AdditionalThumbnails.Count() ==
+                          originalFile.FileMetadata.AppData.AdditionalThumbnails.Count() - 1);
 
-            var getThumbResponse = await appApiClient.Drive.GetThumbnail(uploadResult.File, thumbnailToRemove.PixelWidth, thumbnailToRemove.PixelHeight);
+            var getThumbResponse = await appApiClient.Drive.GetThumbnail(uploadResult.File, thumbnailToRemove.PixelWidth, thumbnailToRemove.PixelHeight,
+                directMatchOnly: true);
             Assert.IsTrue(getThumbResponse.StatusCode == HttpStatusCode.NotFound);
         }
 

@@ -64,9 +64,12 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
         [Post(RootEndpoint + "/files/delete")]
         Task<ApiResponse<DeleteLinkedFileResult>> DeleteFile([Body] DeleteFileRequest request);
+        
+        [Post(RootEndpoint + "/files/attachments/deletethumbnail")]
+        Task<ApiResponse<DeleteAttachmentsResult>> DeleteThumbnail([Body] DeleteThumbnailRequest request);
 
-
-        [Post(RootEndpoint + "/files/attachments/delete")]
-        Task<ApiResponse<DeleteAttachmentsResult>> DeleteAttachment([Body] DeleteAttachmentRequest request);
+        [Post(RootEndpoint + "/files/attachments/deletepayload")]
+        Task<ApiResponse<DeleteAttachmentsResult>> DeletePayload([Body] DeletePayloadRequest request);
+        
     }
 }

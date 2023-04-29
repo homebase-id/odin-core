@@ -21,18 +21,6 @@ public class DeleteFileRequest
     public List<string> Recipients { get; set; }
 }
 
-public class DeleteAttachmentRequest
-{
-    public string Key { get; set; }
-
-    public ExternalFileIdentifier File { get; set; }
-
-    public AttachmentType Type { get; set; }
-
-    // public int Width { get; set; }
-    // public int Height { get; set; }
-}
-
 public enum AttachmentType
 {
     Thumbnail = 3,

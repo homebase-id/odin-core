@@ -77,7 +77,7 @@ namespace Youverse.Hosting.Controllers.Base
             var file = MapToInternalFile(request.File);
 
             var fs = this.GetFileSystemResolver().ResolveFileSystem();
-            var payload = await fs.Storage.GetThumbnailPayloadStream(file, request.Width, request.Height);
+            var payload = await fs.Storage.GetThumbnailPayloadStream(file, request.Width, request.Height, request.DirectMatchOnly);
             if (payload == Stream.Null)
             {
                 return NotFound();
@@ -177,28 +177,26 @@ namespace Youverse.Hosting.Controllers.Base
             return new JsonResult(result);
         }
 
-        protected async Task<DeleteAttachmentsResult> DeleteAttachment(DeleteAttachmentRequest request)
-        {
-            //route to thumbnail or payload
-
-            return null;
-        }
-
-        protected async Task<IActionResult> DeleteThumbnail(GetThumbnailRequest request)
+        protected async Task<DeleteThumbnailResult> DeleteThumbnail(DeleteThumbnailRequest request)
         {
             var file = MapToInternalFile(request.File);
 
             var fs = this.GetFileSystemResolver().ResolveFileSystem();
-            await fs.Storage.DeleteThumbnail(file, request.Width, request.Height);
-            return Ok();
+            return new DeleteThumbnailResult()
+            {
+                NewVersionTag = await fs.Storage.DeleteThumbnail(file, request.Width, request.Height)
+            };
         }
 
-        protected async Task<IActionResult> DeletePayload(GetPayloadRequest request)
+        protected async Task<DeletePayloadResult> DeletePayload(DeletePayloadRequest request)
         {
             var file = MapToInternalFile(request.File);
             var fs = this.GetFileSystemResolver().ResolveFileSystem();
-            await fs.Storage.DeletePayload(file);
-            return Ok();
+
+            return new DeletePayloadResult()
+            {
+                NewVersionTag = await fs.Storage.DeletePayload(file, request.Key)
+            };
         }
 
         private void AddCacheHeader()

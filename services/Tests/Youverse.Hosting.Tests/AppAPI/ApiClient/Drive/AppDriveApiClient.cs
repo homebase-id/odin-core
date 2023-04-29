@@ -237,7 +237,7 @@ public class AppDriveApiClient : AppApiTestUtils
         }
     }
 
-    public async Task<ApiResponse<HttpContent>> GetThumbnail(ExternalFileIdentifier file, int width, int height,
+    public async Task<ApiResponse<HttpContent>> GetThumbnail(ExternalFileIdentifier file, int width, int height, bool directMatchOnly = false,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
         using (var client = CreateAppApiHttpClient(_token, fileSystemType))
@@ -249,7 +249,8 @@ public class AppDriveApiClient : AppApiTestUtils
             {
                 File = file,
                 Height = height,
-                Width = width
+                Width = width,
+                DirectMatchOnly = directMatchOnly
             });
 
             return thumbnailResponse;
@@ -368,11 +369,11 @@ public class AppDriveApiClient : AppApiTestUtils
         using (var client = CreateAppApiHttpClient(_token, fileSystemType))
         {
             var svc = CreateDriveService(client);
-            var response = await svc.DeleteAttachment(new DeleteAttachmentRequest()
+            var response = await svc.DeleteThumbnail(new DeleteThumbnailRequest()
             {
                 File = file,
-                Type = AttachmentType.Thumbnail,
-                Key = $"{width}x{height}"
+                Width = width,
+                Height = height
             });
 
             return response.Content;

@@ -2,7 +2,7 @@ namespace Youverse.Core.Exceptions;
 
 public enum YouverseClientErrorCode
 {
-    Todo = 1,
+    UnhandledScenario = 1,
 
     // Auth Errors 10xx
     InvalidAuthToken = 1001,

@@ -203,7 +203,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             return GetLongTermStorageManager(driveId).GetServerFileHeaders(pageOptions);
         }
 
-        public async Task<Stream> GetThumbnailPayloadStream(InternalDriveFileId file, int width, int height)
+        public async Task<Stream> GetThumbnailPayloadStream(InternalDriveFileId file, int width, int height, bool directMatchOnly = false)
         {
             this.AssertCanReadDrive(file.DriveId);
 
@@ -221,6 +221,11 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
                 return await GetLongTermStorageManager(file.DriveId).GetThumbnail(file.FileId, width, height);
             }
 
+            if (directMatchOnly)
+            {
+                return Stream.Null;
+            }
+
             //TODO: add more logic here to compare width and height separately or together
             var nextSizeUp = thumbs.FirstOrDefault(t => t.PixelHeight > height || t.PixelWidth > width);
             if (null == nextSizeUp)
@@ -235,7 +240,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             return await GetLongTermStorageManager(file.DriveId).GetThumbnail(file.FileId, nextSizeUp.PixelWidth, nextSizeUp.PixelHeight);
         }
 
-        public async Task DeleteThumbnail(InternalDriveFileId file, int width, int height)
+        public async Task<Guid> DeleteThumbnail(InternalDriveFileId file, int width, int height)
         {
             this.AssertCanWriteToDrive(file.DriveId);
 
@@ -244,7 +249,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             var thumbs = header?.FileMetadata?.AppData?.AdditionalThumbnails?.ToList();
             if (null == thumbs || !thumbs.Any())
             {
-                return;
+                return Guid.Empty;
             }
 
             var directMatchingThumb = thumbs.SingleOrDefault(t => t.PixelHeight == height && t.PixelWidth == width);
@@ -257,27 +262,28 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
                 await GetLongTermStorageManager(file.DriveId).DeleteThumbnail(file.FileId, width, height);
             }
 
-            return;
+            return header.FileMetadata.VersionTag.GetValueOrDefault();
         }
 
-        public Task AddPayload(InternalDriveFileId file, Stream payload)
-        {
-            throw new NotImplementedException("TODO");
-        }
-
-        public async Task DeletePayload(InternalDriveFileId file)
+        public async Task<Guid> DeletePayload(InternalDriveFileId file, string key)
         {
             this.AssertCanWriteToDrive(file.DriveId);
 
             //Note: calling to get the file header so we can ensure the caller can read this file
             var header = await this.GetServerFileHeader(file);
 
+            //TODO: lookup payload by key
+            
             if (header.FileMetadata.AppData.ContentIsComplete == false)
             {
                 header.FileMetadata.AppData.ContentIsComplete = true;
                 await UpdateActiveFileHeader(file, header);
                 await GetLongTermStorageManager(file.DriveId).DeleteFilePartStream(file.FileId, FilePart.Payload);
+                return header.FileMetadata.VersionTag.GetValueOrDefault(); // this works because because pass header all the way
+                                                                           // down. but in reality we should return it
             }
+
+            return Guid.Empty;
         }
 
         public async Task WriteThumbnailStream(InternalDriveFileId file, int width, int height, Stream stream)

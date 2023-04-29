@@ -20,13 +20,18 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         {
         }
 
- 
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
-        [HttpPost("files/attachments/delete")]
-        public async Task<DeleteAttachmentsResult> DeleteAttachment(DeleteAttachmentRequest request)
+        [HttpPost("files/attachments/deletethumbnail")]
+        public async Task<DeleteThumbnailResult> DeleteThumbnail(DeleteThumbnailRequest request)
         {
-            return await base.DeleteAttachment(request);
+            return await base.DeleteThumbnail(request);
         }
 
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpPost("files/attachments/deletepayload")]
+        public async Task<DeletePayloadResult> DeletePayload(DeletePayloadRequest request)
+        {
+            return await base.DeletePayload(request);
+        }
     }
 }
