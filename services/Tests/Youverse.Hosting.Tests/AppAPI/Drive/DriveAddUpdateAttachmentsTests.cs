@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
@@ -45,11 +46,26 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         [Test]
         public async Task CanRemoveThumbnail()
         {
-            // upload file with thumbnail
-            // remove thumbnail
-            // validate metadata is automatically updated
-            Assert.Inconclusive("TODO");
-            await Task.CompletedTask;
+            var (appApiClient, targetDrive) = await CreateApp(TestIdentities.Samwise);
+
+            var (uploadResult, originalThumbnails) = await UploadUnEncryptedFileWithTwoThumbnails(appApiClient, targetDrive);
+            var targetFile = uploadResult.File;
+
+            var originalFile = await appApiClient.Drive.GetFileHeader(targetFile);
+
+            var thumbnailToRemove = originalThumbnails.First();
+            var deleteThumbnailResult = await appApiClient.Drive.DeleteThumbnail(uploadResult.File, thumbnailToRemove.PixelWidth, thumbnailToRemove.PixelHeight);
+
+            //header should have all thumbnails from original upload and the new ones
+            var updatedHeader = await appApiClient.Drive.GetFileHeader(targetFile);
+
+            Assert.IsTrue(updatedHeader.FileMetadata.VersionTag != originalFile.FileMetadata.VersionTag, "Version tag should have been updated");
+            Assert.IsTrue(updatedHeader.FileMetadata.Updated > originalFile.FileMetadata.Updated, "header modified date should have been updated");
+            Assert.IsTrue(updatedHeader.FileMetadata.VersionTag == deleteThumbnailResult.NewVersionTag);
+            Assert.IsTrue(updatedHeader.FileMetadata.AppData.AdditionalThumbnails.Count() == originalFile.FileMetadata.AppData.AdditionalThumbnails.Count() - 1);
+
+            var getThumbResponse = await appApiClient.Drive.GetThumbnail(uploadResult.File, thumbnailToRemove.PixelWidth, thumbnailToRemove.PixelHeight);
+            Assert.IsTrue(getThumbResponse.StatusCode == HttpStatusCode.NotFound);
         }
 
         [Test]

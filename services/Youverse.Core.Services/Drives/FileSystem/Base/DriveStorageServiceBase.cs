@@ -235,11 +235,6 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             return await GetLongTermStorageManager(file.DriveId).GetThumbnail(file.FileId, nextSizeUp.PixelWidth, nextSizeUp.PixelHeight);
         }
 
-        public Task AddThumbnail(InternalDriveFileId file, int width, int height, Stream stream)
-        {
-            throw new NotImplementedException("TODO");
-        }
-
         public async Task DeleteThumbnail(InternalDriveFileId file, int width, int height)
         {
             this.AssertCanWriteToDrive(file.DriveId);

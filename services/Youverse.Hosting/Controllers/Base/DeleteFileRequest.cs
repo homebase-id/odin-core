@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Youverse.Core.Services.Drives;
 
-namespace Youverse.Hosting.Controllers.OwnerToken.Drive;
+namespace Youverse.Hosting.Controllers.Base;
 
 public class DeleteFileRequest
 {
@@ -19,4 +19,22 @@ public class DeleteFileRequest
     /// List of recipients to receive the delete-file notification
     /// </summary>
     public List<string> Recipients { get; set; }
+}
+
+public class DeleteAttachmentRequest
+{
+    public string Key { get; set; }
+
+    public ExternalFileIdentifier File { get; set; }
+
+    public AttachmentType Type { get; set; }
+
+    // public int Width { get; set; }
+    // public int Height { get; set; }
+}
+
+public enum AttachmentType
+{
+    Thumbnail = 3,
+    Payload = 1
 }

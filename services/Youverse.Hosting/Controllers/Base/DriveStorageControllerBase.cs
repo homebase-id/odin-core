@@ -1,22 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Dawn;
 using Microsoft.AspNetCore.Mvc;
-using Quartz.Util;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.FileSystem.Base;
-using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Hosting.Authentication.ClientToken;
-using Youverse.Hosting.Controllers.OwnerToken.Drive;
+using NotImplementedException = System.NotImplementedException;
 
 namespace Youverse.Hosting.Controllers.Base
 {
@@ -182,7 +176,14 @@ namespace Youverse.Hosting.Controllers.Base
 
             return new JsonResult(result);
         }
-        
+
+        protected async Task<DeleteAttachmentsResult> DeleteAttachment(DeleteAttachmentRequest request)
+        {
+            //route to thumbnail or payload
+
+            return null;
+        }
+
         protected async Task<IActionResult> DeleteThumbnail(GetThumbnailRequest request)
         {
             var file = MapToInternalFile(request.File);
@@ -207,11 +208,5 @@ namespace Youverse.Hosting.Controllers.Base
                 this.Response.Headers.Add("Cache-Control", "max-age=3600");
             }
         }
-    }
-
-    public class UploadMetadataRequest
-    {
-        public StorageOptions StorageOptions { get; set; }
-        public UploadFileMetadata UploadFileMetadata { get; set; }
     }
 }

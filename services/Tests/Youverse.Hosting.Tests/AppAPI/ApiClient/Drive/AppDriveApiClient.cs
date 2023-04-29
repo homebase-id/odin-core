@@ -19,6 +19,7 @@ using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Core.Storage;
+using Youverse.Hosting.Controllers.Base;
 using Youverse.Hosting.Controllers.OwnerToken.Drive;
 using Youverse.Hosting.Tests.AppAPI.Drive;
 using Youverse.Hosting.Tests.AppAPI.Utils;
@@ -174,8 +175,8 @@ public class AppDriveApiClient : AppApiTestUtils
                 }
             }
 
-            var driveSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
-            ApiResponse<UploadResult> response = await driveSvc.UploadStream(parts.ToArray());
+            var driveSvc = CreateDriveService(client);
+            ApiResponse<UploadResult> response = await driveSvc.Upload(parts.ToArray());
 
             Assert.That(response.IsSuccessStatusCode, Is.True);
             Assert.That(response.Content, Is.Not.Null);
@@ -360,5 +361,21 @@ public class AppDriveApiClient : AppApiTestUtils
     private IDriveTestHttpClientForApps CreateDriveService(HttpClient client)
     {
         return RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, _token.SharedSecret);
+    }
+
+    public async Task<DeleteAttachmentsResult> DeleteThumbnail(ExternalFileIdentifier file, int width, int height, FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        using (var client = CreateAppApiHttpClient(_token, fileSystemType))
+        {
+            var svc = CreateDriveService(client);
+            var response = await svc.DeleteAttachment(new DeleteAttachmentRequest()
+            {
+                File = file,
+                Type = AttachmentType.Thumbnail,
+                Key = $"{width}x{height}"
+            });
+
+            return response.Content;
+        }
     }
 }
