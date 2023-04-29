@@ -38,15 +38,15 @@ namespace Youverse.Hosting.Middleware
             var tenant = _tenantProvider.GetCurrentTenant();
             string authType = httpContext.User.Identity?.AuthenticationType;
 
-            if (tenant?.Name == null || string.IsNullOrEmpty(authType))
+            dotYouContext.Tenant = (OdinId)tenant?.Name;
+
+            if (string.IsNullOrEmpty(authType))
             {
                 dotYouContext.Caller = new CallerContext(default, null, SecurityGroupType.Anonymous);
                 await _next(httpContext);
                 return;
             }
-
-            dotYouContext.Tenant = (OdinId)tenant.Name;
-
+            
             if (authType == PerimeterAuthConstants.TransitCertificateAuthScheme)
             {
                 await LoadTransitContext(httpContext, dotYouContext);
