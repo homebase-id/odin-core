@@ -63,6 +63,8 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
                 keyHeader: keyHeader,
                 newMetadata: metadata,
                 serverMetadata: serverMetadata);
+
+            return;
         }
       
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.Overwrite)
@@ -72,6 +74,8 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
                 keyHeader: keyHeader,
                 metadata: metadata,
                 serverMetadata: serverMetadata);
+
+            return;
         }
         
         throw new YouverseSystemException("Unhandled Storage Intent");

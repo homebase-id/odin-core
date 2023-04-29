@@ -86,6 +86,8 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
                 keyHeader: keyHeader,
                 newMetadata: metadata,
                 serverMetadata: serverMetadata);
+
+            return;
         }
 
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.Overwrite)
@@ -95,6 +97,8 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
                 keyHeader: keyHeader,
                 metadata: metadata,
                 serverMetadata: serverMetadata);
+
+            return;
         }
 
         throw new YouverseSystemException("Unhandled Storage Intent");
