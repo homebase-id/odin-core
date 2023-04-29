@@ -6,6 +6,8 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using NUnit.Framework;
+using Youverse.Core.Exceptions;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
@@ -39,8 +41,34 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         [Test]
         public async Task FailToAddThumbnailToFileThatDoesNotExist()
         {
-            Assert.Inconclusive("TODO");
-            await Task.CompletedTask;
+            var (appApiClient, targetDrive) = await CreateApp(TestIdentities.Samwise);
+
+            // var (uploadResult, originalThumbnails) = await UploadUnEncryptedFileWithTwoThumbnails(appApiClient, targetDrive);
+            // var targetFile = uploadResult.File;
+
+            //invalid file but valid target drive
+            var targetFile = new ExternalFileIdentifier()
+            {
+                FileId = Guid.NewGuid(),
+                TargetDrive = targetDrive
+            };
+
+            var thumbnailsToAdd = new List<ImageDataContent>()
+            {
+                new()
+                {
+                    PixelHeight = 400,
+                    PixelWidth = 400,
+                    ContentType = "image/jpeg",
+                    Content = TestMedia.ThumbnailBytes400
+                }
+            };
+
+            var (_, response) = await appApiClient.Drive.UploadAttachments(targetFile, thumbnailsToAdd);
+            Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
+            var problemDetails = DotYouSystemSerializer.Deserialize<ProblemDetails>(response.Error.Content);
+            Assert.IsNotNull(problemDetails);
+            Assert.IsTrue(int.Parse(problemDetails.Extensions["errorCode"].ToString() ?? string.Empty) == (int)YouverseClientErrorCode.CannotOverwriteNonExistentFile);
         }
 
         [Test]
