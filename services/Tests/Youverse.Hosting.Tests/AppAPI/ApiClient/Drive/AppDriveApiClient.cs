@@ -80,6 +80,15 @@ public class AppDriveApiClient : AppApiTestUtils
         }
     }
 
+    
+    public async Task<ApiResponse<UploadResult>> UpdateMetadataRaw(TargetDrive targetDrive, UploadFileMetadata fileMetadata,
+        Guid? overwriteFileId = null,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var (_, response) = await this.UploadUnEncryptedMetadataInternal(fileSystemType, targetDrive, fileMetadata, overwriteFileId: overwriteFileId);
+        return response;
+    }
+    
     public async Task<UploadResult> UpdateMetadata(TargetDrive targetDrive, UploadFileMetadata fileMetadata,
         Guid? overwriteFileId = null,
         FileSystemType fileSystemType = FileSystemType.Standard)

@@ -6,8 +6,11 @@ using System.Net.Http;
 using System.Threading;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
+using Refit;
 using Youverse.Core;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Registry;
@@ -166,6 +169,14 @@ namespace Youverse.Hosting.Tests
         public T RestServiceFor<T>(HttpClient client, SensitiveByteArray sharedSecret)
         {
             return RefitCreator.RestServiceFor<T>(client, sharedSecret);
+        }
+
+
+        public YouverseClientErrorCode GetErrorCode(ApiException apiException)
+        {
+            var problemDetails = DotYouSystemSerializer.Deserialize<ProblemDetails>(apiException.Content!);
+            Assert.IsNotNull(problemDetails);
+            return (YouverseClientErrorCode)int.Parse(problemDetails.Extensions["errorCode"].ToString() ?? string.Empty);
         }
 
         private void CreateData()

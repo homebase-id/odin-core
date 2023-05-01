@@ -23,11 +23,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
     public class DriveStorageIntentTests
     {
         private WebScaffold _scaffold;
-
-        // var problemDetails = DotYouSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!);
-        // Assert.IsNotNull(problemDetails);
-        // Assert.IsTrue(int.Parse(problemDetails.Extensions["errorCode"].ToString() ?? string.Empty) == (int)YouverseClientErrorCode.CannotOverwriteNonExistentFile);
-
+        
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
@@ -80,6 +76,95 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
             Assert.IsTrue(updatedHeader.FileMetadata.AppData.JsonContent == content2);
             Assert.IsTrue(updatedHeader.FileMetadata.VersionTag != firstHeader.FileMetadata.VersionTag);
+        }
+
+        [Test]
+        public async Task FailToUpdateMetadata_WhenPayloadChanged_StorageIntentMedata()
+        {
+            var (appApiClient, targetDrive) = await CreateApp(TestIdentities.Samwise);
+
+            var content1 = DotYouSystemSerializer.Serialize(new { data = "nom nom nom" });
+            var content2 = DotYouSystemSerializer.Serialize(new { data = "chomp chomp chomp" });
+
+            var fileMetadata = new UploadFileMetadata()
+            {
+                AllowDistribution = false,
+                AppData = new()
+                {
+                    FileType = 101,
+                    JsonContent = content1,
+                    ContentIsComplete = true
+                },
+                PayloadIsEncrypted = false,
+                AccessControlList = AccessControlList.Connected
+            };
+
+            //upload normal
+            var uploadResult = await appApiClient.Drive.UploadFile(targetDrive, fileMetadata, "");
+            var firstHeader = await appApiClient.Drive.GetFileHeader(uploadResult.File);
+            Assert.IsTrue(firstHeader.FileMetadata.AppData.JsonContent == content1);
+            //validate normal
+
+            //update the content; indicate the payload changed
+            fileMetadata.AppData.JsonContent = content2;
+            fileMetadata.VersionTag = firstHeader.FileMetadata.VersionTag;
+            fileMetadata.AppData.ContentIsComplete = false;
+            
+            var updateResultResponse = await appApiClient.Drive.UpdateMetadataRaw(targetDrive, fileMetadata, overwriteFileId: uploadResult.File.FileId);
+            
+            Assert.IsTrue(updateResultResponse.StatusCode == HttpStatusCode.BadRequest);
+
+            var code = _scaffold.GetErrorCode(updateResultResponse.Error);
+            Assert.IsTrue(code == YouverseClientErrorCode.MalformedMetadata);
+        }
+
+
+        [Test]
+        public async Task FailToUpdateMetadata_WhenThumbnailsChanged_StorageIntentMedata()
+        {
+            var (appApiClient, targetDrive) = await CreateApp(TestIdentities.Samwise);
+
+            var content1 = DotYouSystemSerializer.Serialize(new { data = "nom nom nom" });
+            var content2 = DotYouSystemSerializer.Serialize(new { data = "chomp chomp chomp" });
+
+            var fileMetadata = new UploadFileMetadata()
+            {
+                AllowDistribution = false,
+                AppData = new()
+                {
+                    FileType = 101,
+                    JsonContent = content1,
+                    ContentIsComplete = true
+                },
+                PayloadIsEncrypted = false,
+                AccessControlList = AccessControlList.Connected
+            };
+
+            //upload normal
+            var uploadResult = await appApiClient.Drive.UploadFile(targetDrive, fileMetadata, "");
+            var firstHeader = await appApiClient.Drive.GetFileHeader(uploadResult.File);
+            Assert.IsTrue(firstHeader.FileMetadata.AppData.JsonContent == content1);
+            //validate normal
+
+            //update the content; add a thumbnail
+            fileMetadata.AppData.JsonContent = content2;
+            fileMetadata.VersionTag = firstHeader.FileMetadata.VersionTag;
+
+            fileMetadata.AppData.AdditionalThumbnails = new List<ImageDataHeader>()
+            {
+                new()
+                {
+                    PixelHeight = 100,
+                    PixelWidth = 100,
+                    ContentType = "image/jpeg"
+                }
+            };
+            var updateResultResponse = await appApiClient.Drive.UpdateMetadataRaw(targetDrive, fileMetadata, overwriteFileId: uploadResult.File.FileId);
+            
+            Assert.IsTrue(updateResultResponse.StatusCode == HttpStatusCode.BadRequest);
+
+            var code = _scaffold.GetErrorCode(updateResultResponse.Error);
+            Assert.IsTrue(code == YouverseClientErrorCode.MalformedMetadata);
         }
 
         // 
