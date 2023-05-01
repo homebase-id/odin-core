@@ -20,13 +20,19 @@ public class QueryBatchResultOptionsRequest
     /// </summary>
     public bool IncludeMetadataHeader { get; set; }
 
+    public Ordering Ordering { get; set; }
+    
+    public Sorting Sorting { get; set; }
+    
     public QueryBatchResultOptions ToQueryBatchResultOptions()
     {
         return new QueryBatchResultOptions()
         {
             Cursor = string.IsNullOrEmpty(this.CursorState) ? new QueryBatchCursor() : new QueryBatchCursor(this.CursorState),
             MaxRecords = this.MaxRecords,
-            IncludeJsonContent = this.IncludeMetadataHeader
+            IncludeJsonContent = this.IncludeMetadataHeader,
+            Ordering = this.Ordering,
+            Sorting = this.Sorting
         };
     }
 

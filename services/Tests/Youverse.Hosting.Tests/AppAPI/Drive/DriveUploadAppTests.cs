@@ -36,7 +36,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         }
 
         [Test(Description = "Test Upload only; no expire, no drive; no transfer")]
-        public async Task UploadOnly()
+        public async Task CanUploadFile()
         {
             var identity = TestIdentities.Frodo;
 
@@ -225,5 +225,6 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             keyHeader.AesKey.Wipe();
             key.Wipe();
         }
+        
     }
 }

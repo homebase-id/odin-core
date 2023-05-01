@@ -2,7 +2,7 @@ namespace Youverse.Core.Exceptions;
 
 public enum YouverseClientErrorCode
 {
-    Todo = 1,
+    UnhandledScenario = 1,
 
     // Auth Errors 10xx
     InvalidAuthToken = 1001,
@@ -56,10 +56,10 @@ public enum YouverseClientErrorCode
     CannotUseGroupIdInTextReactions = 4124,
     InvalidFileSystemType = 4125,
     InvalidDrive = 4126,
-    UploadedFileLocked = 4127,
     InvalidChunkStart = 4128,
     MissingVersionTag = 4159,
     VersionTagMismatch = 4160,
+    InvalidFile = 4161,
 
     // Connection errors 50xx
     CannotSendConnectionRequestToExistingIncomingRequest = 5001,

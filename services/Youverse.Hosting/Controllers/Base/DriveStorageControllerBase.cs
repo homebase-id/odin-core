@@ -3,17 +3,14 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Quartz.Util;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.FileSystem.Base;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Hosting.Authentication.ClientToken;
-using Youverse.Hosting.Controllers.OwnerToken.Drive;
+using NotImplementedException = System.NotImplementedException;
 
 namespace Youverse.Hosting.Controllers.Base
 {
@@ -80,7 +77,7 @@ namespace Youverse.Hosting.Controllers.Base
             var file = MapToInternalFile(request.File);
 
             var fs = this.GetFileSystemResolver().ResolveFileSystem();
-            var payload = await fs.Storage.GetThumbnailPayloadStream(file, request.Width, request.Height);
+            var payload = await fs.Storage.GetThumbnailPayloadStream(file, request.Width, request.Height, request.DirectMatchOnly);
             if (payload == Stream.Null)
             {
                 return NotFound();
@@ -178,6 +175,28 @@ namespace Youverse.Hosting.Controllers.Base
             }
 
             return new JsonResult(result);
+        }
+
+        protected async Task<DeleteThumbnailResult> DeleteThumbnail(DeleteThumbnailRequest request)
+        {
+            var file = MapToInternalFile(request.File);
+
+            var fs = this.GetFileSystemResolver().ResolveFileSystem();
+            return new DeleteThumbnailResult()
+            {
+                NewVersionTag = await fs.Storage.DeleteThumbnail(file, request.Width, request.Height)
+            };
+        }
+
+        protected async Task<DeletePayloadResult> DeletePayload(DeletePayloadRequest request)
+        {
+            var file = MapToInternalFile(request.File);
+            var fs = this.GetFileSystemResolver().ResolveFileSystem();
+
+            return new DeletePayloadResult()
+            {
+                NewVersionTag = await fs.Storage.DeletePayload(file, request.Key)
+            };
         }
 
         private void AddCacheHeader()

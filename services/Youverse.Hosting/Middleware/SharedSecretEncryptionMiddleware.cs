@@ -57,7 +57,9 @@ namespace Youverse.Hosting.Middleware
                 "/api/owner/v1/drive/files/upload",
                 $"{OwnerApiPathConstants.TransitSenderV1}/files/send",
                 "/api/apps/v1/drive/files/upload",
+                "/api/apps/v1/drive/files/attachments/upload",
                 "/api/youauth/v1/drive/files/upload",
+                "/api/youauth/v1/drive/files/attachments/upload",
                 "/api/youauth/v1/auth/is-authenticated",
                 $"{AppApiPathConstants.AuthV1}/logout"
                 //"/api/owner/v1/config/ownerapp/settings/list"

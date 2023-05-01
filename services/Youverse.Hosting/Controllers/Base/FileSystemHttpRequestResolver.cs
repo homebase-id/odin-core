@@ -5,8 +5,11 @@ using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
+using Youverse.Core.Services.Drives.FileSystem.Base.Upload.Attachments;
 using Youverse.Core.Services.Drives.FileSystem.Comment;
+using Youverse.Core.Services.Drives.FileSystem.Comment.Attachments;
 using Youverse.Core.Services.Drives.FileSystem.Standard;
+using Youverse.Core.Services.Drives.FileSystem.Standard.Attachments;
 using Youverse.Core.Storage;
 
 namespace Youverse.Hosting.Controllers.Base;
@@ -25,6 +28,25 @@ public class FileSystemHttpRequestResolver
         _contextAccessor = contextAccessor;
     }
 
+    public AttachmentStreamWriterBase ResolveAttachmentStreamWriter()
+    {
+        var ctx = _contextAccessor.HttpContext;
+
+        var fst = GetFileSystemType();
+
+        if (fst == FileSystemType.Standard)
+        {
+            return ctx.RequestServices.GetRequiredService<StandardFileAttachmentStreamWriter>();
+        }
+
+        if (fst == FileSystemType.Comment)
+        {
+            return ctx.RequestServices.GetRequiredService<CommentAttachmentStreamWriter>();
+        }
+
+        throw new YouverseClientException("Invalid file system type or could not parse instruction set", YouverseClientErrorCode.InvalidFileSystemType);
+    }
+    
     /// <summary />
     public FileSystemStreamWriterBase ResolveFileSystemWriter()
     {

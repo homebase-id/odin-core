@@ -1,8 +1,10 @@
 ﻿using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
+using MediatR;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
+using Youverse.Core.Services.AppNotifications.ClientNotifications;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
@@ -16,11 +18,14 @@ namespace Youverse.Core.Services.DataSubscription.Follower
     {
         private readonly TenantSystemStorage _tenantStorage;
         private readonly DotYouContextAccessor _contextAccessor;
+        private readonly IMediator _mediator;
 
-        public FollowerPerimeterService(TenantSystemStorage tenantStorage, DotYouContextAccessor contextAccessor)
+
+        public FollowerPerimeterService(TenantSystemStorage tenantStorage, DotYouContextAccessor contextAccessor, IMediator mediator)
         {
             _tenantStorage = tenantStorage;
             _contextAccessor = contextAccessor;
+            _mediator = mediator;
         }
 
         /// <summary>
@@ -76,6 +81,11 @@ namespace Youverse.Core.Services.DataSubscription.Follower
                     }
                 }
 
+                _mediator.Publish(new NewFollowerNotification()
+                {
+                    OdinId = (OdinId)request.OdinId
+                });
+                
                 return Task.CompletedTask;
             }
 

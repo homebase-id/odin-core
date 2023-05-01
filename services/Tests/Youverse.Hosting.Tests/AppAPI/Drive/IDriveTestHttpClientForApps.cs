@@ -5,6 +5,7 @@ using Refit;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
+using Youverse.Core.Services.Drives.FileSystem.Base.Upload.Attachments;
 using Youverse.Core.Services.Transit;
 using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Controllers.Base;
@@ -28,6 +29,11 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         [Multipart]
         [Post(RootEndpoint + "/files/upload")]
         Task<ApiResponse<UploadResult>> Upload(StreamPart[] parts);
+        
+        [Multipart]
+        [Post(RootEndpoint + "/files/attachments/upload")]
+        Task<ApiResponse<UploadAttachmentsResult>> UploadAttachments(StreamPart[] parts);
+
         
         [Post(RootEndpoint + "/files/header")]
         Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderAsPost(ExternalFileIdentifier file);
@@ -57,8 +63,13 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         Task<ApiResponse<QueryBatchCollectionResponse>> QueryBatchCollection(QueryBatchCollectionRequest request);
 
         [Post(RootEndpoint + "/files/delete")]
-        Task<ApiResponse<DeleteLinkedFileResult>> DeleteFile([Body] DeleteFileRequest file);
+        Task<ApiResponse<DeleteLinkedFileResult>> DeleteFile([Body] DeleteFileRequest request);
         
+        [Post(RootEndpoint + "/files/attachments/deletethumbnail")]
+        Task<ApiResponse<DeleteAttachmentsResult>> DeleteThumbnail([Body] DeleteThumbnailRequest request);
+
+        [Post(RootEndpoint + "/files/attachments/deletepayload")]
+        Task<ApiResponse<DeleteAttachmentsResult>> DeletePayload([Body] DeletePayloadRequest request);
         
     }
 }

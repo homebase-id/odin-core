@@ -26,8 +26,8 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         TenantContext tenantContext,
         DotYouContextAccessor contextAccessor,
         ITransitService transitService,
-        DriveManager driveManager, UploadLock uploadLock)
-        : base(fileSystem, tenantContext, contextAccessor, driveManager, uploadLock)
+        DriveManager driveManager)
+        : base(fileSystem, tenantContext, contextAccessor, driveManager)
     {
         _contextAccessor = contextAccessor;
         _transitService = transitService;
@@ -59,32 +59,6 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
     protected override Task ValidateUnpackedData(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata,
         ServerMetadata serverMetadata)
     {
-        // var referenceFileDriveId = _contextAccessor.GetCurrent().PermissionsContext
-        //     .GetDriveId(metadata.ReferencedFile!.TargetDrive);
-        //
-        // var referenceFileInternal = new InternalDriveFileId()
-        // {
-        //     DriveId = referenceFileDriveId,
-        //     FileId = metadata.ReferencedFile.GlobalTransitId
-        // };
-
-        //TODO: I removed this feature as more research is required
-        // i.e. the file being targeted might be across file systems, etc.
-        // so more must be done here at the file system level to query across them
-        
-        // if (!package.InstructionSet.StorageOptions.IgnoreMissingReferencedFile)
-        // {
-        //     var targetFile = FileSystem.Query.GetFileByGlobalTransitId(referenceFileInternal.DriveId,
-        //         referenceFileInternal.FileId).GetAwaiter().GetResult();
-        //
-        //     if (null == targetFile || metadata.File.DriveId != referenceFileDriveId)
-        //     {
-        //         throw new YouverseClientException(
-        //             "The referenced file must exist and be on the same drive as this file",
-        //             YouverseClientErrorCode.InvalidReferenceFile);
-        //     }
-        // }
-
         return Task.CompletedTask;
     }
 
@@ -96,21 +70,38 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         // this point, we have validated the ReferenceToFile already exists
         //
 
-        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata, "payload");
+        await FileSystem.Storage.CommitNewFile(package.InternalFile, keyHeader, metadata, serverMetadata);
     }
 
-    protected override async Task ProcessExistingFileUpload(UploadPackage package, KeyHeader keyHeader,
-        FileMetadata metadata, ServerMetadata serverMetadata)
+    protected override async Task ProcessExistingFileUpload(UploadPackage package, KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)
     {
         //target is same file because it's set earlier in the upload process
         //using overwrite here so we can ensure the right event is called
         var targetFile = package.InternalFile;
-        await FileSystem.Storage.OverwriteFile(tempFile: package.InternalFile,
-            targetFile: targetFile,
-            keyHeader: keyHeader,
-            metadata: metadata,
-            serverMetadata: serverMetadata,
-            "payload");
+
+        if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.MetadataOnly)
+        {
+            await FileSystem.Storage.OverwriteMetadata(tempFile: package.InternalFile,
+                targetFile: targetFile,
+                keyHeader: keyHeader,
+                newMetadata: metadata,
+                serverMetadata: serverMetadata);
+
+            return;
+        }
+
+        if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)
+        {
+            await FileSystem.Storage.OverwriteFile(tempFile: package.InternalFile,
+                targetFile: targetFile,
+                keyHeader: keyHeader,
+                metadata: metadata,
+                serverMetadata: serverMetadata);
+
+            return;
+        }
+
+        throw new YouverseSystemException("Unhandled Storage Intent");
     }
 
     protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(UploadPackage package)
@@ -160,9 +151,8 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
             PayloadIsEncrypted = uploadDescriptor.FileMetadata.PayloadIsEncrypted,
             OriginalRecipientList = package.InstructionSet.TransitOptions?.Recipients,
             SenderOdinId = _contextAccessor.GetCurrent().Caller.OdinId,
-            
-            VersionTag = uploadDescriptor.FileMetadata.VersionTag
 
+            VersionTag = uploadDescriptor.FileMetadata.VersionTag
         };
 
         return Task.FromResult(metadata);

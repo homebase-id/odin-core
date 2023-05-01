@@ -1,11 +1,16 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Serialization;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
+using Youverse.Core.Services.Drives.FileSystem.Base.Upload.Attachments;
+using Youverse.Core.Services.Transit;
 
 namespace Youverse.Hosting.Controllers.Base
 {
@@ -15,9 +20,9 @@ namespace Youverse.Hosting.Controllers.Base
     public abstract class DriveUploadControllerBase : OdinControllerBase
     {
         /// <summary>
-        /// Uploads a file
+        /// Receives a stream for a new file being uploaded or existing file being overwritten
         /// </summary>
-        protected async Task<UploadResult> ReceiveStream()
+        protected async Task<UploadResult> ReceiveFileStream()
         {
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
@@ -39,9 +44,20 @@ namespace Youverse.Hosting.Controllers.Base
 
             //
             section = await reader.ReadNextSectionAsync();
-            AssertIsPart(section, MultipartUploadParts.Payload);
-            await driveUploadService.AddPayload(section!.Body);
 
+            //backwards compat
+            bool requirePayloadSection = driveUploadService.Package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite;
+            if (section == null && requirePayloadSection)
+            {
+                throw new YouverseClientException("Missing Payload section", YouverseClientErrorCode.InvalidPayload);
+            }
+
+            if(null != section)
+            {
+                AssertIsPart(section, MultipartUploadParts.Payload);
+                await driveUploadService.AddPayload(section!.Body);
+            }
+            
             //
             section = await reader.ReadNextSectionAsync();
             while (null != section)
@@ -52,6 +68,46 @@ namespace Youverse.Hosting.Controllers.Base
             }
 
             var status = await driveUploadService.FinalizeUpload();
+            return status;
+        }
+
+        /// <summary>
+        /// Receives the stream for a new thumbnail being added to an existing file
+        /// </summary>
+        protected async Task<UploadAttachmentsResult> ReceiveAttachmentStream()
+        {
+            if (!IsMultipartContentType(HttpContext.Request.ContentType))
+            {
+                throw new YouverseClientException("Data is not multi-part content", YouverseClientErrorCode.MissingUploadData);
+            }
+
+            var boundary = GetBoundary(HttpContext.Request.ContentType);
+            var reader = new MultipartReader(boundary, HttpContext.Request.Body);
+
+            var writer = this.GetFileSystemResolver().ResolveAttachmentStreamWriter();
+
+            var section = await reader.ReadNextSectionAsync();
+            AssertIsPart(section, MultipartUploadParts.ThumbnailInstructions);
+
+            await writer.StartUpload(section!.Body);
+
+
+            //
+            section = await reader.ReadNextSectionAsync();
+            while (null != section)
+            {
+                //TODO: parse payload or thumbnail
+                AssertIsValidThumbnailPart(section, MultipartUploadParts.Thumbnail, out var fileSection, out var width, out var height);
+                await writer.AddThumbnail(width, height, fileSection.Section.ContentType, fileSection.FileStream);
+                section = await reader.ReadNextSectionAsync();
+            }
+
+            //
+            // section = await reader.ReadNextSectionAsync();
+            // AssertIsPart(section, MultipartUploadParts.Payload);
+            // await writer.AddPayload(section!.Body);
+
+            var status = await writer.FinalizeUpload();
             return status;
         }
 

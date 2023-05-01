@@ -55,7 +55,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
             aclAnyOf: aclList,
             tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
             tagsAllOf: qp.TagsMatchAll?.ToList(),
-            archivalStatusAnyOf: qp.ArchivalStatus.HasValue ? new List<int>() { qp.ArchivalStatus.Value } : null);
+            archivalStatusAnyOf: qp.ArchivalStatus?.ToList());
 
         return Task.FromResult((cursor.uniqueTime, results.AsEnumerable(), moreRows));
     }
@@ -72,7 +72,6 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
 
         if (options.Ordering == Ordering.Default)
         {
-            // TODO TODD use moreRows
             var (results, moreRows) = _db.QueryBatchAuto(
                 noOfItems: options.MaxRecords,
                 cursor: ref cursor,
@@ -88,7 +87,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
                 uniqueIdAnyOf: qp.ClientUniqueIdAtLeastOne?.ToList(),
                 tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
                 tagsAllOf: qp.TagsMatchAll?.ToList(),
-                archivalStatusAnyOf: qp.ArchivalStatus.HasValue ? new List<int>() { qp.ArchivalStatus.Value } : null);
+                archivalStatusAnyOf: qp.ArchivalStatus?.ToList());
 
             return Task.FromResult((cursor, results.Select(r => r), moreRows));
         }
@@ -310,6 +309,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         var (results, hasMoreRows) = _db.QueryBatch(
             noOfItems: options.MaxRecords,
             cursor: ref cursor,
+            fileIdSort: options.Sorting == Sorting.FileId,
             newestFirstOrder: options.Ordering == Ordering.NewestFirst,
             fileSystemType: (Int32)fileSystemType,
             requiredSecurityGroup: securityRange,
@@ -323,7 +323,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
             uniqueIdAnyOf: qp.ClientUniqueIdAtLeastOne?.ToList(),
             tagsAnyOf: qp.TagsMatchAtLeastOne?.ToList(),
             tagsAllOf: qp.TagsMatchAll?.ToList(),
-            archivalStatusAnyOf: qp.ArchivalStatus.HasValue ? new List<int>() { qp.ArchivalStatus.Value } : null);
+            archivalStatusAnyOf: qp.ArchivalStatus?.ToList());
 
         return Task.FromResult((cursor, results.Select(r => r), hasMoreRows));
     }

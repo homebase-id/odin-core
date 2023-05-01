@@ -1,15 +1,17 @@
 using System;
+using System.Collections.Generic;
 using Dawn;
+using Youverse.Core.Services.Drives.DriveCore.Storage;
 
-namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
+namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload.Attachments
 {
     /// <summary>
     /// A package/parcel to be send to a set of recipients
     /// </summary>
-    public class UploadPackage
+    public class AttachmentPackage
     {
         /// <summary />
-        public UploadPackage(InternalDriveFileId internalFile, UploadInstructionSet instructionSet, bool isUpdateOperation)
+        public AttachmentPackage(InternalDriveFileId internalFile, AddAttachmentInstructionSet instructionSet)
         {
             Guard.Argument(internalFile, nameof(internalFile)).HasValue();
             Guard.Argument(internalFile.FileId, nameof(internalFile.FileId)).NotEqual(Guid.Empty);
@@ -17,14 +19,13 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
 
             this.InternalFile = internalFile;
             this.InstructionSet = instructionSet;
-            this.IsUpdateOperation = isUpdateOperation;
+
         }
 
-        public UploadInstructionSet InstructionSet { get; init; }
+        public AddAttachmentInstructionSet InstructionSet { get; init; }
+        
 
         public InternalDriveFileId InternalFile { get; init; }
-
-        public bool IsUpdateOperation { get; init; }
         
         public bool HasPayload { get; set; }
     }

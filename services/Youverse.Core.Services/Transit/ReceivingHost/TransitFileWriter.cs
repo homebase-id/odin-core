@@ -137,7 +137,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
             ServerMetadata serverMetadata)
         {
             serverMetadata.DoNotIndex = true;
-            await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, MultipartHostTransferParts.Payload.ToString());
+            await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata);
             await fs.Commands.EnqueueCommandMessage(tempFile.DriveId, new List<Guid>() { tempFile.FileId });
         }
 
@@ -157,7 +157,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
             if (metadata.AppData.UniqueId.HasValue == false && metadata.GlobalTransitId.HasValue == false)
             {
                 //
-                await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, "payload");
+                await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata);
                 return;
             }
 
@@ -177,7 +177,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
                 if (existingFileBySharedSecretEncryptedUniqueId == null && existingFileByGlobalTransitId == null)
                 {
                     // Write a new file
-                    await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, "payload");
+                    await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata);
                     return;
                 }
 
@@ -209,7 +209,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
                 metadata.VersionTag = existingFileBySharedSecretEncryptedUniqueId.FileMetadata.VersionTag;
 
                 //note: we also update the key header because it might have been changed by the sender
-                await fs.Storage.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata, "payload");
+                await fs.Storage.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata);
                 return;
             }
 
@@ -224,7 +224,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
                 if (existingFileBySharedSecretEncryptedUniqueId == null)
                 {
                     // Write a new file
-                    await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, "payload");
+                    await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata);
                     return;
                 }
 
@@ -239,7 +239,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
                 };
 
                 //note: we also update the key header because it might have been changed by the sender
-                await fs.Storage.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata, "payload");
+                await fs.Storage.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata);
                 return;
             }
 
@@ -254,7 +254,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
                 if (existingFileByGlobalTransitId == null)
                 {
                     // Write a new file
-                    await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata, "payload");
+                    await fs.Storage.CommitNewFile(tempFile, keyHeader, metadata, serverMetadata);
                     return;
                 }
 
@@ -270,7 +270,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
 
                 metadata.VersionTag = existingFileByGlobalTransitId.FileMetadata.VersionTag;
                 //note: we also update the key header because it might have been changed by the sender
-                await fs.Storage.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata, "payload");
+                await fs.Storage.OverwriteFile(tempFile, targetFile, keyHeader, metadata, serverMetadata);
                 return;
             }
 

@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
+using Youverse.Core.Services.Drives.FileSystem.Base.Upload.Attachments;
 using Youverse.Hosting.Controllers.Anonymous;
 using Youverse.Hosting.Controllers.Base;
 
@@ -23,7 +24,17 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         [HttpPost("files/upload")]
         public async Task<UploadResult> Upload()
         {
-            return await base.ReceiveStream();
+            return await base.ReceiveFileStream();
+        }
+        
+        /// <summary>
+        /// Adds an attachment (thumbnail or payload) to an existing file
+        /// </summary>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpPost("files/attachments/upload")]
+        public async Task<UploadAttachmentsResult> AddAttachment()
+        {
+            return await base.ReceiveAttachmentStream();
         }
     }
 }

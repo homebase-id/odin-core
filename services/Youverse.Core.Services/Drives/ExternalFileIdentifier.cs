@@ -19,7 +19,7 @@ namespace Youverse.Core.Services.Drives
         
         public bool HasValue()
         {
-            return FileId != Guid.NewGuid() && TargetDrive.IsValid();
+            return FileId != Guid.Empty && TargetDrive.IsValid();
         }
 
         public static bool operator ==(ExternalFileIdentifier d1, ExternalFileIdentifier d2)

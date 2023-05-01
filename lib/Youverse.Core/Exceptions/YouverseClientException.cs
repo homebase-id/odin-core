@@ -6,7 +6,7 @@ namespace Youverse.Core.Exceptions
     {
         public YouverseClientErrorCode ErrorCode { get; set; }
 
-        public YouverseClientException(string message, YouverseClientErrorCode code = YouverseClientErrorCode.Todo) : base(message)
+        public YouverseClientException(string message, YouverseClientErrorCode code = YouverseClientErrorCode.UnhandledScenario) : base(message)
         {
             this.ErrorCode = code;
         }
@@ -20,7 +20,7 @@ namespace Youverse.Core.Exceptions
     {
         public YouverseClientErrorCode ErrorCode { get; set; }
 
-        public YouverseRemoteIdentityException(string message, YouverseClientErrorCode code = YouverseClientErrorCode.Todo) : base(message)
+        public YouverseRemoteIdentityException(string message, YouverseClientErrorCode code = YouverseClientErrorCode.UnhandledScenario) : base(message)
         {
             this.ErrorCode = code;
         }

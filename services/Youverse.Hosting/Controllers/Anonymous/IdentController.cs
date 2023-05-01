@@ -28,17 +28,30 @@ namespace Youverse.Hosting.Controllers.Anonymous
         public async Task<IActionResult> GetInfo()
         {
             var tenant = _dotYouContextAccessor.GetCurrent().Tenant;
+            HttpContext.Response.Headers.Add("Access-Control-Allow-Origin", "*");
+
+            if (string.IsNullOrEmpty(tenant))
+            {
+                return await Task.FromResult(new JsonResult(new
+                {
+                    OdinId = string.Empty,
+                    Version = 1.0
+                }));
+            }
+            
             if(await _registry.IsIdentityRegistered(tenant))
             {
                 return await Task.FromResult(new JsonResult(new
                 {
-                    OdinId = tenant
+                    OdinId = tenant,
+                    Version = 1.0
                 }));
             }
             
             return await Task.FromResult(new JsonResult(new
             {
-                OdinId = string.Empty
+                OdinId = string.Empty,
+                Version = 1.0
             }));
         }
     }
