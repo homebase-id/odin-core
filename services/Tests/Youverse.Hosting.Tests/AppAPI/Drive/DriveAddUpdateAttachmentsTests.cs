@@ -66,7 +66,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
             var (_, response) = await appApiClient.Drive.UploadAttachments(targetFile, thumbnailsToAdd);
             Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
-            var problemDetails = DotYouSystemSerializer.Deserialize<ProblemDetails>(response.Error.Content);
+            var problemDetails = DotYouSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!);
             Assert.IsNotNull(problemDetails);
             Assert.IsTrue(int.Parse(problemDetails.Extensions["errorCode"].ToString() ?? string.Empty) == (int)YouverseClientErrorCode.CannotOverwriteNonExistentFile);
         }
