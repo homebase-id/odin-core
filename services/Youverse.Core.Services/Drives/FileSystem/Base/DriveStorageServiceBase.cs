@@ -633,83 +633,80 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
         public async Task OverwriteMetadata(InternalDriveFileId tempFile, InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata newMetadata,
             ServerMetadata serverMetadata)
         {
-            await Task.CompletedTask;
-            throw new NotImplementedException("TODO: need to refactor duplicate code between OverwriteMetadata and OverwriteFile");
             
-            //
-            // AssertCanWriteToDrive(targetFile.DriveId);
-            //
-            // var existingServerHeader = await this.GetServerFileHeader(targetFile);
-            // if (null == existingServerHeader)
-            // {
-            //     throw new YouverseClientException("Cannot overwrite file that does not exist", YouverseClientErrorCode.FileNotFound);
-            // }
-            //
-            // if (existingServerHeader.FileMetadata.FileState != FileState.Active)
-            // {
-            //     throw new YouverseClientException("Cannot update a non-active file", YouverseClientErrorCode.CannotUpdateNonActiveFile);
-            // }
-            //
-            // if (existingServerHeader.FileMetadata.VersionTag != newMetadata.VersionTag)
-            // {
-            //     throw new YouverseClientException($"Invalid version tag {newMetadata.VersionTag}", YouverseClientErrorCode.VersionTagMismatch);
-            // }
-            //
-            // //validate payload and thumbnail info was not changed in the incoming file
-            // if (newMetadata.AppData.ContentIsComplete != existingServerHeader.FileMetadata.AppData.ContentIsComplete)
-            // {
-            //     throw new YouverseClientException($"Cannot change ContentIsComplete property in metadata when StorageIntent = {StorageIntent.MetadataOnly}",
-            //         YouverseClientErrorCode.MalformedMetadata);
-            // }
-            //
-            // var unmatchingItems = newMetadata.AppData.AdditionalThumbnails.Except(existingServerHeader.FileMetadata.AppData.AdditionalThumbnails).Count();
-            // if (unmatchingItems != 0)
-            // {
-            //     throw new YouverseClientException($"Cannot change AdditionalThumbnails property in metadata when StorageIntent = {StorageIntent.MetadataOnly}",
-            //         YouverseClientErrorCode.MalformedMetadata);
-            // }
-            //
-            // newMetadata.Created = existingServerHeader.FileMetadata.Created;
-            // newMetadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
-            // newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
-            //
-            // newMetadata.File = targetFile;
-            // //Note: our call to GetServerFileHeader earlier validates the existing
-            // serverMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
-            //
-            // var storageManager = GetLongTermStorageManager(targetFile.DriveId);
-            // var tempStorageManager = GetTempStorageManager(tempFile.DriveId);
-            //
-            //
-            // //TODO: clean up old payload if it was removed?
-            //
-            // var thumbs = newMetadata.AppData.AdditionalThumbnails?.ToList() ?? new List<ImageDataHeader>();
-            // await storageManager.ReconcileThumbnailsOnDisk(targetFile.FileId, thumbs);
-            // foreach (var thumb in thumbs)
-            // {
-            //     var extension = this.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight);
-            //     var sourceThumbnail = await tempStorageManager.GetPath(tempFile.FileId, extension);
-            //     await storageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, thumb.PixelWidth, thumb.PixelHeight);
-            // }
-            //
-            // //TODO: calculate payload checksum, put on file metadata
-            // var serverHeader = new ServerFileHeader()
-            // {
-            //     EncryptedKeyHeader = await this.EncryptKeyHeader(tempFile.DriveId, keyHeader),
-            //     FileMetadata = newMetadata,
-            //     ServerMetadata = serverMetadata
-            // };
-            //
-            // await WriteFileHeaderInternal(serverHeader);
-            // if (await ShouldRaiseDriveEvent(targetFile))
-            // {
-            //     await _mediator.Publish(new DriveFileChangedNotification()
-            //     {
-            //         File = targetFile,
-            //         ServerFileHeader = serverHeader,
-            //         SharedSecretEncryptedFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverHeader, ContextAccessor)
-            //     });
-            // }
+            AssertCanWriteToDrive(targetFile.DriveId);
+            
+            var existingServerHeader = await this.GetServerFileHeader(targetFile);
+            if (null == existingServerHeader)
+            {
+                throw new YouverseClientException("Cannot overwrite file that does not exist", YouverseClientErrorCode.FileNotFound);
+            }
+            
+            if (existingServerHeader.FileMetadata.FileState != FileState.Active)
+            {
+                throw new YouverseClientException("Cannot update a non-active file", YouverseClientErrorCode.CannotUpdateNonActiveFile);
+            }
+            
+            if (existingServerHeader.FileMetadata.VersionTag != newMetadata.VersionTag)
+            {
+                throw new YouverseClientException($"Invalid version tag {newMetadata.VersionTag}", YouverseClientErrorCode.VersionTagMismatch);
+            }
+            
+            //validate payload and thumbnail info was not changed in the incoming file
+            if (newMetadata.AppData.ContentIsComplete != existingServerHeader.FileMetadata.AppData.ContentIsComplete)
+            {
+                throw new YouverseClientException($"Cannot change ContentIsComplete property in metadata when StorageIntent = {StorageIntent.MetadataOnly}",
+                    YouverseClientErrorCode.MalformedMetadata);
+            }
+            
+            var unmatchingItems = newMetadata.AppData.AdditionalThumbnails.Except(existingServerHeader.FileMetadata.AppData.AdditionalThumbnails).Count();
+            if (unmatchingItems != 0)
+            {
+                throw new YouverseClientException($"Cannot change AdditionalThumbnails property in metadata when StorageIntent = {StorageIntent.MetadataOnly}",
+                    YouverseClientErrorCode.MalformedMetadata);
+            }
+            
+            newMetadata.Created = existingServerHeader.FileMetadata.Created;
+            newMetadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
+            newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
+            
+            newMetadata.File = targetFile;
+            //Note: our call to GetServerFileHeader earlier validates the existing
+            serverMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
+            
+            var storageManager = GetLongTermStorageManager(targetFile.DriveId);
+            var tempStorageManager = GetTempStorageManager(tempFile.DriveId);
+            
+            
+            //TODO: clean up old payload if it was removed?
+            
+            var thumbs = newMetadata.AppData.AdditionalThumbnails?.ToList() ?? new List<ImageDataHeader>();
+            await storageManager.ReconcileThumbnailsOnDisk(targetFile.FileId, thumbs);
+            foreach (var thumb in thumbs)
+            {
+                var extension = this.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight);
+                var sourceThumbnail = await tempStorageManager.GetPath(tempFile.FileId, extension);
+                await storageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, thumb.PixelWidth, thumb.PixelHeight);
+            }
+            
+            //TODO: calculate payload checksum, put on file metadata
+            var serverHeader = new ServerFileHeader()
+            {
+                EncryptedKeyHeader = await this.EncryptKeyHeader(tempFile.DriveId, keyHeader),
+                FileMetadata = newMetadata,
+                ServerMetadata = serverMetadata
+            };
+            
+            await WriteFileHeaderInternal(serverHeader);
+            if (await ShouldRaiseDriveEvent(targetFile))
+            {
+                await _mediator.Publish(new DriveFileChangedNotification()
+                {
+                    File = targetFile,
+                    ServerFileHeader = serverHeader,
+                    SharedSecretEncryptedFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverHeader, ContextAccessor)
+                });
+            }
         }
 
         public async Task UpdateReactionPreview(InternalDriveFileId targetFile, ReactionSummary summary)
