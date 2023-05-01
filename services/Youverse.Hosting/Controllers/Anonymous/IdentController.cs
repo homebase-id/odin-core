@@ -34,7 +34,8 @@ namespace Youverse.Hosting.Controllers.Anonymous
             {
                 return await Task.FromResult(new JsonResult(new
                 {
-                    OdinId = string.Empty
+                    OdinId = string.Empty,
+                    Version = 1.0
                 }));
             }
             
@@ -42,13 +43,15 @@ namespace Youverse.Hosting.Controllers.Anonymous
             {
                 return await Task.FromResult(new JsonResult(new
                 {
-                    OdinId = tenant
+                    OdinId = tenant,
+                    Version = 1.0
                 }));
             }
             
             return await Task.FromResult(new JsonResult(new
             {
-                OdinId = string.Empty
+                OdinId = string.Empty,
+                Version = 1.0
             }));
         }
     }
