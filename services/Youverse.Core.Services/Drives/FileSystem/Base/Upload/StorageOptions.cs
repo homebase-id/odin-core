@@ -17,7 +17,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
         /// </summary>
         public Guid? OverwriteFileId { get; set; }
 
-        public StorageIntent StorageIntent { get; set; } = StorageIntent.Overwrite;
+        public StorageIntent StorageIntent { get; set; } = StorageIntent.NewFileOrOverwrite;
 
         // public bool IgnoreMissingReferencedFile { get; set; }
     }
@@ -31,7 +31,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
         /// Stores the data as uploaded; meaning if you overwrite a file that has a payload; you must also provide
         /// the payload in the upload, otherwise the existing payload will be deleted (same applies to thumbnails)
         /// </summary>
-        Overwrite = 0,
+        NewFileOrOverwrite = 0,
         
         /// <summary>
         /// Updates metadata without touching the thumbnails or payload; however the metadata

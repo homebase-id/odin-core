@@ -81,7 +81,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             };
 
             //upload a new file
-            var uploadResult = await appApiClient.Drive.UploadFile(FileSystemType.Standard, appDrive.TargetDriveInfo, fileMetadata, payload);
+            var uploadResult = await appApiClient.Drive.UploadFile(appDrive.TargetDriveInfo, fileMetadata, payload);
 
             //get the uploaded file
             var uploadedFile = await appApiClient.Drive.GetFileHeader(uploadResult.File);
@@ -135,7 +135,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             };
 
             //upload a new file
-            var uploadResult = await appApiClient.Drive.UploadFile(FileSystemType.Standard, appDrive.TargetDriveInfo, fileMetadata, payload);
+            var uploadResult = await appApiClient.Drive.UploadFile(appDrive.TargetDriveInfo, fileMetadata, payload);
 
             //get the uploaded file
             var uploadedFile = await appApiClient.Drive.GetFileHeader(uploadResult.File);

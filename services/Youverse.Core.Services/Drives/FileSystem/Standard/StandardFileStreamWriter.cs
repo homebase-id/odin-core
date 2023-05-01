@@ -67,7 +67,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
             return;
         }
       
-        if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.Overwrite)
+        if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)
         {
             await FileSystem.Storage.OverwriteFile(tempFile: package.InternalFile,
                 targetFile: package.InternalFile,

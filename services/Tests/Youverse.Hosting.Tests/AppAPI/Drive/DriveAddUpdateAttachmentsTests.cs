@@ -228,7 +228,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             };
 
 
-            var uploadResult = await appApiClient.Drive.UploadFile(fileSystemType, targetDrive, fileMetadata, "", thumbnails);
+            var uploadResult = await appApiClient.Drive.UploadFile(targetDrive, fileMetadata, "", thumbnails, fileSystemType: fileSystemType);
 
             var getHeaderResponse = await appApiClient.Drive.GetFileHeader(uploadResult.File);
 

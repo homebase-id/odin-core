@@ -44,9 +44,20 @@ namespace Youverse.Hosting.Controllers.Base
 
             //
             section = await reader.ReadNextSectionAsync();
-            AssertIsPart(section, MultipartUploadParts.Payload);
-            await driveUploadService.AddPayload(section!.Body);
 
+            //backwards compat
+            bool requirePayloadSection = driveUploadService.Package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite;
+            if (section == null && requirePayloadSection)
+            {
+                throw new YouverseClientException("Missing Payload section", YouverseClientErrorCode.InvalidPayload);
+            }
+
+            if(null != section)
+            {
+                AssertIsPart(section, MultipartUploadParts.Payload);
+                await driveUploadService.AddPayload(section!.Body);
+            }
+            
             //
             section = await reader.ReadNextSectionAsync();
             while (null != section)

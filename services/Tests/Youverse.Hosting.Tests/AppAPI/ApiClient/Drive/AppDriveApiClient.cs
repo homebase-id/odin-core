@@ -80,10 +80,27 @@ public class AppDriveApiClient : AppApiTestUtils
         }
     }
 
-    public async Task<UploadResult> UploadFile(FileSystemType fileSystemType, TargetDrive targetDrive, UploadFileMetadata fileMetadata,
+    public async Task<UploadResult> UpdateMetadata(TargetDrive targetDrive, UploadFileMetadata fileMetadata,
+        Guid? overwriteFileId = null,
+        FileSystemType fileSystemType = FileSystemType.Standard)
+    {
+        var (_, response) = await this.UploadUnEncryptedMetadataInternal(fileSystemType, targetDrive, fileMetadata, overwriteFileId: overwriteFileId);
+
+        var uploadResult = response.Content;
+        Assert.That(response.IsSuccessStatusCode, Is.True);
+        Assert.That(uploadResult, Is.Not.Null);
+        Assert.That(uploadResult.File, Is.Not.Null);
+        Assert.That(uploadResult.File.FileId, Is.Not.EqualTo(Guid.Empty));
+        Assert.That(uploadResult.File.TargetDrive, Is.Not.EqualTo(Guid.Empty));
+
+        return uploadResult;
+    }
+
+    public async Task<UploadResult> UploadFile(TargetDrive targetDrive, UploadFileMetadata fileMetadata,
         string payloadData = "",
         List<ImageDataContent> thumbnails = null,
-        Guid? overwriteFileId = null)
+        Guid? overwriteFileId = null,
+        FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var (_, response) = await this.UploadUnEncryptedFileInternal(fileSystemType, targetDrive, fileMetadata, payloadData, thumbnails, overwriteFileId);
 
@@ -290,6 +307,58 @@ public class AppDriveApiClient : AppApiTestUtils
     }
 
     //
+    private async Task<(UploadInstructionSet uploadedInstructionSet, ApiResponse<UploadResult> response)> UploadUnEncryptedMetadataInternal(
+        FileSystemType fileSystemType,
+        TargetDrive targetDrive,
+        UploadFileMetadata fileMetadata,
+        Guid? overwriteFileId = null)
+    {
+        var transferIv = ByteArrayUtil.GetRndByteArray(16);
+        var keyHeader = KeyHeader.NewRandom16();
+
+        UploadInstructionSet instructionSet = new UploadInstructionSet()
+        {
+            TransferIv = transferIv,
+            StorageOptions = new()
+            {
+                Drive = targetDrive,
+                OverwriteFileId = overwriteFileId,
+                StorageIntent = StorageIntent.MetadataOnly
+            },
+            TransitOptions = new TransitOptions()
+            {
+                UseGlobalTransitId = true
+            }
+        };
+
+        using (var client = CreateAppApiHttpClient(_token, fileSystemType))
+        {
+            var sharedSecret = _token.SharedSecret.ToSensitiveByteArray();
+
+            var instructionStream = new MemoryStream(DotYouSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
+
+            fileMetadata.PayloadIsEncrypted = false;
+
+            var descriptor = new UploadFileDescriptor()
+            {
+                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, instructionSet.TransferIv, ref sharedSecret),
+                FileMetadata = fileMetadata
+            };
+
+            var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, instructionSet.TransferIv, ref sharedSecret);
+
+            List<StreamPart> parts = new()
+            {
+                new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
+                new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata))
+            };
+
+            var driveSvc = RestService.For<IDriveTestHttpClientForApps>(client);
+            ApiResponse<UploadResult> response = await driveSvc.Upload(parts.ToArray());
+            keyHeader.AesKey.Wipe();
+            return (instructionSet, response);
+        }
+    }
 
     private async Task<(UploadInstructionSet uploadedInstructionSet, ApiResponse<UploadResult> response)> UploadUnEncryptedFileInternal(
         FileSystemType fileSystemType,

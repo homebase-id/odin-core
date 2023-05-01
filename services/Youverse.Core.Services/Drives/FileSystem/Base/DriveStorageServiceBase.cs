@@ -273,14 +273,14 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             var header = await this.GetServerFileHeader(file);
 
             //TODO: lookup payload by key
-            
+
             if (header.FileMetadata.AppData.ContentIsComplete == false)
             {
                 header.FileMetadata.AppData.ContentIsComplete = true;
                 await UpdateActiveFileHeader(file, header);
                 await GetLongTermStorageManager(file.DriveId).DeleteFilePartStream(file.FileId, FilePart.Payload);
                 return header.FileMetadata.VersionTag.GetValueOrDefault(); // this works because because pass header all the way
-                                                                           // down. but in reality we should return it
+                // down. but in reality we should return it
             }
 
             return Guid.Empty;
@@ -633,53 +633,53 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
         public async Task OverwriteMetadata(InternalDriveFileId tempFile, InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata newMetadata,
             ServerMetadata serverMetadata)
         {
-            
             AssertCanWriteToDrive(targetFile.DriveId);
-            
+
             var existingServerHeader = await this.GetServerFileHeader(targetFile);
             if (null == existingServerHeader)
             {
                 throw new YouverseClientException("Cannot overwrite file that does not exist", YouverseClientErrorCode.FileNotFound);
             }
-            
+
             if (existingServerHeader.FileMetadata.FileState != FileState.Active)
             {
                 throw new YouverseClientException("Cannot update a non-active file", YouverseClientErrorCode.CannotUpdateNonActiveFile);
             }
-            
+
             if (existingServerHeader.FileMetadata.VersionTag != newMetadata.VersionTag)
             {
                 throw new YouverseClientException($"Invalid version tag {newMetadata.VersionTag}", YouverseClientErrorCode.VersionTagMismatch);
             }
-            
+
             //validate payload and thumbnail info was not changed in the incoming file
             if (newMetadata.AppData.ContentIsComplete != existingServerHeader.FileMetadata.AppData.ContentIsComplete)
             {
                 throw new YouverseClientException($"Cannot change ContentIsComplete property in metadata when StorageIntent = {StorageIntent.MetadataOnly}",
                     YouverseClientErrorCode.MalformedMetadata);
             }
-            
-            var unmatchingItems = newMetadata.AppData.AdditionalThumbnails.Except(existingServerHeader.FileMetadata.AppData.AdditionalThumbnails).Count();
-            if (unmatchingItems != 0)
+
+            var newThumbnails = newMetadata.AppData.AdditionalThumbnails ?? new List<ImageDataHeader>();
+            var mismatchingThumbnails = newThumbnails.Except(existingServerHeader.FileMetadata.AppData.AdditionalThumbnails ?? new List<ImageDataHeader>()).Count();
+            if (mismatchingThumbnails != 0)
             {
                 throw new YouverseClientException($"Cannot change AdditionalThumbnails property in metadata when StorageIntent = {StorageIntent.MetadataOnly}",
                     YouverseClientErrorCode.MalformedMetadata);
             }
-            
+
             newMetadata.Created = existingServerHeader.FileMetadata.Created;
             newMetadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
             newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
-            
+
             newMetadata.File = targetFile;
             //Note: our call to GetServerFileHeader earlier validates the existing
             serverMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
-            
+
             var storageManager = GetLongTermStorageManager(targetFile.DriveId);
             var tempStorageManager = GetTempStorageManager(tempFile.DriveId);
-            
-            
+
+
             //TODO: clean up old payload if it was removed?
-            
+
             var thumbs = newMetadata.AppData.AdditionalThumbnails?.ToList() ?? new List<ImageDataHeader>();
             await storageManager.ReconcileThumbnailsOnDisk(targetFile.FileId, thumbs);
             foreach (var thumb in thumbs)
@@ -688,7 +688,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
                 var sourceThumbnail = await tempStorageManager.GetPath(tempFile.FileId, extension);
                 await storageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, thumb.PixelWidth, thumb.PixelHeight);
             }
-            
+
             //TODO: calculate payload checksum, put on file metadata
             var serverHeader = new ServerFileHeader()
             {
@@ -696,7 +696,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
                 FileMetadata = newMetadata,
                 ServerMetadata = serverMetadata
             };
-            
+
             await WriteFileHeaderInternal(serverHeader);
             if (await ShouldRaiseDriveEvent(targetFile))
             {
