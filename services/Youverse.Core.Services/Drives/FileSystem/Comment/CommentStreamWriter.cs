@@ -95,7 +95,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
             await FileSystem.Storage.OverwriteFile(tempFile: package.InternalFile,
                 targetFile: targetFile,
                 keyHeader: keyHeader,
-                metadata: metadata,
+                newMetadata: metadata,
                 serverMetadata: serverMetadata);
 
             return;

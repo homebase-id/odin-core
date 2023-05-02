@@ -72,7 +72,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
             await FileSystem.Storage.OverwriteFile(tempFile: package.InternalFile,
                 targetFile: package.InternalFile,
                 keyHeader: keyHeader,
-                metadata: metadata,
+                newMetadata: metadata,
                 serverMetadata: serverMetadata);
 
             return;

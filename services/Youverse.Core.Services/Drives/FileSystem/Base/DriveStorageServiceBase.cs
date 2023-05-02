@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -9,7 +8,6 @@ using Dawn;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Exceptions;
-using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Acl;
@@ -18,9 +16,7 @@ using Youverse.Core.Services.Drives.DriveCore.Storage;
 using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Services.Mediator;
-using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Services.Transit.ReceivingHost;
 using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Drives.FileSystem.Base
@@ -498,7 +494,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             };
         }
 
-        public async Task OverwriteFile(InternalDriveFileId tempFile, InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata metadata,
+        public async Task OverwriteFile(InternalDriveFileId tempFile, InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata newMetadata,
             ServerMetadata serverMetadata)
         {
             const string payloadExtension = "payload";
@@ -515,32 +511,32 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
                 throw new YouverseClientException("Cannot update a non-active file", YouverseClientErrorCode.CannotUpdateNonActiveFile);
             }
 
-            if (existingServerHeader.FileMetadata.VersionTag != metadata.VersionTag)
+            if (existingServerHeader.FileMetadata.VersionTag != newMetadata.VersionTag)
             {
-                throw new YouverseClientException($"Invalid version tag {metadata.VersionTag}", YouverseClientErrorCode.VersionTagMismatch);
+                throw new YouverseClientException($"Invalid version tag {newMetadata.VersionTag}", YouverseClientErrorCode.VersionTagMismatch);
             }
 
-            metadata.Created = existingServerHeader.FileMetadata.Created;
-            metadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
-            metadata.FileState = existingServerHeader.FileMetadata.FileState;
+            newMetadata.Created = existingServerHeader.FileMetadata.Created;
+            newMetadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
+            newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
 
-            metadata.File = targetFile;
+            newMetadata.File = targetFile;
             //Note: our call to GetServerFileHeader earlier validates the existing
             serverMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
 
             var storageManager = GetLongTermStorageManager(targetFile.DriveId);
             var tempStorageManager = GetTempStorageManager(tempFile.DriveId);
 
-            if (metadata.AppData.ContentIsComplete == false)
+            if (newMetadata.AppData.ContentIsComplete == false)
             {
                 string sourceFile = await tempStorageManager.GetPath(tempFile.FileId, payloadExtension);
-                metadata.PayloadSize = new FileInfo(sourceFile).Length;
+                newMetadata.PayloadSize = new FileInfo(sourceFile).Length;
                 await storageManager.MoveToLongTerm(targetFile.FileId, sourceFile, FilePart.Payload);
             }
 
             //TODO: clean up old payload if it was removed?
 
-            var thumbs = metadata.AppData.AdditionalThumbnails?.ToList() ?? new List<ImageDataHeader>();
+            var thumbs = newMetadata.AppData.AdditionalThumbnails?.ToList() ?? new List<ImageDataHeader>();
             await storageManager.ReconcileThumbnailsOnDisk(targetFile.FileId, thumbs);
             foreach (var thumb in thumbs)
             {
@@ -553,7 +549,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             var serverHeader = new ServerFileHeader()
             {
                 EncryptedKeyHeader = await this.EncryptKeyHeader(tempFile.DriveId, keyHeader),
-                FileMetadata = metadata,
+                FileMetadata = newMetadata,
                 ServerMetadata = serverMetadata
             };
 
@@ -674,20 +670,6 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             //Note: our call to GetServerFileHeader earlier validates the existing
             serverMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
 
-            var storageManager = GetLongTermStorageManager(targetFile.DriveId);
-            var tempStorageManager = GetTempStorageManager(tempFile.DriveId);
-
-
-            //TODO: clean up old payload if it was removed?
-
-            var thumbs = newMetadata.AppData.AdditionalThumbnails?.ToList() ?? new List<ImageDataHeader>();
-            await storageManager.ReconcileThumbnailsOnDisk(targetFile.FileId, thumbs);
-            foreach (var thumb in thumbs)
-            {
-                var extension = this.GetThumbnailFileExtension(thumb.PixelWidth, thumb.PixelHeight);
-                var sourceThumbnail = await tempStorageManager.GetPath(tempFile.FileId, extension);
-                await storageManager.MoveThumbnailToLongTerm(targetFile.FileId, sourceThumbnail, thumb.PixelWidth, thumb.PixelHeight);
-            }
 
             //TODO: calculate payload checksum, put on file metadata
             var serverHeader = new ServerFileHeader()
