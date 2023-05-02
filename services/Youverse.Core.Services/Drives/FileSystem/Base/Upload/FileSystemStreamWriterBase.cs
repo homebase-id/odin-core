@@ -314,13 +314,6 @@ public abstract class FileSystemStreamWriterBase
         }
 
         serverMetadata.AccessControlList.Validate();
-
-        var drive = await _driveManager.GetDrive(package.InternalFile.DriveId, true);
-        if (drive.OwnerOnly && serverMetadata.AccessControlList.RequiredSecurityGroup != SecurityGroupType.Owner)
-        {
-            throw new YouverseClientException("Drive is owner only so all files must have RequiredSecurityGroup of Owner",
-                YouverseClientErrorCode.DriveSecurityAndAclMismatch);
-        }
         
         if (serverMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Anonymous && metadata.PayloadIsEncrypted)
         {
@@ -334,6 +327,14 @@ public abstract class FileSystemStreamWriterBase
             throw new YouverseClientException("Cannot upload an encrypted file that is accessible to authenticated visitors",
                 YouverseClientErrorCode.CannotUploadEncryptedFileForAnonymous);
         }
+        
+        var drive = await _driveManager.GetDrive(package.InternalFile.DriveId, true);
+        if (drive.OwnerOnly && serverMetadata.AccessControlList.RequiredSecurityGroup != SecurityGroupType.Owner)
+        {
+            throw new YouverseClientException("Drive is owner only so all files must have RequiredSecurityGroup of Owner",
+                YouverseClientErrorCode.DriveSecurityAndAclMismatch);
+        }
+
         
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)
         {
