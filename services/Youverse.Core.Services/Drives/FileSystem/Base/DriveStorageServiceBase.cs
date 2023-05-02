@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -674,6 +675,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             existingServerHeader.ServerMetadata = newServerMetadata;
 
             await WriteFileHeaderInternal(existingServerHeader);
+
             if (await ShouldRaiseDriveEvent(targetFile))
             {
                 await _mediator.Publish(new DriveFileChangedNotification()

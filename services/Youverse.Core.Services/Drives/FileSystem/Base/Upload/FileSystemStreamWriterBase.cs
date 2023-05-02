@@ -247,9 +247,9 @@ public abstract class FileSystemStreamWriterBase
         throw new YouverseSystemException("Unhandled storage intent");
     }
 
-    private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadataForNewFileOrOverwrite(UploadPackage package, UploadFileDescriptor uploadDescriptor)
+    private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadataForNewFileOrOverwrite(UploadPackage package,
+        UploadFileDescriptor uploadDescriptor)
     {
-        
         var transferKeyEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;
 
         if (null == transferKeyEncryptedKeyHeader)
