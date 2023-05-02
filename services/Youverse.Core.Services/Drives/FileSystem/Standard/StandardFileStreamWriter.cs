@@ -58,9 +58,8 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
     {
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.MetadataOnly)
         {
-            await FileSystem.Storage.OverwriteMetadata(tempFile: package.InternalFile,
+            await FileSystem.Storage.OverwriteMetadata(
                 targetFile: package.InternalFile,
-                keyHeader: keyHeader,
                 newMetadata: metadata,
                 newServerMetadata: serverMetadata);
 

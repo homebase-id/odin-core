@@ -626,8 +626,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             return existingServerHeader.FileMetadata.VersionTag.GetValueOrDefault();
         }
 
-        public async Task OverwriteMetadata(InternalDriveFileId tempFile, InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata newMetadata,
-            ServerMetadata newServerMetadata)
+        public async Task OverwriteMetadata(InternalDriveFileId targetFile, FileMetadata newMetadata, ServerMetadata newServerMetadata)
         {
             AssertCanWriteToDrive(targetFile.DriveId);
 
