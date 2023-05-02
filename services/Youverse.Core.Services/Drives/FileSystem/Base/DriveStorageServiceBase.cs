@@ -520,6 +520,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             newMetadata.Created = existingServerHeader.FileMetadata.Created;
             newMetadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
             newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
+            newMetadata.AppData.AdditionalThumbnails = existingServerHeader.FileMetadata.AppData.AdditionalThumbnails;
 
             newMetadata.File = targetFile;
             //Note: our call to GetServerFileHeader earlier validates the existing
