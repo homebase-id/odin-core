@@ -39,18 +39,6 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             userDateNextBoundaryCursor = null;
         }
 
-        public void CursorStartPoint(UnixTimeUtc startFromPoint)
-        {
-            var _g = SequentialGuid.CreateGuid(startFromPoint);
-            pagingCursor = new byte[16];
-            _g.ToByteArray().CopyTo(pagingCursor, 0);
-
-            nextBoundaryCursor = null;
-            stopAtBoundary = null;
-            userDatePagingCursor = null;
-            userDateStopAtBoundary = null;
-            userDateNextBoundaryCursor = null;
-        }
 
         public void CursorStartPoint(byte[] startFromPoint)
         {
@@ -64,24 +52,15 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             userDateNextBoundaryCursor = null;
         }
 
-
-        /// <summary>
-        /// Creates a cursor that doesn't go back farther than the supplied timestamp.
-        /// No tests written, function not needed (yet).
-        /// </summary>
-        /// <param name="startFromPoint">The time at which to go back no further</param>
-        /// <returns>A cursor that will go back (or forward) no further in time than the supplied parameter</returns>
-        public QueryBatchCursor(UnixTimeUtc stopAtBoundaryUtc)
+        public void CursorStartPoint(UnixTimeUtc startFromPoint, bool IsUserDate)
         {
-            pagingCursor = null;
-            nextBoundaryCursor = null;
-            var _g = SequentialGuid.CreateGuid(stopAtBoundaryUtc);
-            stopAtBoundary = new byte[16];
-            _g.ToByteArray().CopyTo(stopAtBoundary, 0);
-            userDatePagingCursor = null;
-            userDateStopAtBoundary = null;
-            userDateNextBoundaryCursor = null;
+            var _g = SequentialGuid.CreateGuid(startFromPoint);
+            CursorStartPoint(_g.ToByteArray());
+            if (IsUserDate)
+                userDatePagingCursor = startFromPoint;
         }
+
+
 
         /// <summary>
         /// Creates a cursor that doesn't go back farther than the supplied item (fileId).
@@ -97,6 +76,29 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
             userDatePagingCursor = null;
             userDateStopAtBoundary = null;
             userDateNextBoundaryCursor = null;
+        }
+
+
+        /// <summary>
+        /// Creates a cursor that doesn't go back farther than the supplied timestamp.
+        /// No tests written, function not needed (yet).
+        /// </summary>
+        /// <param name="startFromPoint">The time at which to go back no further</param>
+        /// <returns>A cursor that will go back (or forward) no further in time than the supplied parameter</returns>
+        public QueryBatchCursor(UnixTimeUtc stopAtBoundaryUtc, bool IsUserDate)
+        {
+            pagingCursor = null;
+            nextBoundaryCursor = null;
+            userDatePagingCursor = null;
+            userDateStopAtBoundary = null;
+            userDateNextBoundaryCursor = null;
+
+            var _g = SequentialGuid.CreateGuid(stopAtBoundaryUtc);
+            stopAtBoundary = new byte[16];
+            _g.ToByteArray().CopyTo(stopAtBoundary, 0);
+
+            if (IsUserDate)
+                userDateStopAtBoundary = stopAtBoundaryUtc;
         }
 
 
