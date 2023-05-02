@@ -647,30 +647,14 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
                 throw new YouverseClientException($"Invalid version tag {newMetadata.VersionTag}", YouverseClientErrorCode.VersionTagMismatch);
             }
 
-            //validate payload and thumbnail info was not changed in the incoming file
-            if (newMetadata.AppData.ContentIsComplete != existingServerHeader.FileMetadata.AppData.ContentIsComplete)
-            {
-                throw new YouverseClientException($"Cannot change ContentIsComplete property in metadata when StorageIntent = {StorageIntent.MetadataOnly}",
-                    YouverseClientErrorCode.MalformedMetadata);
-            }
-
-            var newThumbnails = newMetadata.AppData.AdditionalThumbnails ?? new List<ImageDataHeader>();
-            var mismatchingThumbnails = newThumbnails.Except(existingServerHeader.FileMetadata.AppData.AdditionalThumbnails ?? new List<ImageDataHeader>())
-                .Count();
-            if (mismatchingThumbnails != 0)
-            {
-                throw new YouverseClientException($"Cannot change AdditionalThumbnails property in metadata when StorageIntent = {StorageIntent.MetadataOnly}",
-                    YouverseClientErrorCode.MalformedMetadata);
-            }
-
+            newMetadata.File = targetFile;
             newMetadata.Created = existingServerHeader.FileMetadata.Created;
             newMetadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
             newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
+            
             newMetadata.AppData.AdditionalThumbnails = existingServerHeader.FileMetadata.AppData.AdditionalThumbnails;
-
-
-            newMetadata.File = targetFile;
-            //Note: our call to GetServerFileHeader earlier validates the existing
+            newMetadata.AppData.ContentIsComplete = existingServerHeader.FileMetadata.AppData.ContentIsComplete;
+            
             newServerMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
 
             existingServerHeader.FileMetadata = newMetadata;
