@@ -278,7 +278,7 @@ public abstract class FileSystemStreamWriterBase
     private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackForMetadataUpdate(UploadPackage package,
         UploadFileDescriptor uploadDescriptor)
     {
-        if (uploadDescriptor.EncryptedKeyHeader.EncryptedAesKey.Length > 0)
+        if (uploadDescriptor.EncryptedKeyHeader?.EncryptedAesKey?.Length > 0)
         {
             throw new YouverseClientException($"Cannot specify key header when storage intent is {StorageIntent.MetadataOnly}",
                 YouverseClientErrorCode.UnhandledScenario);
@@ -315,6 +315,13 @@ public abstract class FileSystemStreamWriterBase
 
         serverMetadata.AccessControlList.Validate();
 
+        var drive = await _driveManager.GetDrive(package.InternalFile.DriveId, true);
+        if (drive.OwnerOnly && serverMetadata.AccessControlList.RequiredSecurityGroup != SecurityGroupType.Owner)
+        {
+            throw new YouverseClientException("Drive is owner only so all files must have RequiredSecurityGroup of Owner",
+                YouverseClientErrorCode.DriveSecurityAndAclMismatch);
+        }
+        
         if (serverMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Anonymous && metadata.PayloadIsEncrypted)
         {
             //Note: dont allow anonymously accessible encrypted files because we wont have a client shared secret to secure the key header
@@ -327,36 +334,30 @@ public abstract class FileSystemStreamWriterBase
             throw new YouverseClientException("Cannot upload an encrypted file that is accessible to authenticated visitors",
                 YouverseClientErrorCode.CannotUploadEncryptedFileForAnonymous);
         }
-
-        if (metadata.AppData.ContentIsComplete && package.HasPayload)
-        {
-            throw new YouverseClientException("Content is marked complete in metadata but there is also a payload", YouverseClientErrorCode.InvalidPayload);
-        }
-
+        
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)
         {
+            if (metadata.AppData.ContentIsComplete && package.HasPayload)
+            {
+                throw new YouverseClientException("Content is marked complete in metadata but there is also a payload", YouverseClientErrorCode.InvalidPayload);
+            }
+            
             if (metadata.AppData.ContentIsComplete == false && package.HasPayload == false)
             {
                 throw new YouverseClientException("Content is marked incomplete yet there is no payload", YouverseClientErrorCode.InvalidPayload);
             }
-        }
-
-        var drive = await _driveManager.GetDrive(package.InternalFile.DriveId, true);
-        if (drive.OwnerOnly && serverMetadata.AccessControlList.RequiredSecurityGroup != SecurityGroupType.Owner)
-        {
-            throw new YouverseClientException("Drive is owner only so all files must have RequiredSecurityGroup of Owner",
-                YouverseClientErrorCode.DriveSecurityAndAclMismatch);
-        }
-
-        if (metadata.PayloadIsEncrypted)
-        {
-            if (ByteArrayUtil.IsStrongKey(keyHeader.Iv) == false || ByteArrayUtil.IsStrongKey(keyHeader.AesKey.GetKey()) == false)
+            
+            if (metadata.PayloadIsEncrypted)
             {
-                throw new YouverseClientException("Payload is set as encrypted but the encryption key is too simple",
-                    code: YouverseClientErrorCode.InvalidKeyHeader);
+                if (ByteArrayUtil.IsStrongKey(keyHeader.Iv) == false || ByteArrayUtil.IsStrongKey(keyHeader.AesKey.GetKey()) == false)
+                {
+                    throw new YouverseClientException("Payload is set as encrypted but the encryption key is too simple",
+                        code: YouverseClientErrorCode.InvalidKeyHeader);
+                }
             }
         }
 
+        
         //if a new file, we need to ensure the global transit is set correct.  for existing files, the system
         // uses the existing global transit id
         if (!package.IsUpdateOperation)
