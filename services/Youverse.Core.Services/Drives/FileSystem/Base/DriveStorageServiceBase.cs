@@ -516,11 +516,10 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             {
                 throw new YouverseClientException($"Invalid version tag {newMetadata.VersionTag}", YouverseClientErrorCode.VersionTagMismatch);
             }
-
+            
             newMetadata.Created = existingServerHeader.FileMetadata.Created;
             newMetadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
             newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
-            newMetadata.AppData.AdditionalThumbnails = existingServerHeader.FileMetadata.AppData.AdditionalThumbnails;
 
             newMetadata.File = targetFile;
             //Note: our call to GetServerFileHeader earlier validates the existing
@@ -667,6 +666,8 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             newMetadata.Created = existingServerHeader.FileMetadata.Created;
             newMetadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
             newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
+            newMetadata.AppData.AdditionalThumbnails = existingServerHeader.FileMetadata.AppData.AdditionalThumbnails;
+
 
             newMetadata.File = targetFile;
             //Note: our call to GetServerFileHeader earlier validates the existing
