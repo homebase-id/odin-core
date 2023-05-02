@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using Youverse.Core.Cryptography;
@@ -233,6 +234,22 @@ public abstract class FileSystemStreamWriterBase
 
         var uploadDescriptor = DotYouSystemSerializer.Deserialize<UploadFileDescriptor>(json);
 
+        if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.MetadataOnly)
+        {
+            return await UnpackForMetadataUpdate(package, uploadDescriptor);
+        }
+
+        if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)
+        {
+            return await UnpackMetadataForNewFileOrOverwrite(package, uploadDescriptor);
+        }
+
+        throw new YouverseSystemException("Unhandled storage intent");
+    }
+
+    private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadataForNewFileOrOverwrite(UploadPackage package,
+        UploadFileDescriptor uploadDescriptor)
+    {
         var transferKeyEncryptedKeyHeader = uploadDescriptor!.EncryptedKeyHeader;
 
         if (null == transferKeyEncryptedKeyHeader)
@@ -240,6 +257,7 @@ public abstract class FileSystemStreamWriterBase
             throw new YouverseClientException("Failure to unpack upload metadata, invalid transfer key header", YouverseClientErrorCode.InvalidKeyHeader);
         }
 
+        var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
         KeyHeader keyHeader = uploadDescriptor.FileMetadata.PayloadIsEncrypted
             ? transferKeyEncryptedKeyHeader.DecryptAesToKeyHeader(ref clientSharedSecret)
             : KeyHeader.Empty();
@@ -257,6 +275,34 @@ public abstract class FileSystemStreamWriterBase
         return (keyHeader, metadata, serverMetadata);
     }
 
+    private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackForMetadataUpdate(UploadPackage package,
+        UploadFileDescriptor uploadDescriptor)
+    {
+        if (uploadDescriptor.EncryptedKeyHeader?.EncryptedAesKey?.Length > 0)
+        {
+            throw new YouverseClientException($"Cannot specify key header when storage intent is {StorageIntent.MetadataOnly}",
+                YouverseClientErrorCode.MalformedMetadata);
+        }
+
+        await ValidateUploadDescriptor(uploadDescriptor);
+
+        var metadata = await MapUploadToMetadata(package, uploadDescriptor);
+
+        if (metadata.AppData.AdditionalThumbnails?.Any() ?? false)
+        {
+            throw new YouverseClientException($"Cannot specify additional thumbnails when storage intent is {StorageIntent.MetadataOnly}",
+                YouverseClientErrorCode.MalformedMetadata);
+        }
+
+        var serverMetadata = new ServerMetadata()
+        {
+            AccessControlList = uploadDescriptor.FileMetadata.AccessControlList,
+            AllowDistribution = uploadDescriptor.FileMetadata.AllowDistribution
+        };
+
+        return (null, metadata, serverMetadata);
+    }
+
     /// <summary>
     /// Validates rules that apply to all files; regardless of being comment, standard, or some other type we've not yet conceived
     /// </summary>
@@ -268,7 +314,7 @@ public abstract class FileSystemStreamWriterBase
         }
 
         serverMetadata.AccessControlList.Validate();
-
+        
         if (serverMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Anonymous && metadata.PayloadIsEncrypted)
         {
             //Note: dont allow anonymously accessible encrypted files because we wont have a client shared secret to secure the key header
@@ -281,19 +327,6 @@ public abstract class FileSystemStreamWriterBase
             throw new YouverseClientException("Cannot upload an encrypted file that is accessible to authenticated visitors",
                 YouverseClientErrorCode.CannotUploadEncryptedFileForAnonymous);
         }
-
-        if (metadata.AppData.ContentIsComplete && package.HasPayload)
-        {
-            throw new YouverseClientException("Content is marked complete in metadata but there is also a payload", YouverseClientErrorCode.InvalidPayload);
-        }
-
-        if(package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)
-        {
-            if (metadata.AppData.ContentIsComplete == false && package.HasPayload == false)
-            {
-                throw new YouverseClientException("Content is marked incomplete yet there is no payload", YouverseClientErrorCode.InvalidPayload);
-            }
-        }
         
         var drive = await _driveManager.GetDrive(package.InternalFile.DriveId, true);
         if (drive.OwnerOnly && serverMetadata.AccessControlList.RequiredSecurityGroup != SecurityGroupType.Owner)
@@ -302,15 +335,30 @@ public abstract class FileSystemStreamWriterBase
                 YouverseClientErrorCode.DriveSecurityAndAclMismatch);
         }
 
-        if (metadata.PayloadIsEncrypted)
+        
+        if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)
         {
-            if (ByteArrayUtil.IsStrongKey(keyHeader.Iv) == false || ByteArrayUtil.IsStrongKey(keyHeader.AesKey.GetKey()) == false)
+            if (metadata.AppData.ContentIsComplete && package.HasPayload)
             {
-                throw new YouverseClientException("Payload is set as encrypted but the encryption key is too simple",
-                    code: YouverseClientErrorCode.InvalidKeyHeader);
+                throw new YouverseClientException("Content is marked complete in metadata but there is also a payload", YouverseClientErrorCode.InvalidPayload);
+            }
+            
+            if (metadata.AppData.ContentIsComplete == false && package.HasPayload == false)
+            {
+                throw new YouverseClientException("Content is marked incomplete yet there is no payload", YouverseClientErrorCode.InvalidPayload);
+            }
+            
+            if (metadata.PayloadIsEncrypted)
+            {
+                if (ByteArrayUtil.IsStrongKey(keyHeader.Iv) == false || ByteArrayUtil.IsStrongKey(keyHeader.AesKey.GetKey()) == false)
+                {
+                    throw new YouverseClientException("Payload is set as encrypted but the encryption key is too simple",
+                        code: YouverseClientErrorCode.InvalidKeyHeader);
+                }
             }
         }
 
+        
         //if a new file, we need to ensure the global transit is set correct.  for existing files, the system
         // uses the existing global transit id
         if (!package.IsUpdateOperation)
@@ -324,14 +372,13 @@ public abstract class FileSystemStreamWriterBase
             }
         }
     }
-    
+
     protected InternalDriveFileId MapToInternalFile(ExternalFileIdentifier file)
     {
-        return  new InternalDriveFileId()
+        return new InternalDriveFileId()
         {
             FileId = file.FileId,
             DriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(file.TargetDrive)
         };
     }
-    
 }
