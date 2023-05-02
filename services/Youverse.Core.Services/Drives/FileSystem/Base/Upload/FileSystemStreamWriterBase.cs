@@ -281,7 +281,7 @@ public abstract class FileSystemStreamWriterBase
         if (uploadDescriptor.EncryptedKeyHeader?.EncryptedAesKey?.Length > 0)
         {
             throw new YouverseClientException($"Cannot specify key header when storage intent is {StorageIntent.MetadataOnly}",
-                YouverseClientErrorCode.UnhandledScenario);
+                YouverseClientErrorCode.MalformedMetadata);
         }
 
         await ValidateUploadDescriptor(uploadDescriptor);
@@ -291,7 +291,7 @@ public abstract class FileSystemStreamWriterBase
         if (metadata.AppData.AdditionalThumbnails?.Any() ?? false)
         {
             throw new YouverseClientException($"Cannot specify additional thumbnails when storage intent is {StorageIntent.MetadataOnly}",
-                YouverseClientErrorCode.UnhandledScenario);
+                YouverseClientErrorCode.MalformedMetadata);
         }
 
         var serverMetadata = new ServerMetadata()

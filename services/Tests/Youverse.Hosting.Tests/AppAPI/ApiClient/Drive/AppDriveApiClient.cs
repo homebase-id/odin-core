@@ -350,7 +350,7 @@ public class AppDriveApiClient : AppApiTestUtils
 
             var descriptor = new UploadFileDescriptor()
             {
-                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, instructionSet.TransferIv, ref sharedSecret),
+                EncryptedKeyHeader = null,
                 FileMetadata = fileMetadata
             };
 
