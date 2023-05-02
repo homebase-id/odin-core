@@ -627,7 +627,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
         }
 
         public async Task OverwriteMetadata(InternalDriveFileId tempFile, InternalDriveFileId targetFile, KeyHeader keyHeader, FileMetadata newMetadata,
-            ServerMetadata serverMetadata)
+            ServerMetadata newServerMetadata)
         {
             AssertCanWriteToDrive(targetFile.DriveId);
 
@@ -655,7 +655,8 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             }
 
             var newThumbnails = newMetadata.AppData.AdditionalThumbnails ?? new List<ImageDataHeader>();
-            var mismatchingThumbnails = newThumbnails.Except(existingServerHeader.FileMetadata.AppData.AdditionalThumbnails ?? new List<ImageDataHeader>()).Count();
+            var mismatchingThumbnails = newThumbnails.Except(existingServerHeader.FileMetadata.AppData.AdditionalThumbnails ?? new List<ImageDataHeader>())
+                .Count();
             if (mismatchingThumbnails != 0)
             {
                 throw new YouverseClientException($"Cannot change AdditionalThumbnails property in metadata when StorageIntent = {StorageIntent.MetadataOnly}",
@@ -668,25 +669,19 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
 
             newMetadata.File = targetFile;
             //Note: our call to GetServerFileHeader earlier validates the existing
-            serverMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
+            newServerMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
 
+            existingServerHeader.FileMetadata = newMetadata;
+            existingServerHeader.ServerMetadata = newServerMetadata;
 
-            //TODO: calculate payload checksum, put on file metadata
-            var serverHeader = new ServerFileHeader()
-            {
-                EncryptedKeyHeader = await this.EncryptKeyHeader(tempFile.DriveId, keyHeader),
-                FileMetadata = newMetadata,
-                ServerMetadata = serverMetadata
-            };
-
-            await WriteFileHeaderInternal(serverHeader);
+            await WriteFileHeaderInternal(existingServerHeader);
             if (await ShouldRaiseDriveEvent(targetFile))
             {
                 await _mediator.Publish(new DriveFileChangedNotification()
                 {
                     File = targetFile,
-                    ServerFileHeader = serverHeader,
-                    SharedSecretEncryptedFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverHeader, ContextAccessor)
+                    ServerFileHeader = existingServerHeader,
+                    SharedSecretEncryptedFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(existingServerHeader, ContextAccessor)
                 });
             }
         }

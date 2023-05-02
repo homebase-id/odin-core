@@ -85,7 +85,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
                 targetFile: targetFile,
                 keyHeader: keyHeader,
                 newMetadata: metadata,
-                serverMetadata: serverMetadata);
+                newServerMetadata: serverMetadata);
 
             return;
         }
