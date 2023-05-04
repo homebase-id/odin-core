@@ -21,7 +21,8 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
     private readonly ITransitService _transitService;
 
     /// <summary />
-    public StandardFileStreamWriter(StandardFileSystem fileSystem, TenantContext tenantContext, DotYouContextAccessor contextAccessor, ITransitService transitService,
+    public StandardFileStreamWriter(StandardFileSystem fileSystem, TenantContext tenantContext, DotYouContextAccessor contextAccessor,
+        ITransitService transitService,
         DriveManager driveManager)
         : base(fileSystem, tenantContext, contextAccessor, driveManager)
     {
@@ -38,7 +39,8 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
 
         if (uploadDescriptor.FileMetadata.ReferencedFile?.HasValue() ?? false)
         {
-            throw new YouverseClientException($"{nameof(uploadDescriptor.FileMetadata.ReferencedFile)} cannot be used with standard file types", YouverseClientErrorCode.CannotUseReferencedFileOnStandardFiles);
+            throw new YouverseClientException($"{nameof(uploadDescriptor.FileMetadata.ReferencedFile)} cannot be used with standard file types",
+                YouverseClientErrorCode.CannotUseReferencedFileOnStandardFiles);
         }
 
         return Task.CompletedTask;
@@ -58,7 +60,17 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
     {
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.MetadataOnly)
         {
-            await FileSystem.Storage.OverwriteMetadata(tempFile: package.InternalFile,
+            await FileSystem.Storage.OverwriteMetadata(
+                targetFile: package.InternalFile,
+                newMetadata: metadata,
+                newServerMetadata: serverMetadata);
+
+            return;
+        }
+
+        if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)
+        {
+            await FileSystem.Storage.OverwriteFile(tempFile: package.InternalFile,
                 targetFile: package.InternalFile,
                 keyHeader: keyHeader,
                 newMetadata: metadata,
@@ -66,20 +78,8 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
 
             return;
         }
-      
-        if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite)
-        {
-            await FileSystem.Storage.OverwriteFile(tempFile: package.InternalFile,
-                targetFile: package.InternalFile,
-                keyHeader: keyHeader,
-                metadata: metadata,
-                serverMetadata: serverMetadata);
 
-            return;
-        }
-        
         throw new YouverseSystemException("Unhandled Storage Intent");
-
     }
 
     protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(UploadPackage package)
@@ -88,7 +88,8 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
         var recipients = package.InstructionSet.TransitOptions?.Recipients;
         if (recipients?.Any() ?? false)
         {
-            recipientStatus = await _transitService.SendFile(package.InternalFile, package.InstructionSet.TransitOptions, TransferFileType.Normal, FileSystemType.Standard);
+            recipientStatus = await _transitService.SendFile(package.InternalFile, package.InstructionSet.TransitOptions, TransferFileType.Normal,
+                FileSystemType.Standard);
         }
 
         return recipientStatus;
@@ -121,13 +122,12 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
 
                 PreviewThumbnail = uploadDescriptor.FileMetadata.AppData.PreviewThumbnail,
                 AdditionalThumbnails = uploadDescriptor.FileMetadata.AppData.AdditionalThumbnails,
-                
             },
 
             PayloadIsEncrypted = uploadDescriptor.FileMetadata.PayloadIsEncrypted,
             OriginalRecipientList = package.InstructionSet.TransitOptions?.Recipients,
             SenderOdinId = "", //Note: in this case, this is who uploaded the file therefore should be empty; until we support youauth uploads
-            
+
             VersionTag = uploadDescriptor.FileMetadata.VersionTag
         };
 

@@ -23,7 +23,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
     public class DriveStorageIntentTests
     {
         private WebScaffold _scaffold;
-        
+
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
@@ -68,9 +68,9 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             //update the content
             fileMetadata.AppData.JsonContent = content2;
             fileMetadata.VersionTag = firstHeader.FileMetadata.VersionTag;
-            
+
             var updateResult = await appApiClient.Drive.UpdateMetadata(targetDrive, fileMetadata, overwriteFileId: uploadResult.File.FileId);
-            
+
             Assert.IsTrue(updateResult.NewVersionTag != uploadResult.NewVersionTag);
             var updatedHeader = await appApiClient.Drive.GetFileHeader(uploadResult.File);
 
@@ -79,7 +79,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         }
 
         [Test]
-        public async Task FailToUpdateMetadata_WhenPayloadChanged_StorageIntentMedata()
+        public async Task CanUpdateMetadata_EvenWhenPayloadChanged_StorageIntentMedata()
         {
             var (appApiClient, targetDrive) = await CreateApp(TestIdentities.Samwise);
 
@@ -109,18 +109,22 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             fileMetadata.AppData.JsonContent = content2;
             fileMetadata.VersionTag = firstHeader.FileMetadata.VersionTag;
             fileMetadata.AppData.ContentIsComplete = false;
-            
-            var updateResultResponse = await appApiClient.Drive.UpdateMetadataRaw(targetDrive, fileMetadata, overwriteFileId: uploadResult.File.FileId);
-            
-            Assert.IsTrue(updateResultResponse.StatusCode == HttpStatusCode.BadRequest);
 
-            var code = _scaffold.GetErrorCode(updateResultResponse.Error);
-            Assert.IsTrue(code == YouverseClientErrorCode.MalformedMetadata);
+            var updateResultResponse = await appApiClient.Drive.UpdateMetadataRaw(targetDrive, fileMetadata, overwriteFileId: uploadResult.File.FileId);
+
+            Assert.IsTrue(updateResultResponse.IsSuccessStatusCode);
+            Assert.IsTrue(updateResultResponse.Content.NewVersionTag != uploadResult.NewVersionTag);
+
+            var updatedHeader = await appApiClient.Drive.GetFileHeader(uploadResult.File);
+
+            Assert.IsTrue(updatedHeader.FileMetadata.AppData.JsonContent == content2);
+            Assert.IsTrue(updatedHeader.FileMetadata.VersionTag != firstHeader.FileMetadata.VersionTag);
+            Assert.IsTrue(updatedHeader.FileMetadata.AppData.ContentIsComplete == firstHeader.FileMetadata.AppData.ContentIsComplete);
         }
 
 
         [Test]
-        public async Task FailToUpdateMetadata_WhenThumbnailsChanged_StorageIntentMedata()
+        public async Task FailToUpdateMetadata_WhenThumbnailsAreAddedInMetadata_StorageIntentMedata()
         {
             var (appApiClient, targetDrive) = await CreateApp(TestIdentities.Samwise);
 
@@ -160,10 +164,9 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 }
             };
             var updateResultResponse = await appApiClient.Drive.UpdateMetadataRaw(targetDrive, fileMetadata, overwriteFileId: uploadResult.File.FileId);
-            
-            Assert.IsTrue(updateResultResponse.StatusCode == HttpStatusCode.BadRequest);
 
-            var code = _scaffold.GetErrorCode(updateResultResponse.Error);
+            Assert.IsTrue(updateResultResponse.StatusCode == HttpStatusCode.BadRequest);
+            var code= _scaffold.GetErrorCode(updateResultResponse.Error);
             Assert.IsTrue(code == YouverseClientErrorCode.MalformedMetadata);
         }
 

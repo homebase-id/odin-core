@@ -81,11 +81,10 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
 
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.MetadataOnly)
         {
-            await FileSystem.Storage.OverwriteMetadata(tempFile: package.InternalFile,
+            await FileSystem.Storage.OverwriteMetadata(
                 targetFile: targetFile,
-                keyHeader: keyHeader,
                 newMetadata: metadata,
-                serverMetadata: serverMetadata);
+                newServerMetadata: serverMetadata);
 
             return;
         }
@@ -95,7 +94,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
             await FileSystem.Storage.OverwriteFile(tempFile: package.InternalFile,
                 targetFile: targetFile,
                 keyHeader: keyHeader,
-                metadata: metadata,
+                newMetadata: metadata,
                 serverMetadata: serverMetadata);
 
             return;
