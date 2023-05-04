@@ -49,7 +49,8 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Auth
                     IsEssential = true,
                     Secure = true,
                     //Path = "/owner", //TODO: cannot use this until we adjust api paths
-                    SameSite = SameSiteMode.Strict
+                    SameSite = SameSiteMode.Strict,
+                    Expires = DateTime.UtcNow.AddMonths(6)
                 };
 
                 Response.Cookies.Append(OwnerAuthConstants.CookieName, result.ToString(), options);
