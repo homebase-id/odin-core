@@ -9,7 +9,7 @@ namespace Youverse.Hosting.Controllers.Anonymous
 {
     public class GetIdentResponse
     {
-        public string OdinId { get; set; }
+        public string? OdinId { get; set; }
         public double Version { get; set; }
     }
     
