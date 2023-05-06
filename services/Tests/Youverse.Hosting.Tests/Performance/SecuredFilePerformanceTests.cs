@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -199,7 +200,7 @@ namespace Youverse.Hosting.Tests.Performance
 
             try
             {
-                Task.WaitAll(tasks);
+                await Task.WhenAll(tasks);
             }
             catch (AggregateException ae)
             {
@@ -221,6 +222,7 @@ namespace Youverse.Hosting.Tests.Performance
             for (var i = 1; i < MAXTHREADS * MAXITERATIONS; i++)
                 Debug.Assert(oneDimensionalArray[i - 1] <= oneDimensionalArray[i]);
 
+            Console.WriteLine($"{DateTime.Today:yyyy-MM-dd} [{Dns.GetHostName()}] Ident API test, anonymous");
             Console.WriteLine($"Threads   : {MAXTHREADS}");
             Console.WriteLine($"Iterations: {MAXITERATIONS}");
             Console.WriteLine($"Time      : {sw.ElapsedMilliseconds}ms");

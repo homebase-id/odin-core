@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
@@ -16,7 +18,7 @@ namespace Youverse.Core.Tests
 
         [Test]
         [Ignore("This was just a test of how to set it up")]
-        public void TaskPerformanceTest()
+        public async Task TaskPerformanceTest()
         {
             Task[] tasks = new Task[MAXTHREADS];
             List<long[]> timers = new List<long[]>();
@@ -27,17 +29,18 @@ namespace Youverse.Core.Tests
 
             for (var i = 0; i < MAXTHREADS; i++)
             {
-                tasks[i] = Task.Run(() =>
+                tasks[i] = Task.Run(async () =>
                 {
-                    var measurements = DoSomeWork(i);
+                    var measurements = await DoSomeWork(i);
                     Debug.Assert(measurements.Length == MAXITERATIONS);
-                    lock (timers) {
+                    lock (timers)
+                    {
                         timers.Add(measurements);
                     }
                 });
-            } 
+            }
 
-            Task.WaitAll(tasks);
+            await Task.WhenAll(tasks);
             sw.Stop();
 
             Debug.Assert(timers.Count == MAXTHREADS);
@@ -48,6 +51,7 @@ namespace Youverse.Core.Tests
             for (var i = 1; i < MAXTHREADS*MAXITERATIONS; i++)
                 Debug.Assert(oneDimensionalArray[i-1] <= oneDimensionalArray[i]);
 
+            Console.WriteLine($"{DateTime.Today:yyyy-MM-dd} [{Dns.GetHostName()}] Ident API test, anonymous");
             Console.WriteLine($"Threads   : {MAXTHREADS}");
             Console.WriteLine($"Iterations: {MAXITERATIONS}");
             Console.WriteLine($"Time      : {sw.ElapsedMilliseconds}ms");
@@ -60,7 +64,7 @@ namespace Youverse.Core.Tests
         }
 
 
-        public long[] DoSomeWork(int threadNo)
+        public async Task<long[]> DoSomeWork(int threadNo)
         {
             long[] timers = new long[MAXITERATIONS];
             Debug.Assert(timers.Length == MAXITERATIONS);
@@ -75,7 +79,7 @@ namespace Youverse.Core.Tests
                 //
                 // Suggestion that you first simply try to load a static URL here.
                 //
-
+                await Task.Delay(0);
 
                 // Finished doing all the work
                 timers[count] = sw.ElapsedMilliseconds;
