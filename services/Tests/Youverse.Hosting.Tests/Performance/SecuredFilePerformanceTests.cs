@@ -48,6 +48,8 @@ namespace Youverse.Hosting.Tests.Performance
         // For the performance test
         private const int MAXTHREADS = 12; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
         const int MAXITERATIONS = 50; // A number high enough to get warmed up and reliable
+        IDriveTestHttpClientForApps frodoDriveService;
+        ExternalFileIdentifier uploadedFile1;
 
         private WebScaffold _scaffold;
 
@@ -68,11 +70,6 @@ namespace Youverse.Hosting.Tests.Performance
         [Test]
         public async Task TaskPerformanceTest_SecuredFiles()
         {
-            Task[] tasks = new Task[MAXTHREADS];
-            List<long[]> timers = new List<long[]>();
-            long fileByteLength = 0;
-
-
             //
             // Prepare environment by uploading secured files
             //
@@ -81,7 +78,7 @@ namespace Youverse.Hosting.Tests.Performance
             var randomPayloadContent =
                 string.Join("",
                     Enumerable.Range(2468, 2468).Select(i => Guid.NewGuid().ToString("N"))); // 32 * 2468 = 78,976 bytes, almost same size as public test
-            var uploadedFile1 =
+            uploadedFile1 =
                 await UploadFileWithPayloadAndTwoThumbnails(frodoAppContext, randomHeaderContent, randomPayloadContent, AccessControlList.Connected);
 
             // Note to Michael: your GET requests will be done using the App API instead of YouAuth.
@@ -93,61 +90,13 @@ namespace Youverse.Hosting.Tests.Performance
             // context is still based on what the app has access to
 
             using var frodoHttpClient = _scaffold.AppApi.CreateAppApiHttpClient(frodoAppContext);
-            var frodoDriveService = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(frodoHttpClient, frodoAppContext.SharedSecret);
+            frodoDriveService = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(frodoHttpClient, frodoAppContext.SharedSecret);
 
-            //
-            // Now back to performance testing
-            //
-            var sw = new Stopwatch();
-            sw.Reset();
-            sw.Start();
-
-            for (var i = 0; i < MAXTHREADS; i++)
-            {
-                tasks[i] = Task.Run(async () =>
-                {
-                    var (tmp, measurements) = await GetSecuredFile(i, MAXITERATIONS, frodoDriveService, uploadedFile1);
-                    Debug.Assert(measurements.Length == MAXITERATIONS);
-                    lock (timers)
-                    {
-                        fileByteLength += tmp;
-                        timers.Add(measurements);
-                    }
-                });
-            }
-
-            try
-            {
-                await Task.WhenAll(tasks);
-            }
-            catch (AggregateException ae)
-            {
-                foreach (var ex in ae.InnerExceptions)
-                {
-                    Console.WriteLine(ex.Message);
-                }
-
-                throw;
-            }
-
-            sw.Stop();
-
-            Debug.Assert(timers.Count == MAXTHREADS);
-            long[] oneDimensionalArray = timers.SelectMany(arr => arr).ToArray();
-            Debug.Assert(oneDimensionalArray.Length == (MAXTHREADS * MAXITERATIONS));
-
-            Array.Sort(oneDimensionalArray);
-            for (var i = 1; i < MAXTHREADS * MAXITERATIONS; i++)
-                Debug.Assert(oneDimensionalArray[i - 1] <= oneDimensionalArray[i]);
-
-            IdentPerformanceTests.PerformanceLog(MAXTHREADS, MAXITERATIONS, sw.ElapsedMilliseconds, oneDimensionalArray);
-            Console.WriteLine(
-                $"Bandwidth : {1000 * (fileByteLength / Math.Max(1, sw.ElapsedMilliseconds)):N0} bytes / second");
+            await PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, GetSecuredFile);
         }
 
 
-        public async Task<(long, long[])> GetSecuredFile(int threadno, int iterations, IDriveTestHttpClientForApps frodoDriveService,
-            ExternalFileIdentifier uploadedFile1)
+        public async Task<(long, long[])> GetSecuredFile(int threadno, int iterations)
         {
             //
             // Calls to get the secured file parts

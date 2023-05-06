@@ -77,58 +77,11 @@ namespace Youverse.Hosting.Tests.Performance
         [Test]
         public async Task TaskPerformanceTest_Ident()
         {
-            Task[] tasks = new Task[MAXTHREADS];
-            List<long[]> timers = new List<long[]>();
-
-            //
-            // Now back to performance testing
-            //
-            var sw = new Stopwatch();
-            sw.Reset();
-            sw.Start();
-
-            for (var i = 0; i < MAXTHREADS; i++)
-            {
-                tasks[i] = Task.Run(async () =>
-                {
-                    var measurements = await DoIdent(i, MAXITERATIONS);
-                    Debug.Assert(measurements.Length == MAXITERATIONS);
-                    lock (timers)
-                    {
-                        timers.Add(measurements);
-                    }
-                });
-            }
-
-            try
-            {
-                await Task.WhenAll(tasks);
-            }
-            catch (AggregateException ae)
-            {
-                foreach (var ex in ae.InnerExceptions)
-                {
-                    Console.WriteLine(ex.Message);
-                }
-
-                throw;
-            }
-
-            sw.Stop();
-
-            Debug.Assert(timers.Count == MAXTHREADS);
-            long[] oneDimensionalArray = timers.SelectMany(arr => arr).ToArray();
-            Debug.Assert(oneDimensionalArray.Length == (MAXTHREADS * MAXITERATIONS));
-
-            Array.Sort(oneDimensionalArray);
-            for (var i = 1; i < MAXTHREADS * MAXITERATIONS; i++)
-                Debug.Assert(oneDimensionalArray[i - 1] <= oneDimensionalArray[i]);
-
-            PerformanceLog(MAXTHREADS, MAXITERATIONS, sw.ElapsedMilliseconds, oneDimensionalArray);
+            await PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, DoIdent);
         }
 
 
-        public async Task<long[]> DoIdent(int threadno, int iterations)
+        public async Task<(long, long[])> DoIdent(int threadno, int iterations)
         {
             long[] timers = new long[iterations];
             Debug.Assert(timers.Length == iterations);
@@ -151,7 +104,7 @@ namespace Youverse.Hosting.Tests.Performance
                 timers[count] = sw.ElapsedMilliseconds;
             }
 
-            return timers;
+            return (0, timers);
         }
     }
 }

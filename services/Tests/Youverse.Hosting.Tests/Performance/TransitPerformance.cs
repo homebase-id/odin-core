@@ -76,6 +76,8 @@ namespace Youverse.Hosting.Tests.Performance
         // For the performance test
         private static readonly int MAXTHREADS = 12;
         private const int MAXITERATIONS = 30;
+        TestAppContext _frodoAppContext;
+        TestAppContext _samAppContext;
 
         private WebScaffold _scaffold;
 
@@ -96,71 +98,20 @@ namespace Youverse.Hosting.Tests.Performance
         [Test]
         public async Task TaskPerformanceTest_Transit()
         {
-            Task[] tasks = new Task[MAXTHREADS];
-            List<long[]> timers = new List<long[]>();
-            long fileByteLength = 0;
-
             TargetDrive targetDrive = TargetDrive.NewTargetDrive();
 
             //
             // Prepare environment by connecting identities
             //
             var scenarioCtx = await _scaffold.Scenarios.CreateConnectedHobbits(targetDrive);
-            var frodoAppContext = scenarioCtx.AppContexts[TestIdentities.Frodo.OdinId];
-            var samAppContext = scenarioCtx.AppContexts[TestIdentities.Samwise.OdinId];
+            _frodoAppContext = scenarioCtx.AppContexts[TestIdentities.Frodo.OdinId];
+            _samAppContext = scenarioCtx.AppContexts[TestIdentities.Samwise.OdinId];
 
-            //
-            // Now back to performance testing
-            //
-            var sw = new Stopwatch();
-            sw.Reset();
-            sw.Start();
-
-            for (var i = 0; i < MAXTHREADS; i++)
-            {
-                tasks[i] = Task.Run(async () =>
-                {
-                    var (tmp, measurements) = await DoChat(i, MAXITERATIONS, frodoAppContext, samAppContext);
-                    Debug.Assert(measurements.Length == MAXITERATIONS);
-                    lock (timers)
-                    {
-                        fileByteLength += tmp;
-                        timers.Add(measurements);
-                    }
-                });
-            }
-
-            try
-            {
-                await Task.WhenAll(tasks);
-            }
-            catch (AggregateException ae)
-            {
-                foreach (var ex in ae.InnerExceptions)
-                {
-                    Console.WriteLine(ex.Message);
-                }
-
-                throw;
-            }
-
-            sw.Stop();
-
-            Debug.Assert(timers.Count == MAXTHREADS);
-            long[] oneDimensionalArray = timers.SelectMany(arr => arr).ToArray();
-            Debug.Assert(oneDimensionalArray.Length == (MAXTHREADS * MAXITERATIONS));
-
-            Array.Sort(oneDimensionalArray);
-            for (var i = 1; i < MAXTHREADS * MAXITERATIONS; i++)
-                Debug.Assert(oneDimensionalArray[i - 1] <= oneDimensionalArray[i]);
-
-            IdentPerformanceTests.PerformanceLog(MAXTHREADS, MAXITERATIONS, sw.ElapsedMilliseconds, oneDimensionalArray);
-            Console.WriteLine(
-                $"Bandwidth : {1000 * (fileByteLength / Math.Max(1, sw.ElapsedMilliseconds)):N0} bytes / second");
+            await PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, DoChat);
         }
 
 
-        public async Task<(long, long[])> DoChat(int threadno, int iterations, TestAppContext frodoAppContext, TestAppContext samAppContext)
+        public async Task<(long, long[])> DoChat(int threadno, int iterations)
         {
             long fileByteLength = 0;
             long[] timers = new long[iterations];
@@ -178,7 +129,7 @@ namespace Youverse.Hosting.Tests.Performance
             };
 
 
-            var ctx = frodoAppContext;
+            var ctx = _frodoAppContext;
             for (int count = 0; count < iterations; count++)
             {
                 sw.Restart();

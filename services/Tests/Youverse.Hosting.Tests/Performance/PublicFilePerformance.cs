@@ -62,14 +62,14 @@ namespace Youverse.Hosting.Tests.Performance
         private const int MAXTHREADS = 12;
         const int MAXITERATIONS = 100;
 
+        IStaticFileTestHttpClientForOwner getStaticFileSvc;
+        PublishStaticFileRequest publishRequest;
+        StaticFilePublishResult pubResult;
+
 
         [Test]
         public async Task TaskPerformanceTest()
         {
-            Task[] tasks = new Task[MAXTHREADS];
-            List<long[]> timers = new List<long[]>();
-            long fileByteLength = 0;
-
             //
             // Some initialization to prepare for the test
             //
@@ -150,7 +150,7 @@ namespace Youverse.Hosting.Tests.Performance
                 RefitCreator.RestServiceFor<IStaticFileTestHttpClientForOwner>(client, ownerSharedSecret);
 
             //publish a static file
-            var publishRequest = new PublishStaticFileRequest()
+            publishRequest = new PublishStaticFileRequest()
             {
                 Filename = "test-file.ok",
                 Config = new StaticFileConfiguration()
@@ -203,7 +203,7 @@ namespace Youverse.Hosting.Tests.Performance
             Assert.True(publishResponse.IsSuccessStatusCode, publishResponse.ReasonPhrase);
             Assert.NotNull(publishResponse.Content);
 
-            var pubResult = publishResponse.Content;
+            pubResult = publishResponse.Content;
 
             Assert.AreEqual(pubResult.Filename, publishRequest.Filename);
             Assert.AreEqual(pubResult.SectionResults.Count, publishRequest.Sections.Count);
@@ -211,55 +211,10 @@ namespace Youverse.Hosting.Tests.Performance
             Assert.AreEqual(pubResult.SectionResults[0].FileCount, total_files_uploaded);
 
 
-            var getStaticFileSvc = RestService.For<IStaticFileTestHttpClientForOwner>(client);
+            getStaticFileSvc = RestService.For<IStaticFileTestHttpClientForOwner>(client);
 
-            //
-            // Now back to performance testing
-            //
-            var sw = new Stopwatch();
-            sw.Reset();
-            sw.Start();
 
-            for (var i = 0; i < MAXTHREADS; i++)
-            {
-                tasks[i] = Task.Run(async () =>
-                {
-                    var (tmp, measurements) = await CanPublishStaticFileContentWithThumbnails(i, MAXITERATIONS, getStaticFileSvc, publishRequest, pubResult);
-                    Debug.Assert(measurements.Length == MAXITERATIONS);
-                    lock (timers)
-                    {
-                        fileByteLength += tmp;
-                        timers.Add(measurements);
-                    }
-                });
-            }
-
-            try
-            {
-                await Task.WhenAll(tasks);
-            }
-            catch (AggregateException ae)
-            {
-                foreach (var ex in ae.InnerExceptions)
-                {
-                    Console.WriteLine(ex.Message);
-                }
-
-                throw;
-            }
-
-            sw.Stop();
-
-            Debug.Assert(timers.Count == MAXTHREADS);
-            long[] oneDimensionalArray = timers.SelectMany(arr => arr).ToArray();
-            Debug.Assert(oneDimensionalArray.Length == (MAXTHREADS * MAXITERATIONS));
-
-            Array.Sort(oneDimensionalArray);
-            for (var i = 1; i < MAXTHREADS * MAXITERATIONS; i++)
-                Debug.Assert(oneDimensionalArray[i - 1] <= oneDimensionalArray[i]);
-
-            IdentPerformanceTests.PerformanceLog(MAXTHREADS, MAXITERATIONS, sw.ElapsedMilliseconds, oneDimensionalArray);
-            Console.WriteLine($"Bandwidth : {1000 * (fileByteLength / Math.Max(1, sw.ElapsedMilliseconds)):N0} bytes / second");
+            await PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, CanPublishStaticFileContentWithThumbnails);
         }
 
         private WebScaffold _scaffold;
@@ -281,7 +236,7 @@ namespace Youverse.Hosting.Tests.Performance
         // First make this test pass, then change it from a test to something else.
         //
         // [Test(Description = "publish static content to file, including payload and thumbnails")]
-        public async Task<(long, long[])> CanPublishStaticFileContentWithThumbnails(int threadno, int iterations, IStaticFileTestHttpClientForOwner getStaticFileSvc, PublishStaticFileRequest publishRequest, StaticFilePublishResult pubResult)
+        public async Task<(long, long[])> CanPublishStaticFileContentWithThumbnails(int threadno, int iterations)
         {
             long[] timers = new long[iterations];
             Debug.Assert(timers.Length == iterations);
