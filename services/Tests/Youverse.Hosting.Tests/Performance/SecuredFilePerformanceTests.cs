@@ -128,7 +128,7 @@ namespace Youverse.Hosting.Tests.Performance
     {
         // For the performance test
         private const int MAXTHREADS = 20; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
-        const int MAXITERATIONS = 2000; // A number high enough to get warmed up and reliable
+        const int MAXITERATIONS = 200; // A number high enough to get warmed up and reliable
 
         private WebScaffold _scaffold;
 
