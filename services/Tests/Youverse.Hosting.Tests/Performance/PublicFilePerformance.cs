@@ -28,65 +28,39 @@ using Youverse.Hosting.Tests.AppAPI.Utils;
 using Youverse.Hosting.Tests.OwnerApi.ApiClient;
 using Youverse.Hosting.Tests.OwnerApi.Drive;
 using Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn;
+using Youverse.Hosting.Tests.Performance;
 
 namespace Youverse.Hosting.Tests.Performance
 {
     /*
      * File size is : 78,981 bytes
      * 
-     *  =================== 2022-12-19, SEMIBEAST II
+
          TaskPerformanceTest
-           Duration: 36.1 sec
+           Duration: 32.2 sec
 
           Standard Output: 
-            Threads   : 10
-            Iterations: 10000
-            Time      : 35308ms
+            2023-05-06 Host [SEMIBEASTII]
+            Threads   : 12
+            Iterations: 10,000
+            Wall Time : 31,328ms
             Minimum   : 0ms
-            Maximum   : 51ms
-            Average   : 0ms
-            Median    : 2ms
-            Capacity  : 2832 / second
-            Bandwidth : 223674192 bytes / second
-    
-        TaskPerformanceTest
-           Duration: 1.4 min
-
-          Standard Output: 
-            Threads   : 20
-            Iterations: 10000
-            Time      : 85120ms
-            Minimum   : 0ms
-            Maximum   : 64ms
-            Average   : 0ms
-            Median    : 7ms
-            Capacity  : 2349 / second
-            Bandwidth : 185526369 bytes / second        
-
-    March 12-2023
-        TaskPerformanceTest
-            Duration: 27.7 sec
-
-          Standard Output: 
-            Threads   : 10
-            Iterations: 10000
-            Time      : 26887ms
-            Minimum   : 0ms
-            Maximum   : 38ms
+            Maximum   : 46ms
             Average   : 2ms
             Median    : 1ms
-            Capacity  : 3719 / second
-            Bandwidth : 295057000 bytes / second
-            DB Opened 11, Closed 0
-         
+            Capacity  : 3,830 / second
+            RSA Encryptions 1, Decryptions 9
+            RSA Keys Created 5, Keys Expired 0
+            DB Opened 12, Closed 0
+            Bandwidth : 304,830,000 bytes / second
+    
+    
      */
     public class PublicStaticFilePerformanceTest
     {
         // For the performance test
-        private const int
-            MAXTHREADS = 10; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
-
-        const int MAXITERATIONS = 100; // A number high enough to get warmed up and reliable
+        private const int MAXTHREADS = 12;
+        const int MAXITERATIONS = 100;
 
 
         [Test]
@@ -284,20 +258,8 @@ namespace Youverse.Hosting.Tests.Performance
             for (var i = 1; i < MAXTHREADS * MAXITERATIONS; i++)
                 Debug.Assert(oneDimensionalArray[i - 1] <= oneDimensionalArray[i]);
 
-            Console.WriteLine($"{DateTime.Today:yyyy-MM-dd} [{Dns.GetHostName()}] Ident API test, anonymous");
-            Console.WriteLine($"Threads   : {MAXTHREADS}");
-            Console.WriteLine($"Iterations: {MAXITERATIONS}");
-            Console.WriteLine($"Time      : {sw.ElapsedMilliseconds}ms");
-            Console.WriteLine($"Minimum   : {oneDimensionalArray[0]}ms");
-            Console.WriteLine($"Maximum   : {oneDimensionalArray[MAXTHREADS * MAXITERATIONS - 1]}ms");
-            Console.WriteLine($"Average   : {oneDimensionalArray.Sum() / (MAXTHREADS * MAXITERATIONS)}ms");
-            Console.WriteLine($"Median    : {oneDimensionalArray[(MAXTHREADS * MAXITERATIONS) / 2]}ms");
-
-            Console.WriteLine(
-                $"Capacity  : {(1000 * MAXITERATIONS * MAXTHREADS) / Math.Max(1, sw.ElapsedMilliseconds)} / second");
-            Console.WriteLine(
-                $"Bandwidth : {1000*(fileByteLength / Math.Max(1, sw.ElapsedMilliseconds))} bytes / second");
-            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
+            IdentPerformanceTests.PerformanceLog(MAXTHREADS, MAXITERATIONS, sw.ElapsedMilliseconds, oneDimensionalArray);
+            Console.WriteLine($"Bandwidth : {1000 * (fileByteLength / Math.Max(1, sw.ElapsedMilliseconds)):N0} bytes / second");
         }
 
         private WebScaffold _scaffold;

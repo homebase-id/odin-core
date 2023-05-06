@@ -12,124 +12,42 @@ using Youverse.Core;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.DriveCore.Storage;
 using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
-using Youverse.Core.Services.Optimization.Cdn;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Hosting.Controllers.Base;
-using Youverse.Hosting.Controllers.OwnerToken.Cdn;
-using Youverse.Hosting.Tests.AppAPI;
 using Youverse.Hosting.Tests.AppAPI.Drive;
 using Youverse.Hosting.Tests.AppAPI.Utils;
 using Youverse.Hosting.Tests.OwnerApi.ApiClient;
-using Youverse.Hosting.Tests.OwnerApi.Drive;
-using Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn;
 
 namespace Youverse.Hosting.Tests.Performance
 {
     /*
-     *  SEMI BEAST II 
-     *  
-     *  2022-12-19
-     *  
          TaskPerformanceTest_SecuredFiles
-           Duration: 25 sec
+           Duration: 17.4 sec
 
           Standard Output: 
-            Threads   : 10
-            Iterations: 2000
-            Time      : 24315ms
+            2023-05-06 Host [SEMIBEASTII]
+            Threads   : 12
+            Iterations: 5,000
+            Wall Time : 16,722ms
             Minimum   : 1ms
-            Maximum   : 63ms
-            Average   : 1ms
-            Median    : 9ms
-            Capacity  : 822 / second
-            Bandwidth : 64979000 bytes / second
-    
-         TaskPerformanceTest_SecuredFiles
-           Duration: 52.7 sec
-
-          Standard Output: 
-            Threads   : 20
-            Iterations: 2000
-            Time      : 51958ms
-            Minimum   : 1ms
-            Maximum   : 79ms
-            Average   : 1ms
-            Median    : 23ms
-            Capacity  : 769 / second
-            Bandwidth : 60817000 bytes / second
-    2023-01-23
-
-        /// TaskPerformanceTest_SecuredFiles
-        ///   Duration: 7.3 sec
-        ///
-        ///  Standard Output: 
-        ///    Threads   : 10
-        ///    Iterations: 2000
-        ///    Time      : 6668ms
-        ///    Minimum   : 1ms
-        ///    Maximum   : 33ms    Average   : 2ms
-        ///    Median    : 2ms
-        ///    Capacity  : 2999 / second
-        ///    Bandwidth : 236,949,000 bytes / second
-        ///    DB Opened 15, Closed 0
-    
-    TaskPerformanceTest_SecuredFiles
-       Duration: 15.8 sec
-
-      Standard Output: 
-        Threads   : 20
-        Iterations: 2000
-        Time      : 14790ms
-        Minimum   : 1ms
-        Maximum   : 40ms
-        Average   : 6ms
-        Median    : 7ms
-        Capacity  : 2704 / second
-        Bandwidth : 213655000 bytes / second
-        DB Opened 15, Closed 0
-
-    2023-03-12:
-        TaskPerformanceTest_SecuredFiles
-           Duration: 6.8 sec
-
-          Standard Output: 
-            Threads   : 10
-            Iterations: 2000
-            Time      : 6360ms
-            Minimum   : 1ms
-            Maximum   : 30ms
+            Maximum   : 33ms
             Average   : 2ms
-            Median    : 2ms
-            Capacity  : 3144 / second
-            Bandwidth : 248424000 bytes / second
-            DB Opened 11, Closed 0
+            Median    : 3ms
+            Capacity  : 3,588 / second
+            RSA Encryptions 1, Decryptions 9
+            RSA Keys Created 5, Keys Expired 0
+            DB Opened 12, Closed 0
+            Bandwidth : 283,440,000 bytes / second
     
-        TaskPerformanceTest_SecuredFiles
-           Duration: 13.3 sec
-
-          Standard Output: 
-            Threads   : 20
-            Iterations: 2000
-            Time      : 12556ms
-            Minimum   : 0ms
-            Maximum   : 42ms
-            Average   : 5ms
-            Median    : 6ms
-            Capacity  : 3185 / second
-            Bandwidth : 251669000 bytes / second
-            DB Opened 11, Closed 0
-
      */
     public class SecuredFilePerformanceTests
     {
         // For the performance test
-        private const int MAXTHREADS = 20; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
-        const int MAXITERATIONS = 200; // A number high enough to get warmed up and reliable
+        private const int MAXTHREADS = 12; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
+        const int MAXITERATIONS = 50; // A number high enough to get warmed up and reliable
 
         private WebScaffold _scaffold;
 
@@ -222,20 +140,9 @@ namespace Youverse.Hosting.Tests.Performance
             for (var i = 1; i < MAXTHREADS * MAXITERATIONS; i++)
                 Debug.Assert(oneDimensionalArray[i - 1] <= oneDimensionalArray[i]);
 
-            Console.WriteLine($"{DateTime.Today:yyyy-MM-dd} [{Dns.GetHostName()}] Ident API test, anonymous");
-            Console.WriteLine($"Threads   : {MAXTHREADS}");
-            Console.WriteLine($"Iterations: {MAXITERATIONS}");
-            Console.WriteLine($"Time      : {sw.ElapsedMilliseconds}ms");
-            Console.WriteLine($"Minimum   : {oneDimensionalArray[0]}ms");
-            Console.WriteLine($"Maximum   : {oneDimensionalArray[MAXTHREADS * MAXITERATIONS - 1]}ms");
-            Console.WriteLine($"Average   : {oneDimensionalArray.Sum() / (MAXTHREADS * MAXITERATIONS)}ms");
-            Console.WriteLine($"Median    : {oneDimensionalArray[(MAXTHREADS * MAXITERATIONS) / 2]}ms");
-
+            IdentPerformanceTests.PerformanceLog(MAXTHREADS, MAXITERATIONS, sw.ElapsedMilliseconds, oneDimensionalArray);
             Console.WriteLine(
-                $"Capacity  : {(1000 * MAXITERATIONS * MAXTHREADS) / Math.Max(1, sw.ElapsedMilliseconds)} / second");
-            Console.WriteLine(
-                $"Bandwidth : {1000 * (fileByteLength / Math.Max(1, sw.ElapsedMilliseconds))} bytes / second");
-            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
+                $"Bandwidth : {1000 * (fileByteLength / Math.Max(1, sw.ElapsedMilliseconds)):N0} bytes / second");
         }
 
 

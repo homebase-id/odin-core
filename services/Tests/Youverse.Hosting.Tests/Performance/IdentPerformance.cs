@@ -18,8 +18,8 @@ namespace Youverse.Hosting.Tests.Performance
     {
 
         // For the performance test
-        private static readonly int MAXTHREADS = 16; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
-        private const int MAXITERATIONS = 15000; // A number high enough to get warmed up and reliable
+        private static readonly int MAXTHREADS = 12;
+        private const int MAXITERATIONS = 150;
 
         private WebScaffold _scaffold;
 
@@ -37,24 +37,41 @@ namespace Youverse.Hosting.Tests.Performance
             _scaffold.RunAfterAnyTests();
         }
 
+        public static void PerformanceLog(int maxThreads, int maxIterations, long wallMilliseconds, long[] timerMsArray)
+        {
+            Console.WriteLine($"{DateTime.Today:yyyy-MM-dd} Host [{Dns.GetHostName()}]");
+            Console.WriteLine($"Threads   : {maxThreads}");
+            Console.WriteLine($"Iterations: {maxIterations:N0}");
+            Console.WriteLine($"Wall Time : {wallMilliseconds:N0}ms");
+            Console.WriteLine($"Minimum   : {timerMsArray[0]:N0}ms");
+            Console.WriteLine($"Maximum   : {timerMsArray[maxThreads * maxIterations - 1]:N0}ms");
+            Console.WriteLine($"Average   : {timerMsArray.Sum() / (maxThreads * maxIterations):N0}ms");
+            Console.WriteLine($"Median    : {timerMsArray[(maxThreads * maxIterations) / 2]:N0}ms");
+            Console.WriteLine(
+                $"Capacity  : {(1000 * maxIterations * maxThreads) / Math.Max(1, wallMilliseconds):N0} / second");
+
+            Console.WriteLine($"RSA Encryptions {RsaKeyManagement.noEncryptions:N0}, Decryptions {RsaKeyManagement.noDecryptions:N0}");
+            Console.WriteLine($"RSA Keys Created {RsaKeyManagement.noKeysCreated:N0}, Keys Expired {RsaKeyManagement.noKeysExpired:N0}");
+            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened:N0}, Closed {RsaKeyManagement.noDBClosed:N0}");
+        }
 
         /*
-             TaskPerformanceTest_Ident
-               Duration: 9.9 sec
+         TaskPerformanceTest_Ident
+           Duration: 7.8 sec
 
-              Standard Output: 
-                2023-05-06 [SEMIBEASTII] Ident API test, anonymous
-                Threads   : 16
-                Iterations: 15000
-                Time      : 9898ms
-                Minimum   : 0ms
-                Maximum   : 33ms
-                Average   : 0ms
-                Median    : 0ms
-                Capacity  : 24247 / second
-                RSA Encryptions 0, Decryptions 8
-                RSA Keys Created 4, Keys Expired 0
-                DB Opened 4, Closed 0    
+          Standard Output: 
+            2023-05-06 Host [SEMIBEASTII]
+            Threads   : 12
+            Iterations: 15,000
+            Wall Time : 7,740ms
+            Minimum   : 0ms
+            Maximum   : 34ms
+            Average   : 0ms
+            Median    : 0ms
+            Capacity  : 23,255 / second
+            RSA Encryptions 0, Decryptions 8
+            RSA Keys Created 4, Keys Expired 0
+            DB Opened 4, Closed 0
           */
 
         [Test]
@@ -107,21 +124,7 @@ namespace Youverse.Hosting.Tests.Performance
             for (var i = 1; i < MAXTHREADS * MAXITERATIONS; i++)
                 Debug.Assert(oneDimensionalArray[i - 1] <= oneDimensionalArray[i]);
 
-            Console.WriteLine($"{DateTime.Today:yyyy-MM-dd} [{Dns.GetHostName()}] Ident API test, anonymous");
-            Console.WriteLine($"Threads   : {MAXTHREADS}");
-            Console.WriteLine($"Iterations: {MAXITERATIONS}");
-            Console.WriteLine($"Time      : {sw.ElapsedMilliseconds}ms");
-            Console.WriteLine($"Minimum   : {oneDimensionalArray[0]}ms");
-            Console.WriteLine($"Maximum   : {oneDimensionalArray[MAXTHREADS * MAXITERATIONS - 1]}ms");
-            Console.WriteLine($"Average   : {oneDimensionalArray.Sum() / (MAXTHREADS * MAXITERATIONS)}ms");
-            Console.WriteLine($"Median    : {oneDimensionalArray[(MAXTHREADS * MAXITERATIONS) / 2]}ms");
-
-            Console.WriteLine(
-                $"Capacity  : {(1000 * MAXITERATIONS * MAXTHREADS) / Math.Max(1, sw.ElapsedMilliseconds)} / second");
-
-            Console.WriteLine($"RSA Encryptions {RsaKeyManagement.noEncryptions}, Decryptions {RsaKeyManagement.noDecryptions}");
-            Console.WriteLine($"RSA Keys Created {RsaKeyManagement.noKeysCreated}, Keys Expired {RsaKeyManagement.noKeysExpired}");
-            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
+            PerformanceLog(MAXTHREADS, MAXITERATIONS, sw.ElapsedMilliseconds, oneDimensionalArray);
         }
 
 
