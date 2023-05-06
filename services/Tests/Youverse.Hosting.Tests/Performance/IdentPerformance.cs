@@ -85,7 +85,7 @@ namespace Youverse.Hosting.Tests.Performance
 
             try
             {
-                Task.WaitAll(tasks);
+                await Task.WhenAll(tasks);
             }
             catch (AggregateException ae)
             {
