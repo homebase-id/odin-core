@@ -14,7 +14,7 @@ using Youverse.Hosting.Tests.AppAPI.ApiClient;
 namespace Youverse.Hosting.Tests.Performance.DotYouContext
 {
     [TestFixture]
-    public class AppIdentTests
+    public class GetContextPerfTests
     {
         private WebScaffold _scaffold;
 
