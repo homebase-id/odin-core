@@ -4,15 +4,10 @@ using Microsoft.AspNetCore.Mvc;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Registry;
+using Youverse.Hosting.Controllers.Base;
 
 namespace Youverse.Hosting.Controllers.Anonymous
 {
-    public class GetIdentResponse
-    {
-        public string? OdinId { get; set; }
-        public double Version { get; set; }
-    }
-    
     [ApiController]
     [Route(YouAuthApiPathConstants.AuthV1)]
     public class IdentController : Controller

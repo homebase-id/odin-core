@@ -2,6 +2,7 @@
 using NUnit.Framework;
 using Youverse.Core.Services.Configuration;
 using Youverse.Hosting.Tests.OwnerApi.ApiClient.Cron;
+using Youverse.Hosting.Tests.OwnerApi.ApiClient.Security;
 using Youverse.Hosting.Tests.OwnerApi.ApiClient.Transit;
 using Youverse.Hosting.Tests.OwnerApi.Configuration;
 using Youverse.Hosting.Tests.OwnerApi.Utils;
@@ -19,6 +20,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.ApiClient
         private readonly DriveApiClient _driveApiClient;
         private readonly FollowerApiClient _followerApiClient;
         private readonly CronApiClient _cronApiClient;
+        private readonly SecurityApiClient _securityApiClient;
 
         public OwnerApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity)
         {
@@ -31,13 +33,16 @@ namespace Youverse.Hosting.Tests.OwnerApi.ApiClient
             _driveApiClient = new DriveApiClient(ownerApi, identity);
             _followerApiClient = new FollowerApiClient(ownerApi, identity);
             _cronApiClient = new CronApiClient(ownerApi, identity);
+            _securityApiClient = new SecurityApiClient(ownerApi, identity);
         }
 
         public TestIdentity Identity => _identity;
 
         public AppsApiClient Apps => _appsApiClient;
 
+        public SecurityApiClient Security => _securityApiClient;
         public CronApiClient Cron => _cronApiClient;
+
         public FollowerApiClient Follower => _followerApiClient;
         public CircleNetworkApiClient Network => _circleNetworkApiClient;
 

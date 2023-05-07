@@ -5,6 +5,7 @@ using Youverse.Core;
 using Youverse.Core.Storage;
 using Youverse.Hosting.Tests.AppAPI.ApiClient.Auth;
 using Youverse.Hosting.Tests.AppAPI.ApiClient.Drive;
+using Youverse.Hosting.Tests.AppAPI.ApiClient.Security;
 using Youverse.Hosting.Tests.AppAPI.Utils;
 using Youverse.Hosting.Tests.OwnerApi.ApiClient;
 using Youverse.Hosting.Tests.OwnerApi.Utils;
@@ -34,6 +35,8 @@ namespace Youverse.Hosting.Tests.AppAPI.ApiClient
             };
             
             this.Drive = new AppDriveApiClient(ownerApi, _token);
+            this.Security = new AppSecurityApiClient(ownerApi, _token);
+            
         }
 
         public TestIdentity Identity => _identity;
@@ -41,6 +44,9 @@ namespace Youverse.Hosting.Tests.AppAPI.ApiClient
         public GuidId AccessRegistrationId => _token.ClientAuthToken.Id;
 
         public AppDriveApiClient Drive { get; }
+
+        
+        public AppSecurityApiClient Security { get; }
 
         public async Task Logout()
         {
