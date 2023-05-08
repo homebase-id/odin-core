@@ -214,7 +214,7 @@ namespace Youverse.Hosting.Tests.Performance
             getStaticFileSvc = RestService.For<IStaticFileTestHttpClientForOwner>(client);
 
 
-            await PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, CanPublishStaticFileContentWithThumbnails);
+            PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, CanPublishStaticFileContentWithThumbnails);
         }
 
         private WebScaffold _scaffold;

@@ -107,7 +107,7 @@ namespace Youverse.Hosting.Tests.Performance
             _frodoAppContext = scenarioCtx.AppContexts[TestIdentities.Frodo.OdinId];
             _samAppContext = scenarioCtx.AppContexts[TestIdentities.Samwise.OdinId];
 
-            await PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, DoChat);
+            PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, DoChat);
         }
 
 

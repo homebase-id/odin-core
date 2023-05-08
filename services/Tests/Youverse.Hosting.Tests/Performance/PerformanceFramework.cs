@@ -9,7 +9,10 @@ using NUnit.Framework;
 using Refit;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Hosting.Tests.Anonymous.Ident;
-
+using System.Data.Entity.Core.Common.CommandTrees.ExpressionBuilder;
+using System.Numerics;
+using System.Threading.Channels;
+using System.Threading;
 
 namespace Youverse.Hosting.Tests.Performance
 {
@@ -47,9 +50,9 @@ namespace Youverse.Hosting.Tests.Performance
         }
 
 
-        public static async Task ThreadedTest(int maxThreads, int iterations, Func<int, int, Task<(long, long[])>> functionToExecute)
+        public static void ThreadedTest(int maxThreads, int iterations, Func<int, int, Task<(long, long[])>> functionToExecute)
         {
-            var tasks = new Task[maxThreads];
+            // var tasks = new Task[maxThreads];
             List<long[]> timers = new List<long[]>();
             long fileByteLength = 0;
 
@@ -57,11 +60,17 @@ namespace Youverse.Hosting.Tests.Performance
             sw.Reset();
             sw.Start();
 
+            Thread[] threads = new Thread[maxThreads];
+
             for (var i = 0; i < maxThreads; i++)
             {
-                tasks[i] = Task.Run(async () =>
+                int threadIndex = i;
+
+                threads[i] = new Thread(() =>
                 {
-                    var (bw, measurements) = await functionToExecute(i, iterations);
+                    var resultTuple = functionToExecute(threadIndex, iterations);
+                    long bw = resultTuple.Result.Item1;
+                    long[] measurements = resultTuple.Result.Item2;
                     Debug.Assert(measurements.Length == iterations);
                     lock (timers)
                     {
@@ -69,21 +78,17 @@ namespace Youverse.Hosting.Tests.Performance
                         fileByteLength += bw;
                     }
                 });
+
+                threads[i].Start();
             }
 
-            try
+            // Join the threads
+            for (var i = 0; i < maxThreads; i++)
             {
-                await Task.WhenAll(tasks);
+                threads[i].Join();
             }
-            catch (AggregateException ae)
-            {
-                foreach (var ex in ae.InnerExceptions)
-                {
-                    Console.WriteLine(ex.Message);
-                }
 
-                throw;
-            }
+            // [snip]
 
             sw.Stop();
 

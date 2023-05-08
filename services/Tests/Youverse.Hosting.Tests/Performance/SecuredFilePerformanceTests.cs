@@ -92,7 +92,7 @@ namespace Youverse.Hosting.Tests.Performance
             using var frodoHttpClient = _scaffold.AppApi.CreateAppApiHttpClient(frodoAppContext);
             frodoDriveService = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(frodoHttpClient, frodoAppContext.SharedSecret);
 
-            await PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, GetSecuredFile);
+            PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, GetSecuredFile);
         }
 
 

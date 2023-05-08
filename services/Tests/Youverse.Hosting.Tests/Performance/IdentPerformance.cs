@@ -75,9 +75,10 @@ namespace Youverse.Hosting.Tests.Performance
           */
 
         [Test]
-        public async Task TaskPerformanceTest_Ident()
+        public void TaskPerformanceTest_Ident()
         {
-            await PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, DoIdent);
+            PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, DoIdent);
+            Assert.Pass();
         }
 
 
