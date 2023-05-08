@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -21,36 +22,15 @@ using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.ReceivingHost;
 using Youverse.Core.Services.Transit.SendingHost;
-using Youverse.Hosting.Controllers.Base;
-using Youverse.Hosting.Controllers.ClientToken.Transit;
-using Youverse.Hosting.Tests.AppAPI;
 using Youverse.Hosting.Tests.AppAPI.Drive;
 using Youverse.Hosting.Tests.AppAPI.Transit;
 using Youverse.Hosting.Tests.AppAPI.Utils;
 using Youverse.Hosting.Tests.OwnerApi.ApiClient;
-using Youverse.Hosting.Tests.OwnerApi.Drive;
 
 
 namespace Youverse.Hosting.Tests.Performance
 {
     /*
-     * TaskPerformanceTest_Transit
-     *   Duration: 23.7 sec
-     *
-     *  Standard Output: 
-     *    Threads   : 12
-     *    Iterations: 300
-     *    Time      : 20,649ms
-     *    Minimum   : 18ms
-     *    Maximum   : 396ms
-     *    Average   : 66ms
-     *    Median    : 60ms
-     *    Capacity  : 174 / second
-     *    Bandwidth : 132,000 bytes / second
-     *    RSA Encryptions 3616, Decryptions 24
-     *    RSA Keys Created 12, Keys Expired 0
-     *    DB Opened 22, Closed 0
-     *
      * 2023-03-12
      *
         TaskPerformanceTest_Transit
@@ -69,15 +49,35 @@ namespace Youverse.Hosting.Tests.Performance
             RSA Encryptions 3616, Decryptions 24
             RSA Keys Created 12, Keys Expired 0
             DB Opened 14, Closed 0
-     */
+
+        TaskPerformanceTest_Transit
+           Duration: 26.2 sec
+
+          Standard Output: 
+            2023-05-06 Host [SEMIBEASTII]
+            Threads   : 12
+            Iterations: 300
+            Wall Time : 23,659ms
+            Minimum   : 16ms
+            Maximum   : 711ms
+            Average   : 75ms
+            Median    : 63ms
+            Capacity  : 152 / second
+            RSA Encryptions 16, Decryptions 24
+            RSA Keys Created 12, Keys Expired 0
+            DB Opened 15, Closed 0
+            Bandwidth : 115,000 bytes / second
+      */
 
     public class TransitPerformanceTests
     {
         private const int FileType = 844;
 
         // For the performance test
-        private static readonly int MAXTHREADS = 6; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
-        private const int MAXITERATIONS = 30; // A number high enough to get warmed up and reliable
+        private static readonly int MAXTHREADS = 12;
+        private const int MAXITERATIONS = 30;
+        TestAppContext _frodoAppContext;
+        TestAppContext _samAppContext;
 
         private WebScaffold _scaffold;
 
@@ -98,84 +98,20 @@ namespace Youverse.Hosting.Tests.Performance
         [Test]
         public async Task TaskPerformanceTest_Transit()
         {
-            Task[] tasks = new Task[MAXTHREADS];
-            List<long[]> timers = new List<long[]>();
-            long fileByteLength = 0;
-
             TargetDrive targetDrive = TargetDrive.NewTargetDrive();
 
             //
             // Prepare environment by connecting identities
             //
             var scenarioCtx = await _scaffold.Scenarios.CreateConnectedHobbits(targetDrive);
-            var frodoAppContext = scenarioCtx.AppContexts[TestIdentities.Frodo.OdinId];
-            var samAppContext = scenarioCtx.AppContexts[TestIdentities.Samwise.OdinId];
+            _frodoAppContext = scenarioCtx.AppContexts[TestIdentities.Frodo.OdinId];
+            _samAppContext = scenarioCtx.AppContexts[TestIdentities.Samwise.OdinId];
 
-            //
-            // Now back to performance testing
-            //
-            var sw = new Stopwatch();
-            sw.Reset();
-            sw.Start();
-
-            for (var i = 0; i < MAXTHREADS; i++)
-            {
-                tasks[i] = Task.Run(async () =>
-                {
-                    var (tmp, measurements) = await DoChat(i, MAXITERATIONS, frodoAppContext, samAppContext);
-                    Debug.Assert(measurements.Length == MAXITERATIONS);
-                    lock (timers)
-                    {
-                        fileByteLength += tmp;
-                        timers.Add(measurements);
-                    }
-                });
-            }
-
-            try
-            {
-                Task.WaitAll(tasks);
-            }
-            catch (AggregateException ae)
-            {
-                foreach (var ex in ae.InnerExceptions)
-                {
-                    Console.WriteLine(ex.Message);
-                }
-
-                throw;
-            }
-
-            sw.Stop();
-
-            Debug.Assert(timers.Count == MAXTHREADS);
-            long[] oneDimensionalArray = timers.SelectMany(arr => arr).ToArray();
-            Debug.Assert(oneDimensionalArray.Length == (MAXTHREADS * MAXITERATIONS));
-
-            Array.Sort(oneDimensionalArray);
-            for (var i = 1; i < MAXTHREADS * MAXITERATIONS; i++)
-                Debug.Assert(oneDimensionalArray[i - 1] <= oneDimensionalArray[i]);
-
-            Console.WriteLine($"Threads   : {MAXTHREADS}");
-            Console.WriteLine($"Iterations: {MAXITERATIONS}");
-            Console.WriteLine($"Time      : {sw.ElapsedMilliseconds}ms");
-            Console.WriteLine($"Minimum   : {oneDimensionalArray[0]}ms");
-            Console.WriteLine($"Maximum   : {oneDimensionalArray[MAXTHREADS * MAXITERATIONS - 1]}ms");
-            Console.WriteLine($"Average   : {oneDimensionalArray.Sum() / (MAXTHREADS * MAXITERATIONS)}ms");
-            Console.WriteLine($"Median    : {oneDimensionalArray[(MAXTHREADS * MAXITERATIONS) / 2]}ms");
-
-            Console.WriteLine(
-                $"Capacity  : {(1000 * MAXITERATIONS * MAXTHREADS) / Math.Max(1, sw.ElapsedMilliseconds)} / second");
-            Console.WriteLine(
-                $"Bandwidth : {1000 * (fileByteLength / Math.Max(1, sw.ElapsedMilliseconds))} bytes / second");
-
-            Console.WriteLine($"RSA Encryptions {RsaKeyManagement.noEncryptions}, Decryptions {RsaKeyManagement.noDecryptions}");
-            Console.WriteLine($"RSA Keys Created {RsaKeyManagement.noKeysCreated}, Keys Expired {RsaKeyManagement.noKeysExpired}");
-            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
+            PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, DoChat);
         }
 
 
-        public async Task<(long, long[])> DoChat(int threadno, int iterations, TestAppContext frodoAppContext, TestAppContext samAppContext)
+        public async Task<(long, long[])> DoChat(int threadno, int iterations)
         {
             long fileByteLength = 0;
             long[] timers = new long[iterations];
@@ -193,7 +129,7 @@ namespace Youverse.Hosting.Tests.Performance
             };
 
 
-            var ctx = frodoAppContext;
+            var ctx = _frodoAppContext;
             for (int count = 0; count < iterations; count++)
             {
                 sw.Restart();

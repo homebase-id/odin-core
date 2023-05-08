@@ -28,74 +28,48 @@ using Youverse.Hosting.Tests.AppAPI.Utils;
 using Youverse.Hosting.Tests.OwnerApi.ApiClient;
 using Youverse.Hosting.Tests.OwnerApi.Drive;
 using Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn;
+using Youverse.Hosting.Tests.Performance;
 
 namespace Youverse.Hosting.Tests.Performance
 {
     /*
      * File size is : 78,981 bytes
      * 
-     *  =================== 2022-12-19, SEMIBEAST II
+
          TaskPerformanceTest
-           Duration: 36.1 sec
+           Duration: 32.2 sec
 
           Standard Output: 
-            Threads   : 10
-            Iterations: 10000
-            Time      : 35308ms
+            2023-05-06 Host [SEMIBEASTII]
+            Threads   : 12
+            Iterations: 10,000
+            Wall Time : 31,328ms
             Minimum   : 0ms
-            Maximum   : 51ms
-            Average   : 0ms
-            Median    : 2ms
-            Capacity  : 2832 / second
-            Bandwidth : 223674192 bytes / second
-    
-        TaskPerformanceTest
-           Duration: 1.4 min
-
-          Standard Output: 
-            Threads   : 20
-            Iterations: 10000
-            Time      : 85120ms
-            Minimum   : 0ms
-            Maximum   : 64ms
-            Average   : 0ms
-            Median    : 7ms
-            Capacity  : 2349 / second
-            Bandwidth : 185526369 bytes / second        
-
-    March 12-2023
-        TaskPerformanceTest
-            Duration: 27.7 sec
-
-          Standard Output: 
-            Threads   : 10
-            Iterations: 10000
-            Time      : 26887ms
-            Minimum   : 0ms
-            Maximum   : 38ms
+            Maximum   : 46ms
             Average   : 2ms
             Median    : 1ms
-            Capacity  : 3719 / second
-            Bandwidth : 295057000 bytes / second
-            DB Opened 11, Closed 0
-         
+            Capacity  : 3,830 / second
+            RSA Encryptions 1, Decryptions 9
+            RSA Keys Created 5, Keys Expired 0
+            DB Opened 12, Closed 0
+            Bandwidth : 304,830,000 bytes / second
+    
+    
      */
     public class PublicStaticFilePerformanceTest
     {
         // For the performance test
-        private const int
-            MAXTHREADS = 10; // Should be at least 2 * your CPU cores. Can still be nice to test sometimes with lower. And not too high.
+        private const int MAXTHREADS = 12;
+        const int MAXITERATIONS = 100;
 
-        const int MAXITERATIONS = 100; // A number high enough to get warmed up and reliable
+        IStaticFileTestHttpClientForOwner getStaticFileSvc;
+        PublishStaticFileRequest publishRequest;
+        StaticFilePublishResult pubResult;
 
 
         [Test]
         public async Task TaskPerformanceTest()
         {
-            Task[] tasks = new Task[MAXTHREADS];
-            List<long[]> timers = new List<long[]>();
-            long fileByteLength = 0;
-
             //
             // Some initialization to prepare for the test
             //
@@ -176,7 +150,7 @@ namespace Youverse.Hosting.Tests.Performance
                 RefitCreator.RestServiceFor<IStaticFileTestHttpClientForOwner>(client, ownerSharedSecret);
 
             //publish a static file
-            var publishRequest = new PublishStaticFileRequest()
+            publishRequest = new PublishStaticFileRequest()
             {
                 Filename = "test-file.ok",
                 Config = new StaticFileConfiguration()
@@ -229,7 +203,7 @@ namespace Youverse.Hosting.Tests.Performance
             Assert.True(publishResponse.IsSuccessStatusCode, publishResponse.ReasonPhrase);
             Assert.NotNull(publishResponse.Content);
 
-            var pubResult = publishResponse.Content;
+            pubResult = publishResponse.Content;
 
             Assert.AreEqual(pubResult.Filename, publishRequest.Filename);
             Assert.AreEqual(pubResult.SectionResults.Count, publishRequest.Sections.Count);
@@ -237,66 +211,10 @@ namespace Youverse.Hosting.Tests.Performance
             Assert.AreEqual(pubResult.SectionResults[0].FileCount, total_files_uploaded);
 
 
-            var getStaticFileSvc = RestService.For<IStaticFileTestHttpClientForOwner>(client);
+            getStaticFileSvc = RestService.For<IStaticFileTestHttpClientForOwner>(client);
 
-            //
-            // Now back to performance testing
-            //
-            var sw = new Stopwatch();
-            sw.Reset();
-            sw.Start();
 
-            for (var i = 0; i < MAXTHREADS; i++)
-            {
-                tasks[i] = Task.Run(async () =>
-                {
-                    var (tmp, measurements) = await CanPublishStaticFileContentWithThumbnails(i, MAXITERATIONS, getStaticFileSvc, publishRequest, pubResult);
-                    Debug.Assert(measurements.Length == MAXITERATIONS);
-                    lock (timers)
-                    {
-                        fileByteLength += tmp;
-                        timers.Add(measurements);
-                    }
-                });
-            }
-
-            try
-            {
-                Task.WaitAll(tasks);
-            }
-            catch (AggregateException ae)
-            {
-                foreach (var ex in ae.InnerExceptions)
-                {
-                    Console.WriteLine(ex.Message);
-                }
-
-                throw;
-            }
-
-            sw.Stop();
-
-            Debug.Assert(timers.Count == MAXTHREADS);
-            long[] oneDimensionalArray = timers.SelectMany(arr => arr).ToArray();
-            Debug.Assert(oneDimensionalArray.Length == (MAXTHREADS * MAXITERATIONS));
-
-            Array.Sort(oneDimensionalArray);
-            for (var i = 1; i < MAXTHREADS * MAXITERATIONS; i++)
-                Debug.Assert(oneDimensionalArray[i - 1] <= oneDimensionalArray[i]);
-
-            Console.WriteLine($"Threads   : {MAXTHREADS}");
-            Console.WriteLine($"Iterations: {MAXITERATIONS}");
-            Console.WriteLine($"Time      : {sw.ElapsedMilliseconds}ms");
-            Console.WriteLine($"Minimum   : {oneDimensionalArray[0]}ms");
-            Console.WriteLine($"Maximum   : {oneDimensionalArray[MAXTHREADS * MAXITERATIONS - 1]}ms");
-            Console.WriteLine($"Average   : {oneDimensionalArray.Sum() / (MAXTHREADS * MAXITERATIONS)}ms");
-            Console.WriteLine($"Median    : {oneDimensionalArray[(MAXTHREADS * MAXITERATIONS) / 2]}ms");
-
-            Console.WriteLine(
-                $"Capacity  : {(1000 * MAXITERATIONS * MAXTHREADS) / Math.Max(1, sw.ElapsedMilliseconds)} / second");
-            Console.WriteLine(
-                $"Bandwidth : {1000*(fileByteLength / Math.Max(1, sw.ElapsedMilliseconds))} bytes / second");
-            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened}, Closed {RsaKeyManagement.noDBClosed}");
+            PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, CanPublishStaticFileContentWithThumbnails);
         }
 
         private WebScaffold _scaffold;
@@ -318,7 +236,7 @@ namespace Youverse.Hosting.Tests.Performance
         // First make this test pass, then change it from a test to something else.
         //
         // [Test(Description = "publish static content to file, including payload and thumbnails")]
-        public async Task<(long, long[])> CanPublishStaticFileContentWithThumbnails(int threadno, int iterations, IStaticFileTestHttpClientForOwner getStaticFileSvc, PublishStaticFileRequest publishRequest, StaticFilePublishResult pubResult)
+        public async Task<(long, long[])> CanPublishStaticFileContentWithThumbnails(int threadno, int iterations)
         {
             long[] timers = new long[iterations];
             Debug.Assert(timers.Length == iterations);
