@@ -14,10 +14,12 @@ namespace Youverse.Hosting.Middleware
         //Note: be sure it does not end with a "/"
         private static readonly List<string> paths = new List<string>()
         {
-            "/home/static/js",
-            "/owner/static/js",
-            "/home/static/css",
-            "/owner/static/css"
+            "/home/assets/js",
+            "/owner/assets/js",
+            "/home/assets/css",
+            "/owner/assets/css",
+            "/owner/icons",
+            "/home/icons",
         };
 
         public StaticFileCachingMiddleware(RequestDelegate next)
@@ -28,7 +30,7 @@ namespace Youverse.Hosting.Middleware
         public async Task Invoke(HttpContext httpContext)
         {
             var isDev = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == Environments.Development;
-                
+
             if (paths.Any(s => httpContext.Request.Path.StartsWithSegments(s)) && !isDev)
             {
                 httpContext.Response.Headers.Add("Cache-Control", "max-age=31536000");
