@@ -1,8 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
+using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
 using Dawn;
 using DnsClient;
@@ -31,22 +35,22 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     private readonly IIdentityRegistry _registry;
     private readonly ReservationStorage _reservationStorage;
     private readonly YouverseConfiguration _configuration;
-    private readonly ILookupClient _provisioningDnsClient;
     private readonly IDnsRestClient _dnsRestClient;
+    private readonly HttpClient _certifacteTester;
 
     public IdentityRegistrationService(
         ILogger<IdentityRegistrationService> logger, 
-        IHttpContextAccessor accessor, 
+        IIdentityRegistry registry,
         YouverseConfiguration configuration,
-        ILookupClient provisioningDnsClient,
-        IDnsRestClient dnsRestClient)
+        IDnsRestClient dnsRestClient,
+        HttpClient certifacteTester)
     {
         _logger = logger;
         _configuration = configuration;
-        _registry = accessor!.HttpContext!.RequestServices!.GetRequiredService<IIdentityRegistry>();
-        _provisioningDnsClient = provisioningDnsClient;
+        _registry = registry;
         _reservationStorage = new ReservationStorage();
         _dnsRestClient = dnsRestClient;
+        _certifacteTester = certifacteTester;
     }
 
     public async Task<Guid> StartRegistration(RegistrationInfo registrationInfo)
@@ -64,7 +68,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             throw new Exception("Reservation not valid");
         }
 
-        var request = new IdentityRegistrationRequest()
+        var request = new IdentityRegistrationRequest
         {
             OdinId = (OdinId)reservation.Domain,
             IsCertificateManaged = false, //TODO
@@ -146,15 +150,53 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         _reservationStorage.Delete(reservationId);
         await Task.CompletedTask;
     }
+    
+    //
 
-    public Task<List<string>> GetManagedDomainApexes()
+    public async Task<bool> CanConnectToHostAndPort(string domain, int port)
     {
-        return Task.FromResult(_configuration.Registry.ManagedDomains);
+        try
+        {
+            // SEB:TODO will we get a TIME_WAIT problem here?
+            using var tcpClient = new TcpClient(); 
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            await tcpClient.ConnectAsync(domain, port, cts.Token);
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }            
     }
+    
+    //
 
+    public async Task<bool> HasValidCertifacte(string domain)
+    {
+        try
+        {
+            await _certifacteTester.GetAsync($"https://{domain}");
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+    
+    //
+
+    public Task<List<YouverseConfiguration.RegistrySection.ManagedDomainApex>> GetManagedDomainApexes()
+    {
+        return Task.FromResult(_configuration.Registry.ManagedDomainApexes);
+    }
+    
+    //
 
     public Task<DnsConfigurationSet> GetDnsConfiguration(string domain)
     {
+        DomainNameValidator.AssertValidDomain(domain);
+        
         List<DnsConfig> MapDnsConfig(List<YouverseConfiguration.RegistrySection.DnsRecord> configRecords)
         {
             var result = new List<DnsConfig>();
@@ -164,6 +206,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
                 {
                     Type = record.Type,
                     Name = record.Name,
+                    Domain = record.Name == "" ? domain : record.Name + "." + domain,    
                     Value = record.Value == "{{domain-placeholder}}" ? domain : record.Value,
                     Description = record.Description
                 });
@@ -182,6 +225,46 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     }
     
     //
+
+    public async Task<ExternalDnsResolverLookupResult> ExternalDnsResolverRecordLookup(string domain)
+    {
+        var result = new ExternalDnsResolverLookupResult();
+
+        var lookups = new List<(string, DnsConfig, Task<bool>)>();
+       
+        foreach (var resolver in _configuration.Registry.DnsResolvers)
+        {
+            var dnsConfig = await GetDnsConfiguration(domain);
+            var dnsClient = await CreateDnsClient(resolver);
+            foreach (var record in dnsConfig.AllDnsRecords)
+            {
+                lookups.Add(
+                    (
+                        resolver,
+                        record,
+                        VerifyDnsRecord(domain, record, dnsClient, true)
+                    ));
+            }
+        }
+
+        await Task.WhenAll(lookups.Select(x => x.Item3));
+
+        foreach (var lookup in lookups)
+        {
+            result.Statuses.Add(new ExternalDnsResolverLookupResult.ResolverStatus
+            {
+                ResolverIp = lookup.Item1,
+                Domain = lookup.Item2.Domain,
+                Success = lookup.Item2.Status == DnsConfig.LookupRecordStatus.Success
+            });
+        }
+
+        result.Success = result.Statuses.All(x => x.Success);
+        
+        return result; 
+    }
+    
+    //
     // Managed Domain
     //
 
@@ -189,9 +272,16 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     {
         var domain = prefix + "." + apex;
         DomainNameValidator.AssertValidDomain(domain);
-        await AssertManagedDomainApexBelongsHere(apex);
+        await AssertManagedDomainApexAndPrefix(prefix, apex);
+        
+        var identity = await _registry.Get(domain);
+        if (identity != null)
+        {
+            // Identity already exists
+            return false;
+        }
 
-        var dnsClient = await GetDnsClientForManagedDomainNameServer();
+        var dnsClient = await CreateDnsClient(_configuration.Registry.PowerDnsHostAddress);
         var dnsConfig = await GetDnsConfiguration(domain);
 
         var recordTypes = new[] { QueryType.A, QueryType.CNAME, QueryType.SOA, QueryType.AAAA };
@@ -221,13 +311,11 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     {
         var domain = prefix + "." + apex;
         DomainNameValidator.AssertValidDomain(domain);
-        await AssertManagedDomainApexBelongsHere(apex);
+        await AssertManagedDomainApexAndPrefix(prefix, apex);
     
-        var dnsClient = await GetDnsClientForManagedDomainNameServer();
         var dnsConfig = await GetDnsConfiguration(domain);
 
         var zoneId = apex + ".";
-
         foreach (var record in dnsConfig.AllDnsRecords)
         {
             var name = record.Name != "" ? record.Name + "." + prefix : prefix;
@@ -248,17 +336,69 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     }
     
     //
+
+    public async Task DeleteManagedDomain(string prefix, string apex)
+    {
+        var domain = prefix + "." + apex;
+        DomainNameValidator.AssertValidDomain(domain);
+        await AssertManagedDomainApexAndPrefix(prefix, apex);
+
+        await _registry.DeleteRegistration(domain);
+        
+        var dnsConfig = await GetDnsConfiguration(domain);
+
+        var zoneId = apex + ".";
+        foreach (var record in dnsConfig.AllDnsRecords)
+        {
+            var name = record.Name != "" ? record.Name + "." + prefix : prefix;
+            if (record.Type == "A")
+            {
+                await _dnsRestClient.DeleteARecords(zoneId, name);
+            }
+            else if (record.Type == "CNAME")
+            {
+                await _dnsRestClient.DeleteCnameRecords(zoneId, name);
+            }
+            else
+            {
+                // Sanity
+                throw new YouverseSystemException($"Unsupported record: {record.Type}");
+            }
+        }
+    }
+    
+    //
     // Own Domain
     //
-    
-    public async Task<(bool, DnsConfigurationSet)> VerifyOwnDomain(string domain)
+
+    public async Task<bool> IsOwnDomainAvailable(string domain)
     {
+        DomainNameValidator.AssertValidDomain(domain);
+
+        var identity = await _registry.Get(domain);
+        if (identity != null)
+        {
+            // Identity already exists
+            return false;
+        }
+
+        return true;
+    }
+
+    //
+
+    public async Task<(bool, DnsConfigurationSet)> GetOwnDomainDnsStatus(string domain)
+    {
+        DomainNameValidator.AssertValidDomain(domain);
+        
         var dnsConfig = await GetDnsConfiguration(domain);
 
         var lookups = new List<Task<bool>>();
+        var dnsClient = await CreateDnsClient();
+
         foreach (var record in dnsConfig.AllDnsRecords)
         {
-            lookups.Add(VerifyDnsRecord(domain, record, _provisioningDnsClient, true));
+            lookups.Add(VerifyDnsRecord(domain, record, dnsClient, true));
         }
 
         await Task.WhenAll(lookups);
@@ -277,14 +417,65 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     
     //
 
-    private async Task<ILookupClient> GetDnsClientForManagedDomainNameServer()
+    public async Task DeleteOwnDomain(string domain)
     {
-        if (IPAddress.TryParse(_configuration.Registry.PowerDnsHostAddress, out var nameServerIp))
+        DomainNameValidator.AssertValidDomain(domain);
+        await _registry.DeleteRegistration(domain);        
+    }
+    
+    //
+ 
+    public async Task CreateIdentityOnDomain(string domain)
+    {
+        var identity = await _registry.Get(domain);
+        if (identity != null)
+        { 
+            throw new YouverseSystemException($"Identity {domain} already exists");
+        }
+        
+        // SEB:TODO get rid of reservations
+        var reservation = new Reservation()
+        {
+            Id = Guid.NewGuid(),
+            Domain = domain,
+            CreatedTime = UnixTimeUtc.Now(),
+            ExpiresTime = UnixTimeUtc.Now().AddSeconds(60 * 60 * 48) //TODO: add to config (48 hours)
+        };
+        
+        var request = new IdentityRegistrationRequest()
+        {
+            OdinId = (OdinId)reservation.Domain,
+            IsCertificateManaged = false, //TODO
+        };
+
+        try
+        {
+            var firstRunToken = await _registry.AddRegistration(request);
+        }
+        catch (Exception)
+        {
+            await _registry.DeleteRegistration(domain);
+            throw;
+        }
+    }
+        
+    //        
+
+    private static async Task<ILookupClient> CreateDnsClient(string resolverAddressOrHostName = "")
+    {
+        // SEB:TODO this should be injected into ctor as a factory instead 
+        
+        if (resolverAddressOrHostName == "")
+        {
+            return new LookupClient();
+        }
+        
+        if (IPAddress.TryParse(resolverAddressOrHostName, out var nameServerIp))
         {
             return new LookupClient(nameServerIp);
         }
             
-        var ips = await System.Net.Dns.GetHostAddressesAsync(_configuration.Registry.PowerDnsHostAddress);
+        var ips = await System.Net.Dns.GetHostAddressesAsync(resolverAddressOrHostName);
         nameServerIp = ips.First();
         
         return new LookupClient(nameServerIp);
@@ -292,12 +483,15 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     
     //
     
-    private static async Task<bool> VerifyDnsRecord(
+    private async Task<bool> VerifyDnsRecord(
         string domain, 
         DnsConfig dnsConfig, 
         IDnsQuery dnsClient, 
         bool validateCofiguredValue)
     {
+        var sw = new Stopwatch();
+        sw.Start();
+        
         domain = domain.Trim();
         if (dnsConfig.Name != "")
         {
@@ -338,21 +532,34 @@ public class IdentityRegistrationService : IIdentityRegistrationService
                 dnsConfig.Status = DnsConfig.LookupRecordStatus.IncorrectValue;
             }
         }
+        
+        _logger.LogDebug(
+            "DNS lookup {domain}: {status} ({elapsed}ms using {address})", 
+            domain, dnsConfig.Status, sw.ElapsedMilliseconds, response.NameServer.Address);
 
         return dnsConfig.Status == DnsConfig.LookupRecordStatus.Success;
     }
     
     //
     
-    private async Task AssertManagedDomainApexBelongsHere(string apex)
+    private async Task AssertManagedDomainApexAndPrefix(string prefix, string apex)
     {
         var managedApexes = await GetManagedDomainApexes();
-        if (!managedApexes.Contains(apex))
+        var managedApex = managedApexes.Find(x => x.Apex == apex);
+
+        if (managedApex == null)
         {
-            throw new YouverseSystemException($"Managed domain apex ${apex} does not belong here");
+            throw new YouverseSystemException($"Managed domain apex {apex} does not belong here");
+        }
+
+        var labelCount = prefix.Count(x => x == '.') + 1;
+        if (managedApex.PrefixLabels.Count != labelCount)
+        {
+            throw new YouverseSystemException(
+                $"Managed domain prefix {prefix} has incorret label count. Expected:{managedApex.PrefixLabels.Count}, was:{labelCount},  ");
         }
     }
-    
+
     //
     
     private async Task<bool> DnsRecordsOfTypeExists(string domain, QueryType[] recordTypes, ILookupClient dnsClient)
@@ -370,40 +577,11 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     }
     
     //
-   
+
     private bool IsReservationValid(Reservation reservation)
     {
         var now = UnixTimeUtc.Now();
         return null != reservation && now < reservation.ExpiresTime;
     }
-
 }
 
-public class DnsConfigurationSet
-{
-    public List<DnsConfig> BackendDnsRecords { get; init; } = new ();
-    public List<DnsConfig> FrontendDnsRecords { get; init; } = new ();
-    public List<DnsConfig> StorageDnsRecords { get; init; } = new ();
-    public List<DnsConfig> AllDnsRecords =>
-        BackendDnsRecords
-            .Concat(FrontendDnsRecords)
-            .Concat(StorageDnsRecords)
-            .ToList();
-}
-
-public class DnsConfig
-{
-    public enum LookupRecordStatus 
-    {
-        Unknown,
-        Success,                // domain found, correct value returned
-        DomainOrRecordNotFound, // domain not found, retry later
-        IncorrectValue,         // domain found, but DNS value is incorrect
-    } 
-    
-    public string Type { get; init; } = "";
-    public string Name { get; init; } = "";
-    public string Value { get; init; } = "";
-    public string Description { get; init; } = "";
-    public LookupRecordStatus Status { get; set; } = LookupRecordStatus.Unknown;
-}

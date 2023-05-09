@@ -18,31 +18,33 @@ namespace Youverse.Hosting.Controllers.System
     public class CertificateManagementController : ControllerBase
     {
         private readonly ILogger<CertificateManagementController> _logger;
-        private readonly ITenantCertificateRenewalService _tenantCertificateRenewalService;
+        //private readonly ITenantCertificateRenewalService _tenantCertificateRenewalService;
         private readonly ITenantCertificateService _tenantCertificateService;
 
-        public CertificateManagementController(ILogger<CertificateManagementController> logger, ITenantCertificateRenewalService tenantCertificateRenewalService,
+        public CertificateManagementController(
+            ILogger<CertificateManagementController> logger, 
+            //ITenantCertificateRenewalService tenantCertificateRenewalService,
             ITenantCertificateService tenantCertificateService)
         {
             _logger = logger;
-            _tenantCertificateRenewalService = tenantCertificateRenewalService;
+            //_tenantCertificateRenewalService = tenantCertificateRenewalService;
             _tenantCertificateService = tenantCertificateService;
         }
         
         
         [HttpPost("ensurevalidcertificate")]
-        public async Task<IActionResult> EnsureCertificatesAreValid()
+        public IActionResult EnsureCertificatesAreValid()
         {
-            await _tenantCertificateRenewalService.EnsureCertificatesAreValid();
+            //await _tenantCertificateRenewalService.EnsureCertificatesAreValid();
             return Ok();
         }
 
-        [HttpPost("generatecertificate")]
-        public async Task<CertificateOrderStatus> GenerateCertificateIfReady()
-        {
-            var status = await _tenantCertificateRenewalService.GenerateCertificateIfReady();
-            return status;
-        }
+        // [HttpPost("generatecertificate")]
+        // public async Task<CertificateOrderStatus> GenerateCertificateIfReady()
+        // {
+        //     var status = await _tenantCertificateRenewalService.GenerateCertificateIfReady();
+        //     return status;
+        // }
 
         [HttpGet("verifyCertificatesValid")]
         public async Task<IActionResult> VerifyCertifcatesValid()

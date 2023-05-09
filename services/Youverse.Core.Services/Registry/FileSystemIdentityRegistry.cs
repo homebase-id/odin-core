@@ -28,7 +28,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private readonly Trie.Trie<IdentityRegistration> _trie;
     private readonly string _tenantDataRootPath;
     private readonly CertificateRenewalConfig _certificateRenewalConfig;
-    
+   
     public FileSystemIdentityRegistry(string tenantDataRootPath, CertificateRenewalConfig certificateRenewalConfig)
     {
         if (!Directory.Exists(tenantDataRootPath))
@@ -47,10 +47,10 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         LoadCache();
     }
 
-    public Guid ResolveId(string domain)
+    public Guid? ResolveId(string domain)
     {
         var reg = _trie.LookupName(domain);
-        return reg.Id;
+        return reg?.Id; 
     }
 
     public Task<bool> IsIdentityRegistered(string domain)
@@ -82,8 +82,16 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         {
             //optionally, let an ssl certificate be provided 
             //TODO: is there a way to pull a specific tenant's service config from Autofac?
-            ITenantCertificateService tc = new TenantCertificateService(TenantContext.Create(registration.Id, request.OdinId, _tenantDataRootPath, _certificateRenewalConfig));
-            await tc.SaveSslCertificate(registration.Id, request.OdinId.DomainName, request.OptionalCertificatePemContent);
+            // SEB:TODO Yes, but need to DI this class first.
+            var tenantContext = TenantContext.Create(registration.Id, request.OdinId, _tenantDataRootPath, _certificateRenewalConfig);
+            await TenantCertificateService.SaveSslCertificate(
+                tenantContext.SslRoot,
+                request.OdinId.DomainName,
+                new KeysAndCertificates
+                {
+                    CertificatesPem = request.OptionalCertificatePemContent.Certificate,
+                    PrivateKeyPem = request.OptionalCertificatePemContent.PrivateKey,
+                });
         }
 
         return registration.FirstRunToken.GetValueOrDefault();
@@ -120,7 +128,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         //the other option here is to load the certs via the registry, which i dont like
         var svc = SystemHttpClient.CreateHttps<ICertificateStatusHttpClient>((OdinId)registration.PrimaryDomainName);
         try
-        {
+        { 
             var certsValidResponse = await svc.VerifyCertificatesValid();
             if (certsValidResponse.IsSuccessStatusCode)
             {
@@ -187,12 +195,14 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             //TODO: need to log an error here and notify sys admins?
             // keep a list of those continuing to fail so we can deactivate, etc.
             Log.Error($"{e.RequestMessage.Method} to {e.RequestMessage.RequestUri} failed with {e.ReasonPhrase}.\n Exception Message: [{e.Message}]");
+            throw;
         }
         catch (HttpRequestException ex)
         {
             //TODO: need to log an error here and notify sys admins?
             // keep a list of those continuing to fail so we can deactivate, etc.
             Log.Error($"Request to EnsureValidCertificates failed with {ex.StatusCode}.\n Exception Message: [{ex.Message}]");
+            throw;
         }
     }
 
@@ -281,23 +291,9 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private async Task InitializeCertificate(string domain)
     {
-        try
-        {
-            var svc = SystemHttpClient.CreateHttp<ICertificateStatusHttpClient>((OdinId)domain);
-            var response = await svc.InitializeCertificate(); // => InitializeCertificate()
-            await response.EnsureSuccessStatusCodeAsync();
-        }
-        catch (ApiException e)
-        {
-            //TODO: need to log an error here and notify sys admins?
-            // keep a list of those continuing to fail so we can deactivate, etc.
-            Log.Error($"{e.RequestMessage.Method} to {e.RequestMessage.RequestUri} failed with {e.ReasonPhrase}.\n Exception Message: [{e.Message}]");
-        }
-        catch (HttpRequestException ex)
-        {
-            //TODO: need to log an error here and notify sys admins?
-            // keep a list of those continuing to fail so we can deactivate, etc.
-            Log.Error($"Request to InitializeCertificate failed with {ex.StatusCode}.\n Exception Message: [{ex.Message}]");
-        }
+        // SEB:TODO use IHttpClientFactory instead. But need to DI this class first.
+        using var httpClient = new HttpClient();
+        var uri = $"https://{domain}/.well-known/acme-challenge/ping";
+        await httpClient.GetAsync(uri);
     }
 }

@@ -6,8 +6,6 @@
     public class CertificatePemContent
     {
         public string PrivateKey { get; set; }
-        
-        public string PublicKeyCertificate { get; set; }
-        public string FullChain { get; set; }
+        public string Certificate { get; set; }
     }
 }

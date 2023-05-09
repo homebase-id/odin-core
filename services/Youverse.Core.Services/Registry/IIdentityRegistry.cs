@@ -7,7 +7,7 @@ namespace Youverse.Core.Services.Registry
     {
         void Initialize();
 
-        Guid ResolveId(string domain);
+        Guid? ResolveId(string domain);
 
         /// <summary>
         /// Checks if a domain is used/registered.

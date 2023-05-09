@@ -18,22 +18,24 @@ namespace Youverse.Hosting.Controllers.System
     public class IdentitySetupController : ControllerBase
     {
         private readonly ILogger<IdentitySetupController> _logger;
-        private readonly ITenantCertificateRenewalService _tenantCertificateRenewalService;
+        // private readonly ITenantCertificateRenewalService _tenantCertificateRenewalService;
         private readonly ITenantCertificateService _tenantCertificateService;
 
-        public IdentitySetupController(ILogger<IdentitySetupController> logger, ITenantCertificateRenewalService tenantCertificateRenewalService,
+        public IdentitySetupController(
+            ILogger<IdentitySetupController> logger,
+            //ITenantCertificateRenewalService tenantCertificateRenewalService,
             ITenantCertificateService tenantCertificateService)
         {
             _logger = logger;
-            _tenantCertificateRenewalService = tenantCertificateRenewalService;
+            //_tenantCertificateRenewalService = tenantCertificateRenewalService;
             _tenantCertificateService = tenantCertificateService;
         }
 
         [HttpPost("initializecertificate")]
-        public async Task<IActionResult> InitializeCertificate()
+        public IActionResult InitializeCertificate()
         {
             _logger.LogInformation("Initialize Certificate called");
-            await _tenantCertificateRenewalService.EnsureCertificatesAreValid(true);
+            //await _tenantCertificateRenewalService.EnsureCertificatesAreValid(true);
             return Ok();
         }
         

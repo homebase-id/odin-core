@@ -75,20 +75,20 @@ namespace Youverse.Core.Services.Workers.DefaultCron
             return response.IsSuccessStatusCode;
         }
 
-        private async Task<CertificateOrderStatus> GenerateCertificate(OdinId identity)
-        {
-            // _logger.LogInformation($"Checking certificate creation status for {identity.DomainName}");
-
-            var svc = SystemHttpClient.CreateHttp<ICertificateStatusHttpClient>(identity);
-            var response = await svc.CheckCertificateCreationStatus();
-            if (response.IsSuccessStatusCode)
-            {
-                return response.Content;
-            }
-
-            //TODO: need to log an error here and notify sys admins?
-            // _logger.LogWarning($"Failed to ensure valid certificate for [{identity}].");
-            return CertificateOrderStatus.UnknownServerError;
-        }
+        // private async Task<CertificateOrderStatus> GenerateCertificate(OdinId identity)
+        // {
+        //     // _logger.LogInformation($"Checking certificate creation status for {identity.DomainName}");
+        //
+        //     var svc = SystemHttpClient.CreateHttp<ICertificateStatusHttpClient>(identity);
+        //     var response = await svc.CheckCertificateCreationStatus();
+        //     if (response.IsSuccessStatusCode)
+        //     {
+        //         return response.Content;
+        //     }
+        //
+        //     //TODO: need to log an error here and notify sys admins?
+        //     // _logger.LogWarning($"Failed to ensure valid certificate for [{identity}].");
+        //     return CertificateOrderStatus.UnknownServerError;
+        // }
     }
 }

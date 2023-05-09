@@ -16,8 +16,8 @@ namespace Youverse.Core.Services.Registry
         [Post(Root + "/ensurevalidcertificate")]
         Task<ApiResponse<HttpContent>> EnsureValidCertificates();
 
-        [Post(Root + "/generatecertificate")]
-        Task<ApiResponse<CertificateOrderStatus>> CheckCertificateCreationStatus();
+        // [Post(Root + "/generatecertificate")]
+        // Task<ApiResponse<CertificateOrderStatus>> CheckCertificateCreationStatus();
         
         [Get(Root + "/verifyCertificatesValid")]
         Task<ApiResponse<bool>> VerifyCertificatesValid();

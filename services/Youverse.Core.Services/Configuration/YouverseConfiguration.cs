@@ -96,7 +96,6 @@ namespace Youverse.Core.Services.Configuration
             }
 
             public List<string> PreconfiguredDomains { get; }
-
             public string SslSourcePath { get; }
         }
 
@@ -106,22 +105,32 @@ namespace Youverse.Core.Services.Configuration
             public virtual string PowerDnsApiKey { get; }
             
             public string ProvisioningDomain { get; }
-            public List<string> ManagedDomains { get; }
+            public List<ManagedDomainApex> ManagedDomainApexes { get; }
             
             public List<DnsRecord> BackendDnsRecords { get; }
             public List<DnsRecord> FrontendDnsRecords { get; }
             public List<DnsRecord> StorageDnsRecords { get; }
+            
+            public List<string> DnsResolvers { get; }
 
             public RegistrySection(IConfiguration config)
             {
                 PowerDnsHostAddress = config.Required<string>("Registry:PowerDnsHostAddress");
                 PowerDnsApiKey = config.Required<string>("Registry:PowerDnsApiKey");
                 ProvisioningDomain = config.Required<string>("Registry:ProvisioningDomain");
-                ManagedDomains = config.Required<List<string>>("Registry:ManagedDomains");
+                ManagedDomainApexes = config.Required<List<ManagedDomainApex>>("Registry:ManagedDomainApexes");
                 BackendDnsRecords = config.Required<List<DnsRecord>>("Registry:BackendDnsRecords");
                 FrontendDnsRecords = config.Required<List<DnsRecord>>("Registry:FrontendDnsRecords");
                 StorageDnsRecords = config.Required<List<DnsRecord>>("Registry:StorageDnsRecords");
+                DnsResolvers = config.Required<List<string>>("Registry:DnsResolvers");
             }
+
+            public class ManagedDomainApex
+            {
+                public string Apex { get; set; } = "";
+                public List<string> PrefixLabels { get; set; } = new();
+            }
+            
             public class DnsRecord
             {
                 public string Type { get; set; } = "";
@@ -241,6 +250,7 @@ namespace Youverse.Core.Services.Configuration
                 CsrLocality = config.Required<string>("CertificateRenewal:CsrLocality");
                 CsrOrganization = config.Required<string>("CertificateRenewal:CsrOrganization");
                 CsrOrganizationUnit = config.Required<string>("CertificateRenewal:CsrOrganizationUnit");
+                LetsEncryptStagingRootCertificates = config.Required<List<string>>("CertificateRenewal:LetsEncryptStagingRootCertificates");                
             }
 
             /// <summary>
@@ -282,6 +292,8 @@ namespace Youverse.Core.Services.Configuration
             /// Gets or sets the optional organizational information.
             /// </summary>
             public string CsrOrganizationUnit { get; }
+            
+            public List<string> LetsEncryptStagingRootCertificates { get; }            
 
             public CertificateRenewalConfig ToCertificateRenewalConfig()
             {
@@ -290,14 +302,14 @@ namespace Youverse.Core.Services.Configuration
                     UseCertificateAuthorityProductionServers = UseCertificateAuthorityProductionServers,
                     CertificateAuthorityAssociatedEmail = CertificateAuthorityAssociatedEmail,
                     NumberOfCertificateValidationTries = NumberOfCertificateValidationTries,
-                    CertificateSigningRequest = new CertificateSigningRequest()
-                    {
-                        CountryName = CsrCountryName,
-                        State = CsrState,
-                        Locality = CsrLocality,
-                        Organization = CsrOrganization,
-                        OrganizationUnit = CsrOrganizationUnit
-                    }
+                    // CertificateSigningRequest = new CertificateSigningRequest()
+                    // {
+                    //     CountryName = CsrCountryName,
+                    //     State = CsrState,
+                    //     Locality = CsrLocality,
+                    //     Organization = CsrOrganization,
+                    //     OrganizationUnit = CsrOrganizationUnit
+                    // }
                 };
             }
         }

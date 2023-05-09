@@ -18,26 +18,12 @@ public class PowerDnsRestClient : IDnsRestClient
     private readonly ILogger<PowerDnsRestClient> _logger;
     private readonly IPowerDnsApi _pdnsApi; 
     
-    public PowerDnsRestClient(
-        ILogger<PowerDnsRestClient> logger,
-        string powerDnsHostAddress,
-        string powerDnsApiKey)
+    public PowerDnsRestClient(ILogger<PowerDnsRestClient> logger, HttpClient httpClient)
     {
         _logger = logger;
-
-        var httpClient = new HttpClient();
-        httpClient.BaseAddress = new Uri($"https://{powerDnsHostAddress}/api/v1");
-        httpClient.DefaultRequestHeaders.Add("X-API-Key", powerDnsApiKey);
         _pdnsApi = RestService.For<IPowerDnsApi>(httpClient);
     }
-    
-    public PowerDnsRestClient(
-        ILogger<PowerDnsRestClient> logger,
-        YouverseConfiguration config) 
-        : this(logger, config.Registry.PowerDnsHostAddress, config.Registry.PowerDnsApiKey)
-    {
-    }
-    
+   
     //
 
     public Task<IList<Zone>> GetZones()

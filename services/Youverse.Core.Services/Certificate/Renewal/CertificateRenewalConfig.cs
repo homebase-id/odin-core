@@ -17,7 +17,7 @@
         /// </summary>
         public string CertificateAuthorityAssociatedEmail { get; set; }
 
-        public CertificateSigningRequest CertificateSigningRequest { get; set; }
+        //public CertificateSigningRequest CertificateSigningRequest { get; set; }
 
     }
 }

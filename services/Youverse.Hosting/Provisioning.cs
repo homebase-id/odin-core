@@ -21,6 +21,8 @@ public static class Provisioning
         provApp.UseCertificateForwarding();
         provApp.UseStaticFiles();
         provApp.UseRouting();
+        provApp.UseAuthentication();
+        provApp.UseAuthorization();
         provApp.UseEndpoints(endpoints => { endpoints.MapControllers(); });
         provApp.UseHttpsRedirection();
         

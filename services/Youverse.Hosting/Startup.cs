@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Net.Mime;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -21,6 +22,7 @@ using Serilog;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Certificate;
 using Youverse.Core.Services.Certificate.Renewal;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Dns;
@@ -58,6 +60,8 @@ namespace Youverse.Hosting
 
             PrepareEnvironment(config);
             AssertValidRenewalConfiguration(config.CertificateRenewal);
+            
+            services.AddHttpClient();
 
             if (config.Quartz.EnableQuartzBackgroundService)
             {
@@ -159,15 +163,47 @@ namespace Youverse.Hosting
             services.AddSingleton<YouverseConfiguration>(config);
             services.AddSingleton<ServerSystemStorage>();
             services.AddSingleton<IPendingTransfersService, PendingTransfersService>();
-            services.AddSingleton<PendingCertificateOrderListService>();
-            services.AddSingleton<IIdentityRegistrationService, IdentityRegistrationService>();
+            //services.AddSingleton<PendingCertificateOrderListService>();
             
             // In production, the React files will be served from this directory
             services.AddSpaStaticFiles(configuration => { configuration.RootPath = "client/"; });
 
+            //
             // Provisioning specifics
+            //
+            services.AddSingleton(new AcmeAccountConfig
+            {
+                AcmeContactEmail = config.CertificateRenewal.CertificateAuthorityAssociatedEmail,
+                AcmeAccountFolder = config.Host.SystemSslRootPath
+            });
+            services.AddSingleton<IAcmeHttp01TokenCache, AcmeHttp01TokenCache>();
+            services.AddSingleton<IIdentityRegistrationService, IdentityRegistrationService>();
             services.AddSingleton<ILookupClient>(new LookupClient());
             services.AddSingleton<IDnsRestClient, PowerDnsRestClient>();
+            services.AddSingleton<ICertesAcme>(sp => new CertesAcme(
+                sp.GetRequiredService<ILogger<CertesAcme>>(),
+                sp.GetRequiredService<IAcmeHttp01TokenCache>(),
+                sp.GetRequiredService<IHttpClientFactory>(),
+                config.CertificateRenewal.UseCertificateAuthorityProductionServers));
+            services.AddHttpClient<IDnsRestClient, PowerDnsRestClient>(client =>
+            {
+                client.BaseAddress = new Uri($"https://{config.Registry.PowerDnsHostAddress}/api/v1");
+                client.DefaultRequestHeaders.Add("X-API-Key", config.Registry.PowerDnsApiKey);
+            });
+            services.AddHttpClient<IIdentityRegistrationService, IdentityRegistrationService>(client =>
+                {
+                    client.Timeout = TimeSpan.FromSeconds(3);
+                }).ConfigurePrimaryHttpMessageHandler(() =>
+                {
+                    var handler = new HttpClientHandler
+                    {
+                        AllowAutoRedirect = false
+                    };
+                    return handler;
+                })
+                // Shortlived to deal with DNS changes 
+                .SetHandlerLifetime(TimeSpan.FromSeconds(10));
+           
         }
 
         // ConfigureContainer is where you can register things directly
@@ -208,6 +244,7 @@ namespace Youverse.Hosting
             
             app.UseLoggingMiddleware();
             app.UseMiddleware<ExceptionHandlingMiddleware>();
+            app.UseMiddleware<CertesAcmeMiddleware>();
 
             bool IsProvisioningSite(HttpContext context)
             {
@@ -215,16 +252,17 @@ namespace Youverse.Hosting
                 return context.Request.Host.Equals(new HostString(domain ?? ""));
             }
 
-            bool IsPathUsedForCertificateCreation(HttpContext context)
-            {
-                var path = context.Request.Path;
-                bool isCertificateRegistrationPath = path.StartsWithSegments("/api/owner/v1/config/certificate") ||
-                                                     path.StartsWithSegments("/.well-known/acme-challenge");
-                return isCertificateRegistrationPath && !context.Request.IsHttps;
-            }
+            // SEB:TODO remove
+            // bool IsPathUsedForCertificateCreation(HttpContext context)
+            // {
+            //     var path = context.Request.Path;
+            //     bool isCertificateRegistrationPath = path.StartsWithSegments("/api/owner/v1/config/certificate") ||
+            //                                          path.StartsWithSegments("/.well-known/acme-challenge");
+            //     return isCertificateRegistrationPath && !context.Request.IsHttps;
+            // }
 
             app.MapWhen(IsProvisioningSite, app => Provisioning.Map(app, env, logger));
-            app.MapWhen(IsPathUsedForCertificateCreation, app => Certificate.Map(app, env, logger));
+            // app.MapWhen(IsPathUsedForCertificateCreation, app => Certificate.Map(app, env, logger)); // SEB:TODO remove
             
             app.UseMultiTenancy();
 

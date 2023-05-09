@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Threading.Tasks;
 using DnsClient;
 using Microsoft.Extensions.Logging;
@@ -27,7 +28,12 @@ public class PowerDnsRestClientTest
     public PowerDnsRestClientTest()
     {
         var logger = new Mock<ILogger<PowerDnsRestClient>>().Object;
-        _pdnsClient = new PowerDnsRestClient(logger, PdnsHostAddess, PdnsApiKey);
+
+        var httpClient = new HttpClient();
+        httpClient.BaseAddress = new Uri($"https://{PdnsHostAddess}/api/v1");
+        httpClient.DefaultRequestHeaders.Add("X-API-Key", PdnsApiKey);
+       
+        _pdnsClient = new PowerDnsRestClient(logger, httpClient);
     }
     
     //

@@ -186,7 +186,7 @@ namespace Youverse.Hosting
 
             cb.RegisterType<StaticFileContentService>().AsSelf().SingleInstance();
 
-            cb.RegisterType<LetsEncryptTenantCertificateRenewalService>().As<ITenantCertificateRenewalService>();
+            //cb.RegisterType<LetsEncryptTenantCertificateRenewalService>().As<ITenantCertificateRenewalService>();
         }
 
         private static void RegisterMediator(ref ContainerBuilder cb)

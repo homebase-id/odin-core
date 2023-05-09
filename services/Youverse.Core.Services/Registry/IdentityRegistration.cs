@@ -56,5 +56,10 @@ namespace Youverse.Core.Services.Registry
         /// indicating the bearer was the one who registered the token
         /// </summary>
         public Guid? FirstRunToken { get; set; }
+
+        public override string ToString()
+        {
+            return PrimaryDomainName;
+        }
     }
 }

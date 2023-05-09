@@ -16,6 +16,9 @@ namespace Youverse.Core.Services.Base
 
         public TenantSystemStorage(ILogger<TenantSystemStorage> logger, TenantContext tenantContext)
         {
+            ArgumentNullException.ThrowIfNull(tenantContext);
+            ArgumentNullException.ThrowIfNull(tenantContext.StorageConfig);
+                
             _logger = logger;
 
             string dbPath = tenantContext.StorageConfig.DataStoragePath;
