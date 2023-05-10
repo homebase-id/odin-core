@@ -135,22 +135,18 @@ namespace Youverse.Hosting
                 })
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
-                    // SEB:TODO IPAddressListenList from config
-                    //var urls = youverseConfig.Host.IPAddressListenList.Select(entry => $"https://{entry.Ip}:{entry.HttpsPort}").ToList();
-                    //urls.AddRange(youverseConfig.Host.IPAddressListenList.Select(entry => $"http://{entry.Ip}:{entry.HttpPort}"));
-
                     webBuilder.ConfigureKestrel(kestrelOptions => 
                     {
                         kestrelOptions.Limits.MaxRequestBodySize = null;
-
+                        
+                        // SEB:TODO IPAddressListenList from config
                         kestrelOptions.Listen(IPAddress.Any, 80);
                         kestrelOptions.Listen(IPAddress.Any, 443, listenOptions =>
                         {
                             var handshakeTimeoutTimeSpan = Debugger.IsAttached
                                 ? TimeSpan.FromMinutes(60)
                                 : TimeSpan.FromSeconds(60);
-                            
-                            // ServerOptionsSelectionCallback:
+                           
                             listenOptions.UseHttps(async (stream, clientHelloInfo, state, cancellationToken) =>
                             {
                                 var hostName = clientHelloInfo.ServerName;
@@ -166,6 +162,9 @@ namespace Youverse.Hosting
                                 
                                 var result = new SslServerAuthenticationOptions
                                 {
+                                    AllowRenegotiation = true,
+                                    ClientCertificateRequired = true,
+                                    RemoteCertificateValidationCallback = (sender, certificate, chain, errors) => true, 
                                     ServerCertificate = cert
                                 };
 
@@ -176,16 +175,16 @@ namespace Youverse.Hosting
                     .UseStartup<Startup>();
                 });
 
-            if (youverseConfig.Logging.Level == LoggingLevel.ErrorsOnly)
-            {
-                builder.UseSerilog((context, services, configuration) => configuration
-                    .ReadFrom.Services(services)
-                    .MinimumLevel.Error());
+            // if (youverseConfig.Logging.Level == LoggingLevel.ErrorsOnly)
+            // {
+            //     builder.UseSerilog((context, services, configuration) => configuration
+            //         .ReadFrom.Services(services)
+            //         .MinimumLevel.Error());
+            //
+            //     return builder;
+            // }
 
-                return builder;
-            }
-
-            if (youverseConfig.Logging.Level == LoggingLevel.Verbose)
+            // if (youverseConfig.Logging.Level == LoggingLevel.Verbose)
             {
                 builder.UseSerilog((context, services, configuration) => configuration
                     .ReadFrom.Services(services)
@@ -200,8 +199,10 @@ namespace Youverse.Hosting
                     .Enrich.FromLogContext()
                     .Enrich.WithHostname(new StickyHostnameGenerator())
                     .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
+                    .WriteTo.Debug() // SEB:TODO only do this in debug builds
                     .WriteTo.Async(sink => sink.Console(outputTemplate: LogOutputTemplate, theme: LogOutputTheme))
                     .WriteTo.Async(sink => sink.RollingFile(Path.Combine(youverseConfig.Logging.LogFilePath, "app-{Date}.log"), outputTemplate: LogOutputTemplate)));
+                
                 return builder;
             }
 
@@ -210,6 +211,8 @@ namespace Youverse.Hosting
         
         //
 
+                
+        
         private static async Task<X509Certificate2> ServerCertificateSelector(
             string hostName, 
             YouverseConfiguration config,
