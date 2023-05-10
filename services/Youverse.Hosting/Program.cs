@@ -175,16 +175,16 @@ namespace Youverse.Hosting
                     .UseStartup<Startup>();
                 });
 
-            // if (youverseConfig.Logging.Level == LoggingLevel.ErrorsOnly)
-            // {
-            //     builder.UseSerilog((context, services, configuration) => configuration
-            //         .ReadFrom.Services(services)
-            //         .MinimumLevel.Error());
-            //
-            //     return builder;
-            // }
+            if (youverseConfig.Logging.Level == LoggingLevel.ErrorsOnly)
+            {
+                builder.UseSerilog((context, services, configuration) => configuration
+                    .ReadFrom.Services(services)
+                    .MinimumLevel.Error());
+            
+                return builder;
+            }
 
-            // if (youverseConfig.Logging.Level == LoggingLevel.Verbose)
+            if (youverseConfig.Logging.Level == LoggingLevel.Verbose)
             {
                 builder.UseSerilog((context, services, configuration) => configuration
                     .ReadFrom.Services(services)
@@ -199,7 +199,7 @@ namespace Youverse.Hosting
                     .Enrich.FromLogContext()
                     .Enrich.WithHostname(new StickyHostnameGenerator())
                     .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
-                    .WriteTo.Debug() // SEB:TODO only do this in debug builds
+                    // .WriteTo.Debug() // SEB:TODO only do this in debug builds
                     .WriteTo.Async(sink => sink.Console(outputTemplate: LogOutputTemplate, theme: LogOutputTheme))
                     .WriteTo.Async(sink => sink.RollingFile(Path.Combine(youverseConfig.Logging.LogFilePath, "app-{Date}.log"), outputTemplate: LogOutputTemplate)));
                 
