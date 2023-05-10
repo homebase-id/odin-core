@@ -15,20 +15,6 @@ namespace Youverse.Core.Services.Certificate
         public X509Certificate2 GetSslCertificate(string domain);
 
         /// <summary>
-        /// Tests if all certificates for the identity are valid
-        /// </summary>
-        Task<bool> AreAllCertificatesValid();
-        
-        bool IsCertificateExpired(X509Certificate2 cert);
-
-        // /// <summary>
-        // /// Gets a list of the <see cref="IdentityCertificateDefinition"/>s that need a new certificate, either because it's expiring soon, invalid, or missing.
-        // /// </summary>
-        // /// <param name="force"></param>
-        // /// <returns></returns>
-        // public Task<List<IdentityCertificateDefinition>> GetIdentitiesRequiringNewCertificate(bool force);
-
-        /// <summary>
         /// Looks up the certificate to be used for the domain; even if the domain is supported as a SAN (i.e. www.frodo.digital comes from the certificate for frodo.digital)
         /// </summary>
         /// <param name="domain"></param>

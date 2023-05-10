@@ -144,44 +144,6 @@ namespace Youverse.Hosting.Controllers.Registration
         }
 #endif
         
-        // /// <summary>
-        // /// Creates a reservation
-        // /// </summary>
-        // /// <param name="request"></param>
-        // /// <returns></returns>
-        // [HttpPost("reservations")]
-        // public async Task<IActionResult> Reserve([FromBody] ReservationRequest request)
-        // {
-        //     var result = await _regService.Reserve(request);
-        //     return new JsonResult(result);
-        // }
-
-        // /// <summary>
-        // /// Cancels an existing reservation
-        // /// </summary>
-        // /// <param name="reservationId"></param>
-        // /// <returns></returns>
-        // [HttpDelete("reservations/{reservationId}")]
-        // public async Task<IActionResult> CancelReservation(Guid reservationId)
-        // {
-        //     await _regService.CancelReservation(reservationId);
-        //     return new JsonResult(true);
-        // }
-
-        // /// <summary>
-        // /// Starts a registration and returns an Id used to monitor registration progress.
-        // /// </summary>
-        // /// <param name="info"></param>
-        // /// <returns></returns>
-        // /// <exception cref="NotSupportedException"></exception>
-        // /// SEB:TODO remove this
-        // [HttpPost("register")]
-        // public async Task<Guid> StartRegistration([FromBody] RegistrationInfo info)
-        // {
-        //     var registrationId = await _regService.StartRegistration(info);
-        //     return registrationId;
-        // }
-        
         /// <summary>
         /// Check if own domain is available
         /// </summary>
@@ -239,37 +201,6 @@ namespace Youverse.Hosting.Controllers.Registration
         }
 #endif
         
-
-        // /// <summary>
-        // /// Gets the status for the ongoing registration
-        // /// </summary>
-        // /// <param name="firstRunToken"></param>
-        // /// <returns></returns>
-        // [HttpGet("status")]
-        // public async Task<IActionResult> GetStatus(Guid firstRunToken)
-        // {
-        //     var status = await _regService.GetRegistrationStatus(firstRunToken);
-        //     return new JsonResult(status);
-        // }
-        
-        // /// <summary>
-        // /// Marks registration for an identity complete
-        // /// </summary>
-        // /// <returns></returns>
-        // [HttpGet("finalize")]
-        // public async Task<IActionResult> Finalize(Guid frid)
-        // {
-        //     try
-        //     {
-        //         await _regService.FinalizeRegistration(frid);
-        //     }
-        //     catch (Exception e)
-        //     {
-        //     }
-        //
-        //     return Ok();
-        // }
-        
         /// <summary>
         /// Create identity on own or managed domain
         /// </summary>
@@ -290,18 +221,8 @@ namespace Youverse.Hosting.Controllers.Registration
                 );
             }
             
-            //
-            // 
-            //
             await _regService.CreateIdentityOnDomain(domain);
-            
-            //
-            // SEB:TODO
-            // Validate certificate exists on new domain
-            //
-            
-            return new JsonResult("hurrah!");
-        }
+            return new JsonResult("ok"); }
         
     }
 }

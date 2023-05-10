@@ -1,4 +1,4 @@
-﻿namespace Youverse.Core.Services.Certificate.Renewal
+﻿namespace Youverse.Core.Services.Certificate
 {
     public class CertificateRenewalConfig
     {

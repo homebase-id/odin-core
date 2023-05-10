@@ -4,9 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Autofac.Core;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 using Refit;
 using Serilog;
 using Youverse.Core.Exceptions;
@@ -14,7 +11,6 @@ using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Certificate;
-using Youverse.Core.Services.Certificate.Renewal;
 using Youverse.Core.Trie;
 
 namespace Youverse.Core.Services.Registry;
@@ -180,40 +176,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     {
         var reg = _trie.LookupName(domain);
         return Task.FromResult(reg);
-    }
-
-    public async Task EnsureCertificate(string domain)
-    {
-        try
-        {
-            var svc = SystemHttpClient.CreateHttps<ICertificateStatusHttpClient>((OdinId)domain);
-            var response = await svc.EnsureValidCertificates();
-            await response.EnsureSuccessStatusCodeAsync();
-        }
-        catch (ApiException e)
-        {
-            //TODO: need to log an error here and notify sys admins?
-            // keep a list of those continuing to fail so we can deactivate, etc.
-            Log.Error($"{e.RequestMessage.Method} to {e.RequestMessage.RequestUri} failed with {e.ReasonPhrase}.\n Exception Message: [{e.Message}]");
-            throw;
-        }
-        catch (HttpRequestException ex)
-        {
-            //TODO: need to log an error here and notify sys admins?
-            // keep a list of those continuing to fail so we can deactivate, etc.
-            Log.Error($"Request to EnsureValidCertificates failed with {ex.StatusCode}.\n Exception Message: [{ex.Message}]");
-            throw;
-        }
-    }
-
-    public async Task EnsureCertificates()
-    {
-        //TODO: could optimize by breaking into multiple threaded requests, etc.
-        var identities = await this.GetList(PageOptions.All);
-        foreach (var ident in identities.Results)
-        {
-            await this.EnsureCertificate(ident.PrimaryDomainName);
-        }
     }
 
     private string GetRegFilePath(Guid registrationId)

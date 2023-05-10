@@ -18,12 +18,9 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Quartz;
 using Microsoft.Extensions.Logging;
-using Serilog;
-using Swashbuckle.AspNetCore.SwaggerGen;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Certificate;
-using Youverse.Core.Services.Certificate.Renewal;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Dns;
 using Youverse.Core.Services.Dns.PowerDns;
@@ -163,7 +160,6 @@ namespace Youverse.Hosting
             services.AddSingleton<YouverseConfiguration>(config);
             services.AddSingleton<ServerSystemStorage>();
             services.AddSingleton<IPendingTransfersService, PendingTransfersService>();
-            //services.AddSingleton<PendingCertificateOrderListService>();
             
             // In production, the React files will be served from this directory
             services.AddSpaStaticFiles(configuration => { configuration.RootPath = "client/"; });
@@ -252,17 +248,7 @@ namespace Youverse.Hosting
                 return context.Request.Host.Equals(new HostString(domain ?? ""));
             }
 
-            // SEB:TODO remove
-            // bool IsPathUsedForCertificateCreation(HttpContext context)
-            // {
-            //     var path = context.Request.Path;
-            //     bool isCertificateRegistrationPath = path.StartsWithSegments("/api/owner/v1/config/certificate") ||
-            //                                          path.StartsWithSegments("/.well-known/acme-challenge");
-            //     return isCertificateRegistrationPath && !context.Request.IsHttps;
-            // }
-
             app.MapWhen(IsProvisioningSite, app => Provisioning.Map(app, env, logger));
-            // app.MapWhen(IsPathUsedForCertificateCreation, app => Certificate.Map(app, env, logger)); // SEB:TODO remove
             
             app.UseMultiTenancy();
 
@@ -374,14 +360,6 @@ namespace Youverse.Hosting
             Guard.Argument(section, nameof(section)).NotNull();
             Guard.Argument(section.CertificateAuthorityAssociatedEmail,
                 nameof(section.CertificateAuthorityAssociatedEmail)).NotNull().NotEmpty();
-            Guard.Argument(section.NumberOfCertificateValidationTries,
-                nameof(section.NumberOfCertificateValidationTries)).Min(3);
-
-            Guard.Argument(section.CsrCountryName, nameof(section.CsrCountryName)).NotNull().NotEmpty();
-            Guard.Argument(section.CsrState, nameof(section.CsrState)).NotNull().NotEmpty();
-            Guard.Argument(section.CsrLocality, nameof(section.CsrLocality)).NotNull().NotEmpty();
-            Guard.Argument(section.CsrOrganization, nameof(section.CsrOrganization)).NotNull().NotEmpty();
-            Guard.Argument(section.CsrOrganizationUnit, nameof(section.CsrOrganizationUnit)).NotNull().NotEmpty();
         }
     }
 }

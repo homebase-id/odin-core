@@ -33,20 +33,6 @@ namespace Youverse.Core.Services.Certificate
         
         //
 
-        // SEB:TODO check if we need this
-        public async Task<bool> AreAllCertificatesValid()
-        {
-            //TODO: this will scan across all domains for this identity.  for alpha = just use this domain
-            var primaryDomainCert = GetPrimaryDomainCert();
-            var paths = GetCertificatePaths(_tenantContext.SslRoot, primaryDomainCert.Domain);
-            
-            var cert = DotYouCertificateCache.LoadCertificate(paths.privateKeyPath, paths.certificatePath);
-            return await Task.FromResult(!IsCertificateExpired(cert));
-        }
-        
-        //
-
-        // SEB:TODO check if we need this
         public X509Certificate2 GetSslCertificate(string domain)
         {
             var (privateKeyPath, certificatePath) = GetCertificatePaths(_tenantContext.SslRoot, domain);
@@ -54,7 +40,6 @@ namespace Youverse.Core.Services.Certificate
             {
                 return null;
             }
-
             return DotYouCertificateCache.LoadCertificate(privateKeyPath, certificatePath);
         }
         
@@ -63,7 +48,7 @@ namespace Youverse.Core.Services.Certificate
         public X509Certificate2 ResolveCertificate(string domain)
         {
             //TODO: post-alpha should upgrade this to look at other alias's supported by this identity
-            var primaryDomainCert = this.GetPrimaryDomainCert();
+            var primaryDomainCert = GetPrimaryDomainCert();
 
             if (primaryDomainCert.HasDomain(domain) == false)
             {
@@ -80,52 +65,6 @@ namespace Youverse.Core.Services.Certificate
             
             return cert;
         }
-        
-        //
-
-        // SEB:TODO check if we need this
-        public bool IsCertificateExpired(X509Certificate2 cert)
-        {
-            if (cert == null)
-            {
-                return false;
-            }
-
-            var now = DateTime.Now;
-            return !(now < cert.NotAfter && now > cert.NotBefore);
-        }
-        
-        //
-
-        // SEB:TODO check if we need this
-        // public Task<List<IdentityCertificateDefinition>> GetIdentitiesRequiringNewCertificate(bool force)
-        // {
-        //     //TODO: this will scan across all domains for this identity.  for alpha = just use this domain
-        //     var primaryDomainCert = GetPrimaryDomainCert();
-        //     var paths = GetCertificatePaths(_tenantContext.SslRoot, primaryDomainCert.Domain);
-        //
-        //     if (force)
-        //     {
-        //         return Task.FromResult(new List<IdentityCertificateDefinition>() { primaryDomainCert });
-        //     }
-        //
-        //     var cert = DotYouCertificateCache.LoadCertificate(paths.privateKeyPath, paths.certificatePath);
-        //     if (IsCertificateExpired(cert))
-        //     {
-        //         return Task.FromResult(new List<IdentityCertificateDefinition>() { primaryDomainCert });
-        //     }
-        //
-        //     var now = DateTime.Now;
-        //     var expiring = cert.NotAfter;
-        //     int daysBeforeExpiration = 10;
-        //
-        //     if (now > expiring.Subtract(TimeSpan.FromDays(daysBeforeExpiration)))
-        //     {
-        //         return Task.FromResult(new List<IdentityCertificateDefinition>() { primaryDomainCert });
-        //     }
-        //
-        //     return Task.FromResult(new List<IdentityCertificateDefinition>());
-        // }
         
         //
 
@@ -198,7 +137,7 @@ namespace Youverse.Core.Services.Certificate
 
         //
         
-        // SEB:TODO check if we need this
+        // SEB:TODO is this outdated?
         private IdentityCertificateDefinition GetPrimaryDomainCert()
         {
             string domain = _tenantContext.HostOdinId;

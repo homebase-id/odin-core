@@ -4,11 +4,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using Microsoft.Extensions.Configuration;
-using Serilog;
 using Youverse.Core.Configuration;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Certificate;
-using Youverse.Core.Services.Certificate.Renewal;
 using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Configuration
@@ -17,7 +15,7 @@ namespace Youverse.Core.Services.Configuration
     {
         public HostSection Host { get; }
 
-        public virtual RegistrySection Registry { get; }
+        public RegistrySection Registry { get; }
         public DevelopmentSection? Development { get; }
 
         public LoggingSection Logging { get; }
@@ -242,21 +240,9 @@ namespace Youverse.Core.Services.Configuration
         {
             public CertificateRenewalSection(IConfiguration config)
             {
-                NumberOfCertificateValidationTries = config.Required<int>("CertificateRenewal:NumberOfCertificateValidationTries");
                 UseCertificateAuthorityProductionServers = config.Required<bool>("CertificateRenewal:UseCertificateAuthorityProductionServers");
                 CertificateAuthorityAssociatedEmail = config.Required<string>("CertificateRenewal:CertificateAuthorityAssociatedEmail");
-                CsrCountryName = config.Required<string>("CertificateRenewal:CsrCountryName");
-                CsrState = config.Required<string>("CertificateRenewal:CsrState");
-                CsrLocality = config.Required<string>("CertificateRenewal:CsrLocality");
-                CsrOrganization = config.Required<string>("CertificateRenewal:CsrOrganization");
-                CsrOrganizationUnit = config.Required<string>("CertificateRenewal:CsrOrganizationUnit");
-                LetsEncryptStagingRootCertificates = config.Required<List<string>>("CertificateRenewal:LetsEncryptStagingRootCertificates");                
             }
-
-            /// <summary>
-            /// The number of times certificate validation should be checked before failing
-            /// </summary>
-            public int NumberOfCertificateValidationTries { get; }
 
             /// <summary>
             /// Specifies if the production servers of the certificate authority should be used.
@@ -268,48 +254,12 @@ namespace Youverse.Core.Services.Configuration
             /// </summary>
             public string CertificateAuthorityAssociatedEmail { get; }
 
-            /// <summary>
-            /// Gets or sets the two-letter ISO abbreviation for your country.
-            /// </summary>
-            public string CsrCountryName { get; }
-
-            /// <summary>
-            /// Gets or sets the state or province where your organization is located. Can not be abbreviated.
-            /// </summary>
-            public string CsrState { get; }
-
-            /// <summary>
-            /// Gets or sets the city where your organization is located.
-            /// </summary>
-            public string CsrLocality { get; }
-
-            /// <summary>
-            /// Gets or sets the exact legal name of your organization. Do not abbreviate.
-            /// </summary>
-            public string CsrOrganization { get; }
-
-            /// <summary>
-            /// Gets or sets the optional organizational information.
-            /// </summary>
-            public string CsrOrganizationUnit { get; }
-            
-            public List<string> LetsEncryptStagingRootCertificates { get; }            
-
             public CertificateRenewalConfig ToCertificateRenewalConfig()
             {
                 return new CertificateRenewalConfig()
                 {
                     UseCertificateAuthorityProductionServers = UseCertificateAuthorityProductionServers,
                     CertificateAuthorityAssociatedEmail = CertificateAuthorityAssociatedEmail,
-                    NumberOfCertificateValidationTries = NumberOfCertificateValidationTries,
-                    // CertificateSigningRequest = new CertificateSigningRequest()
-                    // {
-                    //     CountryName = CsrCountryName,
-                    //     State = CsrState,
-                    //     Locality = CsrLocality,
-                    //     Organization = CsrOrganization,
-                    //     OrganizationUnit = CsrOrganizationUnit
-                    // }
                 };
             }
         }

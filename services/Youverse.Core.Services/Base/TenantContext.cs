@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 using Youverse.Core.Identity;
-using Youverse.Core.Services.Certificate.Renewal;
+using Youverse.Core.Services.Certificate;
 using Youverse.Core.Services.Configuration;
 
 namespace Youverse.Core.Services.Base

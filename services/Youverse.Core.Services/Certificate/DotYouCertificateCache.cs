@@ -8,7 +8,7 @@ using Serilog;
 #nullable enable
 namespace Youverse.Core.Services.Certificate;
 
-// SEB:TODO dependency injection
+// SEB:TODO dependency inject this class
 // SEB:NOTE no async here to minimize overhead in happy path
 public static class DotYouCertificateCache
 {

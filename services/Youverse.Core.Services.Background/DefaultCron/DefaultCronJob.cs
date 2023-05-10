@@ -5,11 +5,8 @@ using System.Threading.Tasks;
 using Quartz;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
-using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Certificate.Renewal;
 using Youverse.Core.Services.Configuration;
-using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Workers.FeedDistributionApp;
 using Youverse.Core.Storage.Sqlite.ServerDatabase;
 
@@ -52,13 +49,6 @@ namespace Youverse.Core.Services.Workers.DefaultCron
                 success = await StokeOutbox(identity);
             }
 
-            if (record.type == (Int32)CronJobType.GenerateCertificate)
-            {
-                var identity = (OdinId)record.data.ToStringFromUtf8Bytes();
-                var status = await GenerateCertificate(identity);
-                success = status == CertificateOrderStatus.CertificateUpdateComplete;
-            }
-
             if (record.type == (Int32)CronJobType.FeedDistribution)
             {
                 var job = new FeedDistributionJob(_config);
@@ -74,21 +64,5 @@ namespace Youverse.Core.Services.Workers.DefaultCron
             var response = await svc.ProcessOutbox();
             return response.IsSuccessStatusCode;
         }
-
-        // private async Task<CertificateOrderStatus> GenerateCertificate(OdinId identity)
-        // {
-        //     // _logger.LogInformation($"Checking certificate creation status for {identity.DomainName}");
-        //
-        //     var svc = SystemHttpClient.CreateHttp<ICertificateStatusHttpClient>(identity);
-        //     var response = await svc.CheckCertificateCreationStatus();
-        //     if (response.IsSuccessStatusCode)
-        //     {
-        //         return response.Content;
-        //     }
-        //
-        //     //TODO: need to log an error here and notify sys admins?
-        //     // _logger.LogWarning($"Failed to ensure valid certificate for [{identity}].");
-        //     return CertificateOrderStatus.UnknownServerError;
-        // }
     }
 }
