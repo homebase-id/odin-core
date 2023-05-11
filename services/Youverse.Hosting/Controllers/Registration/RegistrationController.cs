@@ -221,8 +221,11 @@ namespace Youverse.Hosting.Controllers.Registration
                 );
             }
             
-            await _regService.CreateIdentityOnDomain(domain);
-            return new JsonResult("ok"); }
+            var firstRunToken = await _regService.CreateIdentityOnDomain(domain);
+            return new JsonResult(firstRunToken); 
+        }
+        
+        //
         
     }
 }

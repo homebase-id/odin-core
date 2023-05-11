@@ -35,16 +35,16 @@ public interface IIdentityRegistrationService
     /// Create identity on own or managed domain
     /// </summary>
     /// <param name="domain"></param>
-    /// <returns></returns>
-    Task CreateIdentityOnDomain(string domain);
+    /// <returns>First-run token</returns>
+    Task<Guid> CreateIdentityOnDomain(string domain);
     
     //
     // Managed Domain
     //
     
     Task<bool> IsManagedDomainAvailable(string prefix, string apex);
-    public Task CreateManagedDomain(string prefix, string apex);
     public Task DeleteManagedDomain(string prefix, string apex);
+    public Task CreateManagedDomain(string prefix, string apex);
     
     //
     // Own Domain

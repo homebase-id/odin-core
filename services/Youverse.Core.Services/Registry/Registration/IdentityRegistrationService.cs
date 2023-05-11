@@ -128,6 +128,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     
     //
 
+    // bash: dig @1.1.1.1 example.com
     public async Task<ExternalDnsResolverLookupResult> ExternalDnsResolverRecordLookup(string domain)
     {
         var result = new ExternalDnsResolverLookupResult();
@@ -327,7 +328,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     
     //
  
-    public async Task CreateIdentityOnDomain(string domain)
+    public async Task<Guid> CreateIdentityOnDomain(string domain)
     {
         var identity = await _registry.Get(domain);
         if (identity != null)
@@ -353,6 +354,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         try
         {
             var firstRunToken = await _registry.AddRegistration(request);
+            return firstRunToken;
         }
         catch (Exception)
         {
