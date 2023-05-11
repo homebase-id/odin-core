@@ -7,7 +7,6 @@ using MediatR;
 using MediatR.Pipeline;
 using Youverse.Core.Services.AppNotifications;
 using Youverse.Core.Services.AppNotifications.ClientNotifications;
-using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Apps.CommandMessaging;
 using Youverse.Core.Services.Authentication.Apps;
 using Youverse.Core.Services.Authentication.Owner;
@@ -18,7 +17,6 @@ using Youverse.Core.Services.Authorization.Apps;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Certificate;
-using Youverse.Core.Services.Certificate.Renewal;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
@@ -26,8 +24,6 @@ using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.DataSubscription;
 using Youverse.Core.Services.DataSubscription.Follower;
 using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.FileSystem;
-using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 using Youverse.Core.Services.Drives.FileSystem.Comment;
 using Youverse.Core.Services.Drives.FileSystem.Comment.Attachments;
 using Youverse.Core.Services.Drives.FileSystem.Standard;
@@ -45,7 +41,6 @@ using Youverse.Core.Services.Transit.ReceivingHost.Incoming;
 using Youverse.Core.Services.Transit.ReceivingHost.Reactions;
 using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Core.Services.Transit.SendingHost.Outbox;
-using Youverse.Core.Storage;
 using Youverse.Hosting.Controllers.Base;
 
 namespace Youverse.Hosting
@@ -185,8 +180,6 @@ namespace Youverse.Hosting
             cb.RegisterType<RsaKeyService>().As<IPublicKeyService>().SingleInstance();
 
             cb.RegisterType<StaticFileContentService>().AsSelf().SingleInstance();
-
-            cb.RegisterType<LetsEncryptTenantCertificateRenewalService>().As<ITenantCertificateRenewalService>();
         }
 
         private static void RegisterMediator(ref ContainerBuilder cb)

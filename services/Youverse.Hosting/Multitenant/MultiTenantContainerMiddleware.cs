@@ -1,6 +1,8 @@
 ﻿using System.Threading.Tasks;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
+using Youverse.Core.Services.Registry;
 
 #nullable enable
 namespace Youverse.Hosting.Multitenant
@@ -18,8 +20,24 @@ namespace Youverse.Hosting.Multitenant
         
         //
 
-        public async Task Invoke(HttpContext context, MultiTenantContainerDisposableAccessor container)
+        public async Task Invoke(
+            HttpContext context,
+            ILogger<MultiTenantContainerMiddleware> logger,
+            MultiTenantContainerDisposableAccessor container,
+            IIdentityRegistry identityRegistry)
         {
+            // Bail if we don't know the hostname/tenant
+            var host = context.Request.Host.Host;
+            var registry = await identityRegistry.Get(host);
+            if (registry == null)
+            {
+                context.Response.StatusCode = StatusCodes.Status404NotFound;
+                await context.Response.WriteAsync($"{host} not found.");
+                return;
+            }
+            
+            logger.LogDebug("Multitenant invoke {tenant}", host);
+            
             // Begin new scope for request as ASP.NET Core standard scope is per-request
             var scope = container.ContainerAccessor().GetCurrentTenantScope().BeginLifetimeScope("requestscope"); 
             context.RequestServices = new AutofacServiceProvider(scope);

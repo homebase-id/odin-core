@@ -7,7 +7,7 @@ namespace Youverse.Core.Services.Registry
     {
         void Initialize();
 
-        Guid ResolveId(string domain);
+        Guid? ResolveId(string domain);
 
         /// <summary>
         /// Checks if a domain is used/registered.
@@ -42,19 +42,6 @@ namespace Youverse.Core.Services.Registry
         /// <param name="domain"></param>
         /// <returns></returns>
         Task<IdentityRegistration> Get(string domain);
-
-        /// <summary>
-        /// Starts process of creating a certificate set if the domain does not have a valid set
-        /// </summary>
-        /// <param name="domain"></param>
-        /// <returns></returns>
-        Task EnsureCertificate(string domain);
-
-        /// <summary>
-        /// Processes through all <see cref="IdentityRegistration"/>s to ensure they have valid certificates
-        /// </summary>
-        /// <returns></returns>
-        Task EnsureCertificates();
 
         Task MarkRegistrationComplete(Guid firstRunToken);
 

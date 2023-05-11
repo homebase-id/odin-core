@@ -38,7 +38,7 @@ namespace Youverse.Hosting._dev
                     OdinId = (OdinId)domain,
                     OptionalCertificatePemContent = new CertificatePemContent()
                     {
-                        PublicKeyCertificate = File.ReadAllText(sourcePublicKeyPath),
+                        Certificate = File.ReadAllText(sourcePublicKeyPath),
                         PrivateKey = File.ReadAllText(sourcePrivateKeyPath)
                     }
                 };

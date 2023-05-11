@@ -4,11 +4,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using Microsoft.Extensions.Configuration;
-using Serilog;
 using Youverse.Core.Configuration;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Certificate;
-using Youverse.Core.Services.Certificate.Renewal;
 using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Configuration
@@ -96,28 +94,50 @@ namespace Youverse.Core.Services.Configuration
             }
 
             public List<string> PreconfiguredDomains { get; }
-
             public string SslSourcePath { get; }
         }
 
         public class RegistrySection
         {
+            public virtual string PowerDnsHostAddress { get; }
+            public virtual string PowerDnsApiKey { get; }
+            
             public string ProvisioningDomain { get; }
-            public List<string> ManagedDomains { get; }
-
-            public string DnsTargetRecordType { get; }
-
-            public string DnsTargetAddress { get; }
+            public List<ManagedDomainApex> ManagedDomainApexes { get; }
+            
+            public List<DnsRecord> BackendDnsRecords { get; }
+            public List<DnsRecord> FrontendDnsRecords { get; }
+            public List<DnsRecord> StorageDnsRecords { get; }
+            
+            public List<string> DnsResolvers { get; }
 
             public RegistrySection(IConfiguration config)
             {
+                PowerDnsHostAddress = config.Required<string>("Registry:PowerDnsHostAddress");
+                PowerDnsApiKey = config.Required<string>("Registry:PowerDnsApiKey");
                 ProvisioningDomain = config.Required<string>("Registry:ProvisioningDomain");
-                ManagedDomains = config.Required<List<string>>("Registry:ManagedDomains");
-                DnsTargetRecordType = config.Required<string>("Registry:DnsTargetRecordType");
-                DnsTargetAddress = config.Required<string>("Registry:DnsTargetAddress");
+                ManagedDomainApexes = config.Required<List<ManagedDomainApex>>("Registry:ManagedDomainApexes");
+                BackendDnsRecords = config.Required<List<DnsRecord>>("Registry:BackendDnsRecords");
+                FrontendDnsRecords = config.Required<List<DnsRecord>>("Registry:FrontendDnsRecords");
+                StorageDnsRecords = config.Required<List<DnsRecord>>("Registry:StorageDnsRecords");
+                DnsResolvers = config.Required<List<string>>("Registry:DnsResolvers");
+            }
+
+            public class ManagedDomainApex
+            {
+                public string Apex { get; set; } = "";
+                public List<string> PrefixLabels { get; set; } = new();
+            }
+            
+            public class DnsRecord
+            {
+                public string Type { get; set; } = "";
+                public string Name { get; set; } = "";
+                public string Value { get; set; } = "";
+                public string Description { get; set; } = "";
             }
         }
-
+        
         public class HostSection
         {
             public string TenantDataRootPath { get; }
@@ -220,20 +240,9 @@ namespace Youverse.Core.Services.Configuration
         {
             public CertificateRenewalSection(IConfiguration config)
             {
-                NumberOfCertificateValidationTries = config.Required<int>("CertificateRenewal:NumberOfCertificateValidationTries");
                 UseCertificateAuthorityProductionServers = config.Required<bool>("CertificateRenewal:UseCertificateAuthorityProductionServers");
                 CertificateAuthorityAssociatedEmail = config.Required<string>("CertificateRenewal:CertificateAuthorityAssociatedEmail");
-                CsrCountryName = config.Required<string>("CertificateRenewal:CsrCountryName");
-                CsrState = config.Required<string>("CertificateRenewal:CsrState");
-                CsrLocality = config.Required<string>("CertificateRenewal:CsrLocality");
-                CsrOrganization = config.Required<string>("CertificateRenewal:CsrOrganization");
-                CsrOrganizationUnit = config.Required<string>("CertificateRenewal:CsrOrganizationUnit");
             }
-
-            /// <summary>
-            /// The number of times certificate validation should be checked before failing
-            /// </summary>
-            public int NumberOfCertificateValidationTries { get; }
 
             /// <summary>
             /// Specifies if the production servers of the certificate authority should be used.
@@ -245,46 +254,12 @@ namespace Youverse.Core.Services.Configuration
             /// </summary>
             public string CertificateAuthorityAssociatedEmail { get; }
 
-            /// <summary>
-            /// Gets or sets the two-letter ISO abbreviation for your country.
-            /// </summary>
-            public string CsrCountryName { get; }
-
-            /// <summary>
-            /// Gets or sets the state or province where your organization is located. Can not be abbreviated.
-            /// </summary>
-            public string CsrState { get; }
-
-            /// <summary>
-            /// Gets or sets the city where your organization is located.
-            /// </summary>
-            public string CsrLocality { get; }
-
-            /// <summary>
-            /// Gets or sets the exact legal name of your organization. Do not abbreviate.
-            /// </summary>
-            public string CsrOrganization { get; }
-
-            /// <summary>
-            /// Gets or sets the optional organizational information.
-            /// </summary>
-            public string CsrOrganizationUnit { get; }
-
             public CertificateRenewalConfig ToCertificateRenewalConfig()
             {
                 return new CertificateRenewalConfig()
                 {
                     UseCertificateAuthorityProductionServers = UseCertificateAuthorityProductionServers,
                     CertificateAuthorityAssociatedEmail = CertificateAuthorityAssociatedEmail,
-                    NumberOfCertificateValidationTries = NumberOfCertificateValidationTries,
-                    CertificateSigningRequest = new CertificateSigningRequest()
-                    {
-                        CountryName = CsrCountryName,
-                        State = CsrState,
-                        Locality = CsrLocality,
-                        Organization = CsrOrganization,
-                        OrganizationUnit = CsrOrganizationUnit
-                    }
                 };
             }
         }

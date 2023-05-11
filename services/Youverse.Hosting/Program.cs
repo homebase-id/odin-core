@@ -1,14 +1,23 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Quartz.Logging;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
@@ -22,6 +31,7 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Certificate;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Registry;
+using Youverse.Core.Services.Registry.Registration;
 using Youverse.Hosting._dev;
 using Youverse.Hosting.Multitenant;
 
@@ -36,7 +46,6 @@ namespace Youverse.Hosting
         public static int Main(string[] args)
         {
             Log.Logger = new LoggerConfiguration()
-                // .MinimumLevel.Debug()
                 .MinimumLevel.Information()
                 .Enrich.WithHostname(new StickyHostnameGenerator())
                 .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
@@ -126,29 +135,44 @@ namespace Youverse.Hosting
                 })
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
-                    var urls = youverseConfig.Host.IPAddressListenList.Select(entry => $"https://{entry.Ip}:{entry.HttpsPort}").ToList();
-                    urls.AddRange(youverseConfig.Host.IPAddressListenList.Select(entry => $"http://{entry.Ip}:{entry.HttpPort}"));
-
-                    webBuilder.ConfigureKestrel(options =>
+                    webBuilder.ConfigureKestrel(kestrelOptions => 
+                    {
+                        kestrelOptions.Limits.MaxRequestBodySize = null;
+                        
+                        // SEB:TODO IPAddressListenList from config
+                        kestrelOptions.Listen(IPAddress.Any, 80);
+                        kestrelOptions.Listen(IPAddress.Any, 443, listenOptions =>
                         {
-                            options.Limits.MaxRequestBodySize = null;
-
-                            options.ConfigureHttpsDefaults(opts =>
+                            var handshakeTimeoutTimeSpan = Debugger.IsAttached
+                                ? TimeSpan.FromMinutes(60)
+                                : TimeSpan.FromSeconds(60);
+                           
+                            listenOptions.UseHttps(async (stream, clientHelloInfo, state, cancellationToken) =>
                             {
-                                opts.ClientCertificateValidation = (certificate2, chain, arg3) =>
+                                var hostName = clientHelloInfo.ServerName;
+                                var serviceProvider = kestrelOptions.ApplicationServices;     
+                                var cert = await ServerCertificateSelector(hostName, youverseConfig, serviceProvider);
+
+                                if (cert == null)
                                 {
-                                    //HACK: need to expand this to perform validation.
-                                    //HACK: to work around the fact that ISRG Root X1 is not set for Client Certificate authentication
-                                    return true;
+                                    // This is an escape hatch so runtime won't log an error
+                                    // when no certificate could be found
+                                    throw new ConnectionAbortedException();
+                                }
+                                
+                                var result = new SslServerAuthenticationOptions
+                                {
+                                    AllowRenegotiation = true,
+                                    ClientCertificateRequired = true,
+                                    RemoteCertificateValidationCallback = (sender, certificate, chain, errors) => true, 
+                                    ServerCertificate = cert
                                 };
 
-                                opts.ServerCertificateSelector = (context, s) => ServerCertificateSelector(context, s, youverseConfig);
-                                opts.ClientCertificateMode = ClientCertificateMode.AllowCertificate;
-                            });
-                        })
-                        .UseKestrel() //Use Kestrel to ensure we can run this on linux
-                        .UseUrls(urls.ToArray()) //you need to configure netsh on windows to allow 443
-                        .UseStartup<Startup>();
+                                return result;
+                            }, state: null!, handshakeTimeoutTimeSpan);
+                        });
+                    })
+                    .UseStartup<Startup>();
                 });
 
             if (youverseConfig.Logging.Level == LoggingLevel.ErrorsOnly)
@@ -156,7 +180,7 @@ namespace Youverse.Hosting
                 builder.UseSerilog((context, services, configuration) => configuration
                     .ReadFrom.Services(services)
                     .MinimumLevel.Error());
-
+            
                 return builder;
             }
 
@@ -164,7 +188,6 @@ namespace Youverse.Hosting
             {
                 builder.UseSerilog((context, services, configuration) => configuration
                     .ReadFrom.Services(services)
-                    .MinimumLevel.Error()
                     .MinimumLevel.Debug()
                     .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
                     .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
@@ -176,25 +199,40 @@ namespace Youverse.Hosting
                     .Enrich.FromLogContext()
                     .Enrich.WithHostname(new StickyHostnameGenerator())
                     .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
+                    // .WriteTo.Debug() // SEB:TODO only do this in debug builds
                     .WriteTo.Async(sink => sink.Console(outputTemplate: LogOutputTemplate, theme: LogOutputTheme))
                     .WriteTo.Async(sink => sink.RollingFile(Path.Combine(youverseConfig.Logging.LogFilePath, "app-{Date}.log"), outputTemplate: LogOutputTemplate)));
+                
                 return builder;
             }
 
             return builder;
         }
+        
+        //
 
-        private static X509Certificate2 ServerCertificateSelector(ConnectionContext connectionContext, string hostName, YouverseConfiguration config)
+                
+        
+        private static async Task<X509Certificate2> ServerCertificateSelector(
+            string hostName, 
+            YouverseConfiguration config,
+            IServiceProvider serviceProvider)
         {
-            Log.Information($"provisioning domain: [{config.Registry.ProvisioningDomain}]");
+            if (string.IsNullOrWhiteSpace(hostName))
+            {
+                return null;
+            }
+            
+            // Provisioning specifics
+            // SEB:TODO why not create letsencrypt cert here as well?
             if (hostName.ToLower().Trim() == config.Registry.ProvisioningDomain.ToLower().Trim())
             {
-                Log.Information("Loading certificate for provisioning domain");
+                //Log.Debug("Loading certificate for provisioning domain");
                 string publicKeyPath = Path.Combine(config.Host.SystemSslRootPath, config.Registry.ProvisioningDomain, "certificate.crt");
                 string privateKeyPath = Path.Combine(config.Host.SystemSslRootPath, config.Registry.ProvisioningDomain, "private.key");
-                Log.Information($"Checking path [{publicKeyPath}]");
+                //Log.Debug($"Checking path [{publicKeyPath}]");
 
-                var cert = DotYouCertificateLoader.LoadCertificate(publicKeyPath, privateKeyPath);
+                var cert = DotYouCertificateCache.LoadCertificate(privateKeyPath, publicKeyPath);
                 if (null == cert)
                 {
                     Log.Error($"No certificate configured for {hostName}");
@@ -202,26 +240,50 @@ namespace Youverse.Hosting
 
                 return cert;
             }
-
-            // connectionContext.ConnectionId
-            if (!string.IsNullOrEmpty(hostName))
+            
+            //
+            // Hostname -> tenant
+            //
+            var registryId = _registry.ResolveId(hostName);
+            if (registryId == null)
             {
-                //TODO: add caching of loaded certificates
-                Guid registryId = _registry.ResolveId(hostName);
-                OdinId odinId = (OdinId)hostName;
+                Log.Debug("Will not return certificate because {host} does not belong here (yet?)", hostName);
+                return null;
+            }
+            
+            var odinId = (OdinId)hostName;
+            var logger = serviceProvider.GetRequiredService<ILogger<TenantCertificateService>>();
+            var certesAcme = serviceProvider.GetRequiredService<ICertesAcme>();
+            var acmeAccountConfig = serviceProvider.GetRequiredService<AcmeAccountConfig>();
+            var tenantContext =
+                TenantContext.Create(registryId.Value, odinId, config.Host.TenantDataRootPath, null);
 
-                ITenantCertificateService tc = new TenantCertificateService(TenantContext.Create(registryId, odinId, config.Host.TenantDataRootPath, null));
-                var cert = tc.ResolveCertificate(odinId);
+            var tc = new TenantCertificateService(
+                logger, 
+                certesAcme, 
+                acmeAccountConfig,
+                tenantContext);
 
-                if (null == cert)
-                {
-                    Log.Error($"No certificate configured for {hostName}");
-                }
+            // 
+            // Lookup tenant and certificate
+            //
+            var certificate = tc.ResolveCertificate(odinId);
+            if (null != certificate)
+            {
+                return certificate;
+            }
+            
+            // 
+            // Tenant found, but no certificate. Create it.
+            //
+            certificate = await tc.CreateCertificate(hostName);
 
-                return cert;
+            if (null == certificate)
+            {
+                Log.Error($"No certificate configured for {hostName}");
             }
 
-            return null;
+            return certificate;
         }
     }
 }

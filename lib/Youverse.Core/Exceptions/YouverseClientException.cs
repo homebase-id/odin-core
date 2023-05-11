@@ -2,7 +2,7 @@ using System;
 
 namespace Youverse.Core.Exceptions
 {
-    public class YouverseClientException : Exception
+    public class YouverseClientException : YouverseException
     {
         public YouverseClientErrorCode ErrorCode { get; set; }
 

@@ -8,6 +8,8 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
+using Youverse.Hosting.Middleware;
+using Youverse.Hosting.Middleware.Logging;
 
 namespace Youverse.Hosting;
 
@@ -19,9 +21,11 @@ public static class Provisioning
         provApp.UseCertificateForwarding();
         provApp.UseStaticFiles();
         provApp.UseRouting();
+        provApp.UseAuthentication();
+        provApp.UseAuthorization();
         provApp.UseEndpoints(endpoints => { endpoints.MapControllers(); });
         provApp.UseHttpsRedirection();
-
+        
         if (env.IsDevelopment())
         {
             Log.Information("using development route for provisioning");
