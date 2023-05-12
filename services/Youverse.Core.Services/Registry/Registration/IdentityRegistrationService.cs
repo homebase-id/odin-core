@@ -95,33 +95,66 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     
     //
 
-    public Task<DnsConfigurationSet> GetDnsConfiguration(string domain)
+    public Task<List<DnsConfig>> GetDnsConfiguration(string domain)
     {
         DomainNameValidator.AssertValidDomain(domain);
-        
-        List<DnsConfig> MapDnsConfig(List<YouverseConfiguration.RegistrySection.DnsRecord> configRecords)
-        {
-            var result = new List<DnsConfig>();
-            foreach (var record in configRecords)
-            {
-                result.Add(new DnsConfig
-                {
-                    Type = record.Type,
-                    Name = record.Name,
-                    Domain = record.Name == "" ? domain : record.Name + "." + domain,    
-                    Value = record.Value == "{{domain-placeholder}}" ? domain : record.Value,
-                    Description = record.Description
-                });
-            }
-            return result;
-        }
 
-        var result = new DnsConfigurationSet
+        var dns = _configuration.Registry.DnsConfigurationSet; 
+
+        var result = new List<DnsConfig>();
+       
+        // Bare A records
+        for (var idx = 0; idx < dns.BareARecords.Count; idx++)
         {
-            BackendDnsRecords = MapDnsConfig(_configuration.Registry.BackendDnsRecords),
-            FrontendDnsRecords = MapDnsConfig(_configuration.Registry.FrontendDnsRecords),
-            StorageDnsRecords = MapDnsConfig(_configuration.Registry.StorageDnsRecords)
-        };
+            result.Add(new DnsConfig
+            {
+                Type = "A",
+                Name = "",
+                Domain = domain,    
+                Value = dns.BareARecords[idx],
+                Description = $"A Record #{idx + 1}"
+            });
+        }
+        
+        // CNAME WWW
+        result.Add(new DnsConfig
+        {
+            Type = "CNAME",
+            Name = DnsConfigurationSet.PrefixWww,
+            Domain = $"{DnsConfigurationSet.PrefixWww}.{domain}",
+            Value = dns.WwwCnameTarget == "" ? domain : dns.WwwCnameTarget,
+            Description = $"WWW CNAME"
+        });
+        
+        // CNAME API
+        result.Add(new DnsConfig
+        {
+            Type = "CNAME",
+            Name = DnsConfigurationSet.PrefixApi,
+            Domain = $"{DnsConfigurationSet.PrefixApi}.{domain}",
+            Value = dns.ApiCnameTarget == "" ? domain : dns.ApiCnameTarget,
+           Description = $"API CNAME"
+        });
+
+        // CNAME CAPI
+        result.Add(new DnsConfig
+        {
+            Type = "CNAME",
+            Name = DnsConfigurationSet.PrefixCertApi,
+            Domain = $"{DnsConfigurationSet.PrefixCertApi}.{domain}",
+            Value = dns.CApiCnameTarget == "" ? domain : dns.CApiCnameTarget,
+            Description = $"CAPI CNAME"
+        });
+        
+        // CNAME FILE
+        result.Add(new DnsConfig
+        {
+            Type = "CNAME",
+            Name = DnsConfigurationSet.PrefixFile,
+            Domain = $"{DnsConfigurationSet.PrefixFile}.{domain}",
+            Value = dns.FileCnameTarget == "" ? domain : dns.FileCnameTarget,
+            Description = $"FILE CNAME"
+        });
 
         return Task.FromResult(result);
     }
@@ -139,7 +172,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         {
             var dnsConfig = await GetDnsConfiguration(domain);
             var dnsClient = await CreateDnsClient(resolver);
-            foreach (var record in dnsConfig.AllDnsRecords)
+            foreach (var record in dnsConfig)
             {
                 lookups.Add(
                     (
@@ -194,7 +227,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             return false;
         }
         
-        foreach (var record in dnsConfig.AllDnsRecords)
+        foreach (var record in dnsConfig)
         {
             if (record.Name != "")
             {
@@ -219,7 +252,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         var dnsConfig = await GetDnsConfiguration(domain);
 
         var zoneId = apex + ".";
-        foreach (var record in dnsConfig.AllDnsRecords)
+        foreach (var record in dnsConfig)
         {
             var name = record.Name != "" ? record.Name + "." + prefix : prefix;
             if (record.Type == "A")
@@ -251,7 +284,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         var dnsConfig = await GetDnsConfiguration(domain);
 
         var zoneId = apex + ".";
-        foreach (var record in dnsConfig.AllDnsRecords)
+        foreach (var record in dnsConfig)
         {
             var name = record.Name != "" ? record.Name + "." + prefix : prefix;
             if (record.Type == "A")
@@ -290,7 +323,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     //
 
-    public async Task<(bool, DnsConfigurationSet)> GetOwnDomainDnsStatus(string domain)
+    public async Task<(bool, List<DnsConfig>)> GetOwnDomainDnsStatus(string domain)
     {
         DomainNameValidator.AssertValidDomain(domain);
         
@@ -299,14 +332,14 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         var lookups = new List<Task<bool>>();
         var dnsClient = await CreateDnsClient();
 
-        foreach (var record in dnsConfig.AllDnsRecords)
+        foreach (var record in dnsConfig)
         {
             lookups.Add(VerifyDnsRecord(domain, record, dnsClient, true));
         }
 
         await Task.WhenAll(lookups);
 
-        foreach (var record in dnsConfig.AllDnsRecords)
+        foreach (var record in dnsConfig)
         {
             if (record.Status != DnsConfig.LookupRecordStatus.Success)
             {
@@ -480,5 +513,23 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         return false;
     }
    
+}
+
+public class DnsConfig
+{
+    public enum LookupRecordStatus 
+    {
+        Unknown,
+        Success,                // domain found, correct value returned
+        DomainOrRecordNotFound, // domain not found, retry later
+        IncorrectValue,         // domain found, but DNS value is incorrect
+    } 
+    
+    public string Type { get; init; } = "";            // e.g. "CNAME"
+    public string Name { get; init; } = "";            // e.g. "www" or ""
+    public string Domain { get; init; } = "";          // e.g. "www.example.com" or "example.com"
+    public string Value { get; init; } = "";           // e.g. "example.com" or "127.0.0.1"
+    public string Description { get; init; } = "";
+    public LookupRecordStatus Status { get; set; } = LookupRecordStatus.Unknown;
 }
 
