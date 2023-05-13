@@ -34,7 +34,7 @@ namespace Youverse.Hosting.Controllers.Registration
             // SEB:TODO do proper exception handling. Errors from AssertValidDomain should come back as http 400.
             
             var dnsConfig = await _regService.GetDnsConfiguration(domain);
-            return new JsonResult(dnsConfig.AllDnsRecords);
+            return new JsonResult(dnsConfig);
         }
         
         /// <summary>
@@ -180,7 +180,7 @@ namespace Youverse.Hosting.Controllers.Registration
             // }
             
             var (success, dnsConfig) = await _regService.GetOwnDomainDnsStatus(domain);
-            return new JsonResult(dnsConfig.AllDnsRecords)
+            return new JsonResult(dnsConfig)
             {
                 StatusCode = success ? StatusCodes.Status200OK : StatusCodes.Status202Accepted
             };

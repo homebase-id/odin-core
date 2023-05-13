@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using Youverse.Core.Configuration;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Certificate;
+using Youverse.Core.Services.Registry.Registration;
 using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Configuration
@@ -105,10 +106,7 @@ namespace Youverse.Core.Services.Configuration
             public string ProvisioningDomain { get; }
             public List<ManagedDomainApex> ManagedDomainApexes { get; }
             
-            public List<DnsRecord> BackendDnsRecords { get; }
-            public List<DnsRecord> FrontendDnsRecords { get; }
-            public List<DnsRecord> StorageDnsRecords { get; }
-            
+            public DnsConfigurationSet DnsConfigurationSet { get; }
             public List<string> DnsResolvers { get; }
 
             public RegistrySection(IConfiguration config)
@@ -117,24 +115,19 @@ namespace Youverse.Core.Services.Configuration
                 PowerDnsApiKey = config.Required<string>("Registry:PowerDnsApiKey");
                 ProvisioningDomain = config.Required<string>("Registry:ProvisioningDomain");
                 ManagedDomainApexes = config.Required<List<ManagedDomainApex>>("Registry:ManagedDomainApexes");
-                BackendDnsRecords = config.Required<List<DnsRecord>>("Registry:BackendDnsRecords");
-                FrontendDnsRecords = config.Required<List<DnsRecord>>("Registry:FrontendDnsRecords");
-                StorageDnsRecords = config.Required<List<DnsRecord>>("Registry:StorageDnsRecords");
                 DnsResolvers = config.Required<List<string>>("Registry:DnsResolvers");
+                DnsConfigurationSet = new DnsConfigurationSet(
+                    config.Required<List<string>>("Registry:DnsRecordValues:BareARecords"),
+                    config.Required<string>("Registry:DnsRecordValues:WwwCnameTarget"),
+                    config.Required<string>("Registry:DnsRecordValues:ApiCnameTarget"),
+                    config.Required<string>("Registry:DnsRecordValues:CApiCnameTarget"),
+                    config.Required<string>("Registry:DnsRecordValues:FileCnameTarget"));
             }
 
             public class ManagedDomainApex
             {
                 public string Apex { get; set; } = "";
                 public List<string> PrefixLabels { get; set; } = new();
-            }
-            
-            public class DnsRecord
-            {
-                public string Type { get; set; } = "";
-                public string Name { get; set; } = "";
-                public string Value { get; set; } = "";
-                public string Description { get; set; } = "";
             }
         }
         

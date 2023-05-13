@@ -22,7 +22,7 @@ public interface IIdentityRegistrationService
     /// </summary>
     /// <param name="domain"></param>
     /// <returns></returns>
-    Task<DnsConfigurationSet> GetDnsConfiguration(string domain);
+    Task<List<DnsConfig>> GetDnsConfiguration(string domain);
 
     /// <summary>
     /// Does a DNS lookup on domain records using configured DNS Resolvers
@@ -56,7 +56,7 @@ public interface IIdentityRegistrationService
     /// Verifies if DNS records are correctly configured on own-domain
     /// </summary>
     /// <returns></returns>
-    Task<(bool, DnsConfigurationSet)> GetOwnDomainDnsStatus(string domain);
+    Task<(bool, List<DnsConfig>)> GetOwnDomainDnsStatus(string domain);
     
     public Task DeleteOwnDomain(string domain);
     
@@ -69,40 +69,6 @@ public interface IIdentityRegistrationService
 
 //
 // DTOs
-//
-    
-public class DnsConfigurationSet
-{
-    public List<DnsConfig> BackendDnsRecords { get; init; } = new ();
-    public List<DnsConfig> FrontendDnsRecords { get; init; } = new ();
-    public List<DnsConfig> StorageDnsRecords { get; init; } = new ();
-    public List<DnsConfig> AllDnsRecords =>
-        BackendDnsRecords
-            .Concat(FrontendDnsRecords)
-            .Concat(StorageDnsRecords)
-            .ToList();
-}
-
-//
-
-public class DnsConfig
-{
-    public enum LookupRecordStatus 
-    {
-        Unknown,
-        Success,                // domain found, correct value returned
-        DomainOrRecordNotFound, // domain not found, retry later
-        IncorrectValue,         // domain found, but DNS value is incorrect
-    } 
-    
-    public string Type { get; init; } = "";            // e.g. "CNAME"
-    public string Name { get; init; } = "";            // e.g. "www" or ""
-    public string Domain { get; init; } = "";          // e.g. "www.example.com" or "example.com"
-    public string Value { get; init; } = "";           // e.g. "example.com" or "127.0.0.1"
-    public string Description { get; init; } = "";
-    public LookupRecordStatus Status { get; set; } = LookupRecordStatus.Unknown;
-}
-    
 //
 
 public class ExternalDnsResolverLookupResult
