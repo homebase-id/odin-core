@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
@@ -11,7 +14,8 @@ public static class Utility
     /// <summary>
     /// Converts the ServerFileHeader to a SharedSecretEncryptedHeader
     /// </summary>
-    public static SharedSecretEncryptedFileHeader ConvertToSharedSecretEncryptedClientFileHeader(ServerFileHeader header, DotYouContextAccessor contextAccessor, bool forceIncludeServerMetadata = false)
+    public static SharedSecretEncryptedFileHeader ConvertToSharedSecretEncryptedClientFileHeader(ServerFileHeader header, DotYouContextAccessor contextAccessor,
+        bool forceIncludeServerMetadata = false)
     {
         if (header == null)
         {
@@ -59,7 +63,7 @@ public static class Utility
             FileMetadata = RedactFileMetadata(header.FileMetadata),
             Priority = priority
         };
-        
+
         //add additional info
         if (contextAccessor.GetCurrent().Caller.IsOwner || forceIncludeServerMetadata)
         {
@@ -87,5 +91,37 @@ public static class Utility
             VersionTag = fileMetadata.VersionTag.GetValueOrDefault()
         };
         return clientFile;
+    }
+
+    public static ImageDataHeader FindMatchingThumbnail(List<ImageDataHeader> thumbs, int width, int height, bool directMatchOnly)
+    {
+        if (null == thumbs || !thumbs.Any())
+        {
+            return null;
+        }
+
+        var directMatchingThumb = thumbs.SingleOrDefault(t => t.PixelHeight == height && t.PixelWidth == width);
+        if (null != directMatchingThumb)
+        {
+            return directMatchingThumb;
+        }
+
+        if (directMatchOnly)
+        {
+            return null;
+        }
+
+        //TODO: add more logic here to compare width and height separately or together
+        var nextSizeUp = thumbs.FirstOrDefault(t => t.PixelHeight > height || t.PixelWidth > width);
+        if (null == nextSizeUp)
+        {
+            nextSizeUp = thumbs.LastOrDefault();
+            if (null == nextSizeUp)
+            {
+                return null;
+            }
+        }
+
+        return nextSizeUp;
     }
 }

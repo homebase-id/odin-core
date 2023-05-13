@@ -200,7 +200,8 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             return GetLongTermStorageManager(driveId).GetServerFileHeaders(pageOptions);
         }
 
-        public async Task<Stream> GetThumbnailPayloadStream(InternalDriveFileId file, int width, int height, bool directMatchOnly = false)
+        public async Task<(Stream stream, ImageDataHeader thumbnail )> GetThumbnailPayloadStream(InternalDriveFileId file, int width, int height,
+            bool directMatchOnly = false)
         {
             this.AssertCanReadDrive(file.DriveId);
 
@@ -209,18 +210,19 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             var thumbs = header?.FileMetadata?.AppData?.AdditionalThumbnails?.ToList();
             if (null == thumbs || !thumbs.Any())
             {
-                return Stream.Null;
+                return (Stream.Null, null);
             }
+
 
             var directMatchingThumb = thumbs.SingleOrDefault(t => t.PixelHeight == height && t.PixelWidth == width);
             if (null != directMatchingThumb)
             {
-                return await GetLongTermStorageManager(file.DriveId).GetThumbnail(file.FileId, width, height);
+                return (await GetLongTermStorageManager(file.DriveId).GetThumbnail(file.FileId, width, height), directMatchingThumb);
             }
 
             if (directMatchOnly)
             {
-                return Stream.Null;
+                return (Stream.Null, null);
             }
 
             //TODO: add more logic here to compare width and height separately or together
@@ -230,11 +232,11 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
                 nextSizeUp = thumbs.LastOrDefault();
                 if (null == nextSizeUp)
                 {
-                    return Stream.Null;
+                    return (Stream.Null, null);
                 }
             }
 
-            return await GetLongTermStorageManager(file.DriveId).GetThumbnail(file.FileId, nextSizeUp.PixelWidth, nextSizeUp.PixelHeight);
+            return (await GetLongTermStorageManager(file.DriveId).GetThumbnail(file.FileId, nextSizeUp.PixelWidth, nextSizeUp.PixelHeight), nextSizeUp);
         }
 
         public async Task<Guid> DeleteThumbnail(InternalDriveFileId file, int width, int height)
@@ -516,7 +518,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             {
                 throw new YouverseClientException($"Invalid version tag {newMetadata.VersionTag}", YouverseClientErrorCode.VersionTagMismatch);
             }
-            
+
             newMetadata.Created = existingServerHeader.FileMetadata.Created;
             newMetadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
             newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
@@ -651,10 +653,10 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             newMetadata.Created = existingServerHeader.FileMetadata.Created;
             newMetadata.GlobalTransitId = existingServerHeader.FileMetadata.GlobalTransitId;
             newMetadata.FileState = existingServerHeader.FileMetadata.FileState;
-            
+
             newMetadata.AppData.AdditionalThumbnails = existingServerHeader.FileMetadata.AppData.AdditionalThumbnails;
             newMetadata.AppData.ContentIsComplete = existingServerHeader.FileMetadata.AppData.ContentIsComplete;
-            
+
             newServerMetadata.FileSystemType = existingServerHeader.ServerMetadata.FileSystemType;
 
             existingServerHeader.FileMetadata = newMetadata;
