@@ -166,19 +166,18 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
 
             //if the sender can write, we can perform this now
 
-            if(fileSystemType == FileSystemType.Comment)
+            if (fileSystemType == FileSystemType.Comment)
             {
                 //Note: we need to check if the person deleting the comment is the original commenter or the owner
                 var header = await _fileSystem.Query.GetFileByGlobalTransitId(driveId, globalTransitId);
                 if (null != header)
                 {
-
                     //requester must be the original commenter
                     if (header.FileMetadata.SenderOdinId != _contextAccessor.GetCurrent().Caller.OdinId)
                     {
                         throw new YouverseSecurityException();
                     }
-                    
+
                     await _fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
                     {
                         FileId = header.FileId,
@@ -192,7 +191,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
                     };
                 }
             }
-            
+
             try
             {
                 var item = new TransferInboxItem()
@@ -200,15 +199,15 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
                     Id = Guid.NewGuid(),
                     AddedTimestamp = UnixTimeUtc.Now(),
                     Sender = this._contextAccessor.GetCurrent().GetCallerOdinIdOrFail(),
-            
+
                     InstructionType = TransferInstructionType.DeleteLinkedFile,
                     DriveId = driveId,
                     GlobalTransitId = globalTransitId,
                     FileSystemType = fileSystemType,
                 };
-            
+
                 await _transitInboxBoxStorage.Add(item);
-            
+
                 return new HostTransitResponse()
                 {
                     Code = TransitResponseCode.AcceptedIntoInbox,
@@ -280,33 +279,15 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
             var header = await _fileSystem.Storage.GetSharedSecretEncryptedHeader(file);
             string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
 
-            // Exact duplicate of the code in DriveService.GetThumbnailPayloadStream
             var thumbs = header.FileMetadata.AppData.AdditionalThumbnails?.ToList();
-            if (null == thumbs || !thumbs.Any())
+            var thumbnail = Utility.FindMatchingThumbnail(thumbs, width, height, directMatchOnly: false);
+            if (null == thumbnail)
             {
                 return (null, default, null, null);
             }
 
-            var directMatchingThumb = thumbs.SingleOrDefault(t => t.PixelHeight == height && t.PixelWidth == width);
-            if (null != directMatchingThumb)
-            {
-                var innerThumb = await _fileSystem.Storage.GetThumbnailPayloadStream(file, width, height);
-                return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, directMatchingThumb.ContentType, innerThumb);
-            }
-
-            //TODO: add more logic here to compare width and height separately or together
-            var nextSizeUp = thumbs.FirstOrDefault(t => t.PixelHeight > height || t.PixelWidth > width);
-            if (null == nextSizeUp)
-            {
-                nextSizeUp = thumbs.LastOrDefault();
-                if (null == nextSizeUp)
-                {
-                    return (null, default, null, null);
-                }
-            }
-
-            var thumb = await _fileSystem.Storage.GetThumbnailPayloadStream(file, width, height);
-            return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, nextSizeUp.ContentType, thumb);
+            var (thumb, _) = await _fileSystem.Storage.GetThumbnailPayloadStream(file, width, height);
+            return (encryptedKeyHeader64, header.FileMetadata.PayloadIsEncrypted, thumbnail.ContentType, thumb);
         }
 
         public async Task<IEnumerable<PerimeterDriveData>> GetDrives(Guid driveType)
@@ -357,13 +338,13 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
         private async Task<bool> TryDirectWriteFile(IncomingTransferStateItem stateItem, FileMetadata metadata)
         {
             _fileSystem.Storage.AssertCanWriteToDrive(stateItem.TempFile.DriveId);
-            
+
             //HACK: if it's not a connected token
             if (_contextAccessor.GetCurrent().AuthContext.ToLower() != "TransitCertificate".ToLower())
             {
                 return false;
             }
-            
+
             //TODO: check if any apps are online and we can snag the storage key
 
             TransitFileWriter writer = new TransitFileWriter(_contextAccessor, _fileSystemResolver);

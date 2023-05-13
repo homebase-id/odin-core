@@ -7,6 +7,7 @@ using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
+using Youverse.Core.Services.Drives.FileSystem.Base;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Hosting.Authentication.ClientToken;
@@ -77,8 +78,8 @@ namespace Youverse.Hosting.Controllers.Base
             var file = MapToInternalFile(request.File);
 
             var fs = this.GetFileSystemResolver().ResolveFileSystem();
-            var payload = await fs.Storage.GetThumbnailPayloadStream(file, request.Width, request.Height, request.DirectMatchOnly);
-            if (payload == Stream.Null)
+            var (thumbPayload, thumbHeader) = await fs.Storage.GetThumbnailPayloadStream(file, request.Width, request.Height, request.DirectMatchOnly);
+            if (thumbPayload == Stream.Null)
             {
                 return NotFound();
             }
@@ -86,12 +87,18 @@ namespace Youverse.Hosting.Controllers.Base
             var header = await fs.Storage.GetSharedSecretEncryptedHeader(file);
             string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
 
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, header.FileMetadata.PayloadIsEncrypted.ToString());
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, header.FileMetadata.ContentType);
+            if (header == null)
+            {
+                //TODO: need to throw a better exception when we have a thumbnail but no header
+                throw new YouverseClientException("Missing header", YouverseClientErrorCode.UnknownId);
+            }
+            
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, header.FileMetadata!.PayloadIsEncrypted.ToString());
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, thumbHeader.ContentType);
             HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader64);
 
             AddCacheHeader();
-            return new FileStreamResult(payload, header.FileMetadata.PayloadIsEncrypted ? "application/octet-stream" : header.FileMetadata.ContentType);
+            return new FileStreamResult(thumbPayload, header.FileMetadata.PayloadIsEncrypted ? "application/octet-stream" : header.FileMetadata.ContentType);
         }
 
         /// <summary>

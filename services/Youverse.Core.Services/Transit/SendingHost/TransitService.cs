@@ -312,8 +312,8 @@ namespace Youverse.Core.Services.Transit.SendingHost
                 {
                     foreach (var thumb in redactedMetadata.AppData?.AdditionalThumbnails ?? new List<ImageDataHeader>())
                     {
-                        var thumbStream = await fs.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight);
-                        additionalStreamParts.Add(new StreamPart(thumbStream, thumb.GetFilename(), thumb.ContentType,
+                        var (thumbStream, thumbHeader) = await fs.Storage.GetThumbnailPayloadStream(file, thumb.PixelWidth, thumb.PixelHeight);
+                        additionalStreamParts.Add(new StreamPart(thumbStream, thumbHeader.GetFilename(), thumbHeader.ContentType,
                             Enum.GetName(MultipartUploadParts.Thumbnail)));
                     }
                 }
