@@ -41,7 +41,7 @@ namespace Youverse.Core.Trie
             128, 128, 128, 128, 128, 128                      // 250-255
         };
 
-        private ReaderWriterLockSlim _rwLock = new ReaderWriterLockSlim();
+        private readonly ReaderWriterLockSlim _rwLock = new ReaderWriterLockSlim();
 
         private struct NodeData
         {
@@ -130,10 +130,10 @@ namespace Youverse.Core.Trie
         /// <returns>Returns default(T) if none or the data key if found.</returns>
         public T LookupExactName(string sName)
         {
+            _rwLock.EnterReadLock();
+
             try
             {
-                _rwLock.EnterReadLock();
-
                 ref var p = ref m_NodeRoot;
 
                 int c;
@@ -173,9 +173,9 @@ namespace Youverse.Core.Trie
         /// <returns>Returns default(T) if none or the data key if found.</returns>
         public (T, string) LookupName(string sName)
         {
+            _rwLock.EnterReadLock();
             try
             {
-                _rwLock.EnterReadLock();
                 ref var p = ref m_NodeRoot;
 
                 int c;
@@ -267,9 +267,9 @@ namespace Youverse.Core.Trie
 
         public void AddDomain(string sName, T Key)
         {
+            _rwLock.EnterWriteLock();
             try
             {
-                _rwLock.EnterWriteLock();
                 if (IsDomainUniqueInHierarchy(sName) == false)
                 {
                     throw new DomainHierarchyNotUniqueException();
@@ -329,10 +329,10 @@ namespace Youverse.Core.Trie
 
         public void RemoveDomain(string sName)
         {
+            _rwLock.EnterWriteLock();
+
             try
             {
-                _rwLock.EnterWriteLock();
-
                 if (IsDomainUniqueInHierarchy(sName) == true)
                 {
                     throw new Exception("Trying to remove a domain which is not found in the Trie");
