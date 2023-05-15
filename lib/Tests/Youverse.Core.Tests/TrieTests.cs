@@ -136,15 +136,15 @@ namespace Youverse.Core.Tests
             {
                 Guid g;
 
-                g = t.LookupName("");
+                g = t.LookupExactName("");
                 if (g != Guid.Empty)
                     throw new Exception();
 
-                g = t.LookupName("q");
+                g = t.LookupExactName("q");
                 if (g != Guid.Empty)
                     throw new Exception();
 
-                g = t.LookupName("ymer");
+                g = t.LookupExactName("ymer");
                 if (g != Guid.Empty)
                     throw new Exception();
             }
@@ -167,10 +167,10 @@ namespace Youverse.Core.Tests
 
             try
             {
-                var g = t.LookupName("aa.com");
+                var g = t.LookupExactName("aa.com");
                 if (g == Guid.Empty)
                     Assert.Fail();
-                g = t.LookupName("a.com");
+                g = t.LookupExactName("a.com");
                 if (g != Guid.Empty)
                     Assert.Fail();
             }
@@ -191,10 +191,15 @@ namespace Youverse.Core.Tests
 
             t.AddDomain("odin.valhalla.com", Guid.NewGuid());
 
-            if (t.IsDomainUniqueInHierarchy("valhalla.com"))
+            try
+            {
+                t.AddDomain("valhalla.com", Guid.NewGuid());
                 Assert.Fail();
-            else
+            }
+            catch
+            {
                 Assert.Pass();
+            }
         }
 
         [Test]
@@ -204,10 +209,15 @@ namespace Youverse.Core.Tests
 
             t.AddDomain("valhalla.com", Guid.NewGuid());
 
-            if (t.IsDomainUniqueInHierarchy("odin.valhalla.com"))
+            try
+            {
+                t.AddDomain("odin.valhalla.com", Guid.NewGuid());
                 Assert.Fail();
-            else
+            }
+            catch
+            {
                 Assert.Pass();
+            }
         }
 
         [Test]
@@ -217,10 +227,15 @@ namespace Youverse.Core.Tests
 
             t.AddDomain("odin.valhalla.com", Guid.NewGuid());
 
-            if (t.IsDomainUniqueInHierarchy("big.odin.valhalla.com"))
+            try
+            {
+                t.AddDomain("big.odin.valhalla.com", Guid.NewGuid());
                 Assert.Fail();
-            else
+            }
+            catch
+            {
                 Assert.Pass();
+            }
         }
 
         [Test]
@@ -230,10 +245,14 @@ namespace Youverse.Core.Tests
 
             t.AddDomain("odin.valhalla.com", Guid.NewGuid());
 
-            if (t.IsDomainUniqueInHierarchy("thor.valhalla.com"))
-                Assert.Pass();
-            else
+            try
+            {
+                t.AddDomain("thor.valhalla.com", Guid.NewGuid());
+            }
+            catch
+            {
                 Assert.Fail();
+            }
         }
 
         [Test]
@@ -243,10 +262,14 @@ namespace Youverse.Core.Tests
 
             t.AddDomain("odin.valhalla.com", Guid.NewGuid());
 
-            if (t.IsDomainUniqueInHierarchy("din.valhalla.com"))
-                Assert.Pass();
-            else
+            try
+            {
+                t.AddDomain("din.valhalla.com", Guid.NewGuid());
+            }
+            catch
+            {
                 Assert.Fail();
+            }
         }
 
         [Test]
@@ -256,10 +279,14 @@ namespace Youverse.Core.Tests
 
             t.AddDomain("odin.valhalla.com", Guid.NewGuid());
 
-            if (t.IsDomainUniqueInHierarchy("bodin.valhalla.com"))
-                Assert.Pass();
-            else
+            try
+            {
+                t.AddDomain("bodin.valhalla.com", Guid.NewGuid());
+            }
+            catch
+            {
                 Assert.Fail();
+            }
         }
 
 
@@ -270,10 +297,15 @@ namespace Youverse.Core.Tests
 
             t.AddDomain("valhalla.com", Guid.NewGuid());
 
-            if (t.IsDomainUniqueInHierarchy("valhalla.com"))
+            try
+            {
+                t.AddDomain("valhalla.com", Guid.NewGuid());
                 Assert.Fail();
-            else
+            }
+            catch
+            {
                 Assert.Pass();
+            }
         }
 
         [Test]
@@ -283,32 +315,80 @@ namespace Youverse.Core.Tests
 
             var g = Guid.NewGuid();
 
-            if (t.IsDomainUniqueInHierarchy("valhalla.com") == false)
-                Assert.Fail();
-
             t.AddDomain("valhalla.com", g);
 
-            if (t.IsDomainUniqueInHierarchy("valhalla.com") == true)
+            try
+            {
+                t.AddDomain("valhalla.com", Guid.NewGuid());
                 Assert.Fail();
-            
-            t.RemoveDomain("valhalla.com");
+            }
+            catch
+            {
+                Assert.Pass();
+            }
 
-            if (t.IsDomainUniqueInHierarchy("valhalla.com") == false)
-                Assert.Fail();
-
-            t.AddDomain("valhalla.com", g);
-
-            if (t.IsDomainUniqueInHierarchy("valhalla.com") == true)
-                Assert.Fail();
 
             t.RemoveDomain("valhalla.com");
 
-            if (t.IsDomainUniqueInHierarchy("valhalla.com") == false)
+
+            t.AddDomain("valhalla.com", g);
+
+            try
+            {
+                t.AddDomain("valhalla.com", Guid.NewGuid());
                 Assert.Fail();
+            }
+            catch
+            { 
+                Assert.Pass(); 
+            }
+
+            t.RemoveDomain("valhalla.com");
 
             Assert.Pass();
         }
 
+        [Test]
+        public void LookupNameTest()
+        {
+            var t = new Trie<Guid>();
+
+            Guid g1 = Guid.NewGuid();
+            Guid g2 = Guid.NewGuid();
+            Guid g3 = Guid.NewGuid();
+            Guid g4 = Guid.NewGuid();
+            Guid g5 = Guid.NewGuid();
+
+            t.AddDomain("aaa.c", g4);
+            t.AddDomain("aa.c", g1);
+            t.AddDomain("a.c", g2);
+            t.AddDomain("bb.c", g3);
+
+            var (g, s) = t.LookupName("a.c");
+            if ((g != g2) || (s != ""))
+                throw new Exception();
+
+            (g, s) = t.LookupName("www.a.c");
+            if ((g != g2) || (s != "www"))
+                throw new Exception();
+
+            (g, s) = t.LookupName("cc.api.a.c");
+            if ((g != g2) || (s != "cc.api"))
+                throw new Exception();
+
+            (g, s) = t.LookupName("ba.c");
+            if (g != Guid.Empty)
+                throw new Exception();
+
+            (g, s) = t.LookupName("www.aa.c");
+            if ((g != g1) || (s != "www"))
+                throw new Exception();
+
+            (g, s) = t.LookupName("aa.c");
+            if ((g != g1) || (s != ""))
+                throw new Exception();
+
+        }
 
         [Test]
         public void ComplexAddLookup2Pass()
@@ -339,23 +419,23 @@ namespace Youverse.Core.Tests
 
             try
             {
-                g = t.LookupName("a.c");
+                g = t.LookupExactName("a.c");
                 if (g != g1)
                     throw new Exception();
 
-                g = t.LookupName("aa.c");
+                g = t.LookupExactName("aa.c");
                 if (g != g2)
                     throw new Exception();
 
-                g = t.LookupName("ab.c");
+                g = t.LookupExactName("ab.c");
                 if (g != g3)
                     throw new Exception();
 
-                g = t.LookupName("aaa.c");
+                g = t.LookupExactName("aaa.c");
                 if (g != g4)
                     throw new Exception();
 
-                g = t.LookupName("b.c");
+                g = t.LookupExactName("b.c");
                 if (g != g5)
                     throw new Exception();
             }
@@ -400,23 +480,23 @@ namespace Youverse.Core.Tests
 
             try
             {
-                g = t.LookupName("a.com");
+                g = t.LookupExactName("a.com");
                 if (g != g1)
                     Assert.Fail();
 
-                g = t.LookupName("aa.com");
+                g = t.LookupExactName("aa.com");
                 if (g != g2)
                     Assert.Fail();
 
-                g = t.LookupName("ab.com");
+                g = t.LookupExactName("ab.com");
                 if (g != g3)
                     Assert.Fail();
 
-                g = t.LookupName("aaa.com");
+                g = t.LookupExactName("aaa.com");
                 if (g != g4)
                     Assert.Fail();
 
-                g = t.LookupName("b.com");
+                g = t.LookupExactName("b.com");
                 if (g != g5)
                     Assert.Fail();
             }
