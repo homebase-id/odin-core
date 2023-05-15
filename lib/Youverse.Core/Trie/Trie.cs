@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using Youverse.Core.Util;
+using System.Threading;
+using NodaTime;
 
 namespace Youverse.Core.Trie
 {
@@ -9,7 +11,7 @@ namespace Youverse.Core.Trie
     {
         // Maps ASCII character to Trie[] DNS node index, 128 means illegal
         // Lowercase and uppercase characters are mapped to the same index.
-        private byte[] m_aTrieMap =
+        private static readonly byte[] m_aTrieMap =
         {
             128, 128, 128, 128, 128, 128, 128, 128, 128, 128, // 000-009
             128, 128, 128, 128, 128, 128, 128, 128, 128, 128, // 010-019
@@ -39,7 +41,7 @@ namespace Youverse.Core.Trie
             128, 128, 128, 128, 128, 128                      // 250-255
         };
 
-        private object _mutex = new();
+        private readonly ReaderWriterLockSlim _rwLock = new ReaderWriterLockSlim();
 
         private struct NodeData
         {
@@ -73,7 +75,7 @@ namespace Youverse.Core.Trie
         /// <param name="sName">domain name to check</param>
         /// <returns></returns>
         // This should probably be private (but then I can't unit test)
-        public bool IsDomainUniqueInHierarchy(string sName)
+        private bool IsDomainUniqueInHierarchy(string sName)
         {
             DomainNameValidator.AssertValidDomain(sName); // Throws an exception if not OK
 
@@ -126,32 +128,94 @@ namespace Youverse.Core.Trie
         /// </summary>
         /// <param name="sName"></param>
         /// <returns>Returns default(T) if none or the data key if found.</returns>
-        public T LookupName(string sName)
+        public T LookupExactName(string sName)
         {
-            ref var p = ref m_NodeRoot;
+            _rwLock.EnterReadLock();
 
-            int c;
-            for (var i = sName.Length - 1; i >= 0; i--)
+            try
             {
-                c = m_aTrieMap[sName[i] & 127]; // Map (and ignore case)
+                ref var p = ref m_NodeRoot;
 
-                if (c == 128) // Illegal character
+                int c;
+                for (var i = sName.Length - 1; i >= 0; i--)
                 {
-                    Console.WriteLine("Illegal character in " + sName + " " + c.ToString());
-                    continue;
+                    c = m_aTrieMap[sName[i] & 127]; // Map (and ignore case)
+
+                    if (c == 128) // Illegal character
+                    {
+                        Console.WriteLine("Illegal character in " + sName + " " + c.ToString());
+                        continue;
+                    }
+
+                    if (p.NodeArray == null)
+                        return default;
+
+                    p = ref p.NodeArray[c];
+
+                    if (i == 0)
+                        return p.DataClass;
+                    // We could also return the remainder of sName (prefix)
                 }
 
-                if (p.NodeArray == null)
-                    return default;
-
-                p = ref p.NodeArray[c];
-
-                if (i == 0)
-                    return p.DataClass;
-                // We could also return the remainder of sName (prefix)
+                return default; // Not found
             }
+            finally
+            {
+                _rwLock.ExitReadLock(); 
+            }
+        }
 
-            return default; // Not found
+        /// <summary>
+        /// Searches for sName in the Trie. 
+        /// TODO: Make a variant that returns the best match and prepended string.
+        /// </summary>
+        /// <param name="sName"></param>
+        /// <returns>Returns default(T) if none or the data key if found.</returns>
+        public (T, string) LookupName(string sName)
+        {
+            _rwLock.EnterReadLock();
+            try
+            {
+                ref var p = ref m_NodeRoot;
+
+                int c;
+                for (var i = sName.Length - 1; i >= 0; i--)
+                {
+                    c = m_aTrieMap[sName[i] & 127]; // Map (and ignore case)
+
+                    if (c == 128) // Illegal character
+                    {
+                        Console.WriteLine("Illegal character in " + sName + " " + c.ToString());
+                        continue;
+                    }
+
+                    if (p.NodeArray == null)
+                        return (default, "");
+
+                    p = ref p.NodeArray[c]; // ref is more efficient
+
+                    if (typeof(T) == typeof(Guid) ? (Guid)(object)p.DataClass != Guid.Empty : p.DataClass != null)
+                    {
+                        // We found a hit, now we either need to be at the end or the next character a period
+                        if (i == 0)
+                            return (p.DataClass, "");
+
+                        // i is greater than zero
+                        if (sName[i - 1] == '.')
+                        {
+                            // Build the prefix substring without including the period
+                            string prefix = sName.Substring(0, i - 1);
+                            return (p.DataClass, prefix);
+                        }
+                    }
+                }
+
+                return (default, ""); // Not found
+            }
+            finally
+            { 
+                _rwLock.ExitReadLock(); 
+            }
         }
 
 
@@ -203,13 +267,18 @@ namespace Youverse.Core.Trie
 
         public void AddDomain(string sName, T Key)
         {
-            lock (_mutex)
+            _rwLock.EnterWriteLock();
+            try
             {
                 if (IsDomainUniqueInHierarchy(sName) == false)
                 {
                     throw new DomainHierarchyNotUniqueException();
                 }
                 AddName(sName, Key);
+            }
+            finally
+            {
+                _rwLock.ExitWriteLock();
             }
         }
 
@@ -260,13 +329,19 @@ namespace Youverse.Core.Trie
 
         public void RemoveDomain(string sName)
         {
-            lock (_mutex)
+            _rwLock.EnterWriteLock();
+
+            try
             {
                 if (IsDomainUniqueInHierarchy(sName) == true)
                 {
                     throw new Exception("Trying to remove a domain which is not found in the Trie");
                 }
                 RemoveName(sName);
+            }
+            finally
+            {
+                _rwLock.ExitWriteLock(); 
             }
         }
 
@@ -311,11 +386,11 @@ namespace Youverse.Core.Trie
             uint k = 0;
             for (var i = 0; i < 100000000; i++)
             {
-                if (t.LookupName("abcdefgh.com") != Guid.Empty)
+                if (t.LookupExactName("abcdefgh.com") != Guid.Empty)
                     k++;
-                if (t.LookupName("michael.corleone.com") != Guid.Empty)
+                if (t.LookupExactName("michael.corleone.com") != Guid.Empty)
                     k++;
-                if (t.LookupName("ymer.com") != Guid.Empty)
+                if (t.LookupExactName("ymer.com") != Guid.Empty)
                     k++;
             }
 
