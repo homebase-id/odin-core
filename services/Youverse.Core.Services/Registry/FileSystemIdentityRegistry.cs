@@ -45,13 +45,13 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     public Guid? ResolveId(string domain)
     {
-        var reg = _trie.LookupName(domain);
+        var reg = _trie.LookupExactName(domain);
         return reg?.Id; 
     }
 
     public Task<bool> IsIdentityRegistered(string domain)
     {
-        return Task.FromResult(_trie.LookupName(domain) != null);
+        return Task.FromResult(_trie.LookupExactName(domain) != null);
     }
 
     public async Task<Guid> AddRegistration(IdentityRegistrationRequest request)
@@ -174,7 +174,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     public Task<IdentityRegistration> Get(string domain)
     {
-        var reg = _trie.LookupName(domain);
+        var reg = _trie.LookupExactName(domain);
         return Task.FromResult(reg);
     }
 
@@ -225,7 +225,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private void Cache(IdentityRegistration registration)
     {
-        if (null != _trie.LookupName(registration.PrimaryDomainName))
+        if (null != _trie.LookupExactName(registration.PrimaryDomainName))
         {
             _trie.RemoveDomain(registration.PrimaryDomainName);
         }
