@@ -15,6 +15,7 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Storage;
+using Youverse.Core.Trie;
 using Youverse.Core.Util;
 using Youverse.Hosting._dev;
 using Youverse.Hosting.Tests.AppAPI.ApiClient;
@@ -97,7 +98,8 @@ namespace Youverse.Hosting.Tests
             CreateData();
             CreateLogs();
 
-            _registry = new FileSystemIdentityRegistry(TestDataPath, null);
+            var trie = new Trie<IdentityRegistration>();
+            _registry = new FileSystemIdentityRegistry(trie, TestDataPath, null);
             _registry.Initialize();
 
             var (config, _) = Program.LoadConfig();
