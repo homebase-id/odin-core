@@ -2,20 +2,35 @@
 using Youverse.Core.Exceptions;
 
 #nullable enable
-namespace Youverse.Core.Configuration
+namespace Youverse.Core.Configuration;
+
+public static class ConfigurationExtensions
 {
-    public static class ConfigurationExtensions
+    public static T Required<T>(this IConfiguration config, string path)
     {
-        public static T Required<T>(this IConfiguration config, string path)
+        var section = config.GetSection(path);
+
+        if (!section.Exists())
         {
-            var section = config.GetSection(path);
-
-            if (!section.Exists())
-            {
-                throw new YouverseSystemException($"Missing config '{path}'");
-            }
-
-            return section.Get<T>();
+            throw new YouverseSystemException($"Missing config '{path}'");
         }
+
+        return section.Get<T>();
     }
+    
+    //
+
+    public static T GetOrDefault<T>(this IConfiguration config, string path, T defaultValue = default!)
+    {
+        var section = config.GetSection(path);
+    
+        if (!section.Exists())
+        {
+            return defaultValue;
+        }
+
+        var value = section.Get<T>();
+        return value;
+    }
+    
 }

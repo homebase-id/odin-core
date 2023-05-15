@@ -118,10 +118,10 @@ namespace Youverse.Core.Services.Configuration
                 DnsResolvers = config.Required<List<string>>("Registry:DnsResolvers");
                 DnsConfigurationSet = new DnsConfigurationSet(
                     config.Required<List<string>>("Registry:DnsRecordValues:BareARecords"),
-                    config.Required<string>("Registry:DnsRecordValues:WwwCnameTarget"),
-                    config.Required<string>("Registry:DnsRecordValues:ApiCnameTarget"),
-                    config.Required<string>("Registry:DnsRecordValues:CApiCnameTarget"),
-                    config.Required<string>("Registry:DnsRecordValues:FileCnameTarget"));
+                    config.GetOrDefault<string>("Registry:DnsRecordValues:WwwCnameTarget", ""),
+                    config.GetOrDefault<string>("Registry:DnsRecordValues:ApiCnameTarget", ""),
+                    config.GetOrDefault<string>("Registry:DnsRecordValues:CApiCnameTarget", ""),
+                    config.GetOrDefault<string>("Registry:DnsRecordValues:FileCnameTarget", ""));
             }
 
             public class ManagedDomainApex
