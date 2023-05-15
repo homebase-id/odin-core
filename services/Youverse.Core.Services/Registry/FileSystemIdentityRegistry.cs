@@ -21,11 +21,14 @@ namespace Youverse.Core.Services.Registry;
 public class FileSystemIdentityRegistry : IIdentityRegistry
 {
     private readonly Dictionary<Guid, IdentityRegistration> _cache;
-    private readonly Trie.Trie<IdentityRegistration> _trie;
+    private readonly Trie<IdentityRegistration> _trie;
     private readonly string _tenantDataRootPath;
     private readonly CertificateRenewalConfig _certificateRenewalConfig;
    
-    public FileSystemIdentityRegistry(string tenantDataRootPath, CertificateRenewalConfig certificateRenewalConfig)
+    public FileSystemIdentityRegistry(
+        Trie<IdentityRegistration> trie,
+        string tenantDataRootPath, 
+        CertificateRenewalConfig certificateRenewalConfig)
     {
         if (!Directory.Exists(tenantDataRootPath))
         {
@@ -33,7 +36,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         }
         
         _cache = new Dictionary<Guid, IdentityRegistration>();
-        _trie = new Trie<IdentityRegistration>();
+        _trie = trie;
         _tenantDataRootPath = tenantDataRootPath;
         _certificateRenewalConfig = certificateRenewalConfig;
     }
