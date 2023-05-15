@@ -1,23 +1,16 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Connections;
-using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Quartz.Logging;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
@@ -31,7 +24,7 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Certificate;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Registry;
-using Youverse.Core.Services.Registry.Registration;
+using Youverse.Core.Trie;
 using Youverse.Hosting._dev;
 using Youverse.Hosting.Multitenant;
 
@@ -41,6 +34,9 @@ namespace Youverse.Hosting
     {
         private const string LogOutputTemplate = "{Timestamp:o} {Level:u3} {CorrelationId} {Hostname} {Message:lj}{NewLine}{Exception}"; // Add {SourceContext} to see source
         private static readonly SystemConsoleTheme LogOutputTheme = SystemConsoleTheme.Literate;
+        
+        // SEB:TODO move these two into startup.cs and do proper DI, if possible
+        private static readonly Trie<IdentityRegistration> Trie = new ();
         private static IIdentityRegistry _registry;
 
         public static int Main(string[] args)
@@ -115,8 +111,8 @@ namespace Youverse.Hosting
             }
 
             Log.Information($"Root path:{youverseConfig.Host.TenantDataRootPath}");
-
-            _registry = new FileSystemIdentityRegistry(youverseConfig.Host.TenantDataRootPath, youverseConfig.CertificateRenewal.ToCertificateRenewalConfig());
+ 
+            _registry = new FileSystemIdentityRegistry(Trie, youverseConfig.Host.TenantDataRootPath, youverseConfig.CertificateRenewal.ToCertificateRenewalConfig());
             _registry.Initialize();
 
             DevEnvironmentSetup.ConfigureIfPresent(youverseConfig, _registry);
@@ -130,8 +126,8 @@ namespace Youverse.Hosting
                 .UseServiceProviderFactory(new MultiTenantServiceProviderFactory(DependencyInjection.ConfigureMultiTenantServices, DependencyInjection.InitializeTenant))
                 .ConfigureServices(services =>
                 {
-                    //TODO: I'm not sure it's a good idea to add this as a service.
-                    services.Add(new ServiceDescriptor(typeof(IIdentityRegistry), _registry));
+                    services.AddSingleton(Trie);
+                    services.AddSingleton(_registry);
                 })
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
