@@ -62,7 +62,7 @@ namespace Youverse.Hosting.Tests
             Environment.SetEnvironmentVariable("Registry__ManagedDomains", "[\"dev.dominion.id\"]");
             Environment.SetEnvironmentVariable("Registry__DnsTargetRecordType", "[\"dev.dominion.id\"]");
             Environment.SetEnvironmentVariable("Registry__DnsTargetAddress", "[\"dev.dominion.id\"]");
-            
+
             Environment.SetEnvironmentVariable("Registry__DnsRecordValues__BareARecords", "[\"127.0.0.1\"]");
             Environment.SetEnvironmentVariable("Registry__DnsRecordValues__WwwCnameTarget", "");
             Environment.SetEnvironmentVariable("Registry__DnsRecordValues__ApiCnameTarget", "");
@@ -70,6 +70,7 @@ namespace Youverse.Hosting.Tests
             Environment.SetEnvironmentVariable("Registry__DnsRecordValues__FileCnameTarget", "");
 
             Environment.SetEnvironmentVariable("Host__TenantDataRootPath", TestDataPath);
+            Environment.SetEnvironmentVariable("Host__PayloadAlternativePath", TestAlternativePayloadPath);
             Environment.SetEnvironmentVariable("Host__SystemDataRootPath", TestDataPath);
             Environment.SetEnvironmentVariable("Host__IPAddressListenList", "[{ \"Ip\": \"*\",\"HttpsPort\": 443,\"HttpPort\": 80 }]");
 
@@ -218,6 +219,17 @@ namespace Youverse.Hosting.Tests
             {
                 Console.WriteLine($"Removing data in [{LogFilePath}]");
                 Directory.Delete(LogFilePath, true);
+            }
+        }
+
+        private string TestAlternativePayloadPath
+        {
+            get
+            {
+                var p = PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), TestDataPath, "payloads");
+                string x = isDev ? PathUtil.Combine(home, p.Substring(1)) : p;
+                return Path.Combine(_testInstancePrefix, x);
+                // return x;
             }
         }
 

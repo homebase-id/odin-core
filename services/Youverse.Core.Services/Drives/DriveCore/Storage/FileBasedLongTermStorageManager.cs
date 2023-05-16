@@ -310,6 +310,11 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
 
         private string GetFilenameAndPath(Guid fileId, FilePart part, bool ensureDirectoryExists = false)
         {
+            if (part == FilePart.Payload)
+            {
+                
+            }
+            
             string dir = GetFilePath(fileId, ensureDirectoryExists);
             return Path.Combine(dir, GetFilename(fileId, string.Empty, part));
         }
