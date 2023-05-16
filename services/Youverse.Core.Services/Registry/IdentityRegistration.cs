@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Certificate;
+using Youverse.Core.Services.Registry.Registration;
 using Youverse.Core.Util;
 
 namespace Youverse.Core.Services.Registry
@@ -18,7 +21,6 @@ namespace Youverse.Core.Services.Registry
     
     public class IdentityRegistration
     {
-
         private string _primaryDomainName;
         private Guid _domainKey;
 
@@ -41,7 +43,7 @@ namespace Youverse.Core.Services.Registry
             get => _primaryDomainName;
             set
             {
-                _primaryDomainName = value;
+                _primaryDomainName = value.ToLower();
                 _domainKey = new Guid(HashUtil.ReduceSHA256Hash(value.ToUtf8ByteArray()));
             }
         }
@@ -60,6 +62,16 @@ namespace Youverse.Core.Services.Registry
         public override string ToString()
         {
             return PrimaryDomainName;
+        }
+
+        public string[] GetDomains()
+        {
+            var result = new List<string> { PrimaryDomainName };
+            foreach (var prefix in DnsConfigurationSet.WellknownPrefixes)
+            {
+                result.Add(prefix + "." + PrimaryDomainName);
+            }
+            return result.ToArray();
         }
     }
 }

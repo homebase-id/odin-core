@@ -1,5 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Http;
+using Youverse.Core.Services.Registry;
+using Youverse.Core.Trie;
 
 #nullable enable
 namespace Youverse.Core.Services.Tenant
@@ -7,13 +9,15 @@ namespace Youverse.Core.Services.Tenant
     public class TenantProvider : ITenantProvider
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IIdentityRegistry _identityRegistry;
         private readonly ConcurrentDictionary<string, Tenant> _tenants = new();
 
         //
         
-        public TenantProvider(IHttpContextAccessor httpContextAccessor)
+        public TenantProvider(IHttpContextAccessor httpContextAccessor, IIdentityRegistry identityRegistry)
         {
             _httpContextAccessor = httpContextAccessor;
+            _identityRegistry = identityRegistry;
         }
         
         //
@@ -22,19 +26,13 @@ namespace Youverse.Core.Services.Tenant
         {
             var host = _httpContextAccessor.HttpContext?.Request.Host.Host;
 
-            if (string.IsNullOrWhiteSpace(host))
+            var idReg = _identityRegistry.ResolveIdentityRegistration(host, out _);
+            if (idReg == null)
             {
                 return null;
             }
 
-            if (_tenants.TryGetValue(host, out var tenant))
-            {
-                return tenant;
-            }
-
-            tenant = new Tenant(host);
-            _tenants.GetOrAdd(host, tenant);
-            
+            var tenant = _tenants.GetOrAdd(idReg.PrimaryDomainName, domain => new Tenant(domain));
             return tenant;
         }
         

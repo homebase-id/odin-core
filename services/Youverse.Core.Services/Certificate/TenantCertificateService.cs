@@ -6,7 +6,9 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Registry;
 
 namespace Youverse.Core.Services.Certificate
 {
@@ -35,51 +37,43 @@ namespace Youverse.Core.Services.Certificate
 
         public X509Certificate2 GetSslCertificate(string domain)
         {
+            // Load from cache
+            var cert = DotYouCertificateCache.LookupCertificate(domain);
+            if (cert != null)
+            {
+                return cert;
+            }
+                
+            // Not found? Load from disk, put in cache
             var (privateKeyPath, certificatePath) = GetCertificatePaths(_tenantContext.SslRoot, domain);
-            if (!File.Exists(certificatePath) || !File.Exists(privateKeyPath))
-            {
-                return null;
-            }
-            return DotYouCertificateCache.LoadCertificate(privateKeyPath, certificatePath);
-        }
-        
-        //
+            cert = DotYouCertificateCache.LoadCertificate(domain, privateKeyPath, certificatePath);
 
-        public X509Certificate2 ResolveCertificate(string domain)
-        {
-            //TODO: post-alpha should upgrade this to look at other alias's supported by this identity
-            var primaryDomainCert = GetPrimaryDomainCert();
-
-            if (primaryDomainCert.HasDomain(domain) == false)
-            {
-                return null;
-            }
-
-            var (privateKeyPath, certificatePath) = GetCertificatePaths(_tenantContext.SslRoot, primaryDomainCert.Domain);
-
-            var cert = DotYouCertificateCache.LoadCertificate(privateKeyPath, certificatePath);
-            if (cert == null)
-            {
-                return null;
-            }
-            
             return cert;
+            
+            // DO NOT TRY TO CREATE THE CERTIFICATE HERE!
         }
         
         //
 
-        public async Task<X509Certificate2> CreateCertificate(string domain)
+        public X509Certificate2 ResolveCertificate(IdentityRegistration idReg)
         {
-            var mutex = DomainSemaphores.GetOrAdd(domain, _ => new SemaphoreSlim(1, 1));
+            return GetSslCertificate(idReg.PrimaryDomainName);
+        }
+        
+        //
+
+        public async Task<X509Certificate2> CreateCertificate(IdentityRegistration idReg)
+        {
+            var mutex = DomainSemaphores.GetOrAdd(idReg.PrimaryDomainName, _ => new SemaphoreSlim(1, 1));
             await mutex.WaitAsync();
             try
             {
-                var x509 = ResolveCertificate(domain);
+                var x509 = ResolveCertificate(idReg);
                 if (x509 != null)
                 {
                     return x509;
                 }
-                return await InternalCreateCertificate(domain);
+                return await InternalCreateCertificate(idReg);
             }
             finally
             {
@@ -89,18 +83,18 @@ namespace Youverse.Core.Services.Certificate
         
         //
         
-        public async Task<bool> RenewIfAboutToExpire(string domain)
+        public async Task<bool> RenewIfAboutToExpire(IdentityRegistration idReg)
         {
-            var mutex = DomainSemaphores.GetOrAdd(domain, _ => new SemaphoreSlim(1, 1));
+            var mutex = DomainSemaphores.GetOrAdd(idReg.PrimaryDomainName, _ => new SemaphoreSlim(1, 1));
             await mutex.WaitAsync();
             try
             {
-                var x509 = ResolveCertificate(domain);
+                var x509 = ResolveCertificate(idReg);
                 if (x509 == null || AboutToExpire(x509))
                 {
-                    _logger.LogDebug("Beginning background renew of {domain} certificate", domain);
-                    x509 = await InternalCreateCertificate(domain);
-                    _logger.LogDebug("Completed background renew of {domain} certificate", domain);
+                    _logger.LogDebug("Beginning background renew of {domain} certificate", idReg.PrimaryDomainName);
+                    x509 = await InternalCreateCertificate(idReg);
+                    _logger.LogDebug("Completed background renew of {domain} certificate", idReg.PrimaryDomainName);
                     return x509 != null;
                 }
                 return false;
@@ -113,7 +107,7 @@ namespace Youverse.Core.Services.Certificate
         
         //
 
-        private async Task<X509Certificate2> InternalCreateCertificate(string domain)
+        private async Task<X509Certificate2> InternalCreateCertificate(IdentityRegistration idReg)
         {
             try
             {
@@ -123,33 +117,25 @@ namespace Youverse.Core.Services.Certificate
                     account = await _certesAcme.CreateAccount(_accountConfig.AcmeContactEmail);
                     await SaveAccount(account);
                 }
+
+                var pems = await _certesAcme.CreateCertificate(account, idReg.GetDomains());
+                await SaveSslCertificate(_tenantContext.SslRoot, idReg.PrimaryDomainName, pems);
                 
-                var pems = await _certesAcme.CreateCertificate(account, new [] { domain });
-                await SaveSslCertificate(_tenantContext.SslRoot, domain, pems);
-                return X509Certificate2.CreateFromPem(pems.CertificatesPem, pems.PrivateKeyPem);
+                var x509 = ResolveCertificate(idReg);
+                if (x509 != null)
+                {
+                    return x509;
+                }
+
+                // Sanity - this should never happen
+                throw new YouverseSystemException(
+                    "Certificate created and saved to disk. But I failed to load it. This makes no sense.");
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "Error creating certificate for {domain}: {ErrorText}", domain, e.Message);
+                _logger.LogError(e, "Error creating certificate for {domain}: {ErrorText}", idReg.PrimaryDomainName, e.Message);
                 return null;
             }
-        }
-
-        //
-        
-        // SEB:TODO is this outdated?
-        private IdentityCertificateDefinition GetPrimaryDomainCert()
-        {
-            string domain = _tenantContext.HostOdinId;
-            return new IdentityCertificateDefinition()
-            {
-                Domain = domain,
-                AlternativeNames = new List<string>()
-                {
-                    $"www.{domain}",
-                    $"api.{domain}"
-                }
-            };
         }
 
         //
@@ -198,7 +184,7 @@ namespace Youverse.Core.Services.Certificate
         {
             var (privateKeyPath, certificatePath) = GetCertificatePaths(sslRoot, domain);
         
-            DotYouCertificateCache.SaveToFile(pems.PrivateKeyPem, pems.CertificatesPem, privateKeyPath, certificatePath);
+            DotYouCertificateCache.SaveToFile(domain, pems.PrivateKeyPem, pems.CertificatesPem, privateKeyPath, certificatePath);
 
             await Task.CompletedTask;
         }
