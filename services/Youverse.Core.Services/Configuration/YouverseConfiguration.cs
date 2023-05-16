@@ -113,7 +113,7 @@ namespace Youverse.Core.Services.Configuration
             {
                 PowerDnsHostAddress = config.Required<string>("Registry:PowerDnsHostAddress");
                 PowerDnsApiKey = config.Required<string>("Registry:PowerDnsApiKey");
-                ProvisioningDomain = config.Required<string>("Registry:ProvisioningDomain");
+                ProvisioningDomain = config.Required<string>("Registry:ProvisioningDomain").Trim().ToLower();
                 ManagedDomainApexes = config.Required<List<ManagedDomainApex>>("Registry:ManagedDomainApexes");
                 DnsResolvers = config.Required<List<string>>("Registry:DnsResolvers");
                 DnsConfigurationSet = new DnsConfigurationSet(

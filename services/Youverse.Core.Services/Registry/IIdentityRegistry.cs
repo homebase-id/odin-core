@@ -7,8 +7,21 @@ namespace Youverse.Core.Services.Registry
     {
         void Initialize();
 
+        /// <summary>
+        /// Returns ID for *exact* domain, e.g. www.frodo.me 
+        /// </summary>
+        /// <param name="domain"></param>
+        /// <returns>ID found, otherwise null</returns>
         Guid? ResolveId(string domain);
 
+        /// <summary>
+        /// Returns IdentityRegistration for *base* domain and prefix if any, e.g. www.frodo.me 
+        /// </summary>
+        /// <param name="domain">base domain to lookup, optionally with prefix</param>
+        /// /// <param name="prefix">prefix if any</param>
+        /// <returns>IdentityRegistration if found, otherwise null</returns>
+        IdentityRegistration ResolveIdentityRegistration(string domain, out string prefix);
+        
         /// <summary>
         /// Checks if a domain is used/registered.
         /// </summary>

@@ -11,6 +11,7 @@ using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Certificate;
+using Youverse.Core.Services.Registry.Registration;
 using Youverse.Core.Trie;
 
 namespace Youverse.Core.Services.Registry;
@@ -51,7 +52,31 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var reg = _trie.LookupExactName(domain);
         return reg?.Id; 
     }
+    
+    public IdentityRegistration ResolveIdentityRegistration(string domain, out string prefix)
+    {
+        if (string.IsNullOrEmpty(domain))
+        {
+            prefix = "";
+            return null;
+        }
+            
+        var (reg, pre) = _trie.LookupName(domain);
 
+        prefix = pre;
+        if (reg == null)
+        {
+            return null;
+        }
+        
+        if (string.IsNullOrEmpty(prefix) || DnsConfigurationSet.WellknownPrefixes.Contains(prefix))
+        {
+            return reg;
+        }
+        
+        return null; 
+    }
+    
     public Task<bool> IsIdentityRegistered(string domain)
     {
         return Task.FromResult(_trie.LookupExactName(domain) != null);

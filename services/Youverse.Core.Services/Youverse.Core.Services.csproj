@@ -31,7 +31,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Certificate\Renewal\" />
     <Folder Include="Optimization" />
   </ItemGroup>
 
