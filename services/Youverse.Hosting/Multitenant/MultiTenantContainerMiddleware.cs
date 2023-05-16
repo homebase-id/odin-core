@@ -28,7 +28,7 @@ namespace Youverse.Hosting.Multitenant
         {
             // Bail if we don't know the hostname/tenant
             var host = context.Request.Host.Host;
-            var registry = await identityRegistry.Get(host);
+            var registry = identityRegistry.ResolveIdentityRegistration(host, out _);
             if (registry == null)
             {
                 context.Response.StatusCode = StatusCodes.Status404NotFound;
@@ -36,7 +36,7 @@ namespace Youverse.Hosting.Multitenant
                 return;
             }
             
-            logger.LogDebug("Multitenant invoke {tenant}", host);
+            logger.LogDebug("Multitenant invoke {tenant} from {host}", registry.PrimaryDomainName, host);
             
             // Begin new scope for request as ASP.NET Core standard scope is per-request
             var scope = container.ContainerAccessor().GetCurrentTenantScope().BeginLifetimeScope("requestscope"); 

@@ -24,6 +24,7 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Certificate;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Registry;
+using Youverse.Core.Services.Registry.Registration;
 using Youverse.Core.Trie;
 using Youverse.Hosting._dev;
 using Youverse.Hosting.Multitenant;
@@ -145,7 +146,9 @@ namespace Youverse.Hosting
                            
                             listenOptions.UseHttps(async (stream, clientHelloInfo, state, cancellationToken) =>
                             {
-                                var hostName = clientHelloInfo.ServerName;
+                                // SEB:NOTE ToLower() should not be needed here, but better safe than sorry.
+                                var hostName = clientHelloInfo.ServerName.ToLower(); 
+                                
                                 var serviceProvider = kestrelOptions.ApplicationServices;     
                                 var cert = await ServerCertificateSelector(hostName, youverseConfig, serviceProvider);
 
@@ -155,15 +158,21 @@ namespace Youverse.Hosting
                                     // when no certificate could be found
                                     throw new ConnectionAbortedException();
                                 }
-                                
+
                                 var result = new SslServerAuthenticationOptions
                                 {
-                                    AllowRenegotiation = true,
-                                    ClientCertificateRequired = true,
-                                    RemoteCertificateValidationCallback = (sender, certificate, chain, errors) => true, 
                                     ServerCertificate = cert
                                 };
-
+                                
+                                // Require client certificate if domain prefix is "capi"
+                                // SEB:TODO enable below condition when transit is using capi endpoints
+                                //if (hostName.StartsWith(DnsConfigurationSet.PrefixCertApi))
+                                {
+                                    result.AllowRenegotiation = true;
+                                    result.ClientCertificateRequired = true;
+                                    result.RemoteCertificateValidationCallback = (_,_,_,_) => true;
+                                }
+                                
                                 return result;
                             }, state: null!, handshakeTimeoutTimeSpan);
                         });
@@ -220,15 +229,13 @@ namespace Youverse.Hosting
             }
             
             // Provisioning specifics
-            // SEB:TODO why not create letsencrypt cert here as well?
-            if (hostName.ToLower().Trim() == config.Registry.ProvisioningDomain.ToLower().Trim())
+            // SEB:TODO should we create letsencrypt cert for provisioning as well?
+            if (hostName == config.Registry.ProvisioningDomain)
             {
-                //Log.Debug("Loading certificate for provisioning domain");
-                string publicKeyPath = Path.Combine(config.Host.SystemSslRootPath, config.Registry.ProvisioningDomain, "certificate.crt");
-                string privateKeyPath = Path.Combine(config.Host.SystemSslRootPath, config.Registry.ProvisioningDomain, "private.key");
-                //Log.Debug($"Checking path [{publicKeyPath}]");
+                var publicKeyPath = Path.Combine(config.Host.SystemSslRootPath, config.Registry.ProvisioningDomain, "certificate.crt");
+                var privateKeyPath = Path.Combine(config.Host.SystemSslRootPath, config.Registry.ProvisioningDomain, "private.key");
 
-                var cert = DotYouCertificateCache.LoadCertificate(privateKeyPath, publicKeyPath);
+                var cert = DotYouCertificateCache.LoadCertificate(hostName, privateKeyPath, publicKeyPath);
                 if (null == cert)
                 {
                     Log.Error($"No certificate configured for {hostName}");
@@ -240,19 +247,18 @@ namespace Youverse.Hosting
             //
             // Hostname -> tenant
             //
-            var registryId = _registry.ResolveId(hostName);
-            if (registryId == null)
+            var idReg = _registry.ResolveIdentityRegistration(hostName, out _);
+            if (idReg == null)
             {
                 Log.Debug("Will not return certificate because {host} does not belong here (yet?)", hostName);
                 return null;
             }
             
-            var odinId = (OdinId)hostName;
             var logger = serviceProvider.GetRequiredService<ILogger<TenantCertificateService>>();
             var certesAcme = serviceProvider.GetRequiredService<ICertesAcme>();
             var acmeAccountConfig = serviceProvider.GetRequiredService<AcmeAccountConfig>();
             var tenantContext =
-                TenantContext.Create(registryId.Value, odinId, config.Host.TenantDataRootPath, null);
+                TenantContext.Create(idReg.Id, idReg.PrimaryDomainName, config.Host.TenantDataRootPath, null);
 
             var tc = new TenantCertificateService(
                 logger, 
@@ -263,7 +269,7 @@ namespace Youverse.Hosting
             // 
             // Lookup tenant and certificate
             //
-            var certificate = tc.ResolveCertificate(odinId);
+            var certificate = tc.ResolveCertificate(idReg);
             if (null != certificate)
             {
                 return certificate;
@@ -272,7 +278,7 @@ namespace Youverse.Hosting
             // 
             // Tenant found, but no certificate. Create it.
             //
-            certificate = await tc.CreateCertificate(hostName);
+            certificate = await tc.CreateCertificate(idReg);
 
             if (null == certificate)
             {

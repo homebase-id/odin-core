@@ -50,7 +50,7 @@ namespace Youverse.Core.Services.Workers.Certificate
                 var tenantContext =
                     TenantContext.Create(identity.Id, identity.PrimaryDomainName, _config.Host.TenantDataRootPath, null);
                 var tc = new TenantCertificateService(logger, certesAcme, acmeAccountConfig, tenantContext);
-                var task = tc.RenewIfAboutToExpire(identity.PrimaryDomainName);
+                var task = tc.RenewIfAboutToExpire(identity);
                 tasks.Add(task);
             }
             await Task.WhenAll(tasks);
