@@ -64,10 +64,10 @@ namespace Youverse.Hosting.Tests
             Environment.SetEnvironmentVariable("Registry__DnsTargetAddress", "[\"dev.dominion.id\"]");
             
             Environment.SetEnvironmentVariable("Registry__DnsRecordValues__BareARecords", "[\"127.0.0.1\"]");
-            Environment.SetEnvironmentVariable("Registry__DnsRecordValues__WwwCnameTarget", ".");
-            Environment.SetEnvironmentVariable("Registry__DnsRecordValues__ApiCnameTarget", ".");
-            Environment.SetEnvironmentVariable("Registry__DnsRecordValues__CApiCnameTarget", ".");
-            Environment.SetEnvironmentVariable("Registry__DnsRecordValues__FileCnameTarget", ".");
+            Environment.SetEnvironmentVariable("Registry__DnsRecordValues__WwwCnameTarget", "");
+            Environment.SetEnvironmentVariable("Registry__DnsRecordValues__ApiCnameTarget", "");
+            Environment.SetEnvironmentVariable("Registry__DnsRecordValues__CApiCnameTarget", "");
+            Environment.SetEnvironmentVariable("Registry__DnsRecordValues__FileCnameTarget", "");
 
             Environment.SetEnvironmentVariable("Host__TenantDataRootPath", TestDataPath);
             Environment.SetEnvironmentVariable("Host__SystemDataRootPath", TestDataPath);
