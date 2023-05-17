@@ -135,9 +135,9 @@ namespace Youverse.Core.Services.Configuration
         {
             public string TenantDataRootPath { get; }
             public string SystemDataRootPath { get; }
-            
-            public string? AlternativePayloadPath { get; }
-            
+
+            public string TenantPayloadRootPath { get; }
+
             public string SystemSslRootPath { get; }
 
             /// <summary>
@@ -155,14 +155,11 @@ namespace Youverse.Core.Services.Configuration
                 var p = config.Required<string>("Host:TenantDataRootPath");
                 TenantDataRootPath = isDev && !p.StartsWith(home) ? PathUtil.Combine(home, p.Substring(1)) : p;
 
-                var altPayloadPath = config.GetOrDefault<string>("Host:PayloadAlternativePath", string.Empty);
-                if (!string.IsNullOrEmpty(altPayloadPath))
-                {
-                    AlternativePayloadPath = isDev && !p.StartsWith(home) ? PathUtil.Combine(home, altPayloadPath.Substring(1)) : altPayloadPath;
-                }
+                var payloadPath = config.Required<string>("Host:TenantPayloadRootPath");
+                TenantPayloadRootPath = isDev && !payloadPath.StartsWith(home) ? PathUtil.Combine(home, payloadPath.Substring(1)) : payloadPath;
 
                 var sd = config.Required<string>("Host:SystemDataRootPath");
-                SystemDataRootPath = isDev && !p.StartsWith(home) ? PathUtil.Combine(home, sd.Substring(1)) : sd;
+                SystemDataRootPath = isDev && !sd.StartsWith(home) ? PathUtil.Combine(home, sd.Substring(1)) : sd;
 
                 SystemSslRootPath = Path.Combine(SystemDataRootPath, "ssl");
 

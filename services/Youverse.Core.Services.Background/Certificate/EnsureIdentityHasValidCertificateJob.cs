@@ -25,8 +25,8 @@ namespace Youverse.Core.Services.Workers.Certificate
 
         public EnsureIdentityHasValidCertificateJob(
             IServiceProvider serviceProvider,
-            ILogger<EnsureIdentityHasValidCertificateJob> logger, 
-            IIdentityRegistry registry, 
+            ILogger<EnsureIdentityHasValidCertificateJob> logger,
+            IIdentityRegistry registry,
             YouverseConfiguration config)
         {
             _serviceProvider = serviceProvider;
@@ -42,19 +42,19 @@ namespace Youverse.Core.Services.Workers.Certificate
             var logger = _serviceProvider.GetRequiredService<ILogger<TenantCertificateService>>();
             var certesAcme = _serviceProvider.GetRequiredService<ICertesAcme>();
             var acmeAccountConfig = _serviceProvider.GetRequiredService<AcmeAccountConfig>();
-            
+
             var tasks = new List<Task>();
             var identities = await _registry.GetList();
             foreach (var identity in identities.Results)
             {
-                var tenantContext =
-                    TenantContext.Create(identity.Id, identity.PrimaryDomainName, _config.Host.TenantDataRootPath, null);
+                var tenantContext = TenantContext.Create(identity.Id, identity.PrimaryDomainName, _config.Host.TenantDataRootPath, null, _config.Host.TenantPayloadRootPath);
                 var tc = new TenantCertificateService(logger, certesAcme, acmeAccountConfig, tenantContext);
                 var task = tc.RenewIfAboutToExpire(identity.PrimaryDomainName);
                 tasks.Add(task);
             }
+
             await Task.WhenAll(tasks);
-            
+
             _logger.LogDebug("Completed job {job} on thread {managedThreadId}", GetType().Name, Environment.CurrentManagedThreadId);
         }
     }

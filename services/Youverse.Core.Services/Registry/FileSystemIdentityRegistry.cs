@@ -23,9 +23,10 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private readonly Dictionary<Guid, IdentityRegistration> _cache;
     private readonly Trie.Trie<IdentityRegistration> _trie;
     private readonly string _tenantDataRootPath;
+    private readonly string _tenantDataPayloadPath;
     private readonly CertificateRenewalConfig _certificateRenewalConfig;
    
-    public FileSystemIdentityRegistry(string tenantDataRootPath, CertificateRenewalConfig certificateRenewalConfig)
+    public FileSystemIdentityRegistry(string tenantDataRootPath, CertificateRenewalConfig certificateRenewalConfig, string tenantDataPayloadPath)
     {
         if (!Directory.Exists(tenantDataRootPath))
         {
@@ -36,6 +37,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         _trie = new Trie<IdentityRegistration>();
         _tenantDataRootPath = tenantDataRootPath;
         _certificateRenewalConfig = certificateRenewalConfig;
+        _tenantDataPayloadPath = tenantDataPayloadPath;
     }
 
     public void Initialize()
@@ -79,7 +81,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             //optionally, let an ssl certificate be provided 
             //TODO: is there a way to pull a specific tenant's service config from Autofac?
             // SEB:TODO Yes, but need to DI this class first.
-            var tenantContext = TenantContext.Create(registration.Id, request.OdinId, _tenantDataRootPath, _certificateRenewalConfig);
+            var tenantContext = TenantContext.Create(registration.Id, request.OdinId, _tenantDataRootPath, _certificateRenewalConfig, _tenantDataPayloadPath);
             await TenantCertificateService.SaveSslCertificate(
                 tenantContext.SslRoot,
                 request.OdinId.DomainName,

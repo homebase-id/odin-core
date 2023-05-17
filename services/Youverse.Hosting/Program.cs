@@ -116,16 +116,13 @@ namespace Youverse.Hosting
 
             Log.Information($"Root path:{youverseConfig.Host.TenantDataRootPath}");
 
-            _registry = new FileSystemIdentityRegistry(youverseConfig.Host.TenantDataRootPath, youverseConfig.CertificateRenewal.ToCertificateRenewalConfig());
+            _registry = new FileSystemIdentityRegistry(youverseConfig.Host.TenantDataRootPath, youverseConfig.CertificateRenewal.ToCertificateRenewalConfig(), youverseConfig.Host.TenantPayloadRootPath);
             _registry.Initialize();
 
             DevEnvironmentSetup.ConfigureIfPresent(youverseConfig, _registry);
 
             var builder = Host.CreateDefaultBuilder(args)
-                .ConfigureAppConfiguration(builder =>
-                {
-                    builder.AddConfiguration(appSettingsConfig);
-                })
+                .ConfigureAppConfiguration(builder => { builder.AddConfiguration(appSettingsConfig); })
                 .UseSystemd()
                 .UseServiceProviderFactory(new MultiTenantServiceProviderFactory(DependencyInjection.ConfigureMultiTenantServices, DependencyInjection.InitializeTenant))
                 .ConfigureServices(services =>
@@ -135,44 +132,44 @@ namespace Youverse.Hosting
                 })
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
-                    webBuilder.ConfigureKestrel(kestrelOptions => 
-                    {
-                        kestrelOptions.Limits.MaxRequestBodySize = null;
-                        
-                        // SEB:TODO IPAddressListenList from config
-                        kestrelOptions.Listen(IPAddress.Any, 80);
-                        kestrelOptions.Listen(IPAddress.Any, 443, listenOptions =>
+                    webBuilder.ConfigureKestrel(kestrelOptions =>
                         {
-                            var handshakeTimeoutTimeSpan = Debugger.IsAttached
-                                ? TimeSpan.FromMinutes(60)
-                                : TimeSpan.FromSeconds(60);
-                           
-                            listenOptions.UseHttps(async (stream, clientHelloInfo, state, cancellationToken) =>
+                            kestrelOptions.Limits.MaxRequestBodySize = null;
+
+                            // SEB:TODO IPAddressListenList from config
+                            kestrelOptions.Listen(IPAddress.Any, 80);
+                            kestrelOptions.Listen(IPAddress.Any, 443, listenOptions =>
                             {
-                                var hostName = clientHelloInfo.ServerName;
-                                var serviceProvider = kestrelOptions.ApplicationServices;     
-                                var cert = await ServerCertificateSelector(hostName, youverseConfig, serviceProvider);
+                                var handshakeTimeoutTimeSpan = Debugger.IsAttached
+                                    ? TimeSpan.FromMinutes(60)
+                                    : TimeSpan.FromSeconds(60);
 
-                                if (cert == null)
+                                listenOptions.UseHttps(async (stream, clientHelloInfo, state, cancellationToken) =>
                                 {
-                                    // This is an escape hatch so runtime won't log an error
-                                    // when no certificate could be found
-                                    throw new ConnectionAbortedException();
-                                }
-                                
-                                var result = new SslServerAuthenticationOptions
-                                {
-                                    AllowRenegotiation = true,
-                                    ClientCertificateRequired = true,
-                                    RemoteCertificateValidationCallback = (sender, certificate, chain, errors) => true, 
-                                    ServerCertificate = cert
-                                };
+                                    var hostName = clientHelloInfo.ServerName;
+                                    var serviceProvider = kestrelOptions.ApplicationServices;
+                                    var cert = await ServerCertificateSelector(hostName, youverseConfig, serviceProvider);
 
-                                return result;
-                            }, state: null!, handshakeTimeoutTimeSpan);
-                        });
-                    })
-                    .UseStartup<Startup>();
+                                    if (cert == null)
+                                    {
+                                        // This is an escape hatch so runtime won't log an error
+                                        // when no certificate could be found
+                                        throw new ConnectionAbortedException();
+                                    }
+
+                                    var result = new SslServerAuthenticationOptions
+                                    {
+                                        AllowRenegotiation = true,
+                                        ClientCertificateRequired = true,
+                                        RemoteCertificateValidationCallback = (sender, certificate, chain, errors) => true,
+                                        ServerCertificate = cert
+                                    };
+
+                                    return result;
+                                }, state: null!, handshakeTimeoutTimeSpan);
+                            });
+                        })
+                        .UseStartup<Startup>();
                 });
 
             if (youverseConfig.Logging.Level == LoggingLevel.ErrorsOnly)
@@ -180,7 +177,7 @@ namespace Youverse.Hosting
                 builder.UseSerilog((context, services, configuration) => configuration
                     .ReadFrom.Services(services)
                     .MinimumLevel.Error());
-            
+
                 return builder;
             }
 
@@ -202,19 +199,18 @@ namespace Youverse.Hosting
                     // .WriteTo.Debug() // SEB:TODO only do this in debug builds
                     .WriteTo.Async(sink => sink.Console(outputTemplate: LogOutputTemplate, theme: LogOutputTheme))
                     .WriteTo.Async(sink => sink.RollingFile(Path.Combine(youverseConfig.Logging.LogFilePath, "app-{Date}.log"), outputTemplate: LogOutputTemplate)));
-                
+
                 return builder;
             }
 
             return builder;
         }
-        
+
         //
 
-                
-        
+
         private static async Task<X509Certificate2> ServerCertificateSelector(
-            string hostName, 
+            string hostName,
             YouverseConfiguration config,
             IServiceProvider serviceProvider)
         {
@@ -222,7 +218,7 @@ namespace Youverse.Hosting
             {
                 return null;
             }
-            
+
             // Provisioning specifics
             // SEB:TODO why not create letsencrypt cert here as well?
             if (hostName.ToLower().Trim() == config.Registry.ProvisioningDomain.ToLower().Trim())
@@ -240,7 +236,7 @@ namespace Youverse.Hosting
 
                 return cert;
             }
-            
+
             //
             // Hostname -> tenant
             //
@@ -250,17 +246,16 @@ namespace Youverse.Hosting
                 Log.Debug("Will not return certificate because {host} does not belong here (yet?)", hostName);
                 return null;
             }
-            
+
             var odinId = (OdinId)hostName;
             var logger = serviceProvider.GetRequiredService<ILogger<TenantCertificateService>>();
             var certesAcme = serviceProvider.GetRequiredService<ICertesAcme>();
             var acmeAccountConfig = serviceProvider.GetRequiredService<AcmeAccountConfig>();
-            var tenantContext =
-                TenantContext.Create(registryId.Value, odinId, config.Host.TenantDataRootPath, null);
+            var tenantContext = TenantContext.Create(registryId.Value, odinId, config.Host.TenantDataRootPath, null, config.Host.TenantPayloadRootPath);
 
             var tc = new TenantCertificateService(
-                logger, 
-                certesAcme, 
+                logger,
+                certesAcme,
                 acmeAccountConfig,
                 tenantContext);
 
@@ -272,7 +267,7 @@ namespace Youverse.Hosting
             {
                 return certificate;
             }
-            
+
             // 
             // Tenant found, but no certificate. Create it.
             //

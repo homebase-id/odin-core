@@ -229,7 +229,7 @@ namespace Youverse.Hosting
             var isPreconfigured = config?.Development?.PreconfiguredDomains?.Any(d => d.Equals(tenant.Name, StringComparison.InvariantCultureIgnoreCase)) ?? false;
 
             var reg = registry.Get(tenant.Name).GetAwaiter().GetResult();
-            tenantContext.Update(reg.Id, reg.PrimaryDomainName, config.Host.TenantDataRootPath, config.CertificateRenewal.ToCertificateRenewalConfig(), reg.FirstRunToken, isPreconfigured);
+            tenantContext.Update(reg.Id, reg.PrimaryDomainName, config.Host.TenantDataRootPath, config.CertificateRenewal.ToCertificateRenewalConfig(), reg.FirstRunToken, isPreconfigured, config.Host.TenantPayloadRootPath);
         }
     }
 }

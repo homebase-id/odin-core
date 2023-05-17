@@ -252,7 +252,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             {
                 header.FileMetadata.AppData.ContentIsComplete = true;
                 await UpdateActiveFileHeader(file, header);
-                await GetLongTermStorageManager(file.DriveId).DeleteFilePartStream(file.FileId, FilePart.Payload);
+                await GetLongTermStorageManager(file.DriveId).DeletePayload(file.FileId);
                 return header.FileMetadata.VersionTag.GetValueOrDefault(); // this works because because pass header all the way
                 // down. but in reality we should return it
             }
@@ -418,7 +418,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
                 {
                     string sourceFile = await tempStorageManager.GetPath(targetFile.FileId, payloadExtension);
                     metadata.PayloadSize = new FileInfo(sourceFile).Length;
-                    await storageManager.MoveToLongTerm(targetFile.FileId, sourceFile, FilePart.Payload);
+                    await storageManager.MovePayloadToLongTerm(targetFile.FileId, sourceFile);
                 }
                 catch
                 {
@@ -503,7 +503,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             {
                 string sourceFile = await tempStorageManager.GetPath(tempFile.FileId, payloadExtension);
                 newMetadata.PayloadSize = new FileInfo(sourceFile).Length;
-                await storageManager.MoveToLongTerm(targetFile.FileId, sourceFile, FilePart.Payload);
+                await storageManager.MovePayloadToLongTerm(targetFile.FileId, sourceFile);
             }
 
             //TODO: clean up old payload if it was removed?
@@ -580,7 +580,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             {
                 string sourceFilePath = await tempStorageManager.GetPath(sourceFile.FileId, payloadExtension);
                 existingServerHeader.FileMetadata.PayloadSize = new FileInfo(sourceFilePath).Length;
-                await storageManager.MoveToLongTerm(targetFile.FileId, sourceFilePath, FilePart.Payload);
+                await storageManager.MovePayloadToLongTerm(targetFile.FileId, sourceFilePath);
             }
 
             await WriteFileHeaderInternal(existingServerHeader);

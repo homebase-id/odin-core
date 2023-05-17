@@ -15,15 +15,17 @@ namespace Youverse.Core.Services.Drives
         private readonly string _longTermDataRootPath;
         private readonly string _tempDataRootPath;
         private readonly string _driveFolderName;
+        private readonly string _longTermPayloadPath;
 
         private readonly StorageDriveBase _inner;
 
-        public StorageDrive(string longTermDataRootPath, string tempDataRootPath, StorageDriveBase inner)
+        public StorageDrive(string longTermDataRootPath, string tempDataRootPath, string longTermPayloadPath, StorageDriveBase inner)
         {
             _inner = inner;
             _driveFolderName = this.Id.ToString("N");
             _longTermDataRootPath = Path.Combine(longTermDataRootPath, _driveFolderName);
             _tempDataRootPath = Path.Combine(tempDataRootPath, _driveFolderName);
+            _longTermPayloadPath = Path.Combine(longTermPayloadPath, _driveFolderName);
         }
 
         public string DriveFolderName => _driveFolderName;
@@ -100,9 +102,14 @@ namespace Youverse.Core.Services.Drives
         //     return Path.Combine(path, "files");
         // }
 
-        public string GetLongTermStoragePath()
+        public string GetLongTermHeaderStoragePath()
         {
             return Path.Combine(_longTermDataRootPath, "files");
+        }
+
+        public string GetLongTermPayloadStoragePath()
+        {
+            return Path.Combine(_longTermPayloadPath, "files");
         }
 
         public string GetTempStoragePath()
@@ -117,7 +124,7 @@ namespace Youverse.Core.Services.Drives
 
         public void EnsureDirectories()
         {
-            Directory.CreateDirectory(this.GetLongTermStoragePath());
+            Directory.CreateDirectory(this.GetLongTermHeaderStoragePath());
             Directory.CreateDirectory(this.GetTempStoragePath());
 
             // Directory.CreateDirectory(this.GetPayloadStoragePath());

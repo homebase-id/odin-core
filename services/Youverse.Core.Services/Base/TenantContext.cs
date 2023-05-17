@@ -53,7 +53,8 @@ namespace Youverse.Core.Services.Base
         // TODO:TODD temporary measure for auto-provisioning of development domains; need a better solution"
         public bool IsPreconfigured { get; private set; }
 
-        public void Update(Guid registrationId, string tenantHostName, string rootPath, CertificateRenewalConfig certificateRenewalConfig, Guid? firstRunToken, bool isPreconfigured)
+        public void Update(Guid registrationId, string tenantHostName, string rootPath, CertificateRenewalConfig certificateRenewalConfig, Guid? firstRunToken, bool isPreconfigured,
+            string tenantDataPayloadPath)
         {
             this.DotYouRegistryId = registrationId;
             this.HostOdinId = (OdinId)tenantHostName;
@@ -61,7 +62,7 @@ namespace Youverse.Core.Services.Base
             this.CertificateRenewalConfig = certificateRenewalConfig;
             this.DataRoot = Path.Combine(rootPath, DotYouRegistryId.ToString());
             this.TempDataRoot = Path.Combine(rootPath, "temp", DotYouRegistryId.ToString());
-            this.StorageConfig = new TenantStorageConfig(Path.Combine(this.DataRoot, "data"), Path.Combine(this.TempDataRoot, "temp"));
+            this.StorageConfig = new TenantStorageConfig(Path.Combine(this.DataRoot, "header"), Path.Combine(this.TempDataRoot, "temp"), tenantDataPayloadPath);
             this.SslRoot = Path.Combine(DataRoot, "ssl");
             this.FirstRunToken = firstRunToken.GetValueOrDefault();
 
@@ -77,10 +78,10 @@ namespace Youverse.Core.Services.Base
             _tenantSettings = newConfig;
         }
 
-        public static TenantContext Create(Guid registryId, string tenantHostName, string rootPath, CertificateRenewalConfig certificateRenewalConfig)
+        public static TenantContext Create(Guid registryId, string tenantHostName, string rootPath, CertificateRenewalConfig certificateRenewalConfig, string tenantDataPayloadPath)
         {
             var tc = new TenantContext();
-            tc.Update(registryId, tenantHostName, rootPath, certificateRenewalConfig, null, false);
+            tc.Update(registryId, tenantHostName, rootPath, certificateRenewalConfig, null, false, tenantDataPayloadPath);
             return tc;
         }
     }

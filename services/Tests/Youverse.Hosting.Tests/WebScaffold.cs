@@ -70,7 +70,7 @@ namespace Youverse.Hosting.Tests
             Environment.SetEnvironmentVariable("Registry__DnsRecordValues__FileCnameTarget", "");
 
             Environment.SetEnvironmentVariable("Host__TenantDataRootPath", TestDataPath);
-            Environment.SetEnvironmentVariable("Host__PayloadAlternativePath", TestAlternativePayloadPath);
+            Environment.SetEnvironmentVariable("Host__PayloadAlternativePath", TestPayloadPath);
             Environment.SetEnvironmentVariable("Host__SystemDataRootPath", TestDataPath);
             Environment.SetEnvironmentVariable("Host__IPAddressListenList", "[{ \"Ip\": \"*\",\"HttpsPort\": 443,\"HttpPort\": 80 }]");
 
@@ -98,7 +98,7 @@ namespace Youverse.Hosting.Tests
             CreateData();
             CreateLogs();
 
-            _registry = new FileSystemIdentityRegistry(TestDataPath, null);
+            _registry = new FileSystemIdentityRegistry(TestDataPath, null, TestPayloadPath);
             _registry.Initialize();
 
             var (config, _) = Program.LoadConfig();
@@ -222,7 +222,7 @@ namespace Youverse.Hosting.Tests
             }
         }
 
-        private string TestAlternativePayloadPath
+        private string TestPayloadPath
         {
             get
             {
