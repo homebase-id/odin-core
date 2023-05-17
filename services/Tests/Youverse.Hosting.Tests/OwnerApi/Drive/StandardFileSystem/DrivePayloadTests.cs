@@ -1,12 +1,8 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.Net;
 using System.Reflection;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Youverse.Core;
-using Youverse.Core.Serialization;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.FileSystem.Base;
@@ -16,7 +12,7 @@ using Youverse.Hosting.Tests.OwnerApi.ApiClient;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem;
 
-public class DrivePayloadChunkingTests
+public class DrivePayloadTests
 {
     private WebScaffold _scaffold;
 
@@ -32,6 +28,43 @@ public class DrivePayloadChunkingTests
     public void OneTimeTearDown()
     {
         _scaffold.RunAfterAnyTests();
+    }
+
+    [Test]
+    public async Task CanDeletePayload()
+    {
+        var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
+
+        //create a channel drive
+        var frodoChannelDrive = new TargetDrive()
+        {
+            Alias = Guid.NewGuid(),
+            Type = SystemDriveConstants.ChannelDriveType
+        };
+
+        await ownerClient.Drive.CreateDrive(frodoChannelDrive, "A Channel Drive", "", false, false);
+
+        // Frodo uploads content to channel drive
+        const string uploadedContent = "I'm Mr. Underhill";
+        var uploadedPayload = "What is happening with the encoding!?";
+        var uploadedContentResult = await UploadStandardFileToChannel(ownerClient, frodoChannelDrive, uploadedContent, uploadedPayload);
+
+        //Test whole payload is there
+        var getPayloadResponse = await ownerClient.Drive.GetPayload(FileSystemType.Standard, uploadedContentResult.File);
+        string payloadContent = await getPayloadResponse.ReadAsStringAsync();
+        Assert.IsTrue(payloadContent == uploadedPayload);
+
+        var deleteResult = await ownerClient.Drive.DeletePayload(FileSystemType.Standard, uploadedContentResult.File);
+        Assert.IsTrue(deleteResult.NewVersionTag != uploadedContentResult.NewVersionTag);
+        
+        //validate the payload is gone
+        var getDeletedPayloadResponse = await ownerClient.Drive.GetPayloadRaw(FileSystemType.Standard, uploadedContentResult.File);
+        Assert.IsTrue(getDeletedPayloadResponse.StatusCode == HttpStatusCode.NotFound);
+        
+        //even tho the payload is gone, we should still be able to get the header and it should be updated
+        var getHeaderResponse = await ownerClient.Drive.GetFileHeaderRaw(FileSystemType.Standard, uploadedContentResult.File);
+        Assert.IsTrue(getHeaderResponse.IsSuccessStatusCode);
+        Assert.IsTrue(getHeaderResponse.Content.FileMetadata.AppData.ContentIsComplete);
     }
 
     [Test]
@@ -74,11 +107,11 @@ public class DrivePayloadChunkingTests
 
         var getPayloadResponseChunk1 = await ownerClient.Drive.GetPayload(FileSystemType.Standard, uploadedContentResult.File, chunk1);
         string payloadContentChunk1 = await getPayloadResponseChunk1.ReadAsStringAsync();
-        Assert.IsTrue(payloadContentChunk1 == expectedChunk,$"expected [{expectedChunk}] but value was [{payloadContentChunk1}]");
+        Assert.IsTrue(payloadContentChunk1 == expectedChunk, $"expected [{expectedChunk}] but value was [{payloadContentChunk1}]");
     }
-    
+
     [Test]
-    [Ignore("for testing")]
+    [Ignore("for testing encoding")]
     public async Task CanGetPayloadInChunks_Weird()
     {
         var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
@@ -118,7 +151,7 @@ public class DrivePayloadChunkingTests
 
         var getPayloadResponseChunk1 = await ownerClient.Drive.GetPayload(FileSystemType.Standard, uploadedContentResult.File, chunk1);
         string payloadContentChunk1 = await getPayloadResponseChunk1.ReadAsStringAsync();
-        Assert.IsTrue(payloadContentChunk1 == expectedChunk,$"expected [{expectedChunk}] but value was [{payloadContentChunk1}]");
+        Assert.IsTrue(payloadContentChunk1 == expectedChunk, $"expected [{expectedChunk}] but value was [{payloadContentChunk1}]");
     }
 
     private async Task<UploadResult> UploadStandardFileToChannel(OwnerApiClient client, TargetDrive targetDrive, string uploadedContent, string payload)

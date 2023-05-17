@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.FileSystem.Base;
@@ -142,7 +143,21 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         {
             return await base.DeleteFile(request);
         }
+        
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        [HttpPost("attachments/deletethumbnail")]
+        public async Task<DeleteThumbnailResult> DeleteThumbnailC(DeleteThumbnailRequest request)
+        {
+            return await base.DeleteThumbnail(request);
+        }
 
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        [HttpPost("attachments/deletepayload")]
+        public async Task<DeletePayloadResult> DeletePayloadC(DeletePayloadRequest request)
+        {
+            return await base.DeletePayload(request);
+        }
+        
         /// <summary>
         /// Hard deletes a file
         /// </summary>

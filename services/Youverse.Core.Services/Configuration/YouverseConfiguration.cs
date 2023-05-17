@@ -136,7 +136,7 @@ namespace Youverse.Core.Services.Configuration
             public string TenantDataRootPath { get; }
             public string SystemDataRootPath { get; }
             
-            public string AlternativePayloadPath { get; }
+            public string? AlternativePayloadPath { get; }
             
             public string SystemSslRootPath { get; }
 

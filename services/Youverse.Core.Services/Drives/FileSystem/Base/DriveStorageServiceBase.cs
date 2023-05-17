@@ -14,7 +14,6 @@ using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Acl;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives.DriveCore.Storage;
-using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Services.Mediator;
 using Youverse.Core.Services.Transit.Encryption;
@@ -135,30 +134,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
                 }
             }
         }
-
-        public Task WritePartStream(InternalDriveFileId file, FilePart filePart, Stream stream)
-        {
-            AssertCanWriteToDrive(file.DriveId);
-
-            var task = GetLongTermStorageManager(file.DriveId).WritePartStream(file.FileId, filePart, stream);
-            return task;
-        }
-
-        public async Task<T> GetDeserializedStream<T>(InternalDriveFileId file, string extension, StorageDisposition disposition = StorageDisposition.LongTerm)
-        {
-            this.AssertCanReadDrive(file.DriveId);
-
-            if (disposition == StorageDisposition.LongTerm)
-            {
-                throw new NotImplementedException("Not supported for long term storage");
-            }
-
-            var stream = await this.GetTempStream(file, extension);
-            string json = await new StreamReader(stream).ReadToEndAsync();
-            var o = DotYouSystemSerializer.Deserialize<T>(json);
-            return o;
-        }
-
+        
         public Task<uint> WriteTempStream(InternalDriveFileId file, string extension, Stream stream)
         {
             AssertCanWriteToDrive(file.DriveId);
@@ -182,7 +158,6 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
         public Task DeleteTempFile(InternalDriveFileId file, string extension)
         {
             AssertCanWriteToDrive(file.DriveId);
-
             return GetTempStorageManager(file.DriveId).Delete(file.FileId, extension);
         }
 
@@ -283,12 +258,6 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             }
 
             return Guid.Empty;
-        }
-
-        public async Task WriteThumbnailStream(InternalDriveFileId file, int width, int height, Stream stream)
-        {
-            AssertCanWriteToDrive(file.DriveId);
-            await GetLongTermStorageManager(file.DriveId).WriteThumbnail(file.FileId, width, height, stream);
         }
 
         public string GetThumbnailFileExtension(int width, int height)
@@ -749,20 +718,19 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             }
         }
 
-        //
-        private ILongTermStorageManager GetLongTermStorageManager(Guid driveId)
+        private LongTermStorageManager GetLongTermStorageManager(Guid driveId)
         {
-            var logger = _loggerFactory.CreateLogger<ILongTermStorageManager>();
+            var logger = _loggerFactory.CreateLogger<LongTermStorageManager>();
             var drive = this.DriveManager.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
-            var manager = new FileBasedLongTermStorageManager(drive, logger);
+            var manager = new LongTermStorageManager(drive, logger);
             return manager;
         }
 
-        private ITempStorageManager GetTempStorageManager(Guid driveId)
+        private TempStorageManager GetTempStorageManager(Guid driveId)
         {
             var drive = this.DriveManager.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
-            var logger = _loggerFactory.CreateLogger<ITempStorageManager>();
-            return new FileBasedTempStorageManager(drive, logger);
+            var logger = _loggerFactory.CreateLogger<TempStorageManager>();
+            return new TempStorageManager(drive, logger);
         }
 
         private async Task WriteFileHeaderInternal(ServerFileHeader header)

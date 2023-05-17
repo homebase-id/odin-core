@@ -63,7 +63,7 @@ namespace Youverse.Core.Services.Drives
             get => _inner.AllowSubscriptions;
             set { }
         }
-        
+
         public override SymmetricKeyEncryptedAes MasterKeyEncryptedStorageKey
         {
             get => _inner.MasterKeyEncryptedStorageKey;
@@ -94,10 +94,20 @@ namespace Youverse.Core.Services.Drives
             set { }
         }
 
-        public string GetStoragePath(StorageDisposition storageDisposition)
+        // public string GetStoragePath(StorageDisposition storageDisposition)
+        // {
+        //     var path = storageDisposition == StorageDisposition.Temporary ? this._tempDataRootPath : this._longTermDataRootPath;
+        //     return Path.Combine(path, "files");
+        // }
+
+        public string GetLongTermStoragePath()
         {
-            var path = storageDisposition == StorageDisposition.Temporary ? this._tempDataRootPath : this._longTermDataRootPath;
-            return Path.Combine(path, "files");
+            return Path.Combine(_longTermDataRootPath, "files");
+        }
+
+        public string GetTempStoragePath()
+        {
+            return Path.Combine(_tempDataRootPath, "files");
         }
 
         public string GetIndexPath()
@@ -107,8 +117,11 @@ namespace Youverse.Core.Services.Drives
 
         public void EnsureDirectories()
         {
-            Directory.CreateDirectory(this.GetStoragePath(StorageDisposition.LongTerm));
-            Directory.CreateDirectory(this.GetStoragePath(StorageDisposition.Temporary));
+            Directory.CreateDirectory(this.GetLongTermStoragePath());
+            Directory.CreateDirectory(this.GetTempStoragePath());
+
+            // Directory.CreateDirectory(this.GetPayloadStoragePath());
+
             Directory.CreateDirectory(this.GetIndexPath());
         }
 
@@ -159,7 +172,7 @@ namespace Youverse.Core.Services.Drives
         /// Specifies if anonymous callers can read this drive.
         /// </summary>
         public virtual bool AllowAnonymousReads { get; set; }
-        
+
         /// <summary>
         /// Indicates if the drive allows data subscriptions to be configured.  It is an error
         /// for a drive to be marked OwnerOnly == true and AllowSubscriptions === true

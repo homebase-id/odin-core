@@ -10,20 +10,19 @@ using Youverse.Core.Services.Drives.FileSystem.Base;
 
 namespace Youverse.Core.Services.Drives.DriveCore.Storage
 {
-    public class FileBasedLongTermStorageManager : ILongTermStorageManager
+    public class LongTermStorageManager
     {
-        private readonly ILogger<ILongTermStorageManager> _logger;
+        private readonly ILogger<LongTermStorageManager> _logger;
 
         private readonly StorageDrive _drive;
 
         private const int WriteChunkSize = 1024;
 
-        // private const string ThumbnailDelimiter = "-";
         private const string ThumbnailDelimiter = "_";
         private const string ThumbnailSizeDelimiter = "x";
         private static readonly string ThumbnailSuffixFormatSpecifier = $"{ThumbnailDelimiter}{{0}}{ThumbnailSizeDelimiter}{{1}}";
 
-        public FileBasedLongTermStorageManager(StorageDrive drive, ILogger<ILongTermStorageManager> logger)
+        public LongTermStorageManager(StorageDrive drive, ILogger<LongTermStorageManager> logger)
         {
             Guard.Argument(drive, nameof(drive)).NotNull();
             // Guard.Argument(drive, nameof(drive)).Require(sd => Directory.Exists(sd.LongTermDataRootPath), sd => $"No directory for drive storage at {sd.LongTermDataRootPath}");
@@ -35,13 +34,23 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
             _drive = drive;
         }
 
+        /// <summary>
+        /// The drive managed by this instance
+        /// </summary>
         public StorageDrive Drive => _drive;
 
+        /// <summary>
+        /// Creates an Id for storing a file
+        /// </summary>
+        /// <returns></returns>
         public Guid CreateFileId()
         {
             return SequentialGuid.CreateGuid();
         }
 
+        /// <summary>
+        /// Writes a stream for a given file and part to the configured provider.
+        /// </summary>
         public Task WritePartStream(Guid fileId, FilePart part, Stream stream)
         {
             string filePath = GetFilenameAndPath(fileId, part, true);
@@ -56,6 +65,9 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Gets a read stream for the given <see cref="FilePart"/>
+        /// </summary>
         public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart, FileChunk chunk = null)
         {
             string path = GetFilenameAndPath(fileId, filePart);
@@ -88,10 +100,16 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
             return Task.FromResult((Stream)fileStream);
         }
 
+        /// <summary>
+        /// Gets a read stream of the thumbnail
+        /// </summary>
+        /// <param name="fileId"></param>
+        /// <param name="width"></param>
+        /// <param name="height"></param>
         public Task<Stream> GetThumbnail(Guid fileId, int width, int height)
         {
             string fileName = GetThumbnailFileName(fileId, width, height);
-            string dir = GetFilePath(fileId, false);
+            string dir = GetFilePath(fileId);
             string path = Path.Combine(dir, fileName);
             var fileStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             return Task.FromResult((Stream)fileStream);
@@ -100,7 +118,7 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
         public Task DeleteThumbnail(Guid fileId, int width, int height)
         {
             string fileName = GetThumbnailFileName(fileId, width, height);
-            string dir = GetFilePath(fileId, false);
+            string dir = GetFilePath(fileId);
             string path = Path.Combine(dir, fileName);
             
             File.Delete(path);
@@ -114,6 +132,10 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
             return fileName;
         }
 
+        /// <summary>
+        /// Ensures there is a valid file available for the given Id.
+        /// </summary>
+        /// <exception cref="InvalidDataException">Throw if the file for the given Id is invalid or does not exist</exception>
         public void AssertFileIsValid(Guid fileId)
         {
             if (fileId == Guid.Empty)
@@ -127,6 +149,9 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
             }
         }
 
+        /// <summary>
+        /// Checks if the file exists.  Returns true if all parts exist, otherwise false
+        /// </summary>
         public bool FileExists(Guid fileId)
         {
             return IsFileValid(fileId);
@@ -151,6 +176,9 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
             return true;
         }
 
+        /// <summary>
+        /// Removes all traces of a file and deletes its record from the index
+        /// </summary>
         public Task HardDelete(Guid fileId)
         {
             DeleteAllThumbnails(fileId);
@@ -165,6 +193,10 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Removes the contents of the meta file while permanently deletes the payload and thumbnails.  Retains some fields of the metafile and updates the index accordingly
+        /// </summary>
+        /// <param name="fileId"></param>
         public Task SoftDelete(Guid fileId)
         {
             DeleteAllThumbnails(fileId);
@@ -172,6 +204,9 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Moves the specified <param name="sourcePath"></param> to long term storage.
+        /// </summary>
         public Task MoveToLongTerm(Guid targetFileId, string sourcePath, FilePart part)
         {
             var dest = GetFilenameAndPath(targetFileId, part, ensureDirectoryExists: true);
@@ -192,9 +227,14 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Returns an enumeration of <see cref="FileMetadata"/>; ordered by the most recently modified
+        /// </summary>
+        /// <param name="pageOptions"></param>
         public async Task<IEnumerable<ServerFileHeader>> GetServerFileHeaders(PageOptions pageOptions)
         {
-            string path = this.Drive.GetStoragePath(StorageDisposition.LongTerm);
+            // string path = this.Drive.GetStoragePath(StorageDisposition.LongTerm);
+            string path = this.Drive.GetLongTermStoragePath();
             var options = new EnumerationOptions()
             {
                 MatchCasing = MatchCasing.CaseInsensitive,
@@ -233,21 +273,16 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
             return header;
         }
 
-        public Task WriteThumbnail(Guid fileId, int width, int height, Stream stream)
-        {
-            var thumbnailPath = GetThumbnailPath(fileId, width, height);
-            var tempPath = GetTempFilePath(fileId, FilePart.Thumb, $"-{width}x{height}", true);
-
-            return WriteFile(thumbnailPath, tempPath, stream);
-        }
-
+        /// <summary>
+        /// Removes all thumbnails on disk which are not in the provided list.
+        /// </summary>
         public Task ReconcileThumbnailsOnDisk(Guid fileId, List<ImageDataHeader> thumbnailsToKeep)
         {
             Guard.Argument(thumbnailsToKeep, nameof(thumbnailsToKeep)).NotNull();
 
             var thumbnailSearchPattern = string.Format(ThumbnailSuffixFormatSpecifier, "*", "*");
             var seekPath = this.GetFilename(fileId, thumbnailSearchPattern, FilePart.Thumb);
-            string dir = GetFilePath(fileId, false);
+            string dir = GetFilePath(fileId);
 
             var files = Directory.GetFiles(dir, seekPath);
             foreach (var thumbnailFilePath in files)
@@ -278,7 +313,7 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
 
         private string GetFilePath(Guid fileId, bool ensureExists = false)
         {
-            string path = _drive.GetStoragePath(StorageDisposition.LongTerm);
+            string path = _drive.GetLongTermStoragePath();
 
             //07e5070f-173b-473b-ff03-ffec2aa1b7b8
             //The positions in the time guid are hex values as follows
@@ -362,10 +397,10 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
         private void WriteStream(Stream stream, string filePath)
         {
             var buffer = new byte[WriteChunkSize];
-            var bytesRead = 0;
 
             using (var output = new FileStream(filePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None))
             {
+                var bytesRead = 0;
                 do
                 {
                     bytesRead = stream.Read(buffer, 0, buffer.Length);
@@ -390,7 +425,7 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
         {
             var thumbnailSearchPattern = string.Format(ThumbnailSuffixFormatSpecifier, "*", "*");
             var seekPath = this.GetFilename(fileId, thumbnailSearchPattern, FilePart.Thumb);
-            string dir = GetFilePath(fileId, false);
+            string dir = GetFilePath(fileId);
 
             var thumbnails = Directory.GetFiles(dir, seekPath);
             foreach (var thumbnail in thumbnails)
