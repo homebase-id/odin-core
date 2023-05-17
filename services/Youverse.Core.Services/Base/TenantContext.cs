@@ -71,6 +71,10 @@ namespace Youverse.Core.Services.Base
             Directory.CreateDirectory(this.DataRoot);
             Directory.CreateDirectory(this.SslRoot);
             Directory.CreateDirectory(this.TempDataRoot);
+            
+            Directory.CreateDirectory(this.StorageConfig.DataStoragePath);
+            Directory.CreateDirectory(this.StorageConfig.TempStoragePath);
+            Directory.CreateDirectory(this.StorageConfig.PayloadStoragePath);
         }
 
         public void UpdateSystemConfig(TenantSettings newConfig)

@@ -70,7 +70,7 @@ namespace Youverse.Hosting.Tests
             Environment.SetEnvironmentVariable("Registry__DnsRecordValues__FileCnameTarget", "");
 
             Environment.SetEnvironmentVariable("Host__TenantDataRootPath", TestDataPath);
-            Environment.SetEnvironmentVariable("Host__PayloadAlternativePath", TestPayloadPath);
+            Environment.SetEnvironmentVariable("Host__TenantPayloadRootPath", TestPayloadPath);
             Environment.SetEnvironmentVariable("Host__SystemDataRootPath", TestDataPath);
             Environment.SetEnvironmentVariable("Host__IPAddressListenList", "[{ \"Ip\": \"*\",\"HttpsPort\": 443,\"HttpPort\": 80 }]");
 
@@ -189,6 +189,7 @@ namespace Youverse.Hosting.Tests
         private void CreateData()
         {
             Directory.CreateDirectory(TestDataPath);
+            Directory.CreateDirectory(TestPayloadPath);
             Directory.CreateDirectory(TempDataPath);
         }
 
@@ -200,6 +201,11 @@ namespace Youverse.Hosting.Tests
                 Directory.Delete(TestDataPath, true);
             }
 
+            if (Directory.Exists(TestPayloadPath))
+            {
+                Console.WriteLine($"Removing data in [{TestPayloadPath}]");
+                Directory.Delete(TestPayloadPath, true);
+            }
 
             if (Directory.Exists(TempDataPath))
             {
