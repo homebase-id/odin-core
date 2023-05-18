@@ -22,21 +22,12 @@ public class TranslatedClientNotification : IClientNotification
 
 public class ClientNotificationPayload
 {
-    private readonly string _data;
-
-    public ClientNotificationPayload(ClientNotificationType type, string data)
+    public ClientNotificationPayload()
     {
-        NotificationType = type;
-        _data = data;
     }
     
+    public bool IsEncrypted { get; set; }
     
-    public bool Encrypted { get; set; }
+    public string Payload { get; set; }
 
-    public ClientNotificationType NotificationType { get; set; }
-
-    public string GetClientData()
-    {
-        return _data;
-    }
 }
