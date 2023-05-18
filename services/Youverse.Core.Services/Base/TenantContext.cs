@@ -62,7 +62,7 @@ namespace Youverse.Core.Services.Base
             this.CertificateRenewalConfig = certificateRenewalConfig;
             this.DataRoot = Path.Combine(rootPath, DotYouRegistryId.ToString());
             this.TempDataRoot = Path.Combine(rootPath, "temp", DotYouRegistryId.ToString());
-            this.StorageConfig = new TenantStorageConfig(Path.Combine(this.DataRoot, "header"), Path.Combine(this.TempDataRoot, "temp"), tenantDataPayloadPath);
+            this.StorageConfig = new TenantStorageConfig(Path.Combine(this.DataRoot, "headers"), Path.Combine(this.TempDataRoot, "temp"), tenantDataPayloadPath);
             this.SslRoot = Path.Combine(DataRoot, "ssl");
             this.FirstRunToken = firstRunToken.GetValueOrDefault();
 

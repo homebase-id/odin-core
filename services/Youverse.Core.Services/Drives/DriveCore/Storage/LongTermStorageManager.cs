@@ -61,7 +61,10 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
         public Task DeletePayload(Guid fileId)
         {
             string path = GetFilenameAndPath(fileId, FilePart.Payload);
-            File.Delete(path);
+            if(File.Exists(path))
+            {
+                File.Delete(path);
+            }
             return Task.CompletedTask;
         }
 
@@ -414,17 +417,19 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
             }
         }
 
-
         private void DeleteAllThumbnails(Guid fileId)
         {
             var thumbnailSearchPattern = string.Format(ThumbnailSuffixFormatSpecifier, "*", "*");
             var seekPath = this.GetFilename(fileId, thumbnailSearchPattern, FilePart.Thumb);
             string dir = GetFilePath(fileId, FilePart.Thumb);
 
-            var thumbnails = Directory.GetFiles(dir, seekPath);
-            foreach (var thumbnail in thumbnails)
+            if(Directory.Exists(dir))
             {
-                File.Delete(thumbnail);
+                var thumbnails = Directory.GetFiles(dir, seekPath);
+                foreach (var thumbnail in thumbnails)
+                {
+                    File.Delete(thumbnail);
+                }
             }
         }
     }

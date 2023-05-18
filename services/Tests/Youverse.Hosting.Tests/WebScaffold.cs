@@ -232,10 +232,9 @@ namespace Youverse.Hosting.Tests
         {
             get
             {
-                var p = PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), TestDataPath, "payloads");
+                var p = PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "payloads", _uniqueSubPath, "dotyoudata", _folder);
                 string x = isDev ? PathUtil.Combine(home, p.Substring(1)) : p;
                 return Path.Combine(_testInstancePrefix, x);
-                // return x;
             }
         }
 
@@ -246,7 +245,6 @@ namespace Youverse.Hosting.Tests
                 var p = PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "testsdata", _uniqueSubPath, "dotyoudata", _folder);
                 string x = isDev ? PathUtil.Combine(home, p.Substring(1)) : p;
                 return Path.Combine(_testInstancePrefix, x);
-                // return x;
             }
         }
 
