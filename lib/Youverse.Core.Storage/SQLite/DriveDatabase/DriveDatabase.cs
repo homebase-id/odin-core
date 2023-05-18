@@ -316,7 +316,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     if (cursor.userDateStopAtBoundary == null)
                         throw new Exception("userDateStopAtBoundary cannot be null, cursor initialized incorrectly");
 
-                    listWhereAnd.Add($"((userDate = {cursor.userDateStopAtBoundary.Value.milliseconds} AND fileid {isign} x'{Convert.ToHexString(cursor.pagingCursor)}') OR (userDate {isign} {cursor.userDateStopAtBoundary.Value.milliseconds}))");
+                    listWhereAnd.Add($"((userDate = {cursor.userDateStopAtBoundary.Value.milliseconds} AND fileid {isign} x'{Convert.ToHexString(cursor.stopAtBoundary)}') OR (userDate {isign} {cursor.userDateStopAtBoundary.Value.milliseconds}))");
                 }
             }
 

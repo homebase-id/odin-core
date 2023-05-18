@@ -318,6 +318,80 @@ namespace DriveDatabaseTests
             Debug.Assert(moreRows == false);
         }
 
+
+        /// <summary>
+        /// Scenario: Use a userDate cursor, forward, check it stops at the given boundary.
+        /// Will not include the "2000" boundary
+        /// </summary>
+        [Test]
+        public void CursorsBoundaryTest01()
+        {
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            _testDatabase.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var s1 = SequentialGuid.CreateGuid().ToByteArray();
+            var t1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+            var f4 = SequentialGuid.CreateGuid();
+            var f5 = SequentialGuid.CreateGuid();
+
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(-1000), 0, null, null);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1000), 1, null, null);
+            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(1999), 2, null, null);
+            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null);
+            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2001), 3, null, null);
+
+            QueryBatchCursor cursor = new QueryBatchCursor(new UnixTimeUtc(2000), true);
+            var (result, moreRows) = _testDatabase.QueryBatch(100, ref cursor, newestFirstOrder: false, fileIdSort: false, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 3);
+            Debug.Assert(cursor.nextBoundaryCursor == null);
+            Debug.Assert(new UnixTimeUtc(2000) == cursor.userDateStopAtBoundary);
+            Debug.Assert(moreRows == false);
+
+            Debug.Assert(ByteArrayUtil.muidcmp(f1, result[0]) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f2, result[1]) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f3, result[2]) == 0);
+        }
+
+
+        /// <summary>
+        /// Scenario: Use a userDate cursor, forward, check it stops at the given boundary.
+        /// </summary>
+        [Test]
+        public void CursorsBoundaryTest02()
+        {
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            _testDatabase.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var s1 = SequentialGuid.CreateGuid().ToByteArray();
+            var t1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+            var f4 = SequentialGuid.CreateGuid();
+            var f5 = SequentialGuid.CreateGuid();
+
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(-1001), 0, null, null);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(-1000), 1, null, null);
+            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(-999), 2, null, null);
+            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2000), 2, null, null);
+            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(2001), 3, null, null);
+
+            QueryBatchCursor cursor = new QueryBatchCursor(new UnixTimeUtc(-1000), true);
+            var (result, moreRows) = _testDatabase.QueryBatch(100, ref cursor, newestFirstOrder: true, fileIdSort: false, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 3);
+            Debug.Assert(cursor.nextBoundaryCursor == null);
+            Debug.Assert(new UnixTimeUtc(-1000) == cursor.userDateStopAtBoundary);
+            Debug.Assert(moreRows == false);
+
+            Debug.Assert(ByteArrayUtil.muidcmp(f5, result[0]) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f4, result[1]) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f3, result[2]) == 0);
+        }
+
+
         [Test]
         public void ArchivalStatusTest()
         {
