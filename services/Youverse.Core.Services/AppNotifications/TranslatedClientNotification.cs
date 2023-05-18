@@ -19,15 +19,3 @@ public class TranslatedClientNotification : IClientNotification
         return _data;
     }
 }
-
-public class ClientNotificationPayload
-{
-    public ClientNotificationPayload()
-    {
-    }
-    
-    public bool IsEncrypted { get; set; }
-    
-    public string Payload { get; set; }
-
-}
