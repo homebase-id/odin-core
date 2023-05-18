@@ -149,14 +149,7 @@ namespace Youverse.Core.Services.AppNotifications
             await SerializeSendToAllDevicesForDrive(notificationDriveId, translated);
         }
 
-        private List<DeviceSocket> GetSocketsByDrive(Guid targetDriveId)
-        {
-            var sockets = this._deviceSocketCollection.GetAll().Values
-                .Where(ds => ds.Drives.Any(driveId => driveId == targetDriveId));
-            return sockets.ToList();
-        }
-
-        private async Task SerializeSendToAllDevicesForDrive(Guid driveId, IClientNotification notification)
+        private async Task SerializeSendToAllDevicesForDrive(Guid targetDriveId, IClientNotification notification)
         {
             var json = DotYouSystemSerializer.Serialize(new
             {
@@ -164,7 +157,9 @@ namespace Youverse.Core.Services.AppNotifications
                 Data = notification.GetClientData()
             });
 
-            var sockets = GetSocketsByDrive(driveId);
+            var sockets = this._deviceSocketCollection.GetAll().Values
+                .Where(ds => ds.Drives.Any(driveId => driveId == targetDriveId));
+
             foreach (var deviceSocket in sockets)
             {
                 await this.SendMessageAsync(deviceSocket, json);
@@ -186,7 +181,7 @@ namespace Youverse.Core.Services.AppNotifications
             }
         }
 
-        private async Task SendMessageAsync(DeviceSocket deviceSocket, string message)
+        private async Task SendMessageAsync(DeviceSocket deviceSocket, string message, bool encrypt = true)
         {
             var socket = deviceSocket.Socket;
 
@@ -197,11 +192,20 @@ namespace Youverse.Core.Services.AppNotifications
 
             try
             {
+                if (encrypt)
+                {
+                }
+
                 var key = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
                 var encryptedPayload = SharedSecretEncryptedPayload.Encrypt(message.ToUtf8ByteArray(), key);
                 var json = DotYouSystemSerializer.Serialize(encryptedPayload);
                 var jsonBytes = json.ToUtf8ByteArray();
 
+                // var n = new ClientNotificationPayload()
+                // {
+                //     Encrypted = encrypt
+                // };
+                
                 await socket.SendAsync(
                     buffer: new ArraySegment<byte>(jsonBytes, 0, json.Length),
                     messageType: WebSocketMessageType.Text,

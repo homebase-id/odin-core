@@ -19,3 +19,24 @@ public class TranslatedClientNotification : IClientNotification
         return _data;
     }
 }
+
+public class ClientNotificationPayload
+{
+    private readonly string _data;
+
+    public ClientNotificationPayload(ClientNotificationType type, string data)
+    {
+        NotificationType = type;
+        _data = data;
+    }
+    
+    
+    public bool Encrypted { get; set; }
+
+    public ClientNotificationType NotificationType { get; set; }
+
+    public string GetClientData()
+    {
+        return _data;
+    }
+}

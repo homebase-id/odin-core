@@ -290,23 +290,27 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
         {
             Guard.Argument(thumbnailsToKeep, nameof(thumbnailsToKeep)).NotNull();
 
-            var thumbnailSearchPattern = string.Format(ThumbnailSuffixFormatSpecifier, "*", "*");
-            var seekPath = this.GetFilename(fileId, thumbnailSearchPattern, FilePart.Thumb);
             string dir = GetFilePath(fileId, FilePart.Thumb);
 
-            var files = Directory.GetFiles(dir, seekPath);
-            foreach (var thumbnailFilePath in files)
+            if (Directory.Exists(dir))
             {
-                // filename w/o extension = "c1c63e18-40a2-9700-7b6a-2f1d51ee3972-300x300"
-                var filename = Path.GetFileNameWithoutExtension(thumbnailFilePath);
-                var sizeParts = filename.Split(ThumbnailDelimiter)[1].Split(ThumbnailSizeDelimiter);
-                var width = int.Parse(sizeParts[0]);
-                var height = int.Parse(sizeParts[1]);
-
-                var keepThumbnail = thumbnailsToKeep.Exists(thumb => thumb.PixelWidth == width && thumb.PixelHeight == height);
-                if (!keepThumbnail)
+                var thumbnailSearchPattern = string.Format(ThumbnailSuffixFormatSpecifier, "*", "*");
+                var seekPath = this.GetFilename(fileId, thumbnailSearchPattern, FilePart.Thumb);
+                
+                var files = Directory.GetFiles(dir, seekPath);
+                foreach (var thumbnailFilePath in files)
                 {
-                    File.Delete(thumbnailFilePath);
+                    // filename w/o extension = "c1c63e18-40a2-9700-7b6a-2f1d51ee3972-300x300"
+                    var filename = Path.GetFileNameWithoutExtension(thumbnailFilePath);
+                    var sizeParts = filename.Split(ThumbnailDelimiter)[1].Split(ThumbnailSizeDelimiter);
+                    var width = int.Parse(sizeParts[0]);
+                    var height = int.Parse(sizeParts[1]);
+
+                    var keepThumbnail = thumbnailsToKeep.Exists(thumb => thumb.PixelWidth == width && thumb.PixelHeight == height);
+                    if (!keepThumbnail)
+                    {
+                        File.Delete(thumbnailFilePath);
+                    }
                 }
             }
 
