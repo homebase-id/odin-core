@@ -102,7 +102,10 @@ public class NotificationsTest
             Array.Resize(ref array, receiveResult.Count);
 
             var json = array.ToStringFromUtf8Bytes();
-            var decryptedResponse = SharedSecretEncryptedPayload.Decrypt(json, deviceSharedSecret.ToSensitiveByteArray());
+            var n = DotYouSystemSerializer.Deserialize<ClientNotificationPayload>(json);
+            
+            Assert.IsTrue(n.IsEncrypted);
+            var decryptedResponse = SharedSecretEncryptedPayload.Decrypt(n.Payload, deviceSharedSecret.ToSensitiveByteArray());
             var response = DotYouSystemSerializer.Deserialize<EstablishConnectionResponse>(decryptedResponse);
 
             Assert.IsNotNull(response);
