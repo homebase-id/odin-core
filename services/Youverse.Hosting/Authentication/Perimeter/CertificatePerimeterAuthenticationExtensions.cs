@@ -61,18 +61,7 @@ namespace Youverse.Hosting.Authentication.Perimeter
 
             //TODO: PROTOTRIAL: assumes the certificate has a format where the domain is a common name. revisit
             string domain = CertificateUtils.GetDomainFromCommonName(context.ClientCertificate.Subject);
-
-
-            // start hack
-#if DEBUG
-//temp hack to continue until I build the letsencrypt cert system
-            if (domain == "*.youfoundation.id")
-            {
-                domain = context.Request.Headers["dns_hack"].FirstOrDefault();
-            }
-#endif
-// end hack
-
+            
             if (string.IsNullOrWhiteSpace(domain))
             {
                 throw new YouverseSecurityException("invalid certificate");

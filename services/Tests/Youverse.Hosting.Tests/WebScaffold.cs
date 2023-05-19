@@ -5,6 +5,8 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Moq;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core;
@@ -12,9 +14,12 @@ using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Certificate;
+using Youverse.Core.Services.Dns.PowerDns;
 using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Storage;
+using Youverse.Core.Trie;
 using Youverse.Core.Util;
 using Youverse.Hosting._dev;
 using Youverse.Hosting.Tests.AppAPI.ApiClient;
@@ -56,7 +61,7 @@ namespace Youverse.Hosting.Tests
 
             Environment.SetEnvironmentVariable("Development__SslSourcePath", "./https/");
             Environment.SetEnvironmentVariable("Development__PreconfiguredDomains",
-                "[\"frodo.digital\",\"samwise.digital\", \"merry.youfoundation.id\",\"pippin.youfoundation.id\"]");
+                "[\"frodo.dotyou.cloud\",\"sam.dotyou.cloud\", \"merry.dotyou.cloud\",\"pippin.dotyou.cloud\"]");
 
             Environment.SetEnvironmentVariable("Registry__ProvisioningDomain", "provisioning-dev.youfoundation.id");
             Environment.SetEnvironmentVariable("Registry__ManagedDomains", "[\"dev.dominion.id\"]");
@@ -98,8 +103,11 @@ namespace Youverse.Hosting.Tests
             CreateData();
             CreateLogs();
 
-            _registry = new FileSystemIdentityRegistry(TestDataPath, null, TestPayloadPath);
-            _registry.Initialize();
+            var trie = new Trie<IdentityRegistration>();
+            
+            
+            var certificateServiceFactory = CreateCertificateFactoryServiceMock();
+            _registry = new FileSystemIdentityRegistry(trie, certificateServiceFactory, TestDataPath, null, TestPayloadPath);
 
             var (config, _) = Program.LoadConfig();
             DevEnvironmentSetup.RegisterPreconfiguredDomains(config, _registry);
@@ -184,6 +192,20 @@ namespace Youverse.Hosting.Tests
             var problemDetails = DotYouSystemSerializer.Deserialize<ProblemDetails>(apiException.Content!);
             Assert.IsNotNull(problemDetails);
             return (YouverseClientErrorCode)int.Parse(problemDetails.Extensions["errorCode"].ToString() ?? string.Empty);
+        }
+
+        public CertificateServiceFactory CreateCertificateFactoryServiceMock()
+        {
+            var certesAcme = new CertesAcme(
+                new Mock<ILogger<CertesAcme>>().Object,
+                new Mock<IAcmeHttp01TokenCache>().Object,
+                new Mock<IHttpClientFactory>().Object,
+                false);
+
+            return new CertificateServiceFactory(
+                new Mock<ILogger<CertificateService>>().Object,
+                certesAcme,
+                new AcmeAccountConfig());
         }
 
         private void CreateData()

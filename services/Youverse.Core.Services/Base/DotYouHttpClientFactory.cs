@@ -7,6 +7,7 @@ using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Certificate;
+using Youverse.Core.Services.Registry.Registration;
 using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Base
@@ -17,13 +18,16 @@ namespace Youverse.Core.Services.Base
     public class DotYouHttpClientFactory : IDotYouHttpClientFactory
     {
         private readonly DotYouContextAccessor _contextAccessor;
-        private readonly ITenantCertificateService _tenantCertificateService;
+        private readonly ICertificateServiceFactory _certificateServiceFactory;
         private readonly TenantContext _tenantContext;
 
-        public DotYouHttpClientFactory(DotYouContextAccessor contextAccessor, ITenantCertificateService tenantCertificateService, TenantContext tenantContext)
+        public DotYouHttpClientFactory(
+            DotYouContextAccessor contextAccessor, 
+            ICertificateServiceFactory certificateServiceFactory, 
+            TenantContext tenantContext)
         {
             _contextAccessor = contextAccessor;
-            _tenantCertificateService = tenantCertificateService;
+            _certificateServiceFactory = certificateServiceFactory;
             _tenantContext = tenantContext;
         }
 
@@ -49,7 +53,8 @@ namespace Youverse.Core.Services.Base
 
             var handler = new HttpClientHandler();
 
-            var cert = _tenantCertificateService.GetSslCertificate(_tenantContext.HostOdinId);
+            var certificateService = _certificateServiceFactory.Create(_tenantContext.SslRoot);
+            var cert = certificateService.GetSslCertificate(_tenantContext.HostOdinId);
             if (null == cert)
             {
                 throw new YouverseSystemException($"No certificate configured for {_tenantContext.HostOdinId}");
@@ -65,7 +70,7 @@ namespace Youverse.Core.Services.Base
                 BaseAddress = new UriBuilder()
                 {
                     Scheme = "https",
-                    Host = odinId
+                    Host = DnsConfigurationSet.PrefixCertApi + "." + odinId
                 }.Uri
             };
 
@@ -84,17 +89,7 @@ namespace Youverse.Core.Services.Base
                 //TODO: need to encrypt this token somehow? (shared secret?)
                 client.DefaultRequestHeaders.Add(DotYouHeaderNames.ClientAuthToken, clientAuthenticationToken.ToString());
             }
-
-
-// start hack
-#if DEBUG
-            if (cert.Subject.Contains("*.youfoundation.id"))
-            {
-                client.DefaultRequestHeaders.Add("dns_hack", _tenantContext.HostOdinId);
-            }
-#endif
-// end hack
-
+            
             var ogClient = RestService.For<T>(client);
             return ogClient;
         }

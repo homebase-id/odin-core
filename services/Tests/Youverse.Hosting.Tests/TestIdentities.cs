@@ -15,7 +15,7 @@ namespace Youverse.Hosting.Tests
     {
         public static readonly TestIdentity Frodo = new TestIdentity()
         {
-            OdinId = (OdinId)"frodo.digital",
+            OdinId = (OdinId)"frodo.dotyou.cloud",
             ContactData = new ContactRequestData()
             {
                 Name = "frodo baggins",
@@ -25,7 +25,7 @@ namespace Youverse.Hosting.Tests
 
         public static readonly TestIdentity Samwise = new TestIdentity()
         {
-            OdinId = (OdinId)"samwise.digital",
+            OdinId = (OdinId)"sam.dotyou.cloud",
             ContactData = new ContactRequestData()
             {
                 Name = "Samwise Gamgee",
@@ -35,7 +35,7 @@ namespace Youverse.Hosting.Tests
 
         public static readonly TestIdentity Merry = new()
         {
-            OdinId = (OdinId)"merry.youfoundation.id",
+            OdinId = (OdinId)"merry.dotyou.cloud",
             ContactData = new ContactRequestData()
             {
                 Name = "Merry Brandybuck"
@@ -44,7 +44,7 @@ namespace Youverse.Hosting.Tests
 
         public static readonly TestIdentity Pippin = new()
         {
-            OdinId = (OdinId)"pippin.youfoundation.id",
+            OdinId = (OdinId)"pippin.dotyou.cloud",
             ContactData = new ContactRequestData()
             {
                 Name = "Pippin Took"

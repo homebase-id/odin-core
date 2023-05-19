@@ -76,8 +76,6 @@ namespace Youverse.Hosting
 
             cb.RegisterType<DotYouContextAccessor>().AsSelf().InstancePerLifetimeScope();
             cb.RegisterType<DotYouContext>().AsSelf().InstancePerLifetimeScope();
-
-            cb.RegisterType<TenantCertificateService>().As<ITenantCertificateService>().SingleInstance();
             cb.RegisterType<DotYouHttpClientFactory>().As<IDotYouHttpClientFactory>().SingleInstance();
 
             cb.RegisterType<YouAuthService>().As<IYouAuthService>().SingleInstance();

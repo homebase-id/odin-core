@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using Youverse.Core.Util;
 using System.Threading;
-using NodaTime;
 
 namespace Youverse.Core.Trie
 {
@@ -11,7 +10,7 @@ namespace Youverse.Core.Trie
     {
         // Maps ASCII character to Trie[] DNS node index, 128 means illegal
         // Lowercase and uppercase characters are mapped to the same index.
-        private static readonly byte[] m_aTrieMap =
+        public static readonly byte[] m_aTrieMap =
         {
             128, 128, 128, 128, 128, 128, 128, 128, 128, 128, // 000-009
             128, 128, 128, 128, 128, 128, 128, 128, 128, 128, // 010-019
@@ -77,7 +76,7 @@ namespace Youverse.Core.Trie
         // This should probably be private (but then I can't unit test)
         private bool IsDomainUniqueInHierarchy(string sName)
         {
-            DomainNameValidator.AssertValidDomain(sName); // Throws an exception if not OK
+            PunyDomainNameValidator.AssertValidDomain(sName); // Throws an exception if not OK
 
             ref var p = ref m_NodeRoot;
 

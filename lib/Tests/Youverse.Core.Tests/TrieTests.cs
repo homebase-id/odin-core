@@ -40,7 +40,7 @@ namespace Youverse.Core.Tests
             {
                 t.AddDomain("", Guid.NewGuid());
             }
-            catch (DomainTooShortException)
+            catch
             {
                 Assert.Pass();
                 return;
@@ -79,7 +79,7 @@ namespace Youverse.Core.Tests
             {
                 t.AddDomain(";.com", Guid.NewGuid());
             }
-            catch (DomainIllegalCharacterException)
+            catch
             {
                 Assert.Pass();
                 return;
@@ -97,7 +97,7 @@ namespace Youverse.Core.Tests
             {
                 t.AddDomain(new string('a', 256), Guid.NewGuid());
             }
-            catch (DomainTooLongException)
+            catch
             {
                 Assert.Pass();
                 return;
