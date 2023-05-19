@@ -84,7 +84,7 @@ namespace Youverse.Core.Tests
 
             try
             {
-                OdinId id = new OdinId("�.a"); // not ASCII
+                OdinId id = new OdinId("ᚢᛏᛁᚾ.a"); // not ASCII
                 bOk = false;
             }
             catch
