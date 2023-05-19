@@ -31,6 +31,15 @@ namespace Youverse.Core.Identity
             _hash = new Guid(HashUtil.ReduceSHA256Hash(_domainName.DomainName.ToUtf8ByteArray()));
         }
 
+        public OdinId(PunyDomainName punyDomain)
+        {
+            _domainName = punyDomain;
+
+            // I would have preferred if the HASH was evaluated lazily. But that's not possible with a RO struct.
+            _hash = new Guid(HashUtil.ReduceSHA256Hash(_domainName.DomainName.ToUtf8ByteArray()));
+        }
+
+
         [JsonIgnore] public string DomainName => _domainName.DomainName;
 
         public bool HasValue()
