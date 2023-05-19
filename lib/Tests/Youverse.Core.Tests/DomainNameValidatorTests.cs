@@ -17,38 +17,41 @@ namespace Youverse.Core.Tests
         [Test(Description = "Label cannot be empty")]
         public void LabelEmptyTest()
         {
-            Assert.IsFalse(DomainNameValidator.ValidLabel(""));
+            Assert.IsFalse(DomainNameValidator.TryValidateDomain(".aaa"));
+            Assert.IsFalse(DomainNameValidator.TryValidateDomain("aaa."));
         }
 
         [Test(Description = "Test 63 character label is OK")]
         public void LabelLengthOKTest()
         {
-            Assert.IsTrue(DomainNameValidator.ValidLabel("012345678901234567890123456789012345678901234567890123456789012"));
+            Assert.IsTrue(DomainNameValidator.TryValidateDomain("012345678901234567890123456789012345678901234567890123456789012.aaa"));
         }
 
         [Test(Description = "Test 64 character label fails")]
         public void LabelLengthFailTest()
         {
-            Assert.IsFalse(DomainNameValidator.ValidLabel("0123456789012345678901234567890123456789012345678901234567890123"));
+            Assert.IsFalse(DomainNameValidator.TryValidateDomain("0123456789012345678901234567890123456789012345678901234567890123.aaa"));
         }
 
         [Test(Description = "Test first char isn't a dash")]
         public void LabelStartDashFailTest()
         {
-            Assert.IsFalse(DomainNameValidator.ValidLabel("-a"));
+            Assert.IsFalse(DomainNameValidator.TryValidateDomain("-a.aaa"));
+            Assert.IsFalse(DomainNameValidator.TryValidateDomain("aa.-aaa"));
         }
 
 
         [Test(Description = "Test last char isn't a dash")]
         public void LabelLastDashFailTest()
         {
-            Assert.IsFalse(DomainNameValidator.ValidLabel("a-"));
+            Assert.IsFalse(DomainNameValidator.TryValidateDomain("a-.aaa"));
+            Assert.IsFalse(DomainNameValidator.TryValidateDomain("aa.aaa-"));
         }
 
         [Test(Description = "Test 'a' is OK as a label")]
         public void LabelPassTest()
         {
-            Assert.IsTrue(DomainNameValidator.ValidLabel("a"));
+            Assert.IsTrue(DomainNameValidator.TryValidateDomain("a.a"));
         }
 
         [Test(Description = "Test shortest valid domain")]
@@ -70,7 +73,7 @@ namespace Youverse.Core.Tests
         public void DomainOneLabelPostFailTest()
         {
 
-            // Assert.Throws<Exception>(c=> DomainNameValidator.ValidateDomain(".com"), "domain test failed"),
+            // Assert.Throws<Exception>(c=> DomainNameValidator.TryValidateDomain(".com"), "domain test failed"),
             try
             {
                 DomainNameValidator.AssertValidDomain(".com");
@@ -266,14 +269,13 @@ namespace Youverse.Core.Tests
         public void MiscTestsMovedFromOtherCode()
         {
             // Test valid labels
-            Debug.Assert(DomainNameValidator.ValidLabel("") == false, "Empty name error");
-            Debug.Assert(DomainNameValidator.ValidLabel("012345678901234567890123456789012345678901234567890123456789012") == true,
+            Debug.Assert(DomainNameValidator.TryValidateDomain("") == false, "Empty name error");
+            Debug.Assert(DomainNameValidator.TryValidateDomain("012345678901234567890123456789012345678901234567890123456789012.aa") == true,
                 "63 chars not allowed");
-            Debug.Assert(DomainNameValidator.ValidLabel("0123456789012345678901234567890123456789012345678901234567890123") == false,
+            Debug.Assert(DomainNameValidator.TryValidateDomain("0123456789012345678901234567890123456789012345678901234567890123.aa") == false,
                 "64 chars allowed");
-            Debug.Assert(DomainNameValidator.ValidLabel("-a") == false, "Allowed to start with -");
-            Debug.Assert(DomainNameValidator.ValidLabel("a-") == false, "Allowed to end with -");
-            Debug.Assert(DomainNameValidator.ValidLabel("a") == true, "one char not allowed");
+            Debug.Assert(DomainNameValidator.TryValidateDomain("-a.aa") == false, "Allowed to start with -");
+            Debug.Assert(DomainNameValidator.TryValidateDomain("a-.aa") == false, "Allowed to end with -");
 
             DomainNameValidator.AssertValidDomain("a.com");
 

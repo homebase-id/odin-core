@@ -320,11 +320,47 @@ namespace DriveDatabaseTests
 
 
         /// <summary>
+        /// Scenario: Use a cursor, forward, check it stops at the given boundary.
+        /// </summary>
+        [Test]
+        public void CursorsBoundaryTest01()
+        {
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            _testDatabase.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid(new UnixTimeUtc(100));
+            var s1 = SequentialGuid.CreateGuid().ToByteArray();
+            var t1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid(new UnixTimeUtc(1000));
+            var f3 = SequentialGuid.CreateGuid(new UnixTimeUtc(1999));
+            var f4 = SequentialGuid.CreateGuid(new UnixTimeUtc(2000));
+            var f5 = SequentialGuid.CreateGuid(new UnixTimeUtc(2001));
+
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 0, null, null);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 1, null, null);
+            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null);
+            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null);
+            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 3, null, null);
+
+            QueryBatchCursor cursor = new QueryBatchCursor(f4.ToByteArray());
+            var (result, moreRows) = _testDatabase.QueryBatch(100, ref cursor, newestFirstOrder: false, fileIdSort: true, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 3);
+            Debug.Assert(cursor.nextBoundaryCursor == null);
+            Debug.Assert(moreRows == false);
+
+            Debug.Assert(ByteArrayUtil.muidcmp(f1, result[0]) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f2, result[1]) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f3, result[2]) == 0);
+        }
+
+
+
+        /// <summary>
         /// Scenario: Use a userDate cursor, forward, check it stops at the given boundary.
         /// Will not include the "2000" boundary
         /// </summary>
         [Test]
-        public void CursorsBoundaryTest01()
+        public void CursorsUDBoundaryTest01()
         {
             using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
@@ -355,12 +391,46 @@ namespace DriveDatabaseTests
             Debug.Assert(ByteArrayUtil.muidcmp(f3, result[2]) == 0);
         }
 
+        /// <summary>
+        /// Scenario: Use a cursor, forward, check it stops at the given boundary.
+        /// </summary>
+        [Test]
+        public void CursorsBoundaryTest02()
+        {
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            _testDatabase.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid(new UnixTimeUtc(200001));
+            var s1 = SequentialGuid.CreateGuid().ToByteArray();
+            var t1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid(new UnixTimeUtc(20000));
+            var f3 = SequentialGuid.CreateGuid(new UnixTimeUtc(2001));
+            var f4 = SequentialGuid.CreateGuid(new UnixTimeUtc(2000));
+            var f5 = SequentialGuid.CreateGuid(new UnixTimeUtc(1999));
+
+            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null);
+            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 3, null, null);
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 0, null, null);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 1, null, null);
+            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 42, 0, 2, null, null);
+
+            QueryBatchCursor cursor = new QueryBatchCursor(f4.ToByteArray());
+            var (result, moreRows) = _testDatabase.QueryBatch(100, ref cursor, newestFirstOrder: true, fileIdSort: true, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 3);
+            Debug.Assert(cursor.nextBoundaryCursor == null);
+            Debug.Assert(moreRows == false);
+
+            Debug.Assert(ByteArrayUtil.muidcmp(f1, result[0]) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f2, result[1]) == 0);
+            Debug.Assert(ByteArrayUtil.muidcmp(f3, result[2]) == 0);
+        }
+
 
         /// <summary>
         /// Scenario: Use a userDate cursor, forward, check it stops at the given boundary.
         /// </summary>
         [Test]
-        public void CursorsBoundaryTest02()
+        public void CursorsUDBoundaryTest02()
         {
             using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
             _testDatabase.CreateDatabase();
@@ -434,7 +504,7 @@ namespace DriveDatabaseTests
             Debug.Assert(moreRows == false);
 
             cursor = null;
-            (result, moreRows) = _testDatabase.QueryBatchAuto(10, ref cursor, archivalStatusAnyOf: new List<Int32>() { 0,1 }, requiredSecurityGroup: allIntRange);
+            (result, moreRows) = _testDatabase.QueryBatchAuto(10, ref cursor, archivalStatusAnyOf: new List<Int32>() { 0, 1 }, requiredSecurityGroup: allIntRange);
             Debug.Assert(result.Count == 5);
             Debug.Assert(moreRows == false);
 
@@ -930,8 +1000,8 @@ namespace DriveDatabaseTests
             var t1 = SequentialGuid.CreateGuid();
             var f2 = SequentialGuid.CreateGuid();
             var f3 = SequentialGuid.CreateGuid();
-            var f4 = SequentialGuid.CreateGuid(); 
-            var f5 = SequentialGuid.CreateGuid(); 
+            var f4 = SequentialGuid.CreateGuid();
+            var f5 = SequentialGuid.CreateGuid();
             var f6 = SequentialGuid.CreateGuid(); // Newest
 
             _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null);
@@ -1079,8 +1149,8 @@ namespace DriveDatabaseTests
             var t1 = SequentialGuid.CreateGuid();
             var f2 = SequentialGuid.CreateGuid();
             var f3 = SequentialGuid.CreateGuid();
-            var f4 = SequentialGuid.CreateGuid(); 
-            var f5 = SequentialGuid.CreateGuid(); 
+            var f4 = SequentialGuid.CreateGuid();
+            var f5 = SequentialGuid.CreateGuid();
             var f6 = SequentialGuid.CreateGuid(); // Newest
 
             _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 42, new UnixTimeUtc(0), 0, null, null);
