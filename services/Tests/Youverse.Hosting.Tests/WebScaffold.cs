@@ -57,7 +57,7 @@ namespace Youverse.Hosting.Tests
 
             Environment.SetEnvironmentVariable("Development__SslSourcePath", "./https/");
             Environment.SetEnvironmentVariable("Development__PreconfiguredDomains",
-                "[\"frodo.digital\",\"samwise.digital\", \"merry.youfoundation.id\",\"pippin.youfoundation.id\"]");
+                "[\"frodo.dotyou.cloud\",\"sam.dotyou.cloud\", \"merry.dotyou.cloud\",\"pippin.dotyou.cloud\"]");
 
             Environment.SetEnvironmentVariable("Registry__ProvisioningDomain", "provisioning-dev.youfoundation.id");
             Environment.SetEnvironmentVariable("Registry__ManagedDomains", "[\"dev.dominion.id\"]");

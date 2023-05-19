@@ -16,7 +16,7 @@ namespace Youverse.Core.Services.Certificate
         public X509Certificate2 GetSslCertificate(string domain);
 
         /// <summary>
-        /// Looks up the certificate to be used for the domain; even if the domain is supported as a SAN (i.e. www.frodo.digital comes from the certificate for frodo.digital)
+        /// Looks up the certificate to be used for the domain; even if the domain is supported as a SAN
         /// </summary>
         /// <param name="idReg"></param>
         X509Certificate2 ResolveCertificate(IdentityRegistration idReg);
