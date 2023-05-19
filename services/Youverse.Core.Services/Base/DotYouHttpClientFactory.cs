@@ -7,6 +7,7 @@ using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Certificate;
+using Youverse.Core.Services.Registry.Registration;
 using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Base
@@ -65,7 +66,7 @@ namespace Youverse.Core.Services.Base
                 BaseAddress = new UriBuilder()
                 {
                     Scheme = "https",
-                    Host = odinId
+                    Host = DnsConfigurationSet.PrefixCertApi + "." + odinId
                 }.Uri
             };
 
