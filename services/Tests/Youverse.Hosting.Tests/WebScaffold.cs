@@ -5,6 +5,8 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Moq;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core;
@@ -12,6 +14,8 @@ using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Certificate;
+using Youverse.Core.Services.Dns.PowerDns;
 using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Storage;
@@ -99,8 +103,10 @@ namespace Youverse.Hosting.Tests
             CreateLogs();
 
             var trie = new Trie<IdentityRegistration>();
-            _registry = new FileSystemIdentityRegistry(trie, TestDataPath, null);
-            _registry.Initialize();
+            
+            
+            var certificateServiceFactory = CreateCertificateFactoryServiceMock();
+            _registry = new FileSystemIdentityRegistry(trie, certificateServiceFactory, TestDataPath, null);
 
             var (config, _) = Program.LoadConfig();
             DevEnvironmentSetup.RegisterPreconfiguredDomains(config, _registry);
@@ -185,6 +191,20 @@ namespace Youverse.Hosting.Tests
             var problemDetails = DotYouSystemSerializer.Deserialize<ProblemDetails>(apiException.Content!);
             Assert.IsNotNull(problemDetails);
             return (YouverseClientErrorCode)int.Parse(problemDetails.Extensions["errorCode"].ToString() ?? string.Empty);
+        }
+
+        public CertificateServiceFactory CreateCertificateFactoryServiceMock()
+        {
+            var certesAcme = new CertesAcme(
+                new Mock<ILogger<CertesAcme>>().Object,
+                new Mock<IAcmeHttp01TokenCache>().Object,
+                new Mock<IHttpClientFactory>().Object,
+                false);
+
+            return new CertificateServiceFactory(
+                new Mock<ILogger<CertificateService>>().Object,
+                certesAcme,
+                new AcmeAccountConfig());
         }
 
         private void CreateData()

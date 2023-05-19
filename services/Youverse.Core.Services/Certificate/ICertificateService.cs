@@ -6,7 +6,7 @@ using Youverse.Core.Services.Registry;
 
 namespace Youverse.Core.Services.Certificate
 {
-    public interface ITenantCertificateService
+    public interface ICertificateService
     {
         /// <summary>
         /// Returns the SSL certificate for the current OdinId

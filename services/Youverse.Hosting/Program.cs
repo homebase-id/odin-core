@@ -36,10 +36,6 @@ namespace Youverse.Hosting
         private const string LogOutputTemplate = "{Timestamp:o} {Level:u3} {CorrelationId} {Hostname} {Message:lj}{NewLine}{Exception}"; // Add {SourceContext} to see source
         private static readonly SystemConsoleTheme LogOutputTheme = SystemConsoleTheme.Literate;
         
-        // SEB:TODO move these two into startup.cs and do proper DI, if possible
-        private static readonly Trie<IdentityRegistration> Trie = new ();
-        private static IIdentityRegistry _registry;
-
         public static int Main(string[] args)
         {
             Log.Logger = new LoggerConfiguration()
@@ -113,11 +109,6 @@ namespace Youverse.Hosting
 
             Log.Information($"Root path:{youverseConfig.Host.TenantDataRootPath}");
  
-            _registry = new FileSystemIdentityRegistry(Trie, youverseConfig.Host.TenantDataRootPath, youverseConfig.CertificateRenewal.ToCertificateRenewalConfig());
-            _registry.Initialize();
-
-            DevEnvironmentSetup.ConfigureIfPresent(youverseConfig, _registry);
-
             var builder = Host.CreateDefaultBuilder(args)
                 .ConfigureAppConfiguration(builder =>
                 {
@@ -125,11 +116,6 @@ namespace Youverse.Hosting
                 })
                 .UseSystemd()
                 .UseServiceProviderFactory(new MultiTenantServiceProviderFactory(DependencyInjection.ConfigureMultiTenantServices, DependencyInjection.InitializeTenant))
-                .ConfigureServices(services =>
-                {
-                    services.AddSingleton(Trie);
-                    services.AddSingleton(_registry);
-                })
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.ConfigureKestrel(kestrelOptions => 
@@ -246,24 +232,22 @@ namespace Youverse.Hosting
             //
             // Hostname -> tenant
             //
-            var idReg = _registry.ResolveIdentityRegistration(hostName, out _);
+            var registry = serviceProvider.GetRequiredService<IIdentityRegistry>();
+            var idReg = registry.ResolveIdentityRegistration(hostName, out _);
             if (idReg == null)
             {
-                Log.Debug("Will not return certificate because {host} does not belong here (yet?)", hostName);
+                Log.Debug("Cannot return certificate because {host} does not belong here", hostName);
                 return null;
             }
             
-            var logger = serviceProvider.GetRequiredService<ILogger<TenantCertificateService>>();
-            var certesAcme = serviceProvider.GetRequiredService<ICertesAcme>();
-            var acmeAccountConfig = serviceProvider.GetRequiredService<AcmeAccountConfig>();
+            // SEB:TODO
+            // TenantContext.Create does IO. This is bad in critical path.
+            // Find another way to get the SslRoot of the tenant
             var tenantContext =
                 TenantContext.Create(idReg.Id, idReg.PrimaryDomainName, config.Host.TenantDataRootPath, null);
-
-            var tc = new TenantCertificateService(
-                logger, 
-                certesAcme, 
-                acmeAccountConfig,
-                tenantContext);
+            
+            var certificateServiceFactory = serviceProvider.GetRequiredService<ICertificateServiceFactory>();
+            var tc = certificateServiceFactory.Create(tenantContext.SslRoot);
 
             // 
             // Lookup tenant and certificate

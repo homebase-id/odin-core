@@ -1,36 +1,35 @@
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Registry;
 
 namespace Youverse.Core.Services.Certificate
 {
-    public class TenantCertificateService : ITenantCertificateService
+    // You can create me using ICertificateServiceFactory, if you prefer
+    public class CertificateService : ICertificateService
     {
-        private readonly ILogger<TenantCertificateService> _logger;
+        private readonly ILogger<CertificateService> _logger;
         private readonly ICertesAcme _certesAcme;
         private readonly AcmeAccountConfig _accountConfig;
-        private readonly TenantContext _tenantContext;
+        private readonly string _sslRootPath;
 
         private static readonly ConcurrentDictionary<string, SemaphoreSlim> DomainSemaphores = new();
         
-        public TenantCertificateService(
-            ILogger<TenantCertificateService> logger, 
+        public CertificateService(
+            ILogger<CertificateService> logger, 
             ICertesAcme certesAcme,
             AcmeAccountConfig accountConfig,
-            TenantContext tenantContext)
+            string sslRootPath)
         {
             _logger = logger;
             _certesAcme = certesAcme;
             _accountConfig = accountConfig;
-            _tenantContext = tenantContext;
+            _sslRootPath = sslRootPath;
         }
         
         //
@@ -45,7 +44,7 @@ namespace Youverse.Core.Services.Certificate
             }
                 
             // Not found? Load from disk, put in cache
-            var (privateKeyPath, certificatePath) = GetCertificatePaths(_tenantContext.SslRoot, domain);
+            var (privateKeyPath, certificatePath) = GetCertificatePaths(_sslRootPath, domain);
             cert = DotYouCertificateCache.LoadCertificate(domain, privateKeyPath, certificatePath);
 
             return cert;
@@ -119,7 +118,7 @@ namespace Youverse.Core.Services.Certificate
                 }
 
                 var pems = await _certesAcme.CreateCertificate(account, idReg.GetDomains());
-                await SaveSslCertificate(_tenantContext.SslRoot, idReg.PrimaryDomainName, pems);
+                await SaveSslCertificate(idReg.PrimaryDomainName, pems);
                 
                 var x509 = ResolveCertificate(idReg);
                 if (x509 != null)
@@ -180,9 +179,9 @@ namespace Youverse.Core.Services.Certificate
         
         //
         
-        public static async Task SaveSslCertificate(string sslRoot, string domain, KeysAndCertificates pems)
+        public async Task SaveSslCertificate(string domain, KeysAndCertificates pems)
         {
-            var (privateKeyPath, certificatePath) = GetCertificatePaths(sslRoot, domain);
+            var (privateKeyPath, certificatePath) = GetCertificatePaths(_sslRootPath, domain);
         
             DotYouCertificateCache.SaveToFile(domain, pems.PrivateKeyPem, pems.CertificatesPem, privateKeyPath, certificatePath);
 

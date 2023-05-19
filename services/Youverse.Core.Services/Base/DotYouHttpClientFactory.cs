@@ -18,13 +18,16 @@ namespace Youverse.Core.Services.Base
     public class DotYouHttpClientFactory : IDotYouHttpClientFactory
     {
         private readonly DotYouContextAccessor _contextAccessor;
-        private readonly ITenantCertificateService _tenantCertificateService;
+        private readonly ICertificateServiceFactory _certificateServiceFactory;
         private readonly TenantContext _tenantContext;
 
-        public DotYouHttpClientFactory(DotYouContextAccessor contextAccessor, ITenantCertificateService tenantCertificateService, TenantContext tenantContext)
+        public DotYouHttpClientFactory(
+            DotYouContextAccessor contextAccessor, 
+            ICertificateServiceFactory certificateServiceFactory, 
+            TenantContext tenantContext)
         {
             _contextAccessor = contextAccessor;
-            _tenantCertificateService = tenantCertificateService;
+            _certificateServiceFactory = certificateServiceFactory;
             _tenantContext = tenantContext;
         }
 
@@ -50,7 +53,8 @@ namespace Youverse.Core.Services.Base
 
             var handler = new HttpClientHandler();
 
-            var cert = _tenantCertificateService.GetSslCertificate(_tenantContext.HostOdinId);
+            var certificateService = _certificateServiceFactory.Create(_tenantContext.SslRoot);
+            var cert = certificateService.GetSslCertificate(_tenantContext.HostOdinId);
             if (null == cert)
             {
                 throw new YouverseSystemException($"No certificate configured for {_tenantContext.HostOdinId}");
