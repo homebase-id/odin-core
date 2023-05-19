@@ -11,7 +11,7 @@ namespace Youverse.Core.Identity
     [JsonConverter(typeof(OdinIdConverter))]
     public readonly struct OdinId
     {
-        private readonly string _domainName;
+        private readonly PunyDomainName _domainName;
         private readonly Guid _hash;
 
         /// <summary>
@@ -24,16 +24,23 @@ namespace Youverse.Core.Identity
             if (identifier == null) 
                 throw new ArgumentNullException(nameof(identifier));
 
-            var s = identifier?.ToLower().Trim();
-            DomainNameValidator.AssertValidDomain(s);
 
-            _domainName = s;
+            _domainName = new PunyDomainName(identifier);
 
             // I would have preferred if the HASH was evaluated lazily. But that's not possible with a RO struct.
-            _hash = new Guid(HashUtil.ReduceSHA256Hash(_domainName.ToUtf8ByteArray()));
+            _hash = new Guid(HashUtil.ReduceSHA256Hash(_domainName.DomainName.ToUtf8ByteArray()));
         }
 
-        [JsonIgnore] public string DomainName => _domainName;
+        public OdinId(PunyDomainName punyDomain)
+        {
+            _domainName = punyDomain;
+
+            // I would have preferred if the HASH was evaluated lazily. But that's not possible with a RO struct.
+            _hash = new Guid(HashUtil.ReduceSHA256Hash(_domainName.DomainName.ToUtf8ByteArray()));
+        }
+
+
+        [JsonIgnore] public string DomainName => _domainName.DomainName;
 
         public bool HasValue()
         {
@@ -48,7 +55,7 @@ namespace Youverse.Core.Identity
 
         public static implicit operator string(OdinId dy)
         {
-            return dy._domainName;
+            return dy._domainName.DomainName;
         }
 
         public static explicit operator OdinId(string id)
@@ -69,12 +76,12 @@ namespace Youverse.Core.Identity
 
         public override int GetHashCode()
         {
-            return _domainName?.GetHashCode() ?? 0;
+            return _domainName.DomainName?.GetHashCode() ?? 0;
         }
 
         public override string ToString()
         {
-            return _domainName;
+            return _domainName.DomainName;
         }
 
         /// <summary>
@@ -88,7 +95,7 @@ namespace Youverse.Core.Identity
 
         public byte[] ToByteArray()
         {
-            var key = _domainName.ToUtf8ByteArray();
+            var key = _domainName.DomainName.ToUtf8ByteArray();
             return key;
         }
 
@@ -100,7 +107,7 @@ namespace Youverse.Core.Identity
         public static void Validate(string odinId)
         {
             // Will always return true
-            DomainNameValidator.AssertValidDomain(odinId);
+            PunyDomainNameValidator.AssertValidDomain(odinId);
         }
     }
 }
