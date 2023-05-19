@@ -125,7 +125,7 @@ namespace Youverse.Hosting.Tests.Performance
 
             var recipients = new List<string>()
             {
-                "samwise.digital"
+                "sam.dotyou.cloud"
             };
 
 

@@ -7,8 +7,8 @@ namespace Youverse.Core.Tests
     {
         // private static IdentityCertificate _id;
         //
-        // static OdinId frodo = (OdinId)"frodo.digital";
-        // static OdinId samwise = (OdinId)"samwise.digital";
+        // static OdinId frodo = (OdinId)"frodo.dotyou.cloud";
+        // static OdinId samwise = (OdinId)"sam.dotyou.cloud";
         //
         // //IHost webserver;
         // // IdentityContextRegistry _registry;

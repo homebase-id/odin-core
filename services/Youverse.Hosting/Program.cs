@@ -1,23 +1,16 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Connections;
-using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Quartz.Logging;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
@@ -32,6 +25,7 @@ using Youverse.Core.Services.Certificate;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Registry.Registration;
+using Youverse.Core.Trie;
 using Youverse.Hosting._dev;
 using Youverse.Hosting.Multitenant;
 
@@ -41,8 +35,7 @@ namespace Youverse.Hosting
     {
         private const string LogOutputTemplate = "{Timestamp:o} {Level:u3} {CorrelationId} {Hostname} {Message:lj}{NewLine}{Exception}"; // Add {SourceContext} to see source
         private static readonly SystemConsoleTheme LogOutputTheme = SystemConsoleTheme.Literate;
-        private static IIdentityRegistry _registry;
-
+        
         public static int Main(string[] args)
         {
             Log.Logger = new LoggerConfiguration()
@@ -115,12 +108,7 @@ namespace Youverse.Hosting
             }
 
             Log.Information($"Root path:{youverseConfig.Host.TenantDataRootPath}");
-
-            _registry = new FileSystemIdentityRegistry(youverseConfig.Host.TenantDataRootPath, youverseConfig.CertificateRenewal.ToCertificateRenewalConfig());
-            _registry.Initialize();
-
-            DevEnvironmentSetup.ConfigureIfPresent(youverseConfig, _registry);
-
+ 
             var builder = Host.CreateDefaultBuilder(args)
                 .ConfigureAppConfiguration(builder =>
                 {
@@ -128,11 +116,6 @@ namespace Youverse.Hosting
                 })
                 .UseSystemd()
                 .UseServiceProviderFactory(new MultiTenantServiceProviderFactory(DependencyInjection.ConfigureMultiTenantServices, DependencyInjection.InitializeTenant))
-                .ConfigureServices(services =>
-                {
-                    //TODO: I'm not sure it's a good idea to add this as a service.
-                    services.Add(new ServiceDescriptor(typeof(IIdentityRegistry), _registry));
-                })
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.ConfigureKestrel(kestrelOptions => 
@@ -149,7 +132,9 @@ namespace Youverse.Hosting
                            
                             listenOptions.UseHttps(async (stream, clientHelloInfo, state, cancellationToken) =>
                             {
-                                var hostName = clientHelloInfo.ServerName;
+                                // SEB:NOTE ToLower() should not be needed here, but better safe than sorry.
+                                var hostName = clientHelloInfo.ServerName.ToLower(); 
+                                
                                 var serviceProvider = kestrelOptions.ApplicationServices;     
                                 var cert = await ServerCertificateSelector(hostName, youverseConfig, serviceProvider);
 
@@ -159,15 +144,20 @@ namespace Youverse.Hosting
                                     // when no certificate could be found
                                     throw new ConnectionAbortedException();
                                 }
-                                
+
                                 var result = new SslServerAuthenticationOptions
                                 {
-                                    AllowRenegotiation = true,
-                                    ClientCertificateRequired = true,
-                                    RemoteCertificateValidationCallback = (sender, certificate, chain, errors) => true, 
                                     ServerCertificate = cert
                                 };
-
+                                
+                                // Require client certificate if domain prefix is "capi"
+                                if (hostName.StartsWith(DnsConfigurationSet.PrefixCertApi))
+                                {
+                                    result.AllowRenegotiation = true;
+                                    result.ClientCertificateRequired = true;
+                                    result.RemoteCertificateValidationCallback = (_,_,_,_) => true;
+                                }
+                                
                                 return result;
                             }, state: null!, handshakeTimeoutTimeSpan);
                         });
@@ -224,15 +214,13 @@ namespace Youverse.Hosting
             }
             
             // Provisioning specifics
-            // SEB:TODO why not create letsencrypt cert here as well?
-            if (hostName.ToLower().Trim() == config.Registry.ProvisioningDomain.ToLower().Trim())
+            // SEB:TODO should we create letsencrypt cert for provisioning as well?
+            if (hostName == config.Registry.ProvisioningDomain)
             {
-                //Log.Debug("Loading certificate for provisioning domain");
-                string publicKeyPath = Path.Combine(config.Host.SystemSslRootPath, config.Registry.ProvisioningDomain, "certificate.crt");
-                string privateKeyPath = Path.Combine(config.Host.SystemSslRootPath, config.Registry.ProvisioningDomain, "private.key");
-                //Log.Debug($"Checking path [{publicKeyPath}]");
+                var publicKeyPath = Path.Combine(config.Host.SystemSslRootPath, config.Registry.ProvisioningDomain, "certificate.crt");
+                var privateKeyPath = Path.Combine(config.Host.SystemSslRootPath, config.Registry.ProvisioningDomain, "private.key");
 
-                var cert = DotYouCertificateCache.LoadCertificate(privateKeyPath, publicKeyPath);
+                var cert = DotYouCertificateCache.LoadCertificate(hostName, privateKeyPath, publicKeyPath);
                 if (null == cert)
                 {
                     Log.Error($"No certificate configured for {hostName}");
@@ -244,30 +232,27 @@ namespace Youverse.Hosting
             //
             // Hostname -> tenant
             //
-            var registryId = _registry.ResolveId(hostName);
-            if (registryId == null)
+            var registry = serviceProvider.GetRequiredService<IIdentityRegistry>();
+            var idReg = registry.ResolveIdentityRegistration(hostName, out _);
+            if (idReg == null)
             {
-                Log.Debug("Will not return certificate because {host} does not belong here (yet?)", hostName);
+                Log.Debug("Cannot return certificate because {host} does not belong here", hostName);
                 return null;
             }
             
-            var odinId = (OdinId)hostName;
-            var logger = serviceProvider.GetRequiredService<ILogger<TenantCertificateService>>();
-            var certesAcme = serviceProvider.GetRequiredService<ICertesAcme>();
-            var acmeAccountConfig = serviceProvider.GetRequiredService<AcmeAccountConfig>();
+            // SEB:TODO
+            // TenantContext.Create does IO. This is bad in critical path.
+            // Find another way to get the SslRoot of the tenant
             var tenantContext =
-                TenantContext.Create(registryId.Value, odinId, config.Host.TenantDataRootPath, null);
-
-            var tc = new TenantCertificateService(
-                logger, 
-                certesAcme, 
-                acmeAccountConfig,
-                tenantContext);
+                TenantContext.Create(idReg.Id, idReg.PrimaryDomainName, config.Host.TenantDataRootPath, null);
+            
+            var certificateServiceFactory = serviceProvider.GetRequiredService<ICertificateServiceFactory>();
+            var tc = certificateServiceFactory.Create(tenantContext.SslRoot);
 
             // 
             // Lookup tenant and certificate
             //
-            var certificate = tc.ResolveCertificate(odinId);
+            var certificate = tc.ResolveCertificate(idReg);
             if (null != certificate)
             {
                 return certificate;
@@ -276,7 +261,7 @@ namespace Youverse.Hosting
             // 
             // Tenant found, but no certificate. Create it.
             //
-            certificate = await tc.CreateCertificate(hostName);
+            certificate = await tc.CreateCertificate(idReg);
 
             if (null == certificate)
             {

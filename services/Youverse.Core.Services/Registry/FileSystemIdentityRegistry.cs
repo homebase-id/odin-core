@@ -11,6 +11,7 @@ using Youverse.Core.Identity;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Certificate;
+using Youverse.Core.Services.Registry.Registration;
 using Youverse.Core.Trie;
 
 namespace Youverse.Core.Services.Registry;
@@ -21,11 +22,16 @@ namespace Youverse.Core.Services.Registry;
 public class FileSystemIdentityRegistry : IIdentityRegistry
 {
     private readonly Dictionary<Guid, IdentityRegistration> _cache;
-    private readonly Trie.Trie<IdentityRegistration> _trie;
+    private readonly Trie<IdentityRegistration> _trie;
+    private readonly ICertificateServiceFactory _certificateServiceFactory;
     private readonly string _tenantDataRootPath;
     private readonly CertificateRenewalConfig _certificateRenewalConfig;
    
-    public FileSystemIdentityRegistry(string tenantDataRootPath, CertificateRenewalConfig certificateRenewalConfig)
+    public FileSystemIdentityRegistry(
+        Trie<IdentityRegistration> trie,
+        ICertificateServiceFactory certificateServiceFactory,
+        string tenantDataRootPath, 
+        CertificateRenewalConfig certificateRenewalConfig)
     {
         if (!Directory.Exists(tenantDataRootPath))
         {
@@ -33,9 +39,12 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         }
         
         _cache = new Dictionary<Guid, IdentityRegistration>();
-        _trie = new Trie<IdentityRegistration>();
+        _trie = trie;
+        _certificateServiceFactory = certificateServiceFactory;
         _tenantDataRootPath = tenantDataRootPath;
         _certificateRenewalConfig = certificateRenewalConfig;
+
+        Initialize();
     }
 
     public void Initialize()
@@ -48,7 +57,31 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var reg = _trie.LookupExactName(domain);
         return reg?.Id; 
     }
+    
+    public IdentityRegistration ResolveIdentityRegistration(string domain, out string prefix)
+    {
+        if (string.IsNullOrEmpty(domain))
+        {
+            prefix = "";
+            return null;
+        }
+            
+        var (reg, pre) = _trie.LookupName(domain);
 
+        prefix = pre;
+        if (reg == null)
+        {
+            return null;
+        }
+        
+        if (string.IsNullOrEmpty(prefix) || DnsConfigurationSet.WellknownPrefixes.Contains(prefix))
+        {
+            return reg;
+        }
+        
+        return null; 
+    }
+    
     public Task<bool> IsIdentityRegistered(string domain)
     {
         return Task.FromResult(_trie.LookupExactName(domain) != null);
@@ -80,8 +113,9 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             //TODO: is there a way to pull a specific tenant's service config from Autofac?
             // SEB:TODO Yes, but need to DI this class first.
             var tenantContext = TenantContext.Create(registration.Id, request.OdinId, _tenantDataRootPath, _certificateRenewalConfig);
-            await TenantCertificateService.SaveSslCertificate(
-                tenantContext.SslRoot,
+            
+            var tc = _certificateServiceFactory.Create(tenantContext.SslRoot);
+            await tc.SaveSslCertificate(
                 request.OdinId.DomainName,
                 new KeysAndCertificates
                 {

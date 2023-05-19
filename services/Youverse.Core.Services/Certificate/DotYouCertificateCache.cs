@@ -10,29 +10,40 @@ namespace Youverse.Core.Services.Certificate;
 
 // SEB:TODO dependency inject this class
 // SEB:NOTE no async here to minimize overhead in happy path
+// SEB:NOTE we accept interleaving threads in here. The end result is always the same.
 public static class DotYouCertificateCache
 {
     private static readonly ConcurrentDictionary<string, X509Certificate2?> Cache = new ();
     private static readonly object FileMutex = new ();
     
-    public static X509Certificate2? LoadCertificate(string keyPemPath, string certificatePemPath)
+    public static X509Certificate2? LookupCertificate(string domain)
     {
-        var cacheKey = certificatePemPath.ToLower();
-        var x509 = Cache.GetOrAdd(cacheKey, _ => LoadFromFile(keyPemPath, certificatePemPath));
+        Cache.TryGetValue(domain, out var x509);
+        
+        if (x509 == null)
+        {
+            return null;
+        }
         
         // Expired?
         var now = DateTime.Now;
-        if (x509 != null && (now < x509.NotBefore || now > x509.NotAfter))
+        if (now >= x509.NotBefore && now <= x509.NotAfter)
         {
-            x509 = null;
+            return x509;
         }
-
-        if (x509 == null)
-        {
-            Cache.TryRemove(cacheKey, out _);
-        }
-
-        return x509;
+        
+        Cache.TryRemove(domain, out _);
+        return null;
+    }
+    
+    //
+    
+    public static X509Certificate2? LoadCertificate(string domain, string keyPemPath, string certificatePemPath)
+    {
+        Cache.GetOrAdd(domain, _ => LoadFromFile(keyPemPath, certificatePemPath));
+        
+        // Double look-up to take care of expiration 
+        return LookupCertificate(domain);
     }
     
     //
@@ -45,7 +56,7 @@ public static class DotYouCertificateCache
     
     //
     
-    public static void SaveToFile(string keyPem, string certificatePem, string keyPemPath, string certificatePemPath)
+    public static void SaveToFile(string domain, string keyPem, string certificatePem, string keyPemPath, string certificatePemPath)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(keyPemPath) ?? "");
         Directory.CreateDirectory(Path.GetDirectoryName(certificatePemPath) ?? "");
@@ -56,7 +67,7 @@ public static class DotYouCertificateCache
             File.WriteAllText(certificatePemPath, certificatePem);
         }
 
-        UpdateCertificate(keyPemPath, certificatePemPath);
+        UpdateCertificate(domain, keyPemPath, certificatePemPath);
     }
     
     //
@@ -86,17 +97,16 @@ public static class DotYouCertificateCache
     
     //
     
-    private static void UpdateCertificate(string keyPemPath, string certificatePemPath)
+    private static void UpdateCertificate(string domain, string keyPemPath, string certificatePemPath)
     {
-        var cacheKey = certificatePemPath.ToLower();
         var x509 = LoadFromFile(keyPemPath, certificatePemPath);
         if (x509 == null)
         {
-            Cache.TryRemove(cacheKey, out _);
+            Cache.TryRemove(domain, out _);
         }
         else
         {
-            Cache[cacheKey] = x509; 
+            Cache[domain] = x509; 
         }
     }
     

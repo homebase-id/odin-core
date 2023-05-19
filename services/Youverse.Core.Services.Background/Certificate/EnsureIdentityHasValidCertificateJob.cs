@@ -39,9 +39,7 @@ namespace Youverse.Core.Services.Workers.Certificate
         {
             _logger.LogDebug("Executing job {job} on thread {managedThreadId}", GetType().Name, Environment.CurrentManagedThreadId);
 
-            var logger = _serviceProvider.GetRequiredService<ILogger<TenantCertificateService>>();
-            var certesAcme = _serviceProvider.GetRequiredService<ICertesAcme>();
-            var acmeAccountConfig = _serviceProvider.GetRequiredService<AcmeAccountConfig>();
+            var certificateServiceFactory = _serviceProvider.GetRequiredService<ICertificateServiceFactory>();
             
             var tasks = new List<Task>();
             var identities = await _registry.GetList();
@@ -49,8 +47,8 @@ namespace Youverse.Core.Services.Workers.Certificate
             {
                 var tenantContext =
                     TenantContext.Create(identity.Id, identity.PrimaryDomainName, _config.Host.TenantDataRootPath, null);
-                var tc = new TenantCertificateService(logger, certesAcme, acmeAccountConfig, tenantContext);
-                var task = tc.RenewIfAboutToExpire(identity.PrimaryDomainName);
+                var tc = certificateServiceFactory.Create(tenantContext.SslRoot);
+                var task = tc.RenewIfAboutToExpire(identity);
                 tasks.Add(task);
             }
             await Task.WhenAll(tasks);

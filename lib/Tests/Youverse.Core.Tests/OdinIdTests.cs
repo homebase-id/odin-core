@@ -6,8 +6,8 @@ namespace Youverse.Core.Tests
 {
     public class OdinIdTests
     {
-        OdinId frodo = new OdinId("frodo.digital");
-        OdinId sam = new OdinId("samwise.digital");
+        OdinId frodo = new OdinId("frodo.dotyou.cloud");
+        OdinId sam = new OdinId("sam.dotyou.cloud");
         OdinId gandalf = new OdinId("gandalf.MIDDLEEARTH.life"); //Intentionally capitalized
 
         [SetUp]
@@ -35,7 +35,7 @@ namespace Youverse.Core.Tests
         [Test(Description = "Can == two instances")]
         public void CanCompareTwoInstancesEqually()
         {
-            var sam2 = new OdinId("samwise.digital");
+            var sam2 = new OdinId("sam.dotyou.cloud");
             Assert.IsTrue(sam2 == sam);
         }
 

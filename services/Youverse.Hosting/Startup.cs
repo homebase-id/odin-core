@@ -25,10 +25,13 @@ using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Dns;
 using Youverse.Core.Services.Dns.PowerDns;
 using Youverse.Core.Services.Logging;
+using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Registry.Registration;
 using Youverse.Core.Services.Transit.SendingHost.Outbox;
 using Youverse.Core.Services.Workers.Certificate;
 using Youverse.Core.Services.Workers.DefaultCron;
+using Youverse.Core.Trie;
+using Youverse.Hosting._dev;
 using Youverse.Hosting.Authentication.ClientToken;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Authentication.Perimeter;
@@ -164,9 +167,13 @@ namespace Youverse.Hosting
             // In production, the React files will be served from this directory
             services.AddSpaStaticFiles(configuration => { configuration.RootPath = "client/"; });
 
-            //
-            // Provisioning specifics
-            //
+            services.AddSingleton(new Trie<IdentityRegistration>());
+            services.AddSingleton<IIdentityRegistry>(sp => new FileSystemIdentityRegistry(
+                sp.GetRequiredService<Trie<IdentityRegistration>>(),
+                sp.GetRequiredService<ICertificateServiceFactory>(),
+                config.Host.TenantDataRootPath,
+                config.CertificateRenewal.ToCertificateRenewalConfig()));
+            
             services.AddSingleton(new AcmeAccountConfig
             {
                 AcmeContactEmail = config.CertificateRenewal.CertificateAuthorityAssociatedEmail,
@@ -181,6 +188,7 @@ namespace Youverse.Hosting
                 sp.GetRequiredService<IAcmeHttp01TokenCache>(),
                 sp.GetRequiredService<IHttpClientFactory>(),
                 config.CertificateRenewal.UseCertificateAuthorityProductionServers));
+            services.AddSingleton<ICertificateServiceFactory, CertificateServiceFactory>();
             services.AddHttpClient<IDnsRestClient, PowerDnsRestClient>(client =>
             {
                 client.BaseAddress = new Uri($"https://{config.Registry.PowerDnsHostAddress}/api/v1");
@@ -236,7 +244,10 @@ namespace Youverse.Hosting
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILogger<Startup> logger)
         {
-            // var config = new YouverseConfiguration(Configuration);
+            var config = app.ApplicationServices.GetRequiredService<YouverseConfiguration>();
+            var registry = app.ApplicationServices.GetRequiredService<IIdentityRegistry>();
+            
+            DevEnvironmentSetup.ConfigureIfPresent(config, registry);
             
             app.UseLoggingMiddleware();
             app.UseMiddleware<ExceptionHandlingMiddleware>();
