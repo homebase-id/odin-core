@@ -89,17 +89,7 @@ namespace Youverse.Core.Services.Base
                 //TODO: need to encrypt this token somehow? (shared secret?)
                 client.DefaultRequestHeaders.Add(DotYouHeaderNames.ClientAuthToken, clientAuthenticationToken.ToString());
             }
-
-
-// start hack
-#if DEBUG
-            if (cert.Subject.Contains("*.youfoundation.id"))
-            {
-                client.DefaultRequestHeaders.Add("dns_hack", _tenantContext.HostOdinId);
-            }
-#endif
-// end hack
-
+            
             var ogClient = RestService.For<T>(client);
             return ogClient;
         }
