@@ -73,25 +73,15 @@ namespace Youverse.Hosting._dev
 
         private static (string publicKey, string privateKey) GetSourceDomainPath(string domain, YouverseConfiguration youverseConfiguration)
         {
-            // SEB:TODO cleanup when all certificates are aligned
-            
             var root = Path.Combine(youverseConfiguration.Development!.SslSourcePath, domain);
             
             var sourcePublicKeyPath = Path.Combine(root, "certificate.crt");
-            if (!File.Exists(sourcePublicKeyPath))
-            {
-                sourcePublicKeyPath = Path.Combine(root, "fullchain.pem");
-            }
             if (!File.Exists(sourcePublicKeyPath))
             {
                 throw new Exception($"Cannot find [{sourcePublicKeyPath}]");
             }
                 
             var sourcePrivateKeyPath = Path.Combine(root, "private.key");
-            if (!File.Exists(sourcePrivateKeyPath))
-            {
-                sourcePrivateKeyPath = Path.Combine(root, "privkey.pem");
-            }
             if (!File.Exists(sourcePrivateKeyPath))
             {
                 throw new Exception($"Cannot find [{sourcePrivateKeyPath}]");
