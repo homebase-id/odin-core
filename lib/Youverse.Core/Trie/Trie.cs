@@ -76,7 +76,7 @@ namespace Youverse.Core.Trie
         // This should probably be private (but then I can't unit test)
         private bool IsDomainUniqueInHierarchy(string sName)
         {
-            DomainNameValidator.AssertValidDomain(sName); // Throws an exception if not OK
+            PunyDomainNameValidator.AssertValidDomain(sName); // Throws an exception if not OK
 
             ref var p = ref m_NodeRoot;
 

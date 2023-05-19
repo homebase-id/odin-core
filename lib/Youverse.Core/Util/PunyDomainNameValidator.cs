@@ -1,6 +1,7 @@
 ﻿using DnsClient;
 using DnsClient.Protocol;
 using System;
+using System.Globalization;
 using System.Linq;
 using Youverse.Core.Trie;
 
@@ -8,27 +9,42 @@ using Youverse.Core.Trie;
 
 namespace Youverse.Core.Util
 {
-    // DNS name is {label.}+label
+    // Guaranteed to hold a valid, lowercased puny domain name
     //
-    public class DomainName
+    public readonly struct PunyDomainName
     {
         private readonly string _punyDomainName;
 
-        public const int MAX_DNS_LABEL = 63;  // as per DNS RFC
-        public const int MAX_DNS_DOMAIN = 255;  // as per DNS RFC, max 255 characters in total
+        // Provide a public property to read the puny domain
+        public string DomainName => _punyDomainName;
 
-
-        public DomainName(string punyDomainName)
+        public PunyDomainName(string punyDomainName)
         {
-            _punyDomainName = punyDomainName;
+            PunyDomainNameValidator.AssertValidDomain(punyDomainName);
+            _punyDomainName = punyDomainName.ToLower();
         }
 
+        // Get the IDN representation of the puny domain
+        public string ToIDN()
+        {
+            var idnMapping = new IdnMapping();
+            string unicode = idnMapping.GetUnicode(_punyDomainName);
+            return unicode;
+        }
+
+        // Static function to create a PunyDomainName from an IDN
+        public static PunyDomainName FromIDN(string idnDomainName)
+        {
+            var idnMapping = new IdnMapping();
+            string punyCode = idnMapping.GetAscii(idnDomainName);
+            return new PunyDomainName(punyCode);
+        }
     }
 
 
     // DNS name is {label.}+label. Max 254 characters total. Max 127 levels
     //
-    public class DomainNameValidator
+    public class PunyDomainNameValidator
     {
         public const int MAX_DNS_LABEL_COUNT = 127;  // as per DNS RFC
         public const int MAX_DNS_LABEL_LENGTH = 63;  // as per DNS RFC
@@ -118,40 +134,6 @@ namespace Youverse.Core.Util
             return labelCount >= 2 && labelCount < MAX_DNS_LABEL_COUNT;
         }
 
-        /*
-        // Validate if a DNS *label* is OK
-        // false not OK. true OK.
-        public static bool ValidLabel(string punyCodeLabel)
-        {
-            if (punyCodeLabel.Length < 1 || punyCodeLabel.Length > MAX_DNS_LABEL_LENGTH)
-                return false; // Too short or long
-
-            // The first and last character cannot be the hyphen
-            if ("abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ".IndexOf(punyCodeLabel[0]) == -1)
-                return false; // Starts with illegal character
-
-            IdnMapping idn = new IdnMapping();
-            try
-            {
-                var _ = idn.GetUnicode(punyCodeLabel).ToUtf8ByteArray();
-            }
-            catch
-            {
-                return false;
-            }
-
-            var ln = punyCodeLabel.Length - 1;
-
-            if ("abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ".IndexOf(punyCodeLabel[ln]) == -1)
-                return false; // Ends with illegal character
-
-            for (ln--; ln > 0; ln--)
-                if ("-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ".IndexOf(punyCodeLabel[ln]) == -1)
-                    return false; // Ends with illegal character
-
-            return true;
-        }
-        */
 
         // Check the whole domain name. Throw an exception if it is invalid.
 
@@ -159,65 +141,8 @@ namespace Youverse.Core.Util
         {
             if (TryValidateDomain(punyCodeDomain) == false)
                 throw new Exception("Illegal puny code domain name."); // Thrown an exception
-
-            /*
-
-            if (punyCodeDomain.Length > MAX_DNS_DOMAIN_LENGTH)
-                throw new DomainTooLongException(); // Too long
-
-            if (punyCodeDomain.Length < 3)
-                throw new DomainTooShortException(); // Too short (a.a minimum)
-
-            var labels = punyCodeDomain.Split('.');
-
-            if (labels.Length < 2)
-                throw new DomainNeedsTwoLabelsException(); // Need at least two labels
-
-            for (var i = 0; i < labels.Length; i++)
-                if (ValidLabel(labels[i]) == false)
-                    throw new DomainIllegalCharacterException(); */
-            // All clear
         }
 
-
-        /* public static string GetCName(string sDomain)
-        {
-            var client = new LookupClient();
-            var result = client.Query(sDomain, QueryType.CNAME);
-
-            foreach (var aRecord in result.Answers)
-            {
-                Console.WriteLine(aRecord.DomainName);
-                return aRecord.DomainName;
-            }
-
-            return "";
-        }*/
-
-        /*
-            Console.WriteLine("Looking up www.dnsimple.com for CNAME");
-
-            //DomainName.GetCName("www.dnsimple.com");
-
-        */
-
-        // MS implementation of simple IP lookup with
-        // built-in DNS resolver. Probably not needed
-        // or replace with DnsClient 
-        /*
-        public void IPLookup(string domainName)
-        {
-            // Yikes. Not DNS. See here: 
-            var hostInfo = Dns.GetHostEntry(domainName);
-
-            Console.WriteLine(hostInfo);
-            for (var i = 0; i < hostInfo.AddressList.Length; i++) Console.WriteLine(hostInfo.AddressList[i]);
-
-            Console.WriteLine("Aliases:");
-            for (var i = 0; i < hostInfo.Aliases.Length; i++) Console.WriteLine(hostInfo.Aliases[i]);
-
-            Console.WriteLine("Hostname: " + hostInfo.HostName);
-        }*/
 
         // Given a domain name, looks up and returns the CNAME record.
         // If a CNAME record does not exist then it null
@@ -259,17 +184,3 @@ namespace Youverse.Core.Util
         }
     }
 }
-
-
-
-/*
- *             var lookup = new LookupClient();
-            var result = lookup.Query(inputHostName, QueryType.CNAME);
-            var record = result.Answers.CnameRecords().FirstOrDefault();
-
-            if (record == null)
-                return null;
-            else
-                return record.CanonicalName;
-
-*/

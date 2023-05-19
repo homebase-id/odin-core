@@ -97,7 +97,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     public Task<List<DnsConfig>> GetDnsConfiguration(string domain)
     {
-        DomainNameValidator.AssertValidDomain(domain);
+        PunyDomainNameValidator.AssertValidDomain(domain);
 
         var dns = _configuration.Registry.DnsConfigurationSet; 
 
@@ -207,7 +207,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     public async Task<bool> IsManagedDomainAvailable(string prefix, string apex)
     {
         var domain = prefix + "." + apex;
-        DomainNameValidator.AssertValidDomain(domain);
+        PunyDomainNameValidator.AssertValidDomain(domain);
         await AssertManagedDomainApexAndPrefix(prefix, apex);
         
         var identity = await _registry.Get(domain);
@@ -246,7 +246,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     public async Task CreateManagedDomain(string prefix, string apex)
     {
         var domain = prefix + "." + apex;
-        DomainNameValidator.AssertValidDomain(domain);
+        PunyDomainNameValidator.AssertValidDomain(domain);
         await AssertManagedDomainApexAndPrefix(prefix, apex);
     
         var dnsConfig = await GetDnsConfiguration(domain);
@@ -276,7 +276,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     public async Task DeleteManagedDomain(string prefix, string apex)
     {
         var domain = prefix + "." + apex;
-        DomainNameValidator.AssertValidDomain(domain);
+        PunyDomainNameValidator.AssertValidDomain(domain);
         await AssertManagedDomainApexAndPrefix(prefix, apex);
 
         await _registry.DeleteRegistration(domain);
@@ -309,7 +309,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     public async Task<bool> IsOwnDomainAvailable(string domain)
     {
-        DomainNameValidator.AssertValidDomain(domain);
+        PunyDomainNameValidator.AssertValidDomain(domain);
 
         var identity = await _registry.Get(domain);
         if (identity != null)
@@ -325,7 +325,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     public async Task<(bool, List<DnsConfig>)> GetOwnDomainDnsStatus(string domain)
     {
-        DomainNameValidator.AssertValidDomain(domain);
+        PunyDomainNameValidator.AssertValidDomain(domain);
         
         var dnsConfig = await GetDnsConfiguration(domain);
 
@@ -355,7 +355,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     public async Task DeleteOwnDomain(string domain)
     {
-        DomainNameValidator.AssertValidDomain(domain);
+        PunyDomainNameValidator.AssertValidDomain(domain);
         await _registry.DeleteRegistration(domain);        
     }
     
