@@ -165,7 +165,6 @@ namespace Youverse.Hosting
                                 };
                                 
                                 // Require client certificate if domain prefix is "capi"
-                                // SEB:TODO enable below condition when transit is using capi endpoints
                                 if (hostName.StartsWith(DnsConfigurationSet.PrefixCertApi))
                                 {
                                     result.AllowRenegotiation = true;
