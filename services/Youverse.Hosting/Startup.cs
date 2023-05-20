@@ -167,9 +167,7 @@ namespace Youverse.Hosting
             // In production, the React files will be served from this directory
             services.AddSpaStaticFiles(configuration => { configuration.RootPath = "client/"; });
 
-            services.AddSingleton(new Trie<IdentityRegistration>());
             services.AddSingleton<IIdentityRegistry>(sp => new FileSystemIdentityRegistry(
-                sp.GetRequiredService<Trie<IdentityRegistration>>(),
                 sp.GetRequiredService<ICertificateServiceFactory>(),
                 config.Host.TenantDataRootPath,
                 config.CertificateRenewal.ToCertificateRenewalConfig()));

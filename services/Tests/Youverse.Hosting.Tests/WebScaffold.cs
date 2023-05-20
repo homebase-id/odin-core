@@ -102,11 +102,8 @@ namespace Youverse.Hosting.Tests
             CreateData();
             CreateLogs();
 
-            var trie = new Trie<IdentityRegistration>();
-            
-            
             var certificateServiceFactory = CreateCertificateFactoryServiceMock();
-            _registry = new FileSystemIdentityRegistry(trie, certificateServiceFactory, TestDataPath, null);
+            _registry = new FileSystemIdentityRegistry(certificateServiceFactory, TestDataPath, null);
 
             var (config, _) = Program.LoadConfig();
             DevEnvironmentSetup.RegisterPreconfiguredDomains(config, _registry);
