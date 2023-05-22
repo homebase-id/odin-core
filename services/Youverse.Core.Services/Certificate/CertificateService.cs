@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -54,25 +55,25 @@ namespace Youverse.Core.Services.Certificate
         
         //
 
-        public X509Certificate2 ResolveCertificate(IdentityRegistration idReg)
+        public X509Certificate2 ResolveCertificate(string domain)
         {
-            return GetSslCertificate(idReg.PrimaryDomainName);
+            return GetSslCertificate(domain);
         }
         
         //
 
-        public async Task<X509Certificate2> CreateCertificate(IdentityRegistration idReg)
+        public async Task<X509Certificate2> CreateCertificate(string domain, string[] sans = null)
         {
-            var mutex = DomainSemaphores.GetOrAdd(idReg.PrimaryDomainName, _ => new SemaphoreSlim(1, 1));
+            var mutex = DomainSemaphores.GetOrAdd(domain, _ => new SemaphoreSlim(1, 1));
             await mutex.WaitAsync();
             try
             {
-                var x509 = ResolveCertificate(idReg);
+                var x509 = ResolveCertificate(domain);
                 if (x509 != null)
                 {
                     return x509;
                 }
-                return await InternalCreateCertificate(idReg);
+                return await InternalCreateCertificate(domain, sans);
             }
             finally
             {
@@ -84,16 +85,17 @@ namespace Youverse.Core.Services.Certificate
         
         public async Task<bool> RenewIfAboutToExpire(IdentityRegistration idReg)
         {
-            var mutex = DomainSemaphores.GetOrAdd(idReg.PrimaryDomainName, _ => new SemaphoreSlim(1, 1));
+            var domain = idReg.PrimaryDomainName;
+            var mutex = DomainSemaphores.GetOrAdd(domain, _ => new SemaphoreSlim(1, 1));
             await mutex.WaitAsync();
             try
             {
-                var x509 = ResolveCertificate(idReg);
+                var x509 = ResolveCertificate(domain);
                 if (x509 == null || AboutToExpire(x509))
                 {
-                    _logger.LogDebug("Beginning background renew of {domain} certificate", idReg.PrimaryDomainName);
-                    x509 = await InternalCreateCertificate(idReg);
-                    _logger.LogDebug("Completed background renew of {domain} certificate", idReg.PrimaryDomainName);
+                    _logger.LogDebug("Beginning background renew of {domain} certificate", domain);
+                    x509 = await InternalCreateCertificate(idReg.PrimaryDomainName, idReg.GetSans());
+                    _logger.LogDebug("Completed background renew of {domain} certificate", domain);
                     return x509 != null;
                 }
                 return false;
@@ -106,7 +108,7 @@ namespace Youverse.Core.Services.Certificate
         
         //
 
-        private async Task<X509Certificate2> InternalCreateCertificate(IdentityRegistration idReg)
+        private async Task<X509Certificate2> InternalCreateCertificate(string domain, string[] sans = null)
         {
             try
             {
@@ -117,10 +119,16 @@ namespace Youverse.Core.Services.Certificate
                     await SaveAccount(account);
                 }
 
-                var pems = await _certesAcme.CreateCertificate(account, idReg.GetDomains());
-                await SaveSslCertificate(idReg.PrimaryDomainName, pems);
+                var domains = new List<string> { domain };
+                if (sans != null)
+                {
+                    domains.AddRange(sans);
+                }
+
+                var pems = await _certesAcme.CreateCertificate(account, domains.ToArray());
+                await SaveSslCertificate(domain, pems);
                 
-                var x509 = ResolveCertificate(idReg);
+                var x509 = ResolveCertificate(domain);
                 if (x509 != null)
                 {
                     return x509;
@@ -132,7 +140,7 @@ namespace Youverse.Core.Services.Certificate
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "Error creating certificate for {domain}: {ErrorText}", idReg.PrimaryDomainName, e.Message);
+                _logger.LogError(e, "Error creating certificate for {domain}: {ErrorText}", domain, e.Message);
                 return null;
             }
         }

@@ -64,9 +64,9 @@ namespace Youverse.Core.Services.Registry
             return PrimaryDomainName;
         }
 
-        public string[] GetDomains()
+        public string[] GetSans()
         {
-            var result = new List<string> { PrimaryDomainName };
+            var result = new List<string>();
             foreach (var prefix in DnsConfigurationSet.WellknownPrefixes)
             {
                 result.Add(prefix + "." + PrimaryDomainName);

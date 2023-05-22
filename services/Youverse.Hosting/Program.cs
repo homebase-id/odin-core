@@ -165,7 +165,7 @@ namespace Youverse.Hosting
         }
         
         //
-
+        
         private static void ConfigureHttpListenOptions(
             YouverseConfiguration youverseConfig,
             KestrelServerOptions kestrelOptions,
@@ -218,57 +218,65 @@ namespace Youverse.Hosting
             {
                 return null;
             }
-            
-            // Provisioning specifics
-            // SEB:TODO should we create letsencrypt cert for provisioning as well?
-            if (hostName == config.Registry.ProvisioningDomain)
-            {
-                var publicKeyPath = Path.Combine(config.Host.SystemSslRootPath, config.Registry.ProvisioningDomain, "certificate.crt");
-                var privateKeyPath = Path.Combine(config.Host.SystemSslRootPath, config.Registry.ProvisioningDomain, "private.key");
 
-                var cert = DotYouCertificateCache.LoadCertificate(hostName, privateKeyPath, publicKeyPath);
-                if (null == cert)
-                {
-                    Log.Error($"No certificate configured for {hostName}");
-                }
-
-                return cert;
-            }
+            string sslRoot, domain;            
             
             //
-            // Hostname -> tenant
+            // Look up tenant from host name
             //
             var registry = serviceProvider.GetRequiredService<IIdentityRegistry>();
             var idReg = registry.ResolveIdentityRegistration(hostName, out _);
-            if (idReg == null)
+            if (idReg != null)
             {
-                Log.Debug("Cannot return certificate because {host} does not belong here", hostName);
+                // SEB:TODO
+                // TenantContext.Create does IO. This is bad in critical path.
+                // Find another way to get the SslRoot of the tenant
+                var tenantContext =
+                    TenantContext.Create(idReg.Id, idReg.PrimaryDomainName, config.Host.TenantDataRootPath, null);
+                sslRoot = tenantContext.SslRoot;
+                domain = idReg.PrimaryDomainName;
+            }
+            //
+            // Not a tenant, is hostName a known system (e.g. provisioning)? 
+            //
+            else if (TryGetSystemSslRoot(hostName, config, out sslRoot))
+            {
+                domain = hostName;
+            }
+            //
+            // We don't know what hostName is, get out! 
+            //
+            else
+            {
+                Log.Debug("Cannot return certificate for {host} because it does not belong here", hostName);
                 return null;
             }
             
-            // SEB:TODO
-            // TenantContext.Create does IO. This is bad in critical path.
-            // Find another way to get the SslRoot of the tenant
-            var tenantContext =
-                TenantContext.Create(idReg.Id, idReg.PrimaryDomainName, config.Host.TenantDataRootPath, null);
-            
             var certificateServiceFactory = serviceProvider.GetRequiredService<ICertificateServiceFactory>();
-            var tc = certificateServiceFactory.Create(tenantContext.SslRoot);
+            var tc = certificateServiceFactory.Create(sslRoot);
 
             // 
-            // Lookup tenant and certificate
+            // Tenant or system found, lookup certificate
             //
-            var certificate = tc.ResolveCertificate(idReg);
+            var certificate = tc.ResolveCertificate(domain);
             if (null != certificate)
             {
                 return certificate;
             }
             
             // 
-            // Tenant found, but no certificate. Create it.
+            // Tenant or system found, but no certificate. Create it.
             //
-            certificate = await tc.CreateCertificate(idReg);
+            string[] sans = null;
+            if (idReg != null)
+            {
+                sans = idReg.GetSans();
+            }
+            certificate = await tc.CreateCertificate(domain, sans);
 
+            //
+            // Sanity
+            //
             if (null == certificate)
             {
                 Log.Error($"No certificate configured for {hostName}");
@@ -276,5 +284,22 @@ namespace Youverse.Hosting
 
             return certificate;
         }
+        
+        //
+
+        private static bool TryGetSystemSslRoot(string hostName, YouverseConfiguration config, out string sslRoot)
+        {
+            // We only have provisioning system for now...
+            if (hostName == config.Registry.ProvisioningDomain)
+            {
+                sslRoot = config.Host.SystemSslRootPath; 
+                return true;
+            }
+
+            sslRoot = "";
+            return false;
+        }
+        
+        //
     }
 }

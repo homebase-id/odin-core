@@ -72,7 +72,7 @@ public sealed class CertesAcme : ICertesAcme
             throw new YouverseSystemException("Missing damains");
         }
         
-        _logger.LogDebug("Creating certificates for {domains}", string.Join(',', domains));
+        _logger.LogDebug("Creating certificate for {domains}", string.Join(',', domains));
         
         //
         // Access account
@@ -123,7 +123,7 @@ public sealed class CertesAcme : ICertesAcme
         foreach (var authz in authzs)
         {
             var resource = await authz.Resource();
-            var maxAttempts = 60;
+            var maxAttempts = 120;
             while (--maxAttempts > 0 && resource.Status != AuthorizationStatus.Valid)
             {
                 await Task.Delay(1000);
@@ -132,7 +132,8 @@ public sealed class CertesAcme : ICertesAcme
 
             if (resource.Status != AuthorizationStatus.Valid)
             {
-                throw new YouverseSystemException("Failed to validate one or more challenges");
+                throw new YouverseSystemException(
+                    $"Failed or timed out validating one or more challenges. Status: {resource.Status}");
             }
         }
 
@@ -142,7 +143,7 @@ public sealed class CertesAcme : ICertesAcme
         await order.Finalize(csr.Generate());
         {
             var resource = await order.Resource();
-            var maxAttempts = 60;
+            var maxAttempts = 120;
             while (--maxAttempts > 0 && resource.Status != OrderStatus.Valid)
             {
                 await Task.Delay(1000);
@@ -151,7 +152,8 @@ public sealed class CertesAcme : ICertesAcme
         
             if (resource.Status != OrderStatus.Valid)
             {
-                throw new YouverseSystemException("Failed to finalize order");
+                throw new YouverseSystemException(
+                    $"Failed or timed out finalizing order. Status: {resource.Status}");
             }
         }
 
@@ -202,7 +204,7 @@ public sealed class CertesAcme : ICertesAcme
             certificatesPem = sb.ToString();
         }
 
-        _logger.LogDebug("Certificat(s) for {domains} created in {elapsed}s", 
+        _logger.LogDebug("Certificate for {domains} created in {elapsed}s", 
             string.Join(',', domains), sw.ElapsedMilliseconds / 1000.0);
         
         return new KeysAndCertificates
