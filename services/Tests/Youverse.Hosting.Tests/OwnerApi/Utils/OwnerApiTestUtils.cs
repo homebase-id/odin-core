@@ -33,6 +33,7 @@ using Youverse.Core.Services.Drives.DriveCore.Storage;
 using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 using Youverse.Core.Services.Drives.Management;
+using Youverse.Core.Services.Registry.Registration;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.ReceivingHost;
@@ -107,7 +108,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             handler.ServerCertificateCustomValidationCallback = ServerCertificateCustomValidation;
 
             using HttpClient authClient = new(handler);
-            authClient.BaseAddress = new Uri($"https://{identity}");
+            authClient.BaseAddress = new Uri($"https://{DnsConfigurationSet.PrefixApi}.{identity}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
             Console.WriteLine($"forcing new password on {authClient.BaseAddress}");
@@ -136,10 +137,10 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             handler.UseCookies = true;
 
             using HttpClient authClient = new(handler);
-            authClient.BaseAddress = new Uri($"https://{identity}");
+            authClient.BaseAddress = new Uri($"https://{DnsConfigurationSet.PrefixApi}.{identity}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
-            var uri = new Uri($"https://{identity}");
+            var uri = new Uri($"https://{DnsConfigurationSet.PrefixApi}.{identity}");
 
             Console.WriteLine($"authenticating to {uri}");
             var nonceResponse = await svc.GenerateNonce();
@@ -236,7 +237,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             client.DefaultRequestHeaders.Add(DotYouHeaderNames.FileSystemTypeHeader, Enum.GetName(typeof(FileSystemType), fileSystemType));
             client.Timeout = TimeSpan.FromMinutes(15);
 
-            client.BaseAddress = new Uri($"https://{identity}");
+            client.BaseAddress = new Uri($"https://{DnsConfigurationSet.PrefixApi}.{identity}");
             return client;
         }
 

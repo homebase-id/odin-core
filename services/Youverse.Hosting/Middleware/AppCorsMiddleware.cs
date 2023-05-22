@@ -2,6 +2,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Registry.Registration;
 using Youverse.Hosting.Authentication.ClientToken;
 
 // Originally from StackOverflow:

@@ -6,6 +6,7 @@ using Youverse.Core;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Registry.Registration;
 using Youverse.Core.Storage;
 using Youverse.Hosting.Tests.AppAPI.Utils;
 using Youverse.Hosting.Tests.OwnerApi.ApiClient;
@@ -39,7 +40,7 @@ namespace Youverse.Hosting.Tests.Anonymous.ApiClient
             HttpClient client = new(handler);
             client.Timeout = TimeSpan.FromMinutes(15);
             client.DefaultRequestHeaders.Add(DotYouHeaderNames.FileSystemTypeHeader, Enum.GetName(fileSystemType));
-            client.BaseAddress = new Uri($"https://{this._identity}");
+            client.BaseAddress = new Uri($"https://{DnsConfigurationSet.PrefixApi}.{this._identity}");
             return client;
         }
     }

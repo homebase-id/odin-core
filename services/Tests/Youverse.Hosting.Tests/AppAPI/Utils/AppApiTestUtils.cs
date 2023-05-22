@@ -19,6 +19,7 @@ using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.DriveCore.Query;
 using Youverse.Core.Services.Drives.DriveCore.Storage;
 using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
+using Youverse.Core.Services.Registry.Registration;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.Encryption;
 using Youverse.Core.Services.Transit.ReceivingHost;
@@ -64,7 +65,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
             client.DefaultRequestHeaders.Add(DotYouHeaderNames.FileSystemTypeHeader, Enum.GetName(fileSystemType));
             client.Timeout = TimeSpan.FromMinutes(15);
 
-            client.BaseAddress = new Uri($"https://{identity}");
+            client.BaseAddress = new Uri($"https://{DnsConfigurationSet.PrefixApi}.{identity}");
             return client;
         }
 

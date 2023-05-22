@@ -18,6 +18,7 @@ using Youverse.Core.Services.Certificate;
 using Youverse.Core.Services.Dns.PowerDns;
 using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Registry;
+using Youverse.Core.Services.Registry.Registration;
 using Youverse.Core.Storage;
 using Youverse.Core.Trie;
 using Youverse.Core.Util;
@@ -165,7 +166,7 @@ namespace Youverse.Hosting.Tests
             HttpClient client = new(handler);
             client.Timeout = TimeSpan.FromMinutes(15);
             client.DefaultRequestHeaders.Add(DotYouHeaderNames.FileSystemTypeHeader, Enum.GetName(fileSystemType));
-            client.BaseAddress = new Uri($"https://{identity}");
+            client.BaseAddress = new Uri($"https://{DnsConfigurationSet.PrefixApi}.{identity}");
             return client;
         }
 
