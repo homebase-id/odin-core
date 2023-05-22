@@ -33,6 +33,10 @@ To run the identity server
 
 After you have run the public-app and owner-app projects, you can navigate to https://frodo.dotyou.cloud or https://sam.dotyou.cloud
 
+### Demo site
+https://demo.provisioning.id.pub
+
+
 ### Other
 
 #### Preconfigured tenants in dev
