@@ -18,13 +18,12 @@ namespace Youverse.Core.Services.Certificate
         /// <summary>
         /// Looks up the certificate to be used for the domain; even if the domain is supported as a SAN
         /// </summary>
-        /// <param name="idReg"></param>
-        X509Certificate2 ResolveCertificate(IdentityRegistration idReg);
+        X509Certificate2 ResolveCertificate(string domain);
         
         /// <summary>
         /// Create certificate for domain
         /// </summary>
-        Task<X509Certificate2> CreateCertificate(IdentityRegistration idReg);
+        Task<X509Certificate2> CreateCertificate(string domain, string[] sans = null);
 
         /// <summary>
         /// Renew certificate for domain if about to expire

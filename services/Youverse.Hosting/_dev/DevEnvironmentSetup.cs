@@ -66,9 +66,21 @@ namespace Youverse.Hosting._dev
             string targetPath = Path.Combine(youverseConfiguration.Host.SystemSslRootPath, youverseConfiguration.Registry.ProvisioningDomain);
             Directory.CreateDirectory(targetPath);
 
-            var sourcePaths = GetSourceDomainPath(youverseConfiguration.Registry.ProvisioningDomain, youverseConfiguration);
-            File.Copy(sourcePaths.publicKey, Path.Combine(targetPath, Path.GetFileName(sourcePaths.publicKey)), true);
-            File.Copy(sourcePaths.privateKey, Path.Combine(targetPath, Path.GetFileName(sourcePaths.privateKey)), true);
+            // Provisioning system
+            try
+            {
+                var sourcePaths = GetSourceDomainPath(youverseConfiguration.Registry.ProvisioningDomain, youverseConfiguration);
+                File.Copy(sourcePaths.publicKey, Path.Combine(targetPath, Path.GetFileName(sourcePaths.publicKey)), true);
+                File.Copy(sourcePaths.privateKey, Path.Combine(targetPath, Path.GetFileName(sourcePaths.privateKey)), true);
+            }
+            catch (Exception)
+            {
+                // Swallow unless provisioning domain is running on 127.0.0.1
+                if (youverseConfiguration.Registry.ProvisioningDomain.EndsWith("dotyou.cloud"))
+                {
+                    throw;
+                }
+            }
         }
 
         private static (string publicKey, string privateKey) GetSourceDomainPath(string domain, YouverseConfiguration youverseConfiguration)
