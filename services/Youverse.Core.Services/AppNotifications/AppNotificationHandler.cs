@@ -120,7 +120,7 @@ namespace Youverse.Core.Services.AppNotifications
 
         public async Task Handle(IClientNotification notification, CancellationToken cancellationToken)
         {
-            var shouldEncrypt = notification.NotificationType is ClientNotificationType.ConnectionRequestAccepted or ClientNotificationType.ConnectionRequestReceived;
+            var shouldEncrypt = !(notification.NotificationType is ClientNotificationType.ConnectionRequestAccepted or ClientNotificationType.ConnectionRequestReceived);
 
             var json = DotYouSystemSerializer.Serialize(new
             {

@@ -29,7 +29,6 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private readonly CertificateRenewalConfig _certificateRenewalConfig;
    
     public FileSystemIdentityRegistry(
-        Trie<IdentityRegistration> trie,
         ICertificateServiceFactory certificateServiceFactory,
         string tenantDataRootPath, 
         CertificateRenewalConfig certificateRenewalConfig,
@@ -41,7 +40,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         }
         
         _cache = new Dictionary<Guid, IdentityRegistration>();
-        _trie = trie;
+        _trie = new Trie<IdentityRegistration>();
         _certificateServiceFactory = certificateServiceFactory;
         _tenantDataRootPath = tenantDataRootPath;
         _certificateRenewalConfig = certificateRenewalConfig;

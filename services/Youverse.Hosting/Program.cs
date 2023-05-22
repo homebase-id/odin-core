@@ -1,21 +1,19 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Net;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
 using Youverse.Core.Exceptions;
-using Youverse.Core.Identity;
 using Youverse.Core.Logging.CorrelationId;
 using Youverse.Core.Logging.CorrelationId.Serilog;
 using Youverse.Core.Logging.Hostname;
@@ -25,8 +23,6 @@ using Youverse.Core.Services.Certificate;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Registry.Registration;
-using Youverse.Core.Trie;
-using Youverse.Hosting._dev;
 using Youverse.Hosting.Multitenant;
 
 namespace Youverse.Hosting
@@ -122,45 +118,13 @@ namespace Youverse.Hosting
                         {
                             kestrelOptions.Limits.MaxRequestBodySize = null;
 
-                            // SEB:TODO IPAddressListenList from config
-                            kestrelOptions.Listen(IPAddress.Any, 80);
-                            kestrelOptions.Listen(IPAddress.Any, 443, listenOptions =>
+                            foreach (var address in youverseConfig.Host.IPAddressListenList)
                             {
-                                var handshakeTimeoutTimeSpan = Debugger.IsAttached
-                                    ? TimeSpan.FromMinutes(60)
-                                    : TimeSpan.FromSeconds(60);
-
-                                listenOptions.UseHttps(async (stream, clientHelloInfo, state, cancellationToken) =>
-                                {
-                                    // SEB:NOTE ToLower() should not be needed here, but better safe than sorry.
-                                    var hostName = clientHelloInfo.ServerName.ToLower();
-
-                                    var serviceProvider = kestrelOptions.ApplicationServices;
-                                    var cert = await ServerCertificateSelector(hostName, youverseConfig, serviceProvider);
-
-                                    if (cert == null)
-                                    {
-                                        // This is an escape hatch so runtime won't log an error
-                                        // when no certificate could be found
-                                        throw new ConnectionAbortedException();
-                                    }
-
-                                    var result = new SslServerAuthenticationOptions
-                                    {
-                                        ServerCertificate = cert
-                                    };
-
-                                    // Require client certificate if domain prefix is "capi"
-                                    if (hostName.StartsWith(DnsConfigurationSet.PrefixCertApi))
-                                    {
-                                        result.AllowRenegotiation = true;
-                                        result.ClientCertificateRequired = true;
-                                        result.RemoteCertificateValidationCallback = (_, _, _, _) => true;
-                                    }
-
-                                    return result;
-                                }, state: null!, handshakeTimeoutTimeSpan);
-                            });
+                                var ip = address.GetIp();
+                                kestrelOptions.Listen(ip, address.HttpPort);
+                                kestrelOptions.Listen(ip, address.HttpsPort,
+                                    options => ConfigureHttpListenOptions(youverseConfig, kestrelOptions, options));
+                            }
                         })
                         .UseStartup<Startup>();
                 });
@@ -202,6 +166,48 @@ namespace Youverse.Hosting
 
         //
 
+        private static void ConfigureHttpListenOptions(
+            YouverseConfiguration youverseConfig,
+            KestrelServerOptions kestrelOptions,
+            ListenOptions listenOptions)
+        {
+            var handshakeTimeoutTimeSpan = Debugger.IsAttached
+                ? TimeSpan.FromMinutes(60)
+                : TimeSpan.FromSeconds(60);
+
+            listenOptions.UseHttps(async (stream, clientHelloInfo, state, cancellationToken) =>
+            {
+                // SEB:NOTE ToLower() should not be needed here, but better safe than sorry.
+                var hostName = clientHelloInfo.ServerName.ToLower();
+
+                var serviceProvider = kestrelOptions.ApplicationServices;
+                var cert = await ServerCertificateSelector(hostName, youverseConfig, serviceProvider);
+
+                if (cert == null)
+                {
+                    // This is an escape hatch so runtime won't log an error
+                    // when no certificate could be found
+                    throw new ConnectionAbortedException();
+                }
+
+                var result = new SslServerAuthenticationOptions
+                {
+                    ServerCertificate = cert
+                };
+
+                // Require client certificate if domain prefix is "capi"
+                if (hostName.StartsWith(DnsConfigurationSet.PrefixCertApi))
+                {
+                    result.AllowRenegotiation = true;
+                    result.ClientCertificateRequired = true;
+                    result.RemoteCertificateValidationCallback = (_, _, _, _) => true;
+                }
+
+                return result;
+            }, state: null!, handshakeTimeoutTimeSpan);
+        }
+
+        //         
 
         private static async Task<X509Certificate2> ServerCertificateSelector(
             string hostName,
