@@ -29,9 +29,11 @@ namespace Youverse.Hosting
 {
     public static class Program
     {
-        private const string LogOutputTemplate = "{Timestamp:o} {Level:u3} {CorrelationId} {Hostname} {Message:lj}{NewLine}{Exception}"; // Add {SourceContext} to see source
+        private const string
+            LogOutputTemplate = "{Timestamp:o} {Level:u3} {CorrelationId} {Hostname} {Message:lj}{NewLine}{Exception}"; // Add {SourceContext} to see source
+
         private static readonly SystemConsoleTheme LogOutputTheme = SystemConsoleTheme.Literate;
-        
+
         public static int Main(string[] args)
         {
             Log.Logger = new LoggerConfiguration()
@@ -104,30 +106,27 @@ namespace Youverse.Hosting
             }
 
             Log.Information($"Root path:{youverseConfig.Host.TenantDataRootPath}");
- 
+
             var builder = Host.CreateDefaultBuilder(args)
-                .ConfigureAppConfiguration(builder =>
-                {
-                    builder.AddConfiguration(appSettingsConfig);
-                })
+                .ConfigureAppConfiguration(builder => { builder.AddConfiguration(appSettingsConfig); })
                 .UseSystemd()
-                .UseServiceProviderFactory(new MultiTenantServiceProviderFactory(DependencyInjection.ConfigureMultiTenantServices, DependencyInjection.InitializeTenant))
+                .UseServiceProviderFactory(new MultiTenantServiceProviderFactory(DependencyInjection.ConfigureMultiTenantServices,
+                    DependencyInjection.InitializeTenant))
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
-                    webBuilder.ConfigureKestrel(kestrelOptions => 
-                    {
-                        kestrelOptions.Limits.MaxRequestBodySize = null;
-
-                        foreach (var address in youverseConfig.Host.IPAddressListenList)
+                    webBuilder.ConfigureKestrel(kestrelOptions =>
                         {
-                            var ip = address.GetIp();
-                            kestrelOptions.Listen(ip, address.HttpPort);
-                            kestrelOptions.Listen(ip, address.HttpsPort, 
-                                options => ConfigureHttpListenOptions(youverseConfig, kestrelOptions, options));
-                        }
-                        
-                    })
-                    .UseStartup<Startup>();
+                            kestrelOptions.Limits.MaxRequestBodySize = null;
+
+                            foreach (var address in youverseConfig.Host.IPAddressListenList)
+                            {
+                                var ip = address.GetIp();
+                                kestrelOptions.Listen(ip, address.HttpPort);
+                                kestrelOptions.Listen(ip, address.HttpsPort,
+                                    options => ConfigureHttpListenOptions(youverseConfig, kestrelOptions, options));
+                            }
+                        })
+                        .UseStartup<Startup>();
                 });
 
             if (youverseConfig.Logging.Level == LoggingLevel.ErrorsOnly)
@@ -135,7 +134,7 @@ namespace Youverse.Hosting
                 builder.UseSerilog((context, services, configuration) => configuration
                     .ReadFrom.Services(services)
                     .MinimumLevel.Error());
-            
+
                 return builder;
             }
 
@@ -156,16 +155,17 @@ namespace Youverse.Hosting
                     .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
                     // .WriteTo.Debug() // SEB:TODO only do this in debug builds
                     .WriteTo.Async(sink => sink.Console(outputTemplate: LogOutputTemplate, theme: LogOutputTheme))
-                    .WriteTo.Async(sink => sink.RollingFile(Path.Combine(youverseConfig.Logging.LogFilePath, "app-{Date}.log"), outputTemplate: LogOutputTemplate)));
-                
+                    .WriteTo.Async(sink =>
+                        sink.RollingFile(Path.Combine(youverseConfig.Logging.LogFilePath, "app-{Date}.log"), outputTemplate: LogOutputTemplate)));
+
                 return builder;
             }
 
             return builder;
         }
-        
+
         //
-        
+
         private static void ConfigureHttpListenOptions(
             YouverseConfiguration youverseConfig,
             KestrelServerOptions kestrelOptions,
@@ -208,9 +208,9 @@ namespace Youverse.Hosting
         }
 
         //         
-                
+
         private static async Task<X509Certificate2> ServerCertificateSelector(
-            string hostName, 
+            string hostName,
             YouverseConfiguration config,
             IServiceProvider serviceProvider)
         {
@@ -219,8 +219,8 @@ namespace Youverse.Hosting
                 return null;
             }
 
-            string sslRoot, domain;            
-            
+            string sslRoot, domain;
+
             //
             // Look up tenant from host name
             //
@@ -232,7 +232,7 @@ namespace Youverse.Hosting
                 // TenantContext.Create does IO. This is bad in critical path.
                 // Find another way to get the SslRoot of the tenant
                 var tenantContext =
-                    TenantContext.Create(idReg.Id, idReg.PrimaryDomainName, config.Host.TenantDataRootPath, null);
+                    TenantContext.Create(idReg.Id, idReg.PrimaryDomainName, config.Host.TenantDataRootPath, null, config.Host.TenantPayloadRootPath);
                 sslRoot = tenantContext.SslRoot;
                 domain = idReg.PrimaryDomainName;
             }
@@ -251,7 +251,7 @@ namespace Youverse.Hosting
                 Log.Debug("Cannot return certificate for {host} because it does not belong here", hostName);
                 return null;
             }
-            
+
             var certificateServiceFactory = serviceProvider.GetRequiredService<ICertificateServiceFactory>();
             var tc = certificateServiceFactory.Create(sslRoot);
 
@@ -263,7 +263,7 @@ namespace Youverse.Hosting
             {
                 return certificate;
             }
-            
+
             // 
             // Tenant or system found, but no certificate. Create it.
             //
@@ -272,6 +272,7 @@ namespace Youverse.Hosting
             {
                 sans = idReg.GetSans();
             }
+
             certificate = await tc.CreateCertificate(domain, sans);
 
             //
@@ -284,7 +285,7 @@ namespace Youverse.Hosting
 
             return certificate;
         }
-        
+
         //
 
         private static bool TryGetSystemSslRoot(string hostName, YouverseConfiguration config, out string sslRoot)
@@ -292,14 +293,14 @@ namespace Youverse.Hosting
             // We only have provisioning system for now...
             if (hostName == config.Registry.ProvisioningDomain)
             {
-                sslRoot = config.Host.SystemSslRootPath; 
+                sslRoot = config.Host.SystemSslRootPath;
                 return true;
             }
 
             sslRoot = "";
             return false;
         }
-        
+
         //
     }
 }

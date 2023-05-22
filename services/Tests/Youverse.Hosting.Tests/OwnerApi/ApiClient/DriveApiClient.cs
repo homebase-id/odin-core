@@ -267,33 +267,41 @@ public class DriveApiClient
 
     public async Task<SharedSecretEncryptedFileHeader> GetFileHeader(FileSystemType fileSystemType, ExternalFileIdentifier file)
     {
+        return (await GetFileHeaderRaw(fileSystemType, file)).Content;
+    }
+
+    public async Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderRaw(FileSystemType fileSystemType, ExternalFileIdentifier file)
+    {
         using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType))
         {
             //wth - refit is not sending headers when you do GET request - why not!?
             var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, sharedSecret);
             // var apiResponse = await svc.GetFileHeader(file.FileId, file.TargetDrive.Alias, file.TargetDrive.Type);
             var apiResponse = await svc.GetFileHeaderAsPost(file);
-            return apiResponse.Content;
+            return apiResponse;
         }
     }
 
     public async Task<HttpContent> GetPayload(FileSystemType fileSystemType, ExternalFileIdentifier file, FileChunk chunk = null)
     {
+        return (await GetPayloadRaw(fileSystemType, file, chunk)).Content;
+    }
+
+    public async Task<ApiResponse<HttpContent>> GetPayloadRaw(FileSystemType fileSystemType, ExternalFileIdentifier file, FileChunk chunk = null)
+    {
         using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType))
         {
             //wth - refit is not sending headers when you do GET request - why not!?
             var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, sharedSecret);
-            var apiResponse = await svc.GetPayloadPost(new GetPayloadRequest()
+            return await svc.GetPayloadPost(new GetPayloadRequest()
             {
                 File = file,
                 Chunk = chunk
             });
-            
-            return apiResponse.Content;
         }
     }
 
-    
+
     public async Task DeleteFile(FileSystemType fileSystemType, ExternalFileIdentifier file, List<string> recipients = null)
     {
         using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType))
@@ -308,7 +316,39 @@ public class DriveApiClient
             });
         }
     }
-    
+
+    public async Task<DeletePayloadResult> DeletePayload(FileSystemType fileSystemType, ExternalFileIdentifier file)
+    {
+        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType))
+        {
+            //wth - refit is not sending headers when you do GET request - why not!?
+            var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, sharedSecret);
+            // var apiResponse = await svc.GetFileHeader(file.FileId, file.TargetDrive.Alias, file.TargetDrive.Type);
+            var apiResponse = await svc.DeletePayload(new DeletePayloadRequest()
+            {
+                File = file
+            });
+
+            return apiResponse.Content;
+        }
+    }
+
+    public async Task<DeleteThumbnailResult> DeleteThumbnail(FileSystemType fileSystemType, ExternalFileIdentifier file)
+    {
+        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType))
+        {
+            //wth - refit is not sending headers when you do GET request - why not!?
+            var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, sharedSecret);
+            // var apiResponse = await svc.GetFileHeader(file.FileId, file.TargetDrive.Alias, file.TargetDrive.Type);
+            var apiResponse = await svc.DeleteThumbnail(new DeleteThumbnailRequest()
+            {
+                File = file
+            });
+
+            return apiResponse.Content;
+        }
+    }
+
     /// <summary>
     /// Uploads the file to the senders drive then sends it to the recipients
     /// </summary>

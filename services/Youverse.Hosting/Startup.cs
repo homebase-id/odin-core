@@ -170,7 +170,8 @@ namespace Youverse.Hosting
             services.AddSingleton<IIdentityRegistry>(sp => new FileSystemIdentityRegistry(
                 sp.GetRequiredService<ICertificateServiceFactory>(),
                 config.Host.TenantDataRootPath,
-                config.CertificateRenewal.ToCertificateRenewalConfig()));
+                config.CertificateRenewal.ToCertificateRenewalConfig(),
+                config.Host.TenantPayloadRootPath));
             
             services.AddSingleton(new AcmeAccountConfig
             {

@@ -102,10 +102,10 @@ namespace Youverse.Core.Services.Configuration
         {
             public virtual string PowerDnsHostAddress { get; }
             public virtual string PowerDnsApiKey { get; }
-            
+
             public string ProvisioningDomain { get; }
             public List<ManagedDomainApex> ManagedDomainApexes { get; }
-            
+
             public DnsConfigurationSet DnsConfigurationSet { get; }
             public List<string> DnsResolvers { get; }
 
@@ -130,11 +130,14 @@ namespace Youverse.Core.Services.Configuration
                 public List<string> PrefixLabels { get; set; } = new();
             }
         }
-        
+
         public class HostSection
         {
             public string TenantDataRootPath { get; }
             public string SystemDataRootPath { get; }
+
+            public string TenantPayloadRootPath { get; }
+
             public string SystemSslRootPath { get; }
 
             /// <summary>
@@ -152,8 +155,11 @@ namespace Youverse.Core.Services.Configuration
                 var p = config.Required<string>("Host:TenantDataRootPath");
                 TenantDataRootPath = isDev && !p.StartsWith(home) ? PathUtil.Combine(home, p.Substring(1)) : p;
 
+                var payloadPath = config.Required<string>("Host:TenantPayloadRootPath");
+                TenantPayloadRootPath = isDev && !payloadPath.StartsWith(home) ? PathUtil.Combine(home, payloadPath.Substring(1)) : payloadPath;
+
                 var sd = config.Required<string>("Host:SystemDataRootPath");
-                SystemDataRootPath = isDev && !p.StartsWith(home) ? PathUtil.Combine(home, sd.Substring(1)) : sd;
+                SystemDataRootPath = isDev && !sd.StartsWith(home) ? PathUtil.Combine(home, sd.Substring(1)) : sd;
 
                 SystemSslRootPath = Path.Combine(SystemDataRootPath, "ssl");
 

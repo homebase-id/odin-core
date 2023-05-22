@@ -5,23 +5,17 @@
     /// </summary>
     public class TenantStorageConfig
     {
-        private readonly string _dataStoragePath;
-        private readonly string _tempStoragePath;
-
-        public TenantStorageConfig(string dataStoragePath, string tempStoragePath)
+        public TenantStorageConfig(string dataStoragePath, string tempStoragePath, string payloadStoragePath)
         {
-            _dataStoragePath = dataStoragePath;
-            _tempStoragePath = tempStoragePath;
+            DataStoragePath = dataStoragePath;
+            TempStoragePath = tempStoragePath;
+            PayloadStoragePath = payloadStoragePath;
         }
 
-        public string DataStoragePath
-        {
-            get => this._dataStoragePath;
-        }
+        public string DataStoragePath { get; }
 
-        public string TempStoragePath
-        {
-            get => this._tempStoragePath;
-        }
+        public string PayloadStoragePath { get; }
+
+        public string TempStoragePath { get; }
     }
 }

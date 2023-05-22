@@ -25,8 +25,8 @@ namespace Youverse.Core.Services.Workers.Certificate
 
         public EnsureIdentityHasValidCertificateJob(
             IServiceProvider serviceProvider,
-            ILogger<EnsureIdentityHasValidCertificateJob> logger, 
-            IIdentityRegistry registry, 
+            ILogger<EnsureIdentityHasValidCertificateJob> logger,
+            IIdentityRegistry registry,
             YouverseConfiguration config)
         {
             _serviceProvider = serviceProvider;
@@ -46,13 +46,14 @@ namespace Youverse.Core.Services.Workers.Certificate
             foreach (var identity in identities.Results)
             {
                 var tenantContext =
-                    TenantContext.Create(identity.Id, identity.PrimaryDomainName, _config.Host.TenantDataRootPath, null);
+                    TenantContext.Create(identity.Id, identity.PrimaryDomainName, _config.Host.TenantDataRootPath, null,_config.Host.TenantPayloadRootPath);
                 var tc = certificateServiceFactory.Create(tenantContext.SslRoot);
                 var task = tc.RenewIfAboutToExpire(identity);
                 tasks.Add(task);
             }
+
             await Task.WhenAll(tasks);
-            
+
             _logger.LogDebug("Completed job {job} on thread {managedThreadId}", GetType().Name, Environment.CurrentManagedThreadId);
         }
     }

@@ -67,7 +67,7 @@ namespace Youverse.Hosting.Tests
             Environment.SetEnvironmentVariable("Registry__ManagedDomains", "[\"dev.dominion.id\"]");
             Environment.SetEnvironmentVariable("Registry__DnsTargetRecordType", "[\"dev.dominion.id\"]");
             Environment.SetEnvironmentVariable("Registry__DnsTargetAddress", "[\"dev.dominion.id\"]");
-            
+
             Environment.SetEnvironmentVariable("Registry__DnsRecordValues__BareARecords", "[\"127.0.0.1\"]");
             Environment.SetEnvironmentVariable("Registry__DnsRecordValues__WwwCnameTarget", "");
             Environment.SetEnvironmentVariable("Registry__DnsRecordValues__ApiCnameTarget", "");
@@ -75,6 +75,7 @@ namespace Youverse.Hosting.Tests
             Environment.SetEnvironmentVariable("Registry__DnsRecordValues__FileCnameTarget", "");
 
             Environment.SetEnvironmentVariable("Host__TenantDataRootPath", TestDataPath);
+            Environment.SetEnvironmentVariable("Host__TenantPayloadRootPath", TestPayloadPath);
             Environment.SetEnvironmentVariable("Host__SystemDataRootPath", TestDataPath);
             Environment.SetEnvironmentVariable("Host__IPAddressListenList", "[{ \"Ip\": \"*\",\"HttpsPort\": 443,\"HttpPort\": 80 }]");
 
@@ -103,7 +104,7 @@ namespace Youverse.Hosting.Tests
             CreateLogs();
 
             var certificateServiceFactory = CreateCertificateFactoryServiceMock();
-            _registry = new FileSystemIdentityRegistry(certificateServiceFactory, TestDataPath, null);
+            _registry = new FileSystemIdentityRegistry(certificateServiceFactory, TestDataPath, null, TestPayloadPath);
 
             var (config, _) = Program.LoadConfig();
             DevEnvironmentSetup.RegisterPreconfiguredDomains(config, _registry);
@@ -207,6 +208,7 @@ namespace Youverse.Hosting.Tests
         private void CreateData()
         {
             Directory.CreateDirectory(TestDataPath);
+            Directory.CreateDirectory(TestPayloadPath);
             Directory.CreateDirectory(TempDataPath);
         }
 
@@ -218,6 +220,11 @@ namespace Youverse.Hosting.Tests
                 Directory.Delete(TestDataPath, true);
             }
 
+            if (Directory.Exists(TestPayloadPath))
+            {
+                Console.WriteLine($"Removing data in [{TestPayloadPath}]");
+                Directory.Delete(TestPayloadPath, true);
+            }
 
             if (Directory.Exists(TempDataPath))
             {
@@ -240,6 +247,16 @@ namespace Youverse.Hosting.Tests
             }
         }
 
+        private string TestPayloadPath
+        {
+            get
+            {
+                var p = PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "payloads", _uniqueSubPath, "dotyoudata", _folder);
+                string x = isDev ? PathUtil.Combine(home, p.Substring(1)) : p;
+                return Path.Combine(_testInstancePrefix, x);
+            }
+        }
+
         private string TestDataPath
         {
             get
@@ -247,7 +264,6 @@ namespace Youverse.Hosting.Tests
                 var p = PathUtil.Combine(Path.DirectorySeparatorChar.ToString(), "tmp", "testsdata", _uniqueSubPath, "dotyoudata", _folder);
                 string x = isDev ? PathUtil.Combine(home, p.Substring(1)) : p;
                 return Path.Combine(_testInstancePrefix, x);
-                // return x;
             }
         }
 

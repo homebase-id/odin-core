@@ -33,6 +33,12 @@ namespace Youverse.Hosting.Tests.OwnerApi.ApiClient
 
         [Post(RootStorageEndpoint + "/delete")]
         Task<ApiResponse<DeleteLinkedFileResult>> DeleteFile([Body] DeleteFileRequest file);
+        
+        [Post(RootStorageEndpoint + "/attachments/deletepayload")]
+        Task<ApiResponse<DeletePayloadResult>> DeletePayload([Body] DeletePayloadRequest request);
+        
+        [Post(RootStorageEndpoint + "/attachments/deletethumbnail")]
+        Task<ApiResponse<DeleteThumbnailResult>> DeleteThumbnail([Body] DeleteThumbnailRequest request);
 
         [Post(RootStorageEndpoint + "/header")]
         Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderAsPost(ExternalFileIdentifier file);
@@ -58,7 +64,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.ApiClient
         [Post(RootQueryEndpoint + "/batch")]
         Task<ApiResponse<QueryBatchResponse>> GetBatch(QueryBatchRequest request);
         
-
+        
         [Post(RootQueryEndpoint + "/batchcollection")]
         Task<ApiResponse<QueryBatchCollectionResponse>> GetBatchCollection(QueryBatchCollectionRequest request);
 
