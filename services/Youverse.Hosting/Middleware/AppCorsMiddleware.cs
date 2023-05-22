@@ -24,10 +24,6 @@ namespace Youverse.Hosting.Middleware
 
         private Task BeginInvoke(HttpContext context, DotYouContext dotYouContext)
         {
-            var originHeader = context.Request.Headers["Origin"];
-            // if (context.Request.Path.StartsWithSegments(AppApiPathConstants.BasePathV1) &&
-            //     (originHeader.Equals("https://dominion.id:3005") || originHeader.Equals("https://photos.odin.earth")))
-         
             if(dotYouContext is { AuthContext: ClientTokenConstants.AppSchemeName } && context.Request.Method.ToUpper() != "OPTIONS")
             {
                 // context.Response.Headers.Add("Access-Control-Allow-Origin", originHeader);

@@ -64,9 +64,9 @@ namespace Youverse.Hosting.Tests
                 "[\"frodo.dotyou.cloud\",\"sam.dotyou.cloud\", \"merry.dotyou.cloud\",\"pippin.dotyou.cloud\"]");
 
             Environment.SetEnvironmentVariable("Registry__ProvisioningDomain", "provisioning-dev.youfoundation.id");
-            Environment.SetEnvironmentVariable("Registry__ManagedDomains", "[\"dev.dominion.id\"]");
-            Environment.SetEnvironmentVariable("Registry__DnsTargetRecordType", "[\"dev.dominion.id\"]");
-            Environment.SetEnvironmentVariable("Registry__DnsTargetAddress", "[\"dev.dominion.id\"]");
+            Environment.SetEnvironmentVariable("Registry__ManagedDomains", "[\"dev.dotyou.cloud\"]");
+            Environment.SetEnvironmentVariable("Registry__DnsTargetRecordType", "[\"dev.dotyou.cloud\"]");
+            Environment.SetEnvironmentVariable("Registry__DnsTargetAddress", "[\"dev.dotyou.cloud\"]");
 
             Environment.SetEnvironmentVariable("Registry__DnsRecordValues__BareARecords", "[\"127.0.0.1\"]");
             Environment.SetEnvironmentVariable("Registry__DnsRecordValues__WwwCnameTarget", "");

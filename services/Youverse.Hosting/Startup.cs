@@ -304,7 +304,7 @@ namespace Youverse.Hosting
                     homeApp =>
                     {
                         homeApp.UseSpa(
-                            spa => { spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3000/home/"); });
+                            spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3000/home/"); });
                     });
 
                 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
@@ -312,7 +312,7 @@ namespace Youverse.Hosting
                     {
                         homeApp.UseSpa(spa =>
                         {
-                            spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:3001/owner/");
+                            spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3001/owner/");
                         });
                     });
             }
