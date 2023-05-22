@@ -171,7 +171,7 @@ namespace Youverse.Core.Services.Configuration
 
             public IPAddress GetIp()
             {
-                return IPAddress.Parse(this.Ip);
+                return this.Ip == "*" ? IPAddress.Any : IPAddress.Parse(this.Ip);
             }
         }
 
