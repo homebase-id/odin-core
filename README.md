@@ -7,7 +7,7 @@
 ### Setup
 
 Notes:
-* The API tests use frodo.digital and samwise.digital.  Public DNS has these configured to point to 127.0.0.1
+* The API tests use frodo.dotyou.cloud, sam.dotyou.cloud. Public DNS has these configured to point to 127.0.0.1
 * For UI work, you should pull the repos for the react-client-apps and run ```npm install && npm start``` in each.  The web Youverse.Hosting project uses a proxy server to serve these in the dev env.
   * https://github.com/YouFoundation/owner-app
   * https://github.com/YouFoundation/public-app
@@ -31,9 +31,26 @@ To run the identity server
 1. ```dotyoucore/dotnet restore```
 2. ```dotnet run --project Youverse.Hosting/Youverse.Hosting.csproj```
 
-After you have run the public-app and owner-app projects, you can navigate to https://frodo.digital or https://samwise.digital
+After you have run the public-app and owner-app projects, you can navigate to https://frodo.dotyou.cloud or https://sam.dotyou.cloud
 
 ### Other
+
+#### Preconfigured tenants in dev
+- https://frodo.dotyou.cloud/
+- https://sam.dotyou.cloud/
+- https://merry.dotyou.cloud/
+- https://pippin.dotyou.cloud/
+
+#### Provisioning site
+- Dev: https://provisioning.dotyou.cloud
+- Demo: https://demo.provisioning.id.pub
+
+#### 127.0.0.1 domains
+All folders in ```dotyoucore/services/Youverse.Hosting/https``` ending in 'dotyou.cloud' contain certificates for domains with an A record pointing to 127.0.0.1.
+
+Certficates are updated automatically on the demo-box. Download them by running the script ```get-certificates.sh```
+
+
 #### SSL Notes
 
 Generate New CSR w/o requiring a passphase.
