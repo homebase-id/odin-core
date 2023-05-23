@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
@@ -10,6 +11,7 @@ using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.FileSystem.Base;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.SendingHost;
+using Youverse.Core.Util;
 using Youverse.Hosting.Authentication.ClientToken;
 using NotImplementedException = System.NotImplementedException;
 
@@ -20,13 +22,19 @@ namespace Youverse.Hosting.Controllers.Base
     /// </summary>
     public abstract class DriveStorageControllerBase : OdinControllerBase
     {
+        private readonly ILogger _logger;
         private readonly ITransitService _transitService;
         private readonly FileSystemResolver _fileSystemResolver;
 
-        protected DriveStorageControllerBase(FileSystemResolver fileSystemResolver, ITransitService transitService)
+        protected DriveStorageControllerBase(
+            ILogger logger,
+            FileSystemResolver fileSystemResolver, 
+            ITransitService transitService
+            )
         {
             _fileSystemResolver = fileSystemResolver;
             _transitService = transitService;
+            _logger = logger;
         }
 
         /// <summary>
@@ -75,15 +83,24 @@ namespace Youverse.Hosting.Controllers.Base
         /// </summary>
         protected async Task<IActionResult> GetThumbnail(GetThumbnailRequest request)
         {
+            _logger.LogInformation("(TODO:deleteme) entering GetThumbnail");
+            
+            _logger.LogInformation("(TODO:deleteme) MapToInternalFile");
             var file = MapToInternalFile(request.File);
 
+            _logger.LogInformation("(TODO:deleteme) ResolveFileSystem");
             var fs = this.GetFileSystemResolver().ResolveFileSystem();
-            var (thumbPayload, thumbHeader) = await fs.Storage.GetThumbnailPayloadStream(file, request.Width, request.Height, request.DirectMatchOnly);
+            
+            _logger.LogInformation("(TODO:deleteme) GetThumbnailPayloadStream");
+            var (thumbPayload, thumbHeader) =
+                await fs.Storage.GetThumbnailPayloadStream(file, request.Width, request.Height,
+                    request.DirectMatchOnly);
             if (thumbPayload == Stream.Null)
             {
                 return NotFound();
             }
 
+            _logger.LogInformation("(TODO:deleteme) GetSharedSecretEncryptedHeader");
             var header = await fs.Storage.GetSharedSecretEncryptedHeader(file);
             string encryptedKeyHeader64 = header.SharedSecretEncryptedKeyHeader.ToBase64();
 
@@ -92,13 +109,23 @@ namespace Youverse.Hosting.Controllers.Base
                 //TODO: need to throw a better exception when we have a thumbnail but no header
                 throw new YouverseClientException("Missing header", YouverseClientErrorCode.UnknownId);
             }
-            
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, header.FileMetadata!.PayloadIsEncrypted.ToString());
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, thumbHeader.ContentType);
-            HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader64);
 
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted,
+                header.FileMetadata!.PayloadIsEncrypted.ToString());
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, thumbHeader.ContentType);
+            HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64,
+                encryptedKeyHeader64);
+
+            _logger.LogInformation("(TODO:deleteme) AddCacheHeader");
             AddCacheHeader();
-            return new FileStreamResult(thumbPayload, header.FileMetadata.PayloadIsEncrypted ? "application/octet-stream" : header.FileMetadata.ContentType);
+            
+            _logger.LogInformation("(TODO:deleteme) FileStreamResult");
+            var result = new FileStreamResult(thumbPayload, header.FileMetadata.PayloadIsEncrypted
+                    ? "application/octet-stream"
+                    : header.FileMetadata.ContentType);
+
+            _logger.LogInformation("(TODO:deleteme) exiting GetThumbnail");
+            return result;
         }
 
         /// <summary>
