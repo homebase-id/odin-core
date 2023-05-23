@@ -6,10 +6,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Org.BouncyCastle.Security;
 using Youverse.Core;
+using Youverse.Core.Exceptions;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.AppNotifications;
+using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Tenant;
+using Youverse.Hosting.Authentication.ClientToken;
 using Youverse.Hosting.Controllers.ClientToken;
 
 namespace Youverse.Hosting.Controllers.Notifications
@@ -43,5 +47,36 @@ namespace Youverse.Hosting.Controllers.Notifications
                 HttpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
             }
         }
+
+        [HttpGet("preauth")]
+        public IActionResult SocketPreAuth([FromBody]SocketPreAuthRequest request)
+        {
+            var success = ClientAuthenticationToken.TryParse(request.Cat64, out var clientAuthToken);
+
+            if (!success)
+            {
+                throw new YouverseClientException("bad token");
+            }
+            
+            var options = new CookieOptions()
+            {
+                HttpOnly = true,
+                IsEssential = true,
+                Secure = true,
+                //Path = "/owner", //TODO: cannot use this until we adjust api paths
+                // SameSite = SameSiteMode.Strict,
+                Expires = DateTime.UtcNow.AddMonths(6)
+            };
+            
+            Response.Cookies.Append(ClientTokenConstants.ClientAuthTokenCookieName, clientAuthToken.ToString(), options);
+
+            return Ok();
+        }
+        
+    }
+
+    public class SocketPreAuthRequest
+    {
+        public string? Cat64 { get; set; }
     }
 }

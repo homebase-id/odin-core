@@ -46,7 +46,7 @@ namespace Youverse.Core.Services.Workers.Certificate
             foreach (var identity in identities.Results)
             {
                 var tenantContext =
-                    TenantContext.Create(identity.Id, identity.PrimaryDomainName, _config.Host.TenantDataRootPath, null,_config.Host.TenantPayloadRootPath);
+                    TenantContext.Create(identity.Id, identity.PrimaryDomainName, _config.Host.TenantDataRootPath, _config.Host.TenantPayloadRootPath);
                 var tc = certificateServiceFactory.Create(tenantContext.SslRoot);
                 var task = tc.RenewIfAboutToExpire(identity);
                 tasks.Add(task);

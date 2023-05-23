@@ -32,16 +32,28 @@ namespace Youverse.Hosting._dev
                     continue;
                 }
 
-                var (sourcePublicKeyPath, sourcePrivateKeyPath) = GetSourceDomainPath(domain, youverseConfiguration);
                 var registrationRequest = new IdentityRegistrationRequest()
                 {
                     OdinId = (OdinId)domain,
-                    OptionalCertificatePemContent = new CertificatePemContent()
+                };
+                
+                try
+                {
+                    var (sourcePublicKeyPath, sourcePrivateKeyPath) = GetSourceDomainPath(domain, youverseConfiguration);
+                    registrationRequest.OptionalCertificatePemContent = new CertificatePemContent()
                     {
                         Certificate = File.ReadAllText(sourcePublicKeyPath),
                         PrivateKey = File.ReadAllText(sourcePrivateKeyPath)
+                    };
+                }
+                catch (Exception)
+                {
+                    // Swallow unless identity domain is running on 127.0.0.1
+                    if (domain.EndsWith("dotyou.cloud"))
+                    {
+                        throw;
                     }
-                };
+                }
 
                 identityRegistry.AddRegistration(registrationRequest).GetAwaiter().GetResult();
             }
