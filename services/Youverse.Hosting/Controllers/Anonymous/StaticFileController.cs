@@ -67,10 +67,11 @@ namespace Youverse.Hosting.Controllers.Anonymous
                 return NotFound();
             }
 
-            if (config.CrossOriginBehavior == CrossOriginBehavior.AllowAllOrigins)
-            {
-                this.Response.Headers.Add("Access-Control-Allow-Origin", "*");
-            }
+            // TODO: re-enable CORS here, when the global one is made selective for only the identity
+            // if (config.CrossOriginBehavior == CrossOriginBehavior.AllowAllOrigins)
+            // {
+            //     this.Response.Headers.Add("Access-Control-Allow-Origin", "*");
+            // }
 
             this.Response.Headers.Add("Cache-Control", "max-age=60, stale-while-revalidate=120");
 
