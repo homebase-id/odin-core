@@ -1,5 +1,6 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Base;
@@ -16,8 +17,15 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
     [AuthorizeValidExchangeGrant]
     public class DriveAttachmentsController : DriveStorageControllerBase
     {
-        public DriveAttachmentsController(FileSystemResolver fileSystemResolver, ITransitService transitService) : base(fileSystemResolver, transitService)
+        private readonly ILogger<DriveAttachmentsController> _logger;
+
+        public DriveAttachmentsController(
+            ILogger<DriveAttachmentsController> logger,
+            FileSystemResolver fileSystemResolver,
+            ITransitService transitService)
+            : base(logger, fileSystemResolver, transitService)
         {
+            _logger = logger;
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]

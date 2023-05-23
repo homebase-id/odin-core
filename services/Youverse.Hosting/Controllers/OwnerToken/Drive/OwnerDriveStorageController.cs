@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Apps;
@@ -10,6 +11,7 @@ using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.FileSystem.Base;
 using Youverse.Core.Services.Transit;
 using Youverse.Core.Services.Transit.SendingHost;
+using Youverse.Core.Util;
 using Youverse.Hosting.Controllers.Base;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Drive
@@ -20,9 +22,15 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
     [AuthorizeValidOwnerToken]
     public class OwnerDriveStorageController : DriveStorageControllerBase
     {
-        public OwnerDriveStorageController(FileSystemResolver fileSystemResolver, ITransitService transitService) :
-            base(fileSystemResolver, transitService)
+        private readonly ILogger<OwnerDriveStorageController> _logger;
+        
+        public OwnerDriveStorageController(
+            ILogger<OwnerDriveStorageController> logger,
+            FileSystemResolver fileSystemResolver, 
+            ITransitService transitService) :
+            base(logger, fileSystemResolver, transitService)
         {
+            _logger = logger;
         }
 
         /// <summary>
@@ -105,7 +113,10 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         [HttpPost("thumb")]
         public new async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
         {
-            return await base.GetThumbnail(request);
+            return await Benchmark.MillisecondsAsync<IActionResult>(_logger, "(TODO:deleteme) POST GetThumbnail", async () =>
+            {
+                return await base.GetThumbnail(request);
+            });
         }
 
         /// <summary>
@@ -117,19 +128,22 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] int width,
             [FromQuery] int height)
         {
-            return await base.GetThumbnail(new GetThumbnailRequest()
+            return await Benchmark.MillisecondsAsync<IActionResult>(_logger, "(TODO:deleteme) POST GetThumbnail", async () =>
             {
-                File = new ExternalFileIdentifier()
+                return await base.GetThumbnail(new GetThumbnailRequest()
                 {
-                    FileId = fileId,
-                    TargetDrive = new()
+                    File = new ExternalFileIdentifier()
                     {
-                        Alias = alias,
-                        Type = type
-                    }
-                },
-                Width = width,
-                Height = height
+                        FileId = fileId,
+                        TargetDrive = new()
+                        {
+                            Alias = alias,
+                            Type = type
+                        }
+                    },
+                    Width = width,
+                    Height = height
+                });
             });
         }
 
