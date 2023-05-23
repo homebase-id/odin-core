@@ -64,7 +64,7 @@ namespace Youverse.Hosting.Tests
             Environment.SetEnvironmentVariable("Development__PreconfiguredDomains",
                 "[\"frodo.dotyou.cloud\",\"sam.dotyou.cloud\", \"merry.dotyou.cloud\",\"pippin.dotyou.cloud\"]");
 
-            Environment.SetEnvironmentVariable("Registry__ProvisioningDomain", "provisioning-dev.youfoundation.id");
+            Environment.SetEnvironmentVariable("Registry__ProvisioningDomain", "provisioning.dotyou.cloud");
             Environment.SetEnvironmentVariable("Registry__ManagedDomains", "[\"dev.dotyou.cloud\"]");
             Environment.SetEnvironmentVariable("Registry__DnsTargetRecordType", "[\"dev.dotyou.cloud\"]");
             Environment.SetEnvironmentVariable("Registry__DnsTargetAddress", "[\"dev.dotyou.cloud\"]");
@@ -105,7 +105,7 @@ namespace Youverse.Hosting.Tests
             CreateLogs();
 
             var certificateServiceFactory = CreateCertificateFactoryServiceMock();
-            _registry = new FileSystemIdentityRegistry(certificateServiceFactory, TestDataPath, null, TestPayloadPath);
+            _registry = new FileSystemIdentityRegistry(certificateServiceFactory, TestDataPath, TestPayloadPath);
 
             var (config, _) = Program.LoadConfig();
             DevEnvironmentSetup.RegisterPreconfiguredDomains(config, _registry);

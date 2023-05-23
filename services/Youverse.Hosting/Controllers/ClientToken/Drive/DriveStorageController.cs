@@ -4,6 +4,7 @@ using System.Net.Mime;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Logging;
 using Swashbuckle.AspNetCore.Annotations;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Acl;
@@ -28,9 +29,15 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
     [AuthorizeValidExchangeGrant]
     public class DriveStorageController : DriveStorageControllerBase
     {
-        public DriveStorageController(FileSystemResolver fileSystemResolver, ITransitService transitService) :
-            base(fileSystemResolver, transitService)
+        private readonly ILogger<DriveStorageController> _logger;
+        
+        public DriveStorageController(
+            ILogger<DriveStorageController> logger, 
+            FileSystemResolver fileSystemResolver, 
+            ITransitService transitService) :
+            base(logger, fileSystemResolver, transitService)
         {
+            _logger = logger;
         }
 
         /// <summary>
@@ -107,6 +114,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         [HttpPost("files/thumb")]
         public new async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
         {
+            
             return await base.GetThumbnail(request);
         }
 

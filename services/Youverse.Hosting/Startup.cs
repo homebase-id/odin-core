@@ -170,7 +170,6 @@ namespace Youverse.Hosting
             services.AddSingleton<IIdentityRegistry>(sp => new FileSystemIdentityRegistry(
                 sp.GetRequiredService<ICertificateServiceFactory>(),
                 config.Host.TenantDataRootPath,
-                config.CertificateRenewal.ToCertificateRenewalConfig(),
                 config.Host.TenantPayloadRootPath));
 
             services.AddSingleton(new AcmeAccountConfig
@@ -241,12 +240,10 @@ namespace Youverse.Hosting
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILogger<Startup> logger)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILogger<Startup> logger, IHostApplicationLifetime lifetime)
         {
             var config = app.ApplicationServices.GetRequiredService<YouverseConfiguration>();
             var registry = app.ApplicationServices.GetRequiredService<IIdentityRegistry>();
-
-            DevEnvironmentSetup.ConfigureIfPresent(config, registry);
 
             app.UseLoggingMiddleware();
             app.UseMiddleware<ExceptionHandlingMiddleware>();
@@ -357,6 +354,11 @@ namespace Youverse.Hosting
                         });
                     });
             }
+            
+            lifetime.ApplicationStarted.Register(() =>
+            {
+                DevEnvironmentSetup.ConfigureIfPresent(config, registry);
+            });
         }
 
         private void PrepareEnvironment(YouverseConfiguration cfg)

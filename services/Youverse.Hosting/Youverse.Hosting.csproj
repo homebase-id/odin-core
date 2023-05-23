@@ -36,6 +36,7 @@
         <PackageReference Include="MagicOnion.Client" Version="4.3.1" />
         <PackageReference Include="Microsoft.AspNetCore.Authentication.Certificate" Version="6.0.14" />
         <PackageReference Include="Microsoft.AspNetCore.SpaServices.Extensions" Version="6.0.14" />
+        <PackageReference Include="Microsoft.Extensions.Hosting" Version="6.0.0" />
         <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" Version="6.0.0" />
         <PackageReference Include="NReco.Logging.File" Version="1.1.1" />
         <PackageReference Include="Quartz.AspNetCore" Version="3.3.3" />
