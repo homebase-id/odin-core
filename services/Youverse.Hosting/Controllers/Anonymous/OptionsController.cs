@@ -3,12 +3,16 @@ using Microsoft.AspNetCore.Mvc;
 using Youverse.Core.Services.Base;
 using Youverse.Hosting.Authentication.ClientToken;
 using Youverse.Hosting.Controllers.Base;
+using Youverse.Hosting.Controllers.ClientToken;
+using Youverse.Hosting.Controllers.OwnerToken;
 
-namespace Youverse.Hosting.Controllers.ClientToken.App
+namespace Youverse.Hosting.Controllers.Anonymous
 {
     [ApiController]
     [Route(AppApiPathConstants.BasePathV1)]
-    public class AppOptionsController : OdinControllerBase
+    [Route(YouAuthApiPathConstants.BasePathV1)]
+    [Route(OwnerApiPathConstants.BasePathV1)]
+    public class OptionsController : OdinControllerBase
     {
         [HttpOptions("{**thePath}")]
         public IActionResult Options(string thePath)
