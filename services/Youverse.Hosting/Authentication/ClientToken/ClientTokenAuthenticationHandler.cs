@@ -66,7 +66,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
         {
             if (!TryGetClientAuthToken(ClientTokenConstants.ClientAuthTokenCookieName, out var authToken, true))
             {
-                AuthenticateResult.Fail("Invalid App Token");
+                return AuthenticateResult.Fail("Invalid App Token");
             }
 
             var appRegService = Context.RequestServices.GetRequiredService<IAppRegistrationService>();
@@ -219,6 +219,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
             {
                 clientAccessTokenValue64 = Context.Request.Headers[cookieName];
             }
+
             return ClientAuthenticationToken.TryParse(clientAccessTokenValue64, out clientAuthToken);
         }
     }

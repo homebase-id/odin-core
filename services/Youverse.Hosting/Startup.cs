@@ -315,6 +315,15 @@ namespace Youverse.Hosting
                             spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3001/owner/");
                         });
                     });
+                
+                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/chat"),
+                    homeApp =>
+                    {
+                        homeApp.UseSpa(spa =>
+                        {
+                            spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:8080");
+                        });
+                    });
             }
             else
             {
