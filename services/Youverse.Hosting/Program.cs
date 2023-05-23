@@ -228,11 +228,12 @@ namespace Youverse.Hosting
             var idReg = registry.ResolveIdentityRegistration(hostName, out _);
             if (idReg != null)
             {
-                // SEB:TODO
-                // TenantContext.Create does IO. This is bad in critical path.
-                // Find another way to get the SslRoot of the tenant
-                var tenantContext =
-                    TenantContext.Create(idReg.Id, idReg.PrimaryDomainName, config.Host.TenantDataRootPath, config.Host.TenantPayloadRootPath);
+                var tenantContext = TenantContext.Create(
+                    idReg.Id, 
+                    idReg.PrimaryDomainName, 
+                    config.Host.TenantDataRootPath, 
+                    config.Host.TenantPayloadRootPath, 
+                    false);
                 sslRoot = tenantContext.SslRoot;
                 domain = idReg.PrimaryDomainName;
             }
