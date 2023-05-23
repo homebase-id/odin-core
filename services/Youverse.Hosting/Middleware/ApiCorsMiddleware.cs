@@ -45,7 +45,7 @@ namespace Youverse.Hosting.Middleware
                 context.Response.Headers.Add("Access-Control-Expose-Headers",
                     new[]
                     {
-                        HttpHeaderConstants.SharedSecretEncryptedHeader64, HttpHeaderConstants.PayloadEncrypted
+                        HttpHeaderConstants.SharedSecretEncryptedHeader64, HttpHeaderConstants.PayloadEncrypted, HttpHeaderConstants.DecryptedContentType
                     });
             }
 
