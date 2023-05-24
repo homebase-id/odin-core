@@ -60,7 +60,7 @@ namespace Youverse.Hosting
 
             PrepareEnvironment(config);
             AssertValidRenewalConfiguration(config.CertificateRenewal);
-            
+
             services.AddHttpClient();
 
             if (config.Quartz.EnableQuartzBackgroundService)
@@ -159,11 +159,11 @@ namespace Youverse.Hosting
                 CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.TransitCertificateAuthScheme);
                 CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.PublicTransitAuthScheme);
             });
-            
+
             services.AddSingleton<YouverseConfiguration>(config);
             services.AddSingleton<ServerSystemStorage>();
             services.AddSingleton<IPendingTransfersService, PendingTransfersService>();
-            
+
             // In production, the React files will be served from this directory
             services.AddSpaStaticFiles(configuration => { configuration.RootPath = "client/"; });
 
@@ -171,7 +171,7 @@ namespace Youverse.Hosting
                 sp.GetRequiredService<ICertificateServiceFactory>(),
                 config.Host.TenantDataRootPath,
                 config.Host.TenantPayloadRootPath));
-            
+
             services.AddSingleton(new AcmeAccountConfig
             {
                 AcmeContactEmail = config.CertificateRenewal.CertificateAuthorityAssociatedEmail,
@@ -203,9 +203,9 @@ namespace Youverse.Hosting
                     };
                     return handler;
                 })
-                // Shortlived to deal with DNS changes 
+                // Shortlived to deal with DNS changes
                 .SetHandlerLifetime(TimeSpan.FromSeconds(10));
-           
+
         }
 
         // ConfigureContainer is where you can register things directly
@@ -256,7 +256,7 @@ namespace Youverse.Hosting
             }
 
             app.MapWhen(IsProvisioningSite, app => Provisioning.Map(app, env, logger));
-            
+
             app.UseMultiTenancy();
 
             app.UseDefaultFiles();
@@ -269,7 +269,7 @@ namespace Youverse.Hosting
 
             app.UseMiddleware<DotYouContextMiddleware>();
             app.UseResponseCompression();
-            app.UseAppCors();
+            app.UseApiCors();
             app.UseMiddleware<SharedSecretEncryptionMiddleware>();
             app.UseMiddleware<StaticFileCachingMiddleware>();
             app.UseHttpsRedirection();

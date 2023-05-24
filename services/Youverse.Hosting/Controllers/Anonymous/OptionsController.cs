@@ -27,6 +27,7 @@ namespace Youverse.Hosting.Controllers.Anonymous
             this.Response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
             this.Response.Headers.Add("Access-Control-Allow-Credentials", "true");
             this.Response.Headers.Add("Access-Control-Expose-Headers", "*");
+            this.Response.Headers.Add("Access-Control-Max-Age", "86400");
 
             return Ok();
         }

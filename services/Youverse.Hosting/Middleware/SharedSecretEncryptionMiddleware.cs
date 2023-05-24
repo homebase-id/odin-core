@@ -61,7 +61,8 @@ namespace Youverse.Hosting.Middleware
                 "/api/youauth/v1/drive/files/upload",
                 "/api/youauth/v1/drive/files/attachments/upload",
                 "/api/youauth/v1/auth/is-authenticated",
-                $"{AppApiPathConstants.AuthV1}/logout"
+                $"{AppApiPathConstants.AuthV1}/logout", 
+                $"{AppApiPathConstants.NotificationsV1}/preauth"
                 //"/api/owner/v1/config/ownerapp/settings/list"
             };
 
