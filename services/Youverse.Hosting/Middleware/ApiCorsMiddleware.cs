@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Org.BouncyCastle.Tls;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Registry.Registration;
 using Youverse.Hosting.Authentication.ClientToken;
@@ -45,10 +47,11 @@ namespace Youverse.Hosting.Middleware
                     allowHeaders.Add(DotYouHeaderNames.FileSystemTypeHeader);
                 }
             }
-            else if (context.Request.Host.Host == $"{DnsConfigurationSet.PrefixApi}.{dotYouContext.Tenant.DomainName}")
+            else if ( //if the browser gives me an origin that is this identity (i.e. the home or owner app) 
+                string.Equals(context.Request.Headers["Origin"], $"https://{dotYouContext.Tenant.DomainName}", StringComparison.InvariantCultureIgnoreCase) &&
+                string.Equals(context.Request.Host.Host, $"{DnsConfigurationSet.PrefixApi}.{dotYouContext.Tenant.DomainName}", StringComparison.InvariantCultureIgnoreCase))
             {
-                var originHeader = $"https://{dotYouContext.Tenant.DomainName}";
-                context.Response.Headers.Add("Access-Control-Allow-Origin", originHeader);
+                context.Response.Headers.Add("Access-Control-Allow-Origin", $"https://{dotYouContext.Tenant.DomainName}");
                 allowHeaders.Add(DotYouHeaderNames.FileSystemTypeHeader);
                 shouldSetHeaders = true;
             }
