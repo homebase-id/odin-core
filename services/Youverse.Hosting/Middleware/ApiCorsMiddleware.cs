@@ -25,18 +25,12 @@ namespace Youverse.Hosting.Middleware
 
         private Task BeginInvoke(HttpContext context, DotYouContext dotYouContext)
         {
-            // TODO: Let only work for the identity
-
-            if (context.Request.Method == "OPTIONS")
+            if(dotYouContext is { AuthContext: ClientTokenConstants.AppSchemeName } || context.Request.Method == "OPTIONS")
             {
-                context.Response.Headers.Add("Access-Control-Allow-Origin", new[] { (string)context.Request.Headers["Origin"] });
-                context.Response.Headers.Add("Access-Control-Allow-Headers", new[] { "Origin, Content-Type, Accept, X-ODIN-FILE-SYSTEM-TYPE" });
-                context.Response.Headers.Add("Access-Control-Allow-Methods", new[] { "GET, POST, PUT, DELETE, OPTIONS" });
-                context.Response.Headers.Add("Access-Control-Allow-Credentials", new[] { "true" });
-                context.Response.StatusCode = 200;
-                return context.Response.WriteAsync("OK");
+                return _next.Invoke(context);
             }
 
+            // TODO: Let only work for the identity
             if(context.Request.Headers.ContainsKey("Origin")){
                 var originHeader = context.Request.Headers["Origin"];
                 context.Response.Headers.Add("Access-Control-Allow-Origin", originHeader);

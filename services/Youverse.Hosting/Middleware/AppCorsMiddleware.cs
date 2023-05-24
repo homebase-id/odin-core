@@ -27,8 +27,6 @@ namespace Youverse.Hosting.Middleware
         {
             if(dotYouContext is { AuthContext: ClientTokenConstants.AppSchemeName } && context.Request.Method.ToUpper() != "OPTIONS")
             {
-                // context.Response.Headers.Add("Access-Control-Allow-Origin", originHeader);
-
                 string appHostName = dotYouContext.Caller.AppContext.CorsAppName;
                 if (!string.IsNullOrEmpty(appHostName))
                 {
