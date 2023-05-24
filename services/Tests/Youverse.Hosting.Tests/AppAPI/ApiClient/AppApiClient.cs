@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Refit;
 using Youverse.Core;
 using Youverse.Core.Storage;
 using Youverse.Hosting.Tests.AppAPI.ApiClient.Auth;
@@ -33,19 +34,18 @@ namespace Youverse.Hosting.Tests.AppAPI.ApiClient
                 ClientAuthToken = p.clientAuthToken,
                 SharedSecret = p.sharedSecret
             };
-            
+
             this.Drive = new AppDriveApiClient(ownerApi, _token);
             this.Security = new AppSecurityApiClient(ownerApi, _token);
-            
         }
 
         public TestIdentity Identity => _identity;
-        
+
         public GuidId AccessRegistrationId => _token.ClientAuthToken.Id;
 
         public AppDriveApiClient Drive { get; }
 
-        
+
         public AppSecurityApiClient Security { get; }
 
         public async Task Logout()
@@ -54,6 +54,15 @@ namespace Youverse.Hosting.Tests.AppAPI.ApiClient
             {
                 var authService = RefitCreator.RestServiceFor<IAppAuthenticationClient>(client, this._token.SharedSecret);
                 await authService.Logout();
+            }
+        }
+
+        public async Task<ApiResponse<HttpContent>> PreAuth()
+        {
+            using (var client = this.CreateAppApiHttpClient())
+            {
+                var authService = RefitCreator.RestServiceFor<IAppAuthenticationClient>(client, this._token.SharedSecret);
+                return await authService.PreAuthWebsocket();
             }
         }
 

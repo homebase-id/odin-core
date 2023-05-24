@@ -10,6 +10,7 @@ using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Drives;
+using Youverse.Hosting.Authentication.ClientToken;
 using Youverse.Hosting.Tests.Anonymous.ApiClient;
 using Youverse.Hosting.Tests.AppAPI.ApiClient.Auth;
 using Youverse.Hosting.Tests.OwnerApi.ApiClient;
@@ -65,13 +66,45 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
 
             var clients = await ownerClient.Apps.GetRegisteredClients();
             Assert.IsNotNull(clients.SingleOrDefault(c => c.AppId == appId && c.AccessRegistrationId == appApiClient.AccessRegistrationId));
-            
+
             await appApiClient.Logout();
 
             //log out the app
             var updatedClients = await ownerClient.Apps.GetRegisteredClients();
             Assert.IsTrue(!updatedClients.Any());
         }
-        
+
+        [Test]
+        public async Task CanPreauthForWebsocket()
+        {
+            var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
+
+            var appDrive = await ownerClient.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Chat Drive 1", "", false);
+            var appId = Guid.NewGuid();
+
+            var appPermissionsGrant = new PermissionSetGrantRequest()
+            {
+                Drives = new List<DriveGrantRequest>()
+                {
+                    new()
+                    {
+                        PermissionedDrive = new PermissionedDrive()
+                        {
+                            Drive = appDrive.TargetDriveInfo,
+                            Permission = DrivePermission.All
+                        }
+                    }
+                },
+                PermissionSet = new PermissionSet(PermissionKeys.All)
+            };
+
+            var appRegistration = await ownerClient.Apps.RegisterApp(appId, appPermissionsGrant);
+            var appApiClient = _scaffold.CreateAppClient(TestIdentities.Samwise, appId);
+
+            var response = await appApiClient.PreAuth();
+            
+            Assert.IsTrue(response.Headers.TryGetValues("Set-Cookie", out var values));
+            Assert.IsTrue(values.Any(v=>v.StartsWith(ClientTokenConstants.ClientAuthTokenCookieName)));
+        }
     }
 }
