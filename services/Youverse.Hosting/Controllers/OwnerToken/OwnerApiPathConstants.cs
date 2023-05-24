@@ -3,7 +3,7 @@
     /// <summary />
     public static class OwnerApiPathConstants
     {
-        private const string BasePathV1 = "/api/owner/v1";
+        public const string BasePathV1 = "/api/owner/v1";
 
         public const string AuthV1 = BasePathV1 + "/authentication";
 
