@@ -45,10 +45,9 @@ namespace Youverse.Hosting.Middleware
                     allowHeaders.Add(DotYouHeaderNames.FileSystemTypeHeader);
                 }
             }
-
-            if (context.Request.Host.Host == $"{DnsConfigurationSet.PrefixApi}.{dotYouContext.Tenant.DomainName}")
+            else if (context.Request.Host.Host == $"{DnsConfigurationSet.PrefixApi}.{dotYouContext.Tenant.DomainName}")
             {
-                var originHeader = dotYouContext.Tenant.DomainName;
+                var originHeader = $"https://{dotYouContext.Tenant.DomainName}";
                 context.Response.Headers.Add("Access-Control-Allow-Origin", originHeader);
                 allowHeaders.Add(DotYouHeaderNames.FileSystemTypeHeader);
                 shouldSetHeaders = true;
