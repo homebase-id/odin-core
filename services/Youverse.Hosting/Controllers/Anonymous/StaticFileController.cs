@@ -69,10 +69,15 @@ namespace Youverse.Hosting.Controllers.Anonymous
 
             if (config.CrossOriginBehavior == CrossOriginBehavior.AllowAllOrigins)
             {
+                if (this.Response.Headers.ContainsKey("Access-Control-Allow-Origin"))
+                {
+                    this.Response.Headers.Remove("Access-Control-Allow-Origin");
+                }
+
                 this.Response.Headers.Add("Access-Control-Allow-Origin", "*");
             }
 
-            this.Response.Headers.Add("Cache-Control", "max-age=60, stale-while-revalidate=120");
+            this.Response.Headers.Add("Cache-Control", "max-age=31536000");
 
             return new FileStreamResult(stream, config.ContentType);
         }

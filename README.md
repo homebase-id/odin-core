@@ -22,10 +22,8 @@ Steps:
 1. Install dotnet sdk v6+
 2. Clone this repo: ```git@github.com:YouFoundation/DotYouCore.git```
 3. Clone the repo dotyoucore-lib in a sibling folder to dotyoucore ```git@github.com:YouFoundation/dotyoucore-lib.git```
-4. Clone the owner-app: ```git@github.com:YouFoundation/owner-app.git```
-5. Clone the public-app: ```git@github.com:YouFoundation/public-app.git```
-6. Clone the provisioning-app ```git@github.com:YouFoundation/provisioning-app```
-7. See instructions in owner-app, public-app, and provisioning-app repos
+4. Clone the front-end monorepo: ```git@github.com:YouFoundation/dotyoucore-js.git```
+6. See instructions in dotyoucore-js for running the individual apps
 
 To run the identity server
 1. ```dotyoucore/dotnet restore```

@@ -48,7 +48,7 @@ namespace Youverse.Hosting.Controllers.Notifications
             }
         }
 
-        [HttpGet("preauth")]
+        [HttpPost("preauth")]
         public IActionResult SocketPreAuth([FromBody]SocketPreAuthRequest request)
         {
             var success = ClientAuthenticationToken.TryParse(request.Cat64, out var clientAuthToken);
