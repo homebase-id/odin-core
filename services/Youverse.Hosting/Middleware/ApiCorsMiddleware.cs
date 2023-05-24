@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -5,8 +6,6 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Registry.Registration;
 using Youverse.Hosting.Authentication.ClientToken;
 
-// Sorry Todd, I know you just cleaned up the AppCorsMiddleware and here I am doing it all over
-// again to support the api.* domains.. But to debug it all we need all these nasty headers once again
 namespace Youverse.Hosting.Middleware
 {
     public class ApiCorsMiddleware
@@ -25,19 +24,40 @@ namespace Youverse.Hosting.Middleware
 
         private Task BeginInvoke(HttpContext context, DotYouContext dotYouContext)
         {
-            if (dotYouContext is { AuthContext: ClientTokenConstants.AppSchemeName } || context.Request.Method == "OPTIONS")
+            if (context.Request.Method == "OPTIONS")
             {
+                //handled by a controller
                 return _next.Invoke(context);
             }
 
-            // TODO: Let only work for the identity
-            // Only if origin is frodo.dotyou.cloud and the request is for api.frodo.dotyou.cloud
-            if (context.Request.Headers.ContainsKey("Origin"))
+            bool shouldSetHeaders = false;
+
+            List<string> allowHeaders = new List<string>();
+
+            if (dotYouContext.AuthContext == ClientTokenConstants.AppSchemeName)
             {
-                var originHeader = context.Request.Headers["Origin"];
+                string appHostName = dotYouContext.Caller.AppContext.CorsAppName;
+                if (!string.IsNullOrEmpty(appHostName))
+                {
+                    shouldSetHeaders = true;
+                    context.Response.Headers.Add("Access-Control-Allow-Origin", $"https://{appHostName}");
+                    allowHeaders.Add(ClientTokenConstants.ClientAuthTokenCookieName);
+                    allowHeaders.Add(DotYouHeaderNames.FileSystemTypeHeader);
+                }
+            }
+
+            if (context.Request.Host.Host == $"{DnsConfigurationSet.PrefixApi}.{dotYouContext.Tenant.DomainName}")
+            {
+                var originHeader = dotYouContext.Tenant.DomainName;
                 context.Response.Headers.Add("Access-Control-Allow-Origin", originHeader);
+                allowHeaders.Add(DotYouHeaderNames.FileSystemTypeHeader);
+                shouldSetHeaders = true;
+            }
+
+            if (shouldSetHeaders)
+            {
                 context.Response.Headers.Add("Access-Control-Allow-Credentials", new[] { "true" });
-                context.Response.Headers.Add("Access-Control-Allow-Headers", new[] { "Origin, Content-Type, Accept, X-ODIN-FILE-SYSTEM-TYPE" });
+                context.Response.Headers.Add("Access-Control-Allow-Headers", allowHeaders.ToArray());
                 context.Response.Headers.Add("Access-Control-Expose-Headers",
                     new[]
                     {

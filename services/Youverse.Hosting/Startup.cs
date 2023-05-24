@@ -270,7 +270,6 @@ namespace Youverse.Hosting
             app.UseMiddleware<DotYouContextMiddleware>();
             app.UseResponseCompression();
             app.UseApiCors();
-            app.UseAppCors();
             app.UseMiddleware<SharedSecretEncryptionMiddleware>();
             app.UseMiddleware<StaticFileCachingMiddleware>();
             app.UseHttpsRedirection();
