@@ -52,27 +52,6 @@ namespace Youverse.Hosting.Controllers.Notifications
         public IActionResult SocketPreAuth()
         {
             //this only exists so we can use the [AuthorizeValidAppExchangeGrant] attribute to trigger the clienttokenauthhandler
-            
-            
-            // var success = ClientAuthenticationToken.TryParse(request.Cat64, out var clientAuthToken);
-            //
-            // if (!success)
-            // {
-            //     throw new YouverseClientException("bad token");
-            // }
-            //
-            // var options = new CookieOptions()
-            // {
-            //     HttpOnly = true,
-            //     IsEssential = true,
-            //     Secure = true,
-            //     //Path = "/owner", //TODO: cannot use this until we adjust api paths
-            //     // SameSite = SameSiteMode.Strict,
-            //     Expires = DateTime.UtcNow.AddMonths(6)
-            // };
-            //
-            // Response.Cookies.Append(ClientTokenConstants.ClientAuthTokenCookieName, clientAuthToken.ToString(), options);
-
             return Ok();
         }
         
