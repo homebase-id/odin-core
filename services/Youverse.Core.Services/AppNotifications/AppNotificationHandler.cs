@@ -46,6 +46,7 @@ namespace Youverse.Core.Services.AppNotifications
             var deviceSocket = new DeviceSocket()
             {
                 Key = Guid.NewGuid(),
+                SharedSecretKey =  _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey,
                 DeviceAuthToken = null, //TODO: where is the best place to get the cookie?
                 Socket = socket,
                 Drives = drives
@@ -192,7 +193,8 @@ namespace Youverse.Core.Services.AppNotifications
             {
                 if (encrypt)
                 {
-                    var key = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
+                    // var key = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
+                    var key = deviceSocket.SharedSecretKey;
                     var encryptedPayload = SharedSecretEncryptedPayload.Encrypt(message.ToUtf8ByteArray(), key);
                     message = DotYouSystemSerializer.Serialize(encryptedPayload);
                 }

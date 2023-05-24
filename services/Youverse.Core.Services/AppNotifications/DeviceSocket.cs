@@ -16,5 +16,6 @@ public class DeviceSocket
     /// List of drives to which this device socket is subscribed
     /// </summary>
     public List<Guid> Drives { get; set; }
-        
+
+    public SensitiveByteArray SharedSecretKey { get; set; }
 }
