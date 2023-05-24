@@ -25,13 +25,15 @@ namespace Youverse.Hosting.Middleware
 
         private Task BeginInvoke(HttpContext context, DotYouContext dotYouContext)
         {
-            if(dotYouContext is { AuthContext: ClientTokenConstants.AppSchemeName } || context.Request.Method == "OPTIONS")
+            if (dotYouContext is { AuthContext: ClientTokenConstants.AppSchemeName } || context.Request.Method == "OPTIONS")
             {
                 return _next.Invoke(context);
             }
 
             // TODO: Let only work for the identity
-            if(context.Request.Headers.ContainsKey("Origin")){
+            // Only if origin is frodo.dotyou.cloud and the request is for api.frodo.dotyou.cloud
+            if (context.Request.Headers.ContainsKey("Origin"))
+            {
                 var originHeader = context.Request.Headers["Origin"];
                 context.Response.Headers.Add("Access-Control-Allow-Origin", originHeader);
                 context.Response.Headers.Add("Access-Control-Allow-Credentials", new[] { "true" });
