@@ -53,18 +53,7 @@ namespace Youverse.Hosting.Controllers.Anonymous
             }
 
             var clientAccessToken = await _youAuthService.RegisterBrowserAccess(subject, remoteIcrClientAuthToken);
-
-            var options = new CookieOptions()
-            {
-                HttpOnly = true,
-                IsEssential = true,
-                Secure = true,
-                SameSite = SameSiteMode.Strict
-            };
-
-            var authenticationToken = clientAccessToken.ToAuthenticationToken();
-
-            Response.Cookies.Append(YouAuthDefaults.XTokenCookieName, authenticationToken.ToString(), options);
+            AuthenticationCookieUtil.SetCookie(Response, YouAuthDefaults.XTokenCookieName, clientAccessToken.ToAuthenticationToken());
 
             //TODO: RSA Encrypt shared secret
             var shareSecret64 = Convert.ToBase64String(clientAccessToken?.SharedSecret.GetKey() ?? Array.Empty<byte>());
