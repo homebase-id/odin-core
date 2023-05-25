@@ -6,7 +6,9 @@ using Youverse.Core;
 using Youverse.Core.Cryptography;
 using Youverse.Core.Cryptography.Data;
 using Youverse.Core.Services.Authentication.Owner;
+using Youverse.Core.Services.Authentication.YouAuth;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Youverse.Hosting.Authentication.ClientToken;
 using Youverse.Hosting.Authentication.Owner;
 
 namespace Youverse.Hosting.Controllers.OwnerToken.Auth
@@ -42,18 +44,9 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Auth
         {
             // try
             // {
+            
                 var (result, sharedSecret) = await _authService.Authenticate(package);
-                var options = new CookieOptions()
-                {
-                    HttpOnly = true,
-                    IsEssential = true,
-                    Secure = true,
-                    //Path = "/owner", //TODO: cannot use this until we adjust api paths
-                    SameSite = SameSiteMode.Strict,
-                    Expires = DateTime.UtcNow.AddMonths(6)
-                };
-
-                Response.Cookies.Append(OwnerAuthConstants.CookieName, result.ToString(), options);
+                AuthenticationCookieUtil.SetCookie(Response, OwnerAuthConstants.CookieName, result);
 
                 //TODO: need to encrypt shared secret using client public key
                 return new OwnerAuthenticationResult() { SharedSecret = sharedSecret.GetKey() };

@@ -91,17 +91,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
             // Steal this path from the httpcontroller because here we have the client auth token
             if (Context.Request.Path.StartsWithSegments($"{AppApiPathConstants.NotificationsV1}/preauth"))
             {
-                var options = new CookieOptions()
-                {
-                    HttpOnly = true,
-                    IsEssential = true,
-                    Secure = true,
-                    //Path = "/owner", //TODO: cannot use this until we adjust api paths
-                    // SameSite = SameSiteMode.Strict,
-                    Expires = DateTime.UtcNow.AddMonths(6)
-                };
-            
-                Response.Cookies.Append(ClientTokenConstants.ClientAuthTokenCookieName, authToken.ToString(), options);
+                AuthenticationCookieUtil.SetCookie(Response, ClientTokenConstants.ClientAuthTokenCookieName, authToken);
             }
             
             return CreateAuthenticationResult(claims, ClientTokenConstants.AppSchemeName);
