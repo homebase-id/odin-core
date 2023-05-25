@@ -24,11 +24,15 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private readonly Dictionary<Guid, IdentityRegistration> _cache;
     private readonly Trie<IdentityRegistration> _trie;
     private readonly ICertificateServiceFactory _certificateServiceFactory;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly ISystemHttpClient _systemHttpClient;
     private readonly string _tenantDataRootPath;
     private readonly string _tenantDataPayloadPath;
    
     public FileSystemIdentityRegistry(
         ICertificateServiceFactory certificateServiceFactory,
+        IHttpClientFactory httpClientFactory,
+        ISystemHttpClient systemHttpClient,
         string tenantDataRootPath, 
         string tenantDataPayloadPath)
     {
@@ -40,6 +44,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         _cache = new Dictionary<Guid, IdentityRegistration>();
         _trie = new Trie<IdentityRegistration>();
         _certificateServiceFactory = certificateServiceFactory;
+        _httpClientFactory = httpClientFactory;
+        _systemHttpClient = systemHttpClient;
         _tenantDataRootPath = tenantDataRootPath;
         _tenantDataPayloadPath = tenantDataPayloadPath;
 
@@ -155,7 +161,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         }
 
         //the other option here is to load the certs via the registry, which i dont like
-        var svc = SystemHttpClient.CreateHttps<ICertificateStatusHttpClient>((OdinId)registration.PrimaryDomainName);
+        var svc = _systemHttpClient.CreateHttps<ICertificateStatusHttpClient>((OdinId)registration.PrimaryDomainName);
         try
         { 
             var certsValidResponse = await svc.VerifyCertificatesValid();
@@ -286,8 +292,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private async Task InitializeCertificate(string domain)
     {
-        // SEB:TODO use IHttpClientFactory instead. But need to DI this class first.
-        using var httpClient = new HttpClient();
+        var httpClient = _httpClientFactory.CreateClient();
         var uri = $"https://{domain}/.well-known/acme-challenge/ping";
         await httpClient.GetAsync(uri);
     }

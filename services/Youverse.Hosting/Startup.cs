@@ -62,6 +62,7 @@ namespace Youverse.Hosting
             AssertValidRenewalConfiguration(config.CertificateRenewal);
 
             services.AddHttpClient();
+            services.AddSystemHttpClient();
 
             if (config.Quartz.EnableQuartzBackgroundService)
             {
@@ -169,6 +170,8 @@ namespace Youverse.Hosting
 
             services.AddSingleton<IIdentityRegistry>(sp => new FileSystemIdentityRegistry(
                 sp.GetRequiredService<ICertificateServiceFactory>(),
+                sp.GetRequiredService<IHttpClientFactory>(),
+                sp.GetRequiredService<ISystemHttpClient>(),
                 config.Host.TenantDataRootPath,
                 config.Host.TenantPayloadRootPath));
 

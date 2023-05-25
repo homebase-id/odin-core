@@ -42,7 +42,6 @@ namespace Youverse.Hosting.Tests
         // private readonly OwnerApiClient _ownerApiClient;
         private AppApiTestUtils _appApi;
         private ScenarioBootstrapper _scenarios;
-        private IIdentityRegistry _registry;
         private readonly string _uniqueSubPath;
         private string _testInstancePrefix;
 
@@ -103,12 +102,6 @@ namespace Youverse.Hosting.Tests
 
             CreateData();
             CreateLogs();
-
-            var certificateServiceFactory = CreateCertificateFactoryServiceMock();
-            _registry = new FileSystemIdentityRegistry(certificateServiceFactory, TestDataPath, TestPayloadPath);
-
-            var (config, _) = Program.LoadConfig();
-            DevEnvironmentSetup.RegisterPreconfiguredDomains(config, _registry);
 
             _webserver = Program.CreateHostBuilder(Array.Empty<string>()).Build();
             _webserver.Start();
