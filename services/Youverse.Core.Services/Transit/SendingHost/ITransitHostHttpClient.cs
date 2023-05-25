@@ -21,27 +21,40 @@ namespace Youverse.Core.Services.Transit.SendingHost
         [Multipart]
         [Post(RootPath + "/stream")]
         Task<ApiResponse<HostTransitResponse>> SendHostToHost(
+            [HeaderCollection] IDictionary<string, string> httpHeaders,
             StreamPart header,
             StreamPart metaData,
             params StreamPart[] additionalStreamParts);
 
         [Post(RootPath + "/deletelinkedfile")]
-        Task<ApiResponse<HostTransitResponse>> DeleteLinkedFile([Body] DeleteRemoteFileTransitRequest request);
+        Task<ApiResponse<HostTransitResponse>> DeleteLinkedFile(
+            [HeaderCollection] IDictionary<string, string> httpHeaders,
+            [Body] DeleteRemoteFileTransitRequest request);
 
         [Post(RootPath + "/querybatch")]
-        Task<ApiResponse<QueryBatchResponse>> QueryBatch([Body] QueryBatchRequest request);
+        Task<ApiResponse<QueryBatchResponse>> QueryBatch(
+            [HeaderCollection] IDictionary<string, string> httpHeaders,
+            [Body] QueryBatchRequest request);
 
         [Post(RootPath + "/header")]
-        Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader([Body] ExternalFileIdentifier file);
+        Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader(
+            [HeaderCollection] IDictionary<string, string> httpHeaders,
+            [Body] ExternalFileIdentifier file);
 
         [Post(RootPath + "/thumb")]
-        Task<ApiResponse<HttpContent>> GetThumbnailStream([Body] GetThumbnailRequest request);
+        Task<ApiResponse<HttpContent>> GetThumbnailStream(
+            [HeaderCollection] IDictionary<string, string> httpHeaders,
+            [Body] GetThumbnailRequest request);
 
         [Post(RootPath + "/payload")]
-        Task<ApiResponse<HttpContent>> GetPayloadStream([Body] GetPayloadRequest request);
+        Task<ApiResponse<HttpContent>> GetPayloadStream(
+            [HeaderCollection] IDictionary<string, string> httpHeaders,
+            [Body] GetPayloadRequest request);
 
         [Post(RootPath + "/metadata/type")]
-        Task<ApiResponse<IEnumerable<PerimeterDriveData>>> GetDrives([Body] GetDrivesByTypeRequest request);
+        Task<ApiResponse<IEnumerable<PerimeterDriveData>>> GetDrives(
+            [HeaderCollection] IDictionary<string, string> httpHeaders,
+            [Body] GetDrivesByTypeRequest request);
 
         [Get(RootPath + "/security/context")]
         Task<ApiResponse<RedactedDotYouContext>> GetRemoteDotYouContext();
