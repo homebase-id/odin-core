@@ -3,7 +3,6 @@ using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Collections.Generic;
-using Dawn;
 
 namespace Youverse.Core.Services.Drives;
 
@@ -33,8 +32,8 @@ public class GetQueryBatchRequest
 
     public IEnumerable<Guid> GroupId { get; set; } = null;
 
-    public Nullable<UnixTimeUtc> UserDateStart { get; set; } = null;
-    public Nullable<UnixTimeUtc> UserDateEnd { get; set; } = null;
+    public Int64? UserDateStart { get; set; } = null;
+    public Int64? UserDateEnd { get; set; } = null;
 
     public IEnumerable<Guid> ClientUniqueIdAtLeastOne { get; set; } = null;
     public IEnumerable<Guid> TagsMatchAtLeastOne { get; set; } = null;
@@ -70,8 +69,7 @@ public class GetQueryBatchRequest
                 ArchivalStatus = this.ArchivalStatus,
                 Sender = this.Sender,
                 GroupId = this.GroupId,
-                // TODO: C# magic to find out how to do this:
-                // UserDate = this.UserDateStart != null && this.UserDateEnd != null ? new UnixTimeUtcRange(this.UserDateStart as Youverse.Core.UnixTimeUtc, this.UserDateEnd as Youverse.Core.UnixTimeUtc) : null,
+                UserDate = this.UserDateStart != null && this.UserDateEnd != null ? new UnixTimeUtcRange((UnixTimeUtc) this.UserDateStart.Value,(UnixTimeUtc) this.UserDateEnd.Value) : null,
                 ClientUniqueIdAtLeastOne = this.ClientUniqueIdAtLeastOne,
                 TagsMatchAtLeastOne = this.TagsMatchAtLeastOne,
             },
