@@ -42,7 +42,7 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpGet("batch")]
-        public new async Task<QueryBatchResponse> QueryBatchGet([FromQuery] GetQueryBatchRequest request)
+        public async Task<QueryBatchResponse> QueryBatchGet([FromQuery] GetQueryBatchRequest request)
         {
             var queryBatchRequest = request.toQueryBatchRequest();
             return await base.QueryBatch(queryBatchRequest);

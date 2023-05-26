@@ -28,7 +28,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpGet("batch")]
-        public new async Task<QueryBatchResponse> QueryBatchGet([FromQuery] GetQueryBatchRequest request)
+        public async Task<QueryBatchResponse> QueryBatchGet([FromQuery] GetQueryBatchRequest request)
         {
             var queryBatchRequest = request.toQueryBatchRequest();
             return await base.QueryBatch(queryBatchRequest);
