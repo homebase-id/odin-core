@@ -1,23 +1,21 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using Dawn;
 using DnsClient;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
+using HttpClientFactoryLite;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Dns;
 using Youverse.Core.Util;
+using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
 // Managed Domain: DNS records are managed by e.g. an ISP
 // Own Domain: DNS records are managed by end user
@@ -36,21 +34,23 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     private readonly ReservationStorage _reservationStorage;
     private readonly YouverseConfiguration _configuration;
     private readonly IDnsRestClient _dnsRestClient;
-    private readonly HttpClient _certifacteTester;
+    private readonly IHttpClientFactory _httpClientFactory;
 
     public IdentityRegistrationService(
         ILogger<IdentityRegistrationService> logger, 
         IIdentityRegistry registry,
         YouverseConfiguration configuration,
         IDnsRestClient dnsRestClient,
-        HttpClient certifacteTester)
+        IHttpClientFactory httpClientFactory)
     {
         _logger = logger;
         _configuration = configuration;
         _registry = registry;
         _reservationStorage = new ReservationStorage();
         _dnsRestClient = dnsRestClient;
-        _certifacteTester = certifacteTester;
+        _httpClientFactory = httpClientFactory;
+
+        RegisterHttpClient();
     }
 
     //
@@ -75,9 +75,10 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
     public async Task<bool> HasValidCertifacte(string domain)
     {
+        var httpClient = _httpClientFactory.CreateClient<IdentityRegistrationService>();
         try
         {
-            await _certifacteTester.GetAsync($"https://{domain}");
+            await httpClient.GetAsync($"https://{domain}");
             return true;
         }
         catch (Exception)
@@ -512,6 +513,25 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
         return false;
     }
+    
+    //
+    
+    private void RegisterHttpClient()
+    {
+        _httpClientFactory.Register<IdentityRegistrationService>(builder => builder
+            .ConfigureHttpClient(c =>
+            {
+                // this is called everytime you request a httpclient
+                c.Timeout = TimeSpan.FromSeconds(3);
+            })
+            .ConfigurePrimaryHttpMessageHandler(() =>
+            {
+                // this is whenever you request a httpclient and handler lifetime has expired
+                return new HttpClientHandler { AllowAutoRedirect = false };
+            })
+            .SetHandlerLifetime(TimeSpan.FromSeconds(5))); // Shortlived to deal with DNS changes
+    }
+   
    
 }
 

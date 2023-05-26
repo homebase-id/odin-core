@@ -153,13 +153,11 @@ namespace Youverse.Core.Services.Transit.SendingHost
                 // var clientAccessToken = await ResolveClientAccessToken(r, sendFileOptions.ClientAccessTokenSource);
                 var clientAccessToken = await ResolveClientAccessToken(r, ClientAccessTokenSource.Circle);
 
-                var (client, httpHeaders) = _dotYouHttpClientFactory.CreateClientAndHeaders<ITransitHostHttpClient>(
-                    r,
-                    clientAuthenticationToken: clientAccessToken.ToAuthenticationToken(),
+                var client = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(r, clientAccessToken.ToAuthenticationToken(),
                     fileSystemType: sendFileOptions.FileSystemType);
-                
+
                 //TODO: change to accept a request object that has targetDrive and global transit id
-                var httpResponse = await client.DeleteLinkedFile(httpHeaders, new DeleteRemoteFileTransitRequest()
+                var httpResponse = await client.DeleteLinkedFile(new DeleteRemoteFileTransitRequest()
                 {
                     RemoteGlobalTransitIdFileIdentifier = remoteGlobalTransitIdentifier,
                     FileSystemType = sendFileOptions.FileSystemType
@@ -320,10 +318,8 @@ namespace Youverse.Core.Services.Transit.SendingHost
                     }
                 }
 
-                var (client, httpHeaders) = _dotYouHttpClientFactory.CreateClientAndHeaders<ITransitHostHttpClient>(
-                    recipient,
-                    clientAuthenticationToken: clientAuthToken);
-                var response = await client.SendHostToHost(httpHeaders, transferKeyHeaderStream, metaDataStream, additionalStreamParts.ToArray());
+                var client = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(recipient, clientAuthToken);
+                var response = await client.SendHostToHost(transferKeyHeaderStream, metaDataStream, additionalStreamParts.ToArray());
 
                 if (response.IsSuccessStatusCode)
                 {

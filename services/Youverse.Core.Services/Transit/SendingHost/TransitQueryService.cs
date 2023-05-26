@@ -38,8 +38,8 @@ public class TransitQueryService
 
     public async Task<QueryBatchResult> GetBatch(OdinId odinId, QueryBatchRequest request, FileSystemType fileSystemType)
     {
-        var (icr, httpClient, httpHeaders) = await CreateClient(odinId, fileSystemType);
-        var queryBatchResponse = await httpClient.QueryBatch(httpHeaders, request);
+        var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
+        var queryBatchResponse = await httpClient.QueryBatch(request);
 
         AssertValidResponse(queryBatchResponse);
 
@@ -54,8 +54,8 @@ public class TransitQueryService
 
     public async Task<SharedSecretEncryptedFileHeader> GetFileHeader(OdinId odinId, ExternalFileIdentifier file, FileSystemType fileSystemType)
     {
-        var (icr, httpClient, httpHeaders) = await CreateClient(odinId, fileSystemType);
-        var response = await httpClient.GetFileHeader(httpHeaders, file);
+        var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
+        var response = await httpClient.GetFileHeader(file);
 
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
@@ -73,8 +73,8 @@ public class TransitQueryService
             decryptedContentType, Stream payload)> GetPayloadStream(OdinId odinId, ExternalFileIdentifier file,
             FileChunk chunk, FileSystemType fileSystemType)
     {
-        var (icr, httpClient, httpHeaders) = await CreateClient(odinId, fileSystemType);
-        var response = await httpClient.GetPayloadStream(httpHeaders, new GetPayloadRequest {  File = file,Chunk = chunk} );
+        var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
+        var response = await httpClient.GetPayloadStream(new GetPayloadRequest(){  File = file,Chunk = chunk} );
 
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
@@ -106,9 +106,9 @@ public class TransitQueryService
     public async Task<(EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader, bool payloadIsEncrypted, string decryptedContentType, Stream thumbnail)>
         GetThumbnail(OdinId odinId, ExternalFileIdentifier file, int width, int height, FileSystemType fileSystemType)
     {
-        var (icr, httpClient, httpHeaders) = await CreateClient(odinId, fileSystemType);
+        var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
 
-        var response = await httpClient.GetThumbnailStream(httpHeaders, new GetThumbnailRequest()
+        var response = await httpClient.GetThumbnailStream(new GetThumbnailRequest()
         {
             File = file,
             Width = width,
@@ -144,8 +144,8 @@ public class TransitQueryService
 
     public async Task<IEnumerable<PerimeterDriveData>> GetDrivesByType(OdinId odinId, Guid driveType, FileSystemType fileSystemType)
     {
-        var (_, httpClient, httpHeaders) = await CreateClient(odinId, fileSystemType);
-        var response = await httpClient.GetDrives(httpHeaders, new GetDrivesByTypeRequest()
+        var (_, httpClient) = await CreateClient(odinId, fileSystemType);
+        var response = await httpClient.GetDrives(new GetDrivesByTypeRequest()
         {
             DriveType = driveType
         });
@@ -161,7 +161,7 @@ public class TransitQueryService
 
     public async Task<RedactedDotYouContext> GetRemoteDotYouContext(OdinId odinId)
     {
-        var (_, httpClient, _) = await CreateClient(odinId, null);
+        var (_, httpClient) = await CreateClient(odinId, null);
         var response = await httpClient.GetRemoteDotYouContext();
         return response.Content;
     }
@@ -192,21 +192,21 @@ public class TransitQueryService
     //
     //     return response.Content;
     // }
-    private async Task<(IdentityConnectionRegistration, ITransitHostHttpClient, Dictionary<string, string>)> 
-        CreateClient(OdinId odinId, FileSystemType? fileSystemType)
+    private async Task<(IdentityConnectionRegistration, ITransitHostHttpClient)> CreateClient(OdinId odinId, FileSystemType? fileSystemType)
     {
         var icr = await _circleNetworkService.GetIdentityConnectionRegistration(odinId);
 
         var authToken = icr.IsConnected() ? icr.CreateClientAuthToken() : null;
-        
-        var httpHeaders = _dotYouHttpClientFactory.CreateHeaders(
-            clientAuthenticationToken: authToken,
-            fileSystemType: fileSystemType);
-        
-        var httpClient = _dotYouHttpClientFactory.CreateClient<ITransitHostHttpClient>(odinId);
-
-        return (icr, httpClient, httpHeaders);
-        
+        if (authToken == null)
+        {
+            var httpClient = _dotYouHttpClientFactory.CreateClient<ITransitHostHttpClient>(odinId, fileSystemType);
+            return (icr, httpClient);
+        }
+        else
+        {
+            var httpClient = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(odinId, authToken, fileSystemType);
+            return (icr, httpClient);
+        }
     }
 
     private List<SharedSecretEncryptedFileHeader> TransformSharedSecret(IEnumerable<SharedSecretEncryptedFileHeader> headers,

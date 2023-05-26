@@ -1,8 +1,10 @@
 using System;
 using System.Net.Http;
+using HttpClientFactoryLite;
 using Microsoft.Extensions.DependencyInjection;
 using Refit;
 using Youverse.Core.Identity;
+using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
 namespace Youverse.Core.Services.Base;
 
@@ -18,12 +20,13 @@ public interface ISystemHttpClient
 
 public class SystemHttpClient : ISystemHttpClient
 {
-    internal const string HttpClientFactoryName = "c605ed03-7c8f-4fc2-83d8-cfd8b6c15e0f";
     private readonly IHttpClientFactory _httpClientFactory;
     
     public SystemHttpClient(IHttpClientFactory httpClientFactory)
     {
         _httpClientFactory = httpClientFactory;
+        _httpClientFactory.Register<SystemHttpClient>(builder => builder
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false }));
     }
         
     public T CreateHttps<T>(OdinId odinId)
@@ -35,7 +38,7 @@ public class SystemHttpClient : ISystemHttpClient
         //handler.ServerCertificateCustomValidationCallback
         //handler.SslProtocols = SslProtocols.None;// | SslProtocols.Tls13;
 
-        var client = _httpClientFactory.CreateClient();
+        var client = _httpClientFactory.CreateClient<SystemHttpClient>();
         client.BaseAddress = new UriBuilder() { Scheme = "https", Host = odinId }.Uri;
 
         var token = Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e"); //TODO: read from config
@@ -46,7 +49,7 @@ public class SystemHttpClient : ISystemHttpClient
     
     public T CreateHttp<T>(OdinId odinId)
     {
-        var client = _httpClientFactory.CreateClient(SystemHttpClient.HttpClientFactoryName);
+        var client = _httpClientFactory.CreateClient<SystemHttpClient>();
         
         client.BaseAddress = new UriBuilder() { Scheme = "http", Host = odinId }.Uri;
         //TODO: need to handle the fact this is over http 
@@ -57,27 +60,4 @@ public class SystemHttpClient : ISystemHttpClient
     }
 }
 
-//
-
-public static class SystemHttpClientExtensions
-{
-    public static IServiceCollection AddSystemHttpClient(this IServiceCollection services)
-    {   
-        services
-            .AddSingleton<ISystemHttpClient, SystemHttpClient>()
-            .AddHttpClient(SystemHttpClient.HttpClientFactoryName, client =>
-            {
-                // client.Timeout = TimeSpan.FromSeconds(3);
-            }).ConfigurePrimaryHttpMessageHandler(() =>
-            {
-                var handler = new HttpClientHandler
-                {
-                    AllowAutoRedirect = false
-                };
-                return handler;
-            });
-
-        return services;
-    }
-}
 

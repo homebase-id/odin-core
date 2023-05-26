@@ -1,13 +1,13 @@
 using System;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Net.Mime;
 using System.Reflection;
 using System.Threading.Tasks;
 using Autofac;
 using Dawn;
 using DnsClient;
+using HttpClientFactoryLite;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -61,8 +61,8 @@ namespace Youverse.Hosting
             PrepareEnvironment(config);
             AssertValidRenewalConfiguration(config.CertificateRenewal);
 
-            services.AddHttpClient();
-            services.AddSystemHttpClient();
+            services.AddSingleton<IHttpClientFactory>(new HttpClientFactory());
+            services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
 
             if (config.Quartz.EnableQuartzBackgroundService)
             {
@@ -169,6 +169,7 @@ namespace Youverse.Hosting
             services.AddSpaStaticFiles(configuration => { configuration.RootPath = "client/"; });
 
             services.AddSingleton<IIdentityRegistry>(sp => new FileSystemIdentityRegistry(
+                sp.GetRequiredService<ILogger<FileSystemIdentityRegistry>>(),
                 sp.GetRequiredService<ICertificateServiceFactory>(),
                 sp.GetRequiredService<IHttpClientFactory>(),
                 sp.GetRequiredService<ISystemHttpClient>(),
@@ -183,32 +184,20 @@ namespace Youverse.Hosting
             services.AddSingleton<IAcmeHttp01TokenCache, AcmeHttp01TokenCache>();
             services.AddSingleton<IIdentityRegistrationService, IdentityRegistrationService>();
             services.AddSingleton<ILookupClient>(new LookupClient());
-            services.AddSingleton<IDnsRestClient, PowerDnsRestClient>();
+
+            services.AddSingleton<IDnsRestClient>(sp => new PowerDnsRestClient(
+                sp.GetRequiredService<ILogger<PowerDnsRestClient>>(),
+                sp.GetRequiredService<IHttpClientFactory>(), 
+                new Uri($"https://{config.Registry.PowerDnsHostAddress}/api/v1"),
+                config.Registry.PowerDnsApiKey));
+
             services.AddSingleton<ICertesAcme>(sp => new CertesAcme(
                 sp.GetRequiredService<ILogger<CertesAcme>>(),
                 sp.GetRequiredService<IAcmeHttp01TokenCache>(),
                 sp.GetRequiredService<IHttpClientFactory>(),
                 config.CertificateRenewal.UseCertificateAuthorityProductionServers));
-            services.AddSingleton<ICertificateServiceFactory, CertificateServiceFactory>();
-            services.AddHttpClient<IDnsRestClient, PowerDnsRestClient>(client =>
-            {
-                client.BaseAddress = new Uri($"https://{config.Registry.PowerDnsHostAddress}/api/v1");
-                client.DefaultRequestHeaders.Add("X-API-Key", config.Registry.PowerDnsApiKey);
-            });
-            services.AddHttpClient<IIdentityRegistrationService, IdentityRegistrationService>(client =>
-                {
-                    client.Timeout = TimeSpan.FromSeconds(3);
-                }).ConfigurePrimaryHttpMessageHandler(() =>
-                {
-                    var handler = new HttpClientHandler
-                    {
-                        AllowAutoRedirect = false
-                    };
-                    return handler;
-                })
-                // Shortlived to deal with DNS changes
-                .SetHandlerLifetime(TimeSpan.FromSeconds(10));
 
+            services.AddSingleton<ICertificateServiceFactory, CertificateServiceFactory>();
         }
 
         // ConfigureContainer is where you can register things directly

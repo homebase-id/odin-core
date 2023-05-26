@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Dawn;
@@ -107,17 +106,22 @@ namespace Youverse.Core.Services.Transit.SendingHost
             // throw new ArgumentException("Invalid ClientAccessTokenSource");
         }
 
-        protected async Task<(ClientAccessToken token, ITransitHostReactionHttpClient refitClient, Dictionary<string, string> httpHeaders)> 
-            CreateReactionContentClient(OdinId odinId, ClientAccessTokenSource tokenSource, FileSystemType? fileSystemType = null)
+        protected async Task<(ClientAccessToken token, ITransitHostReactionHttpClient client)> CreateReactionContentClient(OdinId odinId, ClientAccessTokenSource tokenSource,
+            FileSystemType? fileSystemType = null)
         {
             var token = await ResolveClientAccessToken(odinId, tokenSource);
 
-            var (refitClient, httpHeaders) = _dotYouHttpClientFactory.CreateClientAndHeaders<ITransitHostReactionHttpClient>(
-                odinId, 
-                clientAuthenticationToken: token?.ToAuthenticationToken(), 
-                fileSystemType: fileSystemType);
-            
-            return (token, refitClient, httpHeaders);
+            if (token == null)
+            {
+                var httpClient = _dotYouHttpClientFactory.CreateClient<ITransitHostReactionHttpClient>(odinId, fileSystemType);
+                return (null, httpClient);
+            }
+            else
+            {
+                var httpClient = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostReactionHttpClient>(odinId, token.ToAuthenticationToken(), fileSystemType);
+                return (token, httpClient);
+            }
+
 
             // var httpClient = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostReactionHttpClient>(
             //     odinId, token?.ToAuthenticationToken(), fileSystemType);

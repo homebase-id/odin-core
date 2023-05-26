@@ -38,9 +38,8 @@ namespace Youverse.Core.Services.DataSubscription.SendingHost
             };
 
             //TODO: need to validate the recipient can get the file - security
-            var (client, headers) = _dotYouHttpClientFactory.CreateClientAndHeaders<IFeedDistributorHttpClient>(
-                recipient, fileSystemType: fileSystemType);
-            var httpResponse = await client.SendFeedFileMetadata(headers, request);
+            var client = _dotYouHttpClientFactory.CreateClient<IFeedDistributorHttpClient>(recipient, fileSystemType: fileSystemType);
+            var httpResponse = await client.SendFeedFileMetadata(request);
 
             return IsSuccess(httpResponse);
         }

@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Security.Authentication;
 using System.Threading.Tasks;
-using Refit;
+using HttpClientFactoryLite;
+using Microsoft.Extensions.Logging;
 using Serilog;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
@@ -13,6 +15,7 @@ using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Certificate;
 using Youverse.Core.Services.Registry.Registration;
 using Youverse.Core.Trie;
+using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
 namespace Youverse.Core.Services.Registry;
 
@@ -21,6 +24,7 @@ namespace Youverse.Core.Services.Registry;
 /// </summary>
 public class FileSystemIdentityRegistry : IIdentityRegistry
 {
+    private readonly ILogger<FileSystemIdentityRegistry> _logger;
     private readonly Dictionary<Guid, IdentityRegistration> _cache;
     private readonly Trie<IdentityRegistration> _trie;
     private readonly ICertificateServiceFactory _certificateServiceFactory;
@@ -30,6 +34,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private readonly string _tenantDataPayloadPath;
    
     public FileSystemIdentityRegistry(
+        ILogger<FileSystemIdentityRegistry> logger,
         ICertificateServiceFactory certificateServiceFactory,
         IHttpClientFactory httpClientFactory,
         ISystemHttpClient systemHttpClient,
@@ -40,9 +45,10 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         {
             throw new InvalidDataException($"Could find or access path at [{tenantDataRootPath}]");
         }
-        
+
         _cache = new Dictionary<Guid, IdentityRegistration>();
         _trie = new Trie<IdentityRegistration>();
+        _logger = logger;
         _certificateServiceFactory = certificateServiceFactory;
         _httpClientFactory = httpClientFactory;
         _systemHttpClient = systemHttpClient;
@@ -177,7 +183,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
                 }
             }
         }
-        catch (HttpRequestException)
+        catch (System.Net.Http.HttpRequestException)
         {
             //hre.HResult == -2146232800
             return RegistrationStatus.AwaitingCertificate;
@@ -264,6 +270,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private void Cache(IdentityRegistration registration)
     {
+        RegisterDotYouHttpClient(registration);
+        
         if (null != _trie.LookupExactName(registration.PrimaryDomainName))
         {
             _trie.RemoveDomain(registration.PrimaryDomainName);
@@ -275,8 +283,8 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         {
             _cache.Remove(registration.Id);
         }
-
-        _cache.Add(registration.Id, registration);
+        
+        _cache.Add(registration.Id, registration);        
     }
 
     private IdentityRegistration GetByFirstRunToken(Guid firstRunToken)
@@ -292,8 +300,48 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private async Task InitializeCertificate(string domain)
     {
-        var httpClient = _httpClientFactory.CreateClient();
+        var httpClient = _httpClientFactory.CreateClient<FileSystemIdentityRegistry>();
         var uri = $"https://{domain}/.well-known/acme-challenge/ping";
         await httpClient.GetAsync(uri);
+    }
+
+    private void RegisterDotYouHttpClient(IdentityRegistration idReg)
+    {
+        var tenantContext = TenantContext.Create(
+            idReg.Id, 
+            idReg.PrimaryDomainName, 
+            _tenantDataRootPath, 
+            _tenantDataPayloadPath, 
+            false);
+
+        var domain = idReg.PrimaryDomainName;
+        var sslRoot = tenantContext.SslRoot;
+        var httpClientKey = DotYouHttpClientFactory.HttpFactoryKey(domain);
+        
+        // SEB:NOTE
+        // Below is the reason that we have to use IHttpClientFactory from HttpClientFactoryLite instead of the
+        // baked-in one. We have to be able to create HttpClientHandlers in the fly, this is not possible with
+        // the original IHttpClientFactory.
+        _httpClientFactory.Register(httpClientKey, builder => builder.ConfigurePrimaryHttpMessageHandler(() =>
+        {
+            var handler = new HttpClientHandler
+            {
+                AllowAutoRedirect = false,
+                SslProtocols = SslProtocols.None, //allow OS to choose;
+            };
+                
+            var tc = _certificateServiceFactory.Create(sslRoot);
+            var x509 = tc.GetSslCertificate(domain);
+            if (x509 != null)
+            {
+                handler.ClientCertificates.Add(x509);
+            }
+            else
+            {
+                _logger.LogError("RegisterHttpClient: could not find certificate for {domain}", domain);    
+            }
+
+            return handler;
+        }).SetHandlerLifetime(TimeSpan.FromMinutes(2)));
     }
 }

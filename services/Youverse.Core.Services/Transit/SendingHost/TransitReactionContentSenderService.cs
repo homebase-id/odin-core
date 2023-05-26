@@ -85,11 +85,11 @@ public class TransitReactionContentSenderService : TransitServiceBase
     /// <summary />
     public async Task AddReaction(OdinId odinId, AddRemoteReactionRequest request)
     {
-        var (token, client, httpHeaders) = await CreateReactionContentClient(odinId, ClientAccessTokenSource.Circle);
+        var (token, client) = await CreateReactionContentClient(odinId, ClientAccessTokenSource.Circle);
 
-        var payload = CreateSharedSecretEncryptedPayload(token, request);
+        SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
 
-        var apiResponse = await client.AddReaction(httpHeaders, payload);
+        var apiResponse = await client.AddReaction(payload);
         if (apiResponse.IsSuccessStatusCode)
         {
             return;
@@ -101,41 +101,41 @@ public class TransitReactionContentSenderService : TransitServiceBase
     /// <summary />
     public async Task<GetReactionsPerimeterResponse> GetReactions(OdinId odinId, GetRemoteReactionsRequest request)
     {
-        var (token, client, httpHeaders) = await CreateReactionContentClient(odinId, ClientAccessTokenSource.Fallback);
+        var (token, client) = await CreateReactionContentClient(odinId, ClientAccessTokenSource.Fallback);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
-        var response = await client.GetReactions(httpHeaders, payload);
+        var response = await client.GetReactions(payload);
         return response.Content;
     }
  
     /// <summary />
     public async Task<GetReactionCountsResponse> GetReactionCounts(OdinId odinId, GetRemoteReactionsRequest request)
     {
-        var (token, client, httpHeaders) = await CreateReactionContentClient(odinId, ClientAccessTokenSource.Fallback);
-        var payload = CreateSharedSecretEncryptedPayload(token, request);
-        var response = await client.GetReactionCountsByFile(httpHeaders, payload);
+        var (token, client) = await CreateReactionContentClient(odinId, ClientAccessTokenSource.Fallback);
+        SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
+        var response = await client.GetReactionCountsByFile(payload);
         return response.Content;
     }
 
     public async Task<List<string>> GetReactionsByIdentityAndFile(OdinId odinId, TransitGetReactionsByIdentityRequest request)
     {
-        var (token, client, httpHeaders) = await CreateReactionContentClient(odinId, ClientAccessTokenSource.Fallback);
-        var payload = CreateSharedSecretEncryptedPayload(token, request);
-        var response = await client.GetReactionsByIdentity(httpHeaders, payload);
+        var (token, client) = await CreateReactionContentClient(odinId, ClientAccessTokenSource.Fallback);
+        SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
+        var response = await client.GetReactionsByIdentity(payload);
         return response.Content;
     }
 
     public async Task DeleteReaction(OdinId odinId, DeleteReactionRequestByGlobalTransitId request)
     {
-        var (token, client, httpHeaders) = await CreateReactionContentClient(odinId, ClientAccessTokenSource.Circle);
-        var payload = CreateSharedSecretEncryptedPayload(token, request);
-        await client.DeleteReactionContent(httpHeaders, payload);
+        var (token, client) = await CreateReactionContentClient(odinId, ClientAccessTokenSource.Circle);
+        SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
+        await client.DeleteReactionContent(payload);
     }
 
     public async Task DeleteAllReactions(OdinId odinId, DeleteReactionRequestByGlobalTransitId request)
     {
-        var (token, client, httpHeaders) = await CreateReactionContentClient(odinId, ClientAccessTokenSource.Circle);
-        var payload = CreateSharedSecretEncryptedPayload(token, request);
-        await client.GetReactionsByIdentity(httpHeaders, payload);
+        var (token, client) = await CreateReactionContentClient(odinId, ClientAccessTokenSource.Circle);
+        SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
+        await client.GetReactionsByIdentity(payload);
     }
 
     /// <summary>

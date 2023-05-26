@@ -20,34 +20,22 @@ namespace Youverse.Core.Services.Transit.SendingHost
         private const string RootPath = "/api/perimeter/transit/host/reactions";
 
         [Post(RootPath + "/add")]
-        Task<ApiResponse<HttpContent>> AddReaction(
-            [HeaderCollection] IDictionary<string, string> httpHeaders,
-            [Body]SharedSecretEncryptedTransitPayload payload);
+        Task<ApiResponse<HttpContent>> AddReaction([Body]SharedSecretEncryptedTransitPayload payload);
 
         [Post(RootPath + "/list")]
-        Task<ApiResponse<GetReactionsPerimeterResponse>> GetReactions(
-            [HeaderCollection] IDictionary<string, string> httpHeaders,
-            [Body]SharedSecretEncryptedTransitPayload payload);
+        Task<ApiResponse<GetReactionsPerimeterResponse>> GetReactions([Body]SharedSecretEncryptedTransitPayload payload);
         
         [Post(RootPath + "/delete")]
-        Task<ApiResponse<HttpContent>> DeleteReactionContent(
-            [HeaderCollection] IDictionary<string, string> httpHeaders,
-            [Body] SharedSecretEncryptedTransitPayload file);
+        Task<ApiResponse<HttpContent>> DeleteReactionContent([Body] SharedSecretEncryptedTransitPayload file);
 
         [Post(RootPath + "/deleteall")]
-        Task<ApiResponse<HttpContent>> DeleteAllReactionsOnFile(
-            [HeaderCollection] IDictionary<string, string> httpHeaders,
-            [Body] SharedSecretEncryptedTransitPayload file);
+        Task<ApiResponse<HttpContent>> DeleteAllReactionsOnFile([Body] SharedSecretEncryptedTransitPayload file);
 
         [Post(RootPath + "/summary")]
-        Task<ApiResponse<GetReactionCountsResponse>> GetReactionCountsByFile(
-            [HeaderCollection] IDictionary<string, string> httpHeaders,
-            [Body] SharedSecretEncryptedTransitPayload file);
+        Task<ApiResponse<GetReactionCountsResponse>> GetReactionCountsByFile([Body] SharedSecretEncryptedTransitPayload file);
 
         [Post(RootPath + "/listbyidentity")]
-        Task<ApiResponse<List<string>>> GetReactionsByIdentity(
-            [HeaderCollection] IDictionary<string, string> httpHeaders,
-            [Body] SharedSecretEncryptedTransitPayload file);
+        Task<ApiResponse<List<string>>> GetReactionsByIdentity([Body] SharedSecretEncryptedTransitPayload file);
         
     }
 }

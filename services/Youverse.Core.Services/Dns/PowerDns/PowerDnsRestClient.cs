@@ -8,34 +8,52 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Refit;
 using Youverse.Core.Services.Configuration;
+using HttpClientFactoryLite;
+using Microsoft.Extensions.DependencyInjection;
+using Youverse.Core.Services.Base;
+using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
 namespace Youverse.Core.Services.Dns.PowerDns;
 
 public class PowerDnsRestClient : IDnsRestClient
 {
     private const int DefaultTtl = 3600;
-    
+
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<PowerDnsRestClient> _logger;
-    private readonly IPowerDnsApi _pdnsApi; 
     
-    public PowerDnsRestClient(ILogger<PowerDnsRestClient> logger, HttpClient httpClient)
+    public PowerDnsRestClient(
+        ILogger<PowerDnsRestClient> logger, 
+        IHttpClientFactory httpClientFactory,
+        Uri baseAddress, 
+        string apiKey)
     {
         _logger = logger;
-        _pdnsApi = RestService.For<IPowerDnsApi>(httpClient);
+        _httpClientFactory = httpClientFactory;
+        RegisterHttpClient(baseAddress, apiKey);
     }
    
     //
+    
+    private IPowerDnsApi Api
+    {
+        get
+        {
+            var httpClient = _httpClientFactory.CreateClient<PowerDnsRestClient>(); 
+            return RestService.For<IPowerDnsApi>(httpClient);
+        } 
+    }    
 
     public Task<IList<Zone>> GetZones()
     {
-        return _pdnsApi.GetZones();
+        return Api.GetZones();
     }
     
     //
     
     public Task<ZoneWithRecords> GetZone(string zoneId)
     {
-        return _pdnsApi.GetZone(zoneId);
+        return Api.GetZone(zoneId);
     }
 
     //
@@ -69,14 +87,14 @@ public class PowerDnsRestClient : IDnsRestClient
             }
         };
 
-        return _pdnsApi.CreateZone(data);
+        return Api.CreateZone(data);
     }
     
     //
 
     public Task DeleteZone(string zoneId)
     {
-        return _pdnsApi.DeleteZone(zoneId);
+        return Api.DeleteZone(zoneId);
     }
     
     //
@@ -106,7 +124,7 @@ public class PowerDnsRestClient : IDnsRestClient
             }
         };
    
-        return _pdnsApi.CreateReplaceDeleteRrsets(zoneId, data);
+        return Api.CreateReplaceDeleteRrsets(zoneId, data);
     }
     
     //
@@ -126,7 +144,7 @@ public class PowerDnsRestClient : IDnsRestClient
             }
         };
         
-        return _pdnsApi.CreateReplaceDeleteRrsets(zoneId, data);
+        return Api.CreateReplaceDeleteRrsets(zoneId, data);
     }
     
     //
@@ -155,7 +173,7 @@ public class PowerDnsRestClient : IDnsRestClient
             }
         };
    
-        return _pdnsApi.CreateReplaceDeleteRrsets(zoneId, data);
+        return Api.CreateReplaceDeleteRrsets(zoneId, data);
     }
 
     public Task DeleteCnameRecords(string zoneId, string name)
@@ -173,10 +191,24 @@ public class PowerDnsRestClient : IDnsRestClient
             }
         };
         
-        return _pdnsApi.CreateReplaceDeleteRrsets(zoneId, data);
-        
+        return Api.CreateReplaceDeleteRrsets(zoneId, data);
     }
-    
-    
-    
+
+    private void RegisterHttpClient(Uri baseAddress, string apiKey)
+    {
+        _httpClientFactory.Register<PowerDnsRestClient>(builder => builder
+            .ConfigureHttpClient(c =>
+            {
+                // this is called everytime you request a httpclient
+                c.BaseAddress = baseAddress;
+                c.DefaultRequestHeaders.Add("X-API-Key", apiKey);
+            })
+            // .ConfigurePrimaryHttpMessageHandler(() =>
+            // {
+            //     // this is called whenever handler lifetime expires
+            //     return new HttpClientHandler { UseCookies = true };
+            // })
+            .SetHandlerLifetime(TimeSpan.FromSeconds(5))); // Shortlived to deal with DNS changes
+    }
 }
+
