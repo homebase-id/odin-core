@@ -54,7 +54,7 @@ public class AppDriveApiClient : AppApiTestUtils
 
     public async Task<QueryBatchResponse> QueryBatch(FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptionsRequest resultOptions = null)
     {
-        using (var client = CreateAppApiHttpClient(_token, fileSystemType))
+        var client = CreateAppApiHttpClient(_token, fileSystemType);
         {
             var svc = CreateDriveService(client);
 
@@ -159,7 +159,7 @@ public class AppDriveApiClient : AppApiTestUtils
             }
         };
 
-        using (var client = CreateAppApiHttpClient(_token, fileSystemType))
+        var client = CreateAppApiHttpClient(_token, fileSystemType);
         {
             var sharedSecret = _token.SharedSecret.ToSensitiveByteArray();
 
@@ -240,7 +240,7 @@ public class AppDriveApiClient : AppApiTestUtils
             }
         }
 
-        using (var client = CreateAppApiHttpClient(_token, fileSystemType))
+        var client = CreateAppApiHttpClient(_token, fileSystemType);
         {
             var sharedSecret = _token.SharedSecret.ToSensitiveByteArray();
             var driveSvc = RestService.For<IDriveTestHttpClientForApps>(client);
@@ -253,7 +253,7 @@ public class AppDriveApiClient : AppApiTestUtils
 
     public async Task<SharedSecretEncryptedFileHeader> GetFileHeader(ExternalFileIdentifier file, FileSystemType fileSystemType = FileSystemType.Standard)
     {
-        using (var client = CreateAppApiHttpClient(_token, fileSystemType))
+        var client = CreateAppApiHttpClient(_token, fileSystemType);
         {
             //wth - refit is not sending headers when you do GET request - why not!?
             var svc = CreateDriveService(client);
@@ -266,7 +266,7 @@ public class AppDriveApiClient : AppApiTestUtils
     public async Task<ApiResponse<HttpContent>> GetThumbnail(ExternalFileIdentifier file, int width, int height, bool directMatchOnly = false,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
-        using (var client = CreateAppApiHttpClient(_token, fileSystemType))
+        var client = CreateAppApiHttpClient(_token, fileSystemType);
         {
             var sharedSecret = _token.SharedSecret.ToSensitiveByteArray();
             var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, sharedSecret);
@@ -286,7 +286,7 @@ public class AppDriveApiClient : AppApiTestUtils
     public async Task<ApiResponse<HttpContent>> GetPayload(ExternalFileIdentifier file, FileChunk chunk = null,
         FileSystemType fileSystemType = FileSystemType.Standard)
     {
-        using (var client = CreateAppApiHttpClient(_token, fileSystemType))
+        var client = CreateAppApiHttpClient(_token, fileSystemType);
         {
             var sharedSecret = _token.SharedSecret.ToSensitiveByteArray();
             var driveSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(client, sharedSecret);
@@ -303,7 +303,7 @@ public class AppDriveApiClient : AppApiTestUtils
 
     public async Task DeleteFile(FileSystemType fileSystemType, ExternalFileIdentifier file, List<string> recipients = null)
     {
-        using (var client = CreateAppApiHttpClient(_token, fileSystemType))
+        var client = CreateAppApiHttpClient(_token, fileSystemType);
         {
             var svc = CreateDriveService(client);
             // var apiResponse = await svc.GetFileHeader(file.FileId, file.TargetDrive.Alias, file.TargetDrive.Type);
@@ -340,7 +340,7 @@ public class AppDriveApiClient : AppApiTestUtils
             }
         };
 
-        using (var client = CreateAppApiHttpClient(_token, fileSystemType))
+        var client = CreateAppApiHttpClient(_token, fileSystemType);
         {
             var sharedSecret = _token.SharedSecret.ToSensitiveByteArray();
 
@@ -394,7 +394,7 @@ public class AppDriveApiClient : AppApiTestUtils
             }
         };
 
-        using (var client = CreateAppApiHttpClient(_token, fileSystemType))
+        var client = CreateAppApiHttpClient(_token, fileSystemType);
         {
             var sharedSecret = _token.SharedSecret.ToSensitiveByteArray();
 
@@ -444,7 +444,7 @@ public class AppDriveApiClient : AppApiTestUtils
 
     public async Task<DeleteAttachmentsResult> DeleteThumbnail(ExternalFileIdentifier file, int width, int height, FileSystemType fileSystemType = FileSystemType.Standard)
     {
-        using (var client = CreateAppApiHttpClient(_token, fileSystemType))
+        var client = CreateAppApiHttpClient(_token, fileSystemType);
         {
             var svc = CreateDriveService(client);
             var response = await svc.DeleteThumbnail(new DeleteThumbnailRequest()

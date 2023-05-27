@@ -67,7 +67,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             var identity = TestIdentities.Samwise;
             await _scaffold.OldOwnerApi.CreateDrive(identity.OdinId, targetDrive1, "Owner Only for Circle Test", "", false, true);
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity.OdinId, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity.OdinId, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
 
@@ -101,7 +101,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             var identity = TestIdentities.Samwise;
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
 
@@ -185,7 +185,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             await _scaffold.OldOwnerApi.CreateDrive(identity.OdinId, targetDrive1, "Drive 1 for Circle Test", "", false);
             await _scaffold.OldOwnerApi.CreateDrive(identity.OdinId, targetDrive2, "Drive 2 for Circle Test", "", false);
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity.OdinId, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity.OdinId, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
 
@@ -218,7 +218,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             await _scaffold.OldOwnerApi.CreateDrive(identity.OdinId, targetDrive1, "Drive 1 for Circle Test", "", false);
             await _scaffold.OldOwnerApi.CreateDrive(identity.OdinId, targetDrive2, "Drive 2 for Circle Test", "", false);
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
 
@@ -282,7 +282,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         [Test]
         public async Task CanGetListOfCircleDefinitions()
         {
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
 
@@ -341,7 +341,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         [Test]
         public async Task CanUpdateCircleDefinition_NoMembershipReconciliation()
         {
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
 
@@ -401,7 +401,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         [Test]
         public async Task CanDisableCircle()
         {
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
 
@@ -454,7 +454,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         [Test]
         public async Task FailToUpdateInvalidCircle()
         {
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
 
@@ -500,7 +500,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         [Test]
         public async Task CanDeleteCircle()
         {
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Samwise, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
                 var request = new CreateCircleRequest()

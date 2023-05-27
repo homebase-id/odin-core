@@ -45,7 +45,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Configuration
         [Test]
         public async Task CanGetAndReadOwnerAppSetting()
         {
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
 

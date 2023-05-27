@@ -29,7 +29,7 @@ public class AppsApiClient
     {
         var rsa = new RsaFullKeyData(ref RsaKeyListManagement.zeroSensitiveKey, 1); // TODO
 
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
 
@@ -69,7 +69,7 @@ public class AppsApiClient
 
     public async Task RevokeApp(Guid appId)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
 
@@ -79,7 +79,7 @@ public class AppsApiClient
 
     public async Task UpdateAppAuthorizedCircles(Guid appId, List<Guid> authorizedCircles, PermissionSetGrantRequest grant)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
 
@@ -94,7 +94,7 @@ public class AppsApiClient
 
     public async Task UpdateAppPermissions(Guid appId, PermissionSetGrantRequest grant)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
 
@@ -117,7 +117,7 @@ public class AppsApiClient
         List<Guid> authorizedCircles = null,
         PermissionSetGrantRequest circleMemberGrantRequest = null)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
 
@@ -147,7 +147,7 @@ public class AppsApiClient
 
     public async Task<RedactedAppRegistration> GetAppRegistration(Guid appId)
     {
-        using (var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
             var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = appId });
@@ -158,7 +158,7 @@ public class AppsApiClient
     
     public async Task<List<RegisteredAppClientResponse>> GetRegisteredClients()
     {
-        using (var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
             var appResponse = await svc.GetRegisteredClients();

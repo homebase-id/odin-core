@@ -37,7 +37,7 @@ public class TransitApiClient
 
     public async Task ProcessOutbox(int batchSize = 1)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
             client.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
@@ -48,7 +48,7 @@ public class TransitApiClient
 
     public async Task ProcessInbox(TargetDrive drive)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var transitSvc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
             var resp = await transitSvc.ProcessInbox(new ProcessInboxRequest() { TargetDrive = drive });
@@ -58,7 +58,7 @@ public class TransitApiClient
 
     public async Task AddReaction(TestIdentity recipient, GlobalTransitIdFileIdentifier file, string reactionContent)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var transitSvc = RefitCreator.RestServiceFor<ITransitReactionHttpClientForOwner>(client, ownerSharedSecret);
             var resp = await transitSvc.AddReaction(new TransitAddReactionRequest()
@@ -77,7 +77,7 @@ public class TransitApiClient
 
     public async Task<GetReactionsPerimeterResponse> GetAllReactions(TestIdentity recipient, GetRemoteReactionsRequest request)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var transitSvc = RefitCreator.RestServiceFor<ITransitReactionHttpClientForOwner>(client, ownerSharedSecret);
             var resp = await transitSvc.GetAllReactions(new TransitGetReactionsRequest()
@@ -92,7 +92,7 @@ public class TransitApiClient
 
     public async Task DeleteReactionContent(TestIdentity recipient, string reaction, GlobalTransitIdFileIdentifier file)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var transitSvc = RefitCreator.RestServiceFor<ITransitReactionHttpClientForOwner>(client, ownerSharedSecret);
             var resp = await transitSvc.DeleteReactionContent(new TransitDeleteReactionRequest()
@@ -109,7 +109,7 @@ public class TransitApiClient
 
     public async Task DeleteAllReactionsOnFile(TestIdentity recipient, GlobalTransitIdFileIdentifier file)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var transitSvc = RefitCreator.RestServiceFor<ITransitReactionHttpClientForOwner>(client, ownerSharedSecret);
             var resp = await transitSvc.DeleteAllReactionsOnFile(new TransitDeleteReactionRequest()
@@ -126,7 +126,7 @@ public class TransitApiClient
 
     public async Task<GetReactionCountsResponse> GetReactionCountsByFile(TestIdentity recipient, GetRemoteReactionsRequest request)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var transitSvc = RefitCreator.RestServiceFor<ITransitReactionHttpClientForOwner>(client, ownerSharedSecret);
             var resp = await transitSvc.GetReactionCountsByFile(new TransitGetReactionsRequest()
@@ -141,7 +141,7 @@ public class TransitApiClient
 
     public async Task<List<string>> GetReactionsByIdentity(TestIdentity recipient, OdinId identity, GlobalTransitIdFileIdentifier file)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var transitSvc = RefitCreator.RestServiceFor<ITransitReactionHttpClientForOwner>(client, ownerSharedSecret);
             var resp = await transitSvc.GetReactionsByIdentity(new TransitGetReactionsByIdentityRequest()
@@ -180,7 +180,7 @@ public class TransitApiClient
             Recipients = recipients,
         };
 
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
         {
             var instructionStream = new MemoryStream(DotYouSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
@@ -251,7 +251,7 @@ public class TransitApiClient
             Recipients = recipients,
         };
 
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
         {
             var instructionStream = new MemoryStream(DotYouSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
@@ -324,7 +324,7 @@ public class TransitApiClient
             Recipients = recipients,
         };
 
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
         {
             var transitSvc = RefitCreator.RestServiceFor<ITransitTestHttpClientForOwner>(client, sharedSecret);
             var response = await transitSvc.SendDeleteRequest(request);

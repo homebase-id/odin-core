@@ -29,7 +29,7 @@ public class CronApiClient
 
     public async Task DistributeFeedFiles()
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var transitSvc = RestService.For<IFeedDistributionCronClient>(client);
             client.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
@@ -40,7 +40,7 @@ public class CronApiClient
 
     public async Task ProcessTransitOutbox(int batchSize = 1)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
             client.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());

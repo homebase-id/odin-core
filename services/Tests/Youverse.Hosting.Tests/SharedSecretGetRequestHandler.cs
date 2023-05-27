@@ -1,24 +1,21 @@
 using System;
+using System.Linq;
 using System.Net.Http;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
+using Org.BouncyCastle.Utilities.Encoders;
 using Youverse.Core;
 using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
+using Youverse.Hosting.Authentication.Owner;
 
 namespace Youverse.Hosting.Tests;
 
 public class SharedSecretGetRequestHandler : HttpClientHandler
 {
-    private readonly SensitiveByteArray _sharedSecret;
-
-    public SharedSecretGetRequestHandler(SensitiveByteArray sharedSecret)
-    {
-        _sharedSecret = sharedSecret;
-    }
-
     protected override HttpResponseMessage Send(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         throw new NotImplementedException("If this is called for some reason, copy the code from SendAsync");
@@ -35,8 +32,23 @@ public class SharedSecretGetRequestHandler : HttpClientHandler
                 return base.SendAsync(request, cancellationToken);
             }
 
+            //
+            // SEB:NOTE below header values are a hack to make SharedSecretGetRequestHandler work without instance data.
+            // DO NOT do this in production code!
+            //
+
+            request.Headers.TryGetValues("X-HACK-COOKIE", out var cookieBase64);
+            var cookieValue = cookieBase64?.FirstOrDefault();
+            
+            if (!request.Headers.TryGetValues("X-HACK-SHARED-SECRET", out var keyBase64))
+            {
+                throw new Exception("Missing shared secret hack");
+            }
+
+            var keyBytes = Base64.Decode(keyBase64.First());
+            var key = new SensitiveByteArray(keyBytes);
+
             var iv = ByteArrayUtil.GetRndByteArray(16);
-            var key = _sharedSecret; //#wierd
             var encryptedBytes = AesCbc.Encrypt(qs.ToUtf8ByteArray(), ref key, iv);
 
             var payload = new SharedSecretEncryptedPayload()
@@ -49,6 +61,12 @@ public class SharedSecretGetRequestHandler : HttpClientHandler
             var uri = request.RequestUri;
             var builder = new UriBuilder(uri.Scheme, uri.Host, uri.Port,uri.AbsolutePath, newQs);
             var msg = new HttpRequestMessage(request.Method, builder.Uri.ToString());
+
+            if (!string.IsNullOrEmpty(cookieValue))
+            {
+                msg.Headers.Add("Cookie", cookieValue);    
+            }
+
             return base.SendAsync(msg, cancellationToken);
         }
 

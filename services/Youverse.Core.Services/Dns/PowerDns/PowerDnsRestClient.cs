@@ -203,11 +203,11 @@ public class PowerDnsRestClient : IDnsRestClient
                 c.BaseAddress = baseAddress;
                 c.DefaultRequestHeaders.Add("X-API-Key", apiKey);
             })
-            // .ConfigurePrimaryHttpMessageHandler(() =>
-            // {
-            //     // this is called whenever handler lifetime expires
-            //     return new HttpClientHandler { UseCookies = true };
-            // })
+            .ConfigurePrimaryHttpMessageHandler(() =>
+             {
+                 // this is called whenever handler lifetime expires
+                 return new HttpClientHandler { UseCookies = false /* DO NOT CHANGE! */ };
+             })
             .SetHandlerLifetime(TimeSpan.FromSeconds(5))); // Shortlived to deal with DNS changes
     }
 }

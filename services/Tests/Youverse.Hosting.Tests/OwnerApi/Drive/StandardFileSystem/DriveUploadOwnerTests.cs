@@ -137,7 +137,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
 
             var testContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(identity, ownerOnlyDrive: true);
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
                 var transferIv = ByteArrayUtil.GetRndByteArray(16);
                 var keyHeader = KeyHeader.NewRandom16();
@@ -198,7 +198,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
 
             var testContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(identity);
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
                 var transferIv = ByteArrayUtil.GetRndByteArray(16);
                 var keyHeader = KeyHeader.NewRandom16();
@@ -399,7 +399,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
 
             var testContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(identity);
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
                 var transferIv = ByteArrayUtil.GetRndByteArray(16);
                 var keyHeader = KeyHeader.NewRandom16();
@@ -464,7 +464,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
 
             var testContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(identity);
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
                 var transferIv = ByteArrayUtil.GetRndByteArray(16);
                 var keyHeader = KeyHeader.NewRandom16();
@@ -561,7 +561,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             //
             // Upload a new file and try using uid1, which is already in use by file1
             //
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(testAppContext.Identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(testAppContext.Identity, out var ownerSharedSecret);
             {
                 var keyHeader = KeyHeader.NewRandom16();
                 var instructionSet = UploadInstructionSet.WithTargetDrive(testAppContext.TargetDrive);
@@ -620,7 +620,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             // Upload a second file to the same drive with uid2
             //
             UploadResult secondFileUploadResult;
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(testAppContext.Identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(testAppContext.Identity, out var ownerSharedSecret);
             {
                 var keyHeader = KeyHeader.NewRandom16();
 
@@ -669,7 +669,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             //
             // Update second file and try using uid1, which is already in use by file1
             //
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(testAppContext.Identity, out var ownerSharedSecret))
+            client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(testAppContext.Identity, out ownerSharedSecret);
             {
                 var keyHeader = KeyHeader.NewRandom16();
 
@@ -723,7 +723,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
         {
             var testContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(identity);
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
                 var keyHeader = KeyHeader.NewRandom16();
 

@@ -326,7 +326,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         {
             var handler = new HttpClientHandler
             {
-                UseCookies = false,
+                UseCookies = false, // DO NOT CHANGE!
                 AllowAutoRedirect = false,
                 SslProtocols = SslProtocols.None, //allow OS to choose;
             };

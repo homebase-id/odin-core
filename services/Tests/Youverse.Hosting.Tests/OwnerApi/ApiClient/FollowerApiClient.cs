@@ -24,7 +24,7 @@ public class FollowerApiClient
 
     public async Task<ApiResponse<HttpContent>> FollowIdentity(TestIdentity identity, FollowerNotificationType notificationType, List<TargetDrive> channels, bool assertSuccessStatus = true)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<ITestFollowerOwnerClient>(client, ownerSharedSecret);
 
@@ -47,7 +47,7 @@ public class FollowerApiClient
 
     public async Task UnfollowIdentity(TestIdentity identity)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<ITestFollowerOwnerClient>(client, ownerSharedSecret);
 
@@ -63,7 +63,7 @@ public class FollowerApiClient
 
     public async Task<CursoredResult<string>> GetIdentitiesIFollow(string cursor)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<ITestFollowerOwnerClient>(client, ownerSharedSecret);
             var apiResponse = await svc.GetIdentitiesIFollow(cursor);
@@ -77,7 +77,7 @@ public class FollowerApiClient
 
     public async Task<CursoredResult<string>> GetIdentitiesFollowingMe(string cursor)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<ITestFollowerOwnerClient>(client, ownerSharedSecret);
             var apiResponse = await svc.GetIdentitiesFollowingMe(cursor);
@@ -91,7 +91,7 @@ public class FollowerApiClient
 
     public async Task<FollowerDefinition> GetFollower(TestIdentity identity)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<ITestFollowerOwnerClient>(client, ownerSharedSecret);
             var apiResponse = await svc.GetFollower(identity.OdinId);
@@ -103,7 +103,7 @@ public class FollowerApiClient
     
     public async Task<FollowerDefinition> GetIdentityIFollow(TestIdentity identity)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<ITestFollowerOwnerClient>(client, ownerSharedSecret);
             var apiResponse = await svc.GetIdentityIFollow(identity.OdinId);

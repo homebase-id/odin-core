@@ -4,13 +4,10 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Net.Security;
-using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using System.Web;
-using Microsoft.AspNetCore.WebUtilities;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core;
@@ -24,13 +21,11 @@ using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
 using Youverse.Core.Services.Configuration;
-using Youverse.Core.Services.Contacts.Circle;
 using Youverse.Core.Services.Contacts.Circle.Membership;
 using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
 using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.Drives;
 using Youverse.Core.Services.Drives.DriveCore.Storage;
-using Youverse.Core.Services.Drives.FileSystem;
 using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 using Youverse.Core.Services.Drives.Management;
 using Youverse.Core.Services.Registry.Registration;
@@ -41,10 +36,8 @@ using Youverse.Core.Services.Transit.SendingHost;
 using Youverse.Core.Storage;
 using Youverse.Hosting.Authentication.Owner;
 using Youverse.Hosting.Controllers;
-using Youverse.Hosting.Controllers.ClientToken.Transit;
 using Youverse.Hosting.Controllers.OwnerToken.AppManagement;
 using Youverse.Hosting.Controllers.OwnerToken.Drive;
-using Youverse.Hosting.Tests.AppAPI;
 using Youverse.Hosting.Tests.AppAPI.Transit;
 using Youverse.Hosting.Tests.AppAPI.Utils;
 using Youverse.Hosting.Tests.OwnerApi.ApiClient;
@@ -52,7 +45,6 @@ using Youverse.Hosting.Tests.OwnerApi.Apps;
 using Youverse.Hosting.Tests.OwnerApi.Authentication;
 using Youverse.Hosting.Tests.OwnerApi.Circle;
 using Youverse.Hosting.Tests.OwnerApi.Configuration;
-using Youverse.Hosting.Tests.OwnerApi.Drive;
 using Youverse.Hosting.Tests.OwnerApi.Drive.Management;
 
 namespace Youverse.Hosting.Tests.OwnerApi.Utils
@@ -62,7 +54,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
         private readonly string _password = "EnSøienØ";
         private readonly Dictionary<string, OwnerAuthTokenContext> _ownerLoginTokens = new(StringComparer.InvariantCultureIgnoreCase);
 
-        private static bool ServerCertificateCustomValidation(HttpRequestMessage requestMessage, X509Certificate2 certificate, X509Chain chain,
+        internal static bool ServerCertificateCustomValidation(HttpRequestMessage requestMessage, X509Certificate2 certificate, X509Chain chain,
             SslPolicyErrors sslErrors)
         {
             // It is possible to inspect the certificate provided by the server.
@@ -107,6 +99,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             // handler.CheckCertificateRevocationList = false;
             handler.ServerCertificateCustomValidationCallback = ServerCertificateCustomValidation;
 
+            // SEB:TODO IHttpClientFactory, but we can't use HttpClientHandler
             using HttpClient authClient = new(handler);
             authClient.BaseAddress = new Uri($"https://{DnsConfigurationSet.PrefixApi}.{identity}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
@@ -136,6 +129,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             handler.CookieContainer = jar;
             handler.UseCookies = true;
 
+            // SEB:TODO IHttpClientFactory, but we can't use HttpClientHandler
             using HttpClient authClient = new(handler);
             authClient.BaseAddress = new Uri($"https://{DnsConfigurationSet.PrefixApi}.{identity}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
@@ -198,7 +192,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
             if (initializeIdentity)
             {
-                using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+                var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
                 {
                     var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
                     var setupConfig = new InitialSetupRequest();
@@ -225,15 +219,19 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
         public HttpClient CreateOwnerApiHttpClient(OdinId identity, ClientAuthenticationToken token, SensitiveByteArray sharedSecret,
             FileSystemType fileSystemType)
         {
-            var cookieJar = new CookieContainer();
-            cookieJar.Add(new Cookie(OwnerAuthConstants.CookieName, token.ToString(), null, identity));
+            var client = WebScaffold.CreateHttpClient<OwnerApiTestUtils>();
 
-            var sharedSecretGetRequestHandler = new SharedSecretGetRequestHandler(sharedSecret)
+            //
+            // SEB:NOTE below is a hack to make SharedSecretGetRequestHandler work without instance data.
+            // DO NOT do this in production code!
+            //
             {
-                CookieContainer = cookieJar
-            };
-
-            HttpClient client = new(sharedSecretGetRequestHandler);
+                var cookieValue = $"{OwnerAuthConstants.CookieName}={token}";
+                client.DefaultRequestHeaders.Add("Cookie", cookieValue);
+                client.DefaultRequestHeaders.Add("X-HACK-COOKIE", cookieValue);
+                client.DefaultRequestHeaders.Add("X-HACK-SHARED-SECRET", Convert.ToBase64String(sharedSecret.GetKey()));
+            }
+           
             client.DefaultRequestHeaders.Add(DotYouHeaderNames.FileSystemTypeHeader, Enum.GetName(typeof(FileSystemType), fileSystemType));
             client.Timeout = TimeSpan.FromMinutes(15);
 
@@ -268,7 +266,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             }
 
 
-            using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
                 var drives = new List<DriveGrantRequest>();
                 if (createDrive)
@@ -327,7 +325,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
         {
             var rsa = new RsaFullKeyData(ref RsaKeyListManagement.zeroSensitiveKey, 1); // TODO
 
-            using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
 
@@ -364,7 +362,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
         public async Task RevokeSampleApp(OdinId identity, Guid appId)
         {
-            using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
 
@@ -374,7 +372,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
         public async Task UpdateAppAuthorizedCircles(OdinId identity, Guid appId, List<Guid> authorizedCircles, PermissionSetGrantRequest grant)
         {
-            using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
 
@@ -389,7 +387,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
         public async Task UpdateAppPermissions(OdinId identity, Guid appId, PermissionSetGrantRequest grant)
         {
-            using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
 
@@ -444,7 +442,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
         public async Task InitializeIdentity(TestIdentity identity, InitialSetupRequest setupConfig)
         {
-            using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
                 var initIdentityResponse = await svc.InitializeIdentity(setupConfig);
@@ -473,7 +471,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
         public async Task DisconnectIdentities(OdinId odinId1, OdinId odinId2)
         {
-            using (var client = this.CreateOwnerApiHttpClient(odinId1, out var ownerSharedSecret))
+            var client = this.CreateOwnerApiHttpClient(odinId1, out var ownerSharedSecret);
             {
                 var disconnectResponse = await RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret)
                     .Disconnect(new OdinIdRequest() { OdinId = odinId2 });
@@ -481,7 +479,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Samwise.OdinId, ConnectionStatus.None);
             }
 
-            using (var client = this.CreateOwnerApiHttpClient(odinId2, out var ownerSharedSecret))
+            client = this.CreateOwnerApiHttpClient(odinId2, out ownerSharedSecret);
             {
                 var disconnectResponse = await RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret)
                     .Disconnect(new OdinIdRequest() { OdinId = odinId1 });
@@ -492,7 +490,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
         public async Task ProcessOutbox(OdinId sender, int batchSize = 1)
         {
-            using (var client = CreateOwnerApiHttpClient(sender, out var ownerSharedSecret))
+            var client = CreateOwnerApiHttpClient(sender, out var ownerSharedSecret);
             {
                 var transitSvc = RestService.For<IDriveTestHttpClientForOwner>(client);
                 client.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
@@ -525,7 +523,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
             var co = createConnectionOptions ?? new CreateConnectionOptions();
             //have frodo send it
-            using (var client = this.CreateOwnerApiHttpClient(sender, out var ownerSharedSecret))
+            var client = this.CreateOwnerApiHttpClient(sender, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
@@ -546,7 +544,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             }
 
             //accept the request
-            using (var client = this.CreateOwnerApiHttpClient(recipient, out var ownerSharedSecret))
+            client = this.CreateOwnerApiHttpClient(recipient, out ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
@@ -563,7 +561,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
         public async Task<bool> IsConnected(OdinId sender, OdinId recipient)
         {
-            using (var client = this.CreateOwnerApiHttpClient(sender, out var ownerSharedSecret))
+            var client = this.CreateOwnerApiHttpClient(sender, out var ownerSharedSecret);
             {
                 var connectionsService = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
                 var existingConnectionInfo = await connectionsService.GetConnectionInfo(new OdinIdRequest() { OdinId = recipient });
@@ -579,7 +577,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
         public async Task CreateDrive(OdinId identity, TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads, bool ownerOnly = false)
         {
-            using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
 
@@ -613,7 +611,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
         public async Task EnsureDriveExists(OdinId identity, TargetDrive targetDrive, bool allowAnonymousReads)
         {
-            using (var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
                 //ensure drive
                 var svc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
@@ -660,7 +658,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
             await this.EnsureDriveExists(identity, instructionSet.StorageOptions.Drive, false);
 
-            using (var client = this.CreateOwnerApiHttpClient(identity, out var sharedSecret, fileSystemType))
+            var client = this.CreateOwnerApiHttpClient(identity, out var sharedSecret, fileSystemType);
             {
                 keyHeader = keyHeader ?? KeyHeader.NewRandom16();
                 var instructionStream = new MemoryStream(DotYouSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
@@ -749,7 +747,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
 
             var payloadData = options?.PayloadData ?? "{payload:true, image:'b64 data'}";
 
-            using (var client = this.CreateOwnerApiHttpClient(sender, out var sharedSecret))
+            var client = this.CreateOwnerApiHttpClient(sender, out var sharedSecret);
             {
                 var keyHeader = KeyHeader.NewRandom16();
                 var transferIv = instructionSet.TransferIv;
@@ -814,7 +812,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                     foreach (var recipient in recipients)
                     {
                         //TODO: this should be a create app http client but it works because the path on ITransitTestAppHttpClient is /apps
-                        using (var rClient = CreateOwnerApiHttpClient((OdinId)recipient, out var _))
+                        var rClient = CreateOwnerApiHttpClient((OdinId)recipient, out var _);
                         {
                             var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
                             rClient.DefaultRequestHeaders.Add("SY4829", Guid.Parse("a1224889-c0b1-4298-9415-76332a9af80e").ToString());
@@ -845,7 +843,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
         public async Task<CircleDefinition> CreateCircleWithDrive(OdinId identity, string circleName, IEnumerable<int> permissionKeys,
             List<PermissionedDrive> drives)
         {
-            using (var client = CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            var client = CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
 

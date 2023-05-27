@@ -32,7 +32,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Authentication
             // await _scaffold.OwnerApi.ForceNewPassword(TestIdentities.Frodo, password);
             //
             // var (authResult, sharedSecret) = await _scaffold.OwnerApi.LoginToOwnerConsole(TestIdentities.Frodo, password);
-            // using var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, authResult);
+            // var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, authResult);
             // var svc = RestService.For<IOwnerAuthenticationClient>(client);
             // var isValidResponse = await svc.IsValid(authResult.Id);
             // Assert.IsTrue(isValidResponse.IsSuccessStatusCode);
@@ -47,7 +47,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Authentication
             // await _scaffold.OwnerApi.ForceNewPassword(TestIdentities.Frodo, password);
             //
             // var (authResult, sharedSecret) = await _scaffold.OwnerApi.LoginToOwnerConsole(TestIdentities.Frodo, password);
-            // using var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, authResult);
+            // var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, authResult);
             //
             // var svc = RestService.For<IOwnerAuthenticationClient>(client);
             // var isValidResponse = await svc.IsValid(authResult.Id);
@@ -69,7 +69,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Authentication
             // await _scaffold.OwnerApi.ForceNewPassword(TestIdentities.Frodo, password);
             //
             // var (authResult, sharedSecret) = await _scaffold.OwnerApi.LoginToOwnerConsole(TestIdentities.Frodo, password);
-            // using var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, authResult);
+            // client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(TestIdentities.Frodo, authResult);
             // client.DefaultRequestHeaders.Remove(DotYouHeaderNames.DeviceUid);
             //
             // var svc = RestService.For<IOwnerAuthenticationClient>(client);

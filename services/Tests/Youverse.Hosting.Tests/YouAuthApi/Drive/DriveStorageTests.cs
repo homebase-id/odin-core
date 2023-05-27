@@ -40,7 +40,7 @@ namespace Youverse.Hosting.Tests.YouAuthApi.Drive
             Guid tag = Guid.NewGuid();
             var uploadContext = await this.UploadFile(identity.OdinId, tag, SecurityGroupType.Connected);
 
-            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId))
+            var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
             {
                 var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
 
@@ -61,7 +61,7 @@ namespace Youverse.Hosting.Tests.YouAuthApi.Drive
             Guid tag = Guid.NewGuid();
             var uploadContext = await this.UploadFile(identity.OdinId, tag, SecurityGroupType.Connected);
 
-            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId))
+            var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
             {
                 var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
 

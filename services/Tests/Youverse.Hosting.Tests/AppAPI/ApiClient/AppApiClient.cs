@@ -50,7 +50,7 @@ namespace Youverse.Hosting.Tests.AppAPI.ApiClient
 
         public async Task Logout()
         {
-            using (var client = this.CreateAppApiHttpClient())
+            var client = this.CreateAppApiHttpClient();
             {
                 var authService = RefitCreator.RestServiceFor<IAppAuthenticationClient>(client, this._token.SharedSecret);
                 await authService.Logout();
@@ -59,11 +59,10 @@ namespace Youverse.Hosting.Tests.AppAPI.ApiClient
 
         public async Task<ApiResponse<HttpContent>> PreAuth()
         {
-            using (var client = this.CreateAppApiHttpClient())
-            {
-                var authService = RefitCreator.RestServiceFor<IAppAuthenticationClient>(client, this._token.SharedSecret);
-                return await authService.PreAuthWebsocket();
-            }
+            var client = this.CreateAppApiHttpClient();
+            var authService = RefitCreator.RestServiceFor<IAppAuthenticationClient>(client, this._token.SharedSecret);
+            var result = await authService.PreAuthWebsocket();
+            return result;
         }
 
         private HttpClient CreateAppApiHttpClient(FileSystemType fileSystemType = FileSystemType.Standard)

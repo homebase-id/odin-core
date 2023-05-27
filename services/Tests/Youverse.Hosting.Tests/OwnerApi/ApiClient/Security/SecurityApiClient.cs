@@ -19,7 +19,7 @@ public class SecurityApiClient
 
     public async Task<RedactedDotYouContext> GetSecurityContext()
     {
-        using (var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<ITestSecurityContextOwnerClient>(client, ownerSharedSecret);
             var apiResponse = await svc.GetDotYouContext();

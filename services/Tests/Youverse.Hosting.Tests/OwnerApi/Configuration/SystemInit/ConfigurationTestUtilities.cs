@@ -74,7 +74,7 @@ public class ConfigurationTestUtilities
         };
 
         //have frodo send it
-        using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sender.Identity, out var ownerSharedSecret))
+        var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sender.Identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
@@ -85,7 +85,7 @@ public class ConfigurationTestUtilities
         }
 
         //check that sam got it
-        using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(recipient.Identity, out var ownerSharedSecret))
+        client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(recipient.Identity, out ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
             var response = await svc.GetPendingRequest(new OdinIdRequest() { OdinId = sender.Identity });
@@ -101,7 +101,7 @@ public class ConfigurationTestUtilities
 
     public async Task AcceptConnectionRequest(TestAppContext sender, TestAppContext recipient)
     {
-        using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(recipient.Identity, out var ownerSharedSecret))
+        var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(recipient.Identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
@@ -120,7 +120,7 @@ public class ConfigurationTestUtilities
 
     public async Task DeleteConnectionRequestsFromFrodoToSam(TestAppContext frodo, TestAppContext sam)
     {
-        using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
+        var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
@@ -131,7 +131,7 @@ public class ConfigurationTestUtilities
             Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {sam.Identity} still exists");
         }
 
-        using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
+        client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
@@ -145,7 +145,7 @@ public class ConfigurationTestUtilities
 
     public async Task DisconnectIdentities(TestAppContext frodo, TestAppContext sam)
     {
-        using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
+        var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret);
         {
             var frodoConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
             var disconnectResponse = await frodoConnections.Disconnect(new OdinIdRequest() { OdinId = sam.Identity });
@@ -153,7 +153,7 @@ public class ConfigurationTestUtilities
             await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Samwise.OdinId, ConnectionStatus.None);
         }
 
-        using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
+        client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out ownerSharedSecret);
         {
             var samConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
             var disconnectResponse = await samConnections.Disconnect(new OdinIdRequest() { OdinId = frodo.Identity });
@@ -164,7 +164,7 @@ public class ConfigurationTestUtilities
 
     public async Task UpdateSystemConfigFlag(TestIdentity identity, string flag, string value)
     {
-        using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+        var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
             var updateFlagResponse = await svc.UpdateSystemConfigFlag(new UpdateFlagRequest()

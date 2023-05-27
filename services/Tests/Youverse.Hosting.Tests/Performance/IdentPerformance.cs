@@ -102,7 +102,7 @@ namespace Youverse.Hosting.Tests.Performance
                 RSA Keys Created 4, Keys Expired 0
                 DB Opened 4, Closed 0
          */
-        [Test]
+        [Test, Explicit]
         public void TaskPerformanceTest_PingAsOwner()
         {
             PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, OwnerPing);

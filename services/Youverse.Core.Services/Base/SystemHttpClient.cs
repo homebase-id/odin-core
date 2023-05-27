@@ -29,7 +29,7 @@ public class SystemHttpClient : ISystemHttpClient
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
             {
                 AllowAutoRedirect = false, 
-                UseCookies = false
+                UseCookies = false // DO NOT CHANGE!
             }));
     }
         

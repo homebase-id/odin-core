@@ -322,7 +322,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             var payloadData = "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadData);
 
-            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext))
+            var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext);
             {
                 var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
                 var response = await transitSvc.Upload(
@@ -347,7 +347,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 }
             }
 
-            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(recipientContext))
+            client = _scaffold.AppApi.CreateAppApiHttpClient(recipientContext);
             {
                 //First force transfers to be put into their long term location
                 var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);
@@ -600,7 +600,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             var payloadData = "{payload:true, image:'b64 data'}";
             var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadData);
 
-            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext))
+            var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext);
             {
                 var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
                 var response = await transitSvc.Upload(
@@ -627,7 +627,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
 
             await _scaffold.OldOwnerApi.ProcessOutbox(sender.OdinId);
 
-            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(recipientContext))
+            client = _scaffold.AppApi.CreateAppApiHttpClient(recipientContext);
             {
                 //First force transfers to be put into their long term location
                 var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);

@@ -56,7 +56,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             var name = "API Tests Sample App-register";
             var corsHostName = "*.odin.earth";
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
             {
                 var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
                 var request = new AppRegistrationRequest
@@ -86,7 +86,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             var name = "API Tests Sample App-register";
             var corsHostName = "somewhere.odin.earth:444";
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
             {
                 var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
                 var request = new AppRegistrationRequest
@@ -117,7 +117,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             var name = "API Tests Sample App-register";
             var corsHostName = "somewhere.odin.earth:3AC";
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
             {
                 var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
                 var request = new AppRegistrationRequest
@@ -171,7 +171,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             var circle1Drives = new List<PermissionedDrive>() { new() { Drive = targetDrive1, Permission = DrivePermission.Read } };
             var circle1Definition = await _scaffold.OldOwnerApi.CreateCircleWithDrive(_identity.OdinId, "Circle 1", circle1PermissionKeys, circle1Drives);
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.OdinId, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.OdinId, out var ownerSharedSecret);
             {
                 var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
                 var request = new AppRegistrationRequest
@@ -237,7 +237,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
                 }
             };
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.OdinId, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.OdinId, out var ownerSharedSecret);
             {
                 var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
                 var request = new AppRegistrationRequest
@@ -292,7 +292,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
             var newId = await AddSampleAppNoDrive(appId, name, corsHostName);
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
             {
                 var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
                 var revokeResponse = await svc.RevokeApp(new GetAppRequest() { AppId = appId });
@@ -315,7 +315,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             var corsHostName = "app.somewhere.org";
             await AddSampleAppNoDrive(appId, name, corsHostName);
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.OdinId, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.OdinId, out var ownerSharedSecret);
             {
                 var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
 
@@ -391,7 +391,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             var circle1Drives = new List<PermissionedDrive>() { new() { Drive = targetDrive1, Permission = DrivePermission.Read } };
             var circle1Definition = await _scaffold.OldOwnerApi.CreateCircleWithDrive(_identity.OdinId, "Circle 1", circle1PermissionKeys, circle1Drives);
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.OdinId, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.OdinId, out var ownerSharedSecret);
             {
                 var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
                 var request = new AppRegistrationRequest
@@ -495,7 +495,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
             var circle2Drives = new List<PermissionedDrive>() { new() { Drive = targetDrive1, Permission = DrivePermission.Write } };
             var circle2Definition = await _scaffold.OldOwnerApi.CreateCircleWithDrive(_identity.OdinId, "Circle 2", circle2PermissionKeys, circle2Drives);
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.OdinId, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity.OdinId, out var ownerSharedSecret);
             {
                 var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
                 var request = new AppRegistrationRequest
@@ -562,7 +562,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
         private async Task<RedactedAppRegistration> AddSampleAppNoDrive(Guid applicationId, string name, string corsHostName)
         {
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
             {
                 var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
                 var request = new AppRegistrationRequest
@@ -591,7 +591,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Apps
 
         private async Task<RedactedAppRegistration> GetSampleApp(Guid appId)
         {
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
             {
                 var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
                 var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = appId });

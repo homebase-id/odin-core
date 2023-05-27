@@ -43,7 +43,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Security
                 canReadConnections: true,
                 appCorsHostName: appCorsHostName);
 
-            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(appContext))
+            var client = _scaffold.AppApi.CreateAppApiHttpClient(appContext);
             {
                 const string corsHeaderName = "Access-Control-Allow-Origin";
                 var request = new HttpRequestMessage(HttpMethod.Get, "/api/apps/v1/auth/verifytoken");
@@ -71,7 +71,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Security
                 canReadConnections: true,
                 appCorsHostName: appCorsHostName);
 
-            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(appContext))
+            var client = _scaffold.AppApi.CreateAppApiHttpClient(appContext);
             {
                 const string corsHeaderName = "Access-Control-Allow-Origin";
                 var request = new HttpRequestMessage(HttpMethod.Post, AppApiPathConstants.DrivesV1 + "/system/isconfigured");
