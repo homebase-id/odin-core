@@ -61,6 +61,19 @@ namespace Youverse.Hosting
             PrepareEnvironment(config);
             AssertValidRenewalConfiguration(config.CertificateRenewal);
 
+            //
+            // IHttpClientFactory rules when creating a HttpClient:
+            // - It is not the HttpClient that is managed by IHttpClientFactory, it is the HttpClientHandler
+            //   that is explictly or implicitly attached to the HttpClient instance that is managed and shared by 
+            //   different HttpClients and on different threads.
+            // - It is OK to change properties on the HttpClient instance (e.g. AddDefaultHeaders)
+            //   as long as you make sure that the instance is short-lived and not mutated on another thread.
+            // - It is OK to create a HttpClientHandler, but it *MUST NOT* hold any instance data. This includes
+            //   cookies in a CookieContainer. Therefore avoid using Cookies. If you need cookies, set the headers
+            //   manually.
+            // - Use SetHandlerLifetime to control how long a connections are pooled (this also controls when existing
+            //   HttpClientHandlers are called)
+            //
             services.AddSingleton<IHttpClientFactory>(new HttpClientFactory());
             services.AddSingleton<ISystemHttpClient, SystemHttpClient>();
 
