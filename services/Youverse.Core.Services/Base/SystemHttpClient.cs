@@ -26,7 +26,11 @@ public class SystemHttpClient : ISystemHttpClient
     {
         _httpClientFactory = httpClientFactory;
         _httpClientFactory.Register<SystemHttpClient>(builder => builder
-            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false }));
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+            {
+                AllowAutoRedirect = false, 
+                UseCookies = false
+            }));
     }
         
     public T CreateHttps<T>(OdinId odinId)

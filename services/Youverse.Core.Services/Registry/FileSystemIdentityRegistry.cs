@@ -320,12 +320,13 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         
         // SEB:NOTE
         // Below is the reason that we have to use IHttpClientFactory from HttpClientFactoryLite instead of the
-        // baked-in one. We have to be able to create HttpClientHandlers in the fly, this is not possible with
+        // baked-in one. We have to be able to create HttpClientHandlers on the fly, this is not possible with
         // the original IHttpClientFactory.
         _httpClientFactory.Register(httpClientKey, builder => builder.ConfigurePrimaryHttpMessageHandler(() =>
         {
             var handler = new HttpClientHandler
             {
+                UseCookies = false,
                 AllowAutoRedirect = false,
                 SslProtocols = SslProtocols.None, //allow OS to choose;
             };
