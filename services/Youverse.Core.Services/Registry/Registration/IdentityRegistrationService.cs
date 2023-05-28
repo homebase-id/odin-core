@@ -526,13 +526,23 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             })
             .ConfigurePrimaryHttpMessageHandler(() =>
             {
-                // this is whenever you request a httpclient and handler lifetime has expired
-                return new HttpClientHandler { AllowAutoRedirect = false };
+                // this is called whenever you request a httpclient and handler lifetime has expired
+                var handler = new HttpClientHandler 
+                {
+                    AllowAutoRedirect = false,
+                    UseCookies = false, // DO NOT CHANGE!
+                };
+
+                // Make sure we accept certifactes from letsencrypt staging servers if not in production
+                if (!_configuration.CertificateRenewal.UseCertificateAuthorityProductionServers)
+                {
+                    handler.ServerCertificateCustomValidationCallback = (_, _, _, _) => true;
+                }
+
+                return handler;
             })
             .SetHandlerLifetime(TimeSpan.FromSeconds(5))); // Shortlived to deal with DNS changes
     }
-   
-   
 }
 
 public class DnsConfig

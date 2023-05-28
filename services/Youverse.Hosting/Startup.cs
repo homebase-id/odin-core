@@ -186,6 +186,7 @@ namespace Youverse.Hosting
                 sp.GetRequiredService<ICertificateServiceFactory>(),
                 sp.GetRequiredService<IHttpClientFactory>(),
                 sp.GetRequiredService<ISystemHttpClient>(),
+                config.CertificateRenewal.UseCertificateAuthorityProductionServers,
                 config.Host.TenantDataRootPath,
                 config.Host.TenantPayloadRootPath));
 

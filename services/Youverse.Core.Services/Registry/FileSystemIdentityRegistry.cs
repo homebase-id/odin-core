@@ -30,6 +30,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private readonly ICertificateServiceFactory _certificateServiceFactory;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ISystemHttpClient _systemHttpClient;
+    private readonly bool _useCertificateAuthorityProductionServers;
     private readonly string _tenantDataRootPath;
     private readonly string _tenantDataPayloadPath;
    
@@ -38,6 +39,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         ICertificateServiceFactory certificateServiceFactory,
         IHttpClientFactory httpClientFactory,
         ISystemHttpClient systemHttpClient,
+        bool useCertificateAuthorityProductionServers,
         string tenantDataRootPath, 
         string tenantDataPayloadPath)
     {
@@ -52,9 +54,11 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         _certificateServiceFactory = certificateServiceFactory;
         _httpClientFactory = httpClientFactory;
         _systemHttpClient = systemHttpClient;
+        _useCertificateAuthorityProductionServers = useCertificateAuthorityProductionServers;
         _tenantDataRootPath = tenantDataRootPath;
         _tenantDataPayloadPath = tenantDataPayloadPath;
 
+        RegisterCertificateInitializerHttpClient();
         Initialize();
     }
 
@@ -300,9 +304,30 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
     private async Task InitializeCertificate(string domain)
     {
-        var httpClient = _httpClientFactory.CreateClient<FileSystemIdentityRegistry>();
+        var httpClient = _httpClientFactory.CreateClient(nameof(RegisterCertificateInitializerHttpClient));
         var uri = $"https://{domain}/.well-known/acme-challenge/ping";
         await httpClient.GetAsync(uri);
+    }
+
+    private void RegisterCertificateInitializerHttpClient()
+    {
+        _httpClientFactory.Register(nameof(RegisterCertificateInitializerHttpClient), builder => builder
+            .ConfigurePrimaryHttpMessageHandler(() =>
+            {
+                var handler = new HttpClientHandler 
+                {
+                    AllowAutoRedirect = false,
+                    UseCookies = false, // DO NOT CHANGE!
+                };
+
+                // Make sure we accept certifactes from letsencrypt staging servers if not in production
+                if (!_useCertificateAuthorityProductionServers)
+                {
+                    handler.ServerCertificateCustomValidationCallback = (_, _, _, _) => true;
+                }
+
+                return handler;
+            }));        
     }
 
     private void RegisterDotYouHttpClient(IdentityRegistration idReg)
