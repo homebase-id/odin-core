@@ -14,10 +14,12 @@ namespace Youverse.Core.Services.Workers.FeedDistributionApp
     public class FeedDistributionJob
     {
         private readonly YouverseConfiguration _config;
+        private readonly ISystemHttpClient _systemHttpClient;
 
-        public FeedDistributionJob(YouverseConfiguration config)
+        public FeedDistributionJob(YouverseConfiguration config, ISystemHttpClient systemHttpClient)
         {
             _config = config;
+            _systemHttpClient = systemHttpClient;
         }
 
         public async Task<bool> Execute(CronRecord record)
@@ -33,7 +35,7 @@ namespace Youverse.Core.Services.Workers.FeedDistributionApp
 
         private async Task<bool> DistributeFeedFileMetadata(FeedDistributionInfo info)
         {
-            var svc = SystemHttpClient.CreateHttps<IFeedDistributionCronClient>(info.OdinId);
+            var svc = _systemHttpClient.CreateHttps<IFeedDistributionCronClient>(info.OdinId);
             var response = await svc.DistributeFiles();
             return response.IsSuccessStatusCode;
         }

@@ -31,17 +31,18 @@ namespace Youverse.Hosting.Tests.Anonymous.ApiClient
         /// <returns></returns>
         public HttpClient CreateAnonymousApiHttpClient(FileSystemType fileSystemType = FileSystemType.Standard)
         {
-            var cookieJar = new CookieContainer();
-            HttpMessageHandler handler = new HttpClientHandler()
-            {
-                CookieContainer = cookieJar
-            };
-
-            HttpClient client = new(handler);
-            client.Timeout = TimeSpan.FromMinutes(15);
-            client.DefaultRequestHeaders.Add(DotYouHeaderNames.FileSystemTypeHeader, Enum.GetName(fileSystemType));
-            client.BaseAddress = new Uri($"https://{DnsConfigurationSet.PrefixApi}.{this._identity}");
-            return client;
+            throw new NotImplementedException("This must be changed to use httpclient pooling");
+            // var cookieJar = new CookieContainer();
+            // HttpMessageHandler handler = new HttpClientHandler()
+            // {
+            //     CookieContainer = cookieJar
+            // };
+            //
+            // HttpClient client = new(handler);
+            // client.Timeout = TimeSpan.FromMinutes(15);
+            // client.DefaultRequestHeaders.Add(DotYouHeaderNames.FileSystemTypeHeader, Enum.GetName(fileSystemType));
+            // client.BaseAddress = new Uri($"https://{DnsConfigurationSet.PrefixApi}.{this._identity}");
+            // return client;
         }
     }
 }

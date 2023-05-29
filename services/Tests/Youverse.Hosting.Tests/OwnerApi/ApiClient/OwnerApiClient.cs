@@ -52,16 +52,15 @@ namespace Youverse.Hosting.Tests.OwnerApi.ApiClient
 
         public async Task InitializeIdentity(InitialSetupRequest setupConfig)
         {
-            using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
-            {
-                var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
-                var initIdentityResponse = await svc.InitializeIdentity(setupConfig);
-                Assert.IsTrue(initIdentityResponse.IsSuccessStatusCode);
+            var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
 
-                var getIsIdentityConfiguredResponse = await svc.IsIdentityConfigured();
-                Assert.IsTrue(getIsIdentityConfiguredResponse.IsSuccessStatusCode);
-                Assert.IsTrue(getIsIdentityConfiguredResponse.Content);
-            }
+            var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
+            var initIdentityResponse = await svc.InitializeIdentity(setupConfig);
+            Assert.IsTrue(initIdentityResponse.IsSuccessStatusCode);
+
+            var getIsIdentityConfiguredResponse = await svc.IsIdentityConfigured();
+            Assert.IsTrue(getIsIdentityConfiguredResponse.IsSuccessStatusCode);
+            Assert.IsTrue(getIsIdentityConfiguredResponse.Content);
         }
     }
 }

@@ -144,8 +144,7 @@ namespace Youverse.Hosting.Tests.Performance
                 },
                 additionalThumbs: new List<ImageDataContent>() { thumbnail2 });
 
-            using var client =
-                   _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret);
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret);
             var staticFileSvc =
                 RefitCreator.RestServiceFor<IStaticFileTestHttpClientForOwner>(client, ownerSharedSecret);
 
@@ -293,8 +292,8 @@ namespace Youverse.Hosting.Tests.Performance
             ImageDataContent previewThumbnail,
             List<ImageDataContent> additionalThumbs)
         {
-            using (var client =
-                   _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret))
+            var client =
+                _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret);
             {
                 var transferIv = ByteArrayUtil.GetRndByteArray(16);
                 var keyHeader = KeyHeader.NewRandom16();

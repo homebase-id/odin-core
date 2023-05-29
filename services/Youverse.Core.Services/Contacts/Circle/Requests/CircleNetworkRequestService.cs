@@ -128,8 +128,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             var payloadBytes = DotYouSystemSerializer.Serialize(outgoingRequest).ToUtf8ByteArray();
             var rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(header.Recipient, payloadBytes);
             _logger.LogInformation($"[{outgoingRequest.SenderOdinId}] is sending a request to the server of [{outgoingRequest.Recipient}]");
-            var response = await _dotYouHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((OdinId)outgoingRequest.Recipient).DeliverConnectionRequest(rsaEncryptedPayload);
 
+            var client = _dotYouHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((OdinId)outgoingRequest.Recipient); 
+            var response = await client.DeliverConnectionRequest(rsaEncryptedPayload);
             if (response.Content is { Success: false } || response.IsSuccessStatusCode == false)
             {
                 //public key might be invalid, destroy the cache item

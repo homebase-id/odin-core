@@ -18,7 +18,7 @@ public class AppSecurityApiClient : AppApiTestUtils
     public async Task<RedactedDotYouContext> GetSecurityContext()
     {
 
-        using (var client = CreateAppApiHttpClient(_token))
+        var client = CreateAppApiHttpClient(_token);
         {
             var svc = RefitCreator.RestServiceFor<ITestSecurityContextAppClient>(client, _token.SharedSecret);
             var apiResponse = await svc.GetDotYouContext();

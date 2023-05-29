@@ -43,7 +43,7 @@ public class DriveApiClient
     public async Task<OwnerClientDriveData> CreateDrive(TargetDrive targetDrive, string name, string metadata, bool allowAnonymousReads, bool ownerOnly = false,
         bool allowSubscriptions = false)
     {
-        using (var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IDriveManagementHttpClient>(client, ownerSharedSecret);
 
@@ -96,7 +96,7 @@ public class DriveApiClient
 
     public async Task<QueryBatchResponse> QueryBatch(FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptionsRequest resultOptions = null)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
         {
             var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, sharedSecret);
 
@@ -144,7 +144,7 @@ public class DriveApiClient
             }
         };
 
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
         {
             var instructionStream = new MemoryStream(DotYouSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
@@ -212,7 +212,7 @@ public class DriveApiClient
             }
         };
 
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
         {
             var instructionStream = new MemoryStream(DotYouSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
@@ -272,7 +272,7 @@ public class DriveApiClient
 
     public async Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeaderRaw(FileSystemType fileSystemType, ExternalFileIdentifier file)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
         {
             //wth - refit is not sending headers when you do GET request - why not!?
             var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, sharedSecret);
@@ -289,7 +289,7 @@ public class DriveApiClient
 
     public async Task<ApiResponse<HttpContent>> GetPayloadRaw(FileSystemType fileSystemType, ExternalFileIdentifier file, FileChunk chunk = null)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
         {
             //wth - refit is not sending headers when you do GET request - why not!?
             var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, sharedSecret);
@@ -304,7 +304,7 @@ public class DriveApiClient
 
     public async Task DeleteFile(FileSystemType fileSystemType, ExternalFileIdentifier file, List<string> recipients = null)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
         {
             //wth - refit is not sending headers when you do GET request - why not!?
             var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, sharedSecret);
@@ -319,7 +319,7 @@ public class DriveApiClient
 
     public async Task<DeletePayloadResult> DeletePayload(FileSystemType fileSystemType, ExternalFileIdentifier file)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
         {
             //wth - refit is not sending headers when you do GET request - why not!?
             var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, sharedSecret);
@@ -335,7 +335,7 @@ public class DriveApiClient
 
     public async Task<DeleteThumbnailResult> DeleteThumbnail(FileSystemType fileSystemType, ExternalFileIdentifier file)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
         {
             //wth - refit is not sending headers when you do GET request - why not!?
             var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, sharedSecret);
@@ -370,7 +370,7 @@ public class DriveApiClient
             TransitOptions = transitOptions
         };
 
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
         {
             var instructionStream = new MemoryStream(DotYouSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
@@ -437,7 +437,7 @@ public class DriveApiClient
             TransitOptions = transitOptions
         };
 
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var sharedSecret, fileSystemType);
         {
             var instructionStream = new MemoryStream(DotYouSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 

@@ -47,7 +47,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
 
             //overwrite them to ensure the updated timestamp is set
 
-            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId))
+            var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
             {
                 var qp = new FileQueryParams()
                 {
@@ -96,7 +96,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
             anonymousFileUploadContext = await this.UploadFile2(identity.OdinId, targetDrive, anonymousFileUploadContext.UploadedFile.FileId, tag,
                 SecurityGroupType.Anonymous, "payload", versionTag: anonymousFileUploadContext.UploadResult.NewVersionTag);
 
-            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId))
+            var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
             {
                 var svc = RestService.For<IDriveTestHttpClientForYouAuth>(client);
 
@@ -137,7 +137,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
             Guid tag = Guid.NewGuid();
             var uploadContext = await this.UploadFile(identity.OdinId, tag, SecurityGroupType.Anonymous);
 
-            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId))
+            var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
             {
                 var qp = new FileQueryParams()
                 {
@@ -175,7 +175,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
             Guid tag = Guid.NewGuid();
             var uploadContext = await this.UploadFile(identity.OdinId, tag, SecurityGroupType.Anonymous);
 
-            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId))
+            var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
             {
                 var qp = new FileQueryParams()
                 {
@@ -231,7 +231,7 @@ namespace Youverse.Hosting.Tests.DriveApi.YouAuth
             Guid tag = Guid.NewGuid();
             var uploadContext = await this.UploadFile(identity.OdinId, tag, SecurityGroupType.Anonymous);
 
-            using (var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId))
+            var client = _scaffold.CreateAnonymousApiHttpClient(identity.OdinId);
             {
                 var qp = new FileQueryParams()
                 {

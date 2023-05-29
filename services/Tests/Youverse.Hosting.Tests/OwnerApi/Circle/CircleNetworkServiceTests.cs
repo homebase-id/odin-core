@@ -65,7 +65,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 CircleIds = cids
             };
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sender.Identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sender.Identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
@@ -82,7 +82,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             var sender = await _scaffold.OldOwnerApi.SetupTestSampleApp(appId, TestIdentities.Frodo, canReadConnections: true);
             var recipient = await _scaffold.OldOwnerApi.SetupTestSampleApp(appId, TestIdentities.Samwise, canReadConnections: true);
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sender.Identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sender.Identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
@@ -101,7 +101,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.IsTrue(response.Content, "Failed sending the request");
             }
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(recipient.Identity, out var ownerSharedSecret))
+            client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(recipient.Identity, out ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
                 var response = await svc.GetPendingRequest(new OdinIdRequest() { OdinId = sender.Identity });
@@ -123,7 +123,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam();
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
@@ -142,7 +142,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam();
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
@@ -161,7 +161,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam();
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
@@ -183,7 +183,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam();
 
             //Check Sam's list of sent requests
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
@@ -204,7 +204,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam();
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
@@ -231,7 +231,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             var circleOnSamsIdentity1 = await this.CreateCircleWith2Drives(sam.Identity, "c1", new List<int>());
             var circleOnSamsIdentity2 = await this.CreateCircleWith2Drives(sam.Identity, "c2", new List<int> { PermissionKeys.ReadConnections, PermissionKeys.ReadConnections });
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret);
             {
                 var connectionRequestService = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
@@ -291,7 +291,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             //
             // Now connect to Frodo to see that sam is a connection with correct access
             //
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
+            client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out ownerSharedSecret);
             {
                 //
                 // Sent request should be deleted
@@ -352,7 +352,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             var circleOnSamsIdentity1 = await this.CreateCircleWith2Drives(sam.Identity, "c1", new List<int>() { PermissionKeys.ReadCircleMembership });
             var circleOnSamsIdentity2 = await this.CreateCircleWith2Drives(sam.Identity, "c2", new List<int>());
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret);
             {
                 var connectionRequestService = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
@@ -404,7 +404,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
 
             //now connect to Frodo to see that sam is a connection with correct access
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
+            client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out ownerSharedSecret);
             {
                 //
                 // Sent request should be deleted
@@ -449,7 +449,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             //
             var newCircleDefinitionOnSamsIdentity = await this.CreateCircleWith2Drives(sam.Identity, "newly created circle", new List<int>() { PermissionKeys.ReadConnections });
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
+            client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out ownerSharedSecret);
             {
                 //
                 // Frodo should show in both original circles
@@ -522,7 +522,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             var circleOnSamsIdentity1 = await this.CreateCircleWith2Drives(sam.Identity, "c1", new List<int>() { PermissionKeys.ReadCircleMembership });
             var circleOnSamsIdentity2 = await this.CreateCircleWith2Drives(sam.Identity, "c2", new List<int>());
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret);
             {
                 var connectionRequestService = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
@@ -574,7 +574,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
 
             //now connect to Frodo to see that sam is a connection with correct access
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
+            client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out ownerSharedSecret);
             {
                 //
                 // Sent request should be deleted
@@ -617,7 +617,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             //
             // Revoke circle access
             //
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
+            client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out ownerSharedSecret);
             {
                 var revokedCircle = circleOnSamsIdentity1;
 
@@ -685,7 +685,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam();
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
@@ -719,7 +719,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam();
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
@@ -755,7 +755,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
         {
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam();
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
@@ -777,7 +777,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 await AssertConnectionStatus(client, ownerSharedSecret, frodo.Identity, ConnectionStatus.None);
             }
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
+            client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out ownerSharedSecret);
             {
                 var frodoConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
                 var disconnectResponse = await frodoConnections.Disconnect(new OdinIdRequest() { OdinId = sam.Identity });
@@ -794,7 +794,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
             await AcceptConnectionRequest(sender: frodo, recipient: sam);
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret);
             {
                 var circleDefSvc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
                 var getSystemCircleDefinitionResponse = await circleDefSvc.GetCircleDefinition(CircleConstants.SystemCircleId);
@@ -833,7 +833,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             //
             // Now connect to Frodo to see that sam is a connection with correct access
             //
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
+            client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out ownerSharedSecret);
             {
                 var circleDefSvc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
                 var getSystemCircleDefinitionResponse = await circleDefSvc.GetCircleDefinition(CircleConstants.SystemCircleId);
@@ -964,7 +964,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             };
 
             //have frodo send it
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sender.Identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sender.Identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
@@ -975,7 +975,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             }
 
             //check that sam got it
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(recipient.Identity, out var ownerSharedSecret))
+            client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(recipient.Identity, out ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
                 var response = await svc.GetPendingRequest(new OdinIdRequest() { OdinId = sender.Identity });
@@ -991,7 +991,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
         private async Task AcceptConnectionRequest(TestAppContext sender, TestAppContext recipient)
         {
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(recipient.Identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(recipient.Identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
@@ -1010,7 +1010,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
         private async Task DeleteConnectionRequestsFromFrodoToSam(TestAppContext frodo, TestAppContext sam)
         {
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
@@ -1021,7 +1021,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {sam.Identity} still exists");
             }
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
+            client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
@@ -1035,7 +1035,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
         private async Task DisconnectIdentities(TestAppContext frodo, TestAppContext sam)
         {
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret);
             {
                 var frodoConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
                 var disconnectResponse = await frodoConnections.Disconnect(new OdinIdRequest() { OdinId = sam.Identity });
@@ -1043,7 +1043,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 await AssertConnectionStatus(client, ownerSharedSecret, TestIdentities.Samwise.OdinId, ConnectionStatus.None);
             }
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
+            client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out ownerSharedSecret);
             {
                 var samConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
                 var disconnectResponse = await samConnections.Disconnect(new OdinIdRequest() { OdinId = frodo.Identity });
@@ -1060,7 +1060,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
             await _scaffold.OldOwnerApi.CreateDrive(identity, targetDrive1, $"Drive 1 for circle {name}", "", false);
             await _scaffold.OldOwnerApi.CreateDrive(identity, targetDrive2, $"Drive 2 for circle {name}", "", false);
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
 

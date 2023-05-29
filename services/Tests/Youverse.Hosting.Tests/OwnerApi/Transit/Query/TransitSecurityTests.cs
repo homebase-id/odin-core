@@ -185,7 +185,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
             // //
             // // upload and send the file 
             // //
-            // using (var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext))
+            // var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext))
             // {
             //     var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
             //     var response = await transitSvc.Upload(
@@ -222,7 +222,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
             // //
             // // Validate recipient got the file
             // //
-            // using (var client = _scaffold.AppApi.CreateAppApiHttpClient(recipientContext))
+            // var client = _scaffold.AppApi.CreateAppApiHttpClient(recipientContext))
             // {
             //     //First force transfers to be put into their long term location
             //     var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);
@@ -341,7 +341,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
             // //
             // //  The final test - use transit query batch for the sender to get the file on the recipients identity over transit
             // //
-            // using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sender, out var ownerSharedSecret))
+            // var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sender, out var ownerSharedSecret))
             // {
             //     var transitQueryService = RefitCreator.RestServiceFor<ITransitQueryHttpClientForOwner>(client, ownerSharedSecret);
             //

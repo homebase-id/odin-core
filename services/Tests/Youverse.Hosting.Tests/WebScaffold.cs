@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Net;
@@ -9,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Refit;
+using HttpClientFactoryLite;
 using Youverse.Core;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
@@ -32,6 +35,9 @@ namespace Youverse.Hosting.Tests
 {
     public class WebScaffold
     {
+        // count TIME_WAIT: netstat -p tcp | grep TIME_WAIT | wc -l
+        public static readonly HttpClientFactoryLite.HttpClientFactory HttpClientFactory = new ();
+        
         private readonly string _folder;
 
         // private readonly string _password = "EnSøienØ";
@@ -42,15 +48,34 @@ namespace Youverse.Hosting.Tests
         // private readonly OwnerApiClient _ownerApiClient;
         private AppApiTestUtils _appApi;
         private ScenarioBootstrapper _scenarios;
-        private IIdentityRegistry _registry;
         private readonly string _uniqueSubPath;
         private string _testInstancePrefix;
+
+        static WebScaffold()
+        {
+            HttpClientFactory.Register<OwnerApiTestUtils>(b => 
+                b.ConfigurePrimaryHttpMessageHandler(() => new SharedSecretGetRequestHandler
+                {
+                    UseCookies = false // DO NOT CHANGE!
+                }));
+            
+            HttpClientFactory.Register<AppApiTestUtils>(b => 
+                b.ConfigurePrimaryHttpMessageHandler(() => new SharedSecretGetRequestHandler
+                {
+                    UseCookies = false // DO NOT CHANGE!
+                }));
+        }
 
         public WebScaffold(string folder)
         {
             this._folder = folder;
             this._uniqueSubPath = Guid.NewGuid().ToString();
             _oldOwnerApi = new OwnerApiTestUtils();
+        }
+        
+        public static HttpClient CreateHttpClient<T>()
+        {
+            return HttpClientFactory.CreateClient<T>();
         }
 
         public void RunBeforeAnyTests(bool initializeIdentity = true)
@@ -104,12 +129,6 @@ namespace Youverse.Hosting.Tests
             CreateData();
             CreateLogs();
 
-            var certificateServiceFactory = CreateCertificateFactoryServiceMock();
-            _registry = new FileSystemIdentityRegistry(certificateServiceFactory, TestDataPath, TestPayloadPath);
-
-            var (config, _) = Program.LoadConfig();
-            DevEnvironmentSetup.RegisterPreconfiguredDomains(config, _registry);
-
             _webserver = Program.CreateHostBuilder(Array.Empty<string>()).Build();
             _webserver.Start();
 
@@ -157,13 +176,7 @@ namespace Youverse.Hosting.Tests
         /// <returns></returns>
         public HttpClient CreateAnonymousApiHttpClient(OdinId identity, FileSystemType fileSystemType = FileSystemType.Standard)
         {
-            var cookieJar = new CookieContainer();
-            HttpMessageHandler handler = new HttpClientHandler()
-            {
-                CookieContainer = cookieJar
-            };
-
-            HttpClient client = new(handler);
+            var client = HttpClientFactory.CreateClient("AnonymousApiHttpClient");
             client.Timeout = TimeSpan.FromMinutes(15);
             client.DefaultRequestHeaders.Add(DotYouHeaderNames.FileSystemTypeHeader, Enum.GetName(fileSystemType));
             client.BaseAddress = new Uri($"https://{DnsConfigurationSet.PrefixApi}.{identity}");
@@ -190,20 +203,6 @@ namespace Youverse.Hosting.Tests
             var problemDetails = DotYouSystemSerializer.Deserialize<ProblemDetails>(apiException.Content!);
             Assert.IsNotNull(problemDetails);
             return (YouverseClientErrorCode)int.Parse(problemDetails.Extensions["errorCode"].ToString() ?? string.Empty);
-        }
-
-        public CertificateServiceFactory CreateCertificateFactoryServiceMock()
-        {
-            var certesAcme = new CertesAcme(
-                new Mock<ILogger<CertesAcme>>().Object,
-                new Mock<IAcmeHttp01TokenCache>().Object,
-                new Mock<IHttpClientFactory>().Object,
-                false);
-
-            return new CertificateServiceFactory(
-                new Mock<ILogger<CertificateService>>().Object,
-                certesAcme,
-                new AcmeAccountConfig());
         }
 
         private void CreateData()

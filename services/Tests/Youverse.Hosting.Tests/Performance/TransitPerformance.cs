@@ -3,14 +3,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
 using Youverse.Core;
-using Youverse.Core.Cryptography.Crypto;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Apps;
 using Youverse.Core.Services.Authorization.Acl;
@@ -133,8 +131,7 @@ namespace Youverse.Hosting.Tests.Performance
             for (int count = 0; count < iterations; count++)
             {
                 sw.Restart();
-                using (var client = _scaffold.AppApi.CreateAppApiHttpClient(ctx))
-                    // using (var client = CreateClient(ctx.Identity, ctx.ClientAuthenticationToken, ctx.SharedSecret))
+                var client = _scaffold.AppApi.CreateAppApiHttpClient(ctx);
                 {
                     var sendMessageResult = await SendMessage(client, ctx, recipients, randomHeaderContent, randomPayloadContent);
                 }
@@ -160,7 +157,7 @@ namespace Youverse.Hosting.Tests.Performance
 
         private async Task<List<SharedSecretEncryptedFileHeader>> GetMessages(TestAppContext recipientAppContext)
         {
-            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(recipientAppContext))
+            var client = _scaffold.AppApi.CreateAppApiHttpClient(recipientAppContext);
             {
                 //First force transfers to be put into their long term location
                 var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(client);
@@ -194,8 +191,8 @@ namespace Youverse.Hosting.Tests.Performance
         private async Task<ExternalFileIdentifier> SendMessage(HttpClient client, TestAppContext senderAppContext,
             List<string> recipients, string message, string payload)
         {
-            // using (var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(senderAppContext.Identity, out var ownerSharedSecret))
-            // using (var client = _scaffold.AppApi.CreateAppApiHttpClient(senderAppContext))
+            // var client = _scaffold.OwnerApi.CreateOwnerApiHttpClient(senderAppContext.Identity, out var ownerSharedSecret))
+            // var client = _scaffold.AppApi.CreateAppApiHttpClient(senderAppContext))
             {
                 var transferIv = ByteArrayUtil.GetRndByteArray(16);
                 var keyHeader = KeyHeader.NewRandom16();
@@ -439,8 +436,8 @@ namespace Youverse.Hosting.Tests.Performance
         private async Task<ExternalFileIdentifier> SendMessageUsingOwnerApi(TestAppContext senderAppContext,
             List<string> recipients, string message, string payload)
         {
-            using (var client =
-                   _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(senderAppContext.Identity, out var ownerSharedSecret))
+            var client =
+                _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(senderAppContext.Identity, out var ownerSharedSecret);
             {
                 var transferIv = ByteArrayUtil.GetRndByteArray(16);
                 var keyHeader = KeyHeader.NewRandom16();

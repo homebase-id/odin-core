@@ -71,7 +71,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
 
             var uploadContext = await _scaffold.OldOwnerApi.Upload(identity.OdinId, uploadFileMetadata, options);
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
 
@@ -148,7 +148,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             //
             // query the data to see the changes
             //
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
 
@@ -225,7 +225,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
 
             var uploadContext = await _scaffold.OldOwnerApi.Upload(identity.OdinId, uploadFileMetadata, options);
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
 
@@ -326,7 +326,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             //
             // perform the batch search
             //
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<IDriveTestHttpClientForOwner>(client, ownerSharedSecret);
 

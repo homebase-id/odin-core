@@ -26,7 +26,7 @@ public class SwaggerTest
     [Test]
     public async Task TestSwaggerIsUp()
     {
-        using var client = _scaffold.CreateAnonymousApiHttpClient(TestIdentities.Samwise.OdinId);
+        var client = _scaffold.CreateAnonymousApiHttpClient(TestIdentities.Samwise.OdinId);
         var result = await client.GetAsync("/swagger/v1/swagger.json");
         Assert.AreEqual(HttpStatusCode.OK, result.StatusCode);
     }    

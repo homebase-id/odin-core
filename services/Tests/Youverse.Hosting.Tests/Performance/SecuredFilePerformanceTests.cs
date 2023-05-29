@@ -89,7 +89,7 @@ namespace Youverse.Hosting.Tests.Performance
             // The primary difference is that app always runs as Owner, however the permission
             // context is still based on what the app has access to
 
-            using var frodoHttpClient = _scaffold.AppApi.CreateAppApiHttpClient(frodoAppContext);
+            var frodoHttpClient = _scaffold.AppApi.CreateAppApiHttpClient(frodoAppContext);
             frodoDriveService = RefitCreator.RestServiceFor<IDriveTestHttpClientForApps>(frodoHttpClient, frodoAppContext.SharedSecret);
 
             PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, GetSecuredFile);
@@ -168,7 +168,7 @@ namespace Youverse.Hosting.Tests.Performance
         {
             var identity = TestIdentities.Frodo;
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
             {
                 var transferIv = ByteArrayUtil.GetRndByteArray(16);
                 var keyHeader = KeyHeader.NewRandom16();

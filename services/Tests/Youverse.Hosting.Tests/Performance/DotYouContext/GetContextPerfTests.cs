@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -16,6 +17,9 @@ namespace Youverse.Hosting.Tests.Performance.DotYouContext
     [TestFixture]
     public class GetContextPerfTests
     {
+        private static readonly int MAXTHREADS = 12;
+        private const int MAXITERATIONS = 1500;
+
         private WebScaffold _scaffold;
 
         [OneTimeSetUp]
@@ -52,14 +56,33 @@ namespace Youverse.Hosting.Tests.Performance.DotYouContext
             var context = await appApiClient.Security.GetSecurityContext();
             Assert.IsFalse(string.IsNullOrEmpty(context.Caller.OdinId));
         }
-        
+
         [Test]
-        public async Task CanGetOwnerSecurityContext()
+        public void AppPingTest()
         {
+            PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, AppPing);
+            Assert.Pass();
+        }
+
+        public async Task<(long, long[])> AppPing(int threadno, int iterations)
+        {
+            long[] timers = new long[iterations];
+            Debug.Assert(timers.Length == iterations);
+            var sw = new Stopwatch();
+
             var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
-            
-            var context = await ownerClient.Security.GetSecurityContext();
-            Assert.IsFalse(string.IsNullOrEmpty(context.Caller.OdinId));
+
+            for (int count = 0; count < iterations; count++)
+            {
+                sw.Restart();
+
+                var context = await ownerClient.Security.GetSecurityContext();
+                Assert.IsFalse(string.IsNullOrEmpty(context.Caller.OdinId));
+
+                timers[count] = sw.ElapsedMilliseconds;
+            }
+
+            return (0, timers);
         }
 
         private async Task<(AppApiClient appApiClient, TargetDrive drive)> CreateApp(TestIdentity identity)

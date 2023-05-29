@@ -29,7 +29,7 @@ public class CircleNetworkApiClient
 
     public async Task<CircleDefinition> CreateCircle(string circleName, PermissionSetGrantRequest grant)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
 
@@ -75,7 +75,7 @@ public class CircleNetworkApiClient
     public async Task AcceptConnectionRequest(TestIdentity sender, IEnumerable<GuidId> circleIdsGrantedToSender)
     {
         // Accept the request
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
@@ -99,7 +99,7 @@ public class CircleNetworkApiClient
         }
 
         // Send the request
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
@@ -122,7 +122,7 @@ public class CircleNetworkApiClient
 
     public async Task DisconnectFrom(TestIdentity recipient)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var disconnectResponse = await RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret)
                 .Disconnect(new OdinIdRequest() { OdinId = recipient.OdinId });
@@ -133,7 +133,7 @@ public class CircleNetworkApiClient
 
     public async Task<bool> IsConnected(TestIdentity recipient)
     {
-        using (var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var connectionsService = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
             var existingConnectionInfo = await connectionsService.GetConnectionInfo(new OdinIdRequest() { OdinId = recipient.OdinId });
@@ -148,7 +148,7 @@ public class CircleNetworkApiClient
 
     public async Task GrantCircle(Guid circleId, TestIdentity recipient)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
             var apiResponse = await svc.AddCircle(new AddCircleMembershipRequest()
@@ -163,7 +163,7 @@ public class CircleNetworkApiClient
 
     public async Task RevokeCircle(Guid circleId, TestIdentity recipient)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
             var apiResponse = await svc.RevokeCircle(new RevokeCircleMembershipRequest()
@@ -178,7 +178,7 @@ public class CircleNetworkApiClient
 
     public async Task<object> GetCircleMembers(Guid circleId)
     {
-        using (var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
             var apiResponse = await svc.GetCircleMembers(new GetCircleMembersRequest() { CircleId = circleId });
@@ -191,7 +191,7 @@ public class CircleNetworkApiClient
 
     public async Task<RedactedIdentityConnectionRegistration> GetConnectionInfo(TestIdentity recipient)
     {
-        using (var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret))
+        var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var connectionsService = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
             var apiResponse = await connectionsService.GetConnectionInfo(new OdinIdRequest() { OdinId = recipient.OdinId });

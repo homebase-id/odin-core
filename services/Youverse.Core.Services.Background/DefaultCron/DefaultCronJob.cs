@@ -18,11 +18,16 @@ namespace Youverse.Core.Services.Workers.DefaultCron
     {
         private readonly ServerSystemStorage _serverSystemStorage;
         private readonly YouverseConfiguration _config;
+        private readonly ISystemHttpClient _systemHttpClient;
 
-        public DefaultCronJob(ServerSystemStorage serverSystemStorage, YouverseConfiguration config)
+        public DefaultCronJob(
+            ServerSystemStorage serverSystemStorage, 
+            YouverseConfiguration config, 
+            ISystemHttpClient systemHttpClient)
         {
             _serverSystemStorage = serverSystemStorage;
             _config = config;
+            _systemHttpClient = systemHttpClient;
         }
 
         public async Task Execute(IJobExecutionContext context)
@@ -51,7 +56,7 @@ namespace Youverse.Core.Services.Workers.DefaultCron
 
             if (record.type == (Int32)CronJobType.FeedDistribution)
             {
-                var job = new FeedDistributionJob(_config);
+                var job = new FeedDistributionJob(_config, _systemHttpClient);
                 success = await job.Execute(record);
             }
 
@@ -60,7 +65,7 @@ namespace Youverse.Core.Services.Workers.DefaultCron
 
         private async Task<bool> StokeOutbox(OdinId identity)
         {
-            var svc = SystemHttpClient.CreateHttps<ICronHttpClient>(identity);
+            var svc = _systemHttpClient.CreateHttps<ICronHttpClient>(identity);
             var response = await svc.ProcessOutbox();
             return response.IsSuccessStatusCode;
         }

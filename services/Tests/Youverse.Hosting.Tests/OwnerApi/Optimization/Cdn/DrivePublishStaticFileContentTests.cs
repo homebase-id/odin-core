@@ -120,7 +120,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                 additionalThumbs: new List<ImageDataContent>() { thumbnail2 });
 
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret);
             {
                 var staticFileSvc = RefitCreator.RestServiceFor<IStaticFileTestHttpClientForOwner>(client, ownerSharedSecret);
 
@@ -209,7 +209,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
         {
             var identity = TestIdentities.Frodo;
             var testContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(identity);
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret);
             {
                 var staticFileSvc = RefitCreator.RestServiceFor<IStaticFileTestHttpClientForOwner>(client, ownerSharedSecret);
                 var getProfileCardResponse1 = await staticFileSvc.GetPublicProfileCard();
@@ -237,7 +237,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
         {
             var identity = TestIdentities.Frodo;
             var testContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(identity);
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret);
             {
                 var staticFileSvc = RefitCreator.RestServiceFor<IStaticFileTestHttpClientForOwner>(client, ownerSharedSecret);
                 var getPublicProfileImage1 = await staticFileSvc.GetPublicProfileImage();
@@ -263,7 +263,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
             ImageDataContent previewThumbnail,
             List<ImageDataContent> additionalThumbs)
         {
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(testContext.Identity, out var ownerSharedSecret);
             {
                 var transferIv = ByteArrayUtil.GetRndByteArray(16);
                 var keyHeader = KeyHeader.NewRandom16();

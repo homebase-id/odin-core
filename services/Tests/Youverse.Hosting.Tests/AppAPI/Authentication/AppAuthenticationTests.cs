@@ -5,16 +5,21 @@ using System.Linq;
 using NUnit.Framework;
 using System.Reflection;
 using System.Threading.Tasks;
+using Youverse.Core;
 using Youverse.Core.Services.Authentication;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Authorization.Permissions;
 using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Contacts.Circle.Requests;
 using Youverse.Core.Services.Drives;
 using Youverse.Hosting.Authentication.ClientToken;
+using Youverse.Hosting.Controllers;
 using Youverse.Hosting.Tests.Anonymous.ApiClient;
 using Youverse.Hosting.Tests.AppAPI.ApiClient.Auth;
+using Youverse.Hosting.Tests.AppAPI.Circle;
 using Youverse.Hosting.Tests.OwnerApi.ApiClient;
 using Youverse.Hosting.Tests.OwnerApi.Authentication;
+using Youverse.Hosting.Tests.OwnerApi.Circle;
 
 namespace Youverse.Hosting.Tests.AppAPI.Authentication
 {
@@ -36,7 +41,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Authentication
         {
             _scaffold.RunAfterAnyTests();
         }
-
+        
         [Test]
         public async Task AppCanLogoutItself()
         {

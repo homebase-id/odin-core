@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Net.Http;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
@@ -9,6 +8,7 @@ using Certes;
 using Certes.Acme;
 using Certes.Acme.Resource;
 using Certes.Pkcs;
+using HttpClientFactoryLite;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Youverse.Core.Exceptions;
@@ -225,7 +225,7 @@ public sealed class CertesAcme : ICertesAcme
             "https://letsencrypt.org/certs/staging/letsencrypt-stg-root-x2.pem" 
         };
 
-        var httpClient = _httpClientFactory.CreateClient();
+        var httpClient = _httpClientFactory.CreateClient<CertesAcme>();
         foreach (var uri in uris)
         {
             _logger.LogInformation("Downloading staging certitiate: {uri}", uri);

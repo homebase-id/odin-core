@@ -43,7 +43,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
             var (frodo, sam) = await CreateConnectionRequestFrodoToSam();
 
             //sam should have a pending incoming request
-            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(sam))
+            var client = _scaffold.AppApi.CreateAppApiHttpClient(sam);
             {
                 var svc = _scaffold.RestServiceFor<ICircleNetworkRequestsClient>(client, sam.SharedSecret);
 
@@ -57,7 +57,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
                     $"Could not find request from {frodo.Identity} in the results");
             }
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
+            client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
@@ -79,7 +79,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
             //sam should have a pending incoming request
 
             //Check frodo's list of sent requests
-            using (var client = _scaffold.AppApi.CreateAppApiHttpClient(frodo))
+            var client = _scaffold.AppApi.CreateAppApiHttpClient(frodo);
             {
                 var svc = _scaffold.RestServiceFor<ICircleNetworkRequestsClient>(client, frodo.SharedSecret.ToSensitiveByteArray());
                 var response = await svc.GetSentRequestList(PageOptions.Default);
@@ -102,7 +102,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
             var recipient = await _scaffold.OldOwnerApi.SetupTestSampleApp(appId, TestIdentities.Samwise, canReadConnections: true);
 
             //have frodo send it
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sender.Identity, out var sharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sender.Identity, out var sharedSecret);
             {
                 var svc = _scaffold.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, sharedSecret);
                 var id = Guid.NewGuid();
@@ -121,7 +121,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
             }
 
             //check that sam got it
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(recipient.Identity, out var ownerSharedSecret))
+            client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(recipient.Identity, out var ownerSharedSecret);
             {
                 var svc = _scaffold.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
@@ -138,7 +138,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
 
         private async Task DeleteConnectionRequestsFromFrodoToSam(TestAppContext frodo, TestAppContext sam)
         {
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret))
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 
@@ -149,7 +149,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Circle
                 Assert.IsTrue(getResponse.StatusCode == System.Net.HttpStatusCode.NotFound, $"Failed - request with from {sam.Identity} still exists");
             }
 
-            using (var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret))
+            client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out ownerSharedSecret);
             {
                 var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
 

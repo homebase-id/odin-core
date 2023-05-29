@@ -45,7 +45,7 @@ public class ChatServerContext
 
         queryParams.TargetDrive = _appContext.TargetDrive;
 
-        using (var client = this.Scaffold.AppApi.CreateAppApiHttpClient(this._appContext))
+        var client = this.Scaffold.AppApi.CreateAppApiHttpClient(this._appContext);
         {
             var svc = this.Scaffold.RestServiceFor<IDriveTestHttpClientForApps>(client, _appContext.SharedSecret);
             var request = new QueryBatchRequest()
@@ -81,7 +81,7 @@ public class ChatServerContext
 
         queryParams.TargetDrive = _appContext.TargetDrive;
 
-        using (var client = this.Scaffold.AppApi.CreateAppApiHttpClient(this._appContext))
+        var client = this.Scaffold.AppApi.CreateAppApiHttpClient(this._appContext);
         {
             var svc = this.Scaffold.RestServiceFor<IDriveTestHttpClientForApps>(client, _appContext.SharedSecret);
             var request = new QueryBatchRequest()
@@ -114,7 +114,7 @@ public class ChatServerContext
 
         queryParams.TargetDrive = _appContext.TargetDrive;
 
-        using (var client = this.Scaffold.AppApi.CreateAppApiHttpClient(_appContext))
+        var client = this.Scaffold.AppApi.CreateAppApiHttpClient(_appContext);
         {
             var svc = this.Scaffold.RestServiceFor<IDriveTestHttpClientForApps>(client, _appContext.SharedSecret);
             var request = new QueryBatchRequest()
@@ -138,7 +138,7 @@ public class ChatServerContext
     public async Task ProcessIncomingInstructions(int delaySeconds = 0)
     {
         Task.Delay(delaySeconds).Wait();
-        using (var rClient = Scaffold.AppApi.CreateAppApiHttpClient(_appContext))
+        var rClient = Scaffold.AppApi.CreateAppApiHttpClient(_appContext);
         {
             var transitAppSvc = RestService.For<ITransitTestAppHttpClient>(rClient);
             var resp = await transitAppSvc.ProcessInbox(new ProcessInboxRequest() { TargetDrive = _appContext.TargetDrive });
@@ -154,7 +154,7 @@ public class ChatServerContext
     public async Task<UploadResult> SendFile(UploadFileMetadata fileMetadata, UploadInstructionSet instructionSet)
     {
         UploadResult transferResult = null;
-        using (var client = this.Scaffold.AppApi.CreateAppApiHttpClient(_appContext))
+        var client = this.Scaffold.AppApi.CreateAppApiHttpClient(_appContext);
         {
             var keyHeader = KeyHeader.NewRandom16();
             var transferIv = instructionSet.TransferIv;
@@ -233,7 +233,7 @@ public class ChatServerContext
             GlobalTransitIdList = null
         };
 
-        using (var client = Scaffold.AppApi.CreateAppApiHttpClient(_appContext))
+        var client = Scaffold.AppApi.CreateAppApiHttpClient(_appContext);
         {
             var cmdService = RefitCreator.RestServiceFor<IAppCommandSenderHttpClient>(client, _appContext.SharedSecret);
             var sendCommandResponse = await cmdService.SendCommand(new SendCommandRequest()
@@ -257,7 +257,7 @@ public class ChatServerContext
 
     public async Task<ReceivedCommandResultSet> GetUnprocessedCommands()
     {
-        using (var client = Scaffold.AppApi.CreateAppApiHttpClient(_appContext))
+        var client = Scaffold.AppApi.CreateAppApiHttpClient(_appContext);
         {
             var cmdService = RefitCreator.RestServiceFor<IAppCommandSenderHttpClient>(client, _appContext.SharedSecret);
 
@@ -281,7 +281,7 @@ public class ChatServerContext
     /// <exception cref="NotImplementedException"></exception>
     public async Task MarkCommandsCompleted(IEnumerable<Guid> cmdIdList)
     {
-        using (var client = Scaffold.AppApi.CreateAppApiHttpClient(_appContext))
+        var client = Scaffold.AppApi.CreateAppApiHttpClient(_appContext);
         {
             var cmdService = RefitCreator.RestServiceFor<IAppCommandSenderHttpClient>(client, _appContext.SharedSecret);
 

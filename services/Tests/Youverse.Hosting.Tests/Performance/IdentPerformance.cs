@@ -1,15 +1,9 @@
-﻿using System;
-using System.Net;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
+﻿using System.Diagnostics;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
-using Youverse.Core.Cryptography.Crypto;
 using Youverse.Hosting.Tests.Anonymous.Ident;
-
 
 namespace Youverse.Hosting.Tests.Performance
 {
@@ -19,7 +13,7 @@ namespace Youverse.Hosting.Tests.Performance
 
         // For the performance test
         private static readonly int MAXTHREADS = 12;
-        private const int MAXITERATIONS = 150;
+        private const int MAXITERATIONS = 15000;
 
         private WebScaffold _scaffold;
 
@@ -35,24 +29,6 @@ namespace Youverse.Hosting.Tests.Performance
         public void OneTimeTearDown()
         {
             _scaffold.RunAfterAnyTests();
-        }
-
-        public static void PerformanceLog(int maxThreads, int maxIterations, long wallMilliseconds, long[] timerMsArray)
-        {
-            Console.WriteLine($"{DateTime.Today:yyyy-MM-dd} Host [{Dns.GetHostName()}]");
-            Console.WriteLine($"Threads   : {maxThreads}");
-            Console.WriteLine($"Iterations: {maxIterations:N0}");
-            Console.WriteLine($"Wall Time : {wallMilliseconds:N0}ms");
-            Console.WriteLine($"Minimum   : {timerMsArray[0]:N0}ms");
-            Console.WriteLine($"Maximum   : {timerMsArray[maxThreads * maxIterations - 1]:N0}ms");
-            Console.WriteLine($"Average   : {timerMsArray.Sum() / (maxThreads * maxIterations):N0}ms");
-            Console.WriteLine($"Median    : {timerMsArray[(maxThreads * maxIterations) / 2]:N0}ms");
-            Console.WriteLine(
-                $"Capacity  : {(1000 * maxIterations * maxThreads) / Math.Max(1, wallMilliseconds):N0} / second");
-
-            Console.WriteLine($"RSA Encryptions {RsaKeyManagement.noEncryptions:N0}, Decryptions {RsaKeyManagement.noDecryptions:N0}");
-            Console.WriteLine($"RSA Keys Created {RsaKeyManagement.noKeysCreated:N0}, Keys Expired {RsaKeyManagement.noKeysExpired:N0}");
-            Console.WriteLine($"DB Opened {RsaKeyManagement.noDBOpened:N0}, Closed {RsaKeyManagement.noDBClosed:N0}");
         }
 
         /*
@@ -81,7 +57,6 @@ namespace Youverse.Hosting.Tests.Performance
             Assert.Pass();
         }
 
-
         public async Task<(long, long[])> DoIdent(int threadno, int iterations)
         {
             long[] timers = new long[iterations];
@@ -101,6 +76,53 @@ namespace Youverse.Hosting.Tests.Performance
                 var ident = identResponse.Content;
                 Assert.IsFalse(string.IsNullOrEmpty(ident.OdinId));
                 Assert.IsTrue(ident.Version == 1.0);
+
+                timers[count] = sw.ElapsedMilliseconds;
+            }
+
+            return (0, timers);
+        }
+
+
+        /*
+         *  TaskPerformanceTest_PingAsOwner
+               Duration: 2.4 sec
+
+              Standard Output: 
+                2023-05-25 Host [SEMIBEASTII]
+                Threads   : 12
+                Iterations: 150
+                Wall Time : 2,410ms
+                Minimum   : 3ms
+                Maximum   : 86ms
+                Average   : 14ms
+                Median    : 11ms
+                Capacity  : 746 / second
+                RSA Encryptions 0, Decryptions 8
+                RSA Keys Created 4, Keys Expired 0
+                DB Opened 4, Closed 0
+         */
+        [Test, Explicit]
+        public void TaskPerformanceTest_PingAsOwner()
+        {
+            PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, OwnerPing);
+            Assert.Pass();
+        }
+
+        public async Task<(long, long[])> OwnerPing(int threadno, int iterations)
+        {
+            long[] timers = new long[iterations];
+            Debug.Assert(timers.Length == iterations);
+            var sw = new Stopwatch();
+
+            var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
+
+            for (int count = 0; count < iterations; count++)
+            {
+                sw.Restart();
+
+                var context = await ownerClient.Security.GetSecurityContext();
+                Assert.IsFalse(string.IsNullOrEmpty(context.Caller.OdinId));
 
                 timers[count] = sw.ElapsedMilliseconds;
             }
