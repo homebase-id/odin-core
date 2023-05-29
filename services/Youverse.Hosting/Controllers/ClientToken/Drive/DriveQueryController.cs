@@ -40,6 +40,14 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
             return await base.QueryBatch(request);
         }
 
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpGet("batch")]
+        public async Task<QueryBatchResponse> QueryBatchGet([FromQuery] GetQueryBatchRequest request)
+        {
+            var queryBatchRequest = request.toQueryBatchRequest();
+            return await base.QueryBatch(queryBatchRequest);
+        }
+
         /// <summary>
         /// Returns multiple <see cref="QueryBatchResponse"/>s
         /// </summary>
