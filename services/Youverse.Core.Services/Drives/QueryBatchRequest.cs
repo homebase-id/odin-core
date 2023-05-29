@@ -20,23 +20,25 @@ public class GetQueryBatchRequest
     public Guid Alias { get; set; }
     public Guid Type { get; set; }
 
-    public IEnumerable<int> FileType { get; set; } = null;
-    public IEnumerable<int> DataType { get; set; } = null;
+    public int[] FileType { get; set; } = null;
+    public int[] DataType { get; set; } = null;
 
-    public IEnumerable<int> ArchivalStatus { get; set; } = null;
+    public int[] ArchivalStatus { get; set; } = null;
 
     /// <summary>
     /// List of byte[] where the content is a lower-cased UTF8 encoded byte array of the identity.
     /// </summary>
-    public IEnumerable<byte[]> Sender { get; set; } = null;
+    public byte[][] Sender { get; set; } = null;
 
-    public IEnumerable<Guid> GroupId { get; set; } = null;
+    public Guid[] GroupId { get; set; } = null;
 
     public Int64? UserDateStart { get; set; } = null;
     public Int64? UserDateEnd { get; set; } = null;
 
-    public IEnumerable<Guid> ClientUniqueIdAtLeastOne { get; set; } = null;
-    public IEnumerable<Guid> TagsMatchAtLeastOne { get; set; } = null;
+    public Guid[] ClientUniqueIdAtLeastOne { get; set; } = null;
+    public Guid[] TagsMatchAtLeastOne { get; set; } = null;
+
+    public Guid[] TagsMatchAll { get; set; } = null;
 
 
     // QueryBatchResultOptionsRequest
@@ -72,6 +74,7 @@ public class GetQueryBatchRequest
                 UserDate = this.UserDateStart != null && this.UserDateEnd != null ? new UnixTimeUtcRange((UnixTimeUtc) this.UserDateStart.Value,(UnixTimeUtc) this.UserDateEnd.Value) : null,
                 ClientUniqueIdAtLeastOne = this.ClientUniqueIdAtLeastOne,
                 TagsMatchAtLeastOne = this.TagsMatchAtLeastOne,
+                TagsMatchAll = this.TagsMatchAll,
             },
             ResultOptionsRequest = new QueryBatchResultOptionsRequest() {
                 CursorState = this.CursorState,
