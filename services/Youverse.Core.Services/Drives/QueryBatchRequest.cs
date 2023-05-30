@@ -40,6 +40,8 @@ public class GetQueryBatchRequest
 
     public Guid[] TagsMatchAll { get; set; } = null;
 
+    public Guid[] GlobalTransitId { get; set; } = null;
+
 
     // QueryBatchResultOptionsRequest
 
@@ -75,6 +77,7 @@ public class GetQueryBatchRequest
                 ClientUniqueIdAtLeastOne = this.ClientUniqueIdAtLeastOne,
                 TagsMatchAtLeastOne = this.TagsMatchAtLeastOne,
                 TagsMatchAll = this.TagsMatchAll,
+                GlobalTransitId = this.GlobalTransitId
             },
             ResultOptionsRequest = new QueryBatchResultOptionsRequest() {
                 CursorState = this.CursorState,

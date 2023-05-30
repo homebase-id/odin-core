@@ -12,11 +12,29 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
     [AuthorizeValidOwnerToken]
     public class OwnerDriveQueryController : DriveQueryControllerBase
     {
+        /// <summary>
+        /// Returns modified files (their last modified property must be set).
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("modified")]
         public new async Task<QueryModifiedResult> QueryModified([FromBody] QueryModifiedRequest request)
         {
             return await base.QueryModified(request);
+        }
+
+        /// <summary>
+        /// Returns modified files (their last modified property must be set).
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
+        [HttpGet("modified")]
+        public async Task<QueryModifiedResult> QueryModifiedGet([FromQuery] GetQueryModifiedRequest request)
+        {
+            var queryModifiedRequest = request.toQueryModifiedRequest();
+            return await base.QueryModified(queryModifiedRequest);
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]

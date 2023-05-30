@@ -31,6 +31,19 @@ namespace Youverse.Hosting.Controllers.ClientToken.Drive
         }
 
         /// <summary>
+        /// Returns modified files (their last modified property must be set).
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
+        [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
+        [HttpGet("modified")]
+        public async Task<QueryModifiedResult> QueryModifiedGet([FromQuery] GetQueryModifiedRequest request)
+        {
+            var queryModifiedRequest = request.toQueryModifiedRequest();
+            return await base.QueryModified(queryModifiedRequest);
+        }
+
+        /// <summary>
         /// Returns files matching the query params
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
