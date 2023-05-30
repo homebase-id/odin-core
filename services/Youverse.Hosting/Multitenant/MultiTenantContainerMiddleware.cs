@@ -36,8 +36,6 @@ namespace Youverse.Hosting.Multitenant
                 return;
             }
             
-            logger.LogDebug("Multitenant invoke {tenant} from {host}", registry.PrimaryDomainName, host);
-            
             // Begin new scope for request as ASP.NET Core standard scope is per-request
             var scope = container.ContainerAccessor().GetCurrentTenantScope().BeginLifetimeScope("requestscope"); 
             context.RequestServices = new AutofacServiceProvider(scope);

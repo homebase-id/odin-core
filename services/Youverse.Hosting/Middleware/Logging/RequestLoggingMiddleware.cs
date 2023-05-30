@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -8,6 +9,15 @@ namespace Youverse.Hosting.Middleware.Logging
 {
     public class RequestLoggingMiddleware
     {
+        private static readonly string[] LoggablePaths =
+        {
+            "/api", 
+            "/capi",
+            "/home/login",
+            "/owner/login",
+            "/.well-known/acme-challenge" 
+        };
+        
         private readonly RequestDelegate _next;
         private readonly ILogger<RequestLoggingMiddleware> _logger;
 
@@ -21,12 +31,19 @@ namespace Youverse.Hosting.Middleware.Logging
 
         public async Task Invoke(HttpContext context)
         {
+            var path = context.Request.Path + context.Request.QueryString;
+
+            if (!IsLoggable(path))
+            {
+                await _next(context);
+                return;
+            }
+            
             var stopwatch = Stopwatch.StartNew();
 
             var remoteIp = context.Connection.RemoteIpAddress?.ToString() ?? "";
             var protocol = context.Request.Protocol;
             var method = context.Request.Method;
-            var path = context.Request.Path + context.Request.QueryString;
 
             _logger.LogInformation(
                 "{RemoteIp} request starting |> {Protocol} {Method} {Path}",
@@ -66,7 +83,22 @@ namespace Youverse.Hosting.Middleware.Logging
             // ReSharper disable once TemplateIsNotCompileTimeConstantProblem
             _logger.LogDebug(lead + " {RequestHeaders}", string.Join(';', strings));
         }
-      
+        
+        //
+
+        private bool IsLoggable(string path)
+        {
+            foreach (var loggablePath in LoggablePaths)
+            {
+                if (path.StartsWith(loggablePath))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        //
         
     }
 }
