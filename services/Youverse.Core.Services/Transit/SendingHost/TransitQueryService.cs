@@ -38,6 +38,7 @@ public class TransitQueryService
 
     public async Task<QueryBatchResult> GetBatch(OdinId odinId, QueryBatchRequest request, FileSystemType fileSystemType)
     {
+        var queryTime = UnixTimeUtcUnique.Now();
         var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
         var queryBatchResponse = await httpClient.QueryBatch(request);
 
@@ -46,6 +47,7 @@ public class TransitQueryService
         var batch = queryBatchResponse.Content;
         return new QueryBatchResult()
         {
+            QueryTime = queryTime.uniqueTime,
             SearchResults = TransformSharedSecret(batch.SearchResults, icr),
             Cursor = new QueryBatchCursor(batch.CursorState),
             IncludeMetadataHeader = batch.IncludeMetadataHeader
