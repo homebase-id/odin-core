@@ -46,6 +46,7 @@ public class TransitQueryService
         var batch = queryBatchResponse.Content;
         return new QueryBatchResult()
         {
+            QueryTime = batch.QueryTime,
             SearchResults = TransformSharedSecret(batch.SearchResults, icr),
             Cursor = new QueryBatchCursor(batch.CursorState),
             IncludeMetadataHeader = batch.IncludeMetadataHeader

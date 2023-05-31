@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Youverse.Core.Services.Apps;
 
@@ -10,6 +11,11 @@ public class QueryBatchResponse
     /// </summary>
     public string Name { get; set; }
 
+    /// <summary>
+    /// Indicates when this result was generated
+    /// </summary>
+    public Int64 QueryTime { get; set; }
+    
     public bool IncludeMetadataHeader { get; set; }
     public string CursorState { get; set; }
     
@@ -19,6 +25,7 @@ public class QueryBatchResponse
     {
         var response = new QueryBatchResponse()
         {
+            QueryTime = batch.QueryTime,
             IncludeMetadataHeader = batch.IncludeMetadataHeader,
             CursorState = batch.Cursor.ToState(),
             SearchResults = batch.SearchResults

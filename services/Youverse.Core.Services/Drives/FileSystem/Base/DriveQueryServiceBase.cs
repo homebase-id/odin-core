@@ -62,14 +62,17 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
 
             if (TryGetOrLoadQueryManager(driveId, out var queryManager))
             {
+                var queryTime = UnixTimeUtcUnique.Now();
                 var (cursor, fileIdList, hasMoreRows) = await queryManager.GetBatch(ContextAccessor.GetCurrent(),
                     GetFileSystemType(),
                     qp,
                     options);
 
+
                 var headers = await CreateClientFileHeaders(driveId, fileIdList, options, forceIncludeServerMetadata);
                 return new QueryBatchResult()
                 {
+                    QueryTime = queryTime.uniqueTime,
                     IncludeMetadataHeader = options.IncludeJsonContent,
                     Cursor = cursor,
                     SearchResults = headers,

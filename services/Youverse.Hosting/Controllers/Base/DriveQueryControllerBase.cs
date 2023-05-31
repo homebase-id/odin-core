@@ -1,5 +1,6 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Youverse.Core;
 using Youverse.Core.Services.Drives;
 
 namespace Youverse.Hosting.Controllers.Base
@@ -20,7 +21,6 @@ namespace Youverse.Hosting.Controllers.Base
         {
             var driveId = DotYouContext.PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
             var batch = await GetFileSystemResolver().ResolveFileSystem().Query.GetBatch(driveId, request.QueryParams, request.ResultOptionsRequest.ToQueryBatchResultOptions());
-
             return QueryBatchResponse.FromResult(batch);
         }
 
