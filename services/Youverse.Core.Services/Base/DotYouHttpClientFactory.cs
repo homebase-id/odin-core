@@ -9,6 +9,7 @@ using HttpClientFactoryLite;
 using Refit;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
+using Youverse.Core.Logging.CorrelationId;
 using Youverse.Core.Services.Authorization.ExchangeGrants;
 using Youverse.Core.Services.Certificate;
 using Youverse.Core.Services.Registry.Registration;
@@ -26,17 +27,20 @@ namespace Youverse.Core.Services.Base
         
         private readonly ICertificateServiceFactory _certificateServiceFactory;
         private readonly TenantContext _tenantContext;
+        private readonly ICorrelationContext _correlationContext;
 
         public static string HttpFactoryKey(string domain) => $"{nameof(DotYouHttpClientFactory)}.{domain}"; 
         
         public DotYouHttpClientFactory(
             IHttpClientFactory httpClientFactory,
             ICertificateServiceFactory certificateServiceFactory, 
-            TenantContext tenantContext)
+            TenantContext tenantContext, 
+            ICorrelationContext correlationContext)
         {
+            _httpClientFactory = httpClientFactory;
             _certificateServiceFactory = certificateServiceFactory;
             _tenantContext = tenantContext;
-            _httpClientFactory = httpClientFactory;
+            _correlationContext = correlationContext;
         }
         
         //
@@ -68,7 +72,8 @@ namespace Youverse.Core.Services.Base
             var httpClient = _httpClientFactory.CreateClient(httpClientKey);
             var remoteHost = DnsConfigurationSet.PrefixCertApi + "." + odinId;
             httpClient.BaseAddress = new UriBuilder() { Scheme = "https", Host = remoteHost }.Uri;
-
+            httpClient.DefaultRequestHeaders.Add(ICorrelationContext.DefaultHeaderName, _correlationContext.Id);
+            
             if (fileSystemType.HasValue)
             {
                 httpClient.DefaultRequestHeaders.Add(DotYouHeaderNames.FileSystemTypeHeader, fileSystemType.Value.ToString());
@@ -88,9 +93,7 @@ namespace Youverse.Core.Services.Base
             var ogClient = RestService.For<T>(httpClient);
             return ogClient;
         }
-        
 
-        
         //
 
     }
