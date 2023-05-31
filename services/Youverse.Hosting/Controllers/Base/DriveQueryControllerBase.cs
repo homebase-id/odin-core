@@ -21,8 +21,6 @@ namespace Youverse.Hosting.Controllers.Base
         {
             var driveId = DotYouContext.PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
             var batch = await GetFileSystemResolver().ResolveFileSystem().Query.GetBatch(driveId, request.QueryParams, request.ResultOptionsRequest.ToQueryBatchResultOptions());
-
-            
             return QueryBatchResponse.FromResult(batch);
         }
 
