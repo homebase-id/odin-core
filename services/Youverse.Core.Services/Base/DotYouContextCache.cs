@@ -35,7 +35,7 @@ public class DotYouContextCache
             SlidingExpiration = TimeSpan.FromSeconds(_ttlSeconds)
         };
 
-        policy.AddExpirationToken(new CancellationChangeToken(_expiryTokenSource.Token));
+        // policy.AddExpirationToken(new CancellationChangeToken(_expiryTokenSource.Token));
         var result = await _dotYouContextCache.GetOrAddAsync<DotYouContext>(key, dotYouContextFactory, policy);
 
         //TODO: Need some locking on _identitiesRequiringReset
