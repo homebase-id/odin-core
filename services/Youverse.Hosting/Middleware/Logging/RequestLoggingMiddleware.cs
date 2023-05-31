@@ -14,7 +14,9 @@ namespace Youverse.Hosting.Middleware.Logging
             "/api", 
             "/capi",
             "/home/login",
+            "/home/youauth",
             "/owner/login",
+            "/owner/youauth",
             "/.well-known/acme-challenge" 
         };
         
