@@ -9,7 +9,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Primitives;
 using Youverse.Core.Exceptions;
+using Youverse.Core.Exceptions.Client;
+using Youverse.Core.Exceptions.Server;
 using Youverse.Core.Logging.CorrelationId;
 using Youverse.Core.Serialization;
 using Youverse.Core.Services.Base;
@@ -21,17 +24,21 @@ namespace Youverse.Hosting.Middleware
         private readonly RequestDelegate _next;
         private readonly ILogger<ExceptionHandlingMiddleware> _logger;
         private readonly ICorrelationContext _correlationContext;
+        private readonly bool _sendInternalErrorDetailsToClient;
 
         //
 
         public ExceptionHandlingMiddleware(
             RequestDelegate next,
             ILogger<ExceptionHandlingMiddleware> logger,
-            ICorrelationContext correlationContext)
+            ICorrelationContext correlationContext, 
+            IHostEnvironment env)
         {
             _next = next;
             _logger = logger;
             _correlationContext = correlationContext;
+            _sendInternalErrorDetailsToClient =
+                env.IsDevelopment() || Environment.GetEnvironmentVariable("DOTYOUCORE_EX_INFO") == "1";
         }
 
         //
@@ -222,37 +229,50 @@ namespace Youverse.Hosting.Middleware
             return context.Response.WriteAsync(result);
         }
 
-
+        //
+        
         private Task HandleExceptionAsync(HttpContext context, Exception exception)
         {
-            //TODO: examine exceptions that inherit from YouverseSecurityException and audit in security log
+            var status = 500;
+            var title = "Internal Server Error";
+            var stackTrace = _sendInternalErrorDetailsToClient ? exception.StackTrace : null;
+            var logException = true;
 
-            const int status = 500;
-            const string title = "Internal Server Error";
-
-            string internalErrorMessage = "";
-            string stackTrace = "";
-
-            var b = int.TryParse(Environment.GetEnvironmentVariable("DOTYOUCORE_EX_INFO"), out var env);
-            if (b && env == 1)
+            if (exception is ClientException ce)
             {
-                internalErrorMessage = exception.Message;
-                stackTrace = exception.StackTrace ?? "";
+                logException = false;
+                status = (int)ce.HttpStatusCode;
+                title = ce.Message;
+            }
+            else if (exception is ServerException se)
+            {
+                status = (int)se.HttpStatusCode;
+                title = se.Message;
+            }
+            else if (_sendInternalErrorDetailsToClient)
+            {
+                title = exception.Message;
             }
 
-            _logger.LogError(exception, "{ErrorText}", exception.Message);
+            if (logException)
+            {
+                _logger.LogError(exception, "{ErrorText}", exception.Message);
+            }
 
             var problemDetails = new ProblemDetails
             {
                 Status = status,
                 Title = title,
+                Type = "https://tools.ietf.org/html/rfc7231",
                 Extensions =
                 {
-                    ["correlationId"] = _correlationContext.Id,
-                    ["internalErrorMessage"] = internalErrorMessage,
-                    ["stackTrace"] = stackTrace
+                    ["correlationId"] = _correlationContext.Id
                 }
             };
+            if (_sendInternalErrorDetailsToClient)
+            {
+                problemDetails.Extensions["stackTrace"] = stackTrace; 
+            }
 
             var result = JsonSerializer.Serialize(problemDetails);
             context.Response.ContentType = "application/problem+json";
@@ -260,7 +280,6 @@ namespace Youverse.Hosting.Middleware
 
             return context.Response.WriteAsync(result);
         }
-
-        //
+        
     }
 }
