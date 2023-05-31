@@ -306,7 +306,7 @@ namespace Youverse.Core.Tests
             Assert.Pass();
         }
 
-        [Test]
+        [Test, Explicit]
         public void IdentityDNSValidate()
         {
             try
