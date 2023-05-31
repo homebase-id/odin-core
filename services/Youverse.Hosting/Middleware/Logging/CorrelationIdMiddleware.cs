@@ -16,7 +16,7 @@ namespace Youverse.Hosting.Middleware.Logging
         public CorrelationIdMiddleware(RequestDelegate next, ICorrelationContext correlationContext)
         {
             _next = next;
-            _correlationIdHeader = "X-Correlation-Id"; // SEB:TODO make configurable
+            _correlationIdHeader = ICorrelationContext.DefaultHeaderName;
             _correlationContext = correlationContext;
         }
 
