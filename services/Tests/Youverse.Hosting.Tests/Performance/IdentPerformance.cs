@@ -13,7 +13,7 @@ namespace Youverse.Hosting.Tests.Performance
 
         // For the performance test
         private static readonly int MAXTHREADS = 12;
-        private const int MAXITERATIONS = 15000;
+        private const int MAXITERATIONS = 150;
 
         private WebScaffold _scaffold;
 
@@ -48,6 +48,8 @@ namespace Youverse.Hosting.Tests.Performance
             RSA Encryptions 0, Decryptions 8
             RSA Keys Created 4, Keys Expired 0
             DB Opened 4, Closed 0
+
+            No change after adding database caching
           */
 
         [Test]
@@ -101,7 +103,27 @@ namespace Youverse.Hosting.Tests.Performance
                 RSA Encryptions 0, Decryptions 8
                 RSA Keys Created 4, Keys Expired 0
                 DB Opened 4, Closed 0
+
+        After adding Database caching
+
+             TaskPerformanceTest_PingAsOwner
+               Duration: 1.4 min
+
+              Standard Output: 
+                2023-06-01 Host [SEMIBEASTII]
+                Threads   : 12
+                Iterations: 15,000
+                Wall Time : 81,118ms
+                Minimum   : 1ms
+                Maximum   : 60ms
+                Average   : 4ms
+                Median    : 2ms
+                Capacity  : 2,218 / second
+                RSA Encryptions 0, Decryptions 8
+                RSA Keys Created 4, Keys Expired 0
+                DB Opened 4, Closed 0
          */
+
         [Test, Explicit]
         public void TaskPerformanceTest_PingAsOwner()
         {

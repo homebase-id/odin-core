@@ -23,6 +23,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         {
             var r = GetByOdinHashId(odinHashId);
 
+            if (r == null)
+                return;
+
             using (_database.CreateCommitUnitOfWork())
             {
                 for (int i = 0; i < r.Count; i++)

@@ -73,7 +73,7 @@ public class NotificationsTest
         //
         // Connect to the socket
         //
-        var uri = new Uri($"wss://{identity.OdinId}{AppApiPathConstants.NotificationsV1}/ws");
+        var uri = new Uri($"wss://api.{identity.OdinId}{AppApiPathConstants.NotificationsV1}/ws");
         await socket.ConnectAsync(uri, tokenSource.Token);
 
         //
