@@ -64,6 +64,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
         public int DeleteByIdentity(string identity)
         {
+            if (identity == null)
+                return 0;
+
             int n = 0;
             var r = Get(identity);
 
