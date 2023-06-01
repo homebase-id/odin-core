@@ -23,6 +23,8 @@ namespace Youverse.Core.Services.Configuration
         public QuartzSection Quartz { get; }
         public CertificateRenewalSection CertificateRenewal { get; set; }
 
+        public MailgunSection Mailgun { get;}
+
         public FeedSection Feed { get; }
         public TransitSection Transit { get; }
 
@@ -32,6 +34,7 @@ namespace Youverse.Core.Services.Configuration
             Logging = new LoggingSection(config);
             Quartz = new QuartzSection(config);
             Registry = new RegistrySection(config);
+            Mailgun = new MailgunSection(config);
 
             Feed = new FeedSection(config);
             Transit = new TransitSection(config);
@@ -262,6 +265,23 @@ namespace Youverse.Core.Services.Configuration
                 };
             }
         }
+        
+        //
+        
+        public class MailgunSection
+        {
+            public string ApiKey { get; }
+            public string EmailDomain { get; }
+
+            public MailgunSection(IConfiguration config)
+            {
+                ApiKey = config.Required<string>("Mailgun:ApiKey");
+                EmailDomain = config.Required<string>("Mailgun:EmailDomain");
+            }
+        }
+        
+        //
+        
     }
 
     public enum LoggingLevel

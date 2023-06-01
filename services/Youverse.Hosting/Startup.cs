@@ -24,13 +24,13 @@ using Youverse.Core.Services.Certificate;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Dns;
 using Youverse.Core.Services.Dns.PowerDns;
+using Youverse.Core.Services.Email;
 using Youverse.Core.Services.Logging;
 using Youverse.Core.Services.Registry;
 using Youverse.Core.Services.Registry.Registration;
 using Youverse.Core.Services.Transit.SendingHost.Outbox;
 using Youverse.Core.Services.Workers.Certificate;
 using Youverse.Core.Services.Workers.DefaultCron;
-using Youverse.Core.Trie;
 using Youverse.Hosting._dev;
 using Youverse.Hosting.Authentication.ClientToken;
 using Youverse.Hosting.Authentication.Owner;
@@ -212,6 +212,12 @@ namespace Youverse.Hosting
                 config.CertificateRenewal.UseCertificateAuthorityProductionServers));
 
             services.AddSingleton<ICertificateServiceFactory, CertificateServiceFactory>();
+
+            services.AddSingleton<IEmailSender>(sp => new MailgunSender(
+                sp.GetRequiredService<ILogger<MailgunSender>>(),
+                sp.GetRequiredService<IHttpClientFactory>(),
+                config.Mailgun.ApiKey,
+                config.Mailgun.EmailDomain));
         }
 
         // ConfigureContainer is where you can register things directly
