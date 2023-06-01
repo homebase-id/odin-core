@@ -3,10 +3,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Refit;
 using Youverse.Core.Storage.Sqlite.IdentityDatabase;
-using Youverse.Core;
-using Youverse.Hosting.Tests.Anonymous.Ident;
 using Youverse.Core.Storage;
 
 namespace Youverse.Hosting.Tests.Performance
