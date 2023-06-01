@@ -5,6 +5,10 @@ using System.Runtime.Caching;
 
 namespace Youverse.Core.Storage
 {
+    /*
+     *  If we want to cache more than atomic records then we can add a List<string> facets as
+     *  parameter  and keep track of them separately in a dictionary.
+     */
     public class CacheHelper
     {
         private readonly MemoryCache _cache;
