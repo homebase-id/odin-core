@@ -14,6 +14,8 @@ https://www.sqlitetutorial.net/sqlite-index/
 */
 
 
+using Youverse.Core.Storage.SQLite;
+
 namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
     public class IdentityDatabase : DatabaseBase
@@ -32,10 +34,13 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         public readonly TableConnections tblConnections = null;
 
         public readonly string CN;
+
+        private static CacheHelper _cache = new CacheHelper("yo");
+
         public IdentityDatabase(string connectionString, long commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
         {
             tblAppGrants = new TableAppGrants(this);
-            tblKeyValue = new TableKeyValue(this);
+            tblKeyValue = new TableKeyValue(this, _cache);
             tblKeyTwoValue = new TableKeyTwoValue(this);
             TblKeyThreeValue = new TableKeyThreeValue(this);
             tblInbox = new TableInbox(this);
