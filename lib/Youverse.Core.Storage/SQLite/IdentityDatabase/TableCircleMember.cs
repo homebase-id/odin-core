@@ -6,7 +6,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
     public class TableCircleMember : TableCircleMemberCRUD
     {
-        public TableCircleMember(IdentityDatabase db) : base(db)
+        public TableCircleMember(IdentityDatabase db, CacheHelper cache) : base(db, cache)
         {
         }
 
@@ -97,7 +97,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             {
                 for (int i = 0; i < members.Count; i++)
                 {
-                    DeleteByCircleMember(members[i]);
+                    var circles = GetMemberCirclesAndData(members[i]);
+
+                    for (int j = 0; j < circles.Count; j++)
+                        Delete(circles[j].circleId, members[i]);
                 }
             }
         }

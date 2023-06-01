@@ -37,7 +37,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         private SqliteParameter _pcrecoverparam1 = null;
 
 
-        public TableInbox(IdentityDatabase db) : base(db)
+        public TableInbox(IdentityDatabase db, CacheHelper cache) : base(db, cache)
         {
         }
 

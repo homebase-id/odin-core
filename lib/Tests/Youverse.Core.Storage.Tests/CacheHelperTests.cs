@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Diagnostics;
-using System.Threading;
 using NUnit.Framework;
 using Youverse.Core;
-using Youverse.Core.Storage.Sqlite.IdentityDatabase;
-using Youverse.Core.Storage.SQLite;
+using Youverse.Core.Storage;
 
 namespace IdentityDatabaseTests
 {

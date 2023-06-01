@@ -138,7 +138,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         private SqliteParameter _get0Param2 = null;
         private SqliteParameter _get0Param3 = null;
 
-        public TableFeedDistributionOutboxCRUD(IdentityDatabase db) : base(db)
+        public TableFeedDistributionOutboxCRUD(IdentityDatabase db, CacheHelper cache) : base(db)
         {
         }
 
@@ -234,7 +234,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _insertParam6.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 _insertParam7.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _insertParam8.Value = DBNull.Value;
-                return _database.ExecuteNonQuery(_insertCommand);
+                var count = _database.ExecuteNonQuery(_insertCommand);
+                return count;
             } // Lock
         }
 
@@ -283,7 +284,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _upsertParam6.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 _upsertParam7.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _upsertParam8.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                return _database.ExecuteNonQuery(_upsertCommand);
+                var count = _database.ExecuteNonQuery(_upsertCommand);
+                return count;
             } // Lock
         }
 
@@ -331,7 +333,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _updateParam6.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 _updateParam7.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _updateParam8.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                return _database.ExecuteNonQuery(_updateCommand);
+                var count = _database.ExecuteNonQuery(_updateCommand);
+                return count;
             } // Lock
         }
 
@@ -445,7 +448,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _delete0Param1.Value = fileId.ToByteArray();
                 _delete0Param2.Value = driveId.ToByteArray();
                 _delete0Param3.Value = recipient;
-                return _database.ExecuteNonQuery(_delete0Command);
+                var count = _database.ExecuteNonQuery(_delete0Command);
+                return count;
             } // Lock
         }
 
@@ -540,8 +544,11 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
+                    {
                         return null;
-                    return ReadRecordFromReader0(rdr, fileId,driveId,recipient);
+                    }
+                    var r = ReadRecordFromReader0(rdr, fileId,driveId,recipient);
+                    return r;
                 } // using
             } // lock
         }

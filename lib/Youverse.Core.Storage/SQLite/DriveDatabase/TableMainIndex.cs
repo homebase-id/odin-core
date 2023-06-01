@@ -23,7 +23,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
         private SqliteParameter _tparam2 = null;
         private Object _touchLock = new Object();
 
-        public TableMainIndex(DriveDatabase db) : base(db)
+        public TableMainIndex(DriveDatabase db, CacheHelper cache) : base(db, cache)
         {
         }
 

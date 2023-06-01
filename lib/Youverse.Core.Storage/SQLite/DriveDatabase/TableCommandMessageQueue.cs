@@ -11,7 +11,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
         private Object _selectLock = new Object();
 
 
-        public TableCommandMessageQueue(DriveDatabase db) : base(db)
+        public TableCommandMessageQueue(DriveDatabase db, CacheHelper cache) : base(db, cache)
         {
         }
 

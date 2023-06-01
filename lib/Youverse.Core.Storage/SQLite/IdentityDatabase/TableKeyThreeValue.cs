@@ -7,7 +7,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
     public class TableKeyThreeValue : TableKeyThreeValueCRUD
     {
-        public TableKeyThreeValue(IdentityDatabase db) : base(db)
+        public TableKeyThreeValue(IdentityDatabase db, CacheHelper cache) : base(db, cache)
         {
         }
 

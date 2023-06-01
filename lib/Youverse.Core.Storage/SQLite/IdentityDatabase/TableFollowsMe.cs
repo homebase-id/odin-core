@@ -25,7 +25,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         private static object _select3Lock = new object();
         
 
-        public TableFollowsMe(IdentityDatabase db) : base(db)
+        public TableFollowsMe(IdentityDatabase db, CacheHelper cache) : base(db, cache)
         {
         }
 
@@ -61,7 +61,23 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             return r;
         }
 
-        
+
+        public int DeleteByIdentity(string identity)
+        {
+            int n = 0;
+            var r = Get(identity);
+
+            using (_database.CreateCommitUnitOfWork())
+            {
+                for (int i = 0; i < r.Count; i++)
+                {
+                    n += Delete(identity, r[i].driveId);
+                }
+            }
+
+            return n;
+        }
+
         /// <summary>
         /// Return pages of identities that follow me; up to count size.
         /// Optionally supply a cursor to indicate the last identity processed (sorted ascending)

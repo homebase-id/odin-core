@@ -92,9 +92,11 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         private SqliteCommand _get3Command = null;
         private static Object _get3Lock = new Object();
         private SqliteParameter _get3Param1 = null;
+        private readonly CacheHelper _cache;
 
-        public TableKeyThreeValueCRUD(IdentityDatabase db) : base(db)
+        public TableKeyThreeValueCRUD(IdentityDatabase db, CacheHelper cache) : base(db)
         {
+            _cache = cache;
         }
 
         ~TableKeyThreeValueCRUD()
@@ -175,7 +177,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _insertParam2.Value = item.key2 ?? (object)DBNull.Value;
                 _insertParam3.Value = item.key3 ?? (object)DBNull.Value;
                 _insertParam4.Value = item.data ?? (object)DBNull.Value;
-                return _database.ExecuteNonQuery(_insertCommand);
+                var count = _database.ExecuteNonQuery(_insertCommand);
+                if (count > 0)
+                    _cache.AddOrUpdate("TableKeyThreeValueCRUD", item.key1.ToString(), item);
+                return count;
             } // Lock
         }
 
@@ -208,7 +213,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _upsertParam2.Value = item.key2 ?? (object)DBNull.Value;
                 _upsertParam3.Value = item.key3 ?? (object)DBNull.Value;
                 _upsertParam4.Value = item.data ?? (object)DBNull.Value;
-                return _database.ExecuteNonQuery(_upsertCommand);
+                var count = _database.ExecuteNonQuery(_upsertCommand);
+                if (count > 0)
+                    _cache.AddOrUpdate("TableKeyThreeValueCRUD", item.key1.ToString(), item);
+                return count;
             } // Lock
         }
 
@@ -240,7 +248,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _updateParam2.Value = item.key2 ?? (object)DBNull.Value;
                 _updateParam3.Value = item.key3 ?? (object)DBNull.Value;
                 _updateParam4.Value = item.data ?? (object)DBNull.Value;
-                return _database.ExecuteNonQuery(_updateCommand);
+                var count = _database.ExecuteNonQuery(_updateCommand);
+                if (count > 0)
+                    _cache.AddOrUpdate("TableKeyThreeValueCRUD", item.key1.ToString(), item);
+                return count;
             } // Lock
         }
 
@@ -321,7 +332,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _delete0Command.Prepare();
                 }
                 _delete0Param1.Value = key1.ToByteArray();
-                return _database.ExecuteNonQuery(_delete0Command);
+                var count = _database.ExecuteNonQuery(_delete0Command);
+                if (count > 0)
+                    _cache.Remove("TableKeyThreeValueCRUD", key1.ToString());
+                return count;
             } // Lock
         }
 
@@ -496,7 +510,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get2Command, System.Data.CommandBehavior.Default))
                 {
                     if (!rdr.Read())
+                    {
+                        _cache.AddOrUpdate("TableKeyThreeValueCRUD", key2.ToString()+key3.ToString(), null);
                         return null;
+                    }
                     var result = new List<KeyThreeValueRecord>();
                     while (true)
                     {
@@ -563,6 +580,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
         public KeyThreeValueRecord Get(Guid key1)
         {
+            var (hit, cacheObject) = _cache.Get("TableKeyThreeValueCRUD", key1.ToString());
+            if (hit)
+                return (KeyThreeValueRecord)cacheObject;
             lock (_get3Lock)
             {
                 if (_get3Command == null)
@@ -579,8 +599,13 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get3Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
+                    {
+                        _cache.AddOrUpdate("TableKeyThreeValueCRUD", key1.ToString(), null);
                         return null;
-                    return ReadRecordFromReader3(rdr, key1);
+                    }
+                    var r = ReadRecordFromReader3(rdr, key1);
+                    _cache.AddOrUpdate("TableKeyThreeValueCRUD", key1.ToString(), r);
+                    return r;
                 } // using
             } // lock
         }

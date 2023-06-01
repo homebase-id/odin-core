@@ -87,7 +87,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             using (_tenantStorage.CreateCommitUnitOfWork())
             {
                 //delete all records and update according to the latest follow request.
-                _tenantStorage.WhoIFollow.DeleteFollower(new OdinId(request.OdinId));
+                _tenantStorage.WhoIFollow.DeleteByIdentity(new OdinId(request.OdinId));
                 if (request.NotificationType == FollowerNotificationType.AllNotifications)
                 {
                     _tenantStorage.WhoIFollow.Insert(new ImFollowingRecord() { identity = new OdinId(request.OdinId), driveId = Guid.Empty });
@@ -125,7 +125,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
                 throw new YouverseRemoteIdentityException("Failed to unfollow");
             }
 
-            _tenantStorage.WhoIFollow.DeleteFollower(recipient);
+            _tenantStorage.WhoIFollow.DeleteByIdentity(recipient);
         }
 
         public async Task<FollowerDefinition> GetFollower(OdinId odinId)

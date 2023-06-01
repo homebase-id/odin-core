@@ -41,7 +41,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         private SqliteCommand _popRecoverCommand = null;
         private SqliteParameter _pcrecoverparam1 = null;
 
-        public TableOutbox(IdentityDatabase db) : base(db)
+        public TableOutbox(IdentityDatabase db, CacheHelper cache) : base(db, cache)
         {
         }
 

@@ -47,7 +47,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
 
             if (request.NotificationType == FollowerNotificationType.AllNotifications)
             {
-                _tenantStorage.Followers.DeleteFollower(request.OdinId);
+                _tenantStorage.Followers.DeleteByIdentity(request.OdinId);
                 _tenantStorage.Followers.Insert(new FollowsMeRecord() { identity = request.OdinId, driveId = System.Guid.Empty });
             }
 
@@ -74,7 +74,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
 
                 using (_tenantStorage.CreateCommitUnitOfWork())
                 {
-                    _tenantStorage.Followers.DeleteFollower(request.OdinId);
+                    _tenantStorage.Followers.DeleteByIdentity(request.OdinId);
                     foreach (var channel in request.Channels)
                     {
                         _tenantStorage.Followers.Insert(new FollowsMeRecord() { identity = request.OdinId, driveId = channel.Alias });
@@ -99,7 +99,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
         public Task AcceptUnfollowRequest()
         {
             var follower = _contextAccessor.GetCurrent().Caller.OdinId;
-            _tenantStorage.Followers.DeleteFollower(follower);
+            _tenantStorage.Followers.DeleteByIdentity(follower);
             return Task.CompletedTask;
         }
     }

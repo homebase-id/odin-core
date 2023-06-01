@@ -20,7 +20,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         private SqliteParameter _getPaging6Param2 = null;
         private SqliteParameter _getPaging6Param3 = null;
 
-        public TableConnections(IdentityDatabase db) : base(db)
+        public TableConnections(IdentityDatabase db, CacheHelper cache) : base(db, cache)
         {
         }
 

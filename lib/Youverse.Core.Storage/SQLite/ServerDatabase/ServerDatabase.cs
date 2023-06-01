@@ -21,10 +21,11 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
     public class ServerDatabase : DatabaseBase
     {
         public readonly TableCron tblCron = null;
+        private CacheHelper _cache = new CacheHelper("system");
 
         public ServerDatabase(string connectionString, long commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
         {
-            tblCron = new TableCron(this);
+            tblCron = new TableCron(this, _cache);
         }
 
 

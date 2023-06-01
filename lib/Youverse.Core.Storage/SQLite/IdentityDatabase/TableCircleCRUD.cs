@@ -72,9 +72,11 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         private static Object _getPaging2Lock = new Object();
         private SqliteParameter _getPaging2Param1 = null;
         private SqliteParameter _getPaging2Param2 = null;
+        private readonly CacheHelper _cache;
 
-        public TableCircleCRUD(IdentityDatabase db) : base(db)
+        public TableCircleCRUD(IdentityDatabase db, CacheHelper cache) : base(db)
         {
+            _cache = cache;
         }
 
         ~TableCircleCRUD()
@@ -144,7 +146,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _insertParam1.Value = item.circleName;
                 _insertParam2.Value = item.circleId.ToByteArray();
                 _insertParam3.Value = item.data ?? (object)DBNull.Value;
-                return _database.ExecuteNonQuery(_insertCommand);
+                var count = _database.ExecuteNonQuery(_insertCommand);
+                if (count > 0)
+                    _cache.AddOrUpdate("TableCircleCRUD", item.circleId.ToString(), item);
+                return count;
             } // Lock
         }
 
@@ -173,7 +178,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _upsertParam1.Value = item.circleName;
                 _upsertParam2.Value = item.circleId.ToByteArray();
                 _upsertParam3.Value = item.data ?? (object)DBNull.Value;
-                return _database.ExecuteNonQuery(_upsertCommand);
+                var count = _database.ExecuteNonQuery(_upsertCommand);
+                if (count > 0)
+                    _cache.AddOrUpdate("TableCircleCRUD", item.circleId.ToString(), item);
+                return count;
             } // Lock
         }
 
@@ -201,7 +209,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _updateParam1.Value = item.circleName;
                 _updateParam2.Value = item.circleId.ToByteArray();
                 _updateParam3.Value = item.data ?? (object)DBNull.Value;
-                return _database.ExecuteNonQuery(_updateCommand);
+                var count = _database.ExecuteNonQuery(_updateCommand);
+                if (count > 0)
+                    _cache.AddOrUpdate("TableCircleCRUD", item.circleId.ToString(), item);
+                return count;
             } // Lock
         }
 
@@ -263,7 +274,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _delete0Command.Prepare();
                 }
                 _delete0Param1.Value = circleId.ToByteArray();
-                return _database.ExecuteNonQuery(_delete0Command);
+                var count = _database.ExecuteNonQuery(_delete0Command);
+                if (count > 0)
+                    _cache.Remove("TableCircleCRUD", circleId.ToString());
+                return count;
             } // Lock
         }
 
@@ -302,6 +316,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
         public CircleRecord Get(Guid circleId)
         {
+            var (hit, cacheObject) = _cache.Get("TableCircleCRUD", circleId.ToString());
+            if (hit)
+                return (CircleRecord)cacheObject;
             lock (_get0Lock)
             {
                 if (_get0Command == null)
@@ -318,8 +335,13 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
+                    {
+                        _cache.AddOrUpdate("TableCircleCRUD", circleId.ToString(), null);
                         return null;
-                    return ReadRecordFromReader0(rdr, circleId);
+                    }
+                    var r = ReadRecordFromReader0(rdr, circleId);
+                    _cache.AddOrUpdate("TableCircleCRUD", circleId.ToString(), r);
+                    return r;
                 } // using
             } // lock
         }

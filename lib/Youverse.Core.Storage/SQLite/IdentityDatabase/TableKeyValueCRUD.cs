@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Youverse.Core.Identity;
-using Youverse.Core.Storage.SQLite;
 
 namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
@@ -53,7 +52,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         private SqliteCommand _get0Command = null;
         private static Object _get0Lock = new Object();
         private SqliteParameter _get0Param1 = null;
-
         private readonly CacheHelper _cache;
 
         public TableKeyValueCRUD(IdentityDatabase db, CacheHelper cache) : base(db)
@@ -123,7 +121,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _insertParam2.Value = item.data ?? (object)DBNull.Value;
                 var count = _database.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
-                    _cache.AddOrUpdate("TableKeyValueCRUD", item.key, item);
+                    _cache.AddOrUpdate("TableKeyValueCRUD", item.key.ToString(), item);
                 return count;
             } // Lock
         }
@@ -151,7 +149,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _upsertParam2.Value = item.data ?? (object)DBNull.Value;
                 var count = _database.ExecuteNonQuery(_upsertCommand);
                 if (count > 0)
-                    _cache.AddOrUpdate("TableKeyValueCRUD", item.key, item);
+                    _cache.AddOrUpdate("TableKeyValueCRUD", item.key.ToString(), item);
                 return count;
             } // Lock
         }
@@ -178,7 +176,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _updateParam2.Value = item.data ?? (object)DBNull.Value;
                 var count = _database.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
-                    _cache.AddOrUpdate("TableKeyValueCRUD", item.key, item);
+                    _cache.AddOrUpdate("TableKeyValueCRUD", item.key.ToString(), item);
                 return count;
             } // Lock
         }
@@ -235,8 +233,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 }
                 _delete0Param1.Value = key.ToByteArray();
                 var count = _database.ExecuteNonQuery(_delete0Command);
-                if (count > 0) 
-                    _cache.Remove("TableKeyValueCRUD", key);
+                if (count > 0)
+                    _cache.Remove("TableKeyValueCRUD", key.ToString());
                 return count;
             } // Lock
         }
@@ -269,11 +267,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
         public KeyValueRecord Get(Guid key)
         {
-            var (hit, cacheObject) = _cache.Get("TableKeyValueCRUD", key);
-
+            var (hit, cacheObject) = _cache.Get("TableKeyValueCRUD", key.ToString());
             if (hit)
-                return (KeyValueRecord) cacheObject;
-
+                return (KeyValueRecord)cacheObject;
             lock (_get0Lock)
             {
                 if (_get0Command == null)
@@ -291,16 +287,15 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 {
                     if (!rdr.Read())
                     {
-                        _cache.AddOrUpdate("TableKeyValueCRUD", key, null);
+                        _cache.AddOrUpdate("TableKeyValueCRUD", key.ToString(), null);
                         return null;
                     }
-
                     var r = ReadRecordFromReader0(rdr, key);
-
-                    _cache.AddOrUpdate("TableKeyValueCRUD", key, r);
+                    _cache.AddOrUpdate("TableKeyValueCRUD", key.ToString(), r);
                     return r;
                 } // using
             } // lock
         }
+
     }
 }

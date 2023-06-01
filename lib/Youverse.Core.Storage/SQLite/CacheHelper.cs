@@ -3,7 +3,7 @@ using System.Collections.Specialized;
 using System.Linq;
 using System.Runtime.Caching;
 
-namespace Youverse.Core.Storage.SQLite
+namespace Youverse.Core.Storage
 {
     public class CacheHelper
     {

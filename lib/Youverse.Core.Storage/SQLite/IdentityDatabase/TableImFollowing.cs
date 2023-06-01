@@ -23,7 +23,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         private SqliteParameter _s3param2 = null;
         private static object _select3Lock = new object();
 
-        public TableImFollowing(IdentityDatabase db) : base(db)
+        public TableImFollowing(IdentityDatabase db, CacheHelper cache) : base(db, cache)
         {
         }
 
@@ -57,6 +57,22 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 r = new List<ImFollowingRecord>();
 
             return r;
+        }
+
+        public int DeleteByIdentity(OdinId identity)
+        {
+            int n = 0;
+            var r = Get(identity);
+
+            using (_database.CreateCommitUnitOfWork())
+            {
+                for (int i = 0; i < r.Count; i++)
+                {
+                    n += Delete(identity, r[i].driveId);
+                }
+            }
+
+            return n;
         }
 
 

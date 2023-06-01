@@ -14,8 +14,6 @@ https://www.sqlitetutorial.net/sqlite-index/
 */
 
 
-using Youverse.Core.Storage.SQLite;
-
 namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
     public class IdentityDatabase : DatabaseBase
@@ -35,22 +33,22 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
         public readonly string CN;
 
-        private static CacheHelper _cache = new CacheHelper("yo");
+        private CacheHelper _cache = new CacheHelper("identity");
 
         public IdentityDatabase(string connectionString, long commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
         {
-            tblAppGrants = new TableAppGrants(this);
+            tblAppGrants = new TableAppGrants(this, _cache);
             tblKeyValue = new TableKeyValue(this, _cache);
-            tblKeyTwoValue = new TableKeyTwoValue(this);
-            TblKeyThreeValue = new TableKeyThreeValue(this);
-            tblInbox = new TableInbox(this);
-            tblOutbox = new TableOutbox(this);
-            tblFeedDistributionOutbox = new TableFeedDistributionOutbox(this);
-            tblCircle = new TableCircle(this);
-            tblCircleMember = new TableCircleMember(this);
-            tblFollowsMe = new TableFollowsMe(this);
-            tblImFollowing = new TableImFollowing(this);
-            tblConnections = new TableConnections(this);
+            tblKeyTwoValue = new TableKeyTwoValue(this, _cache);
+            TblKeyThreeValue = new TableKeyThreeValue(this, _cache);
+            tblInbox = new TableInbox(this, _cache);
+            tblOutbox = new TableOutbox(this, _cache);
+            tblFeedDistributionOutbox = new TableFeedDistributionOutbox(this, _cache);
+            tblCircle = new TableCircle(this, _cache);
+            tblCircleMember = new TableCircleMember(this, _cache);
+            tblFollowsMe = new TableFollowsMe(this, _cache);
+            tblImFollowing = new TableImFollowing(this, _cache);
+            tblConnections = new TableConnections(this, _cache);
 
             CN = connectionString;
         }

@@ -1,6 +1,5 @@
 ﻿using System;
 using Microsoft.Data.Sqlite;
-using Youverse.Core.Storage.SQLite;
 
 namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
