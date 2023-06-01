@@ -34,6 +34,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core.Cryptography.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Youverse.Core.Tests", "..\lib\Tests\Youverse.Core.Tests\Youverse.Core.Tests.csproj", "{71BE6297-87A4-4C2B-94B6-6056DEF31664}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WaitingListApi", "WaitingListApi\WaitingListApi.csproj", "{B5EB26BB-C63E-4707-B60D-92DFDFC53255}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -88,6 +90,10 @@ Global
 		{71BE6297-87A4-4C2B-94B6-6056DEF31664}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{71BE6297-87A4-4C2B-94B6-6056DEF31664}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{71BE6297-87A4-4C2B-94B6-6056DEF31664}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B5EB26BB-C63E-4707-B60D-92DFDFC53255}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B5EB26BB-C63E-4707-B60D-92DFDFC53255}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B5EB26BB-C63E-4707-B60D-92DFDFC53255}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B5EB26BB-C63E-4707-B60D-92DFDFC53255}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,0 +1,238 @@
+using System.Diagnostics;
+using System.Net.Security;
+using System.Security.Cryptography.X509Certificates;
+using Microsoft.AspNetCore.Connections;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Serilog;
+using Serilog.Events;
+using Serilog.Sinks.SystemConsole.Themes;
+using WaitingListApi.Config;
+using Youverse.Core.Exceptions;
+using Youverse.Core.Logging.CorrelationId;
+using Youverse.Core.Logging.CorrelationId.Serilog;
+using Youverse.Core.Logging.Hostname;
+using Youverse.Core.Logging.Hostname.Serilog;
+using Microsoft.Extensions.Hosting;
+
+namespace WaitingListApi
+{
+    public static class Program
+    {
+        private const string
+            LogOutputTemplate = "{Timestamp:o} {Level:u3} {CorrelationId} {Hostname} {Message:lj}{NewLine}{Exception}"; // Add {SourceContext} to see source
+
+        private static readonly object FileMutex = new();
+
+        private static readonly SystemConsoleTheme LogOutputTheme = SystemConsoleTheme.Literate;
+
+        public static int Main(string[] args)
+        {
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Information()
+                .Enrich.WithHostname(new StickyHostnameGenerator())
+                .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
+                .WriteTo.Console(outputTemplate: LogOutputTemplate, theme: LogOutputTheme)
+                .CreateBootstrapLogger();
+
+            try
+            {
+                Log.Information("Starting waiting list web host");
+                CreateHostBuilder(args).Build().Run();
+                Log.Information("Stopped waiting list web host");
+            }
+            catch (Exception ex)
+            {
+                Log.Fatal(ex, "Host terminated unexpectedly");
+                return 1;
+            }
+            finally
+            {
+                Log.CloseAndFlush();
+            }
+
+            return 0;
+        }
+
+        public static (WaitingListConfig, IConfiguration) LoadConfig()
+        {
+            const string envVar = "DOTYOU_ENVIRONMENT";
+            var env = Environment.GetEnvironmentVariable(envVar) ?? "";
+
+            if (string.IsNullOrEmpty(env))
+            {
+                throw new YouverseSystemException($"You must set an environment variable named [{envVar}] which specifies your environment.\n" +
+                                                  $"This must match your app settings file as follows 'appsettings.ENV.json'");
+            }
+
+            var appSettingsFile = $"appsettings.{env.ToLower()}.json";
+            Log.Information($"Current Folder: {Environment.CurrentDirectory}");
+            if (!File.Exists(Path.Combine(Environment.CurrentDirectory, appSettingsFile)))
+            {
+                Log.Information($"Missing {appSettingsFile}");
+            }
+
+            var config = new ConfigurationBuilder()
+                // .AddJsonFile("appsettings.json", optional: false)
+                .AddJsonFile(appSettingsFile, optional: false)
+                .AddEnvironmentVariables()
+                .Build();
+
+            return (new WaitingListConfig(config), config);
+        }
+
+        public static IHostBuilder CreateHostBuilder(string[] args)
+        {
+            var (waitingListConfig, appSettingsConfig) = LoadConfig();
+
+            var loggingDirInfo = Directory.CreateDirectory(waitingListConfig.Logging.LogFilePath);
+            if (!loggingDirInfo.Exists)
+            {
+                throw new YouverseClientException($"Could not create logging folder at [{waitingListConfig.Logging.LogFilePath}]");
+            }
+
+            var dataRootDirInfo = Directory.CreateDirectory(waitingListConfig.Host.SystemDataRootPath);
+            if (!dataRootDirInfo.Exists)
+            {
+                throw new YouverseClientException($"Could not create data folder at [{waitingListConfig.Host.SystemDataRootPath}]");
+            }
+
+            var builder = Host.CreateDefaultBuilder(args)
+                .ConfigureAppConfiguration(builder => { builder.AddConfiguration(appSettingsConfig); })
+                .UseSystemd()
+                .ConfigureWebHostDefaults(webBuilder =>
+                {
+                    webBuilder.ConfigureKestrel(kestrelOptions =>
+                        {
+                            kestrelOptions.Limits.MaxRequestBodySize = null;
+
+                            foreach (var address in waitingListConfig.Host.IPAddressListenList)
+                            {
+                                var ip = address.GetIp();
+                                kestrelOptions.Listen(ip, address.HttpPort);
+                                kestrelOptions.Listen(ip, address.HttpsPort,
+                                    options => ConfigureHttpListenOptions(waitingListConfig, kestrelOptions, options));
+                            }
+                        })
+                        .UseStartup<Startup>();
+                });
+
+            if (waitingListConfig.Logging.Level == LoggingLevel.ErrorsOnly)
+            {
+                builder.UseSerilog((context, services, configuration) => configuration
+                    .ReadFrom.Services(services)
+                    .MinimumLevel.Error());
+
+                return builder;
+            }
+
+            if (waitingListConfig.Logging.Level == LoggingLevel.Verbose)
+            {
+                builder.UseSerilog((context, services, configuration) => configuration
+                    .ReadFrom.Services(services)
+                    .MinimumLevel.Debug()
+                    .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+                    .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
+                    .MinimumLevel.Override("Microsoft.AspNetCore.Authentication", LogEventLevel.Error)
+                    .MinimumLevel.Override("Quartz", LogEventLevel.Warning)
+                    .MinimumLevel.Override("Youverse.Hosting.Middleware.Logging.RequestLoggingMiddleware", LogEventLevel.Information)
+                    .MinimumLevel.Override("Youverse.Core.Services.Transit.Outbox", LogEventLevel.Warning)
+                    .MinimumLevel.Override("Youverse.Core.Services.Workers.Transit.StokeOutboxJob", LogEventLevel.Warning)
+                    .Enrich.FromLogContext()
+                    .Enrich.WithHostname(new StickyHostnameGenerator())
+                    .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
+                    // .WriteTo.Debug() // SEB:TODO only do this in debug builds
+                    .WriteTo.Async(sink => sink.Console(outputTemplate: LogOutputTemplate, theme: LogOutputTheme))
+                    .WriteTo.Async(sink =>
+                        sink.RollingFile(Path.Combine(waitingListConfig.Logging.LogFilePath, "app-{Date}.log"), outputTemplate: LogOutputTemplate)));
+
+                return builder;
+            }
+
+            return builder;
+        }
+
+        //
+
+        private static void ConfigureHttpListenOptions(
+            WaitingListConfig youverseConfig,
+            KestrelServerOptions kestrelOptions,
+            ListenOptions listenOptions)
+        {
+            var handshakeTimeoutTimeSpan = Debugger.IsAttached
+                ? TimeSpan.FromMinutes(60)
+                : TimeSpan.FromSeconds(60);
+
+            listenOptions.UseHttps(async (stream, clientHelloInfo, state, cancellationToken) =>
+            {
+                // SEB:NOTE ToLower() should not be needed here, but better safe than sorry.
+                var hostName = clientHelloInfo.ServerName.ToLower();
+
+                var serviceProvider = kestrelOptions.ApplicationServices;
+                var cert = await ServerCertificateSelector(hostName, youverseConfig, serviceProvider);
+
+                if (cert == null)
+                {
+                    // This is an escape hatch so runtime won't log an error
+                    // when no certificate could be found
+                    throw new ConnectionAbortedException();
+                }
+
+                var result = new SslServerAuthenticationOptions
+                {
+                    ServerCertificate = cert
+                };
+
+                return result;
+            }, state: null!, handshakeTimeoutTimeSpan);
+        }
+
+        //         
+
+        private static Task<X509Certificate2> ServerCertificateSelector(
+            string hostName,
+            WaitingListConfig config,
+            IServiceProvider serviceProvider)
+        {
+            if (string.IsNullOrWhiteSpace(hostName))
+            {
+                throw new Exception("No host name specified");
+            }
+
+            var certificate = LoadFromFile(config.Host.SystemSslRootPath);
+            if (null == certificate)
+            {
+                throw new Exception("No certificate configured");
+            }
+
+            return Task.FromResult(certificate);
+        }
+
+        //
+
+        private static X509Certificate2? LoadFromFile(string certificateRoot)
+        {
+            string keyPemPath = Path.Combine(certificateRoot, "certificate.pfx");
+            string certificatePemPath = Path.Combine(certificateRoot, "private.key");
+
+            string certPem;
+            string keyPem;
+            lock (FileMutex)
+            {
+                if (!File.Exists(certificatePemPath) || !File.Exists(certificatePemPath))
+                {
+                    return null;
+                }
+
+                certPem = File.ReadAllText(certificatePemPath);
+                keyPem = File.ReadAllText(keyPemPath);
+            }
+
+            // Work around for error "No credentials are available in the security package"
+            // https://github.com/Azure/azure-iot-sdk-csharp/issues/2150
+            using var temp = X509Certificate2.CreateFromPem(certPem, keyPem);
+            var x509 = new X509Certificate2(temp.Export(X509ContentType.Pfx));
+
+            return x509;
+        }
+    }
+}
