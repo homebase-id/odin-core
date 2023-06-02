@@ -16,7 +16,7 @@ using Youverse.Core.Services.Transit.ReceivingHost;
 namespace Youverse.Core.Services.AppNotifications
 {
     public class AppNotificationHandler : INotificationHandler<IClientNotification>, INotificationHandler<IDriveNotification>,
-        INotificationHandler<TransitFileReceivedNotification>
+        INotificationHandler<TransitFileReceivedNotification>, INotificationHandler<TransitFileDeletedNotification>
     {
         private readonly DeviceSocketCollection _deviceSocketCollection;
         private readonly DotYouContextAccessor _contextAccessor;
@@ -161,7 +161,21 @@ namespace Youverse.Core.Services.AppNotifications
 
             await SerializeSendToAllDevicesForDrive(notificationDriveId, translated, false);
         }
+        
+        public async Task Handle(TransitFileDeletedNotification notification, CancellationToken cancellationToken)
+        {
+            var notificationDriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(notification.TempFile.TargetDrive);
+            var translated = new TranslatedClientNotification(notification.NotificationType,
+                DotYouSystemSerializer.Serialize(new
+                {
+                    ExternalFileIdentifier = notification.TempFile,
+                    TransferFileType = notification.TransferFileType,
+                    FileSystemType = notification.FileSystemType
+                }));
 
+            await SerializeSendToAllDevicesForDrive(notificationDriveId, translated, false);
+        }
+        
         private async Task SerializeSendToAllDevicesForDrive(Guid targetDriveId, IClientNotification notification, bool encrypt = true)
         {
             var json = DotYouSystemSerializer.Serialize(new

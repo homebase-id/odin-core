@@ -16,3 +16,12 @@ public class TransitFileReceivedNotification : EventArgs, INotification
     public FileSystemType FileSystemType { get; set; }
     public TransferFileType TransferFileType { get; set; }
 }
+
+public class TransitFileDeletedNotification : EventArgs, INotification
+{
+    public ClientNotificationType NotificationType { get; } = ClientNotificationType.TransitFileDeleted;
+
+    public ExternalFileIdentifier TempFile { get; set; }
+    public FileSystemType FileSystemType { get; set; }
+    public TransferFileType TransferFileType { get; set; }
+}

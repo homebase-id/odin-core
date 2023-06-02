@@ -208,7 +208,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
 
                 await _transitInboxBoxStorage.Add(item);
                 
-                await _mediator.Publish(new TransitFileReceivedNotification()
+                await _mediator.Publish(new TransitFileDeletedNotification()
                 {
                     TempFile = new ExternalFileIdentifier()
                     {
