@@ -64,7 +64,9 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
                             if (!isValidPublicKey)
                             {
                                 //TODO: handle when isValidPublicKey = false
-                                throw new YouverseSecurityException("Public key was invalid");
+                                // throw new YouverseSecurityException("Public key was invalid");
+                                await _transitInboxBoxStorage.MarkFailure(inboxItem.DriveId, inboxItem.Marker);
+                                continue;
                             }
 
                             var decryptedKeyHeader = KeyHeader.FromCombinedBytes(decryptedAesKeyHeaderBytes);

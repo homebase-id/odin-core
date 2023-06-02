@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Metadata;
 using System.Threading.Tasks;
 using System.Xml.Schema;
 using Dawn;
@@ -40,6 +41,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Incoming
             {
                 TotalItems = p.totalCount,
                 PoppedCount = p.poppedCount,
+                UnprocessedCount = Math.Max(p.totalCount - p.poppedCount, 0),
                 OldestItemTimestamp = p.oldestItemTime,
             };
         }
