@@ -207,6 +207,18 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
                 };
 
                 await _transitInboxBoxStorage.Add(item);
+                
+                await _mediator.Publish(new TransitFileReceivedNotification()
+                {
+                    TempFile = new ExternalFileIdentifier()
+                    {
+                        TargetDrive = _driveManager.GetDrive(item.DriveId).Result.TargetDriveInfo,
+                        FileId = item.FileId
+                    },
+
+                    TransferFileType = item.TransferFileType,
+                    FileSystemType = item.FileSystemType
+                });
 
                 return new HostTransitResponse()
                 {
