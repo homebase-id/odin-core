@@ -165,31 +165,33 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
             _fileSystem.Storage.AssertCanWriteToDrive(driveId);
 
             //if the sender can write, we can perform this now
+            var header = await _fileSystem.Query.GetFileByGlobalTransitId(driveId, globalTransitId);
+            if (null == header)
+            {
+                return new HostTransitResponse()
+                {
+                    Code = TransitResponseCode.Rejected,
+                    Message = "File not found"
+                };
+            }
 
-            if (fileSystemType == FileSystemType.Comment)
+            header.AssertOriginalSender(_contextAccessor.GetCurrent().Caller.OdinId!.Value, "Caller does not match sender");
+
+            //HACK: if our chat drive
+            if (fileSystemType == FileSystemType.Comment || targetDrive == SystemDriveConstants.ChatDrive)
             {
                 //Note: we need to check if the person deleting the comment is the original commenter or the owner
-                var header = await _fileSystem.Query.GetFileByGlobalTransitId(driveId, globalTransitId);
-                if (null != header)
+                await _fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
                 {
-                    //requester must be the original commenter
-                    if (header.FileMetadata.SenderOdinId != _contextAccessor.GetCurrent().Caller.OdinId)
-                    {
-                        throw new YouverseSecurityException();
-                    }
+                    FileId = header.FileId,
+                    DriveId = driveId
+                });
 
-                    await _fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
-                    {
-                        FileId = header.FileId,
-                        DriveId = driveId
-                    });
-
-                    return new HostTransitResponse()
-                    {
-                        Code = TransitResponseCode.AcceptedDirectWrite,
-                        Message = ""
-                    };
-                }
+                return new HostTransitResponse()
+                {
+                    Code = TransitResponseCode.AcceptedDirectWrite,
+                    Message = ""
+                };
             }
 
             try
@@ -199,7 +201,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
                     Id = Guid.NewGuid(),
                     AddedTimestamp = UnixTimeUtc.Now(),
                     Sender = this._contextAccessor.GetCurrent().GetCallerOdinIdOrFail(),
-
+                    FileId = header.FileId,
                     InstructionType = TransferInstructionType.DeleteLinkedFile,
                     DriveId = driveId,
                     GlobalTransitId = globalTransitId,
@@ -207,7 +209,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
                 };
 
                 await _transitInboxBoxStorage.Add(item);
-                
+
                 await _mediator.Publish(new TransitFileDeletedNotification()
                 {
                     TempFile = new ExternalFileIdentifier()
