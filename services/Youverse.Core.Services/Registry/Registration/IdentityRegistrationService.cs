@@ -14,6 +14,7 @@ using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Dns;
+using Youverse.Core.Services.Email;
 using Youverse.Core.Util;
 using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
@@ -35,13 +36,15 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     private readonly YouverseConfiguration _configuration;
     private readonly IDnsRestClient _dnsRestClient;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IEmailSender _emailSender;
 
     public IdentityRegistrationService(
         ILogger<IdentityRegistrationService> logger, 
         IIdentityRegistry registry,
         YouverseConfiguration configuration,
         IDnsRestClient dnsRestClient,
-        IHttpClientFactory httpClientFactory)
+        IHttpClientFactory httpClientFactory, 
+        IEmailSender emailSender)
     {
         _logger = logger;
         _configuration = configuration;
@@ -49,6 +52,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         _reservationStorage = new ReservationStorage();
         _dnsRestClient = dnsRestClient;
         _httpClientFactory = httpClientFactory;
+        _emailSender = emailSender;
 
         RegisterHttpClient();
     }
@@ -362,7 +366,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     
     //
  
-    public async Task<Guid> CreateIdentityOnDomain(string domain)
+    public async Task<Guid> CreateIdentityOnDomain(string domain, string email)
     {
         var identity = await _registry.Get(domain);
         if (identity != null)
@@ -388,6 +392,9 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         try
         {
             var firstRunToken = await _registry.AddRegistration(request);
+            
+            await SendProvisioningCompleteEmail(domain, email, firstRunToken.ToString());
+            
             return firstRunToken;
         }
         catch (Exception)
@@ -397,6 +404,24 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         }
     }
         
+    //
+
+    private async Task SendProvisioningCompleteEmail(string domain, string email, string firstRunToken)
+    {
+        const string subject = "Your new identity is ready";
+        var firstRunlink = $"https://{domain}/owner/firstrun?frt={firstRunToken}";
+        
+        var envelope = new Envelope
+        {
+            To = new List<NameAndEmailAddress> { new () { Email = email } },
+            Subject = subject,
+            TextMessage = RegistrationEmails.ProvisioningCompletedText(email, domain, firstRunlink),
+            HtmlMessage = RegistrationEmails.ProvisioningCompletedHtml(email, domain, firstRunlink),
+        };
+        
+        await _emailSender.SendAsync(envelope);
+    }
+    
     //        
 
     private static async Task<ILookupClient> CreateDnsClient(string resolverAddressOrHostName = "")
