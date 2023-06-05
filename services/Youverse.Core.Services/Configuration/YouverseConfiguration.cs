@@ -274,6 +274,7 @@ namespace Youverse.Core.Services.Configuration
             public string ApiKey { get; }
             public NameAndEmailAddress DefaultFrom { get; }
             public string EmailDomain { get; }
+            public bool Enabled { get; }
 
             public MailgunSection(IConfiguration config)
             {
@@ -284,6 +285,7 @@ namespace Youverse.Core.Services.Configuration
                     Name = config.GetOrDefault("Mailgun:DefaultFromName", ""),
                 };
                 EmailDomain = config.Required<string>("Mailgun:EmailDomain");
+                Enabled = config.Required<bool>("Mailgun:Enabled");
             }
         }
         
