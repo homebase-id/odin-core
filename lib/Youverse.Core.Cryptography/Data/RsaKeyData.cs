@@ -7,6 +7,8 @@ using Org.BouncyCastle.Security;
 using Org.BouncyCastle.X509;
 using Youverse.Core.Util;
 using System.Diagnostics;
+using System.Text;
+using Org.BouncyCastle.Asn1.Ocsp;
 
 namespace Youverse.Core.Cryptography.Data
 {
@@ -96,6 +98,8 @@ namespace Youverse.Core.Cryptography.Data
         {
             return !IsExpired();
         }
+
+
     }
 
 
@@ -246,6 +250,44 @@ namespace Youverse.Core.Cryptography.Data
                 return true;
             else
                 return false;
+        }
+
+
+        /// <summary>
+        /// Sign a block of data with a BC RSA key
+        /// </summary>
+        /// <param name="key">The key to unlock the RSA private key</param>
+        /// <param name="data">The data to sign</param>
+        /// <returns>The signature</returns>
+        public byte[] Sign(ref SensitiveByteArray key, byte[] dataToSign)
+        {
+            var pk = GetFullKey(ref key);
+
+            var privateKeyRestored = PrivateKeyFactory.CreateKey(pk.GetKey());
+
+            // Assuming that 'keys' is your AsymmetricCipherKeyPair
+            ISigner signer = SignerUtilities.GetSigner("SHA256withRSA");
+            signer.Init(true, privateKeyRestored); // Init for signing (true), with the private key
+
+            signer.BlockUpdate(dataToSign, 0, dataToSign.Length);
+
+            byte[] signature = signer.GenerateSignature();
+
+            return signature;
+        }
+
+        public bool VerifySignature(byte[] dataToSign, byte[] signature)
+        {
+            var publicKeyRestored = PublicKeyFactory.CreateKey(publicKey);
+
+            ISigner signer = SignerUtilities.GetSigner("SHA256withRSA");
+            signer.Init(false, publicKeyRestored); // Init for verification (false), with the public key
+
+            signer.BlockUpdate(dataToSign, 0, dataToSign.Length);
+
+            bool isSignatureCorrect = signer.VerifySignature(signature);
+
+            return isSignatureCorrect;
         }
     }
 }

@@ -35,8 +35,9 @@ public interface IIdentityRegistrationService
     /// Create identity on own or managed domain
     /// </summary>
     /// <param name="domain"></param>
+    /// <param name="email"></param>
     /// <returns>First-run token</returns>
-    Task<Guid> CreateIdentityOnDomain(string domain);
+    Task<Guid> CreateIdentityOnDomain(string domain, string email);
     
     //
     // Managed Domain
