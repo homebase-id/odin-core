@@ -10,6 +10,7 @@ using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.X509;
 using Youverse.Core.Cryptography.Data;
+using System.Diagnostics;
 
 namespace Youverse.Core.Cryptography.Tests
 {
@@ -43,6 +44,21 @@ namespace Youverse.Core.Cryptography.Tests
                 Assert.Fail();
             else
                 Assert.Pass();
+        }
+
+        [Test]
+        public void RsaKeySignatureTest()
+        {
+            var key = new SensitiveByteArray(ByteArrayUtil.GetRndByteArray(16));
+
+            var rsa = new RsaFullKeyData(ref key, 1);
+            byte[] data = { 1, 2, 3, 4, 5 };
+
+            var signature = rsa.Sign(ref key, data); // Sign with the private key 
+            var isOK = rsa.VerifySignature(data, signature); // Verify with public key
+
+            if (isOK == false) 
+                Assert.Fail();
         }
 
         [Test]
