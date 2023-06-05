@@ -19,6 +19,7 @@ namespace WaitingListApi.Config
 
         public class HostSection
         {
+            public string CorsUrl { get; }
             public string SystemDataRootPath { get; }
             public string SystemSslRootPath { get; }
 
@@ -27,21 +28,22 @@ namespace WaitingListApi.Config
             /// </summary>
             public List<ListenEntry> IPAddressListenList { get; }
 
-            public int CacheSlidingExpirationSeconds { get; }
-
             public HostSection(IConfiguration config)
             {
                 var isDev = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development";
                 var home = Environment.GetEnvironmentVariable("HOME") ?? "";
 
+                CorsUrl = config.Required<string>("Host:CorsUrl");
+
                 var sd = config.Required<string>("Host:SystemDataRootPath");
                 SystemDataRootPath = isDev && !sd.StartsWith(home) ? PathUtil.Combine(home, sd.Substring(1)) : sd;
 
-                SystemSslRootPath = Path.Combine(SystemDataRootPath, "ssl");
+                // var sslPath = config.Required<string>("Host:SystemSslRootPath");
+                // SystemSslRootPath = isDev && !sslPath.StartsWith(home) ? PathUtil.Combine(home, sslPath.Substring(1)) : sslPath;
+
+                SystemSslRootPath = config.Required<string>("Host:SystemSslRootPath");
 
                 IPAddressListenList = config.Required<List<ListenEntry>>("Host:IPAddressListenList");
-
-                CacheSlidingExpirationSeconds = config.Required<int>("Host:CacheSlidingExpirationSeconds");
             }
         }
 
@@ -74,7 +76,6 @@ namespace WaitingListApi.Config
         }
 
         //
-
     }
 
     public enum LoggingLevel

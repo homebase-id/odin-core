@@ -12,7 +12,6 @@ using Youverse.Core.Logging.CorrelationId;
 using Youverse.Core.Logging.CorrelationId.Serilog;
 using Youverse.Core.Logging.Hostname;
 using Youverse.Core.Logging.Hostname.Serilog;
-using Microsoft.Extensions.Hosting;
 
 namespace WaitingListApi
 {
@@ -211,7 +210,7 @@ namespace WaitingListApi
 
         private static X509Certificate2? LoadFromFile(string certificateRoot)
         {
-            string keyPemPath = Path.Combine(certificateRoot, "certificate.pfx");
+            string keyPemPath = Path.Combine(certificateRoot, "certificate.crt");
             string certificatePemPath = Path.Combine(certificateRoot, "private.key");
 
             string certPem;
@@ -229,6 +228,7 @@ namespace WaitingListApi
 
             // Work around for error "No credentials are available in the security package"
             // https://github.com/Azure/azure-iot-sdk-csharp/issues/2150
+            // X509Certificate2.CreateFromCertFile(certPem)
             using var temp = X509Certificate2.CreateFromPem(certPem, keyPem);
             var x509 = new X509Certificate2(temp.Export(X509ContentType.Pfx));
 

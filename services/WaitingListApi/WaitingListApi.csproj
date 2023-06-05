@@ -28,4 +28,23 @@
       </None>
     </ItemGroup>
 
+    <ItemGroup>
+      <Content Update="https\setup.youfoundation.id\private.key">
+        <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Update="https\setup.youfoundation.id\certificate.crt">
+        <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Update="ssl\dominion.dotyou.cloud\private.key">
+        <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Update="ssl\dominion.dotyou.cloud\certificate.crt">
+        <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+    </ItemGroup>
+
 </Project>

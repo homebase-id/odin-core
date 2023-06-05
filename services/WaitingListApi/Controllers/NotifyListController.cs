@@ -1,6 +1,7 @@
-using Dawn;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.Sqlite;
 using WaitingListApi.Data;
+using Youverse.Core.Exceptions.Server;
 
 namespace WaitingListApi.Controllers;
 
@@ -23,12 +24,22 @@ public class NotifyListController : ControllerBase
             return BadRequest("Invalid or missing email address");
         }
 
-        _storage.Insert(info);
+        try
+        {
+            _storage.Insert(info);
+        }
+        catch (SqliteException sqliteException)
+        {
+            if (sqliteException.SqliteErrorCode == 19)
+            {
+                return BadRequest("");
+            }
+        }
+        catch
+        {
+            return Problem(statusCode: 500);
+        }
+
         return Ok();
     }
-}
-
-public class NotificationInfo
-{
-    public string? EmailAddress { get; set; }
 }

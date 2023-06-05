@@ -38,7 +38,8 @@ public class WaitingListStorage : IDisposable
     {
         this._db.WaitingListTable?.Insert(new WaitingListRecord()
         {
-            EmailAddress = info.EmailAddress
+            EmailAddress = info.EmailAddress,
+            JsonData = info.Data
         });
     }
 

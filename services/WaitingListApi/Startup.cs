@@ -1,7 +1,4 @@
-using System.Net.Mime;
-using System.Reflection;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
-using Microsoft.Extensions.FileProviders;
 using WaitingListApi.Config;
 using WaitingListApi.Data;
 using Youverse.Core.Serialization;
@@ -10,6 +7,7 @@ namespace WaitingListApi
 {
     public class Startup
     {
+        private const string WaitingListCorsPolicy = "waiting_list";
         private IConfiguration Configuration { get; }
 
         public Startup(IConfiguration configuration)
@@ -25,6 +23,15 @@ namespace WaitingListApi
             services.AddSingleton(config);
 
             PrepareEnvironment(config);
+
+            services.AddCors(setup =>
+            {
+                setup.AddPolicy(WaitingListCorsPolicy, p =>
+                {
+                    p.WithOrigins(config.Host.CorsUrl)
+                        .WithHeaders("POST");
+                });
+            });
 
             services.AddControllers()
                 .AddJsonOptions(options =>
@@ -66,21 +73,13 @@ namespace WaitingListApi
                         DotYouSystemSerializer.JsonSerializerOptions.PropertyNameCaseInsensitive;
                 });
 
-            //Note: this product is designed to avoid use of the HttpContextAccessor in the services
-            //All params should be passed into to the services using DotYouContext
-            services.AddResponseCompression(options =>
-            {
-                options.EnableForHttps = true;
-                options.MimeTypes = new[] { "application/json" };
-            });
-
             services.AddEndpointsApiExplorer();
             services.AddSwaggerGen(c =>
             {
                 c.IgnoreObsoleteActions();
                 c.IgnoreObsoleteProperties();
                 c.ResolveConflictingActions(apiDescriptions => apiDescriptions.First());
-                c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, $"{Assembly.GetExecutingAssembly().GetName().Name}.xml"));
+                // c.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, $"{Assembly.GetExecutingAssembly().GetName().Name}.xml"));
                 c.SwaggerDoc("v1", new()
                 {
                     Title = "Waiting list API",
@@ -96,81 +95,30 @@ namespace WaitingListApi
 
             services.AddSingleton<WaitingListConfig>(config);
             services.AddSingleton<WaitingListStorage>();
-
-            // In production, the React files will be served from this directory
-            services.AddSpaStaticFiles(configuration => { configuration.RootPath = "client/"; });
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILogger<Startup> logger, IHostApplicationLifetime lifetime)
         {
-            var config = app.ApplicationServices.GetRequiredService<WaitingListConfig>();
+            // var config = app.ApplicationServices.GetRequiredService<WaitingListConfig>();
 
             // app.UseLoggingMiddleware();
             // app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-
-            app.UseDefaultFiles();
             app.UseCertificateForwarding();
-            app.UseStaticFiles();
+            app.UseCors(WaitingListCorsPolicy);
 
             app.UseRouting();
             app.UseAuthentication();
             app.UseAuthorization();
 
             app.UseResponseCompression();
-            // app.UseCors(c => c.WithOrigins(new[] { "" }));
-            app.UseHttpsRedirection();
+            // app.UseHttpsRedirection();
 
-            var webSocketOptions = new WebSocketOptions
-            {
-                KeepAliveInterval = TimeSpan.FromMinutes(2)
-            };
+            app.UseEndpoints(endpoints => { endpoints.MapControllers(); });
 
-            app.UseEndpoints(endpoints =>
-            {
-                endpoints.MapGet("/", async context =>
-                {
-                    context.Response.Redirect("/home");
-                    await Task.CompletedTask;
-                });
-                endpoints.MapControllers();
-            });
-
-            if (env.IsDevelopment())
-            {
-                app.UseSwagger();
-                app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "DotYouCore v1"));
-
-                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/home"),
-                    homeApp =>
-                    {
-                        homeApp.UseSpa(
-                            spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3007/"); });
-                    });
-            }
-            else
-            {
-                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/home"),
-                    homeApp =>
-                    {
-                        var publicPath = Path.Combine(env.ContentRootPath, "client", "public-app");
-
-                        homeApp.UseStaticFiles(new StaticFileOptions()
-                        {
-                            FileProvider = new PhysicalFileProvider(publicPath),
-                            RequestPath = "/home"
-                        });
-
-                        homeApp.Run(async context =>
-                        {
-                            context.Response.Headers.ContentType = MediaTypeNames.Text.Html;
-                            await context.Response.SendFileAsync(Path.Combine(publicPath, "index.html"));
-                            return;
-                        });
-                    });
-            }
-
+            app.UseSwagger();
+            app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "DotYouCore v1"));
             // lifetime.ApplicationStarted.Register(() => { DevEnvironmentSetup.ConfigureIfPresent(config, registry); });
         }
 

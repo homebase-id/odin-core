@@ -1,30 +1,16 @@
 ﻿{
   "$schema": "https://json.schemastore.org/launchsettings.json",
-  "iisSettings": {
-    "windowsAuthentication": false,
-    "anonymousAuthentication": true,
-    "iisExpress": {
-      "applicationUrl": "http://localhost:58084",
-      "sslPort": 44363
-    }
-  },
   "profiles": {
     "WaitingListApi": {
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": true,
-      "launchUrl": "swagger",
-      "applicationUrl": "https://localhost:7075;http://localhost:5275",
+      "launchUrl": "http://dominion.dotyou.cloud/swagger",
+      "applicationUrl": "https://dominion.dotyou.cloud;http://dominion.dotyou.cloud",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      }
-    },
-    "IIS Express": {
-      "commandName": "IISExpress",
-      "launchBrowser": true,
-      "launchUrl": "swagger",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DOTYOUCORE_EX_INFO": "1",
+        "DOTYOU_ENVIRONMENT": "development"
       }
     }
   }
