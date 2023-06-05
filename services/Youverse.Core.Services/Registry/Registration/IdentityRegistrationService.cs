@@ -14,6 +14,7 @@ using Youverse.Core.Exceptions;
 using Youverse.Core.Identity;
 using Youverse.Core.Services.Configuration;
 using Youverse.Core.Services.Dns;
+using Youverse.Core.Services.Email;
 using Youverse.Core.Util;
 using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
@@ -24,31 +25,32 @@ namespace Youverse.Core.Services.Registry.Registration;
 
 #nullable enable
 
-    /// <summary>
-    /// Handles creating an identity on this host
-    /// </summary>
+/// <summary>
+/// Handles creating an identity on this host
+/// </summary>
 public class IdentityRegistrationService : IIdentityRegistrationService
 {
     private readonly ILogger<IdentityRegistrationService> _logger;
     private readonly IIdentityRegistry _registry;
-    private readonly ReservationStorage _reservationStorage;
     private readonly YouverseConfiguration _configuration;
     private readonly IDnsRestClient _dnsRestClient;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IEmailSender _emailSender;
 
     public IdentityRegistrationService(
         ILogger<IdentityRegistrationService> logger, 
         IIdentityRegistry registry,
         YouverseConfiguration configuration,
         IDnsRestClient dnsRestClient,
-        IHttpClientFactory httpClientFactory)
+        IHttpClientFactory httpClientFactory, 
+        IEmailSender emailSender)
     {
         _logger = logger;
         _configuration = configuration;
         _registry = registry;
-        _reservationStorage = new ReservationStorage();
         _dnsRestClient = dnsRestClient;
         _httpClientFactory = httpClientFactory;
+        _emailSender = emailSender;
 
         RegisterHttpClient();
     }
@@ -362,7 +364,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     
     //
  
-    public async Task<Guid> CreateIdentityOnDomain(string domain)
+    public async Task<Guid> CreateIdentityOnDomain(string domain, string email)
     {
         var identity = await _registry.Get(domain);
         if (identity != null)
@@ -370,24 +372,21 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             throw new YouverseSystemException($"Identity {domain} already exists");
         }
         
-        // SEB:TODO get rid of reservations
-        var reservation = new Reservation()
-        {
-            Id = Guid.NewGuid(),
-            Domain = domain,
-            CreatedTime = UnixTimeUtc.Now(),
-            ExpiresTime = UnixTimeUtc.Now().AddSeconds(60 * 60 * 48) //TODO: add to config (48 hours)
-        };
-        
         var request = new IdentityRegistrationRequest()
         {
-            OdinId = (OdinId)reservation.Domain,
+            OdinId = (OdinId)domain,
             IsCertificateManaged = false, //TODO
         };
 
         try
         {
             var firstRunToken = await _registry.AddRegistration(request);
+
+            if (_configuration.Mailgun.Enabled)
+            {
+                await SendProvisioningCompleteEmail(domain, email, firstRunToken.ToString());    
+            }
+            
             return firstRunToken;
         }
         catch (Exception)
@@ -397,6 +396,24 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         }
     }
         
+    //
+
+    private async Task SendProvisioningCompleteEmail(string domain, string email, string firstRunToken)
+    {
+        const string subject = "Your new identity is ready";
+        var firstRunlink = $"https://{domain}/owner/firstrun?frt={firstRunToken}";
+        
+        var envelope = new Envelope
+        {
+            To = new List<NameAndEmailAddress> { new () { Email = email } },
+            Subject = subject,
+            TextMessage = RegistrationEmails.ProvisioningCompletedText(email, domain, firstRunlink),
+            HtmlMessage = RegistrationEmails.ProvisioningCompletedHtml(email, domain, firstRunlink),
+        };
+        
+        await _emailSender.SendAsync(envelope);
+    }
+    
     //        
 
     private static async Task<ILookupClient> CreateDnsClient(string resolverAddressOrHostName = "")

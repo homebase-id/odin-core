@@ -1,14 +1,10 @@
 ﻿using System;
-using System.Net;
-using System.Net.Http;
-using System.Net.Sockets;
-using System.Threading;
+using System.Net.Mail;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Registry;
+using Refit;
+using Youverse.Core.Exceptions.Client;
 using Youverse.Core.Services.Registry.Registration;
 
 namespace Youverse.Hosting.Controllers.Registration
@@ -135,7 +131,7 @@ namespace Youverse.Hosting.Controllers.Registration
         /// <param name="apex"></param>
         /// <param name="prefix"></param>
         /// <returns></returns>
-        // curl -X DELETE https://provisioning-dev.youfoundation.id/api/registration/v1/registration/delete-managed-domain/id.pub/foo.bar
+        // curl -X DELETE https://provisioning.dotyou.cloud/api/registration/v1/registration/delete-managed-domain/demo.rocks/foo.bar
         [HttpDelete("delete-managed-domain/{apex}/{prefix}")]
         public async Task<IActionResult> DeleteManagedDomain(string prefix, string apex)
         {
@@ -192,7 +188,7 @@ namespace Youverse.Hosting.Controllers.Registration
         /// </summary>
         /// <param name="domain"></param>
         /// <returns></returns>
-        // curl -X DELETE https://provisioning-dev.youfoundation.id/api/registration/v1/registration/delete-own-domain/foo.bar
+        // curl -X DELETE https://provisioning.dotyou.cloud/api/registration/v1/registration/delete-own-domain/foo.bar
         [HttpDelete("delete-own-domain/{domain}")]
         public async Task<IActionResult> DeleteOwnDomain(string domain)
         {
@@ -205,10 +201,16 @@ namespace Youverse.Hosting.Controllers.Registration
         /// Create identity on own or managed domain
         /// </summary>
         /// <param name="domain"></param>
+        /// <param name="identity"></param>
         /// <returns></returns>
         [HttpPost("create-identity-on-domain/{domain}")]
-        public async Task<IActionResult> CreateIdentityOnDomain(string domain)
+        public async Task<IActionResult> CreateIdentityOnDomain(string domain, [FromBody] IdentityModel identity)
         {
+            if (!MailAddress.TryCreate(identity.Email, out _))
+            {
+                throw new BadRequestException(message: "Invalid email address");
+            }
+            
             //
             // Check that our new domain has propagated to other dns resolvers
             //
@@ -221,7 +223,7 @@ namespace Youverse.Hosting.Controllers.Registration
                 );
             }
             
-            var firstRunToken = await _regService.CreateIdentityOnDomain(domain);
+            var firstRunToken = await _regService.CreateIdentityOnDomain(domain, identity.Email);
             return new JsonResult(firstRunToken); 
         }
         
