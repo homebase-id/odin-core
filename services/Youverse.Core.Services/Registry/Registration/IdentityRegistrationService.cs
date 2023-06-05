@@ -25,14 +25,13 @@ namespace Youverse.Core.Services.Registry.Registration;
 
 #nullable enable
 
-    /// <summary>
-    /// Handles creating an identity on this host
-    /// </summary>
+/// <summary>
+/// Handles creating an identity on this host
+/// </summary>
 public class IdentityRegistrationService : IIdentityRegistrationService
 {
     private readonly ILogger<IdentityRegistrationService> _logger;
     private readonly IIdentityRegistry _registry;
-    private readonly ReservationStorage _reservationStorage;
     private readonly YouverseConfiguration _configuration;
     private readonly IDnsRestClient _dnsRestClient;
     private readonly IHttpClientFactory _httpClientFactory;
@@ -49,7 +48,6 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         _logger = logger;
         _configuration = configuration;
         _registry = registry;
-        _reservationStorage = new ReservationStorage();
         _dnsRestClient = dnsRestClient;
         _httpClientFactory = httpClientFactory;
         _emailSender = emailSender;
@@ -374,26 +372,20 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             throw new YouverseSystemException($"Identity {domain} already exists");
         }
         
-        // SEB:TODO get rid of reservations
-        var reservation = new Reservation()
-        {
-            Id = Guid.NewGuid(),
-            Domain = domain,
-            CreatedTime = UnixTimeUtc.Now(),
-            ExpiresTime = UnixTimeUtc.Now().AddSeconds(60 * 60 * 48) //TODO: add to config (48 hours)
-        };
-        
         var request = new IdentityRegistrationRequest()
         {
-            OdinId = (OdinId)reservation.Domain,
+            OdinId = (OdinId)domain,
             IsCertificateManaged = false, //TODO
         };
 
         try
         {
             var firstRunToken = await _registry.AddRegistration(request);
-            
-            await SendProvisioningCompleteEmail(domain, email, firstRunToken.ToString());
+
+            if (_configuration.Mailgun.Enabled)
+            {
+                await SendProvisioningCompleteEmail(domain, email, firstRunToken.ToString());    
+            }
             
             return firstRunToken;
         }
