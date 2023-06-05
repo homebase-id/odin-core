@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using Youverse.Core.Configuration;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Services.Certificate;
+using Youverse.Core.Services.Email;
 using Youverse.Core.Services.Registry.Registration;
 using Youverse.Core.Util;
 
@@ -271,11 +272,17 @@ namespace Youverse.Core.Services.Configuration
         public class MailgunSection
         {
             public string ApiKey { get; }
+            public NameAndEmailAddress DefaultFrom { get; }
             public string EmailDomain { get; }
 
             public MailgunSection(IConfiguration config)
             {
                 ApiKey = config.Required<string>("Mailgun:ApiKey");
+                DefaultFrom = new NameAndEmailAddress
+                {
+                    Email = config.Required<string>("Mailgun:DefaultFromEmail"),
+                    Name = config.GetOrDefault("Mailgun:DefaultFromName", ""),
+                };
                 EmailDomain = config.Required<string>("Mailgun:EmailDomain");
             }
         }

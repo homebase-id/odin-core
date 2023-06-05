@@ -217,7 +217,8 @@ namespace Youverse.Hosting
                 sp.GetRequiredService<ILogger<MailgunSender>>(),
                 sp.GetRequiredService<IHttpClientFactory>(),
                 config.Mailgun.ApiKey,
-                config.Mailgun.EmailDomain));
+                config.Mailgun.EmailDomain,
+                config.Mailgun.DefaultFrom));
         }
 
         // ConfigureContainer is where you can register things directly

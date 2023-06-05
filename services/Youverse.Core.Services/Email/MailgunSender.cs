@@ -19,23 +19,27 @@ public class MailgunSender : IEmailSender
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly string _authToken;
     private readonly string _emailDomain;
+    private readonly NameAndEmailAddress _defaultFrom;
 
     public MailgunSender(
         ILogger<MailgunSender> logger, 
         IHttpClientFactory httpClientFactory, 
         string apiKey,
-        string emailDomain)
+        string emailDomain, 
+        NameAndEmailAddress defaultFrom)
     {
         _logger = logger;
         _httpClientFactory = httpClientFactory;
         _emailDomain = emailDomain;
+        _defaultFrom = defaultFrom;
         _authToken = Convert.ToBase64String(Encoding.ASCII.GetBytes($"api:{apiKey}"));
     }
 
     public async Task SendAsync(Envelope envelope)
     {
+        var from = envelope.From.Formatted.Contains('@') ? envelope.From.Formatted : _defaultFrom.Formatted; 
         var formContent = new FormUrlEncodedContent(new Dictionary<string, string> {
-            { "from", envelope.From.Formatted },
+            { "from", from },
             { "to", string.Join(",", envelope.To.Select(x => x.Formatted)) },
             { "cc", string.Join(",", envelope.Cc.Select(x => x.Formatted)) },
             { "bcc", string.Join(",", envelope.Bcc.Select(x => x.Formatted)) },
