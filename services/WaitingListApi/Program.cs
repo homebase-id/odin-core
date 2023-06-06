@@ -210,14 +210,14 @@ namespace WaitingListApi
 
         private static X509Certificate2? LoadFromFile(string certificateRoot)
         {
-            string keyPemPath = Path.Combine(certificateRoot, "certificate.crt");
-            string certificatePemPath = Path.Combine(certificateRoot, "private.key");
+            string certificatePemPath = Path.Combine(certificateRoot, "certificate.crt");
+            string keyPemPath = Path.Combine(certificateRoot, "private.key");
 
             string certPem;
             string keyPem;
             lock (FileMutex)
             {
-                if (!File.Exists(certificatePemPath) || !File.Exists(certificatePemPath))
+                if (!File.Exists(certificatePemPath) || !File.Exists(keyPemPath))
                 {
                     return null;
                 }
