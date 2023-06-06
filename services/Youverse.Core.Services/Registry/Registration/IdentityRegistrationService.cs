@@ -375,6 +375,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         var request = new IdentityRegistrationRequest()
         {
             OdinId = (OdinId)domain,
+            Email = email,
             IsCertificateManaged = false, //TODO
         };
 
