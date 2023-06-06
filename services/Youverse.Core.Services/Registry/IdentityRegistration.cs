@@ -11,6 +11,7 @@ namespace Youverse.Core.Services.Registry
     public class IdentityRegistrationRequest
     {
         public OdinId OdinId { get; set; }
+        public string Email { get; set; }
         public bool IsCertificateManaged { get; set; }
         
         /// <summary>
@@ -25,6 +26,7 @@ namespace Youverse.Core.Services.Registry
         private Guid _domainKey;
 
         public Guid Id { get; set; }
+        public string Email { get; set; }
 
         /// <summary>
         /// A generated Guid based on the domain name

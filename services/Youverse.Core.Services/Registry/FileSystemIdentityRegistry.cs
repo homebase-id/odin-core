@@ -107,6 +107,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var registration = new IdentityRegistration()
         {
             Id = Guid.NewGuid(),
+            Email = request.Email,
             PrimaryDomainName = request.OdinId,
             IsCertificateManaged = request.IsCertificateManaged,
             FirstRunToken = Guid.NewGuid()
