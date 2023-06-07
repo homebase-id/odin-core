@@ -1,4 +1,6 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
+using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -151,5 +153,51 @@ namespace Youverse.Hosting.Tests.Performance
 
             return (0, timers);
         }
+
+
+        [Test, Explicit]
+        public void TaskPerformanceTest_PingHttpOnly()
+        {
+            PerformanceFramework.ThreadedTest(MAXTHREADS, MAXITERATIONS, HttpOnlyPing);
+            Assert.Pass();
+        }
+
+        public async Task<(long, long[])> HttpOnlyPing(int threadno, int iterations)
+        {
+            long[] timers = new long[iterations];
+            Debug.Assert(timers.Length == iterations);
+            var sw = new Stopwatch();
+
+            var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
+
+            HttpClient client = new HttpClient();
+            string url = "http://frodo.dotyou.cloud/.well-known/acme-challenge/ping";
+
+            for (int count = 0; count < iterations; count++)
+            {
+                sw.Restart();
+
+                try
+                {
+                    HttpResponseMessage response = await client.GetAsync(url);
+                    //response.EnsureSuccessStatusCode();
+                    // string responseBody = await response.Content.ReadAsStringAsync();
+
+                    // TODO: Process the response body.
+                    // Console.WriteLine(responseBody);
+                }
+                catch (HttpRequestException e)
+                {
+                    Console.WriteLine("\nException Caught!");
+                    Console.WriteLine("Message: {0} ", e.Message);
+                }
+
+                timers[count] = sw.ElapsedMilliseconds;
+            }
+
+            return (0, timers);
+        }
+
+
     }
 }
