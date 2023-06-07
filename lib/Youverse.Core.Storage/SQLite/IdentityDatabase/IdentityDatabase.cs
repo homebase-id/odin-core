@@ -14,6 +14,8 @@ https://www.sqlitetutorial.net/sqlite-index/
 */
 
 
+using System;
+
 namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
     public class IdentityDatabase : DatabaseBase
@@ -56,6 +58,13 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
         ~IdentityDatabase()
         {
+#if DEBUG
+            if (!_wasDisposed)
+                throw new Exception("IdentityDatabase was not disposed properly.");
+#else
+            if (!_wasDisposed)
+               Log.Error("IdentityDatabase was not disposed properly.");
+#endif
         }
 
 

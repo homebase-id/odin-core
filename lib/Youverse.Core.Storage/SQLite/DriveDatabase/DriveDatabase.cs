@@ -78,6 +78,13 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 
         ~DriveDatabase()
         {
+#if DEBUG
+            if (!_wasDisposed)
+                throw new Exception("DriveDatabase was not disposed properly.");
+#else
+            if (!_wasDisposed)
+               Log.Error("DriveDatabase was not disposed properly.");
+#endif
         }
 
 

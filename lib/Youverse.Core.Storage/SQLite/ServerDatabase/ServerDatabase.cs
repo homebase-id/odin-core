@@ -31,6 +31,13 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
 
         ~ServerDatabase()
         {
+#if DEBUG
+            if (!_wasDisposed)
+                throw new Exception("ServerDatabase was not disposed properly.");
+#else
+            if (!_wasDisposed)
+               Log.Error("ServerDatabase was not disposed properly.");
+#endif
         }
 
 
