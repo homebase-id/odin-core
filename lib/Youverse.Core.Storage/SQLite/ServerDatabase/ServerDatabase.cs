@@ -21,7 +21,7 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
     public class ServerDatabase : DatabaseBase
     {
         public readonly TableCron tblCron = null;
-        private CacheHelper _cache = new CacheHelper("system");
+        private readonly CacheHelper _cache = null; // No tables needing cache at this time.... Otherwise new CacheHelper("system");
 
         public ServerDatabase(string connectionString, long commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
         {

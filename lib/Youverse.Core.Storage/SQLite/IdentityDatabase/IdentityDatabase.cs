@@ -35,7 +35,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
         public readonly string CN;
 
-        private CacheHelper _cache = new CacheHelper("identity");
+        private readonly CacheHelper _cache = new CacheHelper("identity");
 
         public IdentityDatabase(string connectionString, long commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
         {

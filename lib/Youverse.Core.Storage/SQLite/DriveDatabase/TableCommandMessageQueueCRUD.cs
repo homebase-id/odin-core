@@ -50,11 +50,9 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
         private SqliteCommand _get0Command = null;
         private static Object _get0Lock = new Object();
         private SqliteParameter _get0Param1 = null;
-        private readonly CacheHelper _cache;
 
         public TableCommandMessageQueueCRUD(DriveDatabase db, CacheHelper cache) : base(db)
         {
-            _cache = cache;
         }
 
         ~TableCommandMessageQueueCRUD()
@@ -118,8 +116,6 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _insertParam1.Value = item.fileId.ToByteArray();
                 _insertParam2.Value = item.timeStamp.milliseconds;
                 var count = _database.ExecuteNonQuery(_insertCommand);
-                if (count > 0)
-                    _cache.AddOrUpdate("TableCommandMessageQueueCRUD", item.fileId.ToString(), item);
                 return count;
             } // Lock
         }
@@ -146,8 +142,6 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _upsertParam1.Value = item.fileId.ToByteArray();
                 _upsertParam2.Value = item.timeStamp.milliseconds;
                 var count = _database.ExecuteNonQuery(_upsertCommand);
-                if (count > 0)
-                    _cache.AddOrUpdate("TableCommandMessageQueueCRUD", item.fileId.ToString(), item);
                 return count;
             } // Lock
         }
@@ -173,8 +167,6 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _updateParam1.Value = item.fileId.ToByteArray();
                 _updateParam2.Value = item.timeStamp.milliseconds;
                 var count = _database.ExecuteNonQuery(_updateCommand);
-                if (count > 0)
-                    _cache.AddOrUpdate("TableCommandMessageQueueCRUD", item.fileId.ToString(), item);
                 return count;
             } // Lock
         }
@@ -225,8 +217,6 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 }
                 _delete0Param1.Value = fileId.ToByteArray();
                 var count = _database.ExecuteNonQuery(_delete0Command);
-                if (count > 0)
-                    _cache.Remove("TableCommandMessageQueueCRUD", fileId.ToString());
                 return count;
             } // Lock
         }
@@ -253,9 +243,6 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 
         public CommandMessageQueueRecord Get(Guid fileId)
         {
-            var (hit, cacheObject) = _cache.Get("TableCommandMessageQueueCRUD", fileId.ToString());
-            if (hit)
-                return (CommandMessageQueueRecord)cacheObject;
             lock (_get0Lock)
             {
                 if (_get0Command == null)
@@ -273,11 +260,9 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 {
                     if (!rdr.Read())
                     {
-                        _cache.AddOrUpdate("TableCommandMessageQueueCRUD", fileId.ToString(), null);
                         return null;
                     }
                     var r = ReadRecordFromReader0(rdr, fileId);
-                    _cache.AddOrUpdate("TableCommandMessageQueueCRUD", fileId.ToString(), r);
                     return r;
                 } // using
             } // lock

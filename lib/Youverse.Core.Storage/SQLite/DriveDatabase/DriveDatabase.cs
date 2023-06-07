@@ -62,7 +62,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
         public readonly TableReactions TblReactions = null;
         public readonly TableCommandMessageQueue TblCmdMsgQueue = null;
 
-        private CacheHelper _cache = new CacheHelper("drive");
+        private readonly CacheHelper _cache = null; // No tables needing caching for now... otherwise new CacheHelper("drive");
 
 
         public DriveDatabase(string connectionString, DatabaseIndexKind databaseKind, long commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
