@@ -29,7 +29,7 @@ namespace WaitingListApi
                 setup.AddPolicy(WaitingListCorsPolicy, p =>
                 {
                     p.WithOrigins(config.Host.CorsUrl)
-                        .WithHeaders("POST");
+                        .WithHeaders("POST").WithHeaders("Content-Type");
                 });
             });
 
