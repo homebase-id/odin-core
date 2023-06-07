@@ -107,6 +107,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var registration = new IdentityRegistration()
         {
             Id = Guid.NewGuid(),
+            Email = request.Email,
             PrimaryDomainName = request.OdinId,
             IsCertificateManaged = request.IsCertificateManaged,
             FirstRunToken = Guid.NewGuid()
@@ -117,16 +118,11 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         if (request.OptionalCertificatePemContent == null)
         {
             await this.InitializeCertificate(request.OdinId);
-            // var ctx = TenantContext.Create(registration.Id, request.OdinId, _tenantDataRootPath, _certificateRenewalConfig);
-            // ITenantCertificateService tenantCertificateService = new TenantCertificateService(ctx);
-            // var logger = new NullLoggerFactory().CreateLogger<LetsEncryptTenantCertificateRenewalService>()
-            // ITenantCertificateRenewalService renewalService = new LetsEncryptTenantCertificateRenewalService(logger, ctx, tenantCertificateService, , ctx.)
         }
         else
         {
             //optionally, let an ssl certificate be provided 
             //TODO: is there a way to pull a specific tenant's service config from Autofac?
-            // SEB:TODO Yes, but need to DI this class first.
             var tenantContext = TenantContext.Create(registration.Id, request.OdinId, _tenantDataRootPath, _tenantDataPayloadPath);
             
             var tc = _certificateServiceFactory.Create(tenantContext.SslRoot);

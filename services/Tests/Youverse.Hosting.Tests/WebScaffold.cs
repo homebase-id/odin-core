@@ -126,6 +126,11 @@ namespace Youverse.Hosting.Tests
             Environment.SetEnvironmentVariable("CertificateRenewal__CsrOrganization", "YF");
             Environment.SetEnvironmentVariable("CertificateRenewal__CsrOrganizationUnit", "Dev");
 
+            Environment.SetEnvironmentVariable("Mailgun__ApiKey", "dontcare");
+            Environment.SetEnvironmentVariable("Mailgun__DefaultFromEmail", "no-reply@odin.earth");
+            Environment.SetEnvironmentVariable("Mailgun__EmailDomain", "odin.earth");
+            Environment.SetEnvironmentVariable("Mailgun__Enabled", "false");
+            
             CreateData();
             CreateLogs();
 
