@@ -58,7 +58,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
             await _driveManager.SetDriveReadMode(driveId.GetValueOrDefault(), request.AllowAnonymousReads);
             return true;
         }
-        
+
         [HttpPost("updatemetadata")]
         public async Task<bool> UpdateDriveMetadata([FromBody] UpdateDriveDefinitionRequest request)
         {
@@ -68,8 +68,8 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
         }
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
-        [HttpPost("type")]
-        public async Task<PagedResult<OwnerClientDriveData>> GetDrivesByType([FromBody]GetDrivesByTypeRequest request)
+        [HttpGet("type")]
+        public async Task<PagedResult<OwnerClientDriveData>> GetDrivesByType([FromQuery] GetDrivesByTypeRequest request)
         {
             var drives = await _driveManager.GetDrives(request.DriveType, new PageOptions(request.PageNumber, request.PageSize));
             var clientDriveData = drives.Results.Select(drive =>
@@ -91,7 +91,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Drive
     {
         public TargetDrive TargetDrive { get; set; }
         public bool AllowAnonymousReads { get; set; }
-        
+
         public string Metadata { get; set; }
     }
 }
