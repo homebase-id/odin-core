@@ -14,9 +14,9 @@ namespace Youverse.Hosting.Controllers.ClientToken.YouAuth.Follow
     [AuthorizeValidExchangeGrant]
     public class YouAuthFollowerController : FollowerControllerBase
     {
-        private readonly DotYouContextAccessor _contextAccessor;
+        private readonly OdinContextAccessor _contextAccessor;
         /// <summary />
-        public YouAuthFollowerController(FollowerService fs, DotYouContextAccessor contextAccessor) : base(fs)
+        public YouAuthFollowerController(FollowerService fs, OdinContextAccessor contextAccessor) : base(fs)
         {
             _contextAccessor = contextAccessor;
         }

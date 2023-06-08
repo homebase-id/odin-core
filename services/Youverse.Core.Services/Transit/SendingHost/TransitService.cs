@@ -30,26 +30,26 @@ namespace Youverse.Core.Services.Transit.SendingHost
         private readonly DriveManager _driveManager;
         private readonly ITransitOutbox _transitOutbox;
         private readonly TransferKeyEncryptionQueueService _transferKeyEncryptionQueueService;
-        private readonly DotYouContextAccessor _contextAccessor;
-        private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
+        private readonly OdinContextAccessor _contextAccessor;
+        private readonly IOdinHttpClientFactory _odinHttpClientFactory;
         private readonly TenantContext _tenantContext;
         private readonly YouverseConfiguration _youverseConfiguration;
 
         public TransitService(
-            DotYouContextAccessor contextAccessor,
+            OdinContextAccessor contextAccessor,
             ITransitOutbox transitOutbox,
             TenantSystemStorage tenantSystemStorage,
-            IDotYouHttpClientFactory dotYouHttpClientFactory,
+            IOdinHttpClientFactory odinHttpClientFactory,
             TenantContext tenantContext,
             ICircleNetworkService circleNetworkService,
             FollowerService followerService,
             DriveManager driveManager,
-            FileSystemResolver fileSystemResolver, YouverseConfiguration youverseConfiguration) : base(dotYouHttpClientFactory, circleNetworkService,
+            FileSystemResolver fileSystemResolver, YouverseConfiguration youverseConfiguration) : base(odinHttpClientFactory, circleNetworkService,
             contextAccessor, followerService, fileSystemResolver)
         {
             _contextAccessor = contextAccessor;
             _transitOutbox = transitOutbox;
-            _dotYouHttpClientFactory = dotYouHttpClientFactory;
+            _odinHttpClientFactory = odinHttpClientFactory;
             _tenantContext = tenantContext;
             _driveManager = driveManager;
             _fileSystemResolver = fileSystemResolver;
@@ -153,7 +153,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
                 // var clientAccessToken = await ResolveClientAccessToken(r, sendFileOptions.ClientAccessTokenSource);
                 var clientAccessToken = await ResolveClientAccessToken(r, ClientAccessTokenSource.Circle);
 
-                var client = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(r, clientAccessToken.ToAuthenticationToken(),
+                var client = _odinHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(r, clientAccessToken.ToAuthenticationToken(),
                     fileSystemType: sendFileOptions.FileSystemType);
 
                 //TODO: change to accept a request object that has targetDrive and global transit id
@@ -251,7 +251,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
                 var clientAuthToken = ClientAuthenticationToken.FromPortableBytes(decryptedClientAuthTokenBytes);
                 decryptedClientAuthTokenBytes.WriteZeros(); //never send the client auth token; even if encrypted
 
-                var transferKeyHeaderBytes = DotYouSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray();
+                var transferKeyHeaderBytes = OdinSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray();
                 var transferKeyHeaderStream = new StreamPart(
                     new MemoryStream(transferKeyHeaderBytes),
                     "transferKeyHeader.encrypted", "application/json",
@@ -293,7 +293,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
                     VersionTag = metadata.VersionTag
                 };
 
-                var json = DotYouSystemSerializer.Serialize(redactedMetadata);
+                var json = OdinSystemSerializer.Serialize(redactedMetadata);
                 var stream = new MemoryStream(json.ToUtf8ByteArray());
                 var metaDataStream = new StreamPart(stream, "metadata.encrypted", "application/json", Enum.GetName(MultipartHostTransferParts.Metadata));
 
@@ -318,7 +318,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
                     }
                 }
 
-                var client = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(recipient, clientAuthToken);
+                var client = _odinHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(recipient, clientAuthToken);
                 var response = await client.SendHostToHost(transferKeyHeaderStream, metaDataStream, additionalStreamParts.ToArray());
 
                 if (response.IsSuccessStatusCode)

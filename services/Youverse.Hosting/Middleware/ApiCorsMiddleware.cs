@@ -19,12 +19,12 @@ namespace Youverse.Hosting.Middleware
             _next = next;
         }
 
-        public Task Invoke(HttpContext context, DotYouContext dotYouContext)
+        public Task Invoke(HttpContext context, OdinContext odinContext)
         {
-            return BeginInvoke(context, dotYouContext);
+            return BeginInvoke(context, odinContext);
         }
 
-        private Task BeginInvoke(HttpContext context, DotYouContext dotYouContext)
+        private Task BeginInvoke(HttpContext context, OdinContext odinContext)
         {
             if (context.Request.Method == "OPTIONS")
             {
@@ -36,23 +36,23 @@ namespace Youverse.Hosting.Middleware
 
             List<string> allowHeaders = new List<string>();
 
-            if (dotYouContext.AuthContext == ClientTokenConstants.AppSchemeName)
+            if (odinContext.AuthContext == ClientTokenConstants.AppSchemeName)
             {
-                string appHostName = dotYouContext.Caller.AppContext.CorsAppName;
+                string appHostName = odinContext.Caller.AppContext.CorsAppName;
                 if (!string.IsNullOrEmpty(appHostName))
                 {
                     shouldSetHeaders = true;
                     context.Response.Headers.Add("Access-Control-Allow-Origin", $"https://{appHostName}");
                     allowHeaders.Add(ClientTokenConstants.ClientAuthTokenCookieName);
-                    allowHeaders.Add(DotYouHeaderNames.FileSystemTypeHeader);
+                    allowHeaders.Add(OdinHeaderNames.FileSystemTypeHeader);
                 }
             }
             else if ( //if the browser gives me an origin that is this identity (i.e. the home or owner app) 
-                string.Equals(context.Request.Headers["Origin"], $"https://{dotYouContext.Tenant.DomainName}", StringComparison.InvariantCultureIgnoreCase) &&
-                string.Equals(context.Request.Host.Host, $"{DnsConfigurationSet.PrefixApi}.{dotYouContext.Tenant.DomainName}", StringComparison.InvariantCultureIgnoreCase))
+                string.Equals(context.Request.Headers["Origin"], $"https://{odinContext.Tenant.DomainName}", StringComparison.InvariantCultureIgnoreCase) &&
+                string.Equals(context.Request.Host.Host, $"{DnsConfigurationSet.PrefixApi}.{odinContext.Tenant.DomainName}", StringComparison.InvariantCultureIgnoreCase))
             {
-                context.Response.Headers.Add("Access-Control-Allow-Origin", $"https://{dotYouContext.Tenant.DomainName}");
-                allowHeaders.Add(DotYouHeaderNames.FileSystemTypeHeader);
+                context.Response.Headers.Add("Access-Control-Allow-Origin", $"https://{odinContext.Tenant.DomainName}");
+                allowHeaders.Add(OdinHeaderNames.FileSystemTypeHeader);
                 shouldSetHeaders = true;
             }
 

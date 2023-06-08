@@ -60,7 +60,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 }
             };
 
-            var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+            var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
             var instructionStream = new MemoryStream(bytes);
 
             var sba = testContext.SharedSecret.ToSensitiveByteArray();
@@ -76,7 +76,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     {
                         Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
                         ContentIsComplete = false,
-                        JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
+                        JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
                     }
                 },
             };
@@ -235,7 +235,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.IsTrue(qbResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(qbResponse.Content);
                 var qbDeleteFileEntry = qbResponse.Content.SearchResults.SingleOrDefault();
-                DotYouTestAssertions.FileHeaderIsMarkedDeleted(qbDeleteFileEntry);
+                OdinTestAssertions.FileHeaderIsMarkedDeleted(qbDeleteFileEntry);
 
                 // crucial - it should return in query modified so apps can sync locally
                 var queryModifiedResponse = await svc.GetModified(new QueryModifiedRequest()
@@ -251,14 +251,14 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.IsNotNull(queryModifiedResponse.Content);
                 var queryModifiedDeletedEntry = qbResponse.Content.SearchResults.SingleOrDefault();
                 Assert.IsNotNull(queryModifiedDeletedEntry);
-                DotYouTestAssertions.FileHeaderIsMarkedDeleted(queryModifiedDeletedEntry);
+                OdinTestAssertions.FileHeaderIsMarkedDeleted(queryModifiedDeletedEntry);
 
                 // get file directly
                 var getFileHeaderResponse = await svc.GetFileHeaderAsPost(fileToDelete);
                 Assert.IsTrue(getFileHeaderResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(getFileHeaderResponse.Content);
                 var deletedFileHeader = getFileHeaderResponse.Content;
-                DotYouTestAssertions.FileHeaderIsMarkedDeleted(deletedFileHeader);
+                OdinTestAssertions.FileHeaderIsMarkedDeleted(deletedFileHeader);
 
                 //there should not be a thumbnail
                 var thumb = ctx.UploadFileMetadata.AppData.AdditionalThumbnails.FirstOrDefault();

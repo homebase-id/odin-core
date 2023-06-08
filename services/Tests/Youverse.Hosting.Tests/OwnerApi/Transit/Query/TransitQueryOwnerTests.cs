@@ -108,7 +108,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 }
             };
 
-            var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+            var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
             var instructionStream = new MemoryStream(bytes);
 
             var key = senderContext.SharedSecret.ToSensitiveByteArray();
@@ -123,7 +123,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                     {
                         Tags = new List<Guid>() { fileTag },
                         ContentIsComplete = false,
-                        JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                        JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
                     PayloadIsEncrypted = true,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
@@ -362,11 +362,11 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 }
             };
 
-            var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+            var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
             var instructionStream = new MemoryStream(bytes);
 
             var key = senderContext.SharedSecret.ToSensitiveByteArray();
-            var json = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" });
+            var json = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" });
             var encryptedJsonContent64 = keyHeader.EncryptDataAesAsStream(json).ToByteArray().ToBase64();
 
             var thumbnail1 = new ImageDataHeader()
@@ -730,7 +730,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 }
             };
 
-            var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+            var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
             var instructionStream = new MemoryStream(bytes);
 
             var key = senderContext.SharedSecret.ToSensitiveByteArray();
@@ -745,7 +745,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                     {
                         Tags = new List<Guid>() { fileTag },
                         ContentIsComplete = false,
-                        JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                        JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
                     PayloadIsEncrypted = true,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
@@ -833,7 +833,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 {
                     Tags = new List<Guid>() { fileTag },
                     ContentIsComplete = true,
-                    JsonContent = DotYouSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
+                    JsonContent = OdinSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
                 },
                 PayloadIsEncrypted = false,
                 AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
@@ -861,7 +861,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 }
             };
 
-            var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+            var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
             var instructionStream = new MemoryStream(bytes);
 
             var key = senderContext.SharedSecret.ToSensitiveByteArray();
@@ -877,7 +877,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                     {
                         Tags = new List<Guid>() { fileTag },
                         ContentIsComplete = false,
-                        JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                        JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
                     PayloadIsEncrypted = false,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
@@ -1088,7 +1088,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 {
                     Tags = new List<Guid>() { fileTag },
                     ContentIsComplete = true,
-                    JsonContent = DotYouSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
+                    JsonContent = OdinSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
                 },
                 PayloadIsEncrypted = false,
                 AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
@@ -1115,11 +1115,11 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 }
             };
 
-            var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+            var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
             var instructionStream = new MemoryStream(bytes);
 
             var key = senderContext.SharedSecret.ToSensitiveByteArray();
-            var json = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" });
+            var json = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" });
             // var encryptedJsonContent64 = keyHeader.EncryptDataAesAsStream(json).ToByteArray().ToBase64();
 
             var thumbnail1 = new ImageDataHeader()
@@ -1453,7 +1453,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 {
                     Tags = new List<Guid>() { fileTag },
                     ContentIsComplete = true,
-                    JsonContent = DotYouSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
+                    JsonContent = OdinSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
                 },
                 PayloadIsEncrypted = false,
                 AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
@@ -1482,7 +1482,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 }
             };
 
-            var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+            var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
             var instructionStream = new MemoryStream(bytes);
 
             var key = senderContext.SharedSecret.ToSensitiveByteArray();
@@ -1498,7 +1498,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                     {
                         Tags = new List<Guid>() { fileTag },
                         ContentIsComplete = false,
-                        JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                        JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     },
                     PayloadIsEncrypted = true,
                     AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
@@ -1589,7 +1589,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 {
                     Tags = new List<Guid>() { fileTag },
                     ContentIsComplete = true,
-                    JsonContent = DotYouSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
+                    JsonContent = OdinSystemSerializer.Serialize(new { content = "some stuff about a thing" }),
                 },
                 PayloadIsEncrypted = false,
                 AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
@@ -1617,11 +1617,11 @@ namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
                 }
             };
 
-            var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+            var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
             var instructionStream = new MemoryStream(bytes);
 
             var key = senderContext.SharedSecret.ToSensitiveByteArray();
-            var json = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" });
+            var json = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" });
             var encryptedJsonContent64 = keyHeader.EncryptDataAesAsStream(json).ToByteArray().ToBase64();
 
             var thumbnail1 = new ImageDataHeader()

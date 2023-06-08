@@ -55,7 +55,7 @@ namespace Youverse.Hosting.Authentication.Owner
                     return AuthenticateResult.Fail("Empty authResult");
                 }
 
-                var dotYouContext = Context.RequestServices.GetRequiredService<DotYouContext>();
+                var dotYouContext = Context.RequestServices.GetRequiredService<OdinContext>();
 
                 if (!await UpdateDotYouContext(authResult, dotYouContext))
                 {
@@ -69,9 +69,9 @@ namespace Youverse.Hosting.Authentication.Owner
 
                 var claims = new List<Claim>()
                 {
-                    new Claim(ClaimTypes.Name, dotYouContext.Caller.OdinId, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
-                    new Claim(DotYouClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
-                    new Claim(DotYouClaimTypes.IsIdentityOwner, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
+                    new Claim(ClaimTypes.Name, dotYouContext.Caller.OdinId, ClaimValueTypes.String, OdinClaimTypes.YouFoundationIssuer),
+                    new Claim(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
+                    new Claim(OdinClaimTypes.IsIdentityOwner, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
                 };
 
                 var identity = new ClaimsIdentity(claims, OwnerAuthConstants.SchemeName);
@@ -91,30 +91,30 @@ namespace Youverse.Hosting.Authentication.Owner
             return AuthenticateResult.Fail("Invalid or missing token");
         }
 
-        private async Task<bool> UpdateDotYouContext(ClientAuthenticationToken token, DotYouContext dotYouContext)
+        private async Task<bool> UpdateDotYouContext(ClientAuthenticationToken token, OdinContext odinContext)
         {
             var authService = Context.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
-            dotYouContext.SetAuthContext(OwnerAuthConstants.SchemeName);
+            odinContext.SetAuthContext(OwnerAuthConstants.SchemeName);
 
             //HACK: fix this
             //a bit of a hack here: we have to set the context as owner
             //because it's required to build the permission context
             // this is justified because we're heading down the owner api path
             // just below this, we check to see if the token was good.  if not, the call fails.
-            dotYouContext.Caller = new CallerContext(
+            odinContext.Caller = new CallerContext(
                 odinId: (OdinId)Request.Host.Host,
                 masterKey: null,
                 securityLevel: SecurityGroupType.Owner);
 
-            DotYouContext ctx = await authService.GetDotYouContext(token);
+            OdinContext ctx = await authService.GetDotYouContext(token);
 
             if (null == ctx)
             {
                 return false;
             }
 
-            dotYouContext.Caller = ctx.Caller;
-            dotYouContext.SetPermissionContext(ctx.PermissionsContext);
+            odinContext.Caller = ctx.Caller;
+            odinContext.SetPermissionContext(ctx.PermissionsContext);
             return true;
         }
 

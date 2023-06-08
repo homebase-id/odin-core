@@ -8,9 +8,9 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine.Filter
 {
     public class MustBeConnectedOrDataProviderFilter : ITransitStreamFilter
     {
-        private readonly DotYouContextAccessor _contextAccessor;
+        private readonly OdinContextAccessor _contextAccessor;
 
-        public MustBeConnectedOrDataProviderFilter(DotYouContextAccessor contextAccessor)
+        public MustBeConnectedOrDataProviderFilter(OdinContextAccessor contextAccessor)
         {
             _contextAccessor = contextAccessor;
         }

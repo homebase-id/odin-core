@@ -111,14 +111,14 @@ namespace Youverse.Core.Tests
         public void DateUtc04()
         {
             var value = new DateUtc(-9999, 12, 31);
-            var json = DotYouSystemSerializer.Serialize(value);
-            var deserializedValue = DotYouSystemSerializer.Deserialize<DateUtc>(json);
+            var json = OdinSystemSerializer.Serialize(value);
+            var deserializedValue = OdinSystemSerializer.Deserialize<DateUtc>(json);
 
             Assert.IsTrue(value.ToString() == deserializedValue.ToString());
 
             value = new DateUtc(+9999, 12, 31);
-            json = DotYouSystemSerializer.Serialize(value);
-            deserializedValue = DotYouSystemSerializer.Deserialize<DateUtc>(json);
+            json = OdinSystemSerializer.Serialize(value);
+            deserializedValue = OdinSystemSerializer.Deserialize<DateUtc>(json);
 
             Assert.IsTrue(value.ToString() == deserializedValue.ToString());
 

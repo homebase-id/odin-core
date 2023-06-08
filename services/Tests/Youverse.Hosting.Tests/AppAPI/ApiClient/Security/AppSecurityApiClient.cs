@@ -15,7 +15,7 @@ public class AppSecurityApiClient : AppApiTestUtils
     }
     
 
-    public async Task<RedactedDotYouContext> GetSecurityContext()
+    public async Task<RedactedOdinContext> GetSecurityContext()
     {
 
         var client = CreateAppApiHttpClient(_token);

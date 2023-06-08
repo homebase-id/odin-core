@@ -27,7 +27,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Incoming
         {
             item.AddedTimestamp = UnixTimeUtc.Now();
 
-            var state = DotYouSystemSerializer.Serialize(item).ToUtf8ByteArray();
+            var state = OdinSystemSerializer.Serialize(item).ToUtf8ByteArray();
             _tenantSystemStorage.Inbox.Insert(new InboxRecord() { boxId = item.DriveId, fileId = item.FileId, priority = 1, value = state });
 
             return Task.CompletedTask;
@@ -56,7 +56,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Incoming
 
             var items = records.Select(r =>
             {
-                var item = DotYouSystemSerializer.Deserialize<TransferInboxItem>(r.value.ToStringFromUtf8Bytes());
+                var item = OdinSystemSerializer.Deserialize<TransferInboxItem>(r.value.ToStringFromUtf8Bytes());
 
                 item.Priority = (int)r.priority;
                 item.AddedTimestamp = r.timeStamp;

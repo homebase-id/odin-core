@@ -64,18 +64,18 @@ public class ChatSynchronizer
             switch ((CommandCode)receivedCommand.ClientCode)
             {
                 case CommandCode.JoinConversation:
-                    var scc = DotYouSystemSerializer.Deserialize<JoinConversationCommand>(receivedCommand.ClientJsonMessage);
+                    var scc = OdinSystemSerializer.Deserialize<JoinConversationCommand>(receivedCommand.ClientJsonMessage);
                     await _conversationDefinitionService.JoinConversation(scc.ConversationId, receivedCommand.Sender);
                     success = true;
                     break;
 
                 case CommandCode.SendReaction:
-                    await HandleChatReactionCommand(DotYouSystemSerializer.Deserialize<SendReactionCommand>(receivedCommand.ClientJsonMessage), receivedCommand.Sender);
+                    await HandleChatReactionCommand(OdinSystemSerializer.Deserialize<SendReactionCommand>(receivedCommand.ClientJsonMessage), receivedCommand.Sender);
                     success = true;
                     break;
 
                 case CommandCode.SendReadReceipt:
-                    await HandleReadReceiptCommand(DotYouSystemSerializer.Deserialize<SendReadReceiptCommand>(receivedCommand.ClientJsonMessage), receivedCommand.Sender);
+                    await HandleReadReceiptCommand(OdinSystemSerializer.Deserialize<SendReadReceiptCommand>(receivedCommand.ClientJsonMessage), receivedCommand.Sender);
                     success = true;
                     break;
             }

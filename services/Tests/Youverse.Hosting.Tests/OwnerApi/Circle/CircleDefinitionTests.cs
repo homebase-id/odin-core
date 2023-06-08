@@ -200,7 +200,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
 
                 var createCircleResponse = await svc.CreateCircleDefinition(requestWithNoPermissionsOrDrives);
                 Assert.IsTrue(createCircleResponse.StatusCode == HttpStatusCode.BadRequest, $"Failed.  Actual response {createCircleResponse.StatusCode}");
-                Assert.IsTrue(int.TryParse(DotYouSystemSerializer.Deserialize<ProblemDetails>(createCircleResponse!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
+                Assert.IsTrue(int.TryParse(OdinSystemSerializer.Deserialize<ProblemDetails>(createCircleResponse!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
                     "Could not parse problem result");
                 Assert.IsTrue(code == (int)YouverseClientErrorCode.AtLeastOneDriveOrPermissionRequiredForCircle);
                 
@@ -489,7 +489,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Circle
                 var updateCircleResponse = await svc.UpdateCircleDefinition(circle);
                 
                 Assert.IsTrue(updateCircleResponse.StatusCode == HttpStatusCode.BadRequest, $"Failed.  Actual response {createCircleResponse.StatusCode}");
-                Assert.IsTrue(int.TryParse(DotYouSystemSerializer.Deserialize<ProblemDetails>(updateCircleResponse!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
+                Assert.IsTrue(int.TryParse(OdinSystemSerializer.Deserialize<ProblemDetails>(updateCircleResponse!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
                     "Could not parse problem result");
                 Assert.IsTrue(code == (int)YouverseClientErrorCode.AtLeastOneDriveOrPermissionRequiredForCircle);
                 

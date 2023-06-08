@@ -17,7 +17,7 @@ public class SecurityApiClient
         _ownerApi = ownerApi;
     }
 
-    public async Task<RedactedDotYouContext> GetSecurityContext()
+    public async Task<RedactedOdinContext> GetSecurityContext()
     {
         var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {

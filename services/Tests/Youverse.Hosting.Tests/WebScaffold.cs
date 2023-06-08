@@ -183,7 +183,7 @@ namespace Youverse.Hosting.Tests
         {
             var client = HttpClientFactory.CreateClient("AnonymousApiHttpClient");
             client.Timeout = TimeSpan.FromMinutes(15);
-            client.DefaultRequestHeaders.Add(DotYouHeaderNames.FileSystemTypeHeader, Enum.GetName(fileSystemType));
+            client.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, Enum.GetName(fileSystemType));
             client.BaseAddress = new Uri($"https://{DnsConfigurationSet.PrefixApi}.{identity}");
             return client;
         }
@@ -205,7 +205,7 @@ namespace Youverse.Hosting.Tests
 
         public YouverseClientErrorCode GetErrorCode(ApiException apiException)
         {
-            var problemDetails = DotYouSystemSerializer.Deserialize<ProblemDetails>(apiException.Content!);
+            var problemDetails = OdinSystemSerializer.Deserialize<ProblemDetails>(apiException.Content!);
             Assert.IsNotNull(problemDetails);
             return (YouverseClientErrorCode)int.Parse(problemDetails.Extensions["errorCode"].ToString() ?? string.Empty);
         }

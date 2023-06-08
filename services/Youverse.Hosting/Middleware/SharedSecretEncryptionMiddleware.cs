@@ -170,7 +170,7 @@ namespace Youverse.Hosting.Middleware
             var finalBytes = JsonSerializer.SerializeToUtf8Bytes(
                 SharedSecretEncryptedPayload.Encrypt(responseBytes, key),
                 typeof(SharedSecretEncryptedPayload),
-                DotYouSystemSerializer.JsonSerializerOptions);
+                OdinSystemSerializer.JsonSerializerOptions);
 
             // context.Response.Headers.Add("X-SSE", "1");
             context.Response.ContentLength = finalBytes.Length;
@@ -181,7 +181,7 @@ namespace Youverse.Hosting.Middleware
 
         private SensitiveByteArray GetSharedSecret(HttpContext context)
         {
-            var accessor = context.RequestServices.GetRequiredService<DotYouContextAccessor>();
+            var accessor = context.RequestServices.GetRequiredService<OdinContextAccessor>();
             var dotYouContext = accessor.GetCurrent();
             var key = dotYouContext.PermissionsContext?.SharedSecretKey;
             return key;
@@ -235,7 +235,7 @@ namespace Youverse.Hosting.Middleware
 
         private bool CallerMustHaveSharedSecret(HttpContext context)
         {
-            var accessor = context.RequestServices.GetRequiredService<DotYouContextAccessor>();
+            var accessor = context.RequestServices.GetRequiredService<OdinContextAccessor>();
             var dotYouContext = accessor.GetCurrent();
             return !dotYouContext.Caller.IsAnonymous && dotYouContext.Caller.SecurityLevel != SecurityGroupType.System;
         }

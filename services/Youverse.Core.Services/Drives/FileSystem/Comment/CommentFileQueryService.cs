@@ -10,7 +10,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Comment
     public class CommentFileQueryService : DriveQueryServiceBase
     {
 
-        public CommentFileQueryService(DotYouContextAccessor contextAccessor, DriveDatabaseHost driveDatabaseHost, DriveManager driveManager, CommentFileStorageService commentStorage) : 
+        public CommentFileQueryService(OdinContextAccessor contextAccessor, DriveDatabaseHost driveDatabaseHost, DriveManager driveManager, CommentFileStorageService commentStorage) : 
             base(contextAccessor, driveDatabaseHost, driveManager, commentStorage)
         {
         }

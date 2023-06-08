@@ -194,7 +194,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             Assert.IsTrue(qbResponse.IsSuccessStatusCode);
             Assert.IsNotNull(qbResponse.Content);
             var qbDeleteFileEntry = qbResponse.Content.SearchResults.SingleOrDefault();
-            DotYouTestAssertions.FileHeaderIsMarkedDeleted(qbDeleteFileEntry, shouldHaveGlobalTransitId: true);
+            OdinTestAssertions.FileHeaderIsMarkedDeleted(qbDeleteFileEntry, shouldHaveGlobalTransitId: true);
 
             // recipient server: Should still be in index and marked as deleted
 
@@ -202,7 +202,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
             Assert.IsTrue(recipientQbResponse.IsSuccessStatusCode);
             Assert.IsNotNull(recipientQbResponse.Content);
             var recipientQbDeleteFileEntry = recipientQbResponse.Content.SearchResults.SingleOrDefault();
-            DotYouTestAssertions.FileHeaderIsMarkedDeleted(recipientQbDeleteFileEntry, shouldHaveGlobalTransitId: true);
+            OdinTestAssertions.FileHeaderIsMarkedDeleted(recipientQbDeleteFileEntry, shouldHaveGlobalTransitId: true);
 
             await _scaffold.OldOwnerApi.DisconnectIdentities(senderAppContext.Identity, recipientAppContext.Identity);
         }
@@ -271,7 +271,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 }
             };
 
-            var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+            var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
             var instructionStream = new MemoryStream(bytes);
 
             var thumbnail1 = new ImageDataHeader()
@@ -302,7 +302,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     {
                         Tags = new List<Guid>() { fileTag },
                         ContentIsComplete = false,
-                        JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                        JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                         PreviewThumbnail = new ImageDataContent()
                         {
                             PixelHeight = 100,
@@ -549,7 +549,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 }
             };
 
-            var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+            var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
             var instructionStream = new MemoryStream(bytes);
 
             var thumbnail1 = new ImageDataHeader()
@@ -580,7 +580,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     {
                         Tags = new List<Guid>() { fileTag },
                         ContentIsComplete = false,
-                        JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                        JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                         PreviewThumbnail = new ImageDataContent()
                         {
                             PixelHeight = 100,

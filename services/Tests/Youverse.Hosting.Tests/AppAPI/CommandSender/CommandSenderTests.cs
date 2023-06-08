@@ -99,7 +99,7 @@ namespace Youverse.Hosting.Tests.AppAPI.CommandSender
             var command = new CommandMessage()
             {
                 Code = 100,
-                JsonMessage = DotYouSystemSerializer.Serialize(new { reaction = ":)" }),
+                JsonMessage = OdinSystemSerializer.Serialize(new { reaction = ":)" }),
                 GlobalTransitIdList = new List<Guid>() { originalFileSendResult.GlobalTransitId.GetValueOrDefault() },
                 Recipients = instructionSet.TransitOptions.Recipients // same as we sent the file
             };

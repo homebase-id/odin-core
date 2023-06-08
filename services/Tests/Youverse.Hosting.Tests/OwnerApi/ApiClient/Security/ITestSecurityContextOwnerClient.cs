@@ -11,6 +11,6 @@ namespace Youverse.Hosting.Tests.OwnerApi.ApiClient.Security
     public interface ITestSecurityContextOwnerClient
     {
         [Get(OwnerApiPathConstants.SecurityV1 + "/context")]
-        Task<ApiResponse<RedactedDotYouContext>> GetDotYouContext();
+        Task<ApiResponse<RedactedOdinContext>> GetDotYouContext();
     }
 }

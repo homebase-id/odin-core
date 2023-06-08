@@ -65,7 +65,7 @@ public class ChatServerContext
 
             //Note: intentionally left out decryption
             var items = batch.SearchResults.Select(item =>
-                DotYouSystemSerializer.Deserialize<T>(item.FileMetadata.AppData.JsonContent));
+                OdinSystemSerializer.Deserialize<T>(item.FileMetadata.AppData.JsonContent));
 
             return (items, batch.CursorState);
         }
@@ -102,7 +102,7 @@ public class ChatServerContext
             //Note: intentionally left out decryption for this prototype
             var items = batch.SearchResults.ToDictionary(
                 item => item.FileId,
-                item => DotYouSystemSerializer.Deserialize<T>(item.FileMetadata.AppData.JsonContent));
+                item => OdinSystemSerializer.Deserialize<T>(item.FileMetadata.AppData.JsonContent));
 
             return (items, batch.CursorState);
         }
@@ -159,7 +159,7 @@ public class ChatServerContext
             var keyHeader = KeyHeader.NewRandom16();
             var transferIv = instructionSet.TransferIv;
 
-            var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+            var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
             var instructionStream = new MemoryStream(bytes);
 
             var sharedSecret = _appContext.SharedSecret.ToSensitiveByteArray();
@@ -229,7 +229,7 @@ public class ChatServerContext
         {
             Recipients = cmd.Recipients,
             Code = (int)cmd.Code,
-            JsonMessage = DotYouSystemSerializer.Serialize(cmd, cmd.GetType()),
+            JsonMessage = OdinSystemSerializer.Serialize(cmd, cmd.GetType()),
             GlobalTransitIdList = null
         };
 

@@ -199,7 +199,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
                 return BadRequest("App does not have host name");
             }
 
-            var qs = DotYouSystemSerializer.Serialize(reg);
+            var qs = OdinSystemSerializer.Serialize(reg);
 
             var uri = new UriBuilder
             {

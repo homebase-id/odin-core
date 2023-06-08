@@ -22,12 +22,12 @@ public abstract class OdinControllerBase : ControllerBase
         return  new InternalDriveFileId()
         {
             FileId = file.FileId,
-            DriveId = DotYouContext.PermissionsContext.GetDriveId(file.TargetDrive)
+            DriveId = OdinContext.PermissionsContext.GetDriveId(file.TargetDrive)
         };
     }
     
     /// <summary>
     /// Returns the current DotYouContext from the request
     /// </summary>
-    protected DotYouContext DotYouContext => HttpContext.RequestServices.GetRequiredService<DotYouContextAccessor>().GetCurrent();
+    protected OdinContext OdinContext => HttpContext.RequestServices.GetRequiredService<OdinContextAccessor>().GetCurrent();
 }

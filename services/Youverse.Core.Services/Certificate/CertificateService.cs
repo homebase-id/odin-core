@@ -38,7 +38,7 @@ namespace Youverse.Core.Services.Certificate
         public X509Certificate2 GetSslCertificate(string domain)
         {
             // Load from cache
-            var cert = DotYouCertificateCache.LookupCertificate(domain);
+            var cert = OdinCertificateCache.LookupCertificate(domain);
             if (cert != null)
             {
                 return cert;
@@ -46,7 +46,7 @@ namespace Youverse.Core.Services.Certificate
                 
             // Not found? Load from disk, put in cache
             var (privateKeyPath, certificatePath) = GetCertificatePaths(_sslRootPath, domain);
-            cert = DotYouCertificateCache.LoadCertificate(domain, privateKeyPath, certificatePath);
+            cert = OdinCertificateCache.LoadCertificate(domain, privateKeyPath, certificatePath);
 
             return cert;
             
@@ -191,7 +191,7 @@ namespace Youverse.Core.Services.Certificate
         {
             var (privateKeyPath, certificatePath) = GetCertificatePaths(_sslRootPath, domain);
         
-            DotYouCertificateCache.SaveToFile(domain, pems.PrivateKeyPem, pems.CertificatesPem, privateKeyPath, certificatePath);
+            OdinCertificateCache.SaveToFile(domain, pems.PrivateKeyPem, pems.CertificatesPem, privateKeyPath, certificatePath);
 
             await Task.CompletedTask;
         }

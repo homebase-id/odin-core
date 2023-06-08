@@ -12,7 +12,7 @@ namespace Youverse.Hosting.Authentication.System
         {
             policy.AddPolicy(IsSystemProcess, pb =>
             {
-                pb.RequireClaim(DotYouClaimTypes.IsSystemProcess, true.ToString().ToLower());
+                pb.RequireClaim(OdinClaimTypes.IsSystemProcess, true.ToString().ToLower());
                 pb.AuthenticationSchemes.Add(SystemAuthConstants.SchemeName);
             });
         }

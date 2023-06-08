@@ -12,10 +12,10 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Security;
 [AuthorizeValidOwnerToken]
 public class SecurityController : Controller
 {
-    private readonly DotYouContextAccessor _contextAccessor;
+    private readonly OdinContextAccessor _contextAccessor;
 
     /// <summary />
-    public SecurityController(DotYouContextAccessor contextAccessor)
+    public SecurityController(OdinContextAccessor contextAccessor)
     {
         _contextAccessor = contextAccessor;
     }
@@ -25,7 +25,7 @@ public class SecurityController : Controller
     /// </summary>
     /// <returns></returns>
     [HttpGet("context")]
-    public RedactedDotYouContext GetSecurityContext()
+    public RedactedOdinContext GetSecurityContext()
     {
         return _contextAccessor.GetCurrent().Redacted();
     }

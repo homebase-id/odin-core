@@ -232,7 +232,7 @@ namespace Youverse.Hosting.Tests.Performance
                     }
                 };
 
-                var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+                var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
 
                 var thumbnail1 = new ImageDataHeader()
@@ -265,7 +265,7 @@ namespace Youverse.Hosting.Tests.Performance
                             Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
                             FileType = FileType,
                             ContentIsComplete = false,
-                            JsonContent = DotYouSystemSerializer.Serialize(new { content = message }),
+                            JsonContent = OdinSystemSerializer.Serialize(new { content = message }),
                             PreviewThumbnail = new ImageDataContent()
                             {
                                 PixelHeight = 100,
@@ -476,7 +476,7 @@ namespace Youverse.Hosting.Tests.Performance
                     }
                 };
 
-                var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+                var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
 
                 var thumbnail1 = new ImageDataHeader()
@@ -508,7 +508,7 @@ namespace Youverse.Hosting.Tests.Performance
                             Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
                             FileType = FileType,
                             ContentIsComplete = false,
-                            JsonContent = DotYouSystemSerializer.Serialize(new { content = message }),
+                            JsonContent = OdinSystemSerializer.Serialize(new { content = message }),
                             PreviewThumbnail = new ImageDataContent()
                             {
                                 PixelHeight = 100,

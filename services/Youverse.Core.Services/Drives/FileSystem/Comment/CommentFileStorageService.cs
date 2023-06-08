@@ -12,7 +12,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Comment;
 
 public class CommentFileStorageService : DriveStorageServiceBase
 {
-    public CommentFileStorageService(DotYouContextAccessor contextAccessor, ILoggerFactory loggerFactory, IMediator mediator,
+    public CommentFileStorageService(OdinContextAccessor contextAccessor, ILoggerFactory loggerFactory, IMediator mediator,
         IDriveAclAuthorizationService driveAclAuthorizationService,DriveManager driveManager) :
         base(contextAccessor, loggerFactory, mediator, driveAclAuthorizationService,driveManager)
     {

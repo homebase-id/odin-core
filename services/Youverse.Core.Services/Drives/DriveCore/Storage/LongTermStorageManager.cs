@@ -279,7 +279,7 @@ namespace Youverse.Core.Services.Drives.DriveCore.Storage
             var json = await new StreamReader(stream).ReadToEndAsync();
             stream.Close();
             await stream.DisposeAsync();
-            var header = DotYouSystemSerializer.Deserialize<ServerFileHeader>(json);
+            var header = OdinSystemSerializer.Deserialize<ServerFileHeader>(json);
             return header;
         }
 

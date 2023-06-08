@@ -23,7 +23,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 {
     public class AppRegistrationService : IAppRegistrationService
     {
-        private readonly DotYouContextAccessor _contextAccessor;
+        private readonly OdinContextAccessor _contextAccessor;
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly ExchangeGrantService _exchangeGrantService;
 
@@ -33,12 +33,12 @@ namespace Youverse.Core.Services.Authorization.Apps
         private readonly GuidId _appClientDataType = GuidId.FromString("__app_client_reg");
         private readonly ThreeKeyValueStorage _appClientValueStorage;
 
-        private readonly DotYouContextCache _cache;
+        private readonly OdinContextCache _cache;
         private readonly TenantContext _tenantContext;
 
         private readonly IMediator _mediator;
 
-        public AppRegistrationService(DotYouContextAccessor contextAccessor, ILogger<IAppRegistrationService> logger, TenantSystemStorage tenantSystemStorage,
+        public AppRegistrationService(OdinContextAccessor contextAccessor, ILogger<IAppRegistrationService> logger, TenantSystemStorage tenantSystemStorage,
             ExchangeGrantService exchangeGrantService, YouverseConfiguration config, TenantContext tenantContext, IMediator mediator)
         {
             _contextAccessor = contextAccessor;
@@ -49,7 +49,7 @@ namespace Youverse.Core.Services.Authorization.Apps
 
             _appRegistrationValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
             _appClientValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
-            _cache = new DotYouContextCache(config.Host.CacheSlidingExpirationSeconds);
+            _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
         }
 
         public async Task<RedactedAppRegistration> RegisterApp(AppRegistrationRequest request)
@@ -162,9 +162,9 @@ namespace Youverse.Core.Services.Authorization.Apps
             return result?.Redacted();
         }
 
-        public async Task<DotYouContext> GetAppPermissionContext(ClientAuthenticationToken token)
+        public async Task<OdinContext> GetAppPermissionContext(ClientAuthenticationToken token)
         {
-            async Task<DotYouContext> Creator()
+            async Task<OdinContext> Creator()
             {
                 var (isValid, accessReg, appReg) = await ValidateClientAuthToken(token);
 
@@ -185,7 +185,7 @@ namespace Youverse.Core.Services.Authorization.Apps
                 var permissionContext = _exchangeGrantService.CreatePermissionContext(token, grantDictionary, accessReg, includeAnonymousDrives: true)
                     .GetAwaiter().GetResult();
 
-                var dotYouContext = new DotYouContext()
+                var dotYouContext = new OdinContext()
                 {
                     Caller = new CallerContext(
                         odinId: _tenantContext.HostOdinId,

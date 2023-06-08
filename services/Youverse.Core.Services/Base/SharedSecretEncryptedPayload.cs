@@ -32,7 +32,7 @@ public class SharedSecretEncryptedPayload
 
     public static async Task<byte[]> Decrypt(Stream stream, SensitiveByteArray key, CancellationToken token = default)
     {
-        var ssp = await DotYouSystemSerializer.Deserialize<SharedSecretEncryptedPayload>(stream, token);
+        var ssp = await OdinSystemSerializer.Deserialize<SharedSecretEncryptedPayload>(stream, token);
         return DecryptInternal(ssp, key);
     }
     
@@ -43,7 +43,7 @@ public class SharedSecretEncryptedPayload
 
     public static byte[] Decrypt(string data, SensitiveByteArray key)
     {
-        var ssp = DotYouSystemSerializer.Deserialize<SharedSecretEncryptedPayload>(data);
+        var ssp = OdinSystemSerializer.Deserialize<SharedSecretEncryptedPayload>(data);
         return DecryptInternal(ssp, key);
     }
 

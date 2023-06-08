@@ -16,23 +16,23 @@ namespace Youverse.Core.Services.Authentication.Transit;
 //
 public class TransitAuthenticationService : INotificationHandler<IdentityConnectionRegistrationChangedNotification>
 {
-    private readonly DotYouContextCache _cache;
+    private readonly OdinContextCache _cache;
     private readonly ICircleNetworkService _circleNetworkService;
 
     public TransitAuthenticationService(ICircleNetworkService circleNetworkService, YouverseConfiguration config)
     {
         _circleNetworkService = circleNetworkService;
-        _cache = new DotYouContextCache(config.Host.CacheSlidingExpirationSeconds);
+        _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
     }
 
     /// <summary>
     /// Gets the <see cref="GetDotYouContext"/> for the specified token from cache or disk.
     /// </summary>
-    public async Task<DotYouContext> GetDotYouContext(OdinId callerOdinId, ClientAuthenticationToken token)
+    public async Task<OdinContext> GetDotYouContext(OdinId callerOdinId, ClientAuthenticationToken token)
     {
-        var creator = new Func<Task<DotYouContext>>(async delegate
+        var creator = new Func<Task<OdinContext>>(async delegate
         {
-            var dotYouContext = new DotYouContext();
+            var dotYouContext = new OdinContext();
             var (callerContext, permissionContext) = await GetPermissionContext(callerOdinId, token);
 
             if (null == permissionContext || callerContext == null)

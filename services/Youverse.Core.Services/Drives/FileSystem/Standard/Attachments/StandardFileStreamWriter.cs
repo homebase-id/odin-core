@@ -10,7 +10,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Standard.Attachments;
 public class StandardFileAttachmentStreamWriter : AttachmentStreamWriterBase
 {
     /// <summary />
-    public StandardFileAttachmentStreamWriter(StandardFileSystem fileSystem, DotYouContextAccessor contextAccessor)
+    public StandardFileAttachmentStreamWriter(StandardFileSystem fileSystem, OdinContextAccessor contextAccessor)
         : base(fileSystem, contextAccessor)
     {
     }

@@ -22,7 +22,7 @@ namespace Youverse.Hosting.Controllers.Anonymous
                 new[]
                 {
                     "Content-Type", "Accept", ClientTokenConstants.ClientAuthTokenCookieName,
-                    DotYouHeaderNames.FileSystemTypeHeader
+                    OdinHeaderNames.FileSystemTypeHeader
                 });
             this.Response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
             this.Response.Headers.Add("Access-Control-Allow-Credentials", "true");

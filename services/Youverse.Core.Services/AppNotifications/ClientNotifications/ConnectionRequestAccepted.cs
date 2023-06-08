@@ -13,7 +13,7 @@ namespace Youverse.Core.Services.AppNotifications.ClientNotifications
 
         public string GetClientData()
         {
-            return DotYouSystemSerializer.Serialize(new
+            return OdinSystemSerializer.Serialize(new
             {
                 Sender = this.Sender.DomainName,
                 Recipient = this.Recipient.DomainName

@@ -8,7 +8,7 @@ public abstract class RequirePermissionsBase
 {
     protected abstract DriveManager DriveManager { get; }
 
-    protected abstract DotYouContextAccessor ContextAccessor { get; }
+    protected abstract OdinContextAccessor ContextAccessor { get; }
     
     /// <summary>
     /// Enforces drive permissions when reading files

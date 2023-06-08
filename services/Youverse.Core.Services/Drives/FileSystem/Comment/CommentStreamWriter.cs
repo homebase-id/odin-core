@@ -17,14 +17,14 @@ namespace Youverse.Core.Services.Drives.FileSystem.Comment;
 /// <summary />
 public class CommentStreamWriter : FileSystemStreamWriterBase
 {
-    private readonly DotYouContextAccessor _contextAccessor;
+    private readonly OdinContextAccessor _contextAccessor;
     private readonly ITransitService _transitService;
 
     /// <summary />
     public CommentStreamWriter(
         CommentFileSystem fileSystem,
         TenantContext tenantContext,
-        DotYouContextAccessor contextAccessor,
+        OdinContextAccessor contextAccessor,
         ITransitService transitService,
         DriveManager driveManager)
         : base(fileSystem, tenantContext, contextAccessor, driveManager)

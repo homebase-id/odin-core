@@ -63,7 +63,7 @@ public class ReactionPreviewTests
             AppData = new()
             {
                 ContentIsComplete = true,
-                JsonContent = DotYouSystemSerializer.Serialize(new { message = "a reply comment 1" }),
+                JsonContent = OdinSystemSerializer.Serialize(new { message = "a reply comment 1" }),
                 FileType = 909,
                 DataType = 202,
                 UserDate = new UnixTimeUtc(0),
@@ -82,7 +82,7 @@ public class ReactionPreviewTests
             AppData = new()
             {
                 ContentIsComplete = true,
-                JsonContent = DotYouSystemSerializer.Serialize(new { message = "a reply comment 2" }),
+                JsonContent = OdinSystemSerializer.Serialize(new { message = "a reply comment 2" }),
                 FileType = 909,
                 DataType = 202,
                 UserDate = new UnixTimeUtc(0),
@@ -101,7 +101,7 @@ public class ReactionPreviewTests
             AppData = new()
             {
                 ContentIsComplete = true,
-                JsonContent = DotYouSystemSerializer.Serialize(new { message = "a reply comment 3" }),
+                JsonContent = OdinSystemSerializer.Serialize(new { message = "a reply comment 3" }),
                 FileType = 909,
                 DataType = 202,
                 UserDate = new UnixTimeUtc(0),

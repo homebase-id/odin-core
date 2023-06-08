@@ -24,14 +24,14 @@ namespace Youverse.Core.Services.Configuration;
 public class TenantConfigService
 {
     private readonly ICircleNetworkService _cns;
-    private readonly DotYouContextAccessor _contextAccessor;
+    private readonly OdinContextAccessor _contextAccessor;
     private readonly TenantContext _tenantContext;
     private readonly SingleKeyValueStorage _configStorage;
     private readonly IIdentityRegistry _registry;
     private readonly IAppRegistrationService _appRegistrationService;
     private readonly DriveManager _driveManager;
 
-    public TenantConfigService(ICircleNetworkService cns, DotYouContextAccessor contextAccessor,
+    public TenantConfigService(ICircleNetworkService cns, OdinContextAccessor contextAccessor,
         TenantSystemStorage storage, TenantContext tenantContext,
         IIdentityRegistry registry, IAppRegistrationService appRegistrationService, DriveManager driveManager)
     {

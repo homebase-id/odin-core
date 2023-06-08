@@ -33,7 +33,7 @@ public sealed class SharedSecretSystemTextJsonContentSerializer : IHttpContentSe
     public SharedSecretSystemTextJsonContentSerializer(SensitiveByteArray sharedSecret)
     {
         _sharedSecret = sharedSecret;
-        this.jsonSerializerOptions = new JsonSerializerOptions(DotYouSystemSerializer.JsonSerializerOptions!);
+        this.jsonSerializerOptions = new JsonSerializerOptions(OdinSystemSerializer.JsonSerializerOptions!);
         jsonSerializerOptions.Converters.Add(new ObjectToInferredTypesConverter());
     }
 
@@ -53,7 +53,7 @@ public sealed class SharedSecretSystemTextJsonContentSerializer : IHttpContentSe
             Data = encryptedBytes.ToBase64()
         };
 
-        return JsonContent.Create(payload, payload.GetType(), MediaTypeHeaderValue.Parse("application/json"), DotYouSystemSerializer.JsonSerializerOptions);
+        return JsonContent.Create(payload, payload.GetType(), MediaTypeHeaderValue.Parse("application/json"), OdinSystemSerializer.JsonSerializerOptions);
     }
 
     /// <inheritdoc/>
@@ -68,7 +68,7 @@ public sealed class SharedSecretSystemTextJsonContentSerializer : IHttpContentSe
             return default;
         }
 
-        var payload = DotYouSystemSerializer.Deserialize<SharedSecretEncryptedPayload>(json);
+        var payload = OdinSystemSerializer.Deserialize<SharedSecretEncryptedPayload>(json);
 
         if (payload == null)
         {
@@ -116,6 +116,6 @@ public sealed class SharedSecretUrlParameterFormatter : IUrlParameterFormatter
             Data = encryptedBytes.ToBase64()
         };
 
-        return DotYouSystemSerializer.Serialize(payload);
+        return OdinSystemSerializer.Serialize(payload);
     }
 }

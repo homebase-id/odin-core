@@ -67,7 +67,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 {
                     Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
                     ContentIsComplete = false,
-                    JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
+                    JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
                 }
             };
 
@@ -151,7 +151,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     }
                 };
 
-                var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+                var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
 
                 var descriptor = new UploadFileDescriptor()
@@ -166,7 +166,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                         {
                             Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
                             ContentIsComplete = true,
-                            JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
+                            JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
                         },
                         AccessControlList = new() { RequiredSecurityGroup = SecurityGroupType.Anonymous }
                     },
@@ -185,7 +185,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
 
                 Assert.That(response.IsSuccessStatusCode, Is.False);
                 Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
-                Assert.IsTrue(int.TryParse(DotYouSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
+                Assert.IsTrue(int.TryParse(OdinSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
                     "Could not parse problem result");
                 Assert.IsTrue(code == (int)YouverseClientErrorCode.CannotUploadEncryptedFileForAnonymous);
             }
@@ -212,7 +212,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     }
                 };
 
-                var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+                var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
 
                 var thumbnail1 = new ImageDataHeader()
@@ -243,7 +243,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                         {
                             Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
                             ContentIsComplete = false,
-                            JsonContent = DotYouSystemSerializer.Serialize(new { content = "some content" }),
+                            JsonContent = OdinSystemSerializer.Serialize(new { content = "some content" }),
 
                             PreviewThumbnail = new ImageDataContent()
                             {
@@ -414,7 +414,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     }
                 };
 
-                var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+                var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
 
                 var descriptor = new UploadFileDescriptor()
@@ -447,7 +447,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
 
                 Assert.That(response.IsSuccessStatusCode, Is.False);
                 Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
-                Assert.IsTrue(int.TryParse(DotYouSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
+                Assert.IsTrue(int.TryParse(OdinSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
                     "Could not parse problem result");
                 Assert.IsTrue(code == (int)YouverseClientErrorCode.CannotOverwriteNonExistentFile);
 
@@ -478,7 +478,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                     }
                 };
 
-                var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+                var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
 
                 var descriptor = new UploadFileDescriptor()
@@ -494,7 +494,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                             UniqueId = Guid.NewGuid(),
                             Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
                             ContentIsComplete = false,
-                            JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
+                            JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
                         }
                     },
                 };
@@ -565,7 +565,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
             {
                 var keyHeader = KeyHeader.NewRandom16();
                 var instructionSet = UploadInstructionSet.WithTargetDrive(testAppContext.TargetDrive);
-                var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+                var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
 
                 var descriptor = new UploadFileDescriptor()
@@ -580,7 +580,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                         {
                             UniqueId = uid1, // Here we try to reuse the uniqueId associated with first upload
                             ContentIsComplete = false,
-                            JsonContent = DotYouSystemSerializer.Serialize(new { message = "I am a second file" })
+                            JsonContent = OdinSystemSerializer.Serialize(new { message = "I am a second file" })
                         }
                     },
                 };
@@ -602,7 +602,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 Assert.That(response.IsSuccessStatusCode, Is.False);
                 Assert.That(response.IsSuccessStatusCode, Is.False);
                 Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
-                Assert.IsTrue(int.TryParse(DotYouSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
+                Assert.IsTrue(int.TryParse(OdinSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
                     "Could not parse problem result");
                 Assert.IsTrue(code == (int)YouverseClientErrorCode.ExistingFileWithUniqueId);
             }
@@ -625,7 +625,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 var keyHeader = KeyHeader.NewRandom16();
 
                 var instructionSet = UploadInstructionSet.WithTargetDrive(testAppContext.TargetDrive);
-                var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+                var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
 
                 var descriptor = new UploadFileDescriptor()
@@ -640,7 +640,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                         {
                             UniqueId = uid2,
                             ContentIsComplete = false,
-                            JsonContent = DotYouSystemSerializer.Serialize(new { message = "I am a second file" })
+                            JsonContent = OdinSystemSerializer.Serialize(new { message = "I am a second file" })
                         }
                     },
                 };
@@ -678,7 +678,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 //overwrite the second file we just uploaded
                 instructionSet.StorageOptions.OverwriteFileId = secondFileUploadResult.File.FileId;
 
-                var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+                var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
 
                 var descriptor = new UploadFileDescriptor()
@@ -694,7 +694,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                         {
                             UniqueId = uid1, //here we try to reuse the uniqueId associated with first upload
                             ContentIsComplete = false,
-                            JsonContent = DotYouSystemSerializer.Serialize(new { message = "Some message" })
+                            JsonContent = OdinSystemSerializer.Serialize(new { message = "Some message" })
                         }
                     },
                 };
@@ -712,7 +712,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
 
                 Assert.That(response.IsSuccessStatusCode, Is.False);
                 Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
-                Assert.IsTrue(int.TryParse(DotYouSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
+                Assert.IsTrue(int.TryParse(OdinSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
                     "Could not parse problem result");
                 Assert.IsTrue(code == (int)YouverseClientErrorCode.ExistingFileWithUniqueId);
             }
@@ -729,7 +729,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
 
                 var instructionSet = UploadInstructionSet.WithTargetDrive(testContext.TargetDrive);
 
-                var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+                var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
 
                 var descriptor = new UploadFileDescriptor()
@@ -744,7 +744,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                         {
                             UniqueId = uniqueId,
                             ContentIsComplete = false,
-                            JsonContent = DotYouSystemSerializer.Serialize(new { message = "Some message" })
+                            JsonContent = OdinSystemSerializer.Serialize(new { message = "Some message" })
                         }
                     },
                 };

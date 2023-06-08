@@ -75,7 +75,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                 testContext,
                 fileType: section_1_filetype,
                 dataType: 0,
-                jsonContent: DotYouSystemSerializer.Serialize(new { content = "some content" }),
+                jsonContent: OdinSystemSerializer.Serialize(new { content = "some content" }),
                 tags: new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
                 payloadContent: null,
                 previewThumbnail: new ImageDataContent()
@@ -91,7 +91,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                 testContext,
                 fileType: section_1_filetype,
                 dataType: 0,
-                jsonContent: DotYouSystemSerializer.Serialize(new { content = "some content" }),
+                jsonContent: OdinSystemSerializer.Serialize(new { content = "some content" }),
                 tags: new List<Guid>() { Guid.NewGuid() },
                 payloadContent: "this is just a bit of text payload".ToUtf8ByteArray(),
                 previewThumbnail: new ImageDataContent()
@@ -107,7 +107,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                 testContext,
                 fileType: 0,
                 dataType: section_2_datatype,
-                jsonContent: DotYouSystemSerializer.Serialize(new { content = "stuff" }),
+                jsonContent: OdinSystemSerializer.Serialize(new { content = "stuff" }),
                 tags: new List<Guid>() { Guid.NewGuid() },
                 payloadContent: "payload".ToUtf8ByteArray(),
                 previewThumbnail: new ImageDataContent()
@@ -196,7 +196,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                 var json = await getFileResponse.Content.ReadAsStringAsync();
                 // Console.WriteLine(json);
 
-                var sectionOutputArray = DotYouSystemSerializer.Deserialize<SectionOutput[]>(json);
+                var sectionOutputArray = OdinSystemSerializer.Deserialize<SectionOutput[]>(json);
 
                 Assert.IsNotNull(sectionOutputArray);
                 Assert.IsTrue(sectionOutputArray.Length == pubResult.SectionResults.Count);
@@ -277,7 +277,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
                     }
                 };
 
-                var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+                var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
 
 

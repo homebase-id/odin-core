@@ -16,13 +16,13 @@ namespace Youverse.Core.Services.DataSubscription.ReceivingHost
 {
     public class FeedDistributionPerimeterService
     {
-        private readonly DotYouContextAccessor _contextAccessor;
+        private readonly OdinContextAccessor _contextAccessor;
         private readonly IDriveFileSystem _fileSystem;
         private readonly FileSystemResolver _fileSystemResolver;
         private readonly FollowerService _followerService;
 
         public FeedDistributionPerimeterService(
-            DotYouContextAccessor contextAccessor,
+            OdinContextAccessor contextAccessor,
             IDriveFileSystem fileSystem,
             FileSystemResolver fileSystemResolver,
             FollowerService followerService)
@@ -144,20 +144,20 @@ namespace Youverse.Core.Services.DataSubscription.ReceivingHost
     public class FeedDriveSecurityContext : IDisposable
     {
         private readonly SecurityGroupType _prevSecurityGroupType;
-        private readonly DotYouContextAccessor _dotYouContextAccessor;
+        private readonly OdinContextAccessor _odinContextAccessor;
 
-        public FeedDriveSecurityContext(DotYouContextAccessor dotYouContextAccessor)
+        public FeedDriveSecurityContext(OdinContextAccessor odinContextAccessor)
         {
-            _dotYouContextAccessor = dotYouContextAccessor;
-            _prevSecurityGroupType = _dotYouContextAccessor.GetCurrent().Caller.SecurityLevel;
+            _odinContextAccessor = odinContextAccessor;
+            _prevSecurityGroupType = _odinContextAccessor.GetCurrent().Caller.SecurityLevel;
 
-            _dotYouContextAccessor.GetCurrent().Caller.SecurityLevel = SecurityGroupType.Owner;
+            _odinContextAccessor.GetCurrent().Caller.SecurityLevel = SecurityGroupType.Owner;
             // _dotYouContextAccessor.GetCurrent().SetPermissionContext();
         }
 
         public void Dispose()
         {
-            _dotYouContextAccessor.GetCurrent().Caller.SecurityLevel = _prevSecurityGroupType;
+            _odinContextAccessor.GetCurrent().Caller.SecurityLevel = _prevSecurityGroupType;
         }
     }
 }

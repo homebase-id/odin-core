@@ -28,7 +28,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
 {
     public class TransitPerimeterService : ITransitPerimeterService
     {
-        private readonly DotYouContextAccessor _contextAccessor;
+        private readonly OdinContextAccessor _contextAccessor;
         private readonly ITransitPerimeterTransferStateService _transitPerimeterTransferStateService;
         private readonly IPublicKeyService _publicKeyService;
         private readonly DriveManager _driveManager;
@@ -38,7 +38,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
         private readonly IMediator _mediator;
 
         public TransitPerimeterService(
-            DotYouContextAccessor contextAccessor,
+            OdinContextAccessor contextAccessor,
             IPublicKeyService publicKeyService,
             DriveManager driveManager,
             IDriveFileSystem fileSystem,
@@ -399,7 +399,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
             var json = await new StreamReader(metadataStream).ReadToEndAsync();
             metadataStream.Close();
 
-            var metadata = DotYouSystemSerializer.Deserialize<FileMetadata>(json);
+            var metadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
             return metadata;
         }
 

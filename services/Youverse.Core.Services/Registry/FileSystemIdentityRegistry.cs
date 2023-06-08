@@ -203,7 +203,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         string root = Path.Combine(_tenantDataRootPath, registration.Id.ToString());
         Directory.CreateDirectory(root);
 
-        var json = DotYouSystemSerializer.Serialize(registration);
+        var json = OdinSystemSerializer.Serialize(registration);
         await File.WriteAllTextAsync(GetRegFilePath(registration.Id), json);
 
         Log.Information($"Write registration file for [{registration.Id}]");
@@ -254,7 +254,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
                 var json = File.ReadAllText(regFile);
 
-                var registration = DotYouSystemSerializer.Deserialize<IdentityRegistration>(json);
+                var registration = OdinSystemSerializer.Deserialize<IdentityRegistration>(json);
 
                 Cache(registration);
             }
@@ -337,7 +337,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
 
         var domain = idReg.PrimaryDomainName;
         var sslRoot = tenantContext.SslRoot;
-        var httpClientKey = DotYouHttpClientFactory.HttpFactoryKey(domain);
+        var httpClientKey = OdinHttpClientFactory.HttpFactoryKey(domain);
         
         // SEB:NOTE
         // Below is the reason that we have to use IHttpClientFactory from HttpClientFactoryLite instead of the

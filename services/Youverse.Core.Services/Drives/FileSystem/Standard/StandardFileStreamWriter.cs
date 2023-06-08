@@ -21,7 +21,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
     private readonly ITransitService _transitService;
 
     /// <summary />
-    public StandardFileStreamWriter(StandardFileSystem fileSystem, TenantContext tenantContext, DotYouContextAccessor contextAccessor,
+    public StandardFileStreamWriter(StandardFileSystem fileSystem, TenantContext tenantContext, OdinContextAccessor contextAccessor,
         ITransitService transitService,
         DriveManager driveManager)
         : base(fileSystem, tenantContext, contextAccessor, driveManager)

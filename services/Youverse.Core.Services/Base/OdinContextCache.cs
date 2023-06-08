@@ -13,21 +13,21 @@ using Youverse.Core.Services.Authorization.ExchangeGrants;
 
 namespace Youverse.Core.Services.Base;
 
-public class DotYouContextCache
+public class OdinContextCache
 {
     private readonly int _ttlSeconds;
     private readonly IAppCache _dotYouContextCache;
     private readonly CancellationTokenSource _expiryTokenSource = new();
     private readonly List<OdinId> _identitiesRequiringReset;
 
-    public DotYouContextCache(int ttlSeconds = 60)
+    public OdinContextCache(int ttlSeconds = 60)
     {
         _identitiesRequiringReset = new List<OdinId>();
         this._ttlSeconds = ttlSeconds;
         _dotYouContextCache = new CachingService();
     }
 
-    public async Task<DotYouContext> GetOrAddContext(ClientAuthenticationToken token, Func<Task<DotYouContext>> dotYouContextFactory)
+    public async Task<OdinContext> GetOrAddContext(ClientAuthenticationToken token, Func<Task<OdinContext>> dotYouContextFactory)
     {
         var key = token.AsKey().ToString().ToLower();
         var policy = new MemoryCacheEntryOptions()
@@ -36,7 +36,7 @@ public class DotYouContextCache
         };
 
         policy.AddExpirationToken(new CancellationChangeToken(_expiryTokenSource.Token));
-        var result = await _dotYouContextCache.GetOrAddAsync<DotYouContext>(key, dotYouContextFactory, policy);
+        var result = await _dotYouContextCache.GetOrAddAsync<OdinContext>(key, dotYouContextFactory, policy);
 
         //TODO: Need some locking on _identitiesRequiringReset
         // var rebuildContext = _identitiesRequiringReset.Contains(result.Caller.OdinId);

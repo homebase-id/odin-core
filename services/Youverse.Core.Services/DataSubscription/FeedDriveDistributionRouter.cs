@@ -37,7 +37,7 @@ namespace Youverse.Core.Services.DataSubscription
         private readonly ServerSystemStorage _serverSystemStorage;
         private readonly FileSystemResolver _fileSystemResolver;
         private readonly TenantSystemStorage _tenantSystemStorage;
-        private readonly DotYouContextAccessor _contextAccessor;
+        private readonly OdinContextAccessor _contextAccessor;
         private readonly ICircleNetworkService _circleNetworkService;
         private readonly FeedDistributorService _feedDistributorService;
         private readonly YouverseConfiguration _youverseConfiguration;
@@ -48,9 +48,9 @@ namespace Youverse.Core.Services.DataSubscription
         public FeedDriveDistributionRouter(
             FollowerService followerService,
             ITransitService transitService, DriveManager driveManager, TenantContext tenantContext, ServerSystemStorage serverSystemStorage,
-            FileSystemResolver fileSystemResolver, TenantSystemStorage tenantSystemStorage, DotYouContextAccessor contextAccessor,
+            FileSystemResolver fileSystemResolver, TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor,
             ICircleNetworkService circleNetworkService,
-            IDotYouHttpClientFactory dotYouHttpClientFactory, YouverseConfiguration youverseConfiguration)
+            IOdinHttpClientFactory odinHttpClientFactory, YouverseConfiguration youverseConfiguration)
         {
             _followerService = followerService;
             _transitService = transitService;
@@ -63,7 +63,7 @@ namespace Youverse.Core.Services.DataSubscription
             _circleNetworkService = circleNetworkService;
             _youverseConfiguration = youverseConfiguration;
 
-            _feedDistributorService = new FeedDistributorService(fileSystemResolver, dotYouHttpClientFactory);
+            _feedDistributorService = new FeedDistributorService(fileSystemResolver, odinHttpClientFactory);
         }
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
@@ -167,7 +167,7 @@ namespace Youverse.Core.Services.DataSubscription
         {
             async Task<(FeedDistributionOutboxRecord record, bool success)> SendFile(FeedDistributionOutboxRecord record)
             {
-                var distroItem = DotYouSystemSerializer.Deserialize<ReactionPreviewDistributionItem>(record.value.ToStringFromUtf8Bytes());
+                var distroItem = OdinSystemSerializer.Deserialize<ReactionPreviewDistributionItem>(record.value.ToStringFromUtf8Bytes());
                 var recipient = (OdinId)record.recipient;
                 bool success = await _feedDistributorService.SendFile(new InternalDriveFileId()
                     {
@@ -333,7 +333,7 @@ namespace Youverse.Core.Services.DataSubscription
                 recipient = recipient,
                 fileId = item.SourceFile.FileId,
                 driveId = item.SourceFile.DriveId,
-                value = DotYouSystemSerializer.Serialize(item).ToUtf8ByteArray()
+                value = OdinSystemSerializer.Serialize(item).ToUtf8ByteArray()
             });
         }
     }

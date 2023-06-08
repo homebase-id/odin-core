@@ -17,12 +17,12 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload.Attachments;
 /// </summary>
 public abstract class AttachmentStreamWriterBase
 {
-    private readonly DotYouContextAccessor _contextAccessor;
+    private readonly OdinContextAccessor _contextAccessor;
 
     private AttachmentPackage _package;
 
     /// <summary />
-    protected AttachmentStreamWriterBase(IDriveFileSystem fileSystem, DotYouContextAccessor contextAccessor)
+    protected AttachmentStreamWriterBase(IDriveFileSystem fileSystem, OdinContextAccessor contextAccessor)
     {
         FileSystem = fileSystem;
         _contextAccessor = contextAccessor;
@@ -33,7 +33,7 @@ public abstract class AttachmentStreamWriterBase
     public virtual async Task StartUpload(Stream data)
     {
         string json = await new StreamReader(data).ReadToEndAsync();
-        var instructionSet = DotYouSystemSerializer.Deserialize<AddAttachmentInstructionSet>(json);
+        var instructionSet = OdinSystemSerializer.Deserialize<AddAttachmentInstructionSet>(json);
         await this.StartUpload(instructionSet);
     }
 

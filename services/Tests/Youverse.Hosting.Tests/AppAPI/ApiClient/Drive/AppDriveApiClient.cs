@@ -163,7 +163,7 @@ public class AppDriveApiClient : AppApiTestUtils
         {
             var sharedSecret = _token.SharedSecret.ToSensitiveByteArray();
 
-            var instructionStream = new MemoryStream(DotYouSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
+            var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
             var encryptedJsonContent64 = keyHeader.EncryptDataAes(fileMetadata.AppData.JsonContent.ToUtf8ByteArray()).ToBase64();
             fileMetadata.AppData.JsonContent = encryptedJsonContent64;
@@ -226,7 +226,7 @@ public class AppDriveApiClient : AppApiTestUtils
             Thumbnails = thumbnails,
         };
 
-        var bytes = DotYouSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray();
+        var bytes = OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray();
 
         List<StreamPart> parts = new();
         parts.Add(new StreamPart(new MemoryStream(bytes), "instructionSet", "application/json", Enum.GetName(MultipartUploadParts.ThumbnailInstructions)));
@@ -344,7 +344,7 @@ public class AppDriveApiClient : AppApiTestUtils
         {
             var sharedSecret = _token.SharedSecret.ToSensitiveByteArray();
 
-            var instructionStream = new MemoryStream(DotYouSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
+            var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
             fileMetadata.PayloadIsEncrypted = false;
 
@@ -398,7 +398,7 @@ public class AppDriveApiClient : AppApiTestUtils
         {
             var sharedSecret = _token.SharedSecret.ToSensitiveByteArray();
 
-            var instructionStream = new MemoryStream(DotYouSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
+            var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
             fileMetadata.PayloadIsEncrypted = false;
 

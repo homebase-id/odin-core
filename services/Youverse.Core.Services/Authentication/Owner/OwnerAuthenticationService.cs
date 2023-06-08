@@ -38,7 +38,7 @@ namespace Youverse.Core.Services.Authentication.Owner
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly IOwnerSecretService _secretService;
 
-        private readonly DotYouContextCache _cache;
+        private readonly OdinContextCache _cache;
         private readonly ILogger<IOwnerAuthenticationService> _logger;
         private readonly DriveManager _driveManager;
 
@@ -52,7 +52,7 @@ namespace Youverse.Core.Services.Authentication.Owner
             _tenantSystemStorage = tenantSystemStorage;
             _tenantContext = tenantContext;
             _driveManager = driveManager;
-            _cache = new DotYouContextCache(config.Host.CacheSlidingExpirationSeconds);
+            _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
         }
 
         public async Task<NonceData> GenerateAuthenticationNonce()
@@ -160,11 +160,11 @@ namespace Youverse.Core.Services.Authentication.Owner
             throw new YouverseSecurityException("Invalid owner token");
         }
         
-        public Task<DotYouContext> GetDotYouContext(ClientAuthenticationToken token)
+        public Task<OdinContext> GetDotYouContext(ClientAuthenticationToken token)
         {
-            var creator = new Func<Task<DotYouContext>>(async delegate
+            var creator = new Func<Task<OdinContext>>(async delegate
             {
-                var dotYouContext = new DotYouContext();
+                var dotYouContext = new OdinContext();
                 var (masterKey, permissionContext) = await GetPermissionContext(token);
 
                 if (null == permissionContext || masterKey.IsEmpty())

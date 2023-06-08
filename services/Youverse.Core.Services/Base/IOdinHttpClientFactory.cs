@@ -4,7 +4,7 @@ using Youverse.Core.Storage;
 
 namespace Youverse.Core.Services.Base
 {
-    public interface IDotYouHttpClientFactory
+    public interface IOdinHttpClientFactory
     {
         T CreateClientUsingAccessToken<T>(OdinId odinId, ClientAuthenticationToken clientAuthenticationToken, FileSystemType? fileSystemType = null);
 

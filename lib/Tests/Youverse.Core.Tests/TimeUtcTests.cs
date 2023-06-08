@@ -104,13 +104,13 @@ namespace Youverse.Core.Tests
         public void TimeUtc04()
         {
             var value = new TimeUtc(0, 0, 0);
-            var json = DotYouSystemSerializer.Serialize(value);
-            var deserializedValue = DotYouSystemSerializer.Deserialize<TimeUtc>(json);
+            var json = OdinSystemSerializer.Serialize(value);
+            var deserializedValue = OdinSystemSerializer.Deserialize<TimeUtc>(json);
             Assert.IsTrue(value.ToString() == deserializedValue.ToString());
 
             value = new TimeUtc(23, 59, 59);
-            json = DotYouSystemSerializer.Serialize(value);
-            deserializedValue = DotYouSystemSerializer.Deserialize<TimeUtc>(json);
+            json = OdinSystemSerializer.Serialize(value);
+            deserializedValue = OdinSystemSerializer.Deserialize<TimeUtc>(json);
             Assert.IsTrue(value.ToString() == deserializedValue.ToString());
 
             Assert.Pass();

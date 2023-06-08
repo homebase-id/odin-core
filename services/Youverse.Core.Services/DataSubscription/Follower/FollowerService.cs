@@ -23,14 +23,14 @@ namespace Youverse.Core.Services.DataSubscription.Follower
     {
         private readonly TenantSystemStorage _tenantStorage;
         private readonly DriveManager _driveManager;
-        private readonly IDotYouHttpClientFactory _httpClientFactory;
+        private readonly IOdinHttpClientFactory _httpClientFactory;
         private readonly IPublicKeyService _rsaPublicKeyService;
         private readonly TenantContext _tenantContext;
-        private readonly DotYouContextAccessor _contextAccessor;
+        private readonly OdinContextAccessor _contextAccessor;
 
-        public FollowerService(TenantSystemStorage tenantStorage, DriveManager driveManager, IDotYouHttpClientFactory httpClientFactory,
+        public FollowerService(TenantSystemStorage tenantStorage, DriveManager driveManager, IOdinHttpClientFactory httpClientFactory,
             IPublicKeyService rsaPublicKeyService,
-            TenantContext tenantContext, DotYouContextAccessor contextAccessor)
+            TenantContext tenantContext, OdinContextAccessor contextAccessor)
         {
             _tenantStorage = tenantStorage;
             _driveManager = driveManager;
@@ -64,7 +64,7 @@ namespace Youverse.Core.Services.DataSubscription.Follower
             };
 
             // var payloadBytes = DotYouSystemSerializer.Serialize(followRequest).ToUtf8ByteArray();
-            var json = DotYouSystemSerializer.Serialize(followRequest);
+            var json = OdinSystemSerializer.Serialize(followRequest);
             var rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(request.OdinId, json.ToUtf8ByteArray());
             var client = CreateClient((OdinId)request.OdinId);
             var response = await client.Follow(rsaEncryptedPayload);

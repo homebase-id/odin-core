@@ -61,7 +61,7 @@ namespace Youverse.Core.Services.Authentication.Owner
         /// </summary>
         /// <param name="token"></param>
         /// <returns></returns>
-        Task<DotYouContext> GetDotYouContext(ClientAuthenticationToken token);
+        Task<OdinContext> GetDotYouContext(ClientAuthenticationToken token);
         
     }
 }

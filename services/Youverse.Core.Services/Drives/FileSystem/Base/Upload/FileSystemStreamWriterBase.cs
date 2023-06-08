@@ -24,12 +24,12 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload;
 public abstract class FileSystemStreamWriterBase
 {
     private readonly TenantContext _tenantContext;
-    private readonly DotYouContextAccessor _contextAccessor;
+    private readonly OdinContextAccessor _contextAccessor;
 
     private readonly DriveManager _driveManager;
 
     /// <summary />
-    protected FileSystemStreamWriterBase(IDriveFileSystem fileSystem, TenantContext tenantContext, DotYouContextAccessor contextAccessor,
+    protected FileSystemStreamWriterBase(IDriveFileSystem fileSystem, TenantContext tenantContext, OdinContextAccessor contextAccessor,
         DriveManager driveManager)
     {
         FileSystem = fileSystem;
@@ -47,7 +47,7 @@ public abstract class FileSystemStreamWriterBase
     {
         //TODO: need to partially encrypt upload instruction set
         string json = await new StreamReader(data).ReadToEndAsync();
-        var instructionSet = DotYouSystemSerializer.Deserialize<UploadInstructionSet>(json);
+        var instructionSet = OdinSystemSerializer.Deserialize<UploadInstructionSet>(json);
 
         await this.StartUpload(instructionSet);
     }
@@ -232,7 +232,7 @@ public abstract class FileSystemStreamWriterBase
 
         var json = System.Text.Encoding.UTF8.GetString(decryptedJsonBytes);
 
-        var uploadDescriptor = DotYouSystemSerializer.Deserialize<UploadFileDescriptor>(json);
+        var uploadDescriptor = OdinSystemSerializer.Deserialize<UploadFileDescriptor>(json);
 
         if (package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.MetadataOnly)
         {

@@ -11,7 +11,7 @@ namespace Youverse.Core.Services.Certificate;
 // SEB:TODO dependency inject this class
 // SEB:NOTE no async here to minimize overhead in happy path
 // SEB:NOTE we accept interleaving threads in here. The end result is always the same.
-public static class DotYouCertificateCache
+public static class OdinCertificateCache
 {
     private static readonly ConcurrentDictionary<string, X509Certificate2?> Cache = new ();
     private static readonly object FileMutex = new ();

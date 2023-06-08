@@ -20,9 +20,9 @@ public class SerializationTests
     public void CanSerializeUnixTimeUtc()
     {
         var value = UnixTimeUtc.Now();
-        var json = DotYouSystemSerializer.Serialize(value);
+        var json = OdinSystemSerializer.Serialize(value);
 
-        var deserializedValue = DotYouSystemSerializer.Deserialize<UnixTimeUtc>(json);
+        var deserializedValue = OdinSystemSerializer.Deserialize<UnixTimeUtc>(json);
 
         Assert.IsTrue(value == deserializedValue);
         Assert.IsTrue(value.milliseconds == deserializedValue.milliseconds);
@@ -34,8 +34,8 @@ public class SerializationTests
         const int MAX_KEYS = 2; //leave this size 
         var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(ref RsaKeyListManagement.zeroSensitiveKey, MAX_KEYS);
 
-        var json = DotYouSystemSerializer.Serialize(rsaKeyList);
-        var deserializedValue = DotYouSystemSerializer.Deserialize<RsaFullKeyListData>(json);
+        var json = OdinSystemSerializer.Serialize(rsaKeyList);
+        var deserializedValue = OdinSystemSerializer.Deserialize<RsaFullKeyListData>(json);
 
         Assert.IsNotNull(deserializedValue);
         Assert.IsNotNull(deserializedValue!.ListRSA.FirstOrDefault());

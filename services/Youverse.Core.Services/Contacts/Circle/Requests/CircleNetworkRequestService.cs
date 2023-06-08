@@ -26,10 +26,10 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
         private readonly GuidId _sentRequestsDataType = GuidId.FromString("sent_requests");
 
-        private readonly DotYouContextAccessor _contextAccessor;
+        private readonly OdinContextAccessor _contextAccessor;
         private readonly ICircleNetworkService _cns;
         private readonly ILogger<ICircleNetworkRequestService> _logger;
-        private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
+        private readonly IOdinHttpClientFactory _odinHttpClientFactory;
 
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly IMediator _mediator;
@@ -42,9 +42,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
         private readonly ThreeKeyValueStorage _sentRequestValueStorage;
 
         public CircleNetworkRequestService(
-            DotYouContextAccessor contextAccessor,
+            OdinContextAccessor contextAccessor,
             ICircleNetworkService cns, ILogger<ICircleNetworkRequestService> logger,
-            IDotYouHttpClientFactory dotYouHttpClientFactory,
+            IOdinHttpClientFactory odinHttpClientFactory,
             TenantSystemStorage tenantSystemStorage,
             IMediator mediator,
             TenantContext tenantContext,
@@ -55,7 +55,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             _contextAccessor = contextAccessor;
             _cns = cns;
             _logger = logger;
-            _dotYouHttpClientFactory = dotYouHttpClientFactory;
+            _odinHttpClientFactory = odinHttpClientFactory;
             _tenantSystemStorage = tenantSystemStorage;
             _mediator = mediator;
             _tenantContext = tenantContext;
@@ -125,11 +125,11 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
                 RSAEncryptedExchangeCredentials = EncryptRequestExchangeCredentials((OdinId)header.Recipient, clientAccessToken)
             };
 
-            var payloadBytes = DotYouSystemSerializer.Serialize(outgoingRequest).ToUtf8ByteArray();
+            var payloadBytes = OdinSystemSerializer.Serialize(outgoingRequest).ToUtf8ByteArray();
             var rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(header.Recipient, payloadBytes);
             _logger.LogInformation($"[{outgoingRequest.SenderOdinId}] is sending a request to the server of [{outgoingRequest.Recipient}]");
 
-            var client = _dotYouHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((OdinId)outgoingRequest.Recipient); 
+            var client = _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((OdinId)outgoingRequest.Recipient); 
             var response = await client.DeliverConnectionRequest(rsaEncryptedPayload);
             if (response.Content is { Success: false } || response.IsSuccessStatusCode == false)
             {
@@ -138,7 +138,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
 
                 rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(header.Recipient, payloadBytes);
                 _logger.LogInformation($"[{outgoingRequest.SenderOdinId}] is sending a request to the server of [{outgoingRequest.Recipient}], <mortal kombat voice> round 2");
-                response = await _dotYouHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((OdinId)outgoingRequest.Recipient).DeliverConnectionRequest(rsaEncryptedPayload);
+                response = await _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((OdinId)outgoingRequest.Recipient).DeliverConnectionRequest(rsaEncryptedPayload);
 
                 //round 2, fail all together
                 if (response.Content is { Success: false } || response.IsSuccessStatusCode == false)
@@ -249,9 +249,9 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
             };
 
             //TODO: XXX - no need to do RSA encryption here since we have the remoteClientAccessToken.SharedSecret
-            var json = DotYouSystemSerializer.Serialize(acceptedReq);
+            var json = OdinSystemSerializer.Serialize(acceptedReq);
             var payloadBytes = await _rsaPublicKeyService.EncryptPayloadForRecipient(pendingRequest.SenderOdinId, json.ToUtf8ByteArray());
-            var response = await _dotYouHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((OdinId)pendingRequest.SenderOdinId).EstablishConnection(payloadBytes);
+            var response = await _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((OdinId)pendingRequest.SenderOdinId).EstablishConnection(payloadBytes);
 
             if (response.Content is { Success: false } || response.IsSuccessStatusCode == false)
             {
@@ -259,7 +259,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Requests
                 await _rsaPublicKeyService.InvalidatePublicKey((OdinId)pendingRequest.SenderOdinId);
 
                 payloadBytes = await _rsaPublicKeyService.EncryptPayloadForRecipient(pendingRequest.SenderOdinId, json.ToUtf8ByteArray());
-                response = await _dotYouHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((OdinId)pendingRequest.SenderOdinId).EstablishConnection(payloadBytes);
+                response = await _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((OdinId)pendingRequest.SenderOdinId).EstablishConnection(payloadBytes);
 
                 //round 2, fail all together
                 if (response.Content is { Success: false } || response.IsSuccessStatusCode == false)

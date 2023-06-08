@@ -24,10 +24,10 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
     /// </summary>
     public class TransitFileWriter
     {
-        private readonly DotYouContextAccessor _contextAccessor;
+        private readonly OdinContextAccessor _contextAccessor;
         private readonly FileSystemResolver _fileSystemResolver;
 
-        public TransitFileWriter(DotYouContextAccessor contextAccessor,
+        public TransitFileWriter(OdinContextAccessor contextAccessor,
             FileSystemResolver fileSystemResolver)
         {
             _contextAccessor = contextAccessor;
@@ -45,7 +45,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
             var json = await new StreamReader(metadataStream).ReadToEndAsync();
             metadataStream.Close();
 
-            var metadata = DotYouSystemSerializer.Deserialize<FileMetadata>(json);
+            var metadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
 
             if (null == metadata)
             {

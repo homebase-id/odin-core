@@ -232,7 +232,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 client.DefaultRequestHeaders.Add("X-HACK-SHARED-SECRET", Convert.ToBase64String(sharedSecret.GetKey()));
             }
            
-            client.DefaultRequestHeaders.Add(DotYouHeaderNames.FileSystemTypeHeader, Enum.GetName(typeof(FileSystemType), fileSystemType));
+            client.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, Enum.GetName(typeof(FileSystemType), fileSystemType));
             client.Timeout = TimeSpan.FromMinutes(15);
 
             client.BaseAddress = new Uri($"https://{DnsConfigurationSet.PrefixApi}.{identity}");
@@ -661,7 +661,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
             var client = this.CreateOwnerApiHttpClient(identity, out var sharedSecret, fileSystemType);
             {
                 keyHeader = keyHeader ?? KeyHeader.NewRandom16();
-                var instructionStream = new MemoryStream(DotYouSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
+                var instructionStream = new MemoryStream(OdinSystemSerializer.Serialize(instructionSet).ToUtf8ByteArray());
 
                 fileMetadata.PayloadIsEncrypted = encryptPayload;
                 var descriptor = new UploadFileDescriptor()
@@ -752,7 +752,7 @@ namespace Youverse.Hosting.Tests.OwnerApi.Utils
                 var keyHeader = KeyHeader.NewRandom16();
                 var transferIv = instructionSet.TransferIv;
 
-                var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+                var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
 
                 fileMetadata.PayloadIsEncrypted = options.EncryptPayload;

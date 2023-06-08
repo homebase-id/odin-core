@@ -18,12 +18,12 @@ public class TransitReactionPerimeterService : TransitServiceBase
     private readonly ReactionContentService _reactionContentService;
 
     public TransitReactionPerimeterService(ReactionContentService reactionContentService,
-        IDotYouHttpClientFactory dotYouHttpClientFactory,
+        IOdinHttpClientFactory odinHttpClientFactory,
         ICircleNetworkService circleNetworkService,
         FollowerService followerService,
-        DotYouContextAccessor contextAccessor,
+        OdinContextAccessor contextAccessor,
         FileSystemResolver fileSystemResolver) :
-        base(dotYouHttpClientFactory, circleNetworkService, contextAccessor, followerService, fileSystemResolver)
+        base(odinHttpClientFactory, circleNetworkService, contextAccessor, followerService, fileSystemResolver)
     {
         _reactionContentService = reactionContentService;
     }

@@ -26,7 +26,7 @@ public class ThreeKeyValueStorage
             return null;
         }
 
-        return DotYouSystemSerializer.Deserialize<T>(bytes.data.ToStringFromUtf8Bytes());
+        return OdinSystemSerializer.Deserialize<T>(bytes.data.ToStringFromUtf8Bytes());
     }
 
     public IEnumerable<T> GetByKey2<T>(byte[] key2) where T : class
@@ -64,7 +64,7 @@ public class ThreeKeyValueStorage
 
     public void Upsert<T>(GuidId key1, byte[] key2, byte[] key3, T value)
     {
-        var json = DotYouSystemSerializer.Serialize(value);
+        var json = OdinSystemSerializer.Serialize(value);
         _db.Upsert(new KeyThreeValueRecord() { key1 = key1.Value, key2 = key2, key3 = key3, data = json.ToUtf8ByteArray() });
     }
 
@@ -75,6 +75,6 @@ public class ThreeKeyValueStorage
 
     private T Deserialize<T>(byte[] bytes)
     {
-        return DotYouSystemSerializer.Deserialize<T>(bytes.ToStringFromUtf8Bytes());
+        return OdinSystemSerializer.Deserialize<T>(bytes.ToStringFromUtf8Bytes());
     }
 }

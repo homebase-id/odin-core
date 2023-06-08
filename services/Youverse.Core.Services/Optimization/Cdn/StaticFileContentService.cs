@@ -42,10 +42,10 @@ public class StaticFileContentService
     private readonly DriveManager _driveManager;
     private readonly StandardFileSystem _fileSystem;
     private readonly TenantContext _tenantContext;
-    private readonly DotYouContextAccessor _contextAccessor;
+    private readonly OdinContextAccessor _contextAccessor;
     private readonly TenantSystemStorage _tenantSystemStorage;
 
-    public StaticFileContentService(TenantContext tenantContext, DotYouContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage,
+    public StaticFileContentService(TenantContext tenantContext, OdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage,
         DriveManager driveManager, StandardFileSystem fileSystem)
     {
         _tenantContext = tenantContext;
@@ -157,7 +157,7 @@ public class StaticFileContentService
         }
 
         await using var fileStream = File.Create(tempTargetPath);
-        await DotYouSystemSerializer.Serialize(fileStream, sectionOutputList, sectionOutputList.GetType());
+        await OdinSystemSerializer.Serialize(fileStream, sectionOutputList, sectionOutputList.GetType());
         fileStream.Close();
 
         string finalTargetPath = Path.Combine(targetFolder, filename);

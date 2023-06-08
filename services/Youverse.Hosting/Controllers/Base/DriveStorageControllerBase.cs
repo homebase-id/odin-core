@@ -135,7 +135,7 @@ namespace Youverse.Hosting.Controllers.Base
         /// <returns></returns>
         protected async Task<IActionResult> DeleteFile(DeleteFileRequest request)
         {
-            var driveId = DotYouContext.PermissionsContext.GetDriveId(request.File.TargetDrive);
+            var driveId = OdinContext.PermissionsContext.GetDriveId(request.File.TargetDrive);
             var requestRecipients = request.Recipients;
 
             var file = new InternalDriveFileId()
@@ -235,7 +235,7 @@ namespace Youverse.Hosting.Controllers.Base
 
         private void AddCacheHeader()
         {
-            if (DotYouContext.AuthContext == ClientTokenConstants.YouAuthScheme)
+            if (OdinContext.AuthContext == ClientTokenConstants.YouAuthScheme)
             {
                 this.Response.Headers.Add("Cache-Control", "max-age=3600");
             }

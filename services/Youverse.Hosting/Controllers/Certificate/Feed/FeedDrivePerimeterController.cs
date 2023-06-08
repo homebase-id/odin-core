@@ -23,7 +23,7 @@ namespace Youverse.Hosting.Controllers.Certificate.Feed
     [Authorize(Policy = CertificatePerimeterPolicies.IsInYouverseNetwork, AuthenticationSchemes = PerimeterAuthConstants.FeedAuthScheme)]
     public class FeedDrivePerimeterController : OdinControllerBase
     {
-        private readonly DotYouContextAccessor _contextAccessor;
+        private readonly OdinContextAccessor _contextAccessor;
         private readonly IPublicKeyService _publicKeyService;
         private readonly DriveManager _driveManager;
         private readonly TenantSystemStorage _tenantSystemStorage;
@@ -32,7 +32,7 @@ namespace Youverse.Hosting.Controllers.Certificate.Feed
         private readonly FollowerService _followerService;
 
         /// <summary />
-        public FeedDrivePerimeterController(DotYouContextAccessor contextAccessor, IPublicKeyService publicKeyService, DriveManager driveManager,
+        public FeedDrivePerimeterController(OdinContextAccessor contextAccessor, IPublicKeyService publicKeyService, DriveManager driveManager,
             TenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver, FollowerService followerService)
         {
             _contextAccessor = contextAccessor;

@@ -17,14 +17,14 @@ namespace Youverse.Core.Services.EncryptionKeyService
         private readonly Guid _rsaKeyStorageId = Guid.Parse("AAAAAAAF-0f85-EEEE-E77E-e8e0b06c2777");
 
         private readonly TenantSystemStorage _tenantSystemStorage;
-        private readonly DotYouContextAccessor _contextAccessor;
-        private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
+        private readonly OdinContextAccessor _contextAccessor;
+        private readonly IOdinHttpClientFactory _odinHttpClientFactory;
 
-        public RsaKeyService(TenantSystemStorage tenantSystemStorage, DotYouContextAccessor contextAccessor, IDotYouHttpClientFactory dotYouHttpClientFactory)
+        public RsaKeyService(TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor, IOdinHttpClientFactory odinHttpClientFactory)
         {
             _tenantSystemStorage = tenantSystemStorage;
             _contextAccessor = contextAccessor;
-            _dotYouHttpClientFactory = dotYouHttpClientFactory;
+            _odinHttpClientFactory = odinHttpClientFactory;
         }
 
         public async Task<(bool, byte[])> DecryptKeyHeaderUsingOfflineKey(byte[] encryptedData, uint publicKeyCrc32, bool failIfNoMatchingPublicKey = true)
@@ -115,7 +115,7 @@ namespace Youverse.Core.Services.EncryptionKeyService
                 if ((cacheItem == null || cacheItem.IsExpired()) && lookupIfInvalid)
                 {
 
-                    var svc = _dotYouHttpClientFactory.CreateClient<IEncryptionKeyServiceHttpClient>(recipient);
+                    var svc = _odinHttpClientFactory.CreateClient<IEncryptionKeyServiceHttpClient>(recipient);
                     var tpkResponse = await svc.GetOfflinePublicKey();
 
                     if (tpkResponse.Content == null || !tpkResponse.IsSuccessStatusCode)

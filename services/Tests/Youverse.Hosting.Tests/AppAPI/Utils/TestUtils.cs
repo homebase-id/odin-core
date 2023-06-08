@@ -33,7 +33,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
         /// </summary>
         public static Stream JsonEncryptAes(object instance, byte[] iv, ref SensitiveByteArray key)
         {
-            var data = DotYouSystemSerializer.Serialize(instance);
+            var data = OdinSystemSerializer.Serialize(instance);
             
             var cipher = Core.Cryptography.Crypto.AesCbc.Encrypt(
                 data: System.Text.Encoding.UTF8.GetBytes(data),

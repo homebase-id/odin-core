@@ -65,7 +65,7 @@ public class CircleNetworkStorage
                     {
                         circleId = circleId,
                         memberId = icr.OdinId.ToHashId(),
-                        data = DotYouSystemSerializer.Serialize(new CircleMemberStorageData
+                        data = OdinSystemSerializer.Serialize(new CircleMemberStorageData
                         {
                             OdinId = icr.OdinId,
                             CircleGrant = circleGrant
@@ -89,7 +89,7 @@ public class CircleNetworkStorage
                         odinHashId = odinHashId,
                         appId = appId,
                         circleId = circleId,
-                        data = DotYouSystemSerializer.Serialize(appCircleGrant).ToUtf8ByteArray()
+                        data = OdinSystemSerializer.Serialize(appCircleGrant).ToUtf8ByteArray()
                     });
                 }
             }
@@ -106,7 +106,7 @@ public class CircleNetworkStorage
                 status = (int)icr.Status,
                 modified = UnixTimeUtcUnique.Now(),
                 displayName = "",
-                data = DotYouSystemSerializer.Serialize(icrAccessRecord).ToUtf8ByteArray()
+                data = OdinSystemSerializer.Serialize(icrAccessRecord).ToUtf8ByteArray()
             };
 
             _tenantSystemStorage.Connections.Upsert(record);
@@ -135,14 +135,14 @@ public class CircleNetworkStorage
     private IdentityConnectionRegistration MapFromStorage(ConnectionsRecord record)
     {
         var json = record.data.ToStringFromUtf8Bytes();
-        var data = DotYouSystemSerializer.Deserialize<IcrAccessRecord>(json);
+        var data = OdinSystemSerializer.Deserialize<IcrAccessRecord>(json);
 
         var odinHashId = record.identity.ToHashId();
 
         var circleMemberRecords = _tenantSystemStorage.CircleMemberStorage.GetMemberCirclesAndData(odinHashId);
         foreach (var circleMemberRecord in circleMemberRecords)
         {
-            var sd = DotYouSystemSerializer.Deserialize<CircleMemberStorageData>(circleMemberRecord.data.ToStringFromUtf8Bytes());
+            var sd = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(circleMemberRecord.data.ToStringFromUtf8Bytes());
             data.AccessGrant.CircleGrants.Add(circleMemberRecord.circleId, sd.CircleGrant);
         }
 
@@ -153,7 +153,7 @@ public class CircleNetworkStorage
         {
             // var appId = appGrantRecord.appId;
             // var circleId = appGrantRecord.circleId;
-            var appCircleGrant = DotYouSystemSerializer.Deserialize<AppCircleGrant>(appGrantRecord.data.ToStringFromUtf8Bytes());
+            var appCircleGrant = OdinSystemSerializer.Deserialize<AppCircleGrant>(appGrantRecord.data.ToStringFromUtf8Bytes());
             data.AccessGrant.AddUpdateAppCircleGrant(appCircleGrant);
         }
 
@@ -179,7 +179,7 @@ public class CircleNetworkStorage
         var memberBytesList = _tenantSystemStorage.CircleMemberStorage.GetCircleMembers(circleId);
         var result = memberBytesList.Select(item =>
         {
-            var data = DotYouSystemSerializer.Deserialize<CircleMemberStorageData>(item.data.ToStringFromUtf8Bytes());
+            var data = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(item.data.ToStringFromUtf8Bytes());
             return data.OdinId;
         }).ToList();
 

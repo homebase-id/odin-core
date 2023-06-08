@@ -29,14 +29,14 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
 
     public StorageDrive Drive { get; init; }
 
-    public Task<(long, IEnumerable<Guid>, bool hasMoreRows)> GetModified(DotYouContext dotYouContext, FileSystemType fileSystemType,
+    public Task<(long, IEnumerable<Guid>, bool hasMoreRows)> GetModified(OdinContext odinContext, FileSystemType fileSystemType,
         FileQueryParams qp, QueryModifiedResultOptions options)
     {
-        Guard.Argument(dotYouContext, nameof(dotYouContext)).NotNull();
-        var callerContext = dotYouContext.Caller;
+        Guard.Argument(odinContext, nameof(odinContext)).NotNull();
+        var callerContext = odinContext.Caller;
 
         var requiredSecurityGroup = new IntRange(0, (int)callerContext.SecurityLevel);
-        var aclList = GetAcl(dotYouContext);
+        var aclList = GetAcl(odinContext);
         var cursor = new UnixTimeUtcUnique(options.Cursor);
 
         // TODO TODD - use moreRows
@@ -61,13 +61,13 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
     }
 
 
-    public Task<(QueryBatchCursor, IEnumerable<Guid>, bool hasMoreRows)> GetBatch(DotYouContext dotYouContext,
+    public Task<(QueryBatchCursor, IEnumerable<Guid>, bool hasMoreRows)> GetBatch(OdinContext odinContext,
         FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options)
     {
-        Guard.Argument(dotYouContext, nameof(dotYouContext)).NotNull();
+        Guard.Argument(odinContext, nameof(odinContext)).NotNull();
 
-        var securityRange = new IntRange(0, (int)dotYouContext.Caller.SecurityLevel);
-        var aclList = GetAcl(dotYouContext);
+        var securityRange = new IntRange(0, (int)odinContext.Caller.SecurityLevel);
+        var aclList = GetAcl(odinContext);
         var cursor = options.Cursor;
 
         if (options.Ordering == Ordering.Default)
@@ -93,19 +93,19 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         }
 
         // if the caller was explicit in how they want results...
-        return GetBatchExplicitOrdering(dotYouContext, fileSystemType, qp, options);
+        return GetBatchExplicitOrdering(odinContext, fileSystemType, qp, options);
     }
 
-    private List<Guid> GetAcl(DotYouContext dotYouContext)
+    private List<Guid> GetAcl(OdinContext odinContext)
     {
-        var callerContext = dotYouContext.Caller;
+        var callerContext = odinContext.Caller;
 
         var aclList = new List<Guid>();
         if (callerContext.IsOwner == false)
         {
             if (!callerContext.IsAnonymous)
             {
-                aclList.Add(dotYouContext.GetCallerOdinIdOrFail().ToHashId());
+                aclList.Add(odinContext.GetCallerOdinIdOrFail().ToHashId());
             }
 
             aclList.AddRange(callerContext.Circles?.Select(c => c.Value) ?? Array.Empty<Guid>());
@@ -295,14 +295,14 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
         return (results, nextCursor);
     }
 
-    private Task<(QueryBatchCursor cursor, IEnumerable<Guid> fileIds, bool hasMoreRows)> GetBatchExplicitOrdering(DotYouContext dotYouContext,
+    private Task<(QueryBatchCursor cursor, IEnumerable<Guid> fileIds, bool hasMoreRows)> GetBatchExplicitOrdering(OdinContext odinContext,
         FileSystemType fileSystemType, FileQueryParams qp, QueryBatchResultOptions options)
     {
-        Guard.Argument(dotYouContext, nameof(dotYouContext)).NotNull();
+        Guard.Argument(odinContext, nameof(odinContext)).NotNull();
 
-        var securityRange = new IntRange(0, (int)dotYouContext.Caller.SecurityLevel);
+        var securityRange = new IntRange(0, (int)odinContext.Caller.SecurityLevel);
 
-        var aclList = GetAcl(dotYouContext);
+        var aclList = GetAcl(odinContext);
 
         var cursor = options.Cursor;
 

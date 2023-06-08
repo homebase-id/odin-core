@@ -45,7 +45,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
 
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
         {
-            var dotYouContext = Context.RequestServices.GetRequiredService<DotYouContext>();
+            var dotYouContext = Context.RequestServices.GetRequiredService<OdinContext>();
 
             bool isAppPath = this.Context.Request.Path.StartsWithSegments(AppApiPathConstants.BasePathV1, StringComparison.InvariantCultureIgnoreCase);
             if (isAppPath)
@@ -62,7 +62,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
             return AuthenticateResult.Fail("Invalid Path");
         }
 
-        private async Task<AuthenticateResult> HandleAppAuth(DotYouContext dotYouContext)
+        private async Task<AuthenticateResult> HandleAppAuth(OdinContext odinContext)
         {
             if (!TryGetClientAuthToken(ClientTokenConstants.ClientAuthTokenCookieName, out var authToken, true))
             {
@@ -70,7 +70,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
             }
 
             var appRegService = Context.RequestServices.GetRequiredService<IAppRegistrationService>();
-            dotYouContext.SetAuthContext(ClientTokenConstants.AppSchemeName);
+            odinContext.SetAuthContext(ClientTokenConstants.AppSchemeName);
 
             var ctx = await appRegService.GetAppPermissionContext(authToken);
 
@@ -79,14 +79,14 @@ namespace Youverse.Hosting.Authentication.ClientToken
                 return AuthenticateResult.Fail("Invalid App Token");
             }
 
-            dotYouContext.Caller = ctx.Caller;
-            dotYouContext.SetPermissionContext(ctx.PermissionsContext);
+            odinContext.Caller = ctx.Caller;
+            odinContext.SetPermissionContext(ctx.PermissionsContext);
 
             var claims = new List<Claim>();
-            claims.Add(new Claim(ClaimTypes.Name, dotYouContext.Caller.OdinId)); //caller is this owner
-            claims.Add(new Claim(DotYouClaimTypes.IsAuthorizedApp, true.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
-            claims.Add(new Claim(DotYouClaimTypes.IsAuthenticated, true.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
-            claims.Add(new Claim(DotYouClaimTypes.IsIdentityOwner, true.ToString().ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
+            claims.Add(new Claim(ClaimTypes.Name, odinContext.Caller.OdinId)); //caller is this owner
+            claims.Add(new Claim(OdinClaimTypes.IsAuthorizedApp, true.ToString().ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer));
+            claims.Add(new Claim(OdinClaimTypes.IsAuthenticated, true.ToString().ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer));
+            claims.Add(new Claim(OdinClaimTypes.IsIdentityOwner, true.ToString().ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer));
 
             // Steal this path from the httpcontroller because here we have the client auth token
             if (Context.Request.Path.StartsWithSegments($"{AppApiPathConstants.NotificationsV1}/preauth"))
@@ -97,29 +97,29 @@ namespace Youverse.Hosting.Authentication.ClientToken
             return CreateAuthenticationResult(claims, ClientTokenConstants.AppSchemeName);
         }
 
-        private async Task<AuthenticateResult> HandleYouAuth(DotYouContext dotYouContext)
+        private async Task<AuthenticateResult> HandleYouAuth(OdinContext odinContext)
         {
             if (!TryGetClientAuthToken(YouAuthDefaults.XTokenCookieName, out var clientAuthToken))
             {
-                return AuthenticateResult.Success(await CreateAnonYouAuthTicket(dotYouContext));
+                return AuthenticateResult.Success(await CreateAnonYouAuthTicket(odinContext));
             }
 
-            dotYouContext.SetAuthContext(ClientTokenConstants.YouAuthScheme);
+            odinContext.SetAuthContext(ClientTokenConstants.YouAuthScheme);
             var youAuthRegService = this.Context.RequestServices.GetRequiredService<IYouAuthRegistrationService>();
             var ctx = await youAuthRegService.GetDotYouContext(clientAuthToken);
 
             if (ctx == null)
             {
-                return AuthenticateResult.Success(await CreateAnonYouAuthTicket(dotYouContext));
+                return AuthenticateResult.Success(await CreateAnonYouAuthTicket(odinContext));
             }
 
-            dotYouContext.Caller = ctx.Caller;
-            dotYouContext.SetPermissionContext(ctx.PermissionsContext);
+            odinContext.Caller = ctx.Caller;
+            odinContext.SetPermissionContext(ctx.PermissionsContext);
 
             var claims = new List<Claim>();
-            claims.Add(new Claim(ClaimTypes.Name, dotYouContext.Caller.OdinId));
-            claims.Add(new Claim(DotYouClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
-            claims.Add(new Claim(DotYouClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer));
+            claims.Add(new Claim(ClaimTypes.Name, odinContext.Caller.OdinId));
+            claims.Add(new Claim(OdinClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer));
+            claims.Add(new Claim(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer));
 
             return CreateAuthenticationResult(claims, ClientTokenConstants.YouAuthScheme);
         }
@@ -137,7 +137,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
             return AuthenticateResult.Success(ticket);
         }
 
-        private async Task<AuthenticationTicket> CreateAnonYouAuthTicket(DotYouContext dotYouContext)
+        private async Task<AuthenticationTicket> CreateAnonYouAuthTicket(OdinContext odinContext)
         {
             var driveManager = Context.RequestServices.GetRequiredService<DriveManager>();
             var anonymousDrives = await driveManager.GetAnonymousDrives(PageOptions.All);
@@ -176,13 +176,13 @@ namespace Youverse.Hosting.Authentication.ClientToken
                 { "read_anonymous_drives", new PermissionGroup(new PermissionSet(anonPerms), anonDriveGrants, null) },
             };
 
-            dotYouContext.Caller = new CallerContext(
+            odinContext.Caller = new CallerContext(
                 odinId: null,
                 securityLevel: SecurityGroupType.Anonymous,
                 masterKey: null
             );
 
-            dotYouContext.SetPermissionContext(
+            odinContext.SetPermissionContext(
                 new PermissionContext(
                     permissionGroupMap,
                     sharedSecretKey: null
@@ -190,11 +190,11 @@ namespace Youverse.Hosting.Authentication.ClientToken
 
             var claims = new[]
             {
-                new Claim(DotYouClaimTypes.IsIdentityOwner, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
-                new Claim(DotYouClaimTypes.IsAuthenticated, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer)
+                new Claim(OdinClaimTypes.IsIdentityOwner, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
+                new Claim(OdinClaimTypes.IsAuthenticated, bool.FalseString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer)
             };
 
-            dotYouContext.SetAuthContext(ClientTokenConstants.YouAuthScheme);
+            odinContext.SetAuthContext(ClientTokenConstants.YouAuthScheme);
             var claimsIdentity = new ClaimsIdentity(claims, ClientTokenConstants.YouAuthScheme);
             return new AuthenticationTicket(new ClaimsPrincipal(claimsIdentity), this.Scheme.Name);
         }

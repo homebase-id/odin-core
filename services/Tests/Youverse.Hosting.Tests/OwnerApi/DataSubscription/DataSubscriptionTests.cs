@@ -244,7 +244,7 @@ public class DataSubscriptionTests
             AppData = new()
             {
                 ContentIsComplete = true,
-                JsonContent = DotYouSystemSerializer.Serialize(new { message = "Are you tho?" }),
+                JsonContent = OdinSystemSerializer.Serialize(new { message = "Are you tho?" }),
                 FileType = commentFileType,
                 DataType = 202,
                 UserDate = UnixTimeUtc.ZeroTime,
@@ -347,7 +347,7 @@ public class DataSubscriptionTests
             AppData = new()
             {
                 ContentIsComplete = true,
-                JsonContent = DotYouSystemSerializer.Serialize(new { message = "Are you tho?" }),
+                JsonContent = OdinSystemSerializer.Serialize(new { message = "Are you tho?" }),
                 FileType = commentFileType,
                 DataType = 202,
                 UserDate = UnixTimeUtc.ZeroTime,
@@ -449,7 +449,7 @@ public class DataSubscriptionTests
             AppData = new()
             {
                 ContentIsComplete = true,
-                JsonContent = DotYouSystemSerializer.Serialize(new { message = "Are you tho?" }),
+                JsonContent = OdinSystemSerializer.Serialize(new { message = "Are you tho?" }),
                 FileType = commentFileType,
                 DataType = 202,
                 UserDate = UnixTimeUtc.ZeroTime,
@@ -575,7 +575,7 @@ public class DataSubscriptionTests
             AppData = new()
             {
                 ContentIsComplete = true,
-                JsonContent = DotYouSystemSerializer.Serialize(new { message = "Are you tho?" }),
+                JsonContent = OdinSystemSerializer.Serialize(new { message = "Are you tho?" }),
                 FileType = commentFileType,
                 DataType = 202,
                 UserDate = UnixTimeUtc.ZeroTime,
@@ -716,7 +716,7 @@ public class DataSubscriptionTests
             AppData = new()
             {
                 ContentIsComplete = true,
-                JsonContent = DotYouSystemSerializer.Serialize(new { message = "Are you tho?" }),
+                JsonContent = OdinSystemSerializer.Serialize(new { message = "Are you tho?" }),
                 FileType = commentFileType,
                 DataType = 202,
                 UserDate = UnixTimeUtc.ZeroTime,

@@ -14,7 +14,7 @@ public abstract class DriveCommandServiceBase : RequirePermissionsBase
     private readonly DriveDatabaseHost _driveDatabaseHost;
     private readonly DriveStorageServiceBase _storage;
 
-    protected DriveCommandServiceBase(DriveDatabaseHost driveDatabaseHost, DriveStorageServiceBase storage, DotYouContextAccessor contextAccessor, DriveManager driveManager)
+    protected DriveCommandServiceBase(DriveDatabaseHost driveDatabaseHost, DriveStorageServiceBase storage, OdinContextAccessor contextAccessor, DriveManager driveManager)
     {
         _driveDatabaseHost = driveDatabaseHost;
         _storage = storage;
@@ -23,7 +23,7 @@ public abstract class DriveCommandServiceBase : RequirePermissionsBase
     }
 
     protected override DriveManager DriveManager { get; }
-    protected override DotYouContextAccessor ContextAccessor { get; }
+    protected override OdinContextAccessor ContextAccessor { get; }
 
     public Task EnqueueCommandMessage(Guid driveId, List<Guid> fileIds)
     {
@@ -48,7 +48,7 @@ public abstract class DriveCommandServiceBase : RequirePermissionsBase
 
             var serverFileHeader = await _storage.GetServerFileHeader(file);
             var commandFileHeader = Utility.ConvertToSharedSecretEncryptedClientFileHeader(serverFileHeader, ContextAccessor);
-            var command = DotYouSystemSerializer.Deserialize<CommandTransferMessage>(commandFileHeader.FileMetadata.AppData.JsonContent);
+            var command = OdinSystemSerializer.Deserialize<CommandTransferMessage>(commandFileHeader.FileMetadata.AppData.JsonContent);
 
             result.Add(new ReceivedCommand()
             {

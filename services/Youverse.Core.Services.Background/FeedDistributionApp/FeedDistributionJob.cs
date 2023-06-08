@@ -26,7 +26,7 @@ namespace Youverse.Core.Services.Workers.FeedDistributionApp
         {
             if (record.type == (Int32)CronJobType.FeedDistribution)
             {
-                var distroTask = DotYouSystemSerializer.Deserialize<FeedDistributionInfo>(record.data.ToStringFromUtf8Bytes());
+                var distroTask = OdinSystemSerializer.Deserialize<FeedDistributionInfo>(record.data.ToStringFromUtf8Bytes());
                 return await DistributeFeedFileMetadata(distroTask);
             }
             

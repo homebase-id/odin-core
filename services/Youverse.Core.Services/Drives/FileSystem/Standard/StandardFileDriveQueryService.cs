@@ -11,7 +11,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Standard
     {
 
         public StandardFileDriveQueryService(
-            DotYouContextAccessor contextAccessor, 
+            OdinContextAccessor contextAccessor, 
             DriveDatabaseHost driveDatabaseHost, 
             DriveManager driveManager, 
             StandardFileDriveStorageService storage) : 

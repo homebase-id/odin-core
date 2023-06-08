@@ -57,7 +57,7 @@ public class SharedSecretGetRequestHandler : HttpClientHandler
                 Data = encryptedBytes.ToBase64()
             };
 
-            var newQs = $"?ss={HttpUtility.UrlEncode(DotYouSystemSerializer.Serialize(payload))}";
+            var newQs = $"?ss={HttpUtility.UrlEncode(OdinSystemSerializer.Serialize(payload))}";
             var uri = request.RequestUri;
             var builder = new UriBuilder(uri.Scheme, uri.Host, uri.Port,uri.AbsolutePath, newQs);
             var msg = new HttpRequestMessage(request.Method, builder.Uri.ToString());

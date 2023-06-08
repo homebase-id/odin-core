@@ -19,11 +19,11 @@ namespace Youverse.Core.Services.AppNotifications
         INotificationHandler<TransitFileReceivedNotification>
     {
         private readonly DeviceSocketCollection _deviceSocketCollection;
-        private readonly DotYouContextAccessor _contextAccessor;
+        private readonly OdinContextAccessor _contextAccessor;
         private readonly TransitInboxProcessor _transitInboxProcessor;
         private readonly DriveManager _driveManager;
 
-        public AppNotificationHandler(DotYouContextAccessor contextAccessor, TransitInboxProcessor transitInboxProcessor, DriveManager driveManager)
+        public AppNotificationHandler(OdinContextAccessor contextAccessor, TransitInboxProcessor transitInboxProcessor, DriveManager driveManager)
         {
             _contextAccessor = contextAccessor;
             _transitInboxProcessor = transitInboxProcessor;
@@ -55,7 +55,7 @@ namespace Youverse.Core.Services.AppNotifications
             _deviceSocketCollection.AddSocket(deviceSocket);
 
             var response = new EstablishConnectionResponse() { };
-            await SendMessageAsync(deviceSocket, DotYouSystemSerializer.Serialize(response));
+            await SendMessageAsync(deviceSocket, OdinSystemSerializer.Serialize(response));
             await AwaitCommands(deviceSocket);
         }
 
@@ -74,7 +74,7 @@ namespace Youverse.Core.Services.AppNotifications
             {
                 Array.Resize(ref buffer, receiveResult.Count);
                 var decryptedBytes = SharedSecretEncryptedPayload.Decrypt(buffer, _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey);
-                request = DotYouSystemSerializer.Deserialize<EstablishConnectionRequest>(decryptedBytes);
+                request = OdinSystemSerializer.Deserialize<EstablishConnectionRequest>(decryptedBytes);
             }
 
             if (null == request)
@@ -110,7 +110,7 @@ namespace Youverse.Core.Services.AppNotifications
                 {
                     Array.Resize(ref buffer, receiveResult.Count);
                     var decryptedBytes = SharedSecretEncryptedPayload.Decrypt(buffer, _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey);
-                    var command = DotYouSystemSerializer.Deserialize<SocketCommand>(decryptedBytes);
+                    var command = OdinSystemSerializer.Deserialize<SocketCommand>(decryptedBytes);
                     if (null != command)
                     {
                         await ProcessCommand(command);
@@ -123,7 +123,7 @@ namespace Youverse.Core.Services.AppNotifications
         {
             var shouldEncrypt = !(notification.NotificationType is ClientNotificationType.ConnectionRequestAccepted or ClientNotificationType.ConnectionRequestReceived);
 
-            var json = DotYouSystemSerializer.Serialize(new
+            var json = OdinSystemSerializer.Serialize(new
             {
                 NotificationType = notification.NotificationType,
                 Data = notification.GetClientData()
@@ -138,7 +138,7 @@ namespace Youverse.Core.Services.AppNotifications
 
         public async Task Handle(IDriveNotification notification, CancellationToken cancellationToken)
         {
-            var data = DotYouSystemSerializer.Serialize(new
+            var data = OdinSystemSerializer.Serialize(new
             {
                 TargetDrive = _driveManager.GetDrive(notification.File.DriveId).GetAwaiter().GetResult().TargetDriveInfo,
                 Header = notification.SharedSecretEncryptedFileHeader
@@ -152,7 +152,7 @@ namespace Youverse.Core.Services.AppNotifications
         {
             var notificationDriveId = _contextAccessor.GetCurrent().PermissionsContext.GetDriveId(notification.TempFile.TargetDrive);
             var translated = new TranslatedClientNotification(notification.NotificationType,
-                DotYouSystemSerializer.Serialize(new
+                OdinSystemSerializer.Serialize(new
                 {
                     ExternalFileIdentifier = notification.TempFile,
                     TransferFileType = notification.TransferFileType,
@@ -164,7 +164,7 @@ namespace Youverse.Core.Services.AppNotifications
 
         private async Task SerializeSendToAllDevicesForDrive(Guid targetDriveId, IClientNotification notification, bool encrypt = true)
         {
-            var json = DotYouSystemSerializer.Serialize(new
+            var json = OdinSystemSerializer.Serialize(new
             {
                 NotificationType = notification.NotificationType,
                 Data = notification.GetClientData()
@@ -196,10 +196,10 @@ namespace Youverse.Core.Services.AppNotifications
                     // var key = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
                     var key = deviceSocket.SharedSecretKey;
                     var encryptedPayload = SharedSecretEncryptedPayload.Encrypt(message.ToUtf8ByteArray(), key);
-                    message = DotYouSystemSerializer.Serialize(encryptedPayload);
+                    message = OdinSystemSerializer.Serialize(encryptedPayload);
                 }
 
-                var json = DotYouSystemSerializer.Serialize(new ClientNotificationPayload()
+                var json = OdinSystemSerializer.Serialize(new ClientNotificationPayload()
                 {
                     IsEncrypted = encrypt,
                     Payload = message
@@ -226,12 +226,12 @@ namespace Youverse.Core.Services.AppNotifications
             switch (command.Command)
             {
                 case SocketCommandType.ProcessTransitInstructions:
-                    var d = DotYouSystemSerializer.Deserialize<ExternalFileIdentifier>(command.Data);
+                    var d = OdinSystemSerializer.Deserialize<ExternalFileIdentifier>(command.Data);
                     await _transitInboxProcessor.ProcessInbox(d.TargetDrive);
                     break;
 
                 case SocketCommandType.ProcessInbox:
-                    var request = DotYouSystemSerializer.Deserialize<ProcessInboxRequest>(command.Data);
+                    var request = OdinSystemSerializer.Deserialize<ProcessInboxRequest>(command.Data);
                     await _transitInboxProcessor.ProcessInbox(request.TargetDrive, request.BatchSize);
                     break;
 

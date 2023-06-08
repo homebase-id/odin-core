@@ -28,7 +28,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         private readonly CircleDefinitionService _circleDefinitionService;
         private readonly TenantContext _tenantContext;
 
-        private readonly DotYouContextCache _cache;
+        private readonly OdinContextCache _cache;
 
         public YouAuthRegistrationService(ILogger<YouAuthRegistrationService> logger, IYouAuthRegistrationStorage youAuthRegistrationStorage, ExchangeGrantService exchangeGrantService,
             ICircleNetworkService circleNetworkService, CircleDefinitionService circleDefinitionService, TenantContext tenantContext)
@@ -40,7 +40,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             _circleDefinitionService = circleDefinitionService;
             _tenantContext = tenantContext;
 
-            _cache = new DotYouContextCache();
+            _cache = new OdinContextCache();
         }
 
         //
@@ -70,16 +70,16 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         /// </summary>
         /// <param name="token"></param>
         /// <returns></returns>
-        public async Task<DotYouContext?> GetDotYouContext(ClientAuthenticationToken token)
+        public async Task<OdinContext?> GetDotYouContext(ClientAuthenticationToken token)
         {
-            var creator = new Func<Task<DotYouContext?>>(async delegate
+            var creator = new Func<Task<OdinContext?>>(async delegate
             {
-                var dotYouContext = new DotYouContext();
+                var dotYouContext = new OdinContext();
                 var (callerContext, permissionContext) = await GetPermissionContext(token);
 
                 if (null == permissionContext || callerContext == null)
                 {
-                    return await Task.FromResult<DotYouContext?>(null);
+                    return await Task.FromResult<OdinContext?>(null);
                 }
 
                 dotYouContext.Caller = callerContext;

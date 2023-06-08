@@ -24,7 +24,7 @@ namespace Youverse.Core.Services.Drives.DriveCore.Query
         /// <summary>
         /// Returns the fileId of recently modified files
         /// </summary>
-        Task<(long, IEnumerable<Guid>, bool hasMoreRows)> GetModified(DotYouContext dotYouContext, FileSystemType fileSystemType, FileQueryParams qp,
+        Task<(long, IEnumerable<Guid>, bool hasMoreRows)> GetModified(OdinContext odinContext, FileSystemType fileSystemType, FileQueryParams qp,
             QueryModifiedResultOptions options);
 
 
@@ -34,7 +34,7 @@ namespace Youverse.Core.Services.Drives.DriveCore.Query
         /// <returns>
         /// (resultFirstCursor, resultLastCursor, cursorUpdatedTimestamp, fileId List);
         /// </returns>
-        Task<(QueryBatchCursor, IEnumerable<Guid>, bool hasMoreRows)> GetBatch(DotYouContext dotYouContext, FileSystemType fileSystemType, FileQueryParams qp,
+        Task<(QueryBatchCursor, IEnumerable<Guid>, bool hasMoreRows)> GetBatch(OdinContext odinContext, FileSystemType fileSystemType, FileQueryParams qp,
             QueryBatchResultOptions options);
 
         /// <summary>

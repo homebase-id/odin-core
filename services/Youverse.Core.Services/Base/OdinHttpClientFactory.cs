@@ -21,7 +21,7 @@ namespace Youverse.Core.Services.Base
     /// <summary>
     /// Creates clients for http requests to other digital identity servers
     /// </summary>
-    public class DotYouHttpClientFactory : IDotYouHttpClientFactory
+    public class OdinHttpClientFactory : IOdinHttpClientFactory
     {
         private readonly IHttpClientFactory _httpClientFactory;
         
@@ -29,9 +29,9 @@ namespace Youverse.Core.Services.Base
         private readonly TenantContext _tenantContext;
         private readonly ICorrelationContext _correlationContext;
 
-        public static string HttpFactoryKey(string domain) => $"{nameof(DotYouHttpClientFactory)}.{domain}"; 
+        public static string HttpFactoryKey(string domain) => $"{nameof(OdinHttpClientFactory)}.{domain}"; 
         
-        public DotYouHttpClientFactory(
+        public OdinHttpClientFactory(
             IHttpClientFactory httpClientFactory,
             ICertificateServiceFactory certificateServiceFactory, 
             TenantContext tenantContext, 
@@ -76,7 +76,7 @@ namespace Youverse.Core.Services.Base
             
             if (fileSystemType.HasValue)
             {
-                httpClient.DefaultRequestHeaders.Add(DotYouHeaderNames.FileSystemTypeHeader, fileSystemType.Value.ToString());
+                httpClient.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, fileSystemType.Value.ToString());
             }
 
 #if DEBUG
@@ -87,7 +87,7 @@ namespace Youverse.Core.Services.Base
             if (null != clientAuthenticationToken)
             {
                 //TODO: need to encrypt this token somehow? (shared secret?)
-                httpClient.DefaultRequestHeaders.Add(DotYouHeaderNames.ClientAuthToken, clientAuthenticationToken.ToString());
+                httpClient.DefaultRequestHeaders.Add(OdinHeaderNames.ClientAuthToken, clientAuthenticationToken.ToString());
             }
             
             var ogClient = RestService.For<T>(httpClient);

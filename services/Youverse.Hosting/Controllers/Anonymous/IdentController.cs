@@ -12,13 +12,13 @@ namespace Youverse.Hosting.Controllers.Anonymous
     [Route(YouAuthApiPathConstants.AuthV1)]
     public class IdentController : Controller
     {
-        private readonly DotYouContextAccessor _dotYouContextAccessor;
+        private readonly OdinContextAccessor _odinContextAccessor;
         private readonly IIdentityRegistry _registry;
 
 
-        public IdentController(DotYouContextAccessor dotYouContextAccessor, IIdentityRegistry registry)
+        public IdentController(OdinContextAccessor odinContextAccessor, IIdentityRegistry registry)
         {
-            _dotYouContextAccessor = dotYouContextAccessor;
+            _odinContextAccessor = odinContextAccessor;
             _registry = registry;
         }
 
@@ -29,7 +29,7 @@ namespace Youverse.Hosting.Controllers.Anonymous
         [Produces("application/json")]
         public async Task<IActionResult> GetInfo()
         {
-            var tenant = _dotYouContextAccessor.GetCurrent().Tenant;
+            var tenant = _odinContextAccessor.GetCurrent().Tenant;
             HttpContext.Response.Headers.Add("Access-Control-Allow-Origin", "*");
 
             if (string.IsNullOrEmpty(tenant))

@@ -1,6 +1,6 @@
 namespace Youverse.Core.Services.Base
 {
-    public static class DotYouHeaderNames
+    public static class OdinHeaderNames
     {
         public static string ClientAuthToken = "X-DI-ClientAuthToken";
         

@@ -37,7 +37,7 @@ namespace Youverse.Hosting.Controllers.Certificate
                 return BadRequest("Invalid Public Key");
             }
 
-            var request = DotYouSystemSerializer.Deserialize<PerimterFollowRequest>(payloadBytes.ToStringFromUtf8Bytes());
+            var request = OdinSystemSerializer.Deserialize<PerimterFollowRequest>(payloadBytes.ToStringFromUtf8Bytes());
             await _followerPerimeterService.AcceptFollower(request);
 
             return Ok();

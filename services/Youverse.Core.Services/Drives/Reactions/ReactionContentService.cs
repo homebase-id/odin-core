@@ -15,11 +15,11 @@ namespace Youverse.Core.Services.Drives.Reactions;
 /// </summary>
 public class ReactionContentService
 {
-    private readonly DotYouContextAccessor _contextAccessor;
+    private readonly OdinContextAccessor _contextAccessor;
     private readonly DriveDatabaseHost _driveDatabaseHost;
     private readonly IMediator _mediator;
 
-    public ReactionContentService(DriveDatabaseHost driveDatabaseHost, DotYouContextAccessor contextAccessor, IMediator mediator)
+    public ReactionContentService(DriveDatabaseHost driveDatabaseHost, OdinContextAccessor contextAccessor, IMediator mediator)
     {
         _driveDatabaseHost = driveDatabaseHost;
         _contextAccessor = contextAccessor;

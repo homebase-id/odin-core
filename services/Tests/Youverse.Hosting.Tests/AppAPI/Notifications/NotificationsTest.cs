@@ -85,9 +85,9 @@ public class NotificationsTest
         };
 
         var ssp = SharedSecretEncryptedPayload.Encrypt(
-            DotYouSystemSerializer.Serialize(request).ToUtf8ByteArray(),
+            OdinSystemSerializer.Serialize(request).ToUtf8ByteArray(),
             deviceSharedSecret.ToSensitiveByteArray());
-        var sendBuffer = DotYouSystemSerializer.Serialize(ssp).ToUtf8ByteArray();
+        var sendBuffer = OdinSystemSerializer.Serialize(ssp).ToUtf8ByteArray();
         await socket.SendAsync(new ArraySegment<byte>(sendBuffer), WebSocketMessageType.Text, true, tokenSource.Token);
 
         //
@@ -102,11 +102,11 @@ public class NotificationsTest
             Array.Resize(ref array, receiveResult.Count);
 
             var json = array.ToStringFromUtf8Bytes();
-            var n = DotYouSystemSerializer.Deserialize<ClientNotificationPayload>(json);
+            var n = OdinSystemSerializer.Deserialize<ClientNotificationPayload>(json);
             
             Assert.IsTrue(n.IsEncrypted);
             var decryptedResponse = SharedSecretEncryptedPayload.Decrypt(n.Payload, deviceSharedSecret.ToSensitiveByteArray());
-            var response = DotYouSystemSerializer.Deserialize<EstablishConnectionResponse>(decryptedResponse);
+            var response = OdinSystemSerializer.Deserialize<EstablishConnectionResponse>(decryptedResponse);
 
             Assert.IsNotNull(response);
             Assert.IsTrue(response.NotificationType == ClientNotificationType.DeviceHandshakeSuccess);
@@ -163,7 +163,7 @@ public class NotificationsTest
             Drives = new List<TargetDrive>() { testAppContext.TargetDrive }
         };
 
-        var buffer = new ArraySegment<byte>(DotYouSystemSerializer.Serialize(request).ToUtf8ByteArray());
+        var buffer = new ArraySegment<byte>(OdinSystemSerializer.Serialize(request).ToUtf8ByteArray());
         await socket.SendAsync(buffer, WebSocketMessageType.Text, true, tokenSource.Token);
 
         //
@@ -176,7 +176,7 @@ public class NotificationsTest
             Array.Resize(ref array, receiveResult.Count);
 
             var json = array.ToStringFromUtf8Bytes();
-            var response = DotYouSystemSerializer.Deserialize<EstablishConnectionResponse>(json);
+            var response = OdinSystemSerializer.Deserialize<EstablishConnectionResponse>(json);
             Assert.IsNotNull(response);
             Assert.IsTrue(response.NotificationType == ClientNotificationType.DeviceHandshakeSuccess);
         }

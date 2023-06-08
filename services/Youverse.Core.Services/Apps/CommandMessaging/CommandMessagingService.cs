@@ -55,7 +55,7 @@ public class CommandMessagingService
             AppData = new AppFileMetaData()
             {
                 FileType = ReservedFileTypes.CommandMessage,
-                JsonContent = DotYouSystemSerializer.Serialize(msg),
+                JsonContent = OdinSystemSerializer.Serialize(msg),
                 DataType = command.Code,
                 ContentIsComplete = true
             }

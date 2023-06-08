@@ -11,7 +11,7 @@ public class NewFollowerNotification : IClientNotification
         
     public string GetClientData()
     {
-        return DotYouSystemSerializer.Serialize(new
+        return OdinSystemSerializer.Serialize(new
         {
             Sender = this.OdinId.DomainName
         });

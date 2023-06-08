@@ -13,11 +13,11 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
 {
     public class TransitPerimeterTransferStateService : ITransitPerimeterTransferStateService
     {
-        private readonly DotYouContextAccessor _contextAccessor;
+        private readonly OdinContextAccessor _contextAccessor;
         private readonly IDriveFileSystem _fileSystem;
         private readonly ConcurrentDictionary<Guid, IncomingTransferStateItem> _state = new();
 
-        public TransitPerimeterTransferStateService(IDriveFileSystem fileSystem, DotYouContextAccessor contextAccessor)
+        public TransitPerimeterTransferStateService(IDriveFileSystem fileSystem, OdinContextAccessor contextAccessor)
         {
             _fileSystem = fileSystem;
             _contextAccessor = contextAccessor;
@@ -33,7 +33,7 @@ namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
             var item = new IncomingTransferStateItem(id, file, transferInstructionSet);
 
             //write the instruction set to disk
-            await using var stream = new MemoryStream(DotYouSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray());
+            await using var stream = new MemoryStream(OdinSystemSerializer.Serialize(transferInstructionSet).ToUtf8ByteArray());
             await _fileSystem.Storage.WriteTempStream(file, MultipartHostTransferParts.TransferKeyHeader.ToString().ToLower(), stream);
 
             item.SetFilterState(MultipartHostTransferParts.TransferKeyHeader, FilterAction.Accept);

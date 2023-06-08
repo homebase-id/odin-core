@@ -20,36 +20,36 @@ using Youverse.Hosting.Authentication.Perimeter;
 namespace Youverse.Hosting.Middleware
 {
     /// <summary/>
-    public class DotYouContextMiddleware
+    public class OdinContextMiddleware
     {
         private readonly RequestDelegate _next;
         private readonly ITenantProvider _tenantProvider;
 
         /// <summary/>
-        public DotYouContextMiddleware(RequestDelegate next, ITenantProvider tenantProvider)
+        public OdinContextMiddleware(RequestDelegate next, ITenantProvider tenantProvider)
         {
             _next = next;
             _tenantProvider = tenantProvider;
         }
 
         /// <summary/>
-        public async Task Invoke(HttpContext httpContext, DotYouContext dotYouContext)
+        public async Task Invoke(HttpContext httpContext, OdinContext odinContext)
         {
             var tenant = _tenantProvider.GetCurrentTenant();
             string authType = httpContext.User.Identity?.AuthenticationType;
 
-            dotYouContext.Tenant = (OdinId)tenant?.Name;
+            odinContext.Tenant = (OdinId)tenant?.Name;
 
             if (string.IsNullOrEmpty(authType))
             {
-                dotYouContext.Caller = new CallerContext(default, null, SecurityGroupType.Anonymous);
+                odinContext.Caller = new CallerContext(default, null, SecurityGroupType.Anonymous);
                 await _next(httpContext);
                 return;
             }
             
             if (authType == PerimeterAuthConstants.TransitCertificateAuthScheme)
             {
-                await LoadTransitContext(httpContext, dotYouContext);
+                await LoadTransitContext(httpContext, odinContext);
 
                 await _next(httpContext);
                 return;
@@ -57,7 +57,7 @@ namespace Youverse.Hosting.Middleware
 
             if (authType == PerimeterAuthConstants.FeedAuthScheme)
             {
-                await LoadIdentitiesIFollowContext(httpContext, dotYouContext);
+                await LoadIdentitiesIFollowContext(httpContext, odinContext);
                 await _next(httpContext);
                 return;
             }
@@ -72,7 +72,7 @@ namespace Youverse.Hosting.Middleware
 
             if (authType == PerimeterAuthConstants.PublicTransitAuthScheme)
             {
-                await LoadPublicTransitContext(httpContext, dotYouContext);
+                await LoadPublicTransitContext(httpContext, odinContext);
                 await _next(httpContext);
                 return;
             }
@@ -80,9 +80,9 @@ namespace Youverse.Hosting.Middleware
             await _next(httpContext);
         }
 
-        private async Task LoadTransitContext(HttpContext httpContext, DotYouContext dotYouContext)
+        private async Task LoadTransitContext(HttpContext httpContext, OdinContext odinContext)
         {
-            if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[DotYouHeaderNames.ClientAuthToken], out var clientAuthToken))
+            if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[OdinHeaderNames.ClientAuthToken], out var clientAuthToken))
             {
                 //HACK - for alpha, wen want to support data subscriptions for the feed but only building it partially
                 //therefore use the transit subsystem but load permissions only for the fee drive
@@ -94,7 +94,7 @@ namespace Youverse.Hosting.Middleware
 
                 if (clientAuthToken.ClientTokenType == ClientTokenType.Follower)
                 {
-                    await LoadFollowerContext(httpContext, dotYouContext);
+                    await LoadFollowerContext(httpContext, odinContext);
                     return;
                 }
 
@@ -105,17 +105,17 @@ namespace Youverse.Hosting.Middleware
 
                 if (ctx != null)
                 {
-                    dotYouContext.Caller = ctx.Caller;
-                    dotYouContext.SetPermissionContext(ctx.PermissionsContext);
-                    dotYouContext.SetAuthContext(PerimeterAuthConstants.TransitCertificateAuthScheme);
+                    odinContext.Caller = ctx.Caller;
+                    odinContext.SetPermissionContext(ctx.PermissionsContext);
+                    odinContext.SetAuthContext(PerimeterAuthConstants.TransitCertificateAuthScheme);
                     return;
                 }
             }
 
-            await LoadPublicTransitContext(httpContext, dotYouContext);
+            await LoadPublicTransitContext(httpContext, odinContext);
         }
 
-        private async Task LoadIdentitiesIFollowContext(HttpContext httpContext, DotYouContext dotYouContext)
+        private async Task LoadIdentitiesIFollowContext(HttpContext httpContext, OdinContext odinContext)
         {
             //No token for now
             var user = httpContext.User;
@@ -124,9 +124,9 @@ namespace Youverse.Hosting.Middleware
             var ctx = await authService.GetDotYouContext(odinId, null);
             if (ctx != null)
             {
-                dotYouContext.Caller = ctx.Caller;
-                dotYouContext.SetPermissionContext(ctx.PermissionsContext);
-                dotYouContext.SetAuthContext(PerimeterAuthConstants.FeedAuthScheme);
+                odinContext.Caller = ctx.Caller;
+                odinContext.SetPermissionContext(ctx.PermissionsContext);
+                odinContext.SetAuthContext(PerimeterAuthConstants.FeedAuthScheme);
 
                 return;
             }
@@ -134,10 +134,10 @@ namespace Youverse.Hosting.Middleware
             throw new YouverseSecurityException("Cannot load context");
         }
 
-        private async Task LoadFollowerContext(HttpContext httpContext, DotYouContext dotYouContext)
+        private async Task LoadFollowerContext(HttpContext httpContext, OdinContext odinContext)
         {
             //No token for now
-            if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[DotYouHeaderNames.ClientAuthToken], out var clientAuthToken))
+            if (ClientAuthenticationToken.TryParse(httpContext.Request.Headers[OdinHeaderNames.ClientAuthToken], out var clientAuthToken))
             {
                 var user = httpContext.User;
                 var odinId = (OdinId)user.Identity!.Name;
@@ -152,9 +152,9 @@ namespace Youverse.Hosting.Middleware
 
                 if (ctx != null)
                 {
-                    dotYouContext.Caller = ctx.Caller;
-                    dotYouContext.SetPermissionContext(ctx.PermissionsContext);
-                    dotYouContext.SetAuthContext(PerimeterAuthConstants.FollowerCertificateAuthScheme);
+                    odinContext.Caller = ctx.Caller;
+                    odinContext.SetPermissionContext(ctx.PermissionsContext);
+                    odinContext.SetAuthContext(PerimeterAuthConstants.FollowerCertificateAuthScheme);
                     return;
                 }
             }
@@ -162,12 +162,12 @@ namespace Youverse.Hosting.Middleware
             throw new YouverseSecurityException("Cannot load context");
         }
 
-        private async Task LoadPublicTransitContext(HttpContext httpContext, DotYouContext dotYouContext)
+        private async Task LoadPublicTransitContext(HttpContext httpContext, OdinContext odinContext)
         {
             var user = httpContext.User;
             var odinId = (OdinId)user.Identity!.Name;
 
-            dotYouContext.Caller = new CallerContext(
+            odinContext.Caller = new CallerContext(
                 odinId: odinId,
                 masterKey: null,
                 securityLevel: SecurityGroupType.Authenticated);
@@ -197,13 +197,13 @@ namespace Youverse.Hosting.Middleware
                 { "read_anonymous_drives", new PermissionGroup(new PermissionSet(), anonDriveGrants, null) },
             };
 
-            dotYouContext.SetPermissionContext(
+            odinContext.SetPermissionContext(
                 new PermissionContext(
                     permissionGroupMap,
                     sharedSecretKey: null
                 ));
 
-            dotYouContext.SetAuthContext(PerimeterAuthConstants.PublicTransitAuthScheme);
+            odinContext.SetAuthContext(PerimeterAuthConstants.PublicTransitAuthScheme);
         }
     }
 }

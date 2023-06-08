@@ -54,7 +54,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 }
             };
 
-            var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+            var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
             var instructionStream = new MemoryStream(bytes);
 
             var sba = testContext.SharedSecret.ToSensitiveByteArray();
@@ -70,7 +70,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     {
                         Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
                         ContentIsComplete = false,
-                        JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
+                        JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
                     }
                 },
             };
@@ -180,7 +180,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 }
             };
 
-            var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+            var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
             var instructionStream = new MemoryStream(bytes);
 
             var sba = testContext.SharedSecret.ToSensitiveByteArray();
@@ -196,7 +196,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                     {
                         Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
                         ContentIsComplete = true,
-                        JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
+                        JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" })
                     },
                     AccessControlList = new AccessControlList()
                     {

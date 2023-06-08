@@ -47,13 +47,13 @@ namespace Youverse.Hosting.Authentication.System
                     string domain = "system.domain";
                     var claims = new List<Claim>()
                     {
-                        new Claim(ClaimTypes.NameIdentifier, domain, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
-                        new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, DotYouClaimTypes.YouFoundationIssuer),
-                        new Claim(DotYouClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer),
-                        new Claim(DotYouClaimTypes.IsSystemProcess, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, DotYouClaimTypes.YouFoundationIssuer)
+                        new Claim(ClaimTypes.NameIdentifier, domain, ClaimValueTypes.String, OdinClaimTypes.YouFoundationIssuer),
+                        new Claim(ClaimTypes.Name, domain, ClaimValueTypes.String, OdinClaimTypes.YouFoundationIssuer),
+                        new Claim(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer),
+                        new Claim(OdinClaimTypes.IsSystemProcess, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer)
                     };
 
-                    var dotYouContext = Context.RequestServices.GetRequiredService<DotYouContext>();
+                    var dotYouContext = Context.RequestServices.GetRequiredService<OdinContext>();
                     dotYouContext.Caller = new CallerContext(
                         odinId: (OdinId)domain,
                         masterKey: null,

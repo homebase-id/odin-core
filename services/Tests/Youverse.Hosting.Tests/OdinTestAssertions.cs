@@ -10,7 +10,7 @@ namespace Youverse.Hosting.Tests;
 /// <summary>
 /// General assertions for various types.  See for yourself :)
 /// </summary>
-public static class DotYouTestAssertions
+public static class OdinTestAssertions
 {
     public static void FileHeaderIsMarkedDeleted(SharedSecretEncryptedFileHeader fileHeader, bool shouldHaveGlobalTransitId = false)
     {

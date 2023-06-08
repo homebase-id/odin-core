@@ -123,8 +123,7 @@ namespace Youverse.Core.Cryptography
             try
             {
                 //Note: had to use an explicit class since the System.Text.Json serializer failed with dynamic
-                // var o = DotYouSystemSerializer.Deserialize<dynamic>(originalResult);
-                var o = DotYouSystemSerializer.Deserialize<DecryptedRSAPasswordHeader>(originalResult);
+                var o = OdinSystemSerializer.Deserialize<DecryptedRSAPasswordHeader>(originalResult);
 
                 hpwd64 = o.hpwd64;
                 kek64 = o.kek64;
@@ -217,7 +216,7 @@ namespace Youverse.Core.Cryptography
                 kek64 = KeK64,
                 secret = ByteArrayUtil.GetRndByteArray(16)
             };
-            var str = DotYouSystemSerializer.Serialize(data);
+            var str = OdinSystemSerializer.Serialize(data);
 
             (pr.crc, pr.RsaEncrypted) = RsaKeyManagement.PasswordCalculateReplyHelper(nonce.PublicPem, str);
 

@@ -35,7 +35,7 @@ namespace Youverse.Hosting.Controllers.Certificate
     [Authorize(Policy = CertificatePerimeterPolicies.IsInYouverseNetwork, AuthenticationSchemes = PerimeterAuthConstants.TransitCertificateAuthScheme)]
     public class TransitPerimeterController : ControllerBase
     {
-        private readonly DotYouContextAccessor _contextAccessor;
+        private readonly OdinContextAccessor _contextAccessor;
         private readonly IPublicKeyService _publicKeyService;
         private readonly DriveManager _driveManager;
         private readonly TenantSystemStorage _tenantSystemStorage;
@@ -46,7 +46,7 @@ namespace Youverse.Hosting.Controllers.Certificate
         private Guid _stateItemId;
 
         /// <summary />
-        public TransitPerimeterController(DotYouContextAccessor contextAccessor, IPublicKeyService publicKeyService, DriveManager driveManager,
+        public TransitPerimeterController(OdinContextAccessor contextAccessor, IPublicKeyService publicKeyService, DriveManager driveManager,
             TenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver)
         {
             _contextAccessor = contextAccessor;
@@ -149,7 +149,7 @@ namespace Youverse.Hosting.Controllers.Certificate
         {
             AssertIsPart(section, MultipartHostTransferParts.TransferKeyHeader);
             string json = await new StreamReader(section.Body).ReadToEndAsync();
-            var transferKeyHeader = DotYouSystemSerializer.Deserialize<EncryptedRecipientTransferInstructionSet>(json);
+            var transferKeyHeader = OdinSystemSerializer.Deserialize<EncryptedRecipientTransferInstructionSet>(json);
             return transferKeyHeader;
         }
 
@@ -159,7 +159,7 @@ namespace Youverse.Hosting.Controllers.Certificate
 
             //HACK: need to optimize this 
             var json = await new StreamReader(section.Body).ReadToEndAsync();
-            var metadata = DotYouSystemSerializer.Deserialize<FileMetadata>(json);
+            var metadata = OdinSystemSerializer.Deserialize<FileMetadata>(json);
             var metadataStream = new MemoryStream(Encoding.UTF8.GetBytes(json));
             
             //TODO: determine if the filter needs to decide if its result should be sent back to the sender

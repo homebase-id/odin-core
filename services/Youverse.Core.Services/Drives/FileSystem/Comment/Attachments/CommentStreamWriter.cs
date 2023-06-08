@@ -12,7 +12,7 @@ public class CommentAttachmentStreamWriter : AttachmentStreamWriterBase
     /// <summary />
     public CommentAttachmentStreamWriter(
         CommentFileSystem fileSystem,
-        DotYouContextAccessor contextAccessor)
+        OdinContextAccessor contextAccessor)
         : base(fileSystem, contextAccessor)
     {
     }

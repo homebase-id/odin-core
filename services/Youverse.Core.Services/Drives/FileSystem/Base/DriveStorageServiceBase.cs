@@ -29,7 +29,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
         private readonly DriveManager _driveManager;
 
         protected DriveStorageServiceBase(
-            DotYouContextAccessor contextAccessor,
+            OdinContextAccessor contextAccessor,
             ILoggerFactory loggerFactory,
             IMediator mediator,
             IDriveAclAuthorizationService driveAclAuthorizationService,
@@ -45,7 +45,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
 
 
         protected override DriveManager DriveManager { get; }
-        protected override DotYouContextAccessor ContextAccessor { get; }
+        protected override OdinContextAccessor ContextAccessor { get; }
 
         /// <summary>
         /// Gets the <see cref="FileSystemType"/> the inheriting class manages
@@ -738,7 +738,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
             header.FileMetadata.VersionTag = SequentialGuid.CreateGuid();
             header.FileMetadata.Updated = UnixTimeUtc.Now().milliseconds;
 
-            var json = DotYouSystemSerializer.Serialize(header);
+            var json = OdinSystemSerializer.Serialize(header);
             var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
             await GetLongTermStorageManager(header.FileMetadata.File.DriveId).WritePartStream(header.FileMetadata.File.FileId, FilePart.Header, stream);
         }

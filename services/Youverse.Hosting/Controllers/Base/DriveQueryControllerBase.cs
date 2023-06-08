@@ -12,14 +12,14 @@ namespace Youverse.Hosting.Controllers.Base
     {
         protected async Task<QueryModifiedResult> QueryModified(QueryModifiedRequest request)
         {
-            var driveId = DotYouContext.PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
+            var driveId = OdinContext.PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
             var batch = await GetFileSystemResolver().ResolveFileSystem().Query.GetModified(driveId, request.QueryParams, request.ResultOptions);
             return batch;
         }
 
         protected async Task<QueryBatchResponse> QueryBatch(QueryBatchRequest request)
         {
-            var driveId = DotYouContext.PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
+            var driveId = OdinContext.PermissionsContext.GetDriveId(request.QueryParams.TargetDrive);
             var batch = await GetFileSystemResolver().ResolveFileSystem().Query.GetBatch(driveId, request.QueryParams, request.ResultOptionsRequest.ToQueryBatchResultOptions());
             return QueryBatchResponse.FromResult(batch);
         }

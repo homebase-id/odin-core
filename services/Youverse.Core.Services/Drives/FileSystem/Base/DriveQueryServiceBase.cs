@@ -15,7 +15,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
         private readonly DriveStorageServiceBase _storage;
         private readonly DriveDatabaseHost _driveDatabaseHost;
 
-        protected DriveQueryServiceBase(DotYouContextAccessor contextAccessor, DriveDatabaseHost driveDatabaseHost,
+        protected DriveQueryServiceBase(OdinContextAccessor contextAccessor, DriveDatabaseHost driveDatabaseHost,
             DriveManager driveManager, DriveStorageServiceBase storage)
         {
             ContextAccessor = contextAccessor;
@@ -26,7 +26,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Base
 
         protected override DriveManager DriveManager { get; }
 
-        protected override DotYouContextAccessor ContextAccessor { get; }
+        protected override OdinContextAccessor ContextAccessor { get; }
 
         /// <summary>
         /// Gets the <see cref="FileSystemType"/> the inheriting class manages

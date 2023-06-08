@@ -10,7 +10,7 @@ public static class ErrorUtils
 {
     public static ProblemDetails GetProblemDetails(ApiException error)
     {
-        var details = DotYouSystemSerializer.Deserialize<ProblemDetails>(error!.Content!);
+        var details = OdinSystemSerializer.Deserialize<ProblemDetails>(error!.Content!);
         return details;
     }
 

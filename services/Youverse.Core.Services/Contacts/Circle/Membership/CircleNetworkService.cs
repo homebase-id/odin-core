@@ -31,7 +31,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
     public class CircleNetworkService : ICircleNetworkService, INotificationHandler<DriveDefinitionAddedNotification>,
         INotificationHandler<AppRegistrationChangedNotification>
     {
-        private readonly DotYouContextAccessor _contextAccessor;
+        private readonly OdinContextAccessor _contextAccessor;
         private readonly ExchangeGrantService _exchangeGrantService;
         private readonly CircleNetworkStorage _storage;
         private readonly CircleDefinitionService _circleDefinitionService;
@@ -40,7 +40,7 @@ namespace Youverse.Core.Services.Contacts.Circle.Membership
         private readonly GuidId _icrClientDataType = GuidId.FromString("__icr_client_reg");
         private readonly ThreeKeyValueStorage _icrClientValueStorage;
 
-        public CircleNetworkService(DotYouContextAccessor contextAccessor, ILogger<ICircleNetworkService> logger,
+        public CircleNetworkService(OdinContextAccessor contextAccessor, ILogger<ICircleNetworkService> logger,
             ExchangeGrantService exchangeGrantService, TenantContext tenantContext,
             CircleDefinitionService circleDefinitionService,
             IAppRegistrationService appRegistrationService, TenantSystemStorage tenantSystemStorage)

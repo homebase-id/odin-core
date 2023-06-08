@@ -20,9 +20,9 @@ namespace Youverse.Hosting.Controllers.ClientToken.App
     {
         private readonly string _currentTenant;
         private readonly CommandMessagingService _commandMessagingService;
-        private readonly DotYouContextAccessor _contextAccessor;
+        private readonly OdinContextAccessor _contextAccessor;
 
-        public AppCommandController(ITenantProvider tenantProvider, CommandMessagingService commandMessagingService, DotYouContextAccessor contextAccessor)
+        public AppCommandController(ITenantProvider tenantProvider, CommandMessagingService commandMessagingService, OdinContextAccessor contextAccessor)
         {
             _commandMessagingService = commandMessagingService;
             _contextAccessor = contextAccessor;

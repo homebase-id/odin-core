@@ -53,7 +53,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 AppData = new()
                 {
                     ContentIsComplete = false,
-                    JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
                     UserDate = new UnixTimeUtc(0),
@@ -113,7 +113,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 AppData = new()
                 {
                     ContentIsComplete = false,
-                    JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
                     UserDate = new UnixTimeUtc(0),
@@ -172,7 +172,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 AppData = new()
                 {
                     ContentIsComplete = false,
-                    JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
                     UserDate = new UnixTimeUtc(0)
@@ -260,7 +260,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 AppData = new()
                 {
                     ContentIsComplete = false,
-                    JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
                     UserDate = new UnixTimeUtc(0),
@@ -278,7 +278,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 AppData = new()
                 {
                     ContentIsComplete = false,
-                    JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
                     UserDate = new UnixTimeUtc(0),
@@ -353,7 +353,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 AppData = new()
                 {
                     ContentIsComplete = false,
-                    JsonContent = DotYouSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                    JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
                     FileType = 100,
                     DataType = 202,
                     UserDate = new UnixTimeUtc(0)

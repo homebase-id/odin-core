@@ -43,8 +43,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         {
             var (appApiClient, targetDrive) = await CreateApp(TestIdentities.Samwise);
 
-            var content1 = DotYouSystemSerializer.Serialize(new { data = "nom nom nom" });
-            var content2 = DotYouSystemSerializer.Serialize(new { data = "chomp chomp chomp" });
+            var content1 = OdinSystemSerializer.Serialize(new { data = "nom nom nom" });
+            var content2 = OdinSystemSerializer.Serialize(new { data = "chomp chomp chomp" });
 
             var fileMetadata = new UploadFileMetadata()
             {
@@ -83,8 +83,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         {
             var (appApiClient, targetDrive) = await CreateApp(TestIdentities.Samwise);
 
-            var content1 = DotYouSystemSerializer.Serialize(new { data = "nom nom nom" });
-            var content2 = DotYouSystemSerializer.Serialize(new { data = "chomp chomp chomp" });
+            var content1 = OdinSystemSerializer.Serialize(new { data = "nom nom nom" });
+            var content2 = OdinSystemSerializer.Serialize(new { data = "chomp chomp chomp" });
 
             var fileMetadata = new UploadFileMetadata()
             {
@@ -128,8 +128,8 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
         {
             var (appApiClient, targetDrive) = await CreateApp(TestIdentities.Samwise);
 
-            var content1 = DotYouSystemSerializer.Serialize(new { data = "nom nom nom" });
-            var content2 = DotYouSystemSerializer.Serialize(new { data = "chomp chomp chomp" });
+            var content1 = OdinSystemSerializer.Serialize(new { data = "nom nom nom" });
+            var content2 = OdinSystemSerializer.Serialize(new { data = "chomp chomp chomp" });
 
             var fileMetadata = new UploadFileMetadata()
             {

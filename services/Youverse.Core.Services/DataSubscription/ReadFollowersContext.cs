@@ -7,18 +7,18 @@ namespace Youverse.Core.Services.DataSubscription;
 public class ReadFollowersContext : IDisposable
 {
     private readonly SecurityGroupType _prevSecurityGroupType;
-    private readonly DotYouContextAccessor _dotYouContextAccessor;
+    private readonly OdinContextAccessor _odinContextAccessor;
 
-    public ReadFollowersContext(DotYouContextAccessor dotYouContextAccessor)
+    public ReadFollowersContext(OdinContextAccessor odinContextAccessor)
     {
-        _dotYouContextAccessor = dotYouContextAccessor;
-        _prevSecurityGroupType = _dotYouContextAccessor.GetCurrent().Caller.SecurityLevel;
+        _odinContextAccessor = odinContextAccessor;
+        _prevSecurityGroupType = _odinContextAccessor.GetCurrent().Caller.SecurityLevel;
 
-        _dotYouContextAccessor.GetCurrent().Caller.SecurityLevel = SecurityGroupType.System;
+        _odinContextAccessor.GetCurrent().Caller.SecurityLevel = SecurityGroupType.System;
     }
 
     public void Dispose()
     {
-        _dotYouContextAccessor.GetCurrent().Caller.SecurityLevel = _prevSecurityGroupType;
+        _odinContextAccessor.GetCurrent().Caller.SecurityLevel = _prevSecurityGroupType;
     }
 }

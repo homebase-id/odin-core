@@ -11,7 +11,7 @@ namespace Youverse.Core.Serialization;
 /// <summary>
 /// Centralizes serialization functions to escape the conversion between NewtonSoft and Microsoft's serialization  >:[
 /// </summary>
-public static class DotYouSystemSerializer
+public static class OdinSystemSerializer
 {
     public static readonly JsonSerializerOptions? JsonSerializerOptions = new JsonSerializerOptions
     {

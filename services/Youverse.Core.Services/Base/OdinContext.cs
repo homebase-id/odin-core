@@ -4,7 +4,7 @@ using Youverse.Core.Identity;
 
 namespace Youverse.Core.Services.Base
 {
-    public class DotYouContext
+    public class OdinContext
     {
         private PermissionContext _permissionsContext;
         private string _authContext;
@@ -64,9 +64,9 @@ namespace Youverse.Core.Services.Base
         }
 
 
-        public RedactedDotYouContext Redacted()
+        public RedactedOdinContext Redacted()
         {
-            return new RedactedDotYouContext()
+            return new RedactedOdinContext()
             {
                 Caller = this.Caller.Redacted(),
                 PermissionContext = this.PermissionsContext.Redacted()
@@ -75,7 +75,7 @@ namespace Youverse.Core.Services.Base
         
     }
     
-    public class RedactedDotYouContext
+    public class RedactedOdinContext
     {
         public RedactedCallerContext Caller { get; set; }
         public RedactedPermissionContext PermissionContext { get; set; }

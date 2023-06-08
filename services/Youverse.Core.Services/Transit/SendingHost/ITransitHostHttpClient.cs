@@ -44,7 +44,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
         Task<ApiResponse<IEnumerable<PerimeterDriveData>>> GetDrives([Body] GetDrivesByTypeRequest request);
 
         [Get(RootPath + "/security/context")]
-        Task<ApiResponse<RedactedDotYouContext>> GetRemoteDotYouContext();
+        Task<ApiResponse<RedactedOdinContext>> GetRemoteDotYouContext();
 
     }
 }

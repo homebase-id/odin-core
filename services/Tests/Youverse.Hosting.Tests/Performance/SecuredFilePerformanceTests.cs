@@ -183,7 +183,7 @@ namespace Youverse.Hosting.Tests.Performance
                     }
                 };
 
-                var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+                var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
 
                 var thumbnail1 = new ImageDataHeader()
@@ -214,7 +214,7 @@ namespace Youverse.Hosting.Tests.Performance
                         {
                             Tags = new List<Guid>() { Guid.NewGuid(), Guid.NewGuid() },
                             ContentIsComplete = false,
-                            JsonContent = DotYouSystemSerializer.Serialize(new { content = jsonContent }),
+                            JsonContent = OdinSystemSerializer.Serialize(new { content = jsonContent }),
                             PreviewThumbnail = new ImageDataContent()
                             {
                                 PixelHeight = 100,

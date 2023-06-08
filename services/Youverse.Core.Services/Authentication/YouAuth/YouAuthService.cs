@@ -14,7 +14,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
     {
         private readonly ILogger<YouAuthService> _logger;
         private readonly IYouAuthAuthorizationCodeManager _youAuthAuthorizationCodeManager;
-        private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
+        private readonly IOdinHttpClientFactory _odinHttpClientFactory;
         private readonly IYouAuthRegistrationService _registrationService;
         private readonly ICircleNetworkService _circleNetwork;
 
@@ -23,12 +23,12 @@ namespace Youverse.Core.Services.Authentication.YouAuth
         public YouAuthService(
             ILogger<YouAuthService> logger,
             IYouAuthAuthorizationCodeManager youAuthAuthorizationCodeManager,
-            IDotYouHttpClientFactory dotYouHttpClientFactory,
+            IOdinHttpClientFactory odinHttpClientFactory,
             ICircleNetworkService circleNetwork, IYouAuthRegistrationService registrationService)
         {
             _logger = logger;
             _youAuthAuthorizationCodeManager = youAuthAuthorizationCodeManager;
-            _dotYouHttpClientFactory = dotYouHttpClientFactory;
+            _odinHttpClientFactory = odinHttpClientFactory;
             _circleNetwork = circleNetwork;
             _registrationService = registrationService;
         }
@@ -59,7 +59,7 @@ namespace Youverse.Core.Services.Authentication.YouAuth
             // var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseContentRead);
 
             var odinId = new OdinId(subject);
-            var response = await _dotYouHttpClientFactory
+            var response = await _odinHttpClientFactory
                 .CreateClient<IYouAuthPerimeterHttpClient>(odinId)
                 .ValidateAuthorizationCodeResponse(initiator, authorizationCode);
 

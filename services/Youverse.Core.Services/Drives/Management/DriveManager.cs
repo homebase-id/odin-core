@@ -28,7 +28,7 @@ public class DriveManager
 {
     private readonly TenantSystemStorage _tenantSystemStorage;
     private readonly IMediator _mediator;
-    private readonly DotYouContextAccessor _contextAccessor;
+    private readonly OdinContextAccessor _contextAccessor;
     private readonly TenantContext _tenantContext;
 
     private readonly ConcurrentDictionary<Guid, StorageDrive> _driveCache;
@@ -36,7 +36,7 @@ public class DriveManager
     private readonly object _createDriveLock = new object();
     private readonly byte[] _driveDataType = "drive".ToUtf8ByteArray(); //keep it lower case
 
-    public DriveManager(DotYouContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage, IMediator mediator, TenantContext tenantContext)
+    public DriveManager(OdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage, IMediator mediator, TenantContext tenantContext)
     {
         _contextAccessor = contextAccessor;
         _tenantSystemStorage = tenantSystemStorage;

@@ -55,7 +55,7 @@ public class ServerSystemStorage : IDisposable
         {
             identityId = odinId,
             type = (Int32)jobType,
-            data = DotYouSystemSerializer.Serialize(data).ToUtf8ByteArray()
+            data = OdinSystemSerializer.Serialize(data).ToUtf8ByteArray()
         });
     }
 

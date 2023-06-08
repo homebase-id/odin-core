@@ -11,7 +11,7 @@ namespace Youverse.Hosting.Authentication.Perimeter
         {
             policy.AddPolicy(IsInYouverseNetwork, pb =>
             {
-                pb.RequireClaim(DotYouClaimTypes.IsAuthenticated, true.ToString().ToLower());
+                pb.RequireClaim(OdinClaimTypes.IsAuthenticated, true.ToString().ToLower());
                 pb.AuthenticationSchemes.Add(scheme);
             });
             

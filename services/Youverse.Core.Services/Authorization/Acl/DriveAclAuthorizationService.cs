@@ -13,9 +13,9 @@ namespace Youverse.Core.Services.Authorization.Acl
 {
     public class DriveAclAuthorizationService : IDriveAclAuthorizationService
     {
-        private readonly DotYouContextAccessor _contextAccessor;
+        private readonly OdinContextAccessor _contextAccessor;
 
-        public DriveAclAuthorizationService(DotYouContextAccessor contextAccessor)
+        public DriveAclAuthorizationService(OdinContextAccessor contextAccessor)
         {
             _contextAccessor = contextAccessor;
         }

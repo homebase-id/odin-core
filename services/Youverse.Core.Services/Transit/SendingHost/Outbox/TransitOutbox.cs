@@ -49,7 +49,7 @@ namespace Youverse.Core.Services.Transit.SendingHost.Outbox
             //TODO: change to use batching inserts
 
             //TODO: value should also include transfer attempts, etc.
-            var state = DotYouSystemSerializer.Serialize(new OutboxItemState()
+            var state = OdinSystemSerializer.Serialize(new OutboxItemState()
             {
                 Recipient = item.Recipient,
                 IsTransientFile = item.IsTransientFile,
@@ -123,7 +123,7 @@ namespace Youverse.Core.Services.Transit.SendingHost.Outbox
 
             var items = records.Select(r =>
             {
-                var state = DotYouSystemSerializer.Deserialize<OutboxItemState>(r.value.ToStringFromUtf8Bytes());
+                var state = OdinSystemSerializer.Deserialize<OutboxItemState>(r.value.ToStringFromUtf8Bytes());
                 return new TransitOutboxItem()
                 {
                     Recipient = (OdinId)state!.Recipient,

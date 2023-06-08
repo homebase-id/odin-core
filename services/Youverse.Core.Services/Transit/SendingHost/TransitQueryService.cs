@@ -24,14 +24,14 @@ namespace Youverse.Core.Services.Transit.SendingHost;
 /// </summary>
 public class TransitQueryService
 {
-    private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
+    private readonly IOdinHttpClientFactory _odinHttpClientFactory;
     private readonly ICircleNetworkService _circleNetworkService;
-    private readonly DotYouContextAccessor _contextAccessor;
+    private readonly OdinContextAccessor _contextAccessor;
 
-    public TransitQueryService(IDotYouHttpClientFactory dotYouHttpClientFactory, ICircleNetworkService circleNetworkService,
-        DotYouContextAccessor contextAccessor)
+    public TransitQueryService(IOdinHttpClientFactory odinHttpClientFactory, ICircleNetworkService circleNetworkService,
+        OdinContextAccessor contextAccessor)
     {
-        _dotYouHttpClientFactory = dotYouHttpClientFactory;
+        _odinHttpClientFactory = odinHttpClientFactory;
         _circleNetworkService = circleNetworkService;
         _contextAccessor = contextAccessor;
     }
@@ -160,7 +160,7 @@ public class TransitQueryService
         return response.Content;
     }
 
-    public async Task<RedactedDotYouContext> GetRemoteDotYouContext(OdinId odinId)
+    public async Task<RedactedOdinContext> GetRemoteDotYouContext(OdinId odinId)
     {
         var (_, httpClient) = await CreateClient(odinId, null);
         var response = await httpClient.GetRemoteDotYouContext();
@@ -200,12 +200,12 @@ public class TransitQueryService
         var authToken = icr.IsConnected() ? icr.CreateClientAuthToken() : null;
         if (authToken == null)
         {
-            var httpClient = _dotYouHttpClientFactory.CreateClient<ITransitHostHttpClient>(odinId, fileSystemType);
+            var httpClient = _odinHttpClientFactory.CreateClient<ITransitHostHttpClient>(odinId, fileSystemType);
             return (icr, httpClient);
         }
         else
         {
-            var httpClient = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(odinId, authToken, fileSystemType);
+            var httpClient = _odinHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(odinId, authToken, fileSystemType);
             return (icr, httpClient);
         }
     }

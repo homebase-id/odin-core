@@ -14,7 +14,7 @@ public static class Utility
     /// <summary>
     /// Converts the ServerFileHeader to a SharedSecretEncryptedHeader
     /// </summary>
-    public static SharedSecretEncryptedFileHeader ConvertToSharedSecretEncryptedClientFileHeader(ServerFileHeader header, DotYouContextAccessor contextAccessor,
+    public static SharedSecretEncryptedFileHeader ConvertToSharedSecretEncryptedClientFileHeader(ServerFileHeader header, OdinContextAccessor contextAccessor,
         bool forceIncludeServerMetadata = false)
     {
         if (header == null)

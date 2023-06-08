@@ -34,12 +34,12 @@ public class SingleKeyValueStorage
             return null;
         }
 
-        return DotYouSystemSerializer.Deserialize<T>(item.data.ToStringFromUtf8Bytes());
+        return OdinSystemSerializer.Deserialize<T>(item.data.ToStringFromUtf8Bytes());
     }
 
     public void Upsert<T>(GuidId key, T value)
     {
-        var json = DotYouSystemSerializer.Serialize(value);
+        var json = OdinSystemSerializer.Serialize(value);
         _table.Upsert(new KeyValueRecord() { key = key, data = json.ToUtf8ByteArray() });
     }
 

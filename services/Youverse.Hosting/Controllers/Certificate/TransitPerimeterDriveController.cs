@@ -29,7 +29,7 @@ namespace Youverse.Hosting.Controllers.Certificate
     [Authorize(Policy = CertificatePerimeterPolicies.IsInYouverseNetwork, AuthenticationSchemes = PerimeterAuthConstants.TransitCertificateAuthScheme)]
     public class TransitPerimeterDriveController : OdinControllerBase
     {
-        private readonly DotYouContextAccessor _contextAccessor;
+        private readonly OdinContextAccessor _contextAccessor;
         private readonly IPublicKeyService _publicKeyService;
         private readonly DriveManager _driveManager;
         private readonly TenantSystemStorage _tenantSystemStorage;
@@ -37,7 +37,7 @@ namespace Youverse.Hosting.Controllers.Certificate
         private readonly FileSystemResolver _fileSystemResolver;
 
         /// <summary />
-        public TransitPerimeterDriveController(DotYouContextAccessor contextAccessor, IPublicKeyService publicKeyService, DriveManager driveManager,
+        public TransitPerimeterDriveController(OdinContextAccessor contextAccessor, IPublicKeyService publicKeyService, DriveManager driveManager,
             TenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver)
         {
             _contextAccessor = contextAccessor;
@@ -130,7 +130,7 @@ namespace Youverse.Hosting.Controllers.Certificate
         }
         
         [HttpGet("security/context")]
-        public Task<RedactedDotYouContext> GetRemoteSecurityContext()
+        public Task<RedactedOdinContext> GetRemoteSecurityContext()
         {
             return Task.FromResult(_contextAccessor.GetCurrent().Redacted());
         }

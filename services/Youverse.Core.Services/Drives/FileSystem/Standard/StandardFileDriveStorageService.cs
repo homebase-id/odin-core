@@ -12,7 +12,7 @@ namespace Youverse.Core.Services.Drives.FileSystem.Standard
 {
     public class StandardFileDriveStorageService : DriveStorageServiceBase
     {
-        public StandardFileDriveStorageService(DotYouContextAccessor contextAccessor, ILoggerFactory loggerFactory, IMediator mediator,
+        public StandardFileDriveStorageService(OdinContextAccessor contextAccessor, ILoggerFactory loggerFactory, IMediator mediator,
             IDriveAclAuthorizationService driveAclAuthorizationService, DriveManager driveManager) :
             base(contextAccessor, loggerFactory, mediator, driveAclAuthorizationService, driveManager)
         {

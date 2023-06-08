@@ -13,7 +13,7 @@ namespace Youverse.Core.Services.DataSubscription;
 
 public class IdentitiesIFollowAuthenticationService
 {
-    private readonly DotYouContextCache _cache;
+    private readonly OdinContextCache _cache;
     private readonly TenantContext _tenantContext;
     private readonly FollowerService _followerService;
 
@@ -21,13 +21,13 @@ public class IdentitiesIFollowAuthenticationService
     {
         _followerService = followerService;
         _tenantContext = tenantContext;
-        _cache = new DotYouContextCache(config.Host.CacheSlidingExpirationSeconds);
+        _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
     }
 
     /// <summary>
     /// Gets the <see cref="GetDotYouContext"/> for the specified token from cache or disk.
     /// </summary>
-    public async Task<DotYouContext> GetDotYouContext(OdinId callerOdinId, ClientAuthenticationToken token)
+    public async Task<OdinContext> GetDotYouContext(OdinId callerOdinId, ClientAuthenticationToken token)
     {
         //Note: there's no CAT for alpha as we're supporting just feeds
         // for authentication, we manually check against the list of people I follow
@@ -43,9 +43,9 @@ public class IdentitiesIFollowAuthenticationService
             ClientTokenType = ClientTokenType.DataProvider
         };
 
-        var creator = new Func<Task<DotYouContext>>(async delegate
+        var creator = new Func<Task<OdinContext>>(async delegate
         {
-            var dotYouContext = new DotYouContext();
+            var dotYouContext = new OdinContext();
             var (callerContext, permissionContext) = await GetPermissionContext(callerOdinId, tempToken);
 
             if (null == permissionContext || callerContext == null)

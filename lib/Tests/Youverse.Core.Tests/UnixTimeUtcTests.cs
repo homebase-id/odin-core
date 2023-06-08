@@ -70,9 +70,9 @@ namespace Youverse.Core.Tests
         public void CanSerializeUnixTimeUtc()
         {
             var value = UnixTimeUtc.Now();
-            var json = DotYouSystemSerializer.Serialize(value);
+            var json = OdinSystemSerializer.Serialize(value);
 
-            var deserializedValue = DotYouSystemSerializer.Deserialize<UnixTimeUtc>(json);
+            var deserializedValue = OdinSystemSerializer.Deserialize<UnixTimeUtc>(json);
 
             Assert.IsTrue(value == deserializedValue);
             Assert.IsTrue(value.milliseconds == deserializedValue.milliseconds);

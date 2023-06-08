@@ -23,7 +23,7 @@ public static class NotificationTestUtils
             AppData = new()
             {
                 ContentIsComplete = true,
-                JsonContent = DotYouSystemSerializer.Serialize(encryptedJsonContents),
+                JsonContent = OdinSystemSerializer.Serialize(encryptedJsonContents),
                 FileType = 150
             },
             AccessControlList = AccessControlList.OwnerOnly

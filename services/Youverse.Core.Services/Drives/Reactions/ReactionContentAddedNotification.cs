@@ -14,6 +14,6 @@ public class ReactionContentAddedNotification : EventArgs, IClientNotification
 
     public string GetClientData()
     {
-        return DotYouSystemSerializer.Serialize(this.Reaction);
+        return OdinSystemSerializer.Serialize(this.Reaction);
     }
 }

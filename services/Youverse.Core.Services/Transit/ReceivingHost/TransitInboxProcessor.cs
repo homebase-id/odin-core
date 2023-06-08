@@ -13,13 +13,13 @@ namespace Youverse.Core.Services.Transit.ReceivingHost
 {
     public class TransitInboxProcessor 
     {
-        private readonly DotYouContextAccessor _contextAccessor;
+        private readonly OdinContextAccessor _contextAccessor;
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
         private readonly FileSystemResolver _fileSystemResolver;
         private readonly IPublicKeyService _publicKeyService;
         private readonly TenantSystemStorage _tenantSystemStorage;
 
-        public TransitInboxProcessor(DotYouContextAccessor contextAccessor,
+        public TransitInboxProcessor(OdinContextAccessor contextAccessor,
             TransitInboxBoxStorage transitInboxBoxStorage,
             FileSystemResolver fileSystemResolver, IPublicKeyService publicKeyService, TenantSystemStorage tenantSystemStorage)
         {

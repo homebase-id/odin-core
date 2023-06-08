@@ -12,12 +12,12 @@ namespace Youverse.Core.Services.DataSubscription.SendingHost
     public class FeedDistributorService
     {
         private readonly FileSystemResolver _fileSystemResolver;
-        private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
+        private readonly IOdinHttpClientFactory _odinHttpClientFactory;
 
-        public FeedDistributorService(FileSystemResolver fileSystemResolver, IDotYouHttpClientFactory dotYouHttpClientFactory)
+        public FeedDistributorService(FileSystemResolver fileSystemResolver, IOdinHttpClientFactory odinHttpClientFactory)
         {
             _fileSystemResolver = fileSystemResolver;
-            _dotYouHttpClientFactory = dotYouHttpClientFactory;
+            _odinHttpClientFactory = odinHttpClientFactory;
         }
         
         public async Task<bool> SendFile(InternalDriveFileId file, FileSystemType fileSystemType, OdinId recipient)
@@ -38,7 +38,7 @@ namespace Youverse.Core.Services.DataSubscription.SendingHost
             };
 
             //TODO: need to validate the recipient can get the file - security
-            var client = _dotYouHttpClientFactory.CreateClient<IFeedDistributorHttpClient>(recipient, fileSystemType: fileSystemType);
+            var client = _odinHttpClientFactory.CreateClient<IFeedDistributorHttpClient>(recipient, fileSystemType: fileSystemType);
             var httpResponse = await client.SendFeedFileMetadata(request);
 
             return IsSuccess(httpResponse);

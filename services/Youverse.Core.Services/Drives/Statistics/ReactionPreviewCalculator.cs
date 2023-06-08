@@ -20,10 +20,10 @@ namespace Youverse.Core.Services.Drives.Statistics;
 public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification>,
     INotificationHandler<ReactionContentAddedNotification>
 {
-    private readonly DotYouContextAccessor _contextAccessor;
+    private readonly OdinContextAccessor _contextAccessor;
     private readonly FileSystemResolver _fileSystemResolver;
 
-    public ReactionPreviewCalculator(DotYouContextAccessor contextAccessor, FileSystemResolver fileSystemResolver)
+    public ReactionPreviewCalculator(OdinContextAccessor contextAccessor, FileSystemResolver fileSystemResolver)
     {
         _contextAccessor = contextAccessor;
         _fileSystemResolver = fileSystemResolver;

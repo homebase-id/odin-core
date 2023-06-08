@@ -92,8 +92,8 @@ namespace Youverse.Core.Tests
         public void TimeZoneUtc04()
         {
             var value = new TimeZoneUtc(+7, 45);
-            var json = DotYouSystemSerializer.Serialize(value);
-            var deserializedValue = DotYouSystemSerializer.Deserialize<TimeZoneUtc>(json);
+            var json = OdinSystemSerializer.Serialize(value);
+            var deserializedValue = OdinSystemSerializer.Deserialize<TimeZoneUtc>(json);
 
             Assert.IsTrue(value.ToString() == deserializedValue.ToString());
         }

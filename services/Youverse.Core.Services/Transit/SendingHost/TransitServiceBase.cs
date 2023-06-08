@@ -20,19 +20,19 @@ namespace Youverse.Core.Services.Transit.SendingHost
     /// </summary>
     public abstract class TransitServiceBase
     {
-        private readonly IDotYouHttpClientFactory _dotYouHttpClientFactory;
+        private readonly IOdinHttpClientFactory _odinHttpClientFactory;
         private readonly ICircleNetworkService _circleNetworkService;
-        private readonly DotYouContextAccessor _contextAccessor;
+        private readonly OdinContextAccessor _contextAccessor;
         private readonly FollowerService _followerService;
         private readonly FileSystemResolver _fileSystemResolver;
 
 
-        protected DotYouContext DotYouContext => _contextAccessor.GetCurrent();
+        protected OdinContext OdinContext => _contextAccessor.GetCurrent();
 
-        protected TransitServiceBase(IDotYouHttpClientFactory dotYouHttpClientFactory, ICircleNetworkService circleNetworkService,
-            DotYouContextAccessor contextAccessor, FollowerService followerService, FileSystemResolver fileSystemResolver)
+        protected TransitServiceBase(IOdinHttpClientFactory odinHttpClientFactory, ICircleNetworkService circleNetworkService,
+            OdinContextAccessor contextAccessor, FollowerService followerService, FileSystemResolver fileSystemResolver)
         {
-            _dotYouHttpClientFactory = dotYouHttpClientFactory;
+            _odinHttpClientFactory = odinHttpClientFactory;
             _circleNetworkService = circleNetworkService;
             _contextAccessor = contextAccessor;
             _followerService = followerService;
@@ -43,7 +43,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
         {
             var iv = ByteArrayUtil.GetRndByteArray(16);
             var key = token?.SharedSecret ?? new SensitiveByteArray(Guid.Empty.ToByteArray());
-            var jsonBytes = DotYouSystemSerializer.Serialize(o).ToUtf8ByteArray();
+            var jsonBytes = OdinSystemSerializer.Serialize(o).ToUtf8ByteArray();
             // var encryptedBytes = AesCbc.Encrypt(jsonBytes, ref key, iv);
             var encryptedBytes = jsonBytes;
 
@@ -113,12 +113,12 @@ namespace Youverse.Core.Services.Transit.SendingHost
 
             if (token == null)
             {
-                var httpClient = _dotYouHttpClientFactory.CreateClient<ITransitHostReactionHttpClient>(odinId, fileSystemType);
+                var httpClient = _odinHttpClientFactory.CreateClient<ITransitHostReactionHttpClient>(odinId, fileSystemType);
                 return (null, httpClient);
             }
             else
             {
-                var httpClient = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostReactionHttpClient>(odinId, token.ToAuthenticationToken(), fileSystemType);
+                var httpClient = _odinHttpClientFactory.CreateClientUsingAccessToken<ITransitHostReactionHttpClient>(odinId, token.ToAuthenticationToken(), fileSystemType);
                 return (token, httpClient);
             }
 
@@ -130,8 +130,8 @@ namespace Youverse.Core.Services.Transit.SendingHost
 
         protected async Task<T> DecryptUsingSharedSecret<T>(SharedSecretEncryptedTransitPayload payload, ClientAccessTokenSource tokenSource)
         {
-            var caller = DotYouContext.Caller.OdinId;
-            Guard.Argument(caller, nameof(DotYouContext.Caller.OdinId)).NotNull().Require(v => v.HasValue());
+            var caller = OdinContext.Caller.OdinId;
+            Guard.Argument(caller, nameof(OdinContext.Caller.OdinId)).NotNull().Require(v => v.HasValue());
 
             //TODO: put decryption back in place
             // var t = await ResolveClientAccessToken(caller!.Value, tokenSource);
@@ -141,7 +141,7 @@ namespace Youverse.Core.Services.Transit.SendingHost
 
             var decryptedBytes = Convert.FromBase64String(payload.Data);
             var json = decryptedBytes.ToStringFromUtf8Bytes();
-            return await Task.FromResult(DotYouSystemSerializer.Deserialize<T>(json));
+            return await Task.FromResult(OdinSystemSerializer.Deserialize<T>(json));
         }
 
         /// <summary>

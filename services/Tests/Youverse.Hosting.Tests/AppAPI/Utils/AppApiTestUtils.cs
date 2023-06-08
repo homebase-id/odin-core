@@ -66,7 +66,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                 client.DefaultRequestHeaders.Add("X-HACK-SHARED-SECRET", Convert.ToBase64String(sharedSecret));
             }
             
-            client.DefaultRequestHeaders.Add(DotYouHeaderNames.FileSystemTypeHeader, Enum.GetName(fileSystemType));
+            client.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, Enum.GetName(fileSystemType));
             client.Timeout = TimeSpan.FromMinutes(15);
             
             client.BaseAddress = new Uri($"https://{DnsConfigurationSet.PrefixApi}.{identity}");
@@ -132,7 +132,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                 var keyHeader = KeyHeader.NewRandom16();
                 var transferIv = instructionSet.TransferIv;
 
-                var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+                var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
 
                 var sharedSecret = senderAppContext.SharedSecret.ToSensitiveByteArray();
@@ -264,7 +264,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
                 var keyHeader = KeyHeader.NewRandom16();
                 var transferIv = instructionSet.TransferIv;
 
-                var bytes = System.Text.Encoding.UTF8.GetBytes(DotYouSystemSerializer.Serialize(instructionSet));
+                var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
                 var instructionStream = new MemoryStream(bytes);
 
                 var sharedSecret = identityAppContext.SharedSecret.ToSensitiveByteArray();

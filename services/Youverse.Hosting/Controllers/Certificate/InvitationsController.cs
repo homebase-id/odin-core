@@ -41,7 +41,7 @@ namespace Youverse.Hosting.Controllers.Certificate
                 return new JsonResult(new NoResultResponse(false));
             }
 
-            ConnectionRequest request = DotYouSystemSerializer.Deserialize<ConnectionRequest>(payloadBytes.ToStringFromUtf8Bytes());
+            ConnectionRequest request = OdinSystemSerializer.Deserialize<ConnectionRequest>(payloadBytes.ToStringFromUtf8Bytes());
             await _circleNetworkRequestService.ReceiveConnectionRequest(request);
             return new JsonResult(new NoResultResponse(true));
         }
@@ -58,7 +58,7 @@ namespace Youverse.Hosting.Controllers.Certificate
                 return new JsonResult(new NoResultResponse(false));
             }
             
-            ConnectionRequestReply reply = DotYouSystemSerializer.Deserialize<ConnectionRequestReply>(payloadBytes.ToStringFromUtf8Bytes());
+            ConnectionRequestReply reply = OdinSystemSerializer.Deserialize<ConnectionRequestReply>(payloadBytes.ToStringFromUtf8Bytes());
 
             await _circleNetworkRequestService.EstablishConnection(reply);
             return new JsonResult(new NoResultResponse(true));

@@ -110,7 +110,7 @@ public class ConversationDefinitionService
             {
                 UniqueId = convo.Id,
                 ContentIsComplete = true,
-                JsonContent = DotYouSystemSerializer.Serialize(convo),
+                JsonContent = OdinSystemSerializer.Serialize(convo),
                 FileType = ChatConversation.ConversationDefinitionFileType,
                 DataType = 0,
                 //notice that I do not set group id here.  this file is not a converastion file, it is a definition

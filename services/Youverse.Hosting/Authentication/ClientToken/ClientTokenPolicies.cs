@@ -13,7 +13,7 @@ namespace Youverse.Hosting.Authentication.ClientToken
         {
             policy.AddPolicy(IsIdentified, pb =>
             {
-                pb.RequireClaim(DotYouClaimTypes.IsAuthenticated, true.ToString().ToLower());
+                pb.RequireClaim(OdinClaimTypes.IsAuthenticated, true.ToString().ToLower());
                 // pb.RequireRole()
                 pb.AuthenticationSchemes.Add(ClientTokenConstants.YouAuthScheme);
 
@@ -21,8 +21,8 @@ namespace Youverse.Hosting.Authentication.ClientToken
             
             policy.AddPolicy(IsAuthorizedApp, pb =>
             {
-                pb.RequireClaim(DotYouClaimTypes.IsAuthenticated, true.ToString().ToLower());
-                pb.RequireClaim(DotYouClaimTypes.IsAuthorizedApp, true.ToString().ToLower());
+                pb.RequireClaim(OdinClaimTypes.IsAuthenticated, true.ToString().ToLower());
+                pb.RequireClaim(OdinClaimTypes.IsAuthorizedApp, true.ToString().ToLower());
                 pb.AuthenticationSchemes.Add(ClientTokenConstants.YouAuthScheme);
             });
         }

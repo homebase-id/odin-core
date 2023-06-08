@@ -71,11 +71,11 @@ public class TransitGetReactionsByIdentityRequest
 /// <summary/>
 public class TransitReactionContentSenderService : TransitServiceBase
 {
-    private readonly DotYouContextAccessor _contextAccessor;
+    private readonly OdinContextAccessor _contextAccessor;
 
-    public TransitReactionContentSenderService(IDotYouHttpClientFactory dotYouHttpClientFactory,
+    public TransitReactionContentSenderService(IOdinHttpClientFactory odinHttpClientFactory,
         ICircleNetworkService circleNetworkService,
-        DotYouContextAccessor contextAccessor, FollowerService followerService, FileSystemResolver fileSystemResolver) : base(dotYouHttpClientFactory,
+        OdinContextAccessor contextAccessor, FollowerService followerService, FileSystemResolver fileSystemResolver) : base(odinHttpClientFactory,
         circleNetworkService, contextAccessor,
         followerService, fileSystemResolver)
     {

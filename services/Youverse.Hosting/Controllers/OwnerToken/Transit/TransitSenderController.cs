@@ -129,7 +129,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.Transit
         private async Task<UploadInstructionSet> MapTransitInstructionSet(Stream transitInstructionStream)
         {
             string json = await new StreamReader(transitInstructionStream).ReadToEndAsync();
-            var transitInstructionSet = DotYouSystemSerializer.Deserialize<TransitInstructionSet>(json);
+            var transitInstructionSet = OdinSystemSerializer.Deserialize<TransitInstructionSet>(json);
 
             var uploadInstructionSet = new UploadInstructionSet()
             {
