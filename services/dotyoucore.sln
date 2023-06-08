@@ -12,9 +12,9 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.Hosting.Tests", "Tests\Odin.Hosting.Tests\Odin.Hosting.Tests.csproj", "{CD961B92-658E-4EEC-B430-85665BAC1830}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{8FEEC708-FFA8-4CAD-9C24-597F28ADBB9B}"
-ProjectSection(SolutionItems) = preProject
-	README.md = README.md
-EndProjectSection
+	ProjectSection(SolutionItems) = preProject
+		..\README.md = ..\README.md
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.Core.Services.Background", "Odin.Core.Services.Background\Odin.Core.Services.Background.csproj", "{C521E36F-8DCC-413E-BBC4-BBEA8A8763C4}"
 EndProject

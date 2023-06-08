@@ -7,7 +7,7 @@ on:
 #  pull_request:
 #    branches: [ main ]
 
-env:
+env
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
@@ -68,8 +68,8 @@ jobs:
           touch .env
           echo REACT_APP_VERSION=$(date +%s) >> .env
           npm run build
-          rm -rf ../../dotyoucore/services/Youverse.Hosting/client/owner-app
-          mv build ../../dotyoucore/services/Youverse.Hosting/client/owner-app
+          rm -rf ../../dotyoucore/services/Odin.Hosting/client/owner-app
+          mv build ../../dotyoucore/services/Odin.Hosting/client/owner-app
 
       - name: Build public-app
         working-directory: ./client/public-app
@@ -78,8 +78,8 @@ jobs:
           touch .env
           echo REACT_APP_VERSION=$(date +%s) >> .env
           npm run build
-          rm -rf ../../dotyoucore/services/Youverse.Hosting/client/public-app
-          mv build ../../dotyoucore/services/Youverse.Hosting/client/public-app
+          rm -rf ../../dotyoucore/services/Odin.Hosting/client/public-app
+          mv build ../../dotyoucore/services/Odin.Hosting/client/public-app
 
       - name: Build provisioning-app
         working-directory: ./client/provisioning-app
@@ -88,8 +88,8 @@ jobs:
           touch .env
           echo REACT_APP_VERSION=$(date +%s) >> .env
           npm run build
-          rm -rf ../../dotyoucore/services/Youverse.Hosting/client/provisioning-app
-          mv build ../../dotyoucore/services/Youverse.Hosting/client/provisioning-app
+          rm -rf ../../dotyoucore/services/Odin.Hosting/client/provisioning-app
+          mv build ../../dotyoucore/services/Odin.Hosting/client/provisioning-app
 
       - name: Log in to the Container registry
         uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
@@ -108,7 +108,7 @@ jobs:
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:
           context: ./dotyoucore
-          file: ./dotyoucore/services/Youverse.Hosting/Dockerfile
+          file: ./dotyoucore/services/Odin.Hosting/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
