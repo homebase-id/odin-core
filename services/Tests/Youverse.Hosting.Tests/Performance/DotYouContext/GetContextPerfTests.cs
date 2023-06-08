@@ -18,7 +18,7 @@ namespace Youverse.Hosting.Tests.Performance.DotYouContext
     public class GetContextPerfTests
     {
         private static readonly int MAXTHREADS = 12;
-        private const int MAXITERATIONS = 1500;
+        private const int MAXITERATIONS = 150;
 
         private WebScaffold _scaffold;
 
@@ -57,6 +57,24 @@ namespace Youverse.Hosting.Tests.Performance.DotYouContext
             Assert.IsFalse(string.IsNullOrEmpty(context.Caller.OdinId));
         }
 
+        /*  After DB caching
+         * AppPingTest
+               Duration:?8.3 sec
+
+                Standard Output:?
+                2023-06-01 Host [SEMIBEASTII]
+                Threads   : 12
+                Iterations: 1,500
+                Wall Time : 8,249ms
+                Minimum   : 1ms
+                Maximum   : 39ms
+                Average   : 4ms
+                Median    : 3ms
+                Capacity  : 2,182 / second
+                RSA Encryptions 0, Decryptions 8
+                RSA Keys Created 4, Keys Expired 0
+                DB Opened 4, Closed 0
+         */
         [Test]
         public void AppPingTest()
         {

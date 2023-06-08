@@ -209,7 +209,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
         private static Object _get0Lock = new Object();
         private SqliteParameter _get0Param1 = null;
 
-        public TableMainIndexCRUD(DriveDatabase db) : base(db)
+        public TableMainIndexCRUD(DriveDatabase db, CacheHelper cache) : base(db)
         {
         }
 
@@ -334,7 +334,8 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _insertParam12.Value = item.fileSystemType;
                 _insertParam13.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _insertParam14.Value = DBNull.Value;
-                return _database.ExecuteNonQuery(_insertCommand);
+                var count = _database.ExecuteNonQuery(_insertCommand);
+                return count;
             } // Lock
         }
 
@@ -407,7 +408,8 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _upsertParam12.Value = item.fileSystemType;
                 _upsertParam13.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _upsertParam14.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                return _database.ExecuteNonQuery(_upsertCommand);
+                var count = _database.ExecuteNonQuery(_upsertCommand);
+                return count;
             } // Lock
         }
 
@@ -479,7 +481,8 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _updateParam12.Value = item.fileSystemType;
                 _updateParam13.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _updateParam14.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                return _database.ExecuteNonQuery(_updateCommand);
+                var count = _database.ExecuteNonQuery(_updateCommand);
+                return count;
             } // Lock
         }
 
@@ -621,7 +624,8 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     _delete0Command.Prepare();
                 }
                 _delete0Param1.Value = fileId.ToByteArray();
-                return _database.ExecuteNonQuery(_delete0Command);
+                var count = _database.ExecuteNonQuery(_delete0Command);
+                return count;
             } // Lock
         }
 
@@ -756,8 +760,11 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
+                    {
                         return null;
-                    return ReadRecordFromReader0(rdr, fileId);
+                    }
+                    var r = ReadRecordFromReader0(rdr, fileId);
+                    return r;
                 } // using
             } // lock
         }

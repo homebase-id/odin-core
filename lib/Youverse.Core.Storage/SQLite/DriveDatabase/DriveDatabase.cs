@@ -62,20 +62,29 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
         public readonly TableReactions TblReactions = null;
         public readonly TableCommandMessageQueue TblCmdMsgQueue = null;
 
+        private readonly CacheHelper _cache = null; // No tables needing caching for now... otherwise new CacheHelper("drive");
+
 
         public DriveDatabase(string connectionString, DatabaseIndexKind databaseKind, long commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
         {
             _kind = databaseKind;
 
-            TblMainIndex = new TableMainIndex(this);
-            TblAclIndex = new TableAclIndex(this);
-            TblTagIndex = new TableTagIndex(this);
-            TblCmdMsgQueue = new TableCommandMessageQueue(this);
-            TblReactions = new TableReactions(this);
+            TblMainIndex = new TableMainIndex(this, _cache);
+            TblAclIndex = new TableAclIndex(this, _cache);
+            TblTagIndex = new TableTagIndex(this, _cache);
+            TblCmdMsgQueue = new TableCommandMessageQueue(this, _cache);
+            TblReactions = new TableReactions(this, _cache);
         }
 
         ~DriveDatabase()
         {
+#if DEBUG
+            if (!_wasDisposed)
+                throw new Exception("DriveDatabase was not disposed properly.");
+#else
+            if (!_wasDisposed)
+               Log.Error("DriveDatabase was not disposed properly.");
+#endif
         }
 
 

@@ -22,7 +22,7 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
         private SqliteCommand _popRecoverCommand = null;
         private SqliteParameter _pcrecoverparam1 = null;
 
-        public TableCron(ServerDatabase db) : base(db)
+        public TableCron(ServerDatabase db, CacheHelper cache) : base(db, cache)
         {
         }
 

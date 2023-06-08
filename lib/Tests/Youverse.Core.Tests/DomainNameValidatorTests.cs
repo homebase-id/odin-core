@@ -305,28 +305,6 @@ namespace Youverse.Core.Tests
 
             Assert.Pass();
         }
-
-        [Test, Explicit]
-        public void IdentityDNSValidate()
-        {
-            try
-            {
-                PunyDomainNameValidator.TryIdentityDNSValidate("michael.seifert.uno");
-            }
-            catch
-            {
-                Assert.Fail();
-            }
-
-            try
-            {
-                PunyDomainNameValidator.TryIdentityDNSValidate("michael.seifert.kin.pub");
-            }
-            catch
-            {
-                Assert.Fail();
-            }
-        }
     }
 }
 

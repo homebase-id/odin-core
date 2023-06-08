@@ -6,7 +6,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
     public class TableCircle : TableCircleCRUD
     {
-        public TableCircle(IdentityDatabase db) : base(db)
+        public TableCircle(IdentityDatabase db, CacheHelper cache) : base(db, cache)
         {
         }
 
