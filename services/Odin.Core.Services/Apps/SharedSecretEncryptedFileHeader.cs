@@ -27,7 +27,7 @@ namespace Odin.Core.Services.Apps
         {
             if (this.FileState == FileState.Deleted)
             {
-                throw new YouverseSecurityException($"File is deleted.");
+                throw new OdinSecurityException($"File is deleted.");
             }
         }
 
@@ -35,7 +35,7 @@ namespace Odin.Core.Services.Apps
         {
             if (new OdinId(this.FileMetadata.SenderOdinId) != odinId)
             {
-                throw new YouverseSecurityException(message);
+                throw new OdinSecurityException(message);
             }
         }
     }

@@ -1,6 +1,6 @@
 ﻿{
   "profiles": {
-    "Youverse.Hosting": {
+    "Odin.Hosting": {
       "commandName": "Project",
       "dotnetRunMessages": "true",
       "launchBrowser": false,

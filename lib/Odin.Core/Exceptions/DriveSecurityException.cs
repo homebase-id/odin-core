@@ -3,7 +3,7 @@ using System.Runtime.Serialization;
 
 namespace Odin.Core.Exceptions;
 
-public class DriveSecurityException : YouverseSecurityException
+public class DriveSecurityException : OdinSecurityException
 {
     public DriveSecurityException()
     {

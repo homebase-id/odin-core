@@ -190,11 +190,11 @@ namespace Odin.Hosting.Tests
         }
 
 
-        public YouverseClientErrorCode GetErrorCode(ApiException apiException)
+        public OdinClientErrorCode GetErrorCode(ApiException apiException)
         {
             var problemDetails = OdinSystemSerializer.Deserialize<ProblemDetails>(apiException.Content!);
             Assert.IsNotNull(problemDetails);
-            return (YouverseClientErrorCode)int.Parse(problemDetails.Extensions["errorCode"].ToString() ?? string.Empty);
+            return (OdinClientErrorCode)int.Parse(problemDetails.Extensions["errorCode"].ToString() ?? string.Empty);
         }
 
         private void CreateData()

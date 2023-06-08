@@ -17,7 +17,7 @@ namespace Odin.Core.Services.Authentication.Owner
         /// Authenticates the owner based on the <see cref="IPasswordReply"/> specified.
         /// </summary>
         /// <param name="reply"></param>
-        /// <exception cref="YouverseSecurityException">Thrown when a user cannot be authenticated</exception>
+        /// <exception cref="OdinSecurityException">Thrown when a user cannot be authenticated</exception>
         /// <returns></returns>
         Task<(ClientAuthenticationToken, SensitiveByteArray)> Authenticate(IPasswordReply reply);
 

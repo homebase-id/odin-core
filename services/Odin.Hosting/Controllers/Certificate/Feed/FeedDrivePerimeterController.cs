@@ -19,7 +19,7 @@ namespace Odin.Hosting.Controllers.Certificate.Feed
     /// </summary>
     [ApiController]
     [Route("/api/perimeter/transit/host/feed")]
-    [Authorize(Policy = CertificatePerimeterPolicies.IsInYouverseNetwork, AuthenticationSchemes = PerimeterAuthConstants.FeedAuthScheme)]
+    [Authorize(Policy = CertificatePerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PerimeterAuthConstants.FeedAuthScheme)]
     public class FeedDrivePerimeterController : OdinControllerBase
     {
         private readonly OdinContextAccessor _contextAccessor;

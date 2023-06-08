@@ -186,7 +186,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
                 Assert.IsTrue(int.TryParse(OdinSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
                     "Could not parse problem result");
-                Assert.IsTrue(code == (int)YouverseClientErrorCode.CannotUploadEncryptedFileForAnonymous);
+                Assert.IsTrue(code == (int)OdinClientErrorCode.CannotUploadEncryptedFileForAnonymous);
             }
         }
 
@@ -448,7 +448,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
                 Assert.IsTrue(int.TryParse(OdinSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
                     "Could not parse problem result");
-                Assert.IsTrue(code == (int)YouverseClientErrorCode.CannotOverwriteNonExistentFile);
+                Assert.IsTrue(code == (int)OdinClientErrorCode.CannotOverwriteNonExistentFile);
 
                 keyHeader.AesKey.Wipe();
             }
@@ -603,7 +603,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
                 Assert.IsTrue(int.TryParse(OdinSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
                     "Could not parse problem result");
-                Assert.IsTrue(code == (int)YouverseClientErrorCode.ExistingFileWithUniqueId);
+                Assert.IsTrue(code == (int)OdinClientErrorCode.ExistingFileWithUniqueId);
             }
         }
 
@@ -713,7 +713,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem
                 Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
                 Assert.IsTrue(int.TryParse(OdinSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
                     "Could not parse problem result");
-                Assert.IsTrue(code == (int)YouverseClientErrorCode.ExistingFileWithUniqueId);
+                Assert.IsTrue(code == (int)OdinClientErrorCode.ExistingFileWithUniqueId);
             }
         }
 

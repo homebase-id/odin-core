@@ -3,7 +3,7 @@ using Odin.Core.Exceptions;
 
 namespace Odin.Core.Services.Registry
 {
-    public class InvalidTenantClientException : YouverseClientException
+    public class InvalidTenantClientException : OdinClientException
     {
         public InvalidTenantClientException(string message) : base(message)
         {

@@ -35,7 +35,7 @@ namespace Odin.Core.Services.Authorization.Apps
         private readonly IMediator _mediator;
 
         public AppRegistrationService(OdinContextAccessor contextAccessor, ILogger<IAppRegistrationService> logger, TenantSystemStorage tenantSystemStorage,
-            ExchangeGrantService exchangeGrantService, YouverseConfiguration config, TenantContext tenantContext, IMediator mediator)
+            ExchangeGrantService exchangeGrantService, OdinConfiguration config, TenantContext tenantContext, IMediator mediator)
         {
             _contextAccessor = contextAccessor;
             _tenantSystemStorage = tenantSystemStorage;
@@ -90,7 +90,7 @@ namespace Odin.Core.Services.Authorization.Apps
             var appReg = await this.GetAppRegistrationInternal(request.AppId);
             if (null == appReg)
             {
-                throw new YouverseClientException("Invalid AppId", YouverseClientErrorCode.AppNotRegistered);
+                throw new OdinClientException("Invalid AppId", OdinClientErrorCode.AppNotRegistered);
             }
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
@@ -110,7 +110,7 @@ namespace Odin.Core.Services.Authorization.Apps
             var oldRegistration = await this.GetAppRegistrationInternal(request.AppId);
             if (null == oldRegistration)
             {
-                throw new YouverseClientException("Invalid AppId", YouverseClientErrorCode.AppNotRegistered);
+                throw new OdinClientException("Invalid AppId", OdinClientErrorCode.AppNotRegistered);
             }
 
             var updatedAppReg = new AppRegistration()
@@ -166,7 +166,7 @@ namespace Odin.Core.Services.Authorization.Apps
 
                 if (!isValid)
                 {
-                    throw new YouverseSecurityException("Invalid token");
+                    throw new OdinSecurityException("Invalid token");
                 }
 
                 if (!string.IsNullOrEmpty(appReg.CorsHostName))
@@ -278,7 +278,7 @@ namespace Odin.Core.Services.Authorization.Apps
 
             if (null == client)
             {
-                throw new YouverseClientException("Invalid access reg id", YouverseClientErrorCode.InvalidAccessRegistrationId);
+                throw new OdinClientException("Invalid access reg id", OdinClientErrorCode.InvalidAccessRegistrationId);
             }
 
             client.AccessRegistration.IsRevoked = true;
@@ -299,14 +299,14 @@ namespace Odin.Core.Services.Authorization.Apps
 
             if (!validAccess)
             {
-                throw new YouverseSecurityException("Invalid call to Delete app client");
+                throw new OdinSecurityException("Invalid call to Delete app client");
             }
 
             var client = _appClientValueStorage.Get<AppClient>(accessRegistrationId);
 
             if (null == client)
             {
-                throw new YouverseClientException("Invalid access reg id", YouverseClientErrorCode.InvalidAccessRegistrationId);
+                throw new OdinClientException("Invalid access reg id", OdinClientErrorCode.InvalidAccessRegistrationId);
             }
 
             _appClientValueStorage.Delete(accessRegistrationId);
@@ -321,7 +321,7 @@ namespace Odin.Core.Services.Authorization.Apps
 
             if (null == client)
             {
-                throw new YouverseClientException("Invalid access reg id", YouverseClientErrorCode.InvalidAccessRegistrationId);
+                throw new OdinClientException("Invalid access reg id", OdinClientErrorCode.InvalidAccessRegistrationId);
             }
 
             _appClientValueStorage.Delete(accessRegistrationId);
@@ -336,7 +336,7 @@ namespace Odin.Core.Services.Authorization.Apps
 
             if (null == client)
             {
-                throw new YouverseClientException("Invalid access reg id", YouverseClientErrorCode.InvalidAccessRegistrationId);
+                throw new OdinClientException("Invalid access reg id", OdinClientErrorCode.InvalidAccessRegistrationId);
             }
 
             client.AccessRegistration.IsRevoked = false;
@@ -352,7 +352,7 @@ namespace Odin.Core.Services.Authorization.Apps
 
             if (null == app)
             {
-                throw new YouverseClientException("Invalid App Id", YouverseClientErrorCode.AppNotRegistered);
+                throw new OdinClientException("Invalid App Id", OdinClientErrorCode.AppNotRegistered);
             }
 
             _appRegistrationValueStorage.Delete(appId);
@@ -406,7 +406,7 @@ namespace Odin.Core.Services.Authorization.Apps
             var appReg = await this.GetAppRegistrationInternal(appId);
             if (appReg == null)
             {
-                throw new YouverseClientException("App must be registered to add a client", YouverseClientErrorCode.AppNotRegistered);
+                throw new OdinClientException("App must be registered to add a client", OdinClientErrorCode.AppNotRegistered);
             }
 
             var (accessRegistration, cat) =

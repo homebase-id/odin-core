@@ -46,11 +46,11 @@ namespace Odin.Core.Services.Authentication.Owner
             bool canSet = reply.FirstRunToken == _tenantContext.FirstRunToken || _tenantContext.IsPreconfigured;
             if (!canSet)
             {
-                throw new YouverseSystemException("Invalid first run token; cannot set password");
+                throw new OdinSystemException("Invalid first run token; cannot set password");
             }
             if (await IsMasterPasswordSet())
             {
-                throw new YouverseSecurityException("Password already set");
+                throw new OdinSecurityException("Password already set");
             }
 
             Guid originalNoncePackageKey = new Guid(Convert.FromBase64String(reply.Nonce64));
@@ -76,7 +76,7 @@ namespace Odin.Core.Services.Authentication.Owner
             var pk = _tenantSystemStorage.SingleKeyValueStorage.Get<PasswordData>(_passwordKey);
             if (null == pk)
             {
-                throw new YouverseClientException("Secrets configuration invalid. Did you initialize a password?");
+                throw new OdinClientException("Secrets configuration invalid. Did you initialize a password?");
             }
 
             //TODO: do we want to keep the extra layer of having a client and
@@ -110,7 +110,7 @@ namespace Odin.Core.Services.Authentication.Owner
 
             if (null == pk)
             {
-                throw new YouverseClientException("Secrets configuration invalid. Did you initialize a password?");
+                throw new OdinClientException("Secrets configuration invalid. Did you initialize a password?");
             }
 
             return await Task.FromResult(new SaltsPackage()

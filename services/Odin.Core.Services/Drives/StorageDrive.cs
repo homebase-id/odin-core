@@ -137,7 +137,7 @@ namespace Odin.Core.Services.Drives
             var decryptedDriveId = AesCbc.Decrypt(this.EncryptedIdValue, ref storageKey, this.EncryptedIdIv);
             if (!ByteArrayUtil.EquiByteArrayCompare(decryptedDriveId, this.Id.ToByteArray()))
             {
-                throw new YouverseSecurityException("Invalid key storage attempted to encrypt data");
+                throw new OdinSecurityException("Invalid key storage attempted to encrypt data");
             }
         }
     }

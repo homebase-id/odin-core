@@ -11,7 +11,7 @@ namespace Odin.Core.Services.Authorization.Acl
 
         Task<bool> CallerIsConnected();
 
-        Task<bool> CallerIsInYouverseNetwork();
+        Task<bool> CallerIsInOdinNetwork();
 
         Task<bool> CallerIsInList(List<string> odinIdList);
 

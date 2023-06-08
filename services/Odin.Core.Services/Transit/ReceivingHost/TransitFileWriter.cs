@@ -49,7 +49,7 @@ namespace Odin.Core.Services.Transit.ReceivingHost
 
             if (null == metadata)
             {
-                throw new YouverseClientException("Metadata could not be serialized", YouverseClientErrorCode.MalformedMetadata);
+                throw new OdinClientException("Metadata could not be serialized", OdinClientErrorCode.MalformedMetadata);
             }
 
             // Files coming from other systems are only accessible to the owner so
@@ -67,7 +67,7 @@ namespace Odin.Core.Services.Transit.ReceivingHost
                 if (null == referencedFs)
                 {
                     //TODO file does not exist or some other issue - need clarity on what is happening here
-                    throw new YouverseRemoteIdentityException("Referenced file missing or caller does not have access");
+                    throw new OdinRemoteIdentityException("Referenced file missing or caller does not have access");
                 }
 
                 //
@@ -81,14 +81,14 @@ namespace Odin.Core.Services.Transit.ReceivingHost
                 if (null == referencedFile)
                 {
                     //TODO file does not exist or some other issue - need clarity on what is happening here
-                    throw new YouverseRemoteIdentityException("Referenced file missing or caller does not have access");
+                    throw new OdinRemoteIdentityException("Referenced file missing or caller does not have access");
                 }
 
 
                 //S2040
                 if (referencedFile.FileMetadata.PayloadIsEncrypted != metadata.PayloadIsEncrypted)
                 {
-                    throw new YouverseRemoteIdentityException("Referenced filed and metadata payload encryption do not match");
+                    throw new OdinRemoteIdentityException("Referenced filed and metadata payload encryption do not match");
                 }
 
                 targetAcl = referencedFile.ServerMetadata.AccessControlList;
@@ -114,7 +114,7 @@ namespace Odin.Core.Services.Transit.ReceivingHost
                     break;
 
                 default:
-                    throw new YouverseClientException("Invalid TransferFileType", YouverseClientErrorCode.InvalidTransferFileType);
+                    throw new OdinClientException("Invalid TransferFileType", OdinClientErrorCode.InvalidTransferFileType);
             }
         }
 
@@ -274,7 +274,7 @@ namespace Odin.Core.Services.Transit.ReceivingHost
                 return;
             }
 
-            throw new YouverseSystemException("Transit Receiver has unhandled file update scenario");
+            throw new OdinSystemException("Transit Receiver has unhandled file update scenario");
         }
 
         private async Task<SharedSecretEncryptedFileHeader> GetFileByGlobalTransitId(IDriveFileSystem fs, Guid driveId, Guid globalTransitId)

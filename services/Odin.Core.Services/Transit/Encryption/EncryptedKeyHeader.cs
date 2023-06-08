@@ -27,7 +27,7 @@ namespace Odin.Core.Services.Transit.Encryption
                 return kh;
             }
 
-            throw new YouverseSecurityException("Unsupported encryption version");
+            throw new OdinSecurityException("Unsupported encryption version");
         }
 
         public static EncryptedKeyHeader EncryptKeyHeaderAes(KeyHeader keyHeader, byte[] iv, ref SensitiveByteArray key)

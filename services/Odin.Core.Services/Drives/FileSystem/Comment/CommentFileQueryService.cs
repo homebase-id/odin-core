@@ -44,7 +44,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Comment
 
                 if (!hasPermissions)
                 {
-                    throw new YouverseSecurityException($"Unauthorized to read or write drive [{driveId}]");
+                    throw new OdinSecurityException($"Unauthorized to read or write drive [{driveId}]");
                 }
             }
         }

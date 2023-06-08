@@ -3,7 +3,7 @@ using Odin.Core.Exceptions;
 
 namespace Odin.Core.Services.Drives.DriveCore.Query
 {
-    internal class NoValidIndexClientException : YouverseSystemException
+    internal class NoValidIndexClientException : OdinSystemException
     {
         public NoValidIndexClientException(Guid driveId): base($"No valid index for drive {driveId}")
         {

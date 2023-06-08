@@ -34,7 +34,7 @@ public class TransitReactionPerimeterService : TransitServiceBase
         var fileId = await ResolveInternalFile(request.File);
         if (null == fileId)
         {
-            throw new YouverseRemoteIdentityException("Invalid global transit id");
+            throw new OdinRemoteIdentityException("Invalid global transit id");
         }
 
         _reactionContentService.AddReaction(fileId.Value, request.Reaction);
@@ -47,7 +47,7 @@ public class TransitReactionPerimeterService : TransitServiceBase
         var fileId = await ResolveInternalFile(request.File);
         if (null == fileId)
         {
-            throw new YouverseRemoteIdentityException("Invalid global transit id");
+            throw new OdinRemoteIdentityException("Invalid global transit id");
         }
 
         _reactionContentService.DeleteReaction(fileId.Value, request.Reaction);
@@ -60,7 +60,7 @@ public class TransitReactionPerimeterService : TransitServiceBase
         var fileId = await ResolveInternalFile(request.File);
         if (null == fileId)
         {
-            throw new YouverseRemoteIdentityException("Invalid global transit id");
+            throw new OdinRemoteIdentityException("Invalid global transit id");
         }
 
         return _reactionContentService.GetReactionCountsByFile(fileId.Value);
@@ -73,7 +73,7 @@ public class TransitReactionPerimeterService : TransitServiceBase
         var fileId = await ResolveInternalFile(request.File);
         if (null == fileId)
         {
-            throw new YouverseRemoteIdentityException("Invalid global transit id");
+            throw new OdinRemoteIdentityException("Invalid global transit id");
         }
 
         return _reactionContentService.GetReactionsByIdentityAndFile(request.Identity, fileId.Value);
@@ -86,7 +86,7 @@ public class TransitReactionPerimeterService : TransitServiceBase
         var fileId = await ResolveInternalFile(request.File);
         if (null == fileId)
         {
-            throw new YouverseRemoteIdentityException("Invalid global transit id");
+            throw new OdinRemoteIdentityException("Invalid global transit id");
         }
 
         _reactionContentService.DeleteAllReactions(fileId.Value);
@@ -99,7 +99,7 @@ public class TransitReactionPerimeterService : TransitServiceBase
         var fileId = await ResolveInternalFile(request.File);
         if (null == fileId)
         {
-            throw new YouverseRemoteIdentityException("Invalid global transit id");
+            throw new OdinRemoteIdentityException("Invalid global transit id");
         }
 
         var list = _reactionContentService.GetReactions(fileId.Value, request.Cursor, request.MaxRecords);

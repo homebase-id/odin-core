@@ -23,7 +23,7 @@ public class UnixTimeUtcRange
     {
         if (!IsValid())
         {
-            //TODO: change to youverse data exception
+            //TODO: change to Odin data exception
             throw new System.IO.InvalidDataException("Start date must be less than end date");
         }
     }

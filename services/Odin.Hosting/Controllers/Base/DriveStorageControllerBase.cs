@@ -104,7 +104,7 @@ namespace Odin.Hosting.Controllers.Base
             if (header == null)
             {
                 //TODO: need to throw a better exception when we have a thumbnail but no header
-                throw new YouverseClientException("Missing header", YouverseClientErrorCode.UnknownId);
+                throw new OdinClientException("Missing header", OdinClientErrorCode.UnknownId);
             }
 
             HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted,
@@ -191,7 +191,7 @@ namespace Odin.Hosting.Controllers.Base
                                 break;
 
                             default:
-                                throw new YouverseSystemException($"Unknown TransitResponseCode {value}");
+                                throw new OdinSystemException($"Unknown TransitResponseCode {value}");
                         }
                     }
                 }

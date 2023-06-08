@@ -22,7 +22,7 @@ namespace Odin.Hosting.Controllers.Base
         {
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
-                throw new YouverseClientException("Data is not multi-part content", YouverseClientErrorCode.MissingUploadData);
+                throw new OdinClientException("Data is not multi-part content", OdinClientErrorCode.MissingUploadData);
             }
 
             var boundary = GetBoundary(HttpContext.Request.ContentType);
@@ -45,7 +45,7 @@ namespace Odin.Hosting.Controllers.Base
             bool requirePayloadSection = driveUploadService.Package.InstructionSet.StorageOptions.StorageIntent == StorageIntent.NewFileOrOverwrite;
             if (section == null && requirePayloadSection)
             {
-                throw new YouverseClientException("Missing Payload section", YouverseClientErrorCode.InvalidPayload);
+                throw new OdinClientException("Missing Payload section", OdinClientErrorCode.InvalidPayload);
             }
 
             if(null != section)
@@ -74,7 +74,7 @@ namespace Odin.Hosting.Controllers.Base
         {
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
-                throw new YouverseClientException("Data is not multi-part content", YouverseClientErrorCode.MissingUploadData);
+                throw new OdinClientException("Data is not multi-part content", OdinClientErrorCode.MissingUploadData);
             }
 
             var boundary = GetBoundary(HttpContext.Request.ContentType);
@@ -111,7 +111,7 @@ namespace Odin.Hosting.Controllers.Base
         {
             if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)
             {
-                throw new YouverseClientException($"Part must be {Enum.GetName(expectedPart)}", YouverseClientErrorCode.MissingUploadData);
+                throw new OdinClientException($"Part must be {Enum.GetName(expectedPart)}", OdinClientErrorCode.MissingUploadData);
             }
         }
 
@@ -120,21 +120,21 @@ namespace Odin.Hosting.Controllers.Base
         {
             if (!Enum.TryParse<MultipartUploadParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)
             {
-                throw new YouverseClientException($"Thumbnails have name of {Enum.GetName(expectedPart)}", YouverseClientErrorCode.InvalidThumnbnailName);
+                throw new OdinClientException($"Thumbnails have name of {Enum.GetName(expectedPart)}", OdinClientErrorCode.InvalidThumnbnailName);
             }
 
             fileSection = section.AsFileSection();
             if (null == fileSection)
             {
-                throw new YouverseClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')",
-                    YouverseClientErrorCode.InvalidThumnbnailName);
+                throw new OdinClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')",
+                    OdinClientErrorCode.InvalidThumnbnailName);
             }
 
             string[] parts = fileSection.FileName.Split('x');
             if (!Int32.TryParse(parts[0], out width) || !Int32.TryParse(parts[1], out height))
             {
-                throw new YouverseClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')",
-                    YouverseClientErrorCode.InvalidThumnbnailName);
+                throw new OdinClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')",
+                    OdinClientErrorCode.InvalidThumnbnailName);
             }
         }
 

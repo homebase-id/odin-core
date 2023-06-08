@@ -17,7 +17,7 @@ public class IdentitiesIFollowAuthenticationService
     private readonly TenantContext _tenantContext;
     private readonly FollowerService _followerService;
 
-    public IdentitiesIFollowAuthenticationService(YouverseConfiguration config, FollowerService followerService, TenantContext tenantContext)
+    public IdentitiesIFollowAuthenticationService(OdinConfiguration config, FollowerService followerService, TenantContext tenantContext)
     {
         _followerService = followerService;
         _tenantContext = tenantContext;

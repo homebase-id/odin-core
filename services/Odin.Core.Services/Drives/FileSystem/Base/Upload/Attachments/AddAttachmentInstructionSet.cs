@@ -30,7 +30,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments
         {
             if (!TargetFile.HasValue())
             {
-                throw new YouverseClientException("OverwriteFile is invalid", YouverseClientErrorCode.InvalidFile);
+                throw new OdinClientException("OverwriteFile is invalid", OdinClientErrorCode.InvalidFile);
             }
         }
     }

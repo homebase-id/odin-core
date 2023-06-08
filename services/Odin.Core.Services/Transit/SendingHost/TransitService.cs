@@ -33,7 +33,7 @@ namespace Odin.Core.Services.Transit.SendingHost
         private readonly OdinContextAccessor _contextAccessor;
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
         private readonly TenantContext _tenantContext;
-        private readonly YouverseConfiguration _youverseConfiguration;
+        private readonly OdinConfiguration _odinConfiguration;
 
         public TransitService(
             OdinContextAccessor contextAccessor,
@@ -44,7 +44,7 @@ namespace Odin.Core.Services.Transit.SendingHost
             ICircleNetworkService circleNetworkService,
             FollowerService followerService,
             DriveManager driveManager,
-            FileSystemResolver fileSystemResolver, YouverseConfiguration youverseConfiguration) : base(odinHttpClientFactory, circleNetworkService,
+            FileSystemResolver fileSystemResolver, OdinConfiguration odinConfiguration) : base(odinHttpClientFactory, circleNetworkService,
             contextAccessor, followerService, fileSystemResolver)
         {
             _contextAccessor = contextAccessor;
@@ -53,7 +53,7 @@ namespace Odin.Core.Services.Transit.SendingHost
             _tenantContext = tenantContext;
             _driveManager = driveManager;
             _fileSystemResolver = fileSystemResolver;
-            _youverseConfiguration = youverseConfiguration;
+            _odinConfiguration = odinConfiguration;
 
             _transferKeyEncryptionQueueService = new TransferKeyEncryptionQueueService(tenantSystemStorage);
         }
@@ -125,7 +125,7 @@ namespace Odin.Core.Services.Transit.SendingHost
 
         public async Task ProcessOutbox()
         {
-            var batchSize = _youverseConfiguration.Transit.OutboxBatchSize;
+            var batchSize = _odinConfiguration.Transit.OutboxBatchSize;
 
             //Note: here we can prioritize outbox processing by drive if need be
             var page = await _driveManager.GetDrives(PageOptions.All);
@@ -382,7 +382,7 @@ namespace Odin.Core.Services.Transit.SendingHost
 
             if (options.Recipients?.Contains(_tenantContext.HostOdinId) ?? false)
             {
-                throw new YouverseClientException("Cannot transfer a file to the sender; what's the point?", YouverseClientErrorCode.InvalidRecipient);
+                throw new OdinClientException("Cannot transfer a file to the sender; what's the point?", OdinClientErrorCode.InvalidRecipient);
             }
 
 
@@ -468,7 +468,7 @@ namespace Odin.Core.Services.Transit.SendingHost
                             transferStatus[result.Recipient.DomainName] = TransferStatus.DeliveredToTargetDrive;
                             break;
                         default:
-                            throw new YouverseSystemException("Unhandled success scenario in transit");
+                            throw new OdinSystemException("Unhandled success scenario in transit");
                     }
                 }
                 else

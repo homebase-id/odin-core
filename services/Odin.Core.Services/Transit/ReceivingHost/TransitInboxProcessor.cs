@@ -63,7 +63,7 @@ namespace Odin.Core.Services.Transit.ReceivingHost
                             if (!isValidPublicKey)
                             {
                                 //TODO: handle when isValidPublicKey = false
-                                throw new YouverseSecurityException("Public key was invalid");
+                                throw new OdinSecurityException("Public key was invalid");
                             }
 
                             var decryptedKeyHeader = KeyHeader.FromCombinedBytes(decryptedAesKeyHeaderBytes);
@@ -77,16 +77,16 @@ namespace Odin.Core.Services.Transit.ReceivingHost
                         }
                         else if (inboxItem.InstructionType == TransferInstructionType.None)
                         {
-                            throw new YouverseClientException("Transfer type not specified", YouverseClientErrorCode.TransferTypeNotSpecified);
+                            throw new OdinClientException("Transfer type not specified", OdinClientErrorCode.TransferTypeNotSpecified);
                         }
                         else
                         {
-                            throw new YouverseClientException("Invalid transfer type", YouverseClientErrorCode.InvalidTransferType);
+                            throw new OdinClientException("Invalid transfer type", OdinClientErrorCode.InvalidTransferType);
                         }
 
                         await _transitInboxBoxStorage.MarkComplete(inboxItem.DriveId, inboxItem.Marker);
                     }
-                    catch (YouverseRemoteIdentityException)
+                    catch (OdinRemoteIdentityException)
                     {
                         await _transitInboxBoxStorage.MarkFailure(inboxItem.DriveId, inboxItem.Marker);
                         throw;

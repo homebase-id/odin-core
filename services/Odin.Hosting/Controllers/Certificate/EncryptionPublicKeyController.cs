@@ -11,7 +11,7 @@ namespace Odin.Hosting.Controllers.Certificate
     /// </summary>
     [ApiController]
     [Route("/api/perimeter/transit/encryption")]
-    [Authorize(Policy = CertificatePerimeterPolicies.IsInYouverseNetwork, AuthenticationSchemes = PerimeterAuthConstants.PublicTransitAuthScheme)]
+    [Authorize(Policy = CertificatePerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PerimeterAuthConstants.PublicTransitAuthScheme)]
     public class EncryptionPublicKeyController : ControllerBase
     {
         private readonly IPublicKeyService _publicKeyService;

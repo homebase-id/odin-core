@@ -32,7 +32,7 @@ namespace Odin.Hosting.Controllers.Certificate
     /// </summary>
     [ApiController]
     [Route("/api/perimeter/transit/host")]
-    [Authorize(Policy = CertificatePerimeterPolicies.IsInYouverseNetwork, AuthenticationSchemes = PerimeterAuthConstants.TransitCertificateAuthScheme)]
+    [Authorize(Policy = CertificatePerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PerimeterAuthConstants.TransitCertificateAuthScheme)]
     public class TransitPerimeterController : ControllerBase
     {
         private readonly OdinContextAccessor _contextAccessor;
@@ -121,7 +121,7 @@ namespace Odin.Hosting.Controllers.Certificate
 
                 return result;
             }
-            catch (YouverseSecurityException)
+            catch (OdinSecurityException)
             {
                 //TODO: break down the actual errors so we can send to the
                 //caller information about why it was rejected w/o giving away
@@ -212,21 +212,21 @@ namespace Odin.Hosting.Controllers.Certificate
         {
             if (!Enum.TryParse<MultipartHostTransferParts>(GetSectionName(section!.ContentDisposition), true, out var part) || part != expectedPart)
             {
-                throw new YouverseClientException($"Thumbnails must have name of {Enum.GetName(expectedPart)}", YouverseClientErrorCode.InvalidThumnbnailName);
+                throw new OdinClientException($"Thumbnails must have name of {Enum.GetName(expectedPart)}", OdinClientErrorCode.InvalidThumnbnailName);
             }
 
             fileSection = section.AsFileSection();
             if (null == fileSection)
             {
-                throw new YouverseClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')",
-                    YouverseClientErrorCode.InvalidThumnbnailName);
+                throw new OdinClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')",
+                    OdinClientErrorCode.InvalidThumnbnailName);
             }
 
             string[] parts = fileSection.FileName.Split('x');
             if (!Int32.TryParse(parts[0], out width) || !Int32.TryParse(parts[1], out height))
             {
-                throw new YouverseClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')",
-                    YouverseClientErrorCode.InvalidThumnbnailName);
+                throw new OdinClientException("Thumbnails must include a filename formatted as 'WidthXHeight' (i.e. '400x200')",
+                    OdinClientErrorCode.InvalidThumnbnailName);
             }
         }
 
@@ -280,7 +280,7 @@ namespace Odin.Hosting.Controllers.Certificate
                 return ctx!.RequestServices.GetRequiredService<CommentFileSystem>();
             }
 
-            throw new YouverseClientException("Invalid file system type or could not parse instruction set", YouverseClientErrorCode.InvalidFileSystemType);
+            throw new OdinClientException("Invalid file system type or could not parse instruction set", OdinClientErrorCode.InvalidFileSystemType);
         }
     }
 }

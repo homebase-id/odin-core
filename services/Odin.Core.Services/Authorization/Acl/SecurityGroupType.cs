@@ -8,7 +8,7 @@ namespace Odin.Core.Services.Authorization.Acl
         /// </summary>
         Anonymous = 111,
 
-        // TODO: Requests where the caller is not on the youverse network yet holds an x-token for accessing data
+        // TODO: Requests where the caller is not on the odin network yet holds an x-token for accessing data
         //YouAuthExchange = 333,
 
         /// <summary>

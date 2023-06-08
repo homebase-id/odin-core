@@ -142,8 +142,8 @@ namespace Odin.Hosting.Authentication.ClientToken
 
             if (!anonymousDrives.Results.Any())
             {
-                throw new YouverseClientException("No anonymous drives configured.  There should be at least one; be sure you accessed /owner to initialize them.",
-                    YouverseClientErrorCode.NotInitialized);
+                throw new OdinClientException("No anonymous drives configured.  There should be at least one; be sure you accessed /owner to initialize them.",
+                    OdinClientErrorCode.NotInitialized);
             }
 
             var anonDriveGrants = anonymousDrives.Results.Select(d => new DriveGrant()

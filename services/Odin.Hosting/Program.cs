@@ -62,14 +62,14 @@ namespace Odin.Hosting
             return 0;
         }
 
-        public static (YouverseConfiguration, IConfiguration) LoadConfig()
+        public static (OdinConfiguration, IConfiguration) LoadConfig()
         {
             const string envVar = "DOTYOU_ENVIRONMENT";
             var env = Environment.GetEnvironmentVariable(envVar) ?? "";
 
             if (string.IsNullOrEmpty(env))
             {
-                throw new YouverseSystemException($"You must set an environment variable named [{envVar}] which specifies your environment.\n" +
+                throw new OdinSystemException($"You must set an environment variable named [{envVar}] which specifies your environment.\n" +
                                                   $"This must match your app settings file as follows 'appsettings.ENV.json'");
             }
 
@@ -86,26 +86,26 @@ namespace Odin.Hosting
                 .AddEnvironmentVariables()
                 .Build();
 
-            return (new YouverseConfiguration(config), config);
+            return (new OdinConfiguration(config), config);
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args)
         {
-            var (youverseConfig, appSettingsConfig) = LoadConfig();
+            var (odinConfig, appSettingsConfig) = LoadConfig();
 
-            var loggingDirInfo = Directory.CreateDirectory(youverseConfig.Logging.LogFilePath);
+            var loggingDirInfo = Directory.CreateDirectory(odinConfig.Logging.LogFilePath);
             if (!loggingDirInfo.Exists)
             {
-                throw new YouverseClientException($"Could not create logging folder at [{youverseConfig.Logging.LogFilePath}]");
+                throw new OdinClientException($"Could not create logging folder at [{odinConfig.Logging.LogFilePath}]");
             }
 
-            var dataRootDirInfo = Directory.CreateDirectory(youverseConfig.Host.TenantDataRootPath);
+            var dataRootDirInfo = Directory.CreateDirectory(odinConfig.Host.TenantDataRootPath);
             if (!dataRootDirInfo.Exists)
             {
-                throw new YouverseClientException($"Could not create logging folder at [{youverseConfig.Logging.LogFilePath}]");
+                throw new OdinClientException($"Could not create logging folder at [{odinConfig.Logging.LogFilePath}]");
             }
 
-            Log.Information($"Root path:{youverseConfig.Host.TenantDataRootPath}");
+            Log.Information($"Root path:{odinConfig.Host.TenantDataRootPath}");
 
             var builder = Host.CreateDefaultBuilder(args)
                 .ConfigureAppConfiguration(builder => { builder.AddConfiguration(appSettingsConfig); })
@@ -118,18 +118,18 @@ namespace Odin.Hosting
                         {
                             kestrelOptions.Limits.MaxRequestBodySize = null;
 
-                            foreach (var address in youverseConfig.Host.IPAddressListenList)
+                            foreach (var address in odinConfig.Host.IPAddressListenList)
                             {
                                 var ip = address.GetIp();
                                 kestrelOptions.Listen(ip, address.HttpPort);
                                 kestrelOptions.Listen(ip, address.HttpsPort,
-                                    options => ConfigureHttpListenOptions(youverseConfig, kestrelOptions, options));
+                                    options => ConfigureHttpListenOptions(odinConfig, kestrelOptions, options));
                             }
                         })
                         .UseStartup<Startup>();
                 });
 
-            if (youverseConfig.Logging.Level == LoggingLevel.ErrorsOnly)
+            if (odinConfig.Logging.Level == LoggingLevel.ErrorsOnly)
             {
                 builder.UseSerilog((context, services, configuration) => configuration
                     .ReadFrom.Services(services)
@@ -138,7 +138,7 @@ namespace Odin.Hosting
                 return builder;
             }
 
-            if (youverseConfig.Logging.Level == LoggingLevel.Verbose)
+            if (odinConfig.Logging.Level == LoggingLevel.Verbose)
             {
                 builder.UseSerilog((context, services, configuration) => configuration
                     .ReadFrom.Services(services)
@@ -156,7 +156,7 @@ namespace Odin.Hosting
                     // .WriteTo.Debug() // SEB:TODO only do this in debug builds
                     .WriteTo.Async(sink => sink.Console(outputTemplate: LogOutputTemplate, theme: LogOutputTheme))
                     .WriteTo.Async(sink =>
-                        sink.RollingFile(Path.Combine(youverseConfig.Logging.LogFilePath, "app-{Date}.log"), outputTemplate: LogOutputTemplate)));
+                        sink.RollingFile(Path.Combine(odinConfig.Logging.LogFilePath, "app-{Date}.log"), outputTemplate: LogOutputTemplate)));
 
                 return builder;
             }
@@ -167,7 +167,7 @@ namespace Odin.Hosting
         //
 
         private static void ConfigureHttpListenOptions(
-            YouverseConfiguration youverseConfig,
+            OdinConfiguration odinConfig,
             KestrelServerOptions kestrelOptions,
             ListenOptions listenOptions)
         {
@@ -181,7 +181,7 @@ namespace Odin.Hosting
                 var hostName = clientHelloInfo.ServerName.ToLower();
 
                 var serviceProvider = kestrelOptions.ApplicationServices;
-                var cert = await ServerCertificateSelector(hostName, youverseConfig, serviceProvider);
+                var cert = await ServerCertificateSelector(hostName, odinConfig, serviceProvider);
 
                 if (cert == null)
                 {
@@ -211,7 +211,7 @@ namespace Odin.Hosting
 
         private static async Task<X509Certificate2> ServerCertificateSelector(
             string hostName,
-            YouverseConfiguration config,
+            OdinConfiguration config,
             IServiceProvider serviceProvider)
         {
             if (string.IsNullOrWhiteSpace(hostName))
@@ -289,7 +289,7 @@ namespace Odin.Hosting
 
         //
 
-        private static bool TryGetSystemSslRoot(string hostName, YouverseConfiguration config, out string sslRoot)
+        private static bool TryGetSystemSslRoot(string hostName, OdinConfiguration config, out string sslRoot)
         {
             // We only have provisioning system for now...
             if (hostName == config.Registry.ProvisioningDomain)

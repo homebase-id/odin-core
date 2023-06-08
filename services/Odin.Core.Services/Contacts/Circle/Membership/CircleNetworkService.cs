@@ -63,12 +63,12 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
 
             if (!icr.AccessGrant?.IsValid() ?? false)
             {
-                throw new YouverseSecurityException("Invalid token");
+                throw new OdinSecurityException("Invalid token");
             }
 
             if (!icr.IsConnected())
             {
-                throw new YouverseSecurityException("Invalid connection");
+                throw new OdinSecurityException("Invalid connection");
             }
 
             var (permissionContext, enabledCircles) = await CreatePermissionContextInternal(
@@ -89,7 +89,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
             var client = await this.GetIdentityConnectionClient(authToken);
             if (null == client)
             {
-                throw new YouverseSecurityException("Invalid token");
+                throw new OdinSecurityException("Invalid token");
             }
 
             client.AccessRegistration.AssertValidRemoteKey(authToken.AccessTokenHalfKey);
@@ -144,7 +144,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
                 return (cc, anonPermissionContext);
             }
 
-            throw new YouverseSecurityException("Invalid auth token");
+            throw new OdinSecurityException("Invalid auth token");
         }
 
         public async Task<bool> Disconnect(OdinId odinId)
@@ -232,7 +232,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
 
             if (connection?.AccessGrant?.AccessRegistration == null)
             {
-                throw new YouverseSecurityException("Unauthorized Action");
+                throw new OdinSecurityException("Unauthorized Action");
             }
 
             connection.AccessGrant.AccessRegistration.AssertValidRemoteKey(remoteClientAuthenticationToken.AccessTokenHalfKey);
@@ -246,7 +246,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
 
             if (connection?.AccessGrant.AccessRegistration == null || connection?.IsConnected() == false)
             {
-                throw new YouverseSecurityException("Unauthorized Action");
+                throw new OdinSecurityException("Unauthorized Action");
             }
 
             connection.AccessGrant.AccessRegistration.AssertValidRemoteKey(remoteIdentityConnectionKey);
@@ -300,7 +300,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
 
             if (info.Status != ConnectionStatus.None)
             {
-                throw new YouverseSecurityException("invalid connection state");
+                throw new OdinSecurityException("invalid connection state");
             }
 
             //TODO: need to scan the YouAuthService to see if this user has a YouAuthRegistration
@@ -333,13 +333,13 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
 
             if (icr == null || !icr.IsConnected())
             {
-                throw new YouverseSecurityException($"{odinId} must have valid connection to be added to a circle");
+                throw new OdinSecurityException($"{odinId} must have valid connection to be added to a circle");
             }
 
             if (icr.AccessGrant.CircleGrants.TryGetValue(circleId, out var _))
             {
                 //TODO: Here we should ensure it's in the _circleMemberStorage just in case this was called because it's out of sync
-                throw new YouverseClientException($"{odinId} is already member of circle", YouverseClientErrorCode.IdentityAlreadyMemberOfCircle);
+                throw new OdinClientException($"{odinId} is already member of circle", OdinClientErrorCode.IdentityAlreadyMemberOfCircle);
             }
 
             var circleDefinition = _circleDefinitionService.GetCircle(circleId);
@@ -380,7 +380,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
             {
                 if (!icr.AccessGrant.CircleGrants.Remove(circleId))
                 {
-                    throw new YouverseClientException($"Failed to remove {circleId} from {odinId}");
+                    throw new OdinClientException($"Failed to remove {circleId} from {odinId}");
                 }
             }
 
@@ -507,7 +507,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
 
             if (members.Any())
             {
-                throw new YouverseClientException("Cannot delete a circle with members", YouverseClientErrorCode.CannotDeleteCircleWithMembers);
+                throw new OdinClientException("Cannot delete a circle with members", OdinClientErrorCode.CannotDeleteCircleWithMembers);
             }
 
             await _circleDefinitionService.Delete(circleId);

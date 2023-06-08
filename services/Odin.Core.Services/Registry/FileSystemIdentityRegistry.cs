@@ -291,7 +291,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
         var registration = _cache.Values.SingleOrDefault(reg => reg.FirstRunToken == firstRunToken);
         if (null == registration)
         {
-            throw new YouverseClientException("Invalid first run token", YouverseClientErrorCode.UnknownId);
+            throw new OdinClientException("Invalid first run token", OdinClientErrorCode.UnknownId);
         }
 
         return registration;

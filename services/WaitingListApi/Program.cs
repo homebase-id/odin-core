@@ -59,7 +59,7 @@ namespace WaitingListApi
 
             if (string.IsNullOrEmpty(env))
             {
-                throw new YouverseSystemException($"You must set an environment variable named [{envVar}] which specifies your environment.\n" +
+                throw new OdinSystemException($"You must set an environment variable named [{envVar}] which specifies your environment.\n" +
                                                   $"This must match your app settings file as follows 'appsettings.ENV.json'");
             }
 
@@ -86,13 +86,13 @@ namespace WaitingListApi
             var loggingDirInfo = Directory.CreateDirectory(waitingListConfig.Logging.LogFilePath);
             if (!loggingDirInfo.Exists)
             {
-                throw new YouverseClientException($"Could not create logging folder at [{waitingListConfig.Logging.LogFilePath}]");
+                throw new OdinClientException($"Could not create logging folder at [{waitingListConfig.Logging.LogFilePath}]");
             }
 
             var dataRootDirInfo = Directory.CreateDirectory(waitingListConfig.Host.SystemDataRootPath);
             if (!dataRootDirInfo.Exists)
             {
-                throw new YouverseClientException($"Could not create data folder at [{waitingListConfig.Host.SystemDataRootPath}]");
+                throw new OdinClientException($"Could not create data folder at [{waitingListConfig.Host.SystemDataRootPath}]");
             }
 
             var builder = Host.CreateDefaultBuilder(args)
@@ -153,7 +153,7 @@ namespace WaitingListApi
         //
 
         private static void ConfigureHttpListenOptions(
-            WaitingListConfig youverseConfig,
+            WaitingListConfig odinConfig,
             KestrelServerOptions kestrelOptions,
             ListenOptions listenOptions)
         {
@@ -167,7 +167,7 @@ namespace WaitingListApi
                 var hostName = clientHelloInfo.ServerName.ToLower();
 
                 var serviceProvider = kestrelOptions.ApplicationServices;
-                var cert = await ServerCertificateSelector(hostName, youverseConfig, serviceProvider);
+                var cert = await ServerCertificateSelector(hostName, odinConfig, serviceProvider);
 
                 if (cert == null)
                 {

@@ -12,7 +12,7 @@ namespace Odin.Hosting.Controllers.Certificate
     /// <summary />
     [ApiController]
     [Route("api/perimeter/followers")]
-    [Authorize(Policy = CertificatePerimeterPolicies.IsInYouverseNetwork, AuthenticationSchemes = PerimeterAuthConstants.PublicTransitAuthScheme)]
+    [Authorize(Policy = CertificatePerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PerimeterAuthConstants.PublicTransitAuthScheme)]
     public class FollowPerimeterController : ControllerBase
     {
         private readonly FollowerPerimeterService _followerPerimeterService;

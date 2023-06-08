@@ -164,7 +164,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
             Assert.IsTrue(updateResultResponse.StatusCode == HttpStatusCode.BadRequest);
             var code= _scaffold.GetErrorCode(updateResultResponse.Error);
-            Assert.IsTrue(code == YouverseClientErrorCode.MalformedMetadata);
+            Assert.IsTrue(code == OdinClientErrorCode.MalformedMetadata);
         }
 
         // 

@@ -17,12 +17,12 @@ namespace Odin.Core.Services.Background.DefaultCron
     public class DefaultCronJob : IJob
     {
         private readonly ServerSystemStorage _serverSystemStorage;
-        private readonly YouverseConfiguration _config;
+        private readonly OdinConfiguration _config;
         private readonly ISystemHttpClient _systemHttpClient;
 
         public DefaultCronJob(
             ServerSystemStorage serverSystemStorage, 
-            YouverseConfiguration config, 
+            OdinConfiguration config, 
             ISystemHttpClient systemHttpClient)
         {
             _serverSystemStorage = serverSystemStorage;
@@ -35,7 +35,7 @@ namespace Odin.Core.Services.Background.DefaultCron
             int batchSize = _config.Quartz.CronBatchSize;
             if (batchSize <= 0)
             {
-                throw new YouverseSystemException("Quartz:CronBatchSize must be greater than zero");
+                throw new OdinSystemException("Quartz:CronBatchSize must be greater than zero");
             }
             
             var batch = _serverSystemStorage.tblCron.Pop(batchSize);

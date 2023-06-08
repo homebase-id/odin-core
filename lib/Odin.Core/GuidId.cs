@@ -157,7 +157,7 @@ public class GuidId
     {
         if (!IsValid(id))
         {
-            throw new YouverseClientException("Invalid id", YouverseClientErrorCode.UnknownId);
+            throw new OdinClientException("Invalid id", OdinClientErrorCode.UnknownId);
         }
     }
 

@@ -131,7 +131,7 @@ namespace Odin.Hosting.Middleware
                 return;
             }
 
-            throw new YouverseSecurityException("Cannot load context");
+            throw new OdinSecurityException("Cannot load context");
         }
 
         private async Task LoadFollowerContext(HttpContext httpContext, OdinContext odinContext)
@@ -159,7 +159,7 @@ namespace Odin.Hosting.Middleware
                 }
             }
 
-            throw new YouverseSecurityException("Cannot load context");
+            throw new OdinSecurityException("Cannot load context");
         }
 
         private async Task LoadPublicTransitContext(HttpContext httpContext, OdinContext odinContext)
@@ -177,9 +177,9 @@ namespace Odin.Hosting.Middleware
 
             if (!anonymousDrives.Results.Any())
             {
-                throw new YouverseClientException(
+                throw new OdinClientException(
                     "No anonymous drives configured.  There should be at least one; be sure you accessed /owner to initialize them.",
-                    YouverseClientErrorCode.NotInitialized);
+                    OdinClientErrorCode.NotInitialized);
             }
 
             var anonDriveGrants = anonymousDrives.Results.Select(d => new DriveGrant()

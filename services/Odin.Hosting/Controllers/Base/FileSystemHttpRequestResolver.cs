@@ -44,7 +44,7 @@ public class FileSystemHttpRequestResolver
             return ctx.RequestServices.GetRequiredService<CommentAttachmentStreamWriter>();
         }
 
-        throw new YouverseClientException("Invalid file system type or could not parse instruction set", YouverseClientErrorCode.InvalidFileSystemType);
+        throw new OdinClientException("Invalid file system type or could not parse instruction set", OdinClientErrorCode.InvalidFileSystemType);
     }
     
     /// <summary />
@@ -64,7 +64,7 @@ public class FileSystemHttpRequestResolver
             return ctx.RequestServices.GetRequiredService<CommentStreamWriter>();
         }
 
-        throw new YouverseClientException("Invalid file system type or could not parse instruction set", YouverseClientErrorCode.InvalidFileSystemType);
+        throw new OdinClientException("Invalid file system type or could not parse instruction set", OdinClientErrorCode.InvalidFileSystemType);
     }
 
     /// <summary />
@@ -84,7 +84,7 @@ public class FileSystemHttpRequestResolver
             return ctx!.RequestServices.GetRequiredService<CommentFileSystem>();
         }
 
-        throw new YouverseClientException("Invalid file system type or could not parse instruction set", YouverseClientErrorCode.InvalidFileSystemType);
+        throw new OdinClientException("Invalid file system type or could not parse instruction set", OdinClientErrorCode.InvalidFileSystemType);
     }
 
     public FileSystemType GetFileSystemType()
@@ -97,7 +97,7 @@ public class FileSystemHttpRequestResolver
         {
             if (!Enum.TryParse(typeof(FileSystemType), value, true, out var fst))
             {
-                throw new YouverseClientException("Invalid file system type specified on query string", YouverseClientErrorCode.InvalidFileSystemType);
+                throw new OdinClientException("Invalid file system type specified on query string", OdinClientErrorCode.InvalidFileSystemType);
             }
             
             return (FileSystemType)fst!;
@@ -107,7 +107,7 @@ public class FileSystemHttpRequestResolver
 
         if (!Enum.TryParse(typeof(FileSystemType), ctx!.Request.Headers[OdinHeaderNames.FileSystemTypeHeader], true, out var fileSystemType))
         {
-            throw new YouverseClientException("Invalid file system type or no header specified", YouverseClientErrorCode.InvalidFileSystemType);
+            throw new OdinClientException("Invalid file system type or no header specified", OdinClientErrorCode.InvalidFileSystemType);
         }
 
         return (FileSystemType)fileSystemType!;

@@ -31,13 +31,13 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
         {
             if (null == TransferIv || ByteArrayUtil.EquiByteArrayCompare(TransferIv, Guid.Empty.ToByteArray()))
             {
-                throw new YouverseClientException("Invalid or missing instruction set or transfer initialization vector",
-                    YouverseClientErrorCode.InvalidInstructionSet);
+                throw new OdinClientException("Invalid or missing instruction set or transfer initialization vector",
+                    OdinClientErrorCode.InvalidInstructionSet);
             }
 
             if (!StorageOptions?.Drive?.IsValid() ?? false)
             {
-                throw new YouverseClientException("Target drive is invalid", YouverseClientErrorCode.InvalidTargetDrive);
+                throw new OdinClientException("Target drive is invalid", OdinClientErrorCode.InvalidTargetDrive);
             }
 
             //Removed because this conflicts with AllowDistribution flag.
@@ -47,7 +47,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
             // {
             //     if (TransitOptions.IsTransient && TransitOptions.UseGlobalTransitId)
             //     {
-            //         throw new YouverseClientException("Cannot use GlobalTransitId on a transient file.", YouverseClientErrorCode.CannotUseGlobalTransitIdOnTransientFile);
+            //         throw new OdinClientException("Cannot use GlobalTransitId on a transient file.", OdinClientErrorCode.CannotUseGlobalTransitIdOnTransientFile);
             //     }
             // }
         }

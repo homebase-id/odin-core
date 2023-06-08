@@ -99,7 +99,7 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
         {
             if (grant.IsRevoked)
             {
-                throw new YouverseSecurityException("Cannot create Client Access Token for a revoked ExchangeGrant");
+                throw new OdinSecurityException("Cannot create Client Access Token for a revoked ExchangeGrant");
             }
 
             SensitiveByteArray? grantKeyStoreKey = null;

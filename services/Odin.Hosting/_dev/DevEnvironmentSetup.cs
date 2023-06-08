@@ -12,12 +12,12 @@ namespace Odin.Hosting._dev
 {
     public static class DevEnvironmentSetup
     {
-        public static void RegisterPreconfiguredDomains(YouverseConfiguration youverseConfiguration, IIdentityRegistry identityRegistry)
+        public static void RegisterPreconfiguredDomains(OdinConfiguration odinConfiguration, IIdentityRegistry identityRegistry)
         {
             Dictionary<Guid, string> certificates = new();
-            if (youverseConfiguration.Development?.PreconfiguredDomains.Any() ?? false)
+            if (odinConfiguration.Development?.PreconfiguredDomains.Any() ?? false)
             {
-                foreach (var domain in youverseConfiguration.Development.PreconfiguredDomains)
+                foreach (var domain in odinConfiguration.Development.PreconfiguredDomains)
                 {
                     certificates.Add(HashUtil.ReduceSHA256Hash(domain), domain);
                 }
@@ -38,7 +38,7 @@ namespace Odin.Hosting._dev
                 
                 try
                 {
-                    var (sourcePublicKeyPath, sourcePrivateKeyPath) = GetSourceDomainPath(domain, youverseConfiguration);
+                    var (sourcePublicKeyPath, sourcePrivateKeyPath) = GetSourceDomainPath(domain, odinConfiguration);
                     registrationRequest.OptionalCertificatePemContent = new CertificatePemContent()
                     {
                         Certificate = File.ReadAllText(sourcePublicKeyPath),
@@ -61,42 +61,42 @@ namespace Odin.Hosting._dev
         /// <summary>
         /// Sets up development or demo environment
         /// </summary>
-        /// <param name="youverseConfiguration"></param>
+        /// <param name="odinConfiguration"></param>
         /// <param name="registry"></param>
-        public static void ConfigureIfPresent(YouverseConfiguration youverseConfiguration, IIdentityRegistry registry)
+        public static void ConfigureIfPresent(OdinConfiguration odinConfiguration, IIdentityRegistry registry)
         {
-            if (youverseConfiguration.Development != null)
+            if (odinConfiguration.Development != null)
             {
-                ConfigureSystemSsl(youverseConfiguration);
-                RegisterPreconfiguredDomains(youverseConfiguration, registry);
+                ConfigureSystemSsl(odinConfiguration);
+                RegisterPreconfiguredDomains(odinConfiguration, registry);
             }
         }
 
-        private static void ConfigureSystemSsl(YouverseConfiguration youverseConfiguration)
+        private static void ConfigureSystemSsl(OdinConfiguration odinConfiguration)
         {
-            string targetPath = Path.Combine(youverseConfiguration.Host.SystemSslRootPath, youverseConfiguration.Registry.ProvisioningDomain);
+            string targetPath = Path.Combine(odinConfiguration.Host.SystemSslRootPath, odinConfiguration.Registry.ProvisioningDomain);
             Directory.CreateDirectory(targetPath);
 
             // Provisioning system
             try
             {
-                var sourcePaths = GetSourceDomainPath(youverseConfiguration.Registry.ProvisioningDomain, youverseConfiguration);
+                var sourcePaths = GetSourceDomainPath(odinConfiguration.Registry.ProvisioningDomain, odinConfiguration);
                 File.Copy(sourcePaths.publicKey, Path.Combine(targetPath, Path.GetFileName(sourcePaths.publicKey)), true);
                 File.Copy(sourcePaths.privateKey, Path.Combine(targetPath, Path.GetFileName(sourcePaths.privateKey)), true);
             }
             catch (Exception)
             {
                 // Swallow unless provisioning domain is running on 127.0.0.1
-                if (youverseConfiguration.Registry.ProvisioningDomain.EndsWith("dotyou.cloud"))
+                if (odinConfiguration.Registry.ProvisioningDomain.EndsWith("dotyou.cloud"))
                 {
                     throw;
                 }
             }
         }
 
-        private static (string publicKey, string privateKey) GetSourceDomainPath(string domain, YouverseConfiguration youverseConfiguration)
+        private static (string publicKey, string privateKey) GetSourceDomainPath(string domain, OdinConfiguration odinConfiguration)
         {
-            var root = Path.Combine(youverseConfiguration.Development!.SslSourcePath, domain);
+            var root = Path.Combine(odinConfiguration.Development!.SslSourcePath, domain);
             
             var sourcePublicKeyPath = Path.Combine(root, "certificate.crt");
             if (!File.Exists(sourcePublicKeyPath))

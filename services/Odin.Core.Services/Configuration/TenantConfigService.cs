@@ -104,7 +104,7 @@ public class TenantConfigService
 
         if (!Enum.TryParse(typeof(TenantConfigFlagNames), request.FlagName, true, out var flag))
         {
-            throw new YouverseClientException("Invalid flag name", YouverseClientErrorCode.InvalidFlagName);
+            throw new OdinClientException("Invalid flag name", OdinClientErrorCode.InvalidFlagName);
         }
 
         var cfg = _configStorage.Get<TenantSettings>(TenantSettings.ConfigKey) ?? new TenantSettings();
@@ -138,8 +138,8 @@ public class TenantConfigService
                 break;
 
             default:
-                throw new YouverseClientException("Flag name is valid but not handled",
-                    YouverseClientErrorCode.UnknownFlagName);
+                throw new OdinClientException("Flag name is valid but not handled",
+                    OdinClientErrorCode.UnknownFlagName);
         }
 
         _configStorage.Upsert(TenantSettings.ConfigKey, cfg);

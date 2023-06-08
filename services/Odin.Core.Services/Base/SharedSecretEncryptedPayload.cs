@@ -51,8 +51,8 @@ public class SharedSecretEncryptedPayload
     {
         if (null == ssp)
         {
-            throw new YouverseClientException("Failed to deserialize SharedSecretEncryptedRequest, result was null",
-                YouverseClientErrorCode.SharedSecretEncryptionIsInvalid);
+            throw new OdinClientException("Failed to deserialize SharedSecretEncryptedRequest, result was null",
+                OdinClientErrorCode.SharedSecretEncryptionIsInvalid);
         }
 
         var encryptedBytes = Convert.FromBase64String(ssp.Data);

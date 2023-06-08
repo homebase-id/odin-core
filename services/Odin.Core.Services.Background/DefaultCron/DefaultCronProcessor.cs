@@ -7,7 +7,7 @@ namespace Odin.Core.Services.Background.DefaultCron
 {
     public static class DefaultCronProcessor
     {
-        public static void UseDefaultCronSchedule(this IServiceCollectionQuartzConfigurator quartz, YouverseConfiguration youverseConfig)
+        public static void UseDefaultCronSchedule(this IServiceCollectionQuartzConfigurator quartz, OdinConfiguration odinConfig)
         {
             var jobKey = new JobKey(nameof(DefaultCronJob), "Cron");
             quartz.AddJob<DefaultCronJob>(options =>
@@ -24,13 +24,13 @@ namespace Odin.Core.Services.Background.DefaultCron
 
                 config.WithSimpleSchedule(schedule => schedule
                     .RepeatForever()
-                    .WithInterval(TimeSpan.FromSeconds(youverseConfig.Quartz.CronProcessingInterval))
+                    .WithInterval(TimeSpan.FromSeconds(odinConfig.Quartz.CronProcessingInterval))
                     .WithMisfireHandlingInstructionNextWithRemainingCount());
 
-                config.StartAt(DateTimeOffset.UtcNow.Add(TimeSpan.FromSeconds(youverseConfig.Quartz.BackgroundJobStartDelaySeconds)));
+                config.StartAt(DateTimeOffset.UtcNow.Add(TimeSpan.FromSeconds(odinConfig.Quartz.BackgroundJobStartDelaySeconds)));
             });
 
-            Log.Information($"Started Quartz Transit outbox Schedule with interval of {youverseConfig.Quartz.CronProcessingInterval} seconds and batchsize of {youverseConfig.Quartz.CronBatchSize}");
+            Log.Information($"Started Quartz Transit outbox Schedule with interval of {odinConfig.Quartz.CronProcessingInterval} seconds and batchsize of {odinConfig.Quartz.CronBatchSize}");
         }
     }
 }

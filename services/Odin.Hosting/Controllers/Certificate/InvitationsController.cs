@@ -19,7 +19,7 @@ namespace Odin.Hosting.Controllers.Certificate
 
     //so here i could change the transit to have two policies - one that requires an app and one that is an certificate only
     //how do you know it is the owner console tho?
-    [Authorize(Policy = CertificatePerimeterPolicies.IsInYouverseNetwork, AuthenticationSchemes = PerimeterAuthConstants.PublicTransitAuthScheme)]
+    [Authorize(Policy = CertificatePerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PerimeterAuthConstants.PublicTransitAuthScheme)]
     public class InvitationsController : ControllerBase
     {
         private readonly ICircleNetworkRequestService _circleNetworkRequestService;

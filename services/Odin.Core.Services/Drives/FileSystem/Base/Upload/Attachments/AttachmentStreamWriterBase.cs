@@ -45,7 +45,7 @@ public abstract class AttachmentStreamWriterBase
         //bail earlier to save some bandwidth
         if (!FileSystem.Storage.FileExists(file))
         {
-            throw new YouverseClientException("File does not exists for target file", YouverseClientErrorCode.CannotOverwriteNonExistentFile);
+            throw new OdinClientException("File does not exists for target file", OdinClientErrorCode.CannotOverwriteNonExistentFile);
         }
 
         this._package = new AttachmentPackage(file, instructionSet!);
@@ -115,7 +115,7 @@ public abstract class AttachmentStreamWriterBase
         // Validate the file exists by the Id
         if (!FileSystem.Storage.FileExists(_package.InternalFile))
         {
-            throw new YouverseClientException("OverwriteFileId is specified but file does not exist", YouverseClientErrorCode.CannotOverwriteNonExistentFile);
+            throw new OdinClientException("OverwriteFileId is specified but file does not exist", OdinClientErrorCode.CannotOverwriteNonExistentFile);
         }
 
         // Check header.FileMetadata.AppData.ContentIsComplete

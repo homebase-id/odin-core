@@ -47,8 +47,8 @@ namespace Odin.Core.Services.DataSubscription.Follower
 
             if (_contextAccessor.GetCurrent().Caller.OdinId == (OdinId)request.OdinId)
             {
-                throw new YouverseClientException("Cannot follow yourself; at least not in this dimension because that would be like chasing your own tail",
-                    YouverseClientErrorCode.InvalidRecipient);
+                throw new OdinClientException("Cannot follow yourself; at least not in this dimension because that would be like chasing your own tail",
+                    OdinClientErrorCode.InvalidRecipient);
             }
 
             //TODO: use the exchange grant service to create the access reg and CAT 
@@ -78,7 +78,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
                 //round 2, fail all together
                 if (response.IsSuccessStatusCode == false)
                 {
-                    throw new YouverseRemoteIdentityException("Remote Server failed to accept follow");
+                    throw new OdinRemoteIdentityException("Remote Server failed to accept follow");
                 }
             }
 
@@ -95,7 +95,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
                 {
                     if (request.Channels.Any(c => c.Type != SystemDriveConstants.ChannelDriveType))
                     {
-                        throw new YouverseClientException("Only drives of type channel can be followed", YouverseClientErrorCode.InvalidTargetDrive);
+                        throw new OdinClientException("Only drives of type channel can be followed", OdinClientErrorCode.InvalidTargetDrive);
                     }
 
                     //use the alias because we don't most likely will not have the channel on the callers identity
@@ -120,7 +120,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
 
             if (!response.IsSuccessStatusCode)
             {
-                throw new YouverseRemoteIdentityException("Failed to unfollow");
+                throw new OdinRemoteIdentityException("Failed to unfollow");
             }
 
             _tenantStorage.WhoIFollow.DeleteByIdentity(recipient);
@@ -170,7 +170,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
             
             if (targetDrive.Type != SystemDriveConstants.ChannelDriveType)
             {
-                throw new YouverseClientException("Invalid Drive Type", YouverseClientErrorCode.InvalidTargetDrive);
+                throw new OdinClientException("Invalid Drive Type", OdinClientErrorCode.InvalidTargetDrive);
             }
 
             var dbResults = _tenantStorage.Followers.GetFollowers(DefaultMax(max), targetDrive.Alias, cursor, out var nextCursor);
@@ -224,7 +224,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
             var drive = await _driveManager.GetDrive(driveAlias, true);
             if (drive.TargetDriveInfo.Type != SystemDriveConstants.ChannelDriveType)
             {
-                throw new YouverseClientException("Invalid Drive Type", YouverseClientErrorCode.InvalidTargetDrive);
+                throw new OdinClientException("Invalid Drive Type", OdinClientErrorCode.InvalidTargetDrive);
             }
 
             var dbResults = _tenantStorage.WhoIFollow.GetFollowers(DefaultMax(max), driveAlias, cursor, out var nextCursor);
@@ -246,7 +246,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
             var definition = await GetFollowerInternal(odinId);
             if (null == definition)
             {
-                throw new YouverseSecurityException($"Not following {odinId}");
+                throw new OdinSecurityException($"Not following {odinId}");
             }
 
             var permissionSet = new PermissionSet(); //no permissions
@@ -277,7 +277,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
             var definition = await GetIdentityIFollowInternal(odinId);
             if (null == definition)
             {
-                throw new YouverseSecurityException($"Not following {odinId}");
+                throw new OdinSecurityException($"Not following {odinId}");
             }
 
             var feedDrive = SystemDriveConstants.FeedDrive;
@@ -313,7 +313,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
             var definition = await this.GetIdentityIFollowInternal(odinId);
             if (null == definition)
             {
-                throw new YouverseSecurityException($"Not following {odinId}");
+                throw new OdinSecurityException($"Not following {odinId}");
             }
         }
 
@@ -341,12 +341,12 @@ namespace Odin.Core.Services.DataSubscription.Follower
 
             if (dbRecords!.Any(f => odinId != (OdinId)f.identity))
             {
-                throw new YouverseSystemException($"Follower data for [{odinId}] is corrupt");
+                throw new OdinSystemException($"Follower data for [{odinId}] is corrupt");
             }
 
             if (dbRecords.Any(r => r.driveId == Guid.Empty) && dbRecords.Count > 1)
             {
-                throw new YouverseSystemException($"Follower data for [{odinId}] is corrupt");
+                throw new OdinSystemException($"Follower data for [{odinId}] is corrupt");
             }
 
             if (dbRecords.All(r => r.driveId == Guid.Empty))
@@ -382,12 +382,12 @@ namespace Odin.Core.Services.DataSubscription.Follower
 
             if (dbRecords!.Any(f => odinId != (OdinId)f.identity))
             {
-                throw new YouverseSystemException($"Follower data for [{odinId}] is corrupt");
+                throw new OdinSystemException($"Follower data for [{odinId}] is corrupt");
             }
 
             if (dbRecords.Any(r => r.driveId == Guid.Empty) && dbRecords.Count > 1)
             {
-                throw new YouverseSystemException($"Follower data for [{odinId}] is corrupt");
+                throw new OdinSystemException($"Follower data for [{odinId}] is corrupt");
             }
 
             if (dbRecords.All(r => r.driveId == Guid.Empty))

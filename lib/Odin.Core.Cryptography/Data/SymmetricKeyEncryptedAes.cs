@@ -70,7 +70,7 @@ namespace Odin.Core.Cryptography.Data
         {
             if (!ByteArrayUtil.EquiByteArrayCompare(KeyHash, CalcKeyHash(ref secret)))
             {
-                throw new YouverseSecurityException("Key hash did not match");
+                throw new OdinSecurityException("Key hash did not match");
             }
 
             var key = new SensitiveByteArray(AesCbc.Decrypt(KeyEncrypted, ref secret, KeyIV));

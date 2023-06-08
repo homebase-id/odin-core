@@ -1,6 +1,6 @@
 namespace Odin.Core.Exceptions;
 
-public enum YouverseClientErrorCode
+public enum OdinClientErrorCode
 {
     UnhandledScenario = 1,
 

@@ -12,7 +12,7 @@ public static class ConfigurationExtensions
 
         if (!section.Exists())
         {
-            throw new YouverseSystemException($"Missing config '{path}'");
+            throw new OdinSystemException($"Missing config '{path}'");
         }
 
         return section.Get<T>();

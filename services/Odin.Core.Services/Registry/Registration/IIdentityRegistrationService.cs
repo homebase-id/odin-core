@@ -14,7 +14,7 @@ public interface IIdentityRegistrationService
     /// Returns a list of domains managed by this identity host.
     /// </summary>
     /// <returns></returns>
-    Task<List<YouverseConfiguration.RegistrySection.ManagedDomainApex>> GetManagedDomainApexes();
+    Task<List<OdinConfiguration.RegistrySection.ManagedDomainApex>> GetManagedDomainApexes();
     
     /// <summary>
     /// Returns the required <see cref="DnsConfig"/> for the domain

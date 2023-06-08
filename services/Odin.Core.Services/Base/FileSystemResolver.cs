@@ -35,8 +35,8 @@ namespace Odin.Core.Services.Base
                 return ctx!.RequestServices.GetRequiredService<CommentFileSystem>();
             }
 
-            throw new YouverseClientException("Invalid file system type or could not parse instruction set",
-                YouverseClientErrorCode.InvalidFileSystemType);
+            throw new OdinClientException("Invalid file system type or could not parse instruction set",
+                OdinClientErrorCode.InvalidFileSystemType);
         }
 
         /// <summary>

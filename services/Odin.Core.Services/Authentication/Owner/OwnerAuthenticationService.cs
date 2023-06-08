@@ -44,7 +44,7 @@ namespace Odin.Core.Services.Authentication.Owner
         private readonly TenantContext _tenantContext;
 
         public OwnerAuthenticationService(ILogger<IOwnerAuthenticationService> logger, IOwnerSecretService secretService, TenantSystemStorage tenantSystemStorage,
-            TenantContext tenantContext, YouverseConfiguration config, DriveManager driveManager)
+            TenantContext tenantContext, OdinConfiguration config, DriveManager driveManager)
         {
             _logger = logger;
             _secretService = secretService;
@@ -114,7 +114,7 @@ namespace Odin.Core.Services.Authentication.Owner
 
             if (!IsAuthTokenEntryValid(loginToken))
             {
-                throw new YouverseClientException("Token is invalid", YouverseClientErrorCode.InvalidAuthToken);
+                throw new OdinClientException("Token is invalid", OdinClientErrorCode.InvalidAuthToken);
             }
 
             var mk = await _secretService.GetMasterKey(loginToken, clientSecret);
@@ -156,7 +156,7 @@ namespace Odin.Core.Services.Authentication.Owner
                 return (masterKey, ctx);
             }
 
-            throw new YouverseSecurityException("Invalid owner token");
+            throw new OdinSecurityException("Invalid owner token");
         }
         
         public Task<OdinContext> GetDotYouContext(ClientAuthenticationToken token)
@@ -168,7 +168,7 @@ namespace Odin.Core.Services.Authentication.Owner
 
                 if (null == permissionContext || masterKey.IsEmpty())
                 {
-                    throw new YouverseSecurityException("Invalid owner token");
+                    throw new OdinSecurityException("Invalid owner token");
                 }
 
                 dotYouContext.SetPermissionContext(permissionContext);
@@ -220,7 +220,7 @@ namespace Odin.Core.Services.Authentication.Owner
         {
             if (IsAuthTokenEntryValid(entry) == false)
             {
-                throw new YouverseSecurityException();
+                throw new OdinSecurityException();
             }
         }
 

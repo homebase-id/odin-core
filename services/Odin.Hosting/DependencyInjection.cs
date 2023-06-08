@@ -220,7 +220,7 @@ namespace Odin.Hosting
             // logger.LogInformation("Initializing tenant {Tenant}", tenant.Name);
 
             var registry = scope.Resolve<IIdentityRegistry>();
-            var config = scope.Resolve<YouverseConfiguration>();
+            var config = scope.Resolve<OdinConfiguration>();
             var tenantContext = scope.Resolve<TenantContext>();
 
             var isPreconfigured = config.Development?.PreconfiguredDomains.Any(d => d.Equals(tenant.Name, StringComparison.InvariantCultureIgnoreCase)) ?? false;

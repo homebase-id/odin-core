@@ -60,7 +60,7 @@ namespace Odin.Core.Services.Authentication.YouAuth
                 return new ValueTask<ClientAccessToken>(youAuthClientAccessToken);
             }
 
-            throw new YouverseSecurityException("Unhandled case when registering YouAuth access");
+            throw new OdinSecurityException("Unhandled case when registering YouAuth access");
         }
 
         /// <summary>
@@ -127,7 +127,7 @@ namespace Odin.Core.Services.Authentication.YouAuth
                     var (cc, permissionContext) = _circleNetworkService.CreateConnectedYouAuthClientContext(authToken).GetAwaiter().GetResult();
                     return new ValueTask<(CallerContext? callerContext, PermissionContext? permissionContext)>((cc, permissionContext));
                 }
-                catch (YouverseSecurityException)
+                catch (OdinSecurityException)
                 {
                     //TODO: swallow the security exception and return null, otherwise the cache will keep trying to load data from the token 
                     return new ValueTask<(CallerContext? callerContext, PermissionContext? permissionContext)>((null, null));
@@ -143,7 +143,7 @@ namespace Odin.Core.Services.Authentication.YouAuth
 
                 if (client == null)
                 {
-                    throw new YouverseSecurityException("Client not assigned");        
+                    throw new OdinSecurityException("Client not assigned");        
                 }
 
                 var cc = new CallerContext(
@@ -157,7 +157,7 @@ namespace Odin.Core.Services.Authentication.YouAuth
                 return new ValueTask<(CallerContext? callerContext, PermissionContext? permissionContext)>((cc, permissionCtx));
             }
 
-            throw new YouverseSecurityException("Unhandled access registration type");
+            throw new OdinSecurityException("Unhandled access registration type");
         }
 
         //

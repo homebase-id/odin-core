@@ -21,13 +21,13 @@ namespace Odin.Core.Services.Background.Certificate
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<EnsureIdentityHasValidCertificateJob> _logger;
         private readonly IIdentityRegistry _registry;
-        private readonly YouverseConfiguration _config;
+        private readonly OdinConfiguration _config;
 
         public EnsureIdentityHasValidCertificateJob(
             IServiceProvider serviceProvider,
             ILogger<EnsureIdentityHasValidCertificateJob> logger,
             IIdentityRegistry registry,
-            YouverseConfiguration config)
+            OdinConfiguration config)
         {
             _serviceProvider = serviceProvider;
             _logger = logger;

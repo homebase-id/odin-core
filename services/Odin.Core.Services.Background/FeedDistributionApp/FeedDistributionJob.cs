@@ -14,10 +14,10 @@ namespace Odin.Core.Services.Background.FeedDistributionApp
     [DisallowConcurrentExecution]
     public class FeedDistributionJob
     {
-        private readonly YouverseConfiguration _config;
+        private readonly OdinConfiguration _config;
         private readonly ISystemHttpClient _systemHttpClient;
 
-        public FeedDistributionJob(YouverseConfiguration config, ISystemHttpClient systemHttpClient)
+        public FeedDistributionJob(OdinConfiguration config, ISystemHttpClient systemHttpClient)
         {
             _config = config;
             _systemHttpClient = systemHttpClient;
@@ -31,7 +31,7 @@ namespace Odin.Core.Services.Background.FeedDistributionApp
                 return await DistributeFeedFileMetadata(distroTask);
             }
             
-            throw new YouverseSystemException($"Record type {record.type} not handled");
+            throw new OdinSystemException($"Record type {record.type} not handled");
         }
 
         private async Task<bool> DistributeFeedFileMetadata(FeedDistributionInfo info)

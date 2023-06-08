@@ -3,11 +3,8 @@ using System.Runtime.Serialization;
 
 namespace Odin.Core.Exceptions
 {
-    public class MissingDataException : YouverseException
+    public class MissingDataException : OdinException
     {
-        public MissingDataException()
-        {
-        }
 
         public MissingDataException(string message) : base(message)
         {

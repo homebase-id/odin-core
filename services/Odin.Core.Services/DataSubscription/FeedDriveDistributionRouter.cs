@@ -38,7 +38,7 @@ namespace Odin.Core.Services.DataSubscription
         private readonly OdinContextAccessor _contextAccessor;
         private readonly ICircleNetworkService _circleNetworkService;
         private readonly FeedDistributorService _feedDistributorService;
-        private readonly YouverseConfiguration _youverseConfiguration;
+        private readonly OdinConfiguration _odinConfiguration;
 
         /// <summary>
         /// Routes file changes to drives which allow subscriptions to be sent in a background process
@@ -48,7 +48,7 @@ namespace Odin.Core.Services.DataSubscription
             ITransitService transitService, DriveManager driveManager, TenantContext tenantContext, ServerSystemStorage serverSystemStorage,
             FileSystemResolver fileSystemResolver, TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor,
             ICircleNetworkService circleNetworkService,
-            IOdinHttpClientFactory odinHttpClientFactory, YouverseConfiguration youverseConfiguration)
+            IOdinHttpClientFactory odinHttpClientFactory, OdinConfiguration odinConfiguration)
         {
             _followerService = followerService;
             _transitService = transitService;
@@ -59,7 +59,7 @@ namespace Odin.Core.Services.DataSubscription
             _tenantSystemStorage = tenantSystemStorage;
             _contextAccessor = contextAccessor;
             _circleNetworkService = circleNetworkService;
-            _youverseConfiguration = youverseConfiguration;
+            _odinConfiguration = odinConfiguration;
 
             _feedDistributorService = new FeedDistributorService(fileSystemResolver, odinHttpClientFactory);
         }
@@ -102,7 +102,7 @@ namespace Odin.Core.Services.DataSubscription
                 FeedDistroType = FeedDistroType.FileMetadata
             };
 
-            if (_youverseConfiguration.Feed.InstantDistribution)
+            if (_odinConfiguration.Feed.InstantDistribution)
             {
                 await DistributeMetadataNow(item);
             }
@@ -177,7 +177,7 @@ namespace Odin.Core.Services.DataSubscription
                 return (record, success);
             }
 
-            var batch = _tenantSystemStorage.Feedbox.Pop(_youverseConfiguration.Feed.DistributionBatchSize);
+            var batch = _tenantSystemStorage.Feedbox.Pop(_odinConfiguration.Feed.DistributionBatchSize);
             var tasks = new List<Task<(FeedDistributionOutboxRecord record, bool success)>>(batch.Select(SendFile));
             await Task.WhenAll(tasks);
 
@@ -259,7 +259,7 @@ namespace Odin.Core.Services.DataSubscription
             var transitOptions = new TransitOptions()
             {
                 Recipients = recipients.Select(r => r.DomainName).ToList(),
-                Schedule = _youverseConfiguration.Feed.InstantDistribution ? ScheduleOptions.SendNowAwaitResponse : ScheduleOptions.SendLater,
+                Schedule = _odinConfiguration.Feed.InstantDistribution ? ScheduleOptions.SendNowAwaitResponse : ScheduleOptions.SendLater,
                 IsTransient = false,
                 UseGlobalTransitId = true,
                 SendContents = SendContents.Header,

@@ -62,7 +62,7 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
                 {
                     await _fileSystem.Storage.UpdateReactionPreviewOnFeedDrive(fileId.Value, request.ReactionPreview);
                 }
-                catch (YouverseSecurityException)
+                catch (OdinSecurityException)
                 {
                     return new HostTransitResponse()
                     {
@@ -115,7 +115,7 @@ namespace Odin.Core.Services.DataSubscription.ReceivingHost
                     {
                         await _fileSystem.Storage.ReplaceFileMetadataOnFeedDrive(fileId.Value, request.FileMetadata);
                     }
-                    catch (YouverseSecurityException)
+                    catch (OdinSecurityException)
                     {
                         return new HostTransitResponse()
                         {

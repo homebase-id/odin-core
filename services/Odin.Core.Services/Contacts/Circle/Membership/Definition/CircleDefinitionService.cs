@@ -61,7 +61,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership.Definition
 
             if (null == existingCircle)
             {
-                throw new YouverseClientException($"Invalid circle {newCircleDefinition.Id}", YouverseClientErrorCode.UnknownId);
+                throw new OdinClientException($"Invalid circle {newCircleDefinition.Id}", OdinClientErrorCode.UnknownId);
             }
 
             existingCircle.LastUpdated = UnixTimeUtc.Now().milliseconds;
@@ -105,7 +105,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership.Definition
 
             if (null == circle)
             {
-                throw new YouverseClientException($"Invalid circle {id}", YouverseClientErrorCode.UnknownId);
+                throw new OdinClientException($"Invalid circle {id}", OdinClientErrorCode.UnknownId);
             }
 
             //TODO: update the circle.Permissions and circle.Drives for all members of the circle
@@ -128,7 +128,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership.Definition
 
                 if (driveId == null)
                 {
-                    throw new YouverseClientException("Invalid drive specified on DriveGrantRequest", YouverseClientErrorCode.InvalidGrantNonExistingDrive);
+                    throw new OdinClientException("Invalid drive specified on DriveGrantRequest", OdinClientErrorCode.InvalidGrantNonExistingDrive);
                 }
 
                 var drive = _driveManager.GetDrive(driveId.GetValueOrDefault()).GetAwaiter().GetResult();
@@ -136,7 +136,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership.Definition
                 //Allow access when OwnerOnly AND the only permission is Write; TODO: this defeats purpose of owneronly drive, i think
                 if (drive.OwnerOnly && ((int)dgr.PermissionedDrive.Permission != (int)DrivePermission.Write))
                 {
-                    throw new YouverseSecurityException("Cannot grant access to owner-only drives to circles");
+                    throw new OdinSecurityException("Cannot grant access to owner-only drives to circles");
                 }
             }
         }
@@ -150,7 +150,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership.Definition
 
             if (!hasPermissions && !hasDrives)
             {
-                throw new YouverseClientException("A circle must grant at least one drive or one permission", YouverseClientErrorCode.AtLeastOneDriveOrPermissionRequiredForCircle);
+                throw new OdinClientException("A circle must grant at least one drive or one permission", OdinClientErrorCode.AtLeastOneDriveOrPermissionRequiredForCircle);
             }
 
             if (hasPermissions)
@@ -168,7 +168,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership.Definition
         {
             if (permissionSet.Keys.Any(k => !PermissionKeyAllowance.IsValidCirclePermission(k)))
             {
-                throw new YouverseClientException("Invalid Permission key specified");
+                throw new OdinClientException("Invalid Permission key specified");
             }
         }
 
@@ -185,7 +185,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership.Definition
 
             if (null != this.GetCircle(request.Id))
             {
-                throw new YouverseClientException("Circle with Id already exists", YouverseClientErrorCode.IdAlreadyExists);
+                throw new OdinClientException("Circle with Id already exists", OdinClientErrorCode.IdAlreadyExists);
             }
 
             var now = UnixTimeUtc.Now().milliseconds;

@@ -51,7 +51,7 @@ namespace Odin.Core.Services.Base
         /// </summary>
         public bool IsOwner => this.SecurityLevel == SecurityGroupType.Owner;
 
-        public bool IsInYouverseNetwork => (int)this.SecurityLevel >= (int)SecurityGroupType.Authenticated;
+        public bool IsInOdinNetwork => (int)this.SecurityLevel >= (int)SecurityGroupType.Authenticated;
         public bool IsAnonymous => this.SecurityLevel == SecurityGroupType.Anonymous;
 
         public bool IsConnected => this.SecurityLevel == SecurityGroupType.Connected;
@@ -66,7 +66,7 @@ namespace Odin.Core.Services.Base
         {
             if (!HasMasterKey)
             {
-                throw new YouverseSecurityException("Master key not available; check your auth scheme");
+                throw new OdinSecurityException("Master key not available; check your auth scheme");
             }
         }
 

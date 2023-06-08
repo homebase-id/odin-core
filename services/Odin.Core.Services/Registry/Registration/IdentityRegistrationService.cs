@@ -32,7 +32,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 {
     private readonly ILogger<IdentityRegistrationService> _logger;
     private readonly IIdentityRegistry _registry;
-    private readonly YouverseConfiguration _configuration;
+    private readonly OdinConfiguration _configuration;
     private readonly IDnsRestClient _dnsRestClient;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IEmailSender _emailSender;
@@ -40,7 +40,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     public IdentityRegistrationService(
         ILogger<IdentityRegistrationService> logger, 
         IIdentityRegistry registry,
-        YouverseConfiguration configuration,
+        OdinConfiguration configuration,
         IDnsRestClient dnsRestClient,
         IHttpClientFactory httpClientFactory, 
         IEmailSender emailSender)
@@ -91,7 +91,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
     
     //
 
-    public Task<List<YouverseConfiguration.RegistrySection.ManagedDomainApex>> GetManagedDomainApexes()
+    public Task<List<OdinConfiguration.RegistrySection.ManagedDomainApex>> GetManagedDomainApexes()
     {
         return Task.FromResult(_configuration.Registry.ManagedDomainApexes);
     }
@@ -269,7 +269,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             else
             {
                 // Sanity
-                throw new YouverseSystemException($"Unsupported record: {record.Type}");
+                throw new OdinSystemException($"Unsupported record: {record.Type}");
             }
         }
     }
@@ -301,7 +301,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             else
             {
                 // Sanity
-                throw new YouverseSystemException($"Unsupported record: {record.Type}");
+                throw new OdinSystemException($"Unsupported record: {record.Type}");
             }
         }
     }
@@ -369,7 +369,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         var identity = await _registry.Get(domain);
         if (identity != null)
         { 
-            throw new YouverseSystemException($"Identity {domain} already exists");
+            throw new OdinSystemException($"Identity {domain} already exists");
         }
         
         var request = new IdentityRegistrationRequest()
@@ -470,7 +470,7 @@ public class IdentityRegistrationService : IIdentityRegistrationService
                     .ToList();
                 break;  
             default:
-                throw new YouverseSystemException($"Record type not supported: {dnsConfig.Type}");    
+                throw new OdinSystemException($"Record type not supported: {dnsConfig.Type}");    
         }
 
         if (entries.Count == 0)
@@ -505,13 +505,13 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
         if (managedApex == null)
         {
-            throw new YouverseSystemException($"Managed domain apex {apex} does not belong here");
+            throw new OdinSystemException($"Managed domain apex {apex} does not belong here");
         }
 
         var labelCount = prefix.Count(x => x == '.') + 1;
         if (managedApex.PrefixLabels.Count != labelCount)
         {
-            throw new YouverseSystemException(
+            throw new OdinSystemException(
                 $"Managed domain prefix {prefix} has incorret label count. Expected:{managedApex.PrefixLabels.Count}, was:{labelCount},  ");
         }
     }

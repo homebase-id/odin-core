@@ -19,7 +19,7 @@ public class TransitAuthenticationService : INotificationHandler<IdentityConnect
     private readonly OdinContextCache _cache;
     private readonly ICircleNetworkService _circleNetworkService;
 
-    public TransitAuthenticationService(ICircleNetworkService circleNetworkService, YouverseConfiguration config)
+    public TransitAuthenticationService(ICircleNetworkService circleNetworkService, OdinConfiguration config)
     {
         _circleNetworkService = circleNetworkService;
         _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);

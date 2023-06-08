@@ -14,12 +14,12 @@ public static class ErrorUtils
         return details;
     }
 
-    public static void AssetClientErrorCode(ApiException exception, YouverseClientErrorCode expectedCode)
+    public static void AssetClientErrorCode(ApiException exception, OdinClientErrorCode expectedCode)
     {
         Assert.IsTrue(MatchesClientErrorCode(exception, expectedCode));
     }
 
-    public static bool MatchesClientErrorCode(ApiException exception, YouverseClientErrorCode expectedCode)
+    public static bool MatchesClientErrorCode(ApiException exception, OdinClientErrorCode expectedCode)
     {
         if (exception.StatusCode != HttpStatusCode.BadRequest)
         {
@@ -27,7 +27,7 @@ public static class ErrorUtils
         }
         
         var details = GetProblemDetails(exception);
-        var code = (YouverseClientErrorCode)int.Parse(details.Extensions["errorCode"].ToString()!);
+        var code = (OdinClientErrorCode)int.Parse(details.Extensions["errorCode"].ToString()!);
         return code == expectedCode;
     }
 }

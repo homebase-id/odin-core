@@ -22,7 +22,7 @@ namespace Odin.Hosting.Controllers.ClientToken.Transit
         {
             if ((request.TargetDrive?.IsValid() ?? false) == false)
             {
-                throw new YouverseClientException("Invalid target drive", YouverseClientErrorCode.InvalidTargetDrive);
+                throw new OdinClientException("Invalid target drive", OdinClientErrorCode.InvalidTargetDrive);
             }
 
             var result = await _transitInboxProcessor.ProcessInbox(request.TargetDrive, request.BatchSize);

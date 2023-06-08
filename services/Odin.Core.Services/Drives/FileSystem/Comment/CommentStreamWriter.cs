@@ -42,15 +42,15 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
         //enforce the drive permissions at this level?
         if (uploadDescriptor.FileMetadata.AppData.GroupId.HasValue)
         {
-            throw new YouverseClientException("GroupId is reserved for Text Reactions",
-                YouverseClientErrorCode.CannotUseGroupIdInTextReactions);
+            throw new OdinClientException("GroupId is reserved for Text Reactions",
+                OdinClientErrorCode.CannotUseGroupIdInTextReactions);
         }
 
         if (!(uploadDescriptor.FileMetadata.ReferencedFile?.HasValue() ?? false))
         {
-            throw new YouverseClientException(
+            throw new OdinClientException(
                 $"{nameof(uploadDescriptor.FileMetadata.ReferencedFile)} must be set and point to another file on the same drive",
-                YouverseClientErrorCode.InvalidReferenceFile);
+                OdinClientErrorCode.InvalidReferenceFile);
         }
 
         return Task.CompletedTask;
@@ -100,7 +100,7 @@ public class CommentStreamWriter : FileSystemStreamWriterBase
             return;
         }
 
-        throw new YouverseSystemException("Unhandled Storage Intent");
+        throw new OdinSystemException("Unhandled Storage Intent");
     }
 
     protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(UploadPackage package)

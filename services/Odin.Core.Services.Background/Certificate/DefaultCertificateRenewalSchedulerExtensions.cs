@@ -10,7 +10,7 @@ public static class DefaultCertificateRenewalSchedulerExtensions
     /// Watches for certificates that need renewal; starts the process when required
     /// </summary>
     public static void UseDefaultCertificateRenewalSchedule(this IServiceCollectionQuartzConfigurator quartz,
-        YouverseConfiguration odinConfig)
+        OdinConfiguration odinConfig)
     {
         string group = "CertificateRenewal";
 

@@ -48,7 +48,7 @@ namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine
             _state.TryGetValue(id, out var item);
             if (null == item)
             {
-                throw new YouverseSystemException("Invalid perimeter state item");
+                throw new OdinSystemException("Invalid perimeter state item");
             }
 
             return await Task.FromResult(item);

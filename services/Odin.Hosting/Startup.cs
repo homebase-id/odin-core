@@ -55,7 +55,7 @@ namespace Odin.Hosting
         {
             services.Configure<KestrelServerOptions>(options => { options.AllowSynchronousIO = true; });
 
-            var config = new YouverseConfiguration(Configuration);
+            var config = new OdinConfiguration(Configuration);
             services.AddSingleton(config);
 
             PrepareEnvironment(config);
@@ -174,7 +174,7 @@ namespace Odin.Hosting
                 CertificatePerimeterPolicies.AddPolicies(policy, PerimeterAuthConstants.PublicTransitAuthScheme);
             });
 
-            services.AddSingleton<YouverseConfiguration>(config);
+            services.AddSingleton<OdinConfiguration>(config);
             services.AddSingleton<ServerSystemStorage>();
             services.AddSingleton<IPendingTransfersService, PendingTransfersService>();
 
@@ -255,7 +255,7 @@ namespace Odin.Hosting
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILogger<Startup> logger, IHostApplicationLifetime lifetime)
         {
-            var config = app.ApplicationServices.GetRequiredService<YouverseConfiguration>();
+            var config = app.ApplicationServices.GetRequiredService<OdinConfiguration>();
             var registry = app.ApplicationServices.GetRequiredService<IIdentityRegistry>();
 
             app.UseLoggingMiddleware();
@@ -264,7 +264,7 @@ namespace Odin.Hosting
 
             bool IsProvisioningSite(HttpContext context)
             {
-                var domain = context.RequestServices.GetService<YouverseConfiguration>()?.Registry.ProvisioningDomain;
+                var domain = context.RequestServices.GetService<OdinConfiguration>()?.Registry.ProvisioningDomain;
                 return context.Request.Host.Equals(new HostString(domain ?? ""));
             }
 
@@ -382,14 +382,14 @@ namespace Odin.Hosting
             });
         }
 
-        private void PrepareEnvironment(YouverseConfiguration cfg)
+        private void PrepareEnvironment(OdinConfiguration cfg)
         {
             Directory.CreateDirectory(cfg.Host.TenantDataRootPath);
             Directory.CreateDirectory(cfg.Host.SystemDataRootPath);
             Directory.CreateDirectory(cfg.Host.SystemSslRootPath);
         }
 
-        private void AssertValidRenewalConfiguration(YouverseConfiguration.CertificateRenewalSection section)
+        private void AssertValidRenewalConfiguration(OdinConfiguration.CertificateRenewalSection section)
         {
             Guard.Argument(section, nameof(section)).NotNull();
             Guard.Argument(section.CertificateAuthorityAssociatedEmail,

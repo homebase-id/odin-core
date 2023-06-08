@@ -60,7 +60,7 @@ namespace Odin.Core.Services.Authorization.Acl
             {
                 if ((this.CircleIdList?.Count() ?? 0) > 0 || (this.OdinIdList?.Count() ?? 0) > 0)
                 {
-                    throw new YouverseClientException("Cannot specify circle or identity list when required security group is anonymous or owner", YouverseClientErrorCode.CannotAllowCirclesOrIdentitiesOnAnonymousOrOwnerOnly);
+                    throw new OdinClientException("Cannot specify circle or identity list when required security group is anonymous or owner", OdinClientErrorCode.CannotAllowCirclesOrIdentitiesOnAnonymousOrOwnerOnly);
                 }
             }
 
@@ -68,7 +68,7 @@ namespace Odin.Core.Services.Authorization.Acl
             {
                 if ((this.CircleIdList?.Count() ?? 0) > 0)
                 {
-                    throw new YouverseClientException("Cannot specify circle list when required security group is authenticated", YouverseClientErrorCode.CannotAllowCirclesOnAuthenticatedOnly);
+                    throw new OdinClientException("Cannot specify circle list when required security group is authenticated", OdinClientErrorCode.CannotAllowCirclesOnAuthenticatedOnly);
                 }
             }
         }

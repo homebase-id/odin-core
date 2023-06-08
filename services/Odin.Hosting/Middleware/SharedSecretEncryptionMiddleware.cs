@@ -131,7 +131,7 @@ namespace Odin.Hosting.Middleware
                     if (request.Query.TryGetValue(SharedSecretQueryStringParam, out var qs) == false || string.IsNullOrEmpty(qs.FirstOrDefault()) ||
                         string.IsNullOrWhiteSpace(qs.FirstOrDefault()))
                     {
-                        throw new YouverseClientException("Querystring must be encrypted", YouverseClientErrorCode.SharedSecretEncryptionIsInvalid);
+                        throw new OdinClientException("Querystring must be encrypted", OdinClientErrorCode.SharedSecretEncryptionIsInvalid);
                     }
 
                     var newQsBytes = SharedSecretEncryptedPayload.Decrypt(qs.FirstOrDefault() ?? "", this.GetSharedSecret(context));
@@ -149,9 +149,9 @@ namespace Odin.Hosting.Middleware
             }
             catch (JsonException)
             {
-                throw new YouverseClientException(
+                throw new OdinClientException(
                     "Failed to decrypt shared secret payload.  Ensure you've provided a body of json formatted as SharedSecretEncryptedPayload",
-                    YouverseClientErrorCode.SharedSecretEncryptionIsInvalid);
+                    OdinClientErrorCode.SharedSecretEncryptionIsInvalid);
             }
         }
 

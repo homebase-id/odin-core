@@ -46,11 +46,11 @@ namespace Odin.Hosting.Middleware
             {
                 await _next(context);
             }
-            catch (YouverseClientException eee)
+            catch (OdinClientException eee)
             {
                 await HandleApplicationAccessException(context, eee);
             }
-            catch (YouverseRemoteIdentityException rie)
+            catch (OdinRemoteIdentityException rie)
             {
                 await HandleRemoteServerException(context, rie);
             }
@@ -62,7 +62,7 @@ namespace Odin.Hosting.Middleware
             {
                 await HandleDriveAccessException(context, uex);
             }
-            catch (YouverseSecurityException yse)
+            catch (OdinSecurityException yse)
             {
                 await HandleSecurityException(context, yse);
             }
@@ -76,7 +76,7 @@ namespace Odin.Hosting.Middleware
             }
         }
 
-        private Task HandleSecurityException(HttpContext context, YouverseSecurityException exception)
+        private Task HandleSecurityException(HttpContext context, OdinSecurityException exception)
         {
             const int status = 403;
             const string title = "Security Error";
@@ -128,7 +128,7 @@ namespace Odin.Hosting.Middleware
 
         //
 
-        private Task HandleRemoteServerException(HttpContext context, YouverseRemoteIdentityException appException)
+        private Task HandleRemoteServerException(HttpContext context, OdinRemoteIdentityException appException)
         {
             const int status = (int)HttpStatusCode.ServiceUnavailable;
             const string title = "Remote Identity Server failed";
@@ -164,7 +164,7 @@ namespace Odin.Hosting.Middleware
 
             return context.Response.WriteAsync(result);
         }
-        private Task HandleApplicationAccessException(HttpContext context, YouverseClientException appException)
+        private Task HandleApplicationAccessException(HttpContext context, OdinClientException appException)
         {
             const int status = (int)HttpStatusCode.BadRequest;
             const string title = "Bad Request";

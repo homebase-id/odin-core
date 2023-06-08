@@ -62,7 +62,7 @@ namespace Odin.Hosting.Authentication.Perimeter
             
             if (string.IsNullOrWhiteSpace(domain))
             {
-                throw new YouverseSecurityException("invalid certificate");
+                throw new OdinSecurityException("invalid certificate");
             }
 
 

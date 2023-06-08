@@ -183,7 +183,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
 
             if (request.Recipients != null && request.Recipients.Any())
             {
-                throw new YouverseClientException("Cannot specify recipients when hard-deleting a file", YouverseClientErrorCode.InvalidRecipient);
+                throw new OdinClientException("Cannot specify recipients when hard-deleting a file", OdinClientErrorCode.InvalidRecipient);
             }
 
             var file = new InternalDriveFileId()

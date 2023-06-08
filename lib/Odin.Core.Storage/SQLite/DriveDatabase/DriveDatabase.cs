@@ -267,12 +267,12 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
         {
             if (null == fileSystemType)
             {
-                throw new YouverseSystemException("fileSystemType required in Query Batch");
+                throw new OdinSystemException("fileSystemType required in Query Batch");
             }
 
             if (noOfItems < 1)
             {
-                throw new YouverseSystemException("Must QueryBatch() no less than one item.");
+                throw new OdinSystemException("Must QueryBatch() no less than one item.");
             }
 
             if (cursor == null)
@@ -640,7 +640,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
 
             if (null == fileSystemType)
             {
-                throw new YouverseSystemException("fileSystemType required in Query Modified");
+                throw new OdinSystemException("fileSystemType required in Query Modified");
             }
             
             strWhere += $"modified > {cursor.uniqueTime} ";

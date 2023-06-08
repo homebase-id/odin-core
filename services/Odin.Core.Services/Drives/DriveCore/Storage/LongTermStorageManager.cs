@@ -88,7 +88,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
                 var buffer = new byte[chunk.Length];
                 if (chunk.Start > fileStream.Length)
                 {
-                    throw new YouverseClientException("Chunk start position is greater than length", YouverseClientErrorCode.InvalidChunkStart);
+                    throw new OdinClientException("Chunk start position is greater than length", OdinClientErrorCode.InvalidChunkStart);
                 }
 
                 fileStream.Position = chunk.Start;
@@ -149,12 +149,12 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         {
             if (fileId == Guid.Empty)
             {
-                throw new YouverseClientException("No file specified", YouverseClientErrorCode.UnknownId);
+                throw new OdinClientException("No file specified", OdinClientErrorCode.UnknownId);
             }
 
             if (!IsFileValid(fileId))
             {
-                throw new YouverseClientException("File does not contain all parts", YouverseClientErrorCode.MissingUploadData);
+                throw new OdinClientException("File does not contain all parts", OdinClientErrorCode.MissingUploadData);
             }
         }
 
@@ -220,7 +220,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         {
             FilePart part = FilePart.Payload;
             var dest = GetFilenameAndPath(targetFileId, part, ensureDirectoryExists: true);
-            Directory.CreateDirectory(Path.GetDirectoryName(dest) ?? throw new YouverseSystemException("Destination folder was null"));
+            Directory.CreateDirectory(Path.GetDirectoryName(dest) ?? throw new OdinSystemException("Destination folder was null"));
 
             File.Move(sourcePath, dest, true);
             _logger.LogInformation($"File Moved to {dest}");
@@ -230,7 +230,7 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         public Task MoveThumbnailToLongTerm(Guid targetFileId, string sourceThumbnail, int width, int height)
         {
             var dest = GetThumbnailPath(targetFileId, width, height);
-            Directory.CreateDirectory(Path.GetDirectoryName(dest) ?? throw new YouverseSystemException("Destination folder was null"));
+            Directory.CreateDirectory(Path.GetDirectoryName(dest) ?? throw new OdinSystemException("Destination folder was null"));
             File.Move(sourceThumbnail, dest, true);
             _logger.LogInformation($"File Moved to {dest}");
 

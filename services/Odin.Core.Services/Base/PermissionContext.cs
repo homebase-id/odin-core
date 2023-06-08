@@ -54,7 +54,7 @@ namespace Odin.Core.Services.Base
         {
             if (!this.HasDrivePermission(driveId, permission))
             {
-                throw new YouverseSecurityException($"Unauthorized access to {permission} to drive [{driveId}]");
+                throw new OdinSecurityException($"Unauthorized access to {permission} to drive [{driveId}]");
             }
         }
 
@@ -82,7 +82,7 @@ namespace Odin.Core.Services.Base
         {
             if (!HasPermission(permissionKey))
             {
-                throw new YouverseSecurityException("Does not have permission");
+                throw new OdinSecurityException("Does not have permission");
             }
         }
 
@@ -93,7 +93,7 @@ namespace Odin.Core.Services.Base
         {
             if (!this.HasDrivePermission(driveId, DrivePermission.Write))
             {
-                throw new YouverseSecurityException($"Unauthorized to write to drive [{driveId}]");
+                throw new OdinSecurityException($"Unauthorized to write to drive [{driveId}]");
             }
         }
 
@@ -101,7 +101,7 @@ namespace Odin.Core.Services.Base
         {
             if (!this.HasDrivePermission(driveId, DrivePermission.WriteReactionsAndComments))
             {
-                throw new YouverseSecurityException($"Unauthorized to write reactions and comments to drive [{driveId}]");
+                throw new OdinSecurityException($"Unauthorized to write reactions and comments to drive [{driveId}]");
             }
         }
 
@@ -112,7 +112,7 @@ namespace Odin.Core.Services.Base
         {
             if (!this.HasDrivePermission(driveId, DrivePermission.Read))
             {
-                throw new YouverseSecurityException($"Unauthorized to read to drive [{driveId}]");
+                throw new OdinSecurityException($"Unauthorized to read to drive [{driveId}]");
             }
         }
 
@@ -125,7 +125,7 @@ namespace Odin.Core.Services.Base
         {
             if (null == drive)
             {
-                throw new YouverseClientException("target drive not specified", YouverseClientErrorCode.InvalidTargetDrive);
+                throw new OdinClientException("target drive not specified", OdinClientErrorCode.InvalidTargetDrive);
             }
 
             foreach (var key in _permissionGroups.Keys)
@@ -139,7 +139,7 @@ namespace Odin.Core.Services.Base
                 }
             }
 
-            throw new YouverseSecurityException($"No access permitted to drive alias {drive.Alias} and drive type {drive.Type}");
+            throw new OdinSecurityException($"No access permitted to drive alias {drive.Alias} and drive type {drive.Type}");
         }
 
         public TargetDrive GetTargetDrive(Guid driveId)
@@ -155,7 +155,7 @@ namespace Odin.Core.Services.Base
                 }
             }
 
-            throw new YouverseSecurityException($"No access permitted to drive {driveId}");
+            throw new OdinSecurityException($"No access permitted to drive {driveId}");
         }
 
         /// <summary>
@@ -171,7 +171,7 @@ namespace Odin.Core.Services.Base
             }
 
             //TODO: this sort of security check feels like it should be in a service..
-            throw new YouverseSecurityException($"No access permitted to drive {driveId}");
+            throw new OdinSecurityException($"No access permitted to drive {driveId}");
         }
 
         public bool TryGetDriveStorageKey(Guid driveId, out SensitiveByteArray storageKey)

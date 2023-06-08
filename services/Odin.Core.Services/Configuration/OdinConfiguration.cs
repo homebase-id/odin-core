@@ -13,7 +13,7 @@ using Odin.Core.Util;
 
 namespace Odin.Core.Services.Configuration
 {
-    public class YouverseConfiguration
+    public class OdinConfiguration
     {
         public HostSection Host { get; }
 
@@ -29,7 +29,7 @@ namespace Odin.Core.Services.Configuration
         public FeedSection Feed { get; }
         public TransitSection Transit { get; }
 
-        public YouverseConfiguration(IConfiguration config)
+        public OdinConfiguration(IConfiguration config)
         {
             Host = new HostSection(config);
             Logging = new LoggingSection(config);
@@ -58,7 +58,7 @@ namespace Odin.Core.Services.Configuration
 
                 if (OutboxBatchSize <= 0)
                 {
-                    throw new YouverseSystemException($"{nameof(OutboxBatchSize)} must be greater than 0");
+                    throw new OdinSystemException($"{nameof(OutboxBatchSize)} must be greater than 0");
                 }
             }
 
@@ -74,7 +74,7 @@ namespace Odin.Core.Services.Configuration
 
                 if (DistributionBatchSize <= 0)
                 {
-                    throw new YouverseSystemException($"{nameof(DistributionBatchSize)} must be greater than 0");
+                    throw new OdinSystemException($"{nameof(DistributionBatchSize)} must be greater than 0");
                 }
             }
 

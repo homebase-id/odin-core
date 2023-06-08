@@ -4,7 +4,7 @@ using Odin.Core.Exceptions;
 
 namespace Odin.Core.Services.Authentication.YouAuth
 {
-    public class YouAuthClientException : YouverseClientException
+    public class YouAuthClientException : OdinClientException
     {
         public YouAuthClientException(string message) : base(message)
         {

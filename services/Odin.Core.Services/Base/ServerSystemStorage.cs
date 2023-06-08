@@ -17,7 +17,7 @@ public class ServerSystemStorage : IDisposable
     private readonly ServerDatabase _db;
     public readonly TableCron tblCron;
 
-    public ServerSystemStorage(YouverseConfiguration config)
+    public ServerSystemStorage(OdinConfiguration config)
     {
         string dbPath = config.Host.SystemDataRootPath;
         string dbName = "sys.db";

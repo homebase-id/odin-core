@@ -90,7 +90,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             {
                 if (metadata.FileState != FileState.Active)
                 {
-                    throw new YouverseClientException("Cannot update non-active file", YouverseClientErrorCode.CannotUpdateNonActiveFile);
+                    throw new OdinClientException("Cannot update non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
                 }
 
                 var existingHeader = await this.GetServerFileHeaderInternal(file);
@@ -475,17 +475,17 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             var existingServerHeader = await this.GetServerFileHeader(targetFile);
             if (null == existingServerHeader)
             {
-                throw new YouverseClientException("Cannot overwrite file that does not exist", YouverseClientErrorCode.FileNotFound);
+                throw new OdinClientException("Cannot overwrite file that does not exist", OdinClientErrorCode.FileNotFound);
             }
 
             if (existingServerHeader.FileMetadata.FileState != FileState.Active)
             {
-                throw new YouverseClientException("Cannot update a non-active file", YouverseClientErrorCode.CannotUpdateNonActiveFile);
+                throw new OdinClientException("Cannot update a non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
             }
 
             if (existingServerHeader.FileMetadata.VersionTag != newMetadata.VersionTag)
             {
-                throw new YouverseClientException($"Invalid version tag {newMetadata.VersionTag}", YouverseClientErrorCode.VersionTagMismatch);
+                throw new OdinClientException($"Invalid version tag {newMetadata.VersionTag}", OdinClientErrorCode.VersionTagMismatch);
             }
 
             newMetadata.Created = existingServerHeader.FileMetadata.Created;
@@ -546,12 +546,12 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             var existingServerHeader = await this.GetServerFileHeader(targetFile);
             if (null == existingServerHeader)
             {
-                throw new YouverseClientException("Cannot overwrite file that does not exist", YouverseClientErrorCode.FileNotFound);
+                throw new OdinClientException("Cannot overwrite file that does not exist", OdinClientErrorCode.FileNotFound);
             }
 
             if (existingServerHeader.FileMetadata.FileState != FileState.Active)
             {
-                throw new YouverseClientException("Cannot update a non-active file", YouverseClientErrorCode.CannotUpdateNonActiveFile);
+                throw new OdinClientException("Cannot update a non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
             }
 
             var storageManager = GetLongTermStorageManager(targetFile.DriveId);
@@ -605,17 +605,17 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             var existingServerHeader = await this.GetServerFileHeader(targetFile);
             if (null == existingServerHeader)
             {
-                throw new YouverseClientException("Cannot overwrite file that does not exist", YouverseClientErrorCode.FileNotFound);
+                throw new OdinClientException("Cannot overwrite file that does not exist", OdinClientErrorCode.FileNotFound);
             }
 
             if (existingServerHeader.FileMetadata.FileState != FileState.Active)
             {
-                throw new YouverseClientException("Cannot update a non-active file", YouverseClientErrorCode.CannotUpdateNonActiveFile);
+                throw new OdinClientException("Cannot update a non-active file", OdinClientErrorCode.CannotUpdateNonActiveFile);
             }
 
             if (existingServerHeader.FileMetadata.VersionTag != newMetadata.VersionTag)
             {
-                throw new YouverseClientException($"Invalid version tag {newMetadata.VersionTag}", YouverseClientErrorCode.VersionTagMismatch);
+                throw new OdinClientException($"Invalid version tag {newMetadata.VersionTag}", OdinClientErrorCode.VersionTagMismatch);
             }
 
             newMetadata.File = targetFile;
@@ -673,13 +673,13 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
 
             if (file.DriveId != feedDriveId)
             {
-                throw new YouverseSystemException("Method cannot be used on drive");
+                throw new OdinSystemException("Method cannot be used on drive");
             }
 
             //S0510
             if (header.FileMetadata.SenderOdinId != ContextAccessor.GetCurrent().GetCallerOdinIdOrFail())
             {
-                throw new YouverseSecurityException("Invalid caller");
+                throw new OdinSecurityException("Invalid caller");
             }
 
             header.FileMetadata = fileMetadata;
@@ -693,7 +693,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             var feedDriveId = await _driveManager.GetDriveIdByAlias(SystemDriveConstants.FeedDrive);
             if (targetFile.DriveId != feedDriveId)
             {
-                throw new YouverseSystemException("Cannot update reaction preview on this drive");
+                throw new OdinSystemException("Cannot update reaction preview on this drive");
             }
 
             var existingHeader = await GetLongTermStorageManager(targetFile.DriveId).GetServerFileHeader(targetFile.FileId);
@@ -701,7 +701,7 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             //S0510
             if (existingHeader.FileMetadata.SenderOdinId != ContextAccessor.GetCurrent().Caller.OdinId)
             {
-                throw new YouverseSecurityException("Invalid caller");
+                throw new OdinSecurityException("Invalid caller");
             }
 
             existingHeader.FileMetadata.ReactionPreview = summary;
@@ -747,13 +747,13 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         /// Protects against using the wrong filesystem with a fileId
         /// </summary>
         /// <param name="serverMetadata"></param>
-        /// <exception cref="YouverseClientException"></exception>
+        /// <exception cref="OdinClientException"></exception>
         private void AssertValidFileSystemType(ServerMetadata serverMetadata)
         {
             if (serverMetadata.FileSystemType != GetFileSystemType())
             {
                 //just in case the caller used the wrong drive service instance
-                throw new YouverseClientException($"Invalid SystemFileCategory.  This service only handles the FileSystemType of {GetFileSystemType()}");
+                throw new OdinClientException($"Invalid SystemFileCategory.  This service only handles the FileSystemType of {GetFileSystemType()}");
             }
         }
 

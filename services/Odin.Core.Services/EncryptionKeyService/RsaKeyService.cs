@@ -37,7 +37,7 @@ namespace Odin.Core.Services.EncryptionKeyService
             {
                 if (failIfNoMatchingPublicKey)
                 {
-                    throw new YouverseSecurityException("Invalid public key");
+                    throw new OdinSecurityException("Invalid public key");
                 }
 
                 return (false, null);

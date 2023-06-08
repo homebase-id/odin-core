@@ -176,7 +176,7 @@ namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine
                     //requester must be the original commenter
                     if (header.FileMetadata.SenderOdinId != _contextAccessor.GetCurrent().Caller.OdinId)
                     {
-                        throw new YouverseSecurityException();
+                        throw new OdinSecurityException();
                     }
 
                     await _fileSystem.Storage.SoftDeleteLongTermFile(new InternalDriveFileId()
@@ -380,7 +380,7 @@ namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine
                 //S2210 - comments cannot fall back to inbox
                 if (stateItem.TransferInstructionSet.FileSystemType == FileSystemType.Comment)
                 {
-                    throw new YouverseSecurityException("Sender cannot write the comment");
+                    throw new OdinSecurityException("Sender cannot write the comment");
                 }
             }
 

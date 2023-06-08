@@ -68,7 +68,7 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
             var problemDetails = OdinSystemSerializer.Deserialize<ProblemDetails>(response!.Error!.Content!);
             Assert.IsNotNull(problemDetails);
-            Assert.IsTrue(int.Parse(problemDetails.Extensions["errorCode"].ToString() ?? string.Empty) == (int)YouverseClientErrorCode.CannotOverwriteNonExistentFile);
+            Assert.IsTrue(int.Parse(problemDetails.Extensions["errorCode"].ToString() ?? string.Empty) == (int)OdinClientErrorCode.CannotOverwriteNonExistentFile);
         }
 
         [Test]

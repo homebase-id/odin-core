@@ -40,7 +40,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Transit
         {
             if (!IsMultipartContentType(HttpContext.Request.ContentType))
             {
-                throw new YouverseClientException("Data is not multi-part content", YouverseClientErrorCode.MissingUploadData);
+                throw new OdinClientException("Data is not multi-part content", OdinClientErrorCode.MissingUploadData);
             }
 
             var boundary = GetBoundary(HttpContext.Request.ContentType);

@@ -19,7 +19,7 @@ public class FollowerAuthenticationService
     private readonly OdinContextCache _cache;
     private readonly FollowerService _followerService;
 
-    public FollowerAuthenticationService(YouverseConfiguration config, FollowerService followerService)
+    public FollowerAuthenticationService(OdinConfiguration config, FollowerService followerService)
     {
         _followerService = followerService;
         _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);

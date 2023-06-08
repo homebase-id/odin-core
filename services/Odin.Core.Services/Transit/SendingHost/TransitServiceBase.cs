@@ -73,35 +73,11 @@ namespace Odin.Core.Services.Transit.SendingHost
                     // };
                 }
 
-                throw new YouverseClientException("Cannot resolve client access token; not connected", YouverseClientErrorCode.NotAConnectedIdentity);
+                throw new OdinClientException("Cannot resolve client access token; not connected", OdinClientErrorCode.NotAConnectedIdentity);
             }
 
             return icr!.CreateClientAccessToken();
 
-
-            // if (source == ClientAccessTokenSource.Follower)
-            // {
-            //     var def = await _followerService.GetFollower(recipient);
-            //     if (null == def)
-            //     {
-            //         throw new YouverseClientException("Not a follower", YouverseClientErrorCode.NotAFollowerIdentity);
-            //     }
-            //     
-            //     return def!.CreateClientAccessToken();
-            // }
-            //
-            // if (source == ClientAccessTokenSource.IdentityIFollow)
-            // {
-            //     var def = await _followerService.GetIdentityIFollow(recipient);
-            //     if (null == def)
-            //     {
-            //         throw new YouverseClientException("Identity is not followed", YouverseClientErrorCode.IdentityNotFollowed);
-            //     }
-            //     
-            //     return def!.CreateClientAccessToken();
-            // }
-            //
-            // throw new ArgumentException("Invalid ClientAccessTokenSource");
         }
 
         protected async Task<(ClientAccessToken token, ITransitHostReactionHttpClient client)> CreateReactionContentClient(OdinId odinId, ClientAccessTokenSource tokenSource,

@@ -74,7 +74,7 @@ public class ReactionContentService
             };
         }
 
-        throw new YouverseSystemException($"Invalid query manager instance for drive {file.DriveId}");
+        throw new OdinSystemException($"Invalid query manager instance for drive {file.DriveId}");
     }
 
     public List<string> GetReactionsByIdentityAndFile(OdinId identity, InternalDriveFileId file)
@@ -87,7 +87,7 @@ public class ReactionContentService
             return result;
         }
 
-        throw new YouverseSystemException($"Invalid query manager instance for drive {file.DriveId}");
+        throw new OdinSystemException($"Invalid query manager instance for drive {file.DriveId}");
     }
 
     public void DeleteAllReactions(InternalDriveFileId file)
@@ -117,6 +117,6 @@ public class ReactionContentService
             };
         }
 
-        throw new YouverseSystemException($"Invalid query manager instance for drive {file.DriveId}");
+        throw new OdinSystemException($"Invalid query manager instance for drive {file.DriveId}");
     }
 }

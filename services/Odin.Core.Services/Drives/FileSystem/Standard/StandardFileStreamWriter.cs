@@ -33,14 +33,14 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
     {
         if (ReservedFileTypes.IsInReservedRange(uploadDescriptor.FileMetadata.AppData.FileType))
         {
-            throw new YouverseClientException($"Cannot upload file with reserved file type; range is {ReservedFileTypes.Start} - {ReservedFileTypes.End}",
-                YouverseClientErrorCode.CannotUseReservedFileType);
+            throw new OdinClientException($"Cannot upload file with reserved file type; range is {ReservedFileTypes.Start} - {ReservedFileTypes.End}",
+                OdinClientErrorCode.CannotUseReservedFileType);
         }
 
         if (uploadDescriptor.FileMetadata.ReferencedFile?.HasValue() ?? false)
         {
-            throw new YouverseClientException($"{nameof(uploadDescriptor.FileMetadata.ReferencedFile)} cannot be used with standard file types",
-                YouverseClientErrorCode.CannotUseReferencedFileOnStandardFiles);
+            throw new OdinClientException($"{nameof(uploadDescriptor.FileMetadata.ReferencedFile)} cannot be used with standard file types",
+                OdinClientErrorCode.CannotUseReferencedFileOnStandardFiles);
         }
 
         return Task.CompletedTask;
@@ -79,7 +79,7 @@ public class StandardFileStreamWriter : FileSystemStreamWriterBase
             return;
         }
 
-        throw new YouverseSystemException("Unhandled Storage Intent");
+        throw new OdinSystemException("Unhandled Storage Intent");
     }
 
     protected override async Task<Dictionary<string, TransferStatus>> ProcessTransitInstructions(UploadPackage package)

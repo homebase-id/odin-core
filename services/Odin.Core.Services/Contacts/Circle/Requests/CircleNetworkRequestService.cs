@@ -94,19 +94,19 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
 
             if (header.Recipient == _contextAccessor.GetCurrent().Caller.OdinId)
             {
-                throw new YouverseClientException("I get it, connecting with yourself is critical..yet send a connection request to yourself", YouverseClientErrorCode.ConnectionRequestToYourself);
+                throw new OdinClientException("I get it, connecting with yourself is critical..yet send a connection request to yourself", OdinClientErrorCode.ConnectionRequestToYourself);
             }
 
             var incomingRequest = await this.GetPendingRequest((OdinId)header.Recipient);
             if (null != incomingRequest)
             {
-                throw new YouverseClientException("You already have an incoming request from the recipient.", YouverseClientErrorCode.CannotSendConnectionRequestToExistingIncomingRequest);
+                throw new OdinClientException("You already have an incoming request from the recipient.", OdinClientErrorCode.CannotSendConnectionRequestToExistingIncomingRequest);
             }
 
             var existingRequest = await this.GetSentRequest((OdinId)header.Recipient);
             if (existingRequest != null)
             {
-                throw new YouverseClientException("You already sent a request to this recipient.", YouverseClientErrorCode.CannotSendMultipleConnectionRequestToTheSameIdentity);
+                throw new OdinClientException("You already sent a request to this recipient.", OdinClientErrorCode.CannotSendMultipleConnectionRequestToTheSameIdentity);
             }
 
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
@@ -143,7 +143,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
                 //round 2, fail all together
                 if (response.Content is { Success: false } || response.IsSuccessStatusCode == false)
                 {
-                    throw new YouverseClientException("Failed to establish connection request");
+                    throw new OdinClientException("Failed to establish connection request");
                 }
             }
 
@@ -171,7 +171,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
 
         public async Task ReceiveConnectionRequest(ConnectionRequest request)
         {
-            //HACK - need to figure out how to secure receiving of connection requests from other DIs; this might be robot detection code + the fact they're in the youverse network
+            //HACK - need to figure out how to secure receiving of connection requests from other DIs; this might be robot detection code + the fact they're in the odin network
             //_context.GetCurrent().AssertCanManageConnections();
 
             //TODO: check robot detection code

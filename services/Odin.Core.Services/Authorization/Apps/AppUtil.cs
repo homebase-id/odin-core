@@ -11,7 +11,7 @@ public static class AppUtil
 
         if (parts.Length > 2)
         {
-            throw new YouverseClientException("Invalid host name for CORS; can only be [host name]:[port number]", YouverseClientErrorCode.InvalidCorsHostName);
+            throw new OdinClientException("Invalid host name for CORS; can only be [host name]:[port number]", OdinClientErrorCode.InvalidCorsHostName);
         }
 
         if (parts.Length == 2)
@@ -19,7 +19,7 @@ public static class AppUtil
             PunyDomainNameValidator.AssertValidDomain(parts[0]);
             if (!int.TryParse(parts[1], out var port) || port > 65535)
             {
-                throw new YouverseClientException("Invalid host name for CORS; port must be a number", YouverseClientErrorCode.InvalidCorsHostName);
+                throw new OdinClientException("Invalid host name for CORS; port must be a number", OdinClientErrorCode.InvalidCorsHostName);
             }
         }
 

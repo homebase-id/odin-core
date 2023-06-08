@@ -59,7 +59,7 @@ public abstract class FileSystemStreamWriterBase
 
         if (instructionSet!.TransitOptions?.Recipients?.Contains(_tenantContext.HostOdinId) ?? false)
         {
-            throw new YouverseClientException("Cannot transfer to yourself; what's the point?", YouverseClientErrorCode.InvalidRecipient);
+            throw new OdinClientException("Cannot transfer to yourself; what's the point?", OdinClientErrorCode.InvalidRecipient);
         }
 
         InternalDriveFileId file;
@@ -125,13 +125,13 @@ public abstract class FileSystemStreamWriterBase
             // Validate the file exists by the Id
             if (!FileSystem.Storage.FileExists(Package.InternalFile))
             {
-                throw new YouverseClientException("OverwriteFileId is specified but file does not exist",
-                    YouverseClientErrorCode.CannotOverwriteNonExistentFile);
+                throw new OdinClientException("OverwriteFileId is specified but file does not exist",
+                    OdinClientErrorCode.CannotOverwriteNonExistentFile);
             }
 
             if (metadata.VersionTag == null)
             {
-                throw new YouverseClientException("Missing version tag for update operation", YouverseClientErrorCode.MissingVersionTag);
+                throw new OdinClientException("Missing version tag for update operation", OdinClientErrorCode.MissingVersionTag);
             }
 
             // If the uniqueId is being changed, validate that uniqueId is not in use by another file
@@ -146,9 +146,9 @@ public abstract class FileSystemStreamWriterBase
                     var existingFile = await FileSystem.Query.GetFileByClientUniqueId(Package.InternalFile.DriveId, incomingClientUniqueId);
                     if (null != existingFile && existingFile.FileId != existingFileHeader.FileMetadata.File.FileId)
                     {
-                        throw new YouverseClientException(
+                        throw new OdinClientException(
                             $"It looks like the uniqueId is being changed but a file already exists with ClientUniqueId: [{incomingClientUniqueId}]",
-                            YouverseClientErrorCode.ExistingFileWithUniqueId);
+                            OdinClientErrorCode.ExistingFileWithUniqueId);
                     }
                 }
             }
@@ -164,8 +164,8 @@ public abstract class FileSystemStreamWriterBase
                 var existingFile = await FileSystem.Query.GetFileByClientUniqueId(Package.InternalFile.DriveId, incomingClientUniqueId);
                 if (null != existingFile)
                 {
-                    throw new YouverseClientException($"File already exists with ClientUniqueId: [{incomingClientUniqueId}]",
-                        YouverseClientErrorCode.ExistingFileWithUniqueId);
+                    throw new OdinClientException($"File already exists with ClientUniqueId: [{incomingClientUniqueId}]",
+                        OdinClientErrorCode.ExistingFileWithUniqueId);
                 }
             }
 
@@ -244,7 +244,7 @@ public abstract class FileSystemStreamWriterBase
             return await UnpackMetadataForNewFileOrOverwrite(package, uploadDescriptor);
         }
 
-        throw new YouverseSystemException("Unhandled storage intent");
+        throw new OdinSystemException("Unhandled storage intent");
     }
 
     private async Task<(KeyHeader keyHeader, FileMetadata metadata, ServerMetadata serverMetadata)> UnpackMetadataForNewFileOrOverwrite(UploadPackage package,
@@ -254,7 +254,7 @@ public abstract class FileSystemStreamWriterBase
 
         if (null == transferKeyEncryptedKeyHeader)
         {
-            throw new YouverseClientException("Failure to unpack upload metadata, invalid transfer key header", YouverseClientErrorCode.InvalidKeyHeader);
+            throw new OdinClientException("Failure to unpack upload metadata, invalid transfer key header", OdinClientErrorCode.InvalidKeyHeader);
         }
 
         var clientSharedSecret = _contextAccessor.GetCurrent().PermissionsContext.SharedSecretKey;
@@ -280,8 +280,8 @@ public abstract class FileSystemStreamWriterBase
     {
         if (uploadDescriptor.EncryptedKeyHeader?.EncryptedAesKey?.Length > 0)
         {
-            throw new YouverseClientException($"Cannot specify key header when storage intent is {StorageIntent.MetadataOnly}",
-                YouverseClientErrorCode.MalformedMetadata);
+            throw new OdinClientException($"Cannot specify key header when storage intent is {StorageIntent.MetadataOnly}",
+                OdinClientErrorCode.MalformedMetadata);
         }
 
         await ValidateUploadDescriptor(uploadDescriptor);
@@ -290,8 +290,8 @@ public abstract class FileSystemStreamWriterBase
 
         if (metadata.AppData.AdditionalThumbnails?.Any() ?? false)
         {
-            throw new YouverseClientException($"Cannot specify additional thumbnails when storage intent is {StorageIntent.MetadataOnly}",
-                YouverseClientErrorCode.MalformedMetadata);
+            throw new OdinClientException($"Cannot specify additional thumbnails when storage intent is {StorageIntent.MetadataOnly}",
+                OdinClientErrorCode.MalformedMetadata);
         }
 
         var serverMetadata = new ServerMetadata()
@@ -318,21 +318,21 @@ public abstract class FileSystemStreamWriterBase
         if (serverMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Anonymous && metadata.PayloadIsEncrypted)
         {
             //Note: dont allow anonymously accessible encrypted files because we wont have a client shared secret to secure the key header
-            throw new YouverseClientException("Cannot upload an encrypted file that is accessible to anonymous visitors",
-                YouverseClientErrorCode.CannotUploadEncryptedFileForAnonymous);
+            throw new OdinClientException("Cannot upload an encrypted file that is accessible to anonymous visitors",
+                OdinClientErrorCode.CannotUploadEncryptedFileForAnonymous);
         }
 
         if (serverMetadata.AccessControlList.RequiredSecurityGroup == SecurityGroupType.Authenticated && metadata.PayloadIsEncrypted)
         {
-            throw new YouverseClientException("Cannot upload an encrypted file that is accessible to authenticated visitors",
-                YouverseClientErrorCode.CannotUploadEncryptedFileForAnonymous);
+            throw new OdinClientException("Cannot upload an encrypted file that is accessible to authenticated visitors",
+                OdinClientErrorCode.CannotUploadEncryptedFileForAnonymous);
         }
         
         var drive = await _driveManager.GetDrive(package.InternalFile.DriveId, true);
         if (drive.OwnerOnly && serverMetadata.AccessControlList.RequiredSecurityGroup != SecurityGroupType.Owner)
         {
-            throw new YouverseClientException("Drive is owner only so all files must have RequiredSecurityGroup of Owner",
-                YouverseClientErrorCode.DriveSecurityAndAclMismatch);
+            throw new OdinClientException("Drive is owner only so all files must have RequiredSecurityGroup of Owner",
+                OdinClientErrorCode.DriveSecurityAndAclMismatch);
         }
 
         
@@ -340,20 +340,20 @@ public abstract class FileSystemStreamWriterBase
         {
             if (metadata.AppData.ContentIsComplete && package.HasPayload)
             {
-                throw new YouverseClientException("Content is marked complete in metadata but there is also a payload", YouverseClientErrorCode.InvalidPayload);
+                throw new OdinClientException("Content is marked complete in metadata but there is also a payload", OdinClientErrorCode.InvalidPayload);
             }
             
             if (metadata.AppData.ContentIsComplete == false && package.HasPayload == false)
             {
-                throw new YouverseClientException("Content is marked incomplete yet there is no payload", YouverseClientErrorCode.InvalidPayload);
+                throw new OdinClientException("Content is marked incomplete yet there is no payload", OdinClientErrorCode.InvalidPayload);
             }
             
             if (metadata.PayloadIsEncrypted)
             {
                 if (ByteArrayUtil.IsStrongKey(keyHeader.Iv) == false || ByteArrayUtil.IsStrongKey(keyHeader.AesKey.GetKey()) == false)
                 {
-                    throw new YouverseClientException("Payload is set as encrypted but the encryption key is too simple",
-                        code: YouverseClientErrorCode.InvalidKeyHeader);
+                    throw new OdinClientException("Payload is set as encrypted but the encryption key is too simple",
+                        code: OdinClientErrorCode.InvalidKeyHeader);
                 }
             }
         }
@@ -366,9 +366,9 @@ public abstract class FileSystemStreamWriterBase
             bool usesGlobalTransitId = package.InstructionSet.TransitOptions?.UseGlobalTransitId ?? false;
             if (serverMetadata.AllowDistribution && usesGlobalTransitId == false)
             {
-                throw new YouverseClientException(
+                throw new OdinClientException(
                     "UseGlobalTransitId must be true when AllowDistribution is true. (Yes, yes I know, i could just do it for you but then you would be all - htf is this GlobalTransitId getting set.. ooommmggg?!  Then you would hunt through the code and we would end up with long debate in the issue list.  #aintnobodygottimeforthat <3.  just love me and set the param",
-                    YouverseClientErrorCode.InvalidTransitOptions);
+                    OdinClientErrorCode.InvalidTransitOptions);
             }
         }
     }

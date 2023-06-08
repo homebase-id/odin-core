@@ -197,7 +197,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Circle
                 Assert.IsTrue(createCircleResponse.StatusCode == HttpStatusCode.BadRequest, $"Failed.  Actual response {createCircleResponse.StatusCode}");
                 Assert.IsTrue(int.TryParse(OdinSystemSerializer.Deserialize<ProblemDetails>(createCircleResponse!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
                     "Could not parse problem result");
-                Assert.IsTrue(code == (int)YouverseClientErrorCode.AtLeastOneDriveOrPermissionRequiredForCircle);
+                Assert.IsTrue(code == (int)OdinClientErrorCode.AtLeastOneDriveOrPermissionRequiredForCircle);
                 
                 
             }
@@ -486,7 +486,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Circle
                 Assert.IsTrue(updateCircleResponse.StatusCode == HttpStatusCode.BadRequest, $"Failed.  Actual response {createCircleResponse.StatusCode}");
                 Assert.IsTrue(int.TryParse(OdinSystemSerializer.Deserialize<ProblemDetails>(updateCircleResponse!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
                     "Could not parse problem result");
-                Assert.IsTrue(code == (int)YouverseClientErrorCode.AtLeastOneDriveOrPermissionRequiredForCircle);
+                Assert.IsTrue(code == (int)OdinClientErrorCode.AtLeastOneDriveOrPermissionRequiredForCircle);
                 
                 await svc.DeleteCircleDefinition(circle.Id);
             }

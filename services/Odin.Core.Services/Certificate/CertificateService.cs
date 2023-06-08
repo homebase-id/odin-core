@@ -135,7 +135,7 @@ namespace Odin.Core.Services.Certificate
                 }
 
                 // Sanity - this should never happen
-                throw new YouverseSystemException(
+                throw new OdinSystemException(
                     "Certificate created and saved to disk. But I failed to load it. This makes no sense.");
             }
             catch (Exception e)

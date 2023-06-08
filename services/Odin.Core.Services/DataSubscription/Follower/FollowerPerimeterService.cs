@@ -62,12 +62,12 @@ namespace Odin.Core.Services.DataSubscription.Follower
                     var allHaveReadAccess = drives.All(driveId => _contextAccessor.GetCurrent().PermissionsContext.HasDrivePermission(driveId, DrivePermission.Read));
                     if (!allHaveReadAccess)
                     {
-                        throw new YouverseSecurityException("Caller does not have read access to one or more channels");
+                        throw new OdinSecurityException("Caller does not have read access to one or more channels");
                     }
                 }
                 catch
                 {
-                    throw new YouverseSecurityException("Caller does not have read access to one or more channels");
+                    throw new OdinSecurityException("Caller does not have read access to one or more channels");
                 }
 
                 using (_tenantStorage.CreateCommitUnitOfWork())

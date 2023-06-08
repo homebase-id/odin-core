@@ -95,7 +95,7 @@ public class TransitReactionContentSenderService : TransitServiceBase
             return;
         }
 
-        throw new YouverseRemoteIdentityException("Remote server returned unsuccessful status code");
+        throw new OdinRemoteIdentityException("Remote server returned unsuccessful status code");
     }
 
     /// <summary />
@@ -177,17 +177,17 @@ public class TransitReactionContentSenderService : TransitServiceBase
     {
         if (response.StatusCode == HttpStatusCode.Forbidden)
         {
-            throw new YouverseClientException("Remote server returned 403", YouverseClientErrorCode.RemoteServerReturnedForbidden);
+            throw new OdinClientException("Remote server returned 403", OdinClientErrorCode.RemoteServerReturnedForbidden);
         }
 
         if (response.StatusCode == HttpStatusCode.InternalServerError)
         {
-            throw new YouverseClientException("Remote server returned 500", YouverseClientErrorCode.RemoteServerReturnedInternalServerError);
+            throw new OdinClientException("Remote server returned 500", OdinClientErrorCode.RemoteServerReturnedInternalServerError);
         }
 
         if (!response.IsSuccessStatusCode || response.Content == null)
         {
-            throw new YouverseSystemException($"Unhandled transit error response: {response.StatusCode}");
+            throw new OdinSystemException($"Unhandled transit error response: {response.StatusCode}");
         }
     }
 }

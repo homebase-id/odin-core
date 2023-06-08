@@ -22,7 +22,7 @@ namespace Odin.Core.Services.Base
 
         public OdinId GetCallerOdinIdOrFail()
         {
-            return Caller.OdinId ?? throw new YouverseSystemException("Invalid Caller");
+            return Caller.OdinId ?? throw new OdinSystemException("Invalid Caller");
         }
 
         public PermissionContext PermissionsContext
@@ -35,7 +35,7 @@ namespace Odin.Core.Services.Base
             //This is only exist to ensure we only set permissions in the DotYouContextMiddleware
             if (null != _permissionsContext)
             {
-                throw new YouverseSecurityException("Cannot set permission context");
+                throw new OdinSecurityException("Cannot set permission context");
             }
 
             _permissionsContext = pc;
@@ -46,7 +46,7 @@ namespace Odin.Core.Services.Base
             //This is only exist to ensure we only set auth context in the DotYouContextMiddleware
             if (null != _authContext)
             {
-                throw new YouverseSecurityException("Cannot reset auth context");
+                throw new OdinSecurityException("Cannot reset auth context");
             }
 
             _authContext = authContext;
@@ -59,7 +59,7 @@ namespace Odin.Core.Services.Base
                 return;
             }
 
-            throw new YouverseSecurityException("Unauthorized Action");
+            throw new OdinSecurityException("Unauthorized Action");
         }
 
 

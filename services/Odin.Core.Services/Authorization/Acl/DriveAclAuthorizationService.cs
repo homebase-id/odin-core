@@ -60,7 +60,7 @@ namespace Odin.Core.Services.Authorization.Acl
                     return Task.FromResult(true);
 
                 case SecurityGroupType.Authenticated:
-                    return Task.FromResult(caller!.IsInYouverseNetwork);
+                    return Task.FromResult(caller!.IsInOdinNetwork);
 
                 case SecurityGroupType.Connected:
                     return CallerIsConnected();
@@ -75,9 +75,9 @@ namespace Odin.Core.Services.Authorization.Acl
             return await Task.FromResult(_contextAccessor.GetCurrent().Caller.IsConnected);
         }
 
-        public Task<bool> CallerIsInYouverseNetwork()
+        public Task<bool> CallerIsInOdinNetwork()
         {
-            return Task.FromResult(_contextAccessor.GetCurrent().Caller.IsInYouverseNetwork);
+            return Task.FromResult(_contextAccessor.GetCurrent().Caller.IsInOdinNetwork);
         }
 
         public Task<bool> CallerIsInList(List<string> odinIdList)
@@ -90,7 +90,7 @@ namespace Odin.Core.Services.Authorization.Acl
         {
             if (eval == false)
             {
-                throw new YouverseSecurityException();
+                throw new OdinSecurityException();
             }
         }
     }

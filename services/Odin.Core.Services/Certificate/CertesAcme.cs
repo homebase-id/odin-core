@@ -69,7 +69,7 @@ public sealed class CertesAcme : ICertesAcme
         // Sanity
         if (domains.Length == 0)
         {
-            throw new YouverseSystemException("Missing damains");
+            throw new OdinSystemException("Missing damains");
         }
         
         _logger.LogDebug("Creating certificate for {domains}", string.Join(',', domains));
@@ -132,7 +132,7 @@ public sealed class CertesAcme : ICertesAcme
 
             if (resource.Status != AuthorizationStatus.Valid)
             {
-                throw new YouverseSystemException(
+                throw new OdinSystemException(
                     $"Failed or timed out validating one or more challenges. Status: {resource.Status}");
             }
         }
@@ -152,7 +152,7 @@ public sealed class CertesAcme : ICertesAcme
         
             if (resource.Status != OrderStatus.Valid)
             {
-                throw new YouverseSystemException(
+                throw new OdinSystemException(
                     $"Failed or timed out finalizing order. Status: {resource.Status}");
             }
         }

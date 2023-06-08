@@ -53,14 +53,14 @@ public class DriveManager
 
         if (request.OwnerOnly && request.AllowAnonymousReads)
         {
-            throw new YouverseClientException("A drive cannot be owner-only and allow anonymous reads",
-                YouverseClientErrorCode.CannotAllowAnonymousReadsOnOwnerOnlyDrive);
+            throw new OdinClientException("A drive cannot be owner-only and allow anonymous reads",
+                OdinClientErrorCode.CannotAllowAnonymousReadsOnOwnerOnlyDrive);
         }
 
         if (request.OwnerOnly && request.AllowSubscriptions)
         {
-            throw new YouverseClientException("A drive cannot be owner-only and allow subscriptions",
-                YouverseClientErrorCode.CannotAllowSubscriptionsOnOwnerOnlyDrive);
+            throw new OdinClientException("A drive cannot be owner-only and allow subscriptions",
+                OdinClientErrorCode.CannotAllowSubscriptionsOnOwnerOnlyDrive);
         }
 
         var mk = _contextAccessor.GetCurrent().Caller.GetMasterKey();
@@ -72,7 +72,7 @@ public class DriveManager
             //driveAlias and type must be unique
             if (null != this.GetDriveIdByAlias(request.TargetDrive, false).GetAwaiter().GetResult())
             {
-                throw new YouverseClientException("Drive alias and type must be unique", YouverseClientErrorCode.DriveAliasAndTypeAlreadyExists);
+                throw new OdinClientException("Drive alias and type must be unique", OdinClientErrorCode.DriveAliasAndTypeAlreadyExists);
             }
 
             var driveKey = new SymmetricKeyEncryptedAes(ref mk);
@@ -124,12 +124,12 @@ public class DriveManager
 
         if (storageDrive.TargetDriveInfo == SystemDriveConstants.ContactDrive || storageDrive.TargetDriveInfo == SystemDriveConstants.ProfileDrive)
         {
-            throw new YouverseSecurityException("Cannot change system drive");
+            throw new OdinSecurityException("Cannot change system drive");
         }
 
         if (storageDrive.OwnerOnly && allowAnonymous)
         {
-            throw new YouverseSecurityException("Cannot set Owner Only drive to allow anonymous");
+            throw new OdinSecurityException("Cannot set Owner Only drive to allow anonymous");
         }
 
         //only change if needed
@@ -175,7 +175,7 @@ public class DriveManager
         {
             if (failIfInvalid)
             {
-                throw new YouverseClientException($"Invalid drive id {driveId}", YouverseClientErrorCode.InvalidDrive);
+                throw new OdinClientException($"Invalid drive id {driveId}", OdinClientErrorCode.InvalidDrive);
             }
 
             return null;
@@ -199,7 +199,7 @@ public class DriveManager
         {
             if (failIfInvalid)
             {
-                throw new YouverseClientException($"Invalid drive id {targetDrive}", YouverseClientErrorCode.InvalidTargetDrive);
+                throw new OdinClientException($"Invalid drive id {targetDrive}", OdinClientErrorCode.InvalidTargetDrive);
             }
 
             return null;
