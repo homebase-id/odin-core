@@ -34,7 +34,7 @@ namespace Youverse.Hosting.Tests.Performance
             string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
             _scaffold = new WebScaffold(folder);
             _scaffold.RunBeforeAnyTests();
-            using IdentityDatabase _db = new IdentityDatabase("");
+            IdentityDatabase _db = new IdentityDatabase("");
             _db.CreateDatabase();
             storage = new SingleKeyValueStorage(_db.tblKeyValue);
 
@@ -59,6 +59,7 @@ namespace Youverse.Hosting.Tests.Performance
         public void OneTimeTearDown()
         {
             _scaffold.RunAfterAnyTests();
+            _db.Dispose();
         }
 
         /*
