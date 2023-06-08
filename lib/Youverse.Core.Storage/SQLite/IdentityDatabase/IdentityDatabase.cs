@@ -14,6 +14,9 @@ https://www.sqlitetutorial.net/sqlite-index/
 */
 
 
+using System;
+using System.Runtime.CompilerServices;
+
 namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
     public class IdentityDatabase : DatabaseBase
@@ -32,27 +35,41 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         public readonly TableConnections tblConnections = null;
 
         public readonly string CN;
-        public IdentityDatabase(string connectionString, long commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
+
+        private readonly CacheHelper _cache = new CacheHelper("identity");
+        private readonly string _file;
+        private readonly int _line;
+        public IdentityDatabase(string connectionString, long commitFrequencyMs = 5000, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1) : base(connectionString, commitFrequencyMs)
         {
-            tblAppGrants = new TableAppGrants(this);
-            tblKeyValue = new TableKeyValue(this);
-            tblKeyTwoValue = new TableKeyTwoValue(this);
-            TblKeyThreeValue = new TableKeyThreeValue(this);
-            tblInbox = new TableInbox(this);
-            tblOutbox = new TableOutbox(this);
-            tblFeedDistributionOutbox = new TableFeedDistributionOutbox(this);
-            tblCircle = new TableCircle(this);
-            tblCircleMember = new TableCircleMember(this);
-            tblFollowsMe = new TableFollowsMe(this);
-            tblImFollowing = new TableImFollowing(this);
-            tblConnections = new TableConnections(this);
+            tblAppGrants = new TableAppGrants(this, _cache);
+            tblKeyValue = new TableKeyValue(this, _cache);
+            tblKeyTwoValue = new TableKeyTwoValue(this, _cache);
+            TblKeyThreeValue = new TableKeyThreeValue(this, _cache);
+            tblInbox = new TableInbox(this, _cache);
+            tblOutbox = new TableOutbox(this, _cache);
+            tblFeedDistributionOutbox = new TableFeedDistributionOutbox(this, _cache);
+            tblCircle = new TableCircle(this, _cache);
+            tblCircleMember = new TableCircleMember(this, _cache);
+            tblFollowsMe = new TableFollowsMe(this, _cache);
+            tblImFollowing = new TableImFollowing(this, _cache);
+            tblConnections = new TableConnections(this, _cache);
 
             CN = connectionString;
+
+            _file = file;
+            _line = line;
         }
 
 
         ~IdentityDatabase()
         {
+#if DEBUG
+            if (!_wasDisposed)
+                throw new Exception($"IdentityDatabase was not disposed properly [CN={CN}]. Instantiated from file {_file} line {_line}.");
+#else
+            if (!_wasDisposed)
+               Log.Error($"IdentityDatabase was not disposed properly [CN={CN}]. Instantiated from file {_file} line {_line}.");
+#endif
         }
 
 

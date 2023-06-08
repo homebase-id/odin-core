@@ -70,9 +70,11 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         private SqliteCommand _get1Command = null;
         private static Object _get1Lock = new Object();
         private SqliteParameter _get1Param1 = null;
+        private readonly CacheHelper _cache;
 
-        public TableKeyTwoValueCRUD(IdentityDatabase db) : base(db)
+        public TableKeyTwoValueCRUD(IdentityDatabase db, CacheHelper cache) : base(db)
         {
+            _cache = cache;
         }
 
         ~TableKeyTwoValueCRUD()
@@ -143,7 +145,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _insertParam1.Value = item.key1.ToByteArray();
                 _insertParam2.Value = item.key2 ?? (object)DBNull.Value;
                 _insertParam3.Value = item.data ?? (object)DBNull.Value;
-                return _database.ExecuteNonQuery(_insertCommand);
+                var count = _database.ExecuteNonQuery(_insertCommand);
+                if (count > 0)
+                    _cache.AddOrUpdate("TableKeyTwoValueCRUD", item.key1.ToString(), item);
+                return count;
             } // Lock
         }
 
@@ -172,7 +177,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _upsertParam1.Value = item.key1.ToByteArray();
                 _upsertParam2.Value = item.key2 ?? (object)DBNull.Value;
                 _upsertParam3.Value = item.data ?? (object)DBNull.Value;
-                return _database.ExecuteNonQuery(_upsertCommand);
+                var count = _database.ExecuteNonQuery(_upsertCommand);
+                if (count > 0)
+                    _cache.AddOrUpdate("TableKeyTwoValueCRUD", item.key1.ToString(), item);
+                return count;
             } // Lock
         }
 
@@ -200,7 +208,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _updateParam1.Value = item.key1.ToByteArray();
                 _updateParam2.Value = item.key2 ?? (object)DBNull.Value;
                 _updateParam3.Value = item.data ?? (object)DBNull.Value;
-                return _database.ExecuteNonQuery(_updateCommand);
+                var count = _database.ExecuteNonQuery(_updateCommand);
+                if (count > 0)
+                    _cache.AddOrUpdate("TableKeyTwoValueCRUD", item.key1.ToString(), item);
+                return count;
             } // Lock
         }
 
@@ -268,7 +279,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _delete0Command.Prepare();
                 }
                 _delete0Param1.Value = key1.ToByteArray();
-                return _database.ExecuteNonQuery(_delete0Command);
+                var count = _database.ExecuteNonQuery(_delete0Command);
+                if (count > 0)
+                    _cache.Remove("TableKeyTwoValueCRUD", key1.ToString());
+                return count;
             } // Lock
         }
 
@@ -330,7 +344,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.Default))
                 {
                     if (!rdr.Read())
+                    {
+                        _cache.AddOrUpdate("TableKeyTwoValueCRUD", key2.ToString(), null);
                         return null;
+                    }
                     var result = new List<KeyTwoValueRecord>();
                     while (true)
                     {
@@ -384,6 +401,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
         public KeyTwoValueRecord Get(Guid key1)
         {
+            var (hit, cacheObject) = _cache.Get("TableKeyTwoValueCRUD", key1.ToString());
+            if (hit)
+                return (KeyTwoValueRecord)cacheObject;
             lock (_get1Lock)
             {
                 if (_get1Command == null)
@@ -400,8 +420,13 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get1Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
+                    {
+                        _cache.AddOrUpdate("TableKeyTwoValueCRUD", key1.ToString(), null);
                         return null;
-                    return ReadRecordFromReader1(rdr, key1);
+                    }
+                    var r = ReadRecordFromReader1(rdr, key1);
+                    _cache.AddOrUpdate("TableKeyTwoValueCRUD", key1.ToString(), r);
+                    return r;
                 } // using
             } // lock
         }

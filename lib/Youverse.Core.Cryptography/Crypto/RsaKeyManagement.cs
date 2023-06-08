@@ -36,5 +36,16 @@ namespace Youverse.Core.Cryptography.Crypto
 
             return (RsaPublicKeyData.KeyCRC(RsaPublicKeyData.decodePublicPem(publicKey)), cipherData);
         }
+
+        public static byte[] FileSHA256(string fileName)
+        {
+            using (var stream = System.IO.File.OpenRead(fileName))
+            {
+                using (var hasher = SHA256.Create())
+                {
+                    return hasher.ComputeHash(stream);
+                }
+            }
+        }
     }
 }

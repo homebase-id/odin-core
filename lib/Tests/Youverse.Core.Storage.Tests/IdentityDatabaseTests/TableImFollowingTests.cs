@@ -145,13 +145,13 @@ namespace IdentityDatabaseTests
             db.tblImFollowing.Insert(new ImFollowingRecord() { identity = new OdinId(i2), driveId = d1 });
             db.tblImFollowing.Insert(new ImFollowingRecord() { identity = new OdinId(i2), driveId = d2 });
 
-            db.tblImFollowing.DeleteFollower(new OdinId(i2));
+            db.tblImFollowing.DeleteByIdentity(new OdinId(i2));
 
             var r = db.tblImFollowing.Get(new OdinId(i1));
             Debug.Assert(r.Count == 1);
             r = db.tblImFollowing.Get(new OdinId(i2));
             Debug.Assert(r.Count == 0);
-            db.tblImFollowing.DeleteFollower(new OdinId(i1));
+            db.tblImFollowing.DeleteByIdentity(new OdinId(i1));
             r = db.tblImFollowing.Get(new OdinId(i2));
             Debug.Assert(r.Count == 0);
         }

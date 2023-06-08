@@ -147,7 +147,7 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
         private SqliteParameter _get0Param1 = null;
         private SqliteParameter _get0Param2 = null;
 
-        public TableCronCRUD(ServerDatabase db) : base(db)
+        public TableCronCRUD(ServerDatabase db, CacheHelper cache) : base(db)
         {
         }
 
@@ -247,7 +247,8 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
                 _insertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 _insertParam8.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _insertParam9.Value = DBNull.Value;
-                return _database.ExecuteNonQuery(_insertCommand);
+                var count = _database.ExecuteNonQuery(_insertCommand);
+                return count;
             } // Lock
         }
 
@@ -300,7 +301,8 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
                 _upsertParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 _upsertParam8.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _upsertParam9.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                return _database.ExecuteNonQuery(_upsertCommand);
+                var count = _database.ExecuteNonQuery(_upsertCommand);
+                return count;
             } // Lock
         }
 
@@ -352,7 +354,8 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
                 _updateParam7.Value = item.popStamp?.ToByteArray() ?? (object)DBNull.Value;
                 _updateParam8.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _updateParam9.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                return _database.ExecuteNonQuery(_updateCommand);
+                var count = _database.ExecuteNonQuery(_updateCommand);
+                return count;
             } // Lock
         }
 
@@ -463,7 +466,8 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
                 }
                 _delete0Param1.Value = identityId.ToByteArray();
                 _delete0Param2.Value = type;
-                return _database.ExecuteNonQuery(_delete0Command);
+                var count = _database.ExecuteNonQuery(_delete0Command);
+                return count;
             } // Lock
         }
 
@@ -561,8 +565,11 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
+                    {
                         return null;
-                    return ReadRecordFromReader0(rdr, identityId,type);
+                    }
+                    var r = ReadRecordFromReader0(rdr, identityId,type);
+                    return r;
                 } // using
             } // lock
         }

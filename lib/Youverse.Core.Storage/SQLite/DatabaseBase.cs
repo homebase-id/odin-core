@@ -75,7 +75,7 @@ namespace Youverse.Core.Storage.Sqlite
         private readonly Object _transactionLock = new Object();
 
         private UnixTimeUtc _lastCommit;
-        private bool _wasDisposed = false;
+        protected bool _wasDisposed = false;
         private Timer _commitTimer = new Timer();
 
         private int _timerTriggerCount = 0;

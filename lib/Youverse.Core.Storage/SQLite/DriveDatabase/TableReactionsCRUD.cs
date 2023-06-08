@@ -75,7 +75,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
         private SqliteParameter _get0Param2 = null;
         private SqliteParameter _get0Param3 = null;
 
-        public TableReactionsCRUD(DriveDatabase db) : base(db)
+        public TableReactionsCRUD(DriveDatabase db, CacheHelper cache) : base(db)
         {
         }
 
@@ -146,7 +146,8 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _insertParam1.Value = item.identity.DomainName;
                 _insertParam2.Value = item.postId.ToByteArray();
                 _insertParam3.Value = item.singleReaction;
-                return _database.ExecuteNonQuery(_insertCommand);
+                var count = _database.ExecuteNonQuery(_insertCommand);
+                return count;
             } // Lock
         }
 
@@ -175,7 +176,8 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _upsertParam1.Value = item.identity.DomainName;
                 _upsertParam2.Value = item.postId.ToByteArray();
                 _upsertParam3.Value = item.singleReaction;
-                return _database.ExecuteNonQuery(_upsertCommand);
+                var count = _database.ExecuteNonQuery(_upsertCommand);
+                return count;
             } // Lock
         }
 
@@ -203,7 +205,8 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _updateParam1.Value = item.identity.DomainName;
                 _updateParam2.Value = item.postId.ToByteArray();
                 _updateParam3.Value = item.singleReaction;
-                return _database.ExecuteNonQuery(_updateCommand);
+                var count = _database.ExecuteNonQuery(_updateCommand);
+                return count;
             } // Lock
         }
 
@@ -270,7 +273,8 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 _delete0Param1.Value = identity.DomainName;
                 _delete0Param2.Value = postId.ToByteArray();
                 _delete0Param3.Value = singleReaction;
-                return _database.ExecuteNonQuery(_delete0Command);
+                var count = _database.ExecuteNonQuery(_delete0Command);
+                return count;
             } // Lock
         }
 
@@ -293,7 +297,8 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 }
                 _delete1Param1.Value = identity.DomainName;
                 _delete1Param2.Value = postId.ToByteArray();
-                return _database.ExecuteNonQuery(_delete1Command);
+                var count = _database.ExecuteNonQuery(_delete1Command);
+                return count;
             } // Lock
         }
 
@@ -344,8 +349,11 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
+                    {
                         return null;
-                    return ReadRecordFromReader0(rdr, identity,postId,singleReaction);
+                    }
+                    var r = ReadRecordFromReader0(rdr, identity,postId,singleReaction);
+                    return r;
                 } // using
             } // lock
         }

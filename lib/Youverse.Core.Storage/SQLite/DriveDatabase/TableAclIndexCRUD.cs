@@ -59,7 +59,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
         private static Object _get1Lock = new Object();
         private SqliteParameter _get1Param1 = null;
 
-        public TableAclIndexCRUD(DriveDatabase db) : base(db)
+        public TableAclIndexCRUD(DriveDatabase db, CacheHelper cache) : base(db)
         {
         }
 
@@ -128,7 +128,8 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 }
                 _insertParam1.Value = item.fileId.ToByteArray();
                 _insertParam2.Value = item.aclMemberId.ToByteArray();
-                return _database.ExecuteNonQuery(_insertCommand);
+                var count = _database.ExecuteNonQuery(_insertCommand);
+                return count;
             } // Lock
         }
 
@@ -153,7 +154,8 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 }
                 _upsertParam1.Value = item.fileId.ToByteArray();
                 _upsertParam2.Value = item.aclMemberId.ToByteArray();
-                return _database.ExecuteNonQuery(_upsertCommand);
+                var count = _database.ExecuteNonQuery(_upsertCommand);
+                return count;
             } // Lock
         }
 
@@ -177,7 +179,8 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 }
                 _updateParam1.Value = item.fileId.ToByteArray();
                 _updateParam2.Value = item.aclMemberId.ToByteArray();
-                return _database.ExecuteNonQuery(_updateCommand);
+                var count = _database.ExecuteNonQuery(_updateCommand);
+                return count;
             } // Lock
         }
 
@@ -233,7 +236,8 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 }
                 _delete0Param1.Value = fileId.ToByteArray();
                 _delete0Param2.Value = aclMemberId.ToByteArray();
-                return _database.ExecuteNonQuery(_delete0Command);
+                var count = _database.ExecuteNonQuery(_delete0Command);
+                return count;
             } // Lock
         }
 
@@ -252,7 +256,8 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                     _delete1Command.Prepare();
                 }
                 _delete1Param1.Value = fileId.ToByteArray();
-                return _database.ExecuteNonQuery(_delete1Command);
+                var count = _database.ExecuteNonQuery(_delete1Command);
+                return count;
             } // Lock
         }
 
@@ -292,8 +297,11 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
+                    {
                         return null;
-                    return ReadRecordFromReader0(rdr, fileId,aclMemberId);
+                    }
+                    var r = ReadRecordFromReader0(rdr, fileId,aclMemberId);
+                    return r;
                 } // using
             } // lock
         }
