@@ -175,10 +175,10 @@ namespace IdentityDatabaseTests
             using var db = new IdentityDatabase("");
             db.CreateDatabase();
 
-            int i = db.tblFollowsMe.DeleteFollower(null);
+            int i = db.tblFollowsMe.DeleteByIdentity(null);
             Debug.Assert(i == 0);
 
-            i = db.tblFollowsMe.DeleteFollower("");
+            i = db.tblFollowsMe.DeleteByIdentity("");
             Debug.Assert(i == 0);
         }
 
@@ -199,13 +199,13 @@ namespace IdentityDatabaseTests
             db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i2, driveId = d1 });
             db.tblFollowsMe.Insert(new FollowsMeRecord() { identity = i2, driveId = d2 });
 
-            db.tblFollowsMe.DeleteFollower(i2);
+            db.tblFollowsMe.DeleteByIdentity(i2);
 
             var r = db.tblFollowsMe.Get(i1);
             Debug.Assert(r.Count == 1);
             r = db.tblFollowsMe.Get(i2);
             Debug.Assert(r.Count == 0);
-            db.tblFollowsMe.DeleteFollower(i1);
+            db.tblFollowsMe.DeleteByIdentity(i1);
             r = db.tblFollowsMe.Get(i2);
             Debug.Assert(r.Count == 0);
         }

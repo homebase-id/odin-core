@@ -75,11 +75,8 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         private SqliteCommand _delete0Command = null;
         private static Object _delete0Lock = new Object();
         private SqliteParameter _delete0Param1 = null;
-        private SqliteCommand _delete1Command = null;
-        private static Object _delete1Lock = new Object();
-        private SqliteParameter _delete1Param1 = null;
-        private SqliteParameter _delete1Param2 = null;
-        private SqliteParameter _delete1Param3 = null;
+        private SqliteParameter _delete0Param2 = null;
+        private SqliteParameter _delete0Param3 = null;
         private SqliteCommand _get0Command = null;
         private static Object _get0Lock = new Object();
         private SqliteParameter _get0Param1 = null;
@@ -88,9 +85,11 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         private SqliteParameter _get1Param1 = null;
         private SqliteParameter _get1Param2 = null;
         private SqliteParameter _get1Param3 = null;
+        private readonly CacheHelper _cache;
 
-        public TableAppGrantsCRUD(IdentityDatabase db) : base(db)
+        public TableAppGrantsCRUD(IdentityDatabase db, CacheHelper cache) : base(db)
         {
+            _cache = cache;
         }
 
         ~TableAppGrantsCRUD()
@@ -108,8 +107,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             _upsertCommand = null;
             _delete0Command?.Dispose();
             _delete0Command = null;
-            _delete1Command?.Dispose();
-            _delete1Command = null;
             _get0Command?.Dispose();
             _get0Command = null;
             _get1Command?.Dispose();
@@ -167,7 +164,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _insertParam2.Value = item.appId.ToByteArray();
                 _insertParam3.Value = item.circleId.ToByteArray();
                 _insertParam4.Value = item.data ?? (object)DBNull.Value;
-                return _database.ExecuteNonQuery(_insertCommand);
+                var count = _database.ExecuteNonQuery(_insertCommand);
+                if (count > 0)
+                    _cache.AddOrUpdate("TableAppGrantsCRUD", item.odinHashId.ToString()+item.appId.ToString()+item.circleId.ToString(), item);
+                return count;
             } // Lock
         }
 
@@ -200,7 +200,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _upsertParam2.Value = item.appId.ToByteArray();
                 _upsertParam3.Value = item.circleId.ToByteArray();
                 _upsertParam4.Value = item.data ?? (object)DBNull.Value;
-                return _database.ExecuteNonQuery(_upsertCommand);
+                var count = _database.ExecuteNonQuery(_upsertCommand);
+                if (count > 0)
+                    _cache.AddOrUpdate("TableAppGrantsCRUD", item.odinHashId.ToString()+item.appId.ToString()+item.circleId.ToString(), item);
+                return count;
             } // Lock
         }
 
@@ -232,7 +235,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _updateParam2.Value = item.appId.ToByteArray();
                 _updateParam3.Value = item.circleId.ToByteArray();
                 _updateParam4.Value = item.data ?? (object)DBNull.Value;
-                return _database.ExecuteNonQuery(_updateCommand);
+                var count = _database.ExecuteNonQuery(_updateCommand);
+                if (count > 0)
+                    _cache.AddOrUpdate("TableAppGrantsCRUD", item.odinHashId.ToString()+item.appId.ToString()+item.circleId.ToString(), item);
+                return count;
             } // Lock
         }
 
@@ -292,7 +298,7 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             return item;
        }
 
-        public int Delete(Guid odinHashId)
+        public int Delete(Guid odinHashId,Guid appId,Guid circleId)
         {
             lock (_delete0Lock)
             {
@@ -300,41 +306,25 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 {
                     _delete0Command = _database.CreateCommand();
                     _delete0Command.CommandText = "DELETE FROM appGrants " +
-                                                 "WHERE odinHashId = $odinHashId";
+                                                 "WHERE odinHashId = $odinHashId AND appId = $appId AND circleId = $circleId";
                     _delete0Param1 = _delete0Command.CreateParameter();
                     _delete0Command.Parameters.Add(_delete0Param1);
                     _delete0Param1.ParameterName = "$odinHashId";
+                    _delete0Param2 = _delete0Command.CreateParameter();
+                    _delete0Command.Parameters.Add(_delete0Param2);
+                    _delete0Param2.ParameterName = "$appId";
+                    _delete0Param3 = _delete0Command.CreateParameter();
+                    _delete0Command.Parameters.Add(_delete0Param3);
+                    _delete0Param3.ParameterName = "$circleId";
                     _delete0Command.Prepare();
                 }
                 _delete0Param1.Value = odinHashId.ToByteArray();
-                return _database.ExecuteNonQuery(_delete0Command);
-            } // Lock
-        }
-
-        public int Delete(Guid odinHashId,Guid appId,Guid circleId)
-        {
-            lock (_delete1Lock)
-            {
-                if (_delete1Command == null)
-                {
-                    _delete1Command = _database.CreateCommand();
-                    _delete1Command.CommandText = "DELETE FROM appGrants " +
-                                                 "WHERE odinHashId = $odinHashId AND appId = $appId AND circleId = $circleId";
-                    _delete1Param1 = _delete1Command.CreateParameter();
-                    _delete1Command.Parameters.Add(_delete1Param1);
-                    _delete1Param1.ParameterName = "$odinHashId";
-                    _delete1Param2 = _delete1Command.CreateParameter();
-                    _delete1Command.Parameters.Add(_delete1Param2);
-                    _delete1Param2.ParameterName = "$appId";
-                    _delete1Param3 = _delete1Command.CreateParameter();
-                    _delete1Command.Parameters.Add(_delete1Param3);
-                    _delete1Param3.ParameterName = "$circleId";
-                    _delete1Command.Prepare();
-                }
-                _delete1Param1.Value = odinHashId.ToByteArray();
-                _delete1Param2.Value = appId.ToByteArray();
-                _delete1Param3.Value = circleId.ToByteArray();
-                return _database.ExecuteNonQuery(_delete1Command);
+                _delete0Param2.Value = appId.ToByteArray();
+                _delete0Param3.Value = circleId.ToByteArray();
+                var count = _database.ExecuteNonQuery(_delete0Command);
+                if (count > 0)
+                    _cache.Remove("TableAppGrantsCRUD", odinHashId.ToString()+appId.ToString()+circleId.ToString());
+                return count;
             } // Lock
         }
 
@@ -402,7 +392,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.Default))
                 {
                     if (!rdr.Read())
+                    {
+                        _cache.AddOrUpdate("TableAppGrantsCRUD", odinHashId.ToString(), null);
                         return null;
+                    }
                     var result = new List<AppGrantsRecord>();
                     while (true)
                     {
@@ -445,6 +438,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
         public AppGrantsRecord Get(Guid odinHashId,Guid appId,Guid circleId)
         {
+            var (hit, cacheObject) = _cache.Get("TableAppGrantsCRUD", odinHashId.ToString()+appId.ToString()+circleId.ToString());
+            if (hit)
+                return (AppGrantsRecord)cacheObject;
             lock (_get1Lock)
             {
                 if (_get1Command == null)
@@ -469,8 +465,13 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get1Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
+                    {
+                        _cache.AddOrUpdate("TableAppGrantsCRUD", odinHashId.ToString()+appId.ToString()+circleId.ToString(), null);
                         return null;
-                    return ReadRecordFromReader1(rdr, odinHashId,appId,circleId);
+                    }
+                    var r = ReadRecordFromReader1(rdr, odinHashId,appId,circleId);
+                    _cache.AddOrUpdate("TableAppGrantsCRUD", odinHashId.ToString()+appId.ToString()+circleId.ToString(), r);
+                    return r;
                 } // using
             } // lock
         }

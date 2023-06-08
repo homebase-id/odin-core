@@ -28,44 +28,6 @@ using Youverse.Hosting.Tests.OwnerApi.ApiClient;
 
 namespace Youverse.Hosting.Tests.Performance
 {
-    /*
-     * 2023-03-12
-     *
-        TaskPerformanceTest_Transit
-            Duration: 21.5 sec
-
-        Standard Output: 
-            Threads   : 12
-            Iterations: 300
-            Time      : 18748ms
-            Minimum   : 16ms
-            Maximum   : 431ms
-            Average   : 60ms
-            Median    : 53ms
-            Capacity  : 192 / second
-            Bandwidth : 146000 bytes / second
-            RSA Encryptions 3616, Decryptions 24
-            RSA Keys Created 12, Keys Expired 0
-            DB Opened 14, Closed 0
-
-        TaskPerformanceTest_Transit
-           Duration: 26.2 sec
-
-          Standard Output: 
-            2023-05-06 Host [SEMIBEASTII]
-            Threads   : 12
-            Iterations: 300
-            Wall Time : 23,659ms
-            Minimum   : 16ms
-            Maximum   : 711ms
-            Average   : 75ms
-            Median    : 63ms
-            Capacity  : 152 / second
-            RSA Encryptions 16, Decryptions 24
-            RSA Keys Created 12, Keys Expired 0
-            DB Opened 15, Closed 0
-            Bandwidth : 115,000 bytes / second
-      */
 
     public class TransitPerformanceTests
     {
@@ -73,7 +35,7 @@ namespace Youverse.Hosting.Tests.Performance
 
         // For the performance test
         private static readonly int MAXTHREADS = 12;
-        private const int MAXITERATIONS = 30;
+        private const int MAXITERATIONS = 300;
         TestAppContext _frodoAppContext;
         TestAppContext _samAppContext;
 
@@ -93,6 +55,63 @@ namespace Youverse.Hosting.Tests.Performance
             _scaffold.RunAfterAnyTests();
         }
 
+        /*
+         * 2023-03-12
+         *
+            TaskPerformanceTest_Transit
+                Duration: 21.5 sec
+
+            Standard Output: 
+                Threads   : 12
+                Iterations: 300
+                Time      : 18748ms
+                Minimum   : 16ms
+                Maximum   : 431ms
+                Average   : 60ms
+                Median    : 53ms
+                Capacity  : 192 / second
+                Bandwidth : 146000 bytes / second
+                RSA Encryptions 3616, Decryptions 24
+                RSA Keys Created 12, Keys Expired 0
+                DB Opened 14, Closed 0
+
+            TaskPerformanceTest_Transit
+               Duration: 26.2 sec
+
+              Standard Output: 
+                2023-05-06 Host [SEMIBEASTII]
+                Threads   : 12
+                Iterations: 300
+                Wall Time : 23,659ms
+                Minimum   : 16ms
+                Maximum   : 711ms
+                Average   : 75ms
+                Median    : 63ms
+                Capacity  : 152 / second
+                RSA Encryptions 16, Decryptions 24
+                RSA Keys Created 12, Keys Expired 0
+                DB Opened 15, Closed 0
+                Bandwidth : 115,000 bytes / second
+
+        No change after DB cache
+             TaskPerformanceTest_Transit
+               Duration: 23.9 sec
+
+              Standard Output: 
+                2023-06-01 Host [SEMIBEASTII]
+                Threads   : 12
+                Iterations: 300
+                Wall Time : 20,969ms
+                Minimum   : 13ms
+                Maximum   : 503ms
+                Average   : 66ms
+                Median    : 54ms
+                Capacity  : 171 / second
+                RSA Encryptions 16, Decryptions 24
+                RSA Keys Created 12, Keys Expired 0
+                DB Opened 15, Closed 0
+                Bandwidth : 130,000 bytes / second
+          */
         [Test]
         public async Task TaskPerformanceTest_Transit()
         {

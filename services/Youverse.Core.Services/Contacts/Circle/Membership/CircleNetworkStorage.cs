@@ -53,7 +53,7 @@ public class CircleNetworkStorage
             var odinHashId = icr.OdinId.ToHashId();
 
             //Reconcile circle grants in the table
-            _tenantSystemStorage.CircleMemberStorage.DeleteByCircleMember(odinHashId);
+            _tenantSystemStorage.CircleMemberStorage.DeleteMembersFromAllCircles(new List<Guid> { odinHashId });
             foreach (var (circleId, circleGrant) in icr.AccessGrant.CircleGrants)
             {
                 var circleMembers = _tenantSystemStorage.CircleMemberStorage.GetCircleMembers(circleId);
@@ -77,7 +77,7 @@ public class CircleNetworkStorage
             }
 
             // remove all app grants, 
-            _tenantSystemStorage.AppGrants.Delete(odinHashId);
+            _tenantSystemStorage.AppGrants.DeleteByIdentity(odinHashId);
 
             // Now write the latest
             foreach (var (appId, appCircleGrantDictionary) in icr.AccessGrant.AppGrants)
@@ -118,7 +118,7 @@ public class CircleNetworkStorage
         using (_tenantSystemStorage.CreateCommitUnitOfWork())
         {
             _tenantSystemStorage.Connections.Delete(odinId);
-            _tenantSystemStorage.AppGrants.Delete(odinId.ToHashId());
+            _tenantSystemStorage.AppGrants.DeleteByIdentity(odinId.ToHashId());
             _tenantSystemStorage.CircleMemberStorage.DeleteMembersFromAllCircles(new List<Guid>() { odinId.ToHashId() });
         }
     }

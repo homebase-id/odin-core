@@ -6,7 +6,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
 {
     public class TableTagIndex : TableTagIndexCRUD
     {
-        public TableTagIndex(DriveDatabase db) : base(db)
+        public TableTagIndex(DriveDatabase db, CacheHelper cache) : base(db, cache)
         {
         }
 

@@ -23,26 +23,6 @@ using Youverse.Hosting.Tests.OwnerApi.ApiClient;
 
 namespace Youverse.Hosting.Tests.Performance
 {
-    /*
-         TaskPerformanceTest_SecuredFiles
-           Duration: 17.4 sec
-
-          Standard Output: 
-            2023-05-06 Host [SEMIBEASTII]
-            Threads   : 12
-            Iterations: 5,000
-            Wall Time : 16,722ms
-            Minimum   : 1ms
-            Maximum   : 33ms
-            Average   : 2ms
-            Median    : 3ms
-            Capacity  : 3,588 / second
-            RSA Encryptions 1, Decryptions 9
-            RSA Keys Created 5, Keys Expired 0
-            DB Opened 12, Closed 0
-            Bandwidth : 283,440,000 bytes / second
-    
-     */
     public class SecuredFilePerformanceTests
     {
         // For the performance test
@@ -67,6 +47,27 @@ namespace Youverse.Hosting.Tests.Performance
             _scaffold.RunAfterAnyTests();
         }
 
+        /*
+             TaskPerformanceTest_SecuredFiles
+               Duration: 17.4 sec
+
+              Standard Output: 
+                2023-05-06 Host [SEMIBEASTII]
+                Threads   : 12
+                Iterations: 5,000
+                Wall Time : 16,722ms
+                Minimum   : 1ms
+                Maximum   : 33ms
+                Average   : 2ms
+                Median    : 3ms
+                Capacity  : 3,588 / second
+                RSA Encryptions 1, Decryptions 9
+                RSA Keys Created 5, Keys Expired 0
+                DB Opened 12, Closed 0
+                Bandwidth : 283,440,000 bytes / second
+
+            No change after database caching
+         */
         [Test]
         public async Task TaskPerformanceTest_SecuredFiles()
         {

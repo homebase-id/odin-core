@@ -33,7 +33,7 @@ namespace Youverse.Core.Storage.Sqlite.DriveDatabase
         private SqliteParameter _getPaging0Param3 = null;
 
 
-        public TableReactions(DriveDatabase db) : base(db)
+        public TableReactions(DriveDatabase db, CacheHelper cache) : base(db, cache)
         {
         }
 

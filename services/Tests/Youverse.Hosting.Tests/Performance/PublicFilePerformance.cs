@@ -32,30 +32,6 @@ using Youverse.Hosting.Tests.Performance;
 
 namespace Youverse.Hosting.Tests.Performance
 {
-    /*
-     * File size is : 78,981 bytes
-     * 
-
-         TaskPerformanceTest
-           Duration: 32.2 sec
-
-          Standard Output: 
-            2023-05-06 Host [SEMIBEASTII]
-            Threads   : 12
-            Iterations: 10,000
-            Wall Time : 31,328ms
-            Minimum   : 0ms
-            Maximum   : 46ms
-            Average   : 2ms
-            Median    : 1ms
-            Capacity  : 3,830 / second
-            RSA Encryptions 1, Decryptions 9
-            RSA Keys Created 5, Keys Expired 0
-            DB Opened 12, Closed 0
-            Bandwidth : 304,830,000 bytes / second
-    
-    
-     */
     public class PublicStaticFilePerformanceTest
     {
         // For the performance test
@@ -67,6 +43,48 @@ namespace Youverse.Hosting.Tests.Performance
         StaticFilePublishResult pubResult;
 
 
+        /*
+         * File size is : 78,981 bytes
+         * 
+
+             TaskPerformanceTest
+               Duration: 32.2 sec
+
+              Standard Output: 
+                2023-05-06 Host [SEMIBEASTII]
+                Threads   : 12
+                Iterations: 10,000
+                Wall Time : 31,328ms
+                Minimum   : 0ms
+                Maximum   : 46ms
+                Average   : 2ms
+                Median    : 1ms
+                Capacity  : 3,830 / second
+                RSA Encryptions 1, Decryptions 9
+                RSA Keys Created 5, Keys Expired 0
+                DB Opened 12, Closed 0
+                Bandwidth : 304,830,000 bytes / second
+
+        After database caching:
+                TaskPerformanceTest
+                Duration: 28.4 sec
+
+                Standard Output: 
+                2023-06-01 Host [SEMIBEASTII]
+                Threads   : 12
+                Iterations: 10,000
+                Wall Time : 27,816ms
+                Minimum   : 0ms
+                Maximum   : 47ms
+                Average   : 2ms
+                Median    : 1ms
+                Capacity  : 4,314 / second
+                RSA Encryptions 1, Decryptions 9
+                RSA Keys Created 5, Keys Expired 0
+                DB Opened 12, Closed 0
+                Bandwidth : 343,317,000 bytes / second
+    
+         */
         [Test]
         public async Task TaskPerformanceTest()
         {

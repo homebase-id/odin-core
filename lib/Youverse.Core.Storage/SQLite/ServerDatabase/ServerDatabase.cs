@@ -21,15 +21,23 @@ namespace Youverse.Core.Storage.Sqlite.ServerDatabase
     public class ServerDatabase : DatabaseBase
     {
         public readonly TableCron tblCron = null;
+        private readonly CacheHelper _cache = null; // No tables needing cache at this time.... Otherwise new CacheHelper("system");
 
         public ServerDatabase(string connectionString, long commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
         {
-            tblCron = new TableCron(this);
+            tblCron = new TableCron(this, _cache);
         }
 
 
         ~ServerDatabase()
         {
+#if DEBUG
+            if (!_wasDisposed)
+                throw new Exception("ServerDatabase was not disposed properly.");
+#else
+            if (!_wasDisposed)
+               Log.Error("ServerDatabase was not disposed properly.");
+#endif
         }
 
 

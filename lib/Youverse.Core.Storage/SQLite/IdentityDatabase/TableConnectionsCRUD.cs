@@ -128,9 +128,11 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         private static Object _getPaging6Lock = new Object();
         private SqliteParameter _getPaging6Param1 = null;
         private SqliteParameter _getPaging6Param2 = null;
+        private readonly CacheHelper _cache;
 
-        public TableConnectionsCRUD(IdentityDatabase db) : base(db)
+        public TableConnectionsCRUD(IdentityDatabase db, CacheHelper cache) : base(db)
         {
+            _cache = cache;
         }
 
         ~TableConnectionsCRUD()
@@ -223,7 +225,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _insertParam5.Value = item.data ?? (object)DBNull.Value;
                 _insertParam6.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _insertParam7.Value = DBNull.Value;
-                return _database.ExecuteNonQuery(_insertCommand);
+                var count = _database.ExecuteNonQuery(_insertCommand);
+                if (count > 0)
+                    _cache.AddOrUpdate("TableConnectionsCRUD", item.identity.ToString(), item);
+                return count;
             } // Lock
         }
 
@@ -268,7 +273,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _upsertParam5.Value = item.data ?? (object)DBNull.Value;
                 _upsertParam6.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _upsertParam7.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                return _database.ExecuteNonQuery(_upsertCommand);
+                var count = _database.ExecuteNonQuery(_upsertCommand);
+                if (count > 0)
+                    _cache.AddOrUpdate("TableConnectionsCRUD", item.identity.ToString(), item);
+                return count;
             } // Lock
         }
 
@@ -312,7 +320,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _updateParam5.Value = item.data ?? (object)DBNull.Value;
                 _updateParam6.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _updateParam7.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                return _database.ExecuteNonQuery(_updateCommand);
+                var count = _database.ExecuteNonQuery(_updateCommand);
+                if (count > 0)
+                    _cache.AddOrUpdate("TableConnectionsCRUD", item.identity.ToString(), item);
+                return count;
             } // Lock
         }
 
@@ -399,7 +410,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                     _delete0Command.Prepare();
                 }
                 _delete0Param1.Value = identity.DomainName;
-                return _database.ExecuteNonQuery(_delete0Command);
+                var count = _database.ExecuteNonQuery(_delete0Command);
+                if (count > 0)
+                    _cache.Remove("TableConnectionsCRUD", identity.ToString());
+                return count;
             } // Lock
         }
 
@@ -466,6 +480,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 
         public ConnectionsRecord Get(OdinId identity)
         {
+            var (hit, cacheObject) = _cache.Get("TableConnectionsCRUD", identity.ToString());
+            if (hit)
+                return (ConnectionsRecord)cacheObject;
             lock (_get0Lock)
             {
                 if (_get0Command == null)
@@ -482,8 +499,13 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
+                    {
+                        _cache.AddOrUpdate("TableConnectionsCRUD", identity.ToString(), null);
                         return null;
-                    return ReadRecordFromReader0(rdr, identity);
+                    }
+                    var r = ReadRecordFromReader0(rdr, identity);
+                    _cache.AddOrUpdate("TableConnectionsCRUD", identity.ToString(), r);
+                    return r;
                 } // using
             } // lock
         }

@@ -77,9 +77,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         private static Object _delete0Lock = new Object();
         private SqliteParameter _delete0Param1 = null;
         private SqliteParameter _delete0Param2 = null;
-        private SqliteCommand _delete1Command = null;
-        private static Object _delete1Lock = new Object();
-        private SqliteParameter _delete1Param1 = null;
         private SqliteCommand _get0Command = null;
         private static Object _get0Lock = new Object();
         private SqliteParameter _get0Param1 = null;
@@ -87,9 +84,11 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         private SqliteCommand _get1Command = null;
         private static Object _get1Lock = new Object();
         private SqliteParameter _get1Param1 = null;
+        private readonly CacheHelper _cache;
 
-        public TableFollowsMeCRUD(IdentityDatabase db) : base(db)
+        public TableFollowsMeCRUD(IdentityDatabase db, CacheHelper cache) : base(db)
         {
+            _cache = cache;
         }
 
         ~TableFollowsMeCRUD()
@@ -107,8 +106,6 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             _upsertCommand = null;
             _delete0Command?.Dispose();
             _delete0Command = null;
-            _delete1Command?.Dispose();
-            _delete1Command = null;
             _get0Command?.Dispose();
             _get0Command = null;
             _get1Command?.Dispose();
@@ -167,7 +164,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _insertParam2.Value = item.driveId.ToByteArray();
                 _insertParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _insertParam4.Value = DBNull.Value;
-                return _database.ExecuteNonQuery(_insertCommand);
+                var count = _database.ExecuteNonQuery(_insertCommand);
+                if (count > 0)
+                    _cache.AddOrUpdate("TableFollowsMeCRUD", item.identity.ToString()+item.driveId.ToString(), item);
+                return count;
             } // Lock
         }
 
@@ -200,7 +200,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _upsertParam2.Value = item.driveId.ToByteArray();
                 _upsertParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _upsertParam4.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                return _database.ExecuteNonQuery(_upsertCommand);
+                var count = _database.ExecuteNonQuery(_upsertCommand);
+                if (count > 0)
+                    _cache.AddOrUpdate("TableFollowsMeCRUD", item.identity.ToString()+item.driveId.ToString(), item);
+                return count;
             } // Lock
         }
 
@@ -232,7 +235,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 _updateParam2.Value = item.driveId.ToByteArray();
                 _updateParam3.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 _updateParam4.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                return _database.ExecuteNonQuery(_updateCommand);
+                var count = _database.ExecuteNonQuery(_updateCommand);
+                if (count > 0)
+                    _cache.AddOrUpdate("TableFollowsMeCRUD", item.identity.ToString()+item.driveId.ToString(), item);
+                return count;
             } // Lock
         }
 
@@ -302,29 +308,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 }
                 _delete0Param1.Value = identity;
                 _delete0Param2.Value = driveId.ToByteArray();
-                return _database.ExecuteNonQuery(_delete0Command);
-            } // Lock
-        }
-
-        public int DeleteFollower(string identity)
-        {
-            if (identity == null) throw new Exception("Cannot be null");
-            if (identity?.Length < 3) throw new Exception("Too short");
-            if (identity?.Length > 255) throw new Exception("Too long");
-            lock (_delete1Lock)
-            {
-                if (_delete1Command == null)
-                {
-                    _delete1Command = _database.CreateCommand();
-                    _delete1Command.CommandText = "DELETE FROM followsMe " +
-                                                 "WHERE identity = $identity";
-                    _delete1Param1 = _delete1Command.CreateParameter();
-                    _delete1Command.Parameters.Add(_delete1Param1);
-                    _delete1Param1.ParameterName = "$identity";
-                    _delete1Command.Prepare();
-                }
-                _delete1Param1.Value = identity;
-                return _database.ExecuteNonQuery(_delete1Command);
+                var count = _database.ExecuteNonQuery(_delete0Command);
+                if (count > 0)
+                    _cache.Remove("TableFollowsMeCRUD", identity.ToString()+driveId.ToString());
+                return count;
             } // Lock
         }
 
@@ -364,6 +351,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 3) throw new Exception("Too short");
             if (identity?.Length > 255) throw new Exception("Too long");
+            var (hit, cacheObject) = _cache.Get("TableFollowsMeCRUD", identity.ToString()+driveId.ToString());
+            if (hit)
+                return (FollowsMeRecord)cacheObject;
             lock (_get0Lock)
             {
                 if (_get0Command == null)
@@ -384,8 +374,13 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
+                    {
+                        _cache.AddOrUpdate("TableFollowsMeCRUD", identity.ToString()+driveId.ToString(), null);
                         return null;
-                    return ReadRecordFromReader0(rdr, identity,driveId);
+                    }
+                    var r = ReadRecordFromReader0(rdr, identity,driveId);
+                    _cache.AddOrUpdate("TableFollowsMeCRUD", identity.ToString()+driveId.ToString(), r);
+                    return r;
                 } // using
             } // lock
         }
@@ -451,7 +446,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get1Command, System.Data.CommandBehavior.Default))
                 {
                     if (!rdr.Read())
+                    {
+                        _cache.AddOrUpdate("TableFollowsMeCRUD", identity.ToString(), null);
                         return null;
+                    }
                     var result = new List<FollowsMeRecord>();
                     while (true)
                     {
