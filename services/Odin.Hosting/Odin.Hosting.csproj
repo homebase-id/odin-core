@@ -1,0 +1,77 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <Import Project="$(ProjectDir)../../lib/CommonProjectConfig.targets" />
+
+    <PropertyGroup>
+        <TargetFramework>net6.0</TargetFramework>
+        <DefaultItemExcludes>$(DefaultItemExcludes)</DefaultItemExcludes>
+        <RuntimeIdentifiers>win-x64;linux-x64;osx-x64</RuntimeIdentifiers>
+        <TypeScriptCompileBlocked>false</TypeScriptCompileBlocked>
+        <TypeScriptToolsVersion>Latest</TypeScriptToolsVersion>
+        <IsPackable>false</IsPackable>
+        <EnableDefaultContentItems>false</EnableDefaultContentItems>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+        <RootNamespace>Youverse.Hosting</RootNamespace>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\lib\Odin.Core.Cryptography\Odin.Core.Cryptography.csproj" />
+        <ProjectReference Include="..\..\lib\Odin.Core.Storage\Odin.Core.Storage.csproj" />
+        <ProjectReference Include="..\..\lib\Odin.Core\Odin.Core.csproj" />
+        <ProjectReference Include="..\Odin.Core.Services.Background\Odin.Core.Services.Background.csproj" />
+        <ProjectReference Include="..\Odin.Core.Services\Odin.Core.Services.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Autofac" Version="6.3.0" />
+        <PackageReference Include="Autofac.Extensions.DependencyInjection" Version="7.2.0" />
+        <PackageReference Include="Dawn.Guard" Version="1.12.0" />
+        <PackageReference Include="HttpClientFactoryLite" Version="0.4.0" />
+        <PackageReference Include="JsonModelBinder" Version="2.1.1" />
+        <PackageReference Include="MagicOnion.Abstractions" Version="4.3.1" />
+        <PackageReference Include="MagicOnion.Client" Version="4.3.1" />
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.Certificate" Version="6.0.14" />
+        <PackageReference Include="Microsoft.AspNetCore.SpaServices.Extensions" Version="6.0.14" />
+        <PackageReference Include="Microsoft.Extensions.Hosting" Version="6.0.0" />
+        <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" Version="6.0.0" />
+        <PackageReference Include="NReco.Logging.File" Version="1.1.1" />
+        <PackageReference Include="Quartz.AspNetCore" Version="3.3.3" />
+        <PackageReference Include="Serilog.AspNetCore" Version="4.1.0" />
+        <PackageReference Include="Serilog.Sinks.Debug" Version="2.0.0" />
+        <PackageReference Include="Swashbuckle.AspNetCore" Version="6.3.1" />
+        <PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="6.3.1" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Content Include="https\**\*">
+            <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+        <Content Include="client\**\*">
+            <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+        <Content Include="wwwroot\**\*">
+            <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+        <None Update="appsettings.json">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="dotyoucore.service">
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="appsettings.development.json">
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+        <None Update="appsettings.demo.json">
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+
+</Project>

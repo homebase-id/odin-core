@@ -1,26 +1,36 @@
+using System;
 using System.Diagnostics;
+using System.IO;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Connections;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
-using WaitingListApi.Config;
 using Youverse.Core.Exceptions;
 using Youverse.Core.Logging.CorrelationId;
 using Youverse.Core.Logging.CorrelationId.Serilog;
 using Youverse.Core.Logging.Hostname;
 using Youverse.Core.Logging.Hostname.Serilog;
+using Youverse.Core.Services.Base;
+using Youverse.Core.Services.Certificate;
+using Youverse.Core.Services.Configuration;
+using Youverse.Core.Services.Registry;
+using Youverse.Core.Services.Registry.Registration;
+using Youverse.Hosting.Multitenant;
 
-namespace WaitingListApi
+namespace Youverse.Hosting
 {
     public static class Program
     {
         private const string
             LogOutputTemplate = "{Timestamp:o} {Level:u3} {CorrelationId} {Hostname} {Message:lj}{NewLine}{Exception}"; // Add {SourceContext} to see source
-
-        private static readonly object FileMutex = new();
 
         private static readonly SystemConsoleTheme LogOutputTheme = SystemConsoleTheme.Literate;
 
@@ -35,9 +45,9 @@ namespace WaitingListApi
 
             try
             {
-                Log.Information("Starting waiting list web host");
+                Log.Information("Starting web host");
                 CreateHostBuilder(args).Build().Run();
-                Log.Information("Stopped waiting list web host");
+                Log.Information("Stopped web host");
             }
             catch (Exception ex)
             {
@@ -52,7 +62,7 @@ namespace WaitingListApi
             return 0;
         }
 
-        public static (WaitingListConfig, IConfiguration) LoadConfig()
+        public static (YouverseConfiguration, IConfiguration) LoadConfig()
         {
             const string envVar = "DOTYOU_ENVIRONMENT";
             var env = Environment.GetEnvironmentVariable(envVar) ?? "";
@@ -76,46 +86,50 @@ namespace WaitingListApi
                 .AddEnvironmentVariables()
                 .Build();
 
-            return (new WaitingListConfig(config), config);
+            return (new YouverseConfiguration(config), config);
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args)
         {
-            var (waitingListConfig, appSettingsConfig) = LoadConfig();
+            var (youverseConfig, appSettingsConfig) = LoadConfig();
 
-            var loggingDirInfo = Directory.CreateDirectory(waitingListConfig.Logging.LogFilePath);
+            var loggingDirInfo = Directory.CreateDirectory(youverseConfig.Logging.LogFilePath);
             if (!loggingDirInfo.Exists)
             {
-                throw new YouverseClientException($"Could not create logging folder at [{waitingListConfig.Logging.LogFilePath}]");
+                throw new YouverseClientException($"Could not create logging folder at [{youverseConfig.Logging.LogFilePath}]");
             }
 
-            var dataRootDirInfo = Directory.CreateDirectory(waitingListConfig.Host.SystemDataRootPath);
+            var dataRootDirInfo = Directory.CreateDirectory(youverseConfig.Host.TenantDataRootPath);
             if (!dataRootDirInfo.Exists)
             {
-                throw new YouverseClientException($"Could not create data folder at [{waitingListConfig.Host.SystemDataRootPath}]");
+                throw new YouverseClientException($"Could not create logging folder at [{youverseConfig.Logging.LogFilePath}]");
             }
+
+            Log.Information($"Root path:{youverseConfig.Host.TenantDataRootPath}");
 
             var builder = Host.CreateDefaultBuilder(args)
                 .ConfigureAppConfiguration(builder => { builder.AddConfiguration(appSettingsConfig); })
                 .UseSystemd()
+                .UseServiceProviderFactory(new MultiTenantServiceProviderFactory(DependencyInjection.ConfigureMultiTenantServices,
+                    DependencyInjection.InitializeTenant))
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.ConfigureKestrel(kestrelOptions =>
                         {
                             kestrelOptions.Limits.MaxRequestBodySize = null;
 
-                            foreach (var address in waitingListConfig.Host.IPAddressListenList)
+                            foreach (var address in youverseConfig.Host.IPAddressListenList)
                             {
                                 var ip = address.GetIp();
                                 kestrelOptions.Listen(ip, address.HttpPort);
                                 kestrelOptions.Listen(ip, address.HttpsPort,
-                                    options => ConfigureHttpListenOptions(waitingListConfig, kestrelOptions, options));
+                                    options => ConfigureHttpListenOptions(youverseConfig, kestrelOptions, options));
                             }
                         })
                         .UseStartup<Startup>();
                 });
 
-            if (waitingListConfig.Logging.Level == LoggingLevel.ErrorsOnly)
+            if (youverseConfig.Logging.Level == LoggingLevel.ErrorsOnly)
             {
                 builder.UseSerilog((context, services, configuration) => configuration
                     .ReadFrom.Services(services)
@@ -124,7 +138,7 @@ namespace WaitingListApi
                 return builder;
             }
 
-            if (waitingListConfig.Logging.Level == LoggingLevel.Verbose)
+            if (youverseConfig.Logging.Level == LoggingLevel.Verbose)
             {
                 builder.UseSerilog((context, services, configuration) => configuration
                     .ReadFrom.Services(services)
@@ -142,7 +156,7 @@ namespace WaitingListApi
                     // .WriteTo.Debug() // SEB:TODO only do this in debug builds
                     .WriteTo.Async(sink => sink.Console(outputTemplate: LogOutputTemplate, theme: LogOutputTheme))
                     .WriteTo.Async(sink =>
-                        sink.RollingFile(Path.Combine(waitingListConfig.Logging.LogFilePath, "app-{Date}.log"), outputTemplate: LogOutputTemplate)));
+                        sink.RollingFile(Path.Combine(youverseConfig.Logging.LogFilePath, "app-{Date}.log"), outputTemplate: LogOutputTemplate)));
 
                 return builder;
             }
@@ -153,7 +167,7 @@ namespace WaitingListApi
         //
 
         private static void ConfigureHttpListenOptions(
-            WaitingListConfig youverseConfig,
+            YouverseConfiguration youverseConfig,
             KestrelServerOptions kestrelOptions,
             ListenOptions listenOptions)
         {
@@ -181,58 +195,113 @@ namespace WaitingListApi
                     ServerCertificate = cert
                 };
 
+                // Require client certificate if domain prefix is "capi"
+                if (hostName.StartsWith(DnsConfigurationSet.PrefixCertApi))
+                {
+                    result.AllowRenegotiation = true;
+                    result.ClientCertificateRequired = true;
+                    result.RemoteCertificateValidationCallback = (_, _, _, _) => true;
+                }
+
                 return result;
             }, state: null!, handshakeTimeoutTimeSpan);
         }
 
         //         
 
-        private static Task<X509Certificate2> ServerCertificateSelector(
+        private static async Task<X509Certificate2> ServerCertificateSelector(
             string hostName,
-            WaitingListConfig config,
+            YouverseConfiguration config,
             IServiceProvider serviceProvider)
         {
             if (string.IsNullOrWhiteSpace(hostName))
             {
-                throw new Exception("No host name specified");
+                return null;
             }
 
-            var certificate = LoadFromFile(config.Host.SystemSslRootPath);
+            string sslRoot, domain;
+
+            //
+            // Look up tenant from host name
+            //
+            var registry = serviceProvider.GetRequiredService<IIdentityRegistry>();
+            var idReg = registry.ResolveIdentityRegistration(hostName, out _);
+            if (idReg != null)
+            {
+                var tenantContext = TenantContext.Create(
+                    idReg.Id, 
+                    idReg.PrimaryDomainName, 
+                    config.Host.TenantDataRootPath, 
+                    config.Host.TenantPayloadRootPath, 
+                    false);
+                sslRoot = tenantContext.SslRoot;
+                domain = idReg.PrimaryDomainName;
+            }
+            //
+            // Not a tenant, is hostName a known system (e.g. provisioning)? 
+            //
+            else if (TryGetSystemSslRoot(hostName, config, out sslRoot))
+            {
+                domain = hostName;
+            }
+            //
+            // We don't know what hostName is, get out! 
+            //
+            else
+            {
+                Log.Debug("Cannot return certificate for {host} because it does not belong here", hostName);
+                return null;
+            }
+
+            var certificateServiceFactory = serviceProvider.GetRequiredService<ICertificateServiceFactory>();
+            var tc = certificateServiceFactory.Create(sslRoot);
+
+            // 
+            // Tenant or system found, lookup certificate
+            //
+            var certificate = tc.ResolveCertificate(domain);
+            if (null != certificate)
+            {
+                return certificate;
+            }
+
+            // 
+            // Tenant or system found, but no certificate. Create it.
+            //
+            string[] sans = null;
+            if (idReg != null)
+            {
+                sans = idReg.GetSans();
+            }
+
+            certificate = await tc.CreateCertificate(domain, sans);
+
+            //
+            // Sanity
+            //
             if (null == certificate)
             {
-                throw new Exception("No certificate configured");
+                Log.Error($"No certificate configured for {hostName}");
             }
 
-            return Task.FromResult(certificate);
+            return certificate;
         }
 
         //
 
-        private static X509Certificate2? LoadFromFile(string certificateRoot)
+        private static bool TryGetSystemSslRoot(string hostName, YouverseConfiguration config, out string sslRoot)
         {
-            string certificatePemPath = Path.Combine(certificateRoot, "certificate.crt");
-            string keyPemPath = Path.Combine(certificateRoot, "private.key");
-
-            string certPem;
-            string keyPem;
-            lock (FileMutex)
+            // We only have provisioning system for now...
+            if (hostName == config.Registry.ProvisioningDomain)
             {
-                if (!File.Exists(certificatePemPath) || !File.Exists(keyPemPath))
-                {
-                    return null;
-                }
-
-                certPem = File.ReadAllText(certificatePemPath);
-                keyPem = File.ReadAllText(keyPemPath);
+                sslRoot = config.Host.SystemSslRootPath;
+                return true;
             }
 
-            // Work around for error "No credentials are available in the security package"
-            // https://github.com/Azure/azure-iot-sdk-csharp/issues/2150
-            // X509Certificate2.CreateFromCertFile(certPem)
-            using var temp = X509Certificate2.CreateFromPem(certPem, keyPem);
-            var x509 = new X509Certificate2(temp.Export(X509ContentType.Pfx));
-
-            return x509;
+            sslRoot = "";
+            return false;
         }
+
+        //
     }
 }
