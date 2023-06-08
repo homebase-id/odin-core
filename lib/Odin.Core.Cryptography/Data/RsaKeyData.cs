@@ -1,16 +1,14 @@
 ﻿using System;
-using Youverse.Core.Cryptography.Crypto;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Time;
+using Odin.Core.Util;
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Generators;
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.X509;
-using Youverse.Core.Util;
-using System.Diagnostics;
-using System.Text;
-using Org.BouncyCastle.Asn1.Ocsp;
 
-namespace Youverse.Core.Cryptography.Data
+namespace Odin.Core.Cryptography.Data
 {
     public class RsaPublicKeyData
     {

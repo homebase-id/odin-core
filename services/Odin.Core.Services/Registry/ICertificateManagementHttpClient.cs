@@ -1,8 +1,7 @@
-using System.Net.Http;
 using System.Threading.Tasks;
 using Refit;
 
-namespace Youverse.Core.Services.Registry
+namespace Odin.Core.Services.Registry
 {
     public interface ICertificateStatusHttpClient
     {

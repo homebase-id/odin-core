@@ -1,10 +1,9 @@
-﻿using NUnit.Framework;
-using System;
-using System.Diagnostics;
-using Youverse.Core;
-using Youverse.Core.Storage.Sqlite.DriveDatabase;
+﻿using System;
+using NUnit.Framework;
+using Odin.Core.Storage.SQLite.DriveDatabase;
+using Odin.Core.Time;
 
-namespace DriveDatabaseTests
+namespace Odin.Core.Storage.Tests.DriveDatabaseTests
 {
     public class QueryBatchCursorTests
     {
@@ -102,9 +101,9 @@ namespace DriveDatabaseTests
             cursor.pagingCursor = Guid.NewGuid().ToByteArray();
             cursor.stopAtBoundary = Guid.NewGuid().ToByteArray();
             cursor.nextBoundaryCursor = Guid.NewGuid().ToByteArray();
-            cursor.userDateNextBoundaryCursor = Youverse.Core.UnixTimeUtc.Now();
-            cursor.userDateStopAtBoundary = Youverse.Core.UnixTimeUtc.Now();
-            cursor.userDatePagingCursor = Youverse.Core.UnixTimeUtc.Now();
+            cursor.userDateNextBoundaryCursor = UnixTimeUtc.Now();
+            cursor.userDateStopAtBoundary = UnixTimeUtc.Now();
+            cursor.userDatePagingCursor = UnixTimeUtc.Now();
 
             var base64 = cursor.ToState();
             Assert.That(base64, Is.Not.Null);

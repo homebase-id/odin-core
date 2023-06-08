@@ -1,37 +1,24 @@
 ﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.Net;
 using System.Net.Http;
-using System.Threading;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using Moq;
-using NUnit.Framework;
-using Refit;
 using HttpClientFactoryLite;
-using Youverse.Core;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Identity;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Certificate;
-using Youverse.Core.Services.Dns.PowerDns;
-using Youverse.Core.Services.Drives.FileSystem;
-using Youverse.Core.Services.Registry;
-using Youverse.Core.Services.Registry.Registration;
-using Youverse.Core.Storage;
-using Youverse.Core.Trie;
-using Youverse.Core.Util;
-using Youverse.Hosting._dev;
-using Youverse.Hosting.Tests.AppAPI.ApiClient;
-using Youverse.Hosting.Tests.AppAPI.Utils;
-using Youverse.Hosting.Tests.OwnerApi.ApiClient;
-using Youverse.Hosting.Tests.OwnerApi.Utils;
+using Microsoft.Extensions.Hosting;
+using NUnit.Framework;
+using Odin.Core;
+using Odin.Core.Exceptions;
+using Odin.Core.Identity;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Registry.Registration;
+using Odin.Core.Storage;
+using Odin.Core.Util;
+using Odin.Hosting.Tests.AppAPI.ApiClient;
+using Odin.Hosting.Tests.AppAPI.Utils;
+using Odin.Hosting.Tests.OwnerApi.ApiClient;
+using Odin.Hosting.Tests.OwnerApi.Utils;
+using Refit;
 
-namespace Youverse.Hosting.Tests
+namespace Odin.Hosting.Tests
 {
     public class WebScaffold
     {

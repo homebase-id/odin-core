@@ -1,8 +1,8 @@
 ﻿using System.Threading.Tasks;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Cryptography.Data;
+using Odin.Core.Cryptography;
+using Odin.Core.Cryptography.Data;
 
-namespace Youverse.Core.Services.Authentication.Owner
+namespace Odin.Core.Services.Authentication.Owner
 {
     public interface IOwnerSecretService
     {

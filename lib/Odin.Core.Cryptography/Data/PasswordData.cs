@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Youverse.Core.Cryptography.Data
+﻿namespace Odin.Core.Cryptography.Data
 {
     public class PasswordData
     {

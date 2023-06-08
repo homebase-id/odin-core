@@ -1,12 +1,9 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.ReceivingHost;
-using Youverse.Hosting.Controllers.ClientToken;
-using Youverse.Hosting.Controllers.ClientToken.Transit;
+using Odin.Core.Exceptions;
+using Odin.Core.Services.Transit.ReceivingHost;
 
-namespace Youverse.Hosting.Controllers.OwnerToken.Transit
+namespace Odin.Hosting.Controllers.OwnerToken.Transit
 {
     [ApiController]
     [Route(OwnerApiPathConstants.TransitV1 + "/inbox/processor")]

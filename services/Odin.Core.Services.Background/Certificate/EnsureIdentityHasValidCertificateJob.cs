@@ -3,13 +3,13 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Certificate;
+using Odin.Core.Services.Configuration;
+using Odin.Core.Services.Registry;
 using Quartz;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Certificate;
-using Youverse.Core.Services.Configuration;
-using Youverse.Core.Services.Registry;
 
-namespace Youverse.Core.Services.Workers.Certificate
+namespace Odin.Core.Services.Background.Certificate
 {
     /// <summary>
     /// Looks for certificates that require renewal and queues their renewal

@@ -4,7 +4,7 @@ using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Youverse.Core.Services.AppNotifications
+namespace Odin.Core.Services.AppNotifications
 {
     /// <summary>
     /// All devices connected for app notifications

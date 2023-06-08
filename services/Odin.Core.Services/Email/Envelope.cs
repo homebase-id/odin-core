@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Youverse.Core.Services.Email;
+namespace Odin.Core.Services.Email;
 
 public class NameAndEmailAddress
 {

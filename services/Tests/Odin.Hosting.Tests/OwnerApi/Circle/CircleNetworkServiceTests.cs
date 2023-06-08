@@ -6,20 +6,20 @@ using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Youverse.Core;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Contacts.Circle;
-using Youverse.Core.Services.Contacts.Circle.Membership;
-using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
-using Youverse.Core.Services.Contacts.Circle.Requests;
-using Youverse.Core.Services.Drives;
-using Youverse.Hosting.Controllers;
-using Youverse.Hosting.Controllers.OwnerToken.Circles;
+using Odin.Core;
+using Odin.Core.Identity;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Authorization.Permissions;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Contacts.Circle;
+using Odin.Core.Services.Contacts.Circle.Membership;
+using Odin.Core.Services.Contacts.Circle.Membership.Definition;
+using Odin.Core.Services.Contacts.Circle.Requests;
+using Odin.Core.Services.Drives;
+using Odin.Hosting.Controllers;
+using Odin.Hosting.Controllers.OwnerToken.Circles;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Circle
+namespace Odin.Hosting.Tests.OwnerApi.Circle
 {
     public class CircleNetworkServiceTests
     {

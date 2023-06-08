@@ -1,6 +1,6 @@
-using Youverse.Core.Services.Drives;
+using Odin.Core.Services.Drives;
 
-namespace Youverse.Hosting.Controllers.Base;
+namespace Odin.Hosting.Controllers.Base;
 
 public class AddReactionRequest
 {

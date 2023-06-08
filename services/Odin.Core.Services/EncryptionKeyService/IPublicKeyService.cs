@@ -1,11 +1,9 @@
 using System;
 using System.Threading.Tasks;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Contacts.Circle.Requests;
+using Odin.Core.Cryptography.Data;
+using Odin.Core.Identity;
 
-namespace Youverse.Core.Services.EncryptionKeyService
+namespace Odin.Core.Services.EncryptionKeyService
 {
     public interface IPublicKeyService
     {

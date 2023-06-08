@@ -1,6 +1,4 @@
-using System;
-
-namespace Youverse.Core.Services.Authorization.Acl
+namespace Odin.Core.Services.Authorization.Acl
 {
 
     public enum SecurityGroupType

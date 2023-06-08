@@ -1,10 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
 using Dawn;
 
-namespace Youverse.Core.Services.Authorization.Permissions
+namespace Odin.Core.Services.Authorization.Permissions
 {
     public class PermissionSet : IEquatable<PermissionSet>
     {

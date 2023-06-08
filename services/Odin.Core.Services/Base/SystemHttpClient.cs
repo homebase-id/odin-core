@@ -1,12 +1,11 @@
 using System;
 using System.Net.Http;
 using HttpClientFactoryLite;
-using Microsoft.Extensions.DependencyInjection;
+using Odin.Core.Identity;
 using Refit;
-using Youverse.Core.Identity;
 using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
-namespace Youverse.Core.Services.Base;
+namespace Odin.Core.Services.Base;
 
 /// <summary>
 /// Client used to communicate with this instance of the identity server for system purposes

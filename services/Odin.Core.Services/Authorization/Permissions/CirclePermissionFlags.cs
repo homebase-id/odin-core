@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 
-namespace Youverse.Core.Services.Authorization.Permissions
+namespace Odin.Core.Services.Authorization.Permissions
 {
     public static class PermissionKeys
     {

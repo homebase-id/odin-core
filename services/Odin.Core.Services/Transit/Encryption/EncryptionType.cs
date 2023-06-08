@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.Transit.Encryption
+namespace Odin.Core.Services.Transit.Encryption
 {
     public enum EncryptionType
     {

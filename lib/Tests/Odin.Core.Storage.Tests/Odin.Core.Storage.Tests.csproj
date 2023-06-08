@@ -6,8 +6,6 @@
     <TargetFramework>net6.0</TargetFramework>
 
     <IsPackable>false</IsPackable>
-
-    <RootNamespace>IndexerTests</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>

@@ -1,7 +1,7 @@
 using System;
-using Youverse.Core.Cryptography.Data;
+using Odin.Core.Cryptography.Data;
 
-namespace Youverse.Core.Services.Authorization.ExchangeGrants
+namespace Odin.Core.Services.Authorization.ExchangeGrants
 {
     public class AccessRegistration
     {

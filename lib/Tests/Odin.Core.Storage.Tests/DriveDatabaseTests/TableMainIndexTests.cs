@@ -1,9 +1,9 @@
 ﻿using System;
 using NUnit.Framework;
-using Youverse.Core;
-using Youverse.Core.Storage.Sqlite.DriveDatabase;
+using Odin.Core.Storage.SQLite.DriveDatabase;
+using Odin.Core.Time;
 
-namespace DriveDatabaseTests
+namespace Odin.Core.Storage.Tests.DriveDatabaseTests
 {
     public class TableMainIndexTests
     {

@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.Optimization.Cdn;
+namespace Odin.Core.Services.Optimization.Cdn;
 
 public static class StaticFileConstants
 {

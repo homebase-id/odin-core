@@ -1,6 +1,6 @@
 using NUnit.Framework;
 
-namespace Youverse.Core.Cryptography.Tests
+namespace Odin.Core.Cryptography.Tests
 {
     public class TestByteArrayManagement
     {

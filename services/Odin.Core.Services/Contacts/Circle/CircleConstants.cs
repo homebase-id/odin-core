@@ -1,8 +1,8 @@
 using System.Collections.Generic;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Drives;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Drives;
 
-namespace Youverse.Core.Services.Contacts.Circle;
+namespace Odin.Core.Services.Contacts.Circle;
 
 public static class CircleConstants
 {

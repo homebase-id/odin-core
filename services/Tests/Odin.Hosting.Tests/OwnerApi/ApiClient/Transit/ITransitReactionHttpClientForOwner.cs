@@ -1,13 +1,13 @@
 ﻿using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Odin.Core.Services.Drives.Reactions;
+using Odin.Core.Services.Transit.ReceivingHost.Reactions;
+using Odin.Core.Services.Transit.SendingHost;
+using Odin.Hosting.Controllers.OwnerToken;
 using Refit;
-using Youverse.Core.Services.Drives.Reactions;
-using Youverse.Core.Services.Transit.ReceivingHost.Reactions;
-using Youverse.Core.Services.Transit.SendingHost;
-using Youverse.Hosting.Controllers.OwnerToken;
 
-namespace Youverse.Hosting.Tests.OwnerApi.ApiClient.Transit
+namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Transit
 {
     /// <summary>
     /// The interface for storing files

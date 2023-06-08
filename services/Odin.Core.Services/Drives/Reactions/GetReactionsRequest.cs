@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.Drives.Reactions;
+namespace Odin.Core.Services.Drives.Reactions;
 
 public class GetReactionsRequest
 {

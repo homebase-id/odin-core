@@ -1,7 +1,7 @@
 using System;
 using System.Net;
 
-namespace Youverse.Core.Exceptions;
+namespace Odin.Core.Exceptions;
 
 public abstract class OdinApiException : OdinException
 {

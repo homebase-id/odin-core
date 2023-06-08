@@ -1,15 +1,11 @@
 ﻿using System.Collections.Generic;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Odin.Core.Services.Drives.Reactions;
+using Odin.Hosting.Controllers.Anonymous;
+using Odin.Hosting.Controllers.Base;
 using Swashbuckle.AspNetCore.Annotations;
-using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Drives.Reactions;
-using Youverse.Core.Services.Transit;
-using Youverse.Hosting.Controllers.Anonymous;
-using Youverse.Hosting.Controllers.Base;
-using Youverse.Hosting.Controllers.OwnerToken.Drive;
 
-namespace Youverse.Hosting.Controllers.ClientToken.Drive
+namespace Odin.Hosting.Controllers.ClientToken.Drive
 {
     /// <summary />
     [ApiController]

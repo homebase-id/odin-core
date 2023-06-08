@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using System.Linq;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Authorization.Permissions;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Authorization.Permissions;
 
-namespace Youverse.Core.Services.Authorization.Apps;
+namespace Odin.Core.Services.Authorization.Apps;
 
 /// <summary>
 /// Permissions granted for a given from an app circle

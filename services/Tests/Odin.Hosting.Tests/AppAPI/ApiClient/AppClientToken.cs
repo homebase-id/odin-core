@@ -1,7 +1,7 @@
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Identity;
+using Odin.Core.Services.Authorization.ExchangeGrants;
 
-namespace Youverse.Hosting.Tests.AppAPI.ApiClient;
+namespace Odin.Hosting.Tests.AppAPI.ApiClient;
 
 public class AppClientToken
 {

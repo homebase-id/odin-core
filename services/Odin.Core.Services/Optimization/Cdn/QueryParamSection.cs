@@ -1,7 +1,7 @@
 using Dawn;
-using Youverse.Core.Services.Drives.DriveCore.Query;
+using Odin.Core.Services.Drives.DriveCore.Query;
 
-namespace Youverse.Core.Services.Optimization.Cdn;
+namespace Odin.Core.Services.Optimization.Cdn;
 
 public class QueryParamSection
 {

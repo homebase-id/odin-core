@@ -1,13 +1,13 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Drives;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Authorization.Permissions;
+using Odin.Core.Services.Drives;
 
-#nullable enable
-
-namespace Youverse.Core.Services.Base;
+namespace Odin.Core.Services.Base;
 
 /// <summary>
 /// Specifies a set of permissions.  This allows an identity's permissions to come from multiple sources such as circles.

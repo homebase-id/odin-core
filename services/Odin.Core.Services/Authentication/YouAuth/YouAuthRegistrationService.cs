@@ -1,23 +1,21 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Security.Authentication.ExtendedProtection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.AppNotifications.ClientNotifications;
-using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Contacts.Circle.Membership;
-using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
+using Odin.Core.Exceptions;
+using Odin.Core.Identity;
+using Odin.Core.Services.AppNotifications.ClientNotifications;
+using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Authorization.Permissions;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Contacts.Circle.Membership;
+using Odin.Core.Services.Contacts.Circle.Membership.Definition;
 
-#nullable enable
-
-namespace Youverse.Core.Services.Authentication.YouAuth
+namespace Odin.Core.Services.Authentication.YouAuth
 {
     public sealed class YouAuthRegistrationService : IYouAuthRegistrationService
     {

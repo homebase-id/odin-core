@@ -1,6 +1,6 @@
-using Youverse.Core.Storage.Sqlite.DriveDatabase;
+using Odin.Core.Storage.SQLite.DriveDatabase;
 
-namespace Youverse.Core.Services.Drives.DriveCore.Query;
+namespace Odin.Core.Services.Drives.DriveCore.Query;
 
 public class QueryBatchResultOptions : ResultOptions
 {

@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Youverse.Core;
+namespace Odin.Core;
 
 public class CursoredResult<TResult> : CursoredResult<string, TResult>{}
 

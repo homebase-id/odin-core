@@ -1,9 +1,7 @@
-using System;
 using Microsoft.AspNetCore.Authorization;
-using Youverse.Core.Services.Authorization;
-using Youverse.Hosting.Authentication.ClientToken;
+using Odin.Core.Services.Authorization;
 
-namespace Youverse.Hosting.Authentication.Owner
+namespace Odin.Hosting.Authentication.Owner
 {
     public static class OwnerPolicies
     {

@@ -1,9 +1,7 @@
 ﻿using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Youverse.Core;
-using Youverse.Core.Services.Drives;
+using Odin.Core.Services.Drives;
 
-namespace Youverse.Hosting.Controllers.Base
+namespace Odin.Hosting.Controllers.Base
 {
     /// <summary>
     /// Base class for querying a drive's search index

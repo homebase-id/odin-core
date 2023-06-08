@@ -1,7 +1,7 @@
 using System.Collections.Generic;
-using Youverse.Core.Services.Drives.Reactions;
+using Odin.Core.Services.Drives.Reactions;
 
-namespace Youverse.Hosting.Controllers.Base;
+namespace Odin.Hosting.Controllers.Base;
 
 /// <summary>
 /// Handles reactions for files

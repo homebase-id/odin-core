@@ -1,6 +1,6 @@
 using System;
 
-namespace Youverse.Core.Services.Transit;
+namespace Odin.Core.Services.Transit;
 
 public class GetDrivesByTypeRequest
 {

@@ -1,7 +1,7 @@
 ﻿using System;
-using Youverse.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Authorization.Acl;
 
-namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
+namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
 {
     public class UploadFileMetadata
     {

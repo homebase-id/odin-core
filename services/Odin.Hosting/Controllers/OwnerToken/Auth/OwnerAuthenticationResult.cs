@@ -1,4 +1,4 @@
-namespace Youverse.Hosting.Controllers.OwnerToken.Auth
+namespace Odin.Hosting.Controllers.OwnerToken.Auth
 {
     public class OwnerAuthenticationResult
     {

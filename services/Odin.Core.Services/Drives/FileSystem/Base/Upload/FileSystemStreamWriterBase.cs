@@ -4,18 +4,18 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Cryptography.Crypto;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives.DriveCore.Storage;
-using Youverse.Core.Services.Drives.Management;
-using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.Encryption;
+using Odin.Core.Cryptography;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives.DriveCore.Storage;
+using Odin.Core.Services.Drives.Management;
+using Odin.Core.Services.Transit;
+using Odin.Core.Services.Transit.Encryption;
 
-namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload;
+namespace Odin.Core.Services.Drives.FileSystem.Base.Upload;
 
 /// <summary>
 /// Enables the writing of file streams from external sources and

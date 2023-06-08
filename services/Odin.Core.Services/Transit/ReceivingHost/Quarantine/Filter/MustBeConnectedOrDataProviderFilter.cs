@@ -1,10 +1,10 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Base;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Base;
 
-namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine.Filter
+namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine.Filter
 {
     public class MustBeConnectedOrDataProviderFilter : ITransitStreamFilter
     {

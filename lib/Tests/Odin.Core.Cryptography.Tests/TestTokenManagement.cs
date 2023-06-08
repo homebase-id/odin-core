@@ -1,8 +1,7 @@
 using NUnit.Framework;
-using Youverse.Core.Cryptography.Crypto;
-using Youverse.Core.Cryptography.Data;
+using Odin.Core.Cryptography.Data;
 
-namespace Youverse.Core.Cryptography.Tests
+namespace Odin.Core.Cryptography.Tests
 {
     public class TestTokenManagement
     {

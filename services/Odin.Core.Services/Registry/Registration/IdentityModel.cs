@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.Registry.Registration;
+namespace Odin.Core.Services.Registry.Registration;
 
 public class IdentityModel
 {

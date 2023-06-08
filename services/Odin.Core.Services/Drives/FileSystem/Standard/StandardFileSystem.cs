@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Drives.FileSystem.Base;
+using Odin.Core.Services.Apps;
+using Odin.Core.Services.Drives.FileSystem.Base;
 
-namespace Youverse.Core.Services.Drives.FileSystem.Standard;
+namespace Odin.Core.Services.Drives.FileSystem.Standard;
 
 public class StandardFileSystem : IDriveFileSystem
 {

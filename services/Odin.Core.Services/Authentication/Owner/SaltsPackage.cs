@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.Authentication.Owner
+namespace Odin.Core.Services.Authentication.Owner
 {
     public sealed class SaltsPackage
     {

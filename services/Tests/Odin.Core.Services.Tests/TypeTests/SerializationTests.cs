@@ -1,11 +1,12 @@
 using System;
 using System.Linq;
 using NUnit.Framework;
-using Youverse.Core.Cryptography.Crypto;
-using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Serialization;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Cryptography.Data;
+using Odin.Core.Serialization;
+using Odin.Core.Time;
 
-namespace Youverse.Core.Services.Tests.TypeTests;
+namespace Odin.Core.Services.Tests.TypeTests;
 
 public struct Timestamp
 {

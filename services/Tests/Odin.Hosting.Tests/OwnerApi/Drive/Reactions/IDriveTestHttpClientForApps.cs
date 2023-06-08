@@ -1,12 +1,12 @@
 ﻿using System.Net.Http;
 using System.Threading.Tasks;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.Reactions;
+using Odin.Hosting.Controllers.Base;
+using Odin.Hosting.Controllers.ClientToken;
 using Refit;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.Reactions;
-using Youverse.Hosting.Controllers.Base;
-using Youverse.Hosting.Controllers.ClientToken;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Drive.Reactions
+namespace Odin.Hosting.Tests.OwnerApi.Drive.Reactions
 {
     public interface IDriveTestHttpClientForOwnerReactions
     {

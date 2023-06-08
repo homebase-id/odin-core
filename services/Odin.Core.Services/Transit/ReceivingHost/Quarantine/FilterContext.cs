@@ -1,6 +1,6 @@
-using Youverse.Core.Identity;
+using Odin.Core.Identity;
 
-namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
+namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine
 {
     public class FilterContext : IFilterContext
     {

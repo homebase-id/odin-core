@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
 
-namespace Youverse.Core.Services.Email;
+namespace Odin.Core.Services.Email;
 
 public interface IEmailSender
 {

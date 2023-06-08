@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
 using WaitingListApi.Data;
-using Youverse.Core.Exceptions.Server;
 
 namespace WaitingListApi.Controllers;
 

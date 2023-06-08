@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Security.Cryptography;
 
-namespace Youverse.Core.Cryptography
+namespace Odin.Core.Cryptography
 {
     public class NonceEntry
     {

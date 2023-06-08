@@ -1,6 +1,6 @@
 using System;
 
-namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
+namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine
 {
     /// <summary>
     /// Resulting information from filtering a set of data

@@ -1,22 +1,12 @@
 ﻿#nullable enable
-using System;
-using System.Collections.Generic;
-using System.Net.WebSockets;
-using System.Threading;
+
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Org.BouncyCastle.Security;
-using Youverse.Core;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.AppNotifications;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Tenant;
-using Youverse.Hosting.Authentication.ClientToken;
-using Youverse.Hosting.Controllers.ClientToken;
+using Odin.Core.Services.AppNotifications;
+using Odin.Hosting.Controllers.ClientToken;
 
-namespace Youverse.Hosting.Controllers.Notifications
+namespace Odin.Hosting.Controllers.Notifications
 {
     [ApiController]
     [AuthorizeValidAppExchangeGrant]

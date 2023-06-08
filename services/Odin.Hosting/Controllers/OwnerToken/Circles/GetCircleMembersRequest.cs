@@ -1,6 +1,6 @@
-using Youverse.Core;
+using Odin.Core;
 
-namespace Youverse.Hosting.Controllers.OwnerToken.Circles;
+namespace Odin.Hosting.Controllers.OwnerToken.Circles;
 
 public class GetCircleMembersRequest
 {

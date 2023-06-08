@@ -4,26 +4,24 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Identity;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Configuration;
-using Youverse.Core.Services.Contacts.Circle;
-using Youverse.Core.Services.Contacts.Circle.Membership;
-using Youverse.Core.Services.DataSubscription.Follower;
-using Youverse.Core.Services.DataSubscription.SendingHost;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.DriveCore.Storage;
-using Youverse.Core.Services.Drives.Management;
-using Youverse.Core.Services.Mediator;
-using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.SendingHost;
-using Youverse.Core.Storage;
-using Youverse.Core.Storage.Sqlite.IdentityDatabase;
-using Youverse.Core.Util;
+using Odin.Core.Identity;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Configuration;
+using Odin.Core.Services.Contacts.Circle;
+using Odin.Core.Services.Contacts.Circle.Membership;
+using Odin.Core.Services.DataSubscription.Follower;
+using Odin.Core.Services.DataSubscription.SendingHost;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.DriveCore.Storage;
+using Odin.Core.Services.Drives.Management;
+using Odin.Core.Services.Mediator;
+using Odin.Core.Services.Transit;
+using Odin.Core.Services.Transit.SendingHost;
+using Odin.Core.Storage;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 
-namespace Youverse.Core.Services.DataSubscription
+namespace Odin.Core.Services.DataSubscription
 {
     /// <summary>
     /// Distributes files from channels to follower's feed drives (and only the feed drive)

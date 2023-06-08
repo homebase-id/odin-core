@@ -1,6 +1,6 @@
-using Youverse.Core.Services.Drives;
+using Odin.Core.Services.Drives;
 
-namespace Youverse.Hosting.Controllers.OwnerToken.Transit;
+namespace Odin.Hosting.Controllers.OwnerToken.Transit;
 
 public class TransitQueryBatchRequest : QueryBatchRequest
 {

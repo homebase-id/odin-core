@@ -1,10 +1,9 @@
 using System;
 using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Youverse.Hosting.Tests;
+namespace Odin.Hosting.Tests;
 
 public class AsyncAwaitExceptionHandling
 {

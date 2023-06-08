@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.Drives.FileSystem.Base;
+namespace Odin.Core.Services.Drives.FileSystem.Base;
 
 public class FileChunk
 {

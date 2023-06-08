@@ -1,16 +1,13 @@
 ﻿#nullable enable
+
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Authentication.YouAuth;
-using Youverse.Core.Services.Optimization.Cdn;
-using Youverse.Core.Services.Tenant;
-using NotImplementedException = System.NotImplementedException;
+using Odin.Core.Services.Authentication.YouAuth;
+using Odin.Core.Services.Optimization.Cdn;
+using Odin.Core.Services.Tenant;
 
-namespace Youverse.Hosting.Controllers.Anonymous
+namespace Odin.Hosting.Controllers.Anonymous
 {
     [ApiController]
     public class StaticFileController : Controller

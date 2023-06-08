@@ -1,4 +1,4 @@
-﻿namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
+﻿namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
     public class TableKeyUniqueThreeValue : TableKeyUniqueThreeValueCRUD
     {

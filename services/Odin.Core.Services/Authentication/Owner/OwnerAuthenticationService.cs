@@ -6,18 +6,17 @@ using System.Threading.Tasks;
 using Dawn;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Configuration;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.Management;
-using Youverse.Core.Services.Mediator;
-using Youverse.Core.Storage;
+using Odin.Core.Cryptography;
+using Odin.Core.Cryptography.Data;
+using Odin.Core.Exceptions;
+using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Authorization.Permissions;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Configuration;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.Management;
+using Odin.Core.Services.Mediator;
 
 /// <summary>
 /// Goals here are that:
@@ -28,7 +27,7 @@ using Youverse.Core.Storage;
 ///   * all sessions contain server and client data that when merged results in a KEK (using XOR for speed, maybe reconsider)
 /// </summary>
 ///
-namespace Youverse.Core.Services.Authentication.Owner
+namespace Odin.Core.Services.Authentication.Owner
 {
     /// <summary>
     /// Basic password authentication.  Returns a token you can use to maintain state of authentication (i.e. store in a cookie)

@@ -1,18 +1,16 @@
 using System;
 using System.Linq;
 using System.Net.Http;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
+using Odin.Core;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Base;
 using Org.BouncyCastle.Utilities.Encoders;
-using Youverse.Core;
-using Youverse.Core.Cryptography.Crypto;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Base;
-using Youverse.Hosting.Authentication.Owner;
 
-namespace Youverse.Hosting.Tests;
+namespace Odin.Hosting.Tests;
 
 public class SharedSecretGetRequestHandler : HttpClientHandler
 {

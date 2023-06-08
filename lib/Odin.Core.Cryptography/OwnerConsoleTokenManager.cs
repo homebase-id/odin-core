@@ -1,5 +1,5 @@
 ﻿using System;
-using Youverse.Core.Cryptography.Data;
+using Odin.Core.Cryptography.Data;
 
 //
 // After lots of thinking I strongly discourage expiring the login cookie(s).
@@ -20,7 +20,7 @@ using Youverse.Core.Cryptography.Data;
 // enter their password because they get the same annoying dialog once+ per month.
 //
 
-namespace Youverse.Core.Cryptography
+namespace Odin.Core.Cryptography
 {
 
     public static class OwnerConsoleTokenManager

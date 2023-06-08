@@ -1,10 +1,9 @@
 using System;
 using System.IO;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Certificate;
-using Youverse.Core.Services.Configuration;
+using Odin.Core.Identity;
+using Odin.Core.Services.Configuration;
 
-namespace Youverse.Core.Services.Base
+namespace Odin.Core.Services.Base
 {
     public class TenantContext
     {

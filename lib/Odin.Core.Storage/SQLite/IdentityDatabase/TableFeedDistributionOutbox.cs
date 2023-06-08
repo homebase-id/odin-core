@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
-using Org.BouncyCastle.Cms;
+using Odin.Core.Time;
 
-namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
+namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
     public class TableFeedDistributionOutbox: TableFeedDistributionOutboxCRUD
     {

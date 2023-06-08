@@ -1,7 +1,7 @@
 using System.Collections.Generic;
-using Youverse.Core.Services.Drives;
+using Odin.Core.Services.Drives;
 
-namespace Youverse.Core.Services.DataSubscription.Follower;
+namespace Odin.Core.Services.DataSubscription.Follower;
 
 public class FollowRequest
 {

@@ -1,6 +1,6 @@
 using System;
 
-namespace Youverse.Core.Services.Authorization.Apps;
+namespace Odin.Core.Services.Authorization.Apps;
 
 public static class BuiltInAppIdentifiers
 {

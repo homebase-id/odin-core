@@ -5,29 +5,26 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Apps;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.DriveCore.Query;
+using Odin.Core.Services.Drives.DriveCore.Storage;
+using Odin.Core.Services.Drives.FileSystem.Base;
+using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Core.Services.Drives.Management;
+using Odin.Core.Services.Transit.Encryption;
+using Odin.Core.Services.Transit.SendingHost;
+using Odin.Core.Storage;
+using Odin.Hosting.Controllers.Base;
+using Odin.Hosting.Controllers.OwnerToken.Drive;
+using Odin.Hosting.Tests.AppAPI.Utils;
+using Odin.Hosting.Tests.OwnerApi.Drive.Management;
+using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
-using Youverse.Core;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.DriveCore.Query;
-using Youverse.Core.Services.Drives.DriveCore.Storage;
-using Youverse.Core.Services.Drives.FileSystem;
-using Youverse.Core.Services.Drives.FileSystem.Base;
-using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
-using Youverse.Core.Services.Drives.Management;
-using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Services.Transit.SendingHost;
-using Youverse.Core.Storage;
-using Youverse.Hosting.Controllers.Base;
-using Youverse.Hosting.Controllers.OwnerToken.Drive;
-using Youverse.Hosting.Tests.AppAPI.Utils;
-using Youverse.Hosting.Tests.OwnerApi.Drive;
-using Youverse.Hosting.Tests.OwnerApi.Drive.Management;
-using Youverse.Hosting.Tests.OwnerApi.Utils;
 
-namespace Youverse.Hosting.Tests.OwnerApi.ApiClient;
+namespace Odin.Hosting.Tests.OwnerApi.ApiClient;
 
 public class DriveApiClient
 {

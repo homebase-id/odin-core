@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
 
-namespace Youverse.Core.Services.Certificate;
+namespace Odin.Core.Services.Certificate;
 
 #nullable enable
 

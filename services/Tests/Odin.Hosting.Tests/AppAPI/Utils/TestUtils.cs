@@ -1,16 +1,17 @@
 ﻿using System.IO;
-using Youverse.Core;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Transit.Encryption;
+using Odin.Core;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Transit.Encryption;
 
-namespace Youverse.Hosting.Tests.AppAPI.Utils
+namespace Odin.Hosting.Tests.AppAPI.Utils
 {
     public static class TestUtils
     {
         public static Stream GetEncryptedStream(string data, KeyHeader keyHeader)
         {
             var key = keyHeader.AesKey;
-            var cipher = Core.Cryptography.Crypto.AesCbc.Encrypt(
+            var cipher = AesCbc.Encrypt(
                 data: System.Text.Encoding.UTF8.GetBytes(data),
                 key: ref key,
                 iv: keyHeader.Iv);
@@ -20,7 +21,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
 
         public static Stream EncryptAes(string data, byte[] iv, ref SensitiveByteArray key)
         {
-            var cipher = Core.Cryptography.Crypto.AesCbc.Encrypt(
+            var cipher = AesCbc.Encrypt(
                 data: System.Text.Encoding.UTF8.GetBytes(data),
                 key: ref key,
                 iv: iv);
@@ -35,7 +36,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Utils
         {
             var data = OdinSystemSerializer.Serialize(instance);
             
-            var cipher = Core.Cryptography.Crypto.AesCbc.Encrypt(
+            var cipher = AesCbc.Encrypt(
                 data: System.Text.Encoding.UTF8.GetBytes(data),
                 key: ref key,
                 iv: iv);

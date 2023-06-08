@@ -1,7 +1,7 @@
 using System;
 using Microsoft.AspNetCore.Authentication;
 
-namespace Youverse.Hosting.Authentication.Owner
+namespace Odin.Hosting.Authentication.Owner
 {
     public static class OwnerAuthenticationExtensions
     {

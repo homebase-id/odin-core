@@ -10,22 +10,22 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Odin.Core.Exceptions;
+using Odin.Core.Logging.CorrelationId;
+using Odin.Core.Logging.CorrelationId.Serilog;
+using Odin.Core.Logging.Hostname;
+using Odin.Core.Logging.Hostname.Serilog;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Certificate;
+using Odin.Core.Services.Configuration;
+using Odin.Core.Services.Registry;
+using Odin.Core.Services.Registry.Registration;
+using Odin.Hosting.Multitenant;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Logging.CorrelationId;
-using Youverse.Core.Logging.CorrelationId.Serilog;
-using Youverse.Core.Logging.Hostname;
-using Youverse.Core.Logging.Hostname.Serilog;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Certificate;
-using Youverse.Core.Services.Configuration;
-using Youverse.Core.Services.Registry;
-using Youverse.Core.Services.Registry.Registration;
-using Youverse.Hosting.Multitenant;
 
-namespace Youverse.Hosting
+namespace Odin.Hosting
 {
     public static class Program
     {

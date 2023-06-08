@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Hosting;
 
-namespace Youverse.Hosting.Middleware
+namespace Odin.Hosting.Middleware
 {
     public class StaticFileCachingMiddleware
     {

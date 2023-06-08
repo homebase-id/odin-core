@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.Transit.SendingHost;
+namespace Odin.Core.Services.Transit.SendingHost;
 
 /// <summary>
 /// Specifies the type of instruction incoming from another identity 

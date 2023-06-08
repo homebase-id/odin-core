@@ -1,6 +1,6 @@
-using Youverse.Core.Services.AppNotifications.ClientNotifications;
+using Odin.Core.Services.AppNotifications.ClientNotifications;
 
-namespace Youverse.Core.Services.AppNotifications;
+namespace Odin.Core.Services.AppNotifications;
 
 public class EstablishConnectionResponse : IClientNotification
 {

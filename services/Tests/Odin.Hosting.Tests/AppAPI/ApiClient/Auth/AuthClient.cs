@@ -1,6 +1,6 @@
-using Youverse.Hosting.Tests.OwnerApi.Utils;
+using Odin.Hosting.Tests.OwnerApi.Utils;
 
-namespace Youverse.Hosting.Tests.AppAPI.ApiClient.Auth;
+namespace Odin.Hosting.Tests.AppAPI.ApiClient.Auth;
 
 public class AuthClient
 {

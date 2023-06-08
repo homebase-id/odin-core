@@ -1,15 +1,13 @@
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using MediatR;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.AppNotifications.ClientNotifications;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Base;
-
 #nullable enable
 
-namespace Youverse.Core.Services.Authentication.YouAuth
+using System.Threading.Tasks;
+using MediatR;
+using Odin.Core.Identity;
+using Odin.Core.Services.AppNotifications.ClientNotifications;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Base;
+
+namespace Odin.Core.Services.Authentication.YouAuth
 {
     /// <summary>
     /// Manages the registered <see cref="OdinId"/>'s  who are 'logged in' to this Identity

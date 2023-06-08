@@ -1,10 +1,8 @@
 ﻿using System;
 using Serilog;
 using Serilog.Configuration;
-using Youverse.Core.Logging.CorrelationId;
-using Youverse.Core.Logging.CorrelationId.Serilog;
 
-namespace Youverse.Core.Logging.Hostname.Serilog
+namespace Odin.Core.Logging.Hostname.Serilog
 {
     public static class StickyHostnameExtensions
     {

@@ -12,7 +12,6 @@
         <EnableDefaultContentItems>false</EnableDefaultContentItems>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
-        <RootNamespace>Youverse.Hosting</RootNamespace>
     </PropertyGroup>
 
     <PropertyGroup>

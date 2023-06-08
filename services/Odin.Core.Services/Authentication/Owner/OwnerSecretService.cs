@@ -1,15 +1,12 @@
 ﻿using System;
-using System.IO;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Cryptography.Crypto;
-using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Storage;
+using Odin.Core.Cryptography;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Cryptography.Data;
+using Odin.Core.Exceptions;
+using Odin.Core.Services.Base;
 
-namespace Youverse.Core.Services.Authentication.Owner
+namespace Odin.Core.Services.Authentication.Owner
 {
     public class OwnerSecretService : IOwnerSecretService
     {

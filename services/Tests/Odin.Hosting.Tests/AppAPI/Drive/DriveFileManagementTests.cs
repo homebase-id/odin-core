@@ -6,22 +6,21 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.DriveCore.Query;
+using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Core.Services.Transit;
+using Odin.Core.Services.Transit.Encryption;
+using Odin.Hosting.Controllers;
+using Odin.Hosting.Controllers.Base;
+using Odin.Hosting.Tests.AppAPI.Utils;
 using Refit;
-using Youverse.Core;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.DriveCore.Query;
-using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
-using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Hosting.Controllers;
-using Youverse.Hosting.Controllers.Base;
-using Youverse.Hosting.Controllers.OwnerToken.Drive;
-using Youverse.Hosting.Tests.AppAPI.Utils;
 
-namespace Youverse.Hosting.Tests.AppAPI.Drive
+namespace Odin.Hosting.Tests.AppAPI.Drive
 {
     public class DriveFileManagementTests
     {
@@ -151,7 +150,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.That(((MemoryStream)payloadCipher).ToArray(), Is.EqualTo(payloadResponseCipher));
 
                 var aesKey = decryptedKeyHeader.AesKey;
-                var decryptedPayloadBytes = Core.Cryptography.Crypto.AesCbc.Decrypt(
+                var decryptedPayloadBytes = AesCbc.Decrypt(
                     cipherText: payloadResponseCipher,
                     Key: ref aesKey,
                     IV: decryptedKeyHeader.Iv);

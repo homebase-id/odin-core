@@ -1,13 +1,13 @@
 using System;
 using System.IO;
-using Youverse.Core.Identity;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Configuration;
-using Youverse.Core.Storage.Sqlite;
-using Youverse.Core.Storage.Sqlite.ServerDatabase;
-using Youverse.Core.Util;
+using Odin.Core.Identity;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Configuration;
+using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.ServerDatabase;
+using Odin.Core.Util;
 
-namespace Youverse.Core.Services.Base;
+namespace Odin.Core.Services.Base;
 
 /// <summary>
 /// Stores system-wide data

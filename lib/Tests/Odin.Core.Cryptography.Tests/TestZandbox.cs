@@ -1,12 +1,9 @@
-using System;
-using System.Security.Cryptography;
 using System.Text;
-using Newtonsoft.Json.Linq;
 using NUnit.Framework;
-using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Util;
+using Odin.Core.Cryptography.Data;
+using Odin.Core.Util;
 
-namespace Youverse.Core.Cryptography.Tests
+namespace Odin.Core.Cryptography.Tests
 {
     public class TestZandbox
     {

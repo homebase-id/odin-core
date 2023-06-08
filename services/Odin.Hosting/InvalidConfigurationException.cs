@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.Serialization;
 
-namespace Youverse.Hosting
+namespace Odin.Hosting
 {
     [Serializable]
     internal class InvalidConfigurationException : Exception

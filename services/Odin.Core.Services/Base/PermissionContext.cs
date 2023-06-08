@@ -2,10 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Dawn;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Drives;
+using Odin.Core.Exceptions;
+using Odin.Core.Services.Drives;
 
-namespace Youverse.Core.Services.Base
+namespace Odin.Core.Services.Base
 {
     public class PermissionContext
     {

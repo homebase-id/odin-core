@@ -7,7 +7,7 @@ using Microsoft.Data.Sqlite;
 // I.e. the people I need to notify when I update some content.
 //
 
-namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
+namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
     public class TableFollowsMe : TableFollowsMeCRUD
     {

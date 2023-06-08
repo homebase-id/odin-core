@@ -1,6 +1,6 @@
 using System;
 
-namespace Youverse.Core.Exceptions
+namespace Odin.Core.Exceptions
 {
     public class YouverseClientException : YouverseException
     {

@@ -4,15 +4,15 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Authorization.Permissions;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives;
+using Odin.Hosting.Tests.Anonymous.Ident;
+using Odin.Hosting.Tests.AppAPI.ApiClient;
 using Refit;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives;
-using Youverse.Hosting.Tests.Anonymous.Ident;
-using Youverse.Hosting.Tests.AppAPI.ApiClient;
 
-namespace Youverse.Hosting.Tests.Performance.DotYouContext
+namespace Odin.Hosting.Tests.Performance.DotYouContext
 {
     [TestFixture]
     public class GetContextPerfTests

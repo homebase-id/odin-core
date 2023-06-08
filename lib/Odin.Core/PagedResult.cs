@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using MessagePack;
 
-namespace Youverse.Core
+namespace Odin.Core
 {
     [MessagePackObject]
     [DebuggerDisplay("Result Count={Results.Count}")]

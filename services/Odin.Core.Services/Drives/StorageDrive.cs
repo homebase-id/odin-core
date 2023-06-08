@@ -1,11 +1,11 @@
 using System;
 using System.IO;
-using Youverse.Core.Cryptography.Crypto;
-using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Drives.DriveCore.Storage;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Cryptography.Data;
+using Odin.Core.Exceptions;
+using Odin.Core.Services.Drives.DriveCore.Storage;
 
-namespace Youverse.Core.Services.Drives
+namespace Odin.Core.Services.Drives
 {
     /// <summary>
     /// Information about a drive

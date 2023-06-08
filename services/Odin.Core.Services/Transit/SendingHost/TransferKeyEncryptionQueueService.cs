@@ -1,9 +1,8 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Storage;
+using Odin.Core.Services.Base;
 
-namespace Youverse.Core.Services.Transit.SendingHost
+namespace Odin.Core.Services.Transit.SendingHost
 {
     public class TransferKeyEncryptionQueueService
     {

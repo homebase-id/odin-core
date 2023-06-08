@@ -1,9 +1,8 @@
 using System;
-using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Youverse.Core
+namespace Odin.Core
 {
     public static class ByteArrayUtil
     {

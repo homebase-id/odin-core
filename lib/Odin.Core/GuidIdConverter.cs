@@ -2,7 +2,7 @@ using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Youverse.Core;
+namespace Odin.Core;
 
 public class GuidIdConverter : JsonConverter<GuidId>
 {   

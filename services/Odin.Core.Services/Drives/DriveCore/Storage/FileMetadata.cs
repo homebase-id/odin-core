@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Youverse.Core.Services.Drives.DriveCore.Storage
+namespace Odin.Core.Services.Drives.DriveCore.Storage
 {
     public enum FileState
     {

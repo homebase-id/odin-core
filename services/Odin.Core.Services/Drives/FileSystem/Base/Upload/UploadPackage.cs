@@ -1,7 +1,7 @@
 using System;
 using Dawn;
 
-namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
+namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
 {
     /// <summary>
     /// A package/parcel to be send to a set of recipients

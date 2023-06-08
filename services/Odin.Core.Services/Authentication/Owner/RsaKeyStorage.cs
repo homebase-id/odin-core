@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using Youverse.Core.Cryptography.Data;
+using Odin.Core.Cryptography.Data;
 
-namespace Youverse.Core.Services.Authentication.Owner
+namespace Odin.Core.Services.Authentication.Owner
 {
     class RsaKeyStorage
     {

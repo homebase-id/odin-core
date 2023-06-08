@@ -17,7 +17,7 @@ https://www.sqlitetutorial.net/sqlite-index/
 using System;
 using System.Runtime.CompilerServices;
 
-namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
+namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
     public class IdentityDatabase : DatabaseBase
     {

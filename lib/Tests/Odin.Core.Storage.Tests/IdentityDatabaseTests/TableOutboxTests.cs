@@ -1,11 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using NUnit.Framework;
-using Org.BouncyCastle.Cms;
-using Youverse.Core;
-using Youverse.Core.Storage.Sqlite.IdentityDatabase;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
+using Odin.Core.Time;
 
-namespace IdentityDatabaseTests
+namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 {
     public class TableOutboxTests
     {

@@ -1,4 +1,4 @@
-﻿namespace Youverse.Hosting.Controllers.ClientToken
+﻿namespace Odin.Hosting.Controllers.ClientToken
 {
     public static class AppApiPathConstants
     {

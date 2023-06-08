@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.DriveCore.Storage;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.DriveCore.Storage;
 
-namespace Youverse.Core.Services.Apps;
+namespace Odin.Core.Services.Apps;
 
 public class ClientFileMetadata
 {

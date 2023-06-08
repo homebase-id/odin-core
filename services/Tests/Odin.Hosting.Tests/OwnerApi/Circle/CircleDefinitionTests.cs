@@ -2,23 +2,18 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Authorization.Permissions;
+using Odin.Core.Services.Contacts.Circle.Membership.Definition;
+using Odin.Core.Services.Drives;
 using Refit;
-using Youverse.Core;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Contacts.Circle;
-using Youverse.Core.Services.Contacts.Circle.Membership;
-using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
-using Youverse.Core.Services.Contacts.Circle.Requests;
-using Youverse.Core.Services.Drives;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Circle
+namespace Odin.Hosting.Tests.OwnerApi.Circle
 {
     public class CircleDefinitionTests
     {

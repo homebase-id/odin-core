@@ -1,12 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Certificate;
-using Youverse.Core.Services.Registry.Registration;
-using Youverse.Core.Util;
+using Odin.Core.Identity;
+using Odin.Core.Services.Certificate;
+using Odin.Core.Services.Registry.Registration;
+using Odin.Core.Util;
 
-namespace Youverse.Core.Services.Registry
+namespace Odin.Core.Services.Registry
 {
     public class IdentityRegistrationRequest
     {

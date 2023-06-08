@@ -7,10 +7,10 @@ using HttpClientFactoryLite;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
-using Youverse.Core.Services.Dns;
-using Youverse.Core.Services.Dns.PowerDns;
+using Odin.Core.Services.Dns;
+using Odin.Core.Services.Dns.PowerDns;
 
-namespace Youverse.Core.Services.Tests.Dns.PowerDnsRest;
+namespace Odin.Core.Services.Tests.Dns.PowerDnsRest;
 
 #nullable enable
 

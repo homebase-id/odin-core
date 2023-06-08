@@ -1,8 +1,8 @@
 using System;
 using MediatR;
-using Youverse.Core.Services.Authorization.Apps;
+using Odin.Core.Services.Authorization.Apps;
 
-namespace Youverse.Core.Services.Mediator;
+namespace Odin.Core.Services.Mediator;
 
 public class AppRegistrationChangedNotification : EventArgs, INotification
 {

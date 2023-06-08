@@ -2,7 +2,7 @@
 using System.IO;
 using NUnit.Framework;
 
-namespace Youverse.Core.Services.Tests.TypeTests;
+namespace Odin.Core.Services.Tests.TypeTests;
 
 public class WriteFileTests
 {

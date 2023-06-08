@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using Youverse.Core.Identity;
+using Odin.Core.Identity;
 
-namespace Youverse.Core.Services.Contacts.Circle.Requests
+namespace Odin.Core.Services.Contacts.Circle.Requests
 {
     public class ConnectionRequestHeader
     {

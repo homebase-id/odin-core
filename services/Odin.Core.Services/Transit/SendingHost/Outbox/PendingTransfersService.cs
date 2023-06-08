@@ -2,10 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Base;
+using Odin.Core.Identity;
+using Odin.Core.Services.Base;
 
-namespace Youverse.Core.Services.Transit.SendingHost.Outbox
+namespace Odin.Core.Services.Transit.SendingHost.Outbox
 {
     public class PendingTransfersService : IPendingTransfersService
     {

@@ -1,12 +1,12 @@
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Configuration;
-using Youverse.Core.Services.Contacts.Circle;
-using Youverse.Hosting.Tests.OwnerApi.Circle;
+using Odin.Core.Services.Authorization.Permissions;
+using Odin.Core.Services.Configuration;
+using Odin.Core.Services.Contacts.Circle;
+using Odin.Hosting.Tests.OwnerApi.Circle;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
+namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 {
     public class ConnectedIdentityDefaultsTests
     {

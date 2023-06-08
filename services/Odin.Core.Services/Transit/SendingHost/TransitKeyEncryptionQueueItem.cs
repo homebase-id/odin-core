@@ -1,7 +1,7 @@
 using System;
-using Youverse.Core.Identity;
+using Odin.Core.Identity;
 
-namespace Youverse.Core.Services.Transit.SendingHost
+namespace Odin.Core.Services.Transit.SendingHost
 {
     /// <summary>
     /// A transfer item that needs to be encrypted. 

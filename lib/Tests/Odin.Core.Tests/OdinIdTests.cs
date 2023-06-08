@@ -1,8 +1,8 @@
 using System;
 using NUnit.Framework;
-using Youverse.Core.Identity;
+using Odin.Core.Identity;
 
-namespace Youverse.Core.Tests
+namespace Odin.Core.Tests
 {
     public class OdinIdTests
     {

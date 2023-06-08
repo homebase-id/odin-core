@@ -1,7 +1,6 @@
 using MediatR;
-using Youverse.Core.Services.Apps;
 
-namespace Youverse.Core.Services.AppNotifications.ClientNotifications
+namespace Odin.Core.Services.AppNotifications.ClientNotifications
 {
     public interface IClientNotification : INotification
     {

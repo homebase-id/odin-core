@@ -1,17 +1,12 @@
 ﻿#nullable enable
 using System.Linq;
-using System.Net;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.Extensions.Configuration.CommandLine;
-using Swashbuckle.AspNetCore.Annotations;
-using Youverse.Core.Services.Apps.CommandMessaging;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Tenant;
+using Odin.Core.Services.Apps.CommandMessaging;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Tenant;
 
-namespace Youverse.Hosting.Controllers.ClientToken.App
+namespace Odin.Hosting.Controllers.ClientToken.App
 {
     [ApiController]
     [Route(AppApiPathConstants.CommandSenderV1)]

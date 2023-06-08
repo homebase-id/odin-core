@@ -1,7 +1,7 @@
-using Youverse.Core.Identity;
-using Youverse.Core.Serialization;
+using Odin.Core.Identity;
+using Odin.Core.Serialization;
 
-namespace Youverse.Core.Services.AppNotifications.ClientNotifications
+namespace Odin.Core.Services.AppNotifications.ClientNotifications
 {
     public class ConnectionRequestAccepted : IClientNotification
     {

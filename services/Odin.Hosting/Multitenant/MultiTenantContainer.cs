@@ -1,4 +1,5 @@
-﻿using System;
+﻿#nullable enable
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
@@ -6,10 +7,9 @@ using Autofac;
 using Autofac.Core;
 using Autofac.Core.Lifetime;
 using Autofac.Core.Resolving;
-using Youverse.Core.Services.Tenant;
+using Odin.Core.Services.Tenant;
 
-#nullable enable
-namespace Youverse.Hosting.Multitenant
+namespace Odin.Hosting.Multitenant
 {
     public class MultiTenantContainer : IContainer
     {

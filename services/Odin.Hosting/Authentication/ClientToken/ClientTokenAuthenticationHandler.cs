@@ -11,24 +11,22 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Odin.Core;
+using Odin.Core.Exceptions;
+using Odin.Core.Services.Authentication.YouAuth;
+using Odin.Core.Services.Authorization;
+using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Authorization.Apps;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Authorization.Permissions;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.Management;
+using Odin.Hosting.Controllers.Anonymous;
+using Odin.Hosting.Controllers.ClientToken;
 using Quartz.Util;
-using Serilog;
-using Youverse.Core;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Authentication.YouAuth;
-using Youverse.Core.Services.Authorization;
-using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Authorization.Apps;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.Management;
-using Youverse.Hosting.Controllers.Anonymous;
-using Youverse.Hosting.Controllers.ClientToken;
 
-namespace Youverse.Hosting.Authentication.ClientToken
+namespace Odin.Hosting.Authentication.ClientToken
 {
     public class ClientTokenAuthenticationHandler : AuthenticationHandler<ClientTokenAuthenticationSchemeOptions>
     {

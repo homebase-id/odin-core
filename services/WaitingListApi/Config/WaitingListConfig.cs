@@ -1,7 +1,7 @@
 ﻿#nullable enable
 using System.Net;
-using Youverse.Core.Configuration;
-using Youverse.Core.Util;
+using Odin.Core.Configuration;
+using Odin.Core.Util;
 
 namespace WaitingListApi.Config
 {

@@ -1,8 +1,8 @@
-using NUnit.Framework;
 using System.Text;
-using Youverse.Core.Cryptography.Crypto;
+using NUnit.Framework;
+using Odin.Core.Cryptography.Crypto;
 
-namespace Youverse.Core.Cryptography.Tests
+namespace Odin.Core.Cryptography.Tests
 {
     public class TestAesManagement
     {

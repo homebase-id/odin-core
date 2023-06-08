@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives;
 
-namespace Youverse.Hosting.Controllers.Base;
+namespace Odin.Hosting.Controllers.Base;
 
 /// <summary>
 /// Base utility controller for API endpoints

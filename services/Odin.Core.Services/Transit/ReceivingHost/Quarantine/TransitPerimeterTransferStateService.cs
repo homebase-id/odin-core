@@ -2,14 +2,14 @@ using System;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Threading.Tasks;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives.FileSystem;
-using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Services.Transit.ReceivingHost.Incoming;
+using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives.FileSystem;
+using Odin.Core.Services.Transit.Encryption;
+using Odin.Core.Services.Transit.ReceivingHost.Incoming;
 
-namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
+namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine
 {
     public class TransitPerimeterTransferStateService : ITransitPerimeterTransferStateService
     {

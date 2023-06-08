@@ -3,14 +3,16 @@
 // These are temporary place holders and should probably be 
 // exchanged with something a bit more professional looking...
 //
+namespace Odin.Core.Services.Registry.Registration;
+
 public static class RegistrationEmails
 {
-    //
-    // Provisioning Completed
-    //
-    public static string ProvisioningCompletedText(string email, string domain, string link)
-    {
-        return @$" 
+  //
+  // Provisioning Completed
+  //
+  public static string ProvisioningCompletedText(string email, string domain, string link)
+  {
+    return @$" 
             Hi {email},
             
             Your new {domain} identity is ready.
@@ -20,11 +22,11 @@ public static class RegistrationEmails
             --
             Team Odin
         ";
-    }
+  }
     
-    public static string ProvisioningCompletedHtml(string email, string domain, string link)
-    {
-        return @$" 
+  public static string ProvisioningCompletedHtml(string email, string domain, string link)
+  {
+    return @$" 
             <!DOCTYPE html>
             <html>
             <head>
@@ -66,5 +68,5 @@ public static class RegistrationEmails
             </body>
             </html>
         ";
-    }
-} 
+  }
+}

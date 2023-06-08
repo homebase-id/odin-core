@@ -1,8 +1,7 @@
 ﻿using System;
-using System.Linq;
 using System.Security.Cryptography;
 
-namespace Youverse.Core.Util
+namespace Odin.Core.Util
 {
     public static class HashUtil
     {

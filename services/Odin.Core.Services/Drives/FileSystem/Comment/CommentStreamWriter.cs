@@ -2,17 +2,17 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives.DriveCore.Storage;
-using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
-using Youverse.Core.Services.Drives.Management;
-using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Services.Transit.SendingHost;
-using Youverse.Core.Storage;
+using Odin.Core.Exceptions;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives.DriveCore.Storage;
+using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Core.Services.Drives.Management;
+using Odin.Core.Services.Transit;
+using Odin.Core.Services.Transit.Encryption;
+using Odin.Core.Services.Transit.SendingHost;
+using Odin.Core.Storage;
 
-namespace Youverse.Core.Services.Drives.FileSystem.Comment;
+namespace Odin.Core.Services.Drives.FileSystem.Comment;
 
 /// <summary />
 public class CommentStreamWriter : FileSystemStreamWriterBase

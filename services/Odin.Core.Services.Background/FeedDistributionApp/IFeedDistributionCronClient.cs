@@ -1,7 +1,7 @@
 using System.Threading.Tasks;
 using Refit;
 
-namespace Youverse.Core.Services.Workers.FeedDistributionApp
+namespace Odin.Core.Services.Background.FeedDistributionApp
 {
     public interface IFeedDistributionCronClient
     {

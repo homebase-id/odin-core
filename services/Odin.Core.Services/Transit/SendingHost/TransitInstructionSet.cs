@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using Youverse.Core.Services.Drives;
+using Odin.Core.Services.Drives;
 
-namespace Youverse.Core.Services.Transit.SendingHost
+namespace Odin.Core.Services.Transit.SendingHost
 {
     /// <summary>
     /// Specifies what to do with a file when it is uploaded

@@ -1,4 +1,4 @@
-namespace Youverse.Hosting.Controllers.OwnerToken.Drive;
+namespace Odin.Hosting.Controllers.OwnerToken.Drive;
 
 public class GetDrivesRequest
 {

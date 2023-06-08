@@ -1,7 +1,6 @@
-using System;
-using Youverse.Core;
+using Odin.Core;
 
-namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement;
+namespace Odin.Hosting.Controllers.OwnerToken.AppManagement;
 
 public class GetAppRequest
 {

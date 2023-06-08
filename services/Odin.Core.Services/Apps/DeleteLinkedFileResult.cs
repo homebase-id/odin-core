@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Youverse.Core.Services.Apps;
+namespace Odin.Core.Services.Apps;
 
 public class DeleteLinkedFileResult
 {

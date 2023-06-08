@@ -1,7 +1,7 @@
 using System;
 using System.Net;
 
-namespace Youverse.Core.Exceptions.Client;
+namespace Odin.Core.Exceptions.Client;
 
 public class BadRequestException : ClientException
 {

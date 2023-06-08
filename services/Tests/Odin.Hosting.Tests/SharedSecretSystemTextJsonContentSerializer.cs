@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Linq;
 using System.Net.Http;
@@ -8,15 +10,13 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using Odin.Core;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Base;
 using Refit;
-using Youverse.Core;
-using Youverse.Core.Cryptography.Crypto;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Base;
 
-#nullable enable
-
-namespace Youverse.Hosting.Tests;
+namespace Odin.Hosting.Tests;
 
 public sealed class SharedSecretSystemTextJsonContentSerializer : IHttpContentSerializer
 {

@@ -1,10 +1,10 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core;
-using Youverse.Core.Services.DataSubscription.Follower;
-using Youverse.Hosting.Controllers.Base;
+using Odin.Core;
+using Odin.Core.Services.DataSubscription.Follower;
+using Odin.Hosting.Controllers.Base;
 
-namespace Youverse.Hosting.Controllers.ClientToken.App.Follow
+namespace Odin.Hosting.Controllers.ClientToken.App.Follow
 {
     /// <summary />
     [ApiController]

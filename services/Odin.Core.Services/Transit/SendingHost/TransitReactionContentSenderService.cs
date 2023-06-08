@@ -1,19 +1,19 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
+using Odin.Core.Exceptions;
+using Odin.Core.Identity;
+using Odin.Core.Services.Apps;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Contacts.Circle.Membership;
+using Odin.Core.Services.DataSubscription.Follower;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.Reactions;
+using Odin.Core.Services.Transit.Encryption;
+using Odin.Core.Services.Transit.ReceivingHost.Reactions;
 using Refit;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Contacts.Circle.Membership;
-using Youverse.Core.Services.DataSubscription.Follower;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.Reactions;
-using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Services.Transit.ReceivingHost.Reactions;
 
-namespace Youverse.Core.Services.Transit.SendingHost;
+namespace Odin.Core.Services.Transit.SendingHost;
 
 public class AddRemoteReactionRequest
 {

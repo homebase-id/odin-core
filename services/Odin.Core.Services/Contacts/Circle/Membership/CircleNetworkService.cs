@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security;
@@ -8,22 +7,23 @@ using System.Threading.Tasks;
 using Dawn;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Authorization.Apps;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
-using Youverse.Core.Services.Contacts.Circle.Requests;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Mediator;
-using Youverse.Core.Storage;
-using Youverse.Core.Util;
-using PermissionSet = Youverse.Core.Services.Authorization.Permissions.PermissionSet;
+using Odin.Core.Exceptions;
+using Odin.Core.Identity;
+using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Authorization.Apps;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Authorization.Permissions;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Contacts.Circle.Membership.Definition;
+using Odin.Core.Services.Contacts.Circle.Requests;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Mediator;
+using Odin.Core.Storage;
+using Odin.Core.Time;
+using Odin.Core.Util;
+using PermissionSet = Odin.Core.Services.Authorization.Permissions.PermissionSet;
 
-namespace Youverse.Core.Services.Contacts.Circle.Membership
+namespace Odin.Core.Services.Contacts.Circle.Membership
 {
     /// <summary>
     /// <inheritdoc cref="ICircleNetworkService"/>

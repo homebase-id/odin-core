@@ -1,7 +1,7 @@
 using System.Collections.Generic;
-using Youverse.Core.Services.Optimization.Cdn;
+using Odin.Core.Services.Optimization.Cdn;
 
-namespace Youverse.Hosting.Controllers.OwnerToken.Cdn;
+namespace Odin.Hosting.Controllers.OwnerToken.Cdn;
 
 public class PublishStaticFileRequest
 {

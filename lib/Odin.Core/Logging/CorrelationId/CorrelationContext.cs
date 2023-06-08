@@ -1,7 +1,6 @@
-﻿using System;
-using System.Threading;
+﻿using System.Threading;
 
-namespace Youverse.Core.Logging.CorrelationId
+namespace Odin.Core.Logging.CorrelationId
 {
     public class CorrelationContext : ICorrelationContext
     {

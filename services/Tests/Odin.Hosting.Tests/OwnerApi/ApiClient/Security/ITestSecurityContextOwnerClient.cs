@@ -1,9 +1,9 @@
 ﻿using System.Threading.Tasks;
+using Odin.Core.Services.Base;
+using Odin.Hosting.Controllers.OwnerToken;
 using Refit;
-using Youverse.Core.Services.Base;
-using Youverse.Hosting.Controllers.OwnerToken;
 
-namespace Youverse.Hosting.Tests.OwnerApi.ApiClient.Security
+namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Security
 {
     /// <summary>
     /// The interface for storing files

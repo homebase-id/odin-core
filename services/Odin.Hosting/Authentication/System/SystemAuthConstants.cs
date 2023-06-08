@@ -1,4 +1,4 @@
-﻿namespace Youverse.Hosting.Authentication.System
+﻿namespace Odin.Hosting.Authentication.System
 {
     public static class SystemAuthConstants
     {

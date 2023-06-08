@@ -1,7 +1,6 @@
 ﻿using System;
-using Youverse.Core.Cryptography.Crypto;
 
-namespace Youverse.Core.Cryptography.Data
+namespace Odin.Core.Cryptography.Data
 {
     /// <summary>
     /// Holds salts used during a delicate process wherein you need to hash

@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Security.Cryptography;
-using Youverse.Core.Cryptography.Data;
+using Odin.Core.Cryptography.Data;
 
-namespace Youverse.Core.Cryptography.Crypto
+namespace Odin.Core.Cryptography.Crypto
 {
     // So it's slightly messy to mix up the version with encrypted and unencrypted private key.
     // Not sure if I should break it into two almost identical classes.

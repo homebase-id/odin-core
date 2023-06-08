@@ -1,8 +1,8 @@
 using System;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Identity;
+using Odin.Core.Services.Authorization.ExchangeGrants;
 
-namespace Youverse.Core.Services.Contacts.Circle.Membership;
+namespace Odin.Core.Services.Contacts.Circle.Membership;
 
 public class IdentityConnectionRegistrationClient
 {

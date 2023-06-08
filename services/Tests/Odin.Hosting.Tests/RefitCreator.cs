@@ -1,11 +1,8 @@
-using System;
 using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
+using Odin.Core;
 using Refit;
-using Youverse.Core;
 
-namespace Youverse.Hosting.Tests;
+namespace Odin.Hosting.Tests;
 
 public static class RefitCreator
 {

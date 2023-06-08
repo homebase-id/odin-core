@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Text;
-using Youverse.Core.Cryptography.Crypto;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Time;
 
-namespace Youverse.Core.Cryptography
+namespace Odin.Core.Cryptography
 {
     public class CryptoniteKey
     {

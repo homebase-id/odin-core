@@ -1,13 +1,11 @@
 using System;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.DriveCore.Storage;
-using Youverse.Core.Services.Drives.FileSystem;
-using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Storage;
+using Odin.Core.Exceptions;
+using Odin.Core.Identity;
+using Odin.Core.Services.Drives.DriveCore.Storage;
+using Odin.Core.Services.Transit.Encryption;
+using Odin.Core.Storage;
 
-namespace Youverse.Core.Services.Apps
+namespace Odin.Core.Services.Apps
 {
     public class SharedSecretEncryptedFileHeader
     {

@@ -1,8 +1,8 @@
 using System;
 using Microsoft.AspNetCore.Http;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Authorization.ExchangeGrants;
 
-namespace Youverse.Hosting.Authentication.ClientToken;
+namespace Odin.Hosting.Authentication.ClientToken;
 
 internal static class AuthenticationCookieUtil
 {

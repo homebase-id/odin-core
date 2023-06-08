@@ -1,9 +1,7 @@
 using System;
-using System.Collections.Generic;
 using Dawn;
-using Youverse.Core.Services.Drives.DriveCore.Storage;
 
-namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload.Attachments
+namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments
 {
     /// <summary>
     /// A package/parcel to be send to a set of recipients

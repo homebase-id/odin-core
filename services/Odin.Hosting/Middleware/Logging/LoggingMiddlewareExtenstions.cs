@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Builder;
 
-namespace Youverse.Hosting.Middleware.Logging
+namespace Odin.Hosting.Middleware.Logging
 {
     public static class LoggingMiddlewareExtenstions
     {

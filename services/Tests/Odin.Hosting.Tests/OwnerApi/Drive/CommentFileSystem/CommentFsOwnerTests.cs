@@ -2,12 +2,11 @@ using System;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.FileSystem;
-using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
-using Youverse.Core.Storage;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Core.Storage;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
+namespace Odin.Hosting.Tests.OwnerApi.Drive.CommentFileSystem
 {
     public class CommentFsOwnerTests
     {

@@ -2,7 +2,7 @@
 using Serilog.Core;
 using Serilog.Events;
 
-namespace Youverse.Core.Logging.Hostname.Serilog
+namespace Odin.Core.Logging.Hostname.Serilog
 {
     public class StickyHostnameEnricher : ILogEventEnricher
     {

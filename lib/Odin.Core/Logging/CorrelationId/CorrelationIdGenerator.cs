@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Youverse.Core.Logging.CorrelationId
+namespace Odin.Core.Logging.CorrelationId
 {
     public class CorrelationUniqueIdGenerator : ICorrelationIdGenerator
     {

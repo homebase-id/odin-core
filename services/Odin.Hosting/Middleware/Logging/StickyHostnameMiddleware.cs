@@ -1,9 +1,8 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
-using Serilog.Context;
-using Youverse.Core.Logging.Hostname;
+using Odin.Core.Logging.Hostname;
 
-namespace Youverse.Hosting.Middleware.Logging
+namespace Odin.Hosting.Middleware.Logging
 {
     public class StickyHostnameMiddleware
     {

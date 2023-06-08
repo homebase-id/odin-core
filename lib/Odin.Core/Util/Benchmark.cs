@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
-namespace Youverse.Core.Util
+namespace Odin.Core.Util
 {
     public static class Benchmark
     {

@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Diagnostics;
 using System.Linq;
-using Microsoft.Data.Sqlite;
-using Youverse.Core.Exceptions;
+using Odin.Core.Exceptions;
+using Odin.Core.Time;
 
 /*
 =====
@@ -19,7 +18,7 @@ https://www.sqlitetutorial.net/sqlite-index/
 */
 
 
-namespace Youverse.Core.Storage.Sqlite.DriveDatabase
+namespace Odin.Core.Storage.SQLite.DriveDatabase
 {
     /// <summary>
     /// Database types:

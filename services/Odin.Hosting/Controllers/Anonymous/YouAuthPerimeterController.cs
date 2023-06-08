@@ -2,9 +2,9 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core.Services.Authentication.YouAuth;
+using Odin.Core.Services.Authentication.YouAuth;
 
-namespace Youverse.Hosting.Controllers.Anonymous
+namespace Odin.Hosting.Controllers.Anonymous
 {
     [ApiController]
     [Route("/api/perimeter/youauth")]

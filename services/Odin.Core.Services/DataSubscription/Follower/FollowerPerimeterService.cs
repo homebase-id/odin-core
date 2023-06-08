@@ -2,16 +2,14 @@
 using System.Threading.Tasks;
 using Dawn;
 using MediatR;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.AppNotifications.ClientNotifications;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Storage;
-using Youverse.Core.Storage.Sqlite.IdentityDatabase;
+using Odin.Core.Exceptions;
+using Odin.Core.Identity;
+using Odin.Core.Services.AppNotifications.ClientNotifications;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 
-namespace Youverse.Core.Services.DataSubscription.Follower
+namespace Odin.Core.Services.DataSubscription.Follower
 {
     /// <summary/>
     public class FollowerPerimeterService

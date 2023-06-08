@@ -4,18 +4,16 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Youverse.Core;
-using Youverse.Core.Cryptography.Crypto;
-using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Authorization.Apps;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives;
-using Youverse.Hosting.Controllers.OwnerToken.AppManagement;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Cryptography.Data;
+using Odin.Core.Services.Authorization.Apps;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Authorization.Permissions;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives;
+using Odin.Hosting.Controllers.OwnerToken.AppManagement;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Apps
+namespace Odin.Hosting.Tests.OwnerApi.Apps
 {
     public class AppRegistrationTests
     {

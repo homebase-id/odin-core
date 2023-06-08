@@ -1,13 +1,10 @@
-﻿using System.Collections.Generic;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
+using Odin.Core;
+using Odin.Core.Services.Contacts.Circle.Membership;
+using Odin.Hosting.Controllers.Anonymous;
 using Refit;
-using Youverse.Core;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Contacts.Circle.Membership;
-using Youverse.Hosting.Controllers.Anonymous;
-using Youverse.Hosting.Controllers.OwnerToken.Circles;
 
-namespace Youverse.Hosting.Tests.YouAuthApi.Circle
+namespace Odin.Hosting.Tests.YouAuthApi.Circle
 {
     public interface ICircleNetworkYouAuthClient
     {

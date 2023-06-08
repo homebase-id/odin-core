@@ -3,21 +3,17 @@ using System.IO;
 using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Primitives;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Exceptions.Client;
-using Youverse.Core.Exceptions.Server;
-using Youverse.Core.Logging.CorrelationId;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Base;
+using Odin.Core.Exceptions;
+using Odin.Core.Exceptions.Client;
+using Odin.Core.Exceptions.Server;
+using Odin.Core.Logging.CorrelationId;
+using Odin.Core.Serialization;
 
-namespace Youverse.Hosting.Middleware
+namespace Odin.Hosting.Middleware
 {
     public class ExceptionHandlingMiddleware
     {

@@ -2,10 +2,10 @@
 using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Odin.Core.Services.Authorization.Apps;
 using Swashbuckle.AspNetCore.Annotations;
-using Youverse.Core.Services.Authorization.Apps;
 
-namespace Youverse.Hosting.Controllers.ClientToken.App.Security
+namespace Odin.Hosting.Controllers.ClientToken.App.Security
 {
     [ApiController]
     [Route(AppApiPathConstants.AuthV1)]

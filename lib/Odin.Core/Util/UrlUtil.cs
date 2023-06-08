@@ -1,8 +1,7 @@
-﻿using System.Linq;
+﻿#nullable enable
 using System.Text;
 
-#nullable enable
-namespace Youverse.Core.Util
+namespace Odin.Core.Util
 {
     public static class UrlUtil
     {

@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 
+namespace Odin.Core.Services.Dns.PowerDns;
+
 public class Zone
 {
     public string account { get; set; }

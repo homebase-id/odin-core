@@ -1,6 +1,6 @@
-using Youverse.Core.Identity;
+using Odin.Core.Identity;
 
-namespace Youverse.Core.Services.Drives.Reactions;
+namespace Odin.Core.Services.Drives.Reactions;
 
 public class GetReactionsByIdentityRequest
 {

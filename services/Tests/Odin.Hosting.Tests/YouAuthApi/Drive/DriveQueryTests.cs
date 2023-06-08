@@ -4,17 +4,18 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core;
+using Odin.Core.Identity;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.DriveCore.Query;
+using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Core.Time;
+using Odin.Hosting.Controllers;
 using Refit;
-using Youverse.Core;
-using Youverse.Core.Identity;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.DriveCore.Query;
-using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
-using Youverse.Hosting.Controllers;
 
-namespace Youverse.Hosting.Tests.DriveApi.YouAuth
+namespace Odin.Hosting.Tests.YouAuthApi.Drive
 {
     public class DriveQueryTests
     {

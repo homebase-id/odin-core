@@ -11,7 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Youverse.Hosting.Authentication.CertificatePerimeter
+namespace Odin.Hosting.Authentication.Perimeter
 {
     /// <summary>
     /// This is a copy of Microsoft.AspNetCore.Authentication.Certificate.CertificateAuthenticationHandler except

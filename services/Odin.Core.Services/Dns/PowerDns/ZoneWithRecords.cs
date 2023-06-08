@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Youverse.Core.Services.Dns.PowerDns;
+namespace Odin.Core.Services.Dns.PowerDns;
 
 public class ZoneWithRecords
 {

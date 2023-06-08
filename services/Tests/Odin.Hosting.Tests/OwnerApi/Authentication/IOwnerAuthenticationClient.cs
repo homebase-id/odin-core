@@ -1,13 +1,13 @@
 using System;
 using System.Threading.Tasks;
+using Odin.Core.Cryptography;
+using Odin.Core.Fluff;
+using Odin.Core.Services.Authentication.Owner;
+using Odin.Hosting.Controllers.OwnerToken;
+using Odin.Hosting.Controllers.OwnerToken.Auth;
 using Refit;
-using Youverse.Core;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Services.Authentication.Owner;
-using Youverse.Hosting.Controllers.OwnerToken;
-using Youverse.Hosting.Controllers.OwnerToken.Auth;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Authentication
+namespace Odin.Hosting.Tests.OwnerApi.Authentication
 {
     public interface IOwnerAuthenticationClient
     {

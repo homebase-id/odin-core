@@ -1,7 +1,7 @@
 using System;
 using NUnit.Framework;
 
-namespace Youverse.Core.Tests;
+namespace Odin.Core.Tests;
 
 public class ByteArrayUtilTests
 {

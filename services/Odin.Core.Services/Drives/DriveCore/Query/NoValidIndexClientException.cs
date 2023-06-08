@@ -1,7 +1,7 @@
 using System;
-using Youverse.Core.Exceptions;
+using Odin.Core.Exceptions;
 
-namespace Youverse.Core.Services.Drives.DriveCore.Query
+namespace Odin.Core.Services.Drives.DriveCore.Query
 {
     internal class NoValidIndexClientException : YouverseSystemException
     {

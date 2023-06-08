@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.Drives.DriveCore.Query;
+namespace Odin.Core.Services.Drives.DriveCore.Query;
 
 public class QueryModifiedResultOptions : ResultOptions
 {

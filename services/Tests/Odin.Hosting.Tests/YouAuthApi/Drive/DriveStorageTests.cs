@@ -3,17 +3,16 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core.Identity;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Core.Time;
 using Refit;
-using Youverse.Core;
-using Youverse.Core.Identity;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
-using Youverse.Hosting.Tests.DriveApi.YouAuth;
 using Guid = System.Guid;
 
-namespace Youverse.Hosting.Tests.YouAuthApi.Drive
+namespace Odin.Hosting.Tests.YouAuthApi.Drive
 {
     public class DriveStorageTests
     {

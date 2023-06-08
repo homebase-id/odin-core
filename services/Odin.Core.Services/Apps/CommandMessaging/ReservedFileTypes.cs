@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.Apps.CommandMessaging;
+namespace Odin.Core.Services.Apps.CommandMessaging;
 
 public static class ReservedFileTypes
 {

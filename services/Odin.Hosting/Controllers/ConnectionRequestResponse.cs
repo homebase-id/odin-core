@@ -1,7 +1,7 @@
 using System;
-using Youverse.Core.Services.Contacts.Circle.Requests;
+using Odin.Core.Services.Contacts.Circle.Requests;
 
-namespace Youverse.Hosting.Controllers;
+namespace Odin.Hosting.Controllers;
 
 public class ConnectionRequestResponse : ConnectionRequestHeader
 {

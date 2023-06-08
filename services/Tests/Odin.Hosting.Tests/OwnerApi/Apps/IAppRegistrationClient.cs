@@ -1,14 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Odin.Core;
+using Odin.Core.Fluff;
+using Odin.Core.Services.Authorization.Apps;
+using Odin.Hosting.Controllers.OwnerToken;
+using Odin.Hosting.Controllers.OwnerToken.AppManagement;
 using Refit;
-using Youverse.Core;
-using Youverse.Core.Services.Authorization.Apps;
-using Youverse.Hosting.Controllers.OwnerToken;
-using Youverse.Hosting.Controllers.OwnerToken.AppManagement;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Apps
+namespace Odin.Hosting.Tests.OwnerApi.Apps
 {
     public interface IAppRegistrationClient
     {

@@ -1,22 +1,15 @@
 using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Net.Http;
-using System.Security.Authentication;
-using System.Security.Cryptography.X509Certificates;
 using Dawn;
-using HttpClientFactoryLite;
+using Odin.Core.Identity;
+using Odin.Core.Logging.CorrelationId;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Certificate;
+using Odin.Core.Services.Registry.Registration;
+using Odin.Core.Storage;
 using Refit;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Identity;
-using Youverse.Core.Logging.CorrelationId;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Certificate;
-using Youverse.Core.Services.Registry.Registration;
-using Youverse.Core.Storage;
 using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
-namespace Youverse.Core.Services.Base
+namespace Odin.Core.Services.Base
 {
     /// <summary>
     /// Creates clients for http requests to other digital identity servers

@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using Youverse.Core.Services.Transit;
+using Odin.Core.Services.Transit;
 
-namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload.Attachments
+namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments
 {
     /// <summary>
     ///  Specifies how the transfer was handled for each recipient

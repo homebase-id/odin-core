@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.Drives.Management;
+namespace Odin.Core.Services.Drives.Management;
 
 public class CreateDriveRequest
 {

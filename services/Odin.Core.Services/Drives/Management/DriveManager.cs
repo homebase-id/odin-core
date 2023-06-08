@@ -6,15 +6,14 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using MediatR;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Cryptography.Data;
+using Odin.Core.Exceptions;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Mediator;
 using Serilog;
-using Youverse.Core.Cryptography.Crypto;
-using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Mediator;
-using Youverse.Core.Storage;
 
-namespace Youverse.Core.Services.Drives.Management;
+namespace Odin.Core.Services.Drives.Management;
 
 // Note: drive storage using the ThreeKey KeyValueDatabase
 // key1 = drive id

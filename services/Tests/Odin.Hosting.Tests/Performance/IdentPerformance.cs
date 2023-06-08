@@ -4,10 +4,10 @@ using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Hosting.Tests.Anonymous.Ident;
 using Refit;
-using Youverse.Hosting.Tests.Anonymous.Ident;
 
-namespace Youverse.Hosting.Tests.Performance
+namespace Odin.Hosting.Tests.Performance
 {
 
     public class IdentPerformanceTests

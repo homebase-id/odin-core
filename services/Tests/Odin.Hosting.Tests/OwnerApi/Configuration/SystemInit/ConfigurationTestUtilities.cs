@@ -4,17 +4,17 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Youverse.Core;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Configuration;
-using Youverse.Core.Services.Contacts.Circle.Membership;
-using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
-using Youverse.Core.Services.Contacts.Circle.Requests;
-using Youverse.Hosting.Controllers;
-using Youverse.Hosting.Controllers.OwnerToken.Circles;
-using Youverse.Hosting.Tests.OwnerApi.Circle;
+using Odin.Core;
+using Odin.Core.Identity;
+using Odin.Core.Services.Configuration;
+using Odin.Core.Services.Contacts.Circle.Membership;
+using Odin.Core.Services.Contacts.Circle.Membership.Definition;
+using Odin.Core.Services.Contacts.Circle.Requests;
+using Odin.Hosting.Controllers;
+using Odin.Hosting.Controllers.OwnerToken.Circles;
+using Odin.Hosting.Tests.OwnerApi.Circle;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit;
+namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit;
 
 public class ConfigurationTestUtilities
 {

@@ -1,9 +1,9 @@
 using System.Net.Http;
 using System.Threading.Tasks;
+using Odin.Core.Services.EncryptionKeyService;
 using Refit;
-using Youverse.Core.Services.EncryptionKeyService;
 
-namespace Youverse.Core.Services.DataSubscription.Follower
+namespace Odin.Core.Services.DataSubscription.Follower
 {
     /// <summary>
     /// Sends follow/unfollow/updates to other Digital Identities

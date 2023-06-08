@@ -1,12 +1,10 @@
-using System;
 using System.Collections.Generic;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Exceptions;
+using Odin.Core.Identity;
+using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Authorization.ExchangeGrants;
 
-namespace Youverse.Core.Services.Base
+namespace Odin.Core.Services.Base
 {
     /// <summary>
     /// Contains information about the OdinId calling a given service
@@ -37,7 +35,7 @@ namespace Youverse.Core.Services.Base
         public IEnumerable<GuidId> Circles { get; set; }
 
         /// <summary>
-        /// Specifies the <see cref="Identity.OdinId"/> of the individual calling the API
+        /// Specifies the <see cref="Odin.Core.Identity.OdinId"/> of the individual calling the API
         /// </summary>
         public OdinId? OdinId { get; }
 

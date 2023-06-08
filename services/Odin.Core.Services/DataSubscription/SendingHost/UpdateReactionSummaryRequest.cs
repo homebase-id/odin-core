@@ -1,7 +1,7 @@
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.DriveCore.Storage;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.DriveCore.Storage;
 
-namespace Youverse.Core.Services.DataSubscription.SendingHost;
+namespace Odin.Core.Services.DataSubscription.SendingHost;
 
 public class UpdateReactionSummaryRequest
 {

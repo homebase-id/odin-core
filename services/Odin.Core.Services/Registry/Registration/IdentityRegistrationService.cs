@@ -10,18 +10,18 @@ using System.Threading.Tasks;
 using DnsClient;
 using HttpClientFactoryLite;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Configuration;
-using Youverse.Core.Services.Dns;
-using Youverse.Core.Services.Email;
-using Youverse.Core.Util;
+using Odin.Core.Exceptions;
+using Odin.Core.Identity;
+using Odin.Core.Services.Configuration;
+using Odin.Core.Services.Dns;
+using Odin.Core.Services.Email;
+using Odin.Core.Util;
 using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
 // Managed Domain: DNS records are managed by e.g. an ISP
 // Own Domain: DNS records are managed by end user
 
-namespace Youverse.Core.Services.Registry.Registration;
+namespace Odin.Core.Services.Registry.Registration;
 
 #nullable enable
 

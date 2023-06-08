@@ -1,9 +1,9 @@
 #nullable enable
 using System;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Identity;
+using Odin.Core.Services.Authorization.ExchangeGrants;
 
-namespace Youverse.Core.Services.Authentication.YouAuth;
+namespace Odin.Core.Services.Authentication.YouAuth;
 
 public sealed class YouAuthClient
 {

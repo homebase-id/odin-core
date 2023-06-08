@@ -1,13 +1,11 @@
 using System;
 using MediatR;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.AppNotifications;
-using Youverse.Core.Services.AppNotifications.ClientNotifications;
-using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.DriveCore.Storage;
+using Odin.Core.Services.AppNotifications;
+using Odin.Core.Services.Apps;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.DriveCore.Storage;
 
-namespace Youverse.Core.Services.Mediator
+namespace Odin.Core.Services.Mediator
 {
     public class DriveFileChangedNotification : EventArgs, INotification, IDriveNotification
     {

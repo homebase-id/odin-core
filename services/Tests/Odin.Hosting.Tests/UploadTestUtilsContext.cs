@@ -1,9 +1,8 @@
-﻿using System.IO;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
-using Youverse.Core.Storage;
+﻿using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Core.Storage;
 
-namespace Youverse.Hosting.Tests
+namespace Odin.Hosting.Tests
 {
     public class UploadTestUtilsContext
     {

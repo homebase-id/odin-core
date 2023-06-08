@@ -6,7 +6,7 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Youverse.Core.Serialization;
+namespace Odin.Core.Serialization;
 
 /// <summary>
 /// Centralizes serialization functions to escape the conversion between NewtonSoft and Microsoft's serialization  >:[

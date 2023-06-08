@@ -3,26 +3,25 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core;
+using Odin.Core.Identity;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.DriveCore.Storage;
+using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Core.Services.Drives.Reactions;
+using Odin.Core.Services.Transit;
+using Odin.Core.Services.Transit.Encryption;
+using Odin.Core.Services.Transit.ReceivingHost;
+using Odin.Core.Services.Transit.ReceivingHost.Reactions;
+using Odin.Core.Services.Transit.SendingHost;
+using Odin.Core.Storage;
+using Odin.Hosting.Controllers.OwnerToken.Transit;
+using Odin.Hosting.Tests.AppAPI.Utils;
+using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
-using Youverse.Core;
-using Youverse.Core.Identity;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.DriveCore.Storage;
-using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
-using Youverse.Core.Services.Drives.Reactions;
-using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Services.Transit.ReceivingHost;
-using Youverse.Core.Services.Transit.ReceivingHost.Reactions;
-using Youverse.Core.Services.Transit.SendingHost;
-using Youverse.Core.Storage;
-using Youverse.Hosting.Controllers.ClientToken.Transit;
-using Youverse.Hosting.Controllers.OwnerToken.Transit;
-using Youverse.Hosting.Tests.AppAPI.Utils;
-using Youverse.Hosting.Tests.OwnerApi.Utils;
 
-namespace Youverse.Hosting.Tests.OwnerApi.ApiClient.Transit;
+namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Transit;
 
 public class TransitApiClient
 {

@@ -1,7 +1,7 @@
 using System;
-using Youverse.Core.Services.Drives;
+using Odin.Core.Services.Drives;
 
-namespace Youverse.Core.Services.Authorization.ExchangeGrants;
+namespace Odin.Core.Services.Authorization.ExchangeGrants;
 
 /// <summary>
 /// Basis for a drive which has been assigned a permission, even if it has not been granted

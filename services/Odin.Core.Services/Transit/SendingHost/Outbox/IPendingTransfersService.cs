@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Youverse.Core.Identity;
+using Odin.Core.Identity;
 
-namespace Youverse.Core.Services.Transit.SendingHost.Outbox
+namespace Odin.Core.Services.Transit.SendingHost.Outbox
 {
     /// <summary>
     /// A global queue (singleton) list of senders who need

@@ -4,12 +4,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Services.Drives.DriveCore.Query;
-using Youverse.Core.Services.Drives.DriveCore.Query.Sqlite;
-using Youverse.Core.Services.Drives.Management;
-using Youverse.Core.Services.Mediator;
+using Odin.Core.Services.Drives.DriveCore.Query;
+using Odin.Core.Services.Drives.DriveCore.Query.Sqlite;
+using Odin.Core.Services.Drives.Management;
+using Odin.Core.Services.Mediator;
 
-namespace Youverse.Core.Services.Drives
+namespace Odin.Core.Services.Drives
 {
     /// <summary>
     /// Hosts all the instances of the DriveDatabase across all drives

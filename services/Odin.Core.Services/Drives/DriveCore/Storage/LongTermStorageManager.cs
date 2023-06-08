@@ -4,11 +4,11 @@ using System.IO;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Drives.FileSystem.Base;
+using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Drives.FileSystem.Base;
 
-namespace Youverse.Core.Services.Drives.DriveCore.Storage
+namespace Odin.Core.Services.Drives.DriveCore.Storage
 {
     public class LongTermStorageManager
     {

@@ -3,12 +3,11 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Org.BouncyCastle.Tls;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Registry.Registration;
-using Youverse.Hosting.Authentication.ClientToken;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Registry.Registration;
+using Odin.Hosting.Authentication.ClientToken;
 
-namespace Youverse.Hosting.Middleware
+namespace Odin.Hosting.Middleware
 {
     public class ApiCorsMiddleware
     {

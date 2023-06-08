@@ -1,15 +1,13 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Dawn;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives.DriveCore.Storage;
-using Youverse.Core.Services.Drives.Management;
+using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives.DriveCore.Storage;
 
-namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload.Attachments;
+namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments;
 
 /// <summary>
 /// Enables the writing of file streams from external sources and

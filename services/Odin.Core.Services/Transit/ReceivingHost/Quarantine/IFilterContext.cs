@@ -1,6 +1,6 @@
-using Youverse.Core.Identity;
+using Odin.Core.Identity;
 
-namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
+namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine
 {
     /// <summary>
     /// Holds contextual information needed by instances of <see cref="ITransitStreamFilter"/>

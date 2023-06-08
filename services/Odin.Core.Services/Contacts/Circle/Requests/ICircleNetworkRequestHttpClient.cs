@@ -1,8 +1,9 @@
 using System.Threading.Tasks;
+using Odin.Core.Fluff;
+using Odin.Core.Services.EncryptionKeyService;
 using Refit;
-using Youverse.Core.Services.EncryptionKeyService;
 
-namespace Youverse.Core.Services.Contacts.Circle.Requests
+namespace Odin.Core.Services.Contacts.Circle.Requests
 {
     /// <summary>
     /// Sends connection requests and acceptances to other Digital Identities

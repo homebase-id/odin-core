@@ -1,9 +1,9 @@
-﻿using Dawn;
-using System;
-using Youverse.Core.Cryptography.Crypto;
-using Youverse.Core.Util;
+﻿using System;
+using Dawn;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Util;
 
-namespace Youverse.Core.Cryptography.Data
+namespace Odin.Core.Cryptography.Data
 {
     /// <summary>
     /// Holding an encrypted symmetric key (AES key)

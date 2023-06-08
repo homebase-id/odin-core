@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Odin.Core.Serialization;
 using WaitingListApi.Config;
 using WaitingListApi.Data;
-using Youverse.Core.Serialization;
 
 namespace WaitingListApi
 {

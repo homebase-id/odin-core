@@ -1,7 +1,7 @@
 using System;
-using Youverse.Core.Exceptions;
+using Odin.Core.Exceptions;
 
-namespace Youverse.Core.Services.Registry
+namespace Odin.Core.Services.Registry
 {
     public class InvalidTenantClientException : YouverseClientException
     {

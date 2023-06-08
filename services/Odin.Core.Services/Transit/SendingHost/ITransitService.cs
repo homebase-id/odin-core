@@ -1,11 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Storage;
+using Odin.Core.Services.Drives;
+using Odin.Core.Storage;
 
-namespace Youverse.Core.Services.Transit.SendingHost
+namespace Odin.Core.Services.Transit.SendingHost
 {
     public interface ITransitService
     {

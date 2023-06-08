@@ -1,7 +1,7 @@
-using Youverse.Core;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core;
+using Odin.Core.Services.Authorization.ExchangeGrants;
 
-namespace Youverse.Hosting.Tests
+namespace Odin.Hosting.Tests
 {
     public class OwnerAuthTokenContext
     {

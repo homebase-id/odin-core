@@ -3,16 +3,14 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using NUnit.Framework;
-using Youverse.Core.Cryptography.Crypto;
+using Odin.Core.Cryptography.Data;
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Generators;
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.X509;
-using Youverse.Core.Cryptography.Data;
-using System.Diagnostics;
 
-namespace Youverse.Core.Cryptography.Tests
+namespace Odin.Core.Cryptography.Tests
 {
     public class TestRsaKeyManagement
     {

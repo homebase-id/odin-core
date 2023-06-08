@@ -1,14 +1,10 @@
 ﻿using System;
 using System.Security.Cryptography;
 using System.Text;
-using Youverse.Core.Cryptography.Data;
-using Org.BouncyCastle.Crypto;
-using Org.BouncyCastle.Crypto.Generators;
-using Org.BouncyCastle.Pkcs;
+using Odin.Core.Cryptography.Data;
 using Org.BouncyCastle.Security;
-using Org.BouncyCastle.X509;
 
-namespace Youverse.Core.Cryptography.Crypto
+namespace Odin.Core.Cryptography.Crypto
 {
     public static class RsaKeyManagement
     {

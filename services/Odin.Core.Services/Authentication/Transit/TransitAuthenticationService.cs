@@ -2,15 +2,15 @@
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.AppNotifications.ClientNotifications;
-using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Configuration;
-using Youverse.Core.Services.Contacts.Circle.Membership;
+using Odin.Core.Identity;
+using Odin.Core.Services.AppNotifications.ClientNotifications;
+using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Configuration;
+using Odin.Core.Services.Contacts.Circle.Membership;
 
-namespace Youverse.Core.Services.Authentication.Transit;
+namespace Odin.Core.Services.Authentication.Transit;
 
 //TODO: the name 'registration' is not accurate here because nothing is being registered.  this is just a cache loader
 //

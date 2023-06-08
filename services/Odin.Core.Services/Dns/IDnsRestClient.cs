@@ -1,8 +1,8 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Youverse.Core.Services.Dns.PowerDns;
+using Odin.Core.Services.Dns.PowerDns;
 
-namespace Youverse.Core.Services.Dns;
+namespace Odin.Core.Services.Dns;
 
 // SEB:NOTE
 // This is modelled after PowerDNS: https://github.com/PowerDNS/pdns/blob/auth-4.5.3/docs/http-api/swagger/authoritative-api-swagger.yaml

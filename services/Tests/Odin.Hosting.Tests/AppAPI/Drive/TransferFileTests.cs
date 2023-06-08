@@ -6,29 +6,25 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.DriveCore.Query;
+using Odin.Core.Services.Drives.DriveCore.Storage;
+using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Core.Services.Transit;
+using Odin.Core.Services.Transit.Encryption;
+using Odin.Core.Services.Transit.ReceivingHost;
+using Odin.Core.Services.Transit.SendingHost;
+using Odin.Hosting.Tests.AppAPI.Transit;
+using Odin.Hosting.Tests.AppAPI.Utils;
+using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
-using Youverse.Core;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.DriveCore.Query;
-using Youverse.Core.Services.Drives.DriveCore.Storage;
-using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
-using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Services.Transit.ReceivingHost;
-using Youverse.Core.Services.Transit.SendingHost;
-using Youverse.Hosting.Controllers;
-using Youverse.Hosting.Controllers.Base;
-using Youverse.Hosting.Controllers.ClientToken.Transit;
-using Youverse.Hosting.Tests.AppAPI.Transit;
-using Youverse.Hosting.Tests.AppAPI.Utils;
-using Youverse.Hosting.Tests.OwnerApi.Utils;
 
-namespace Youverse.Hosting.Tests.AppAPI.Drive
+namespace Odin.Hosting.Tests.AppAPI.Drive
 {
     public class TransferFileTests
     {
@@ -429,7 +425,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.That(((MemoryStream)payloadCipher).ToArray(), Is.EqualTo(payloadResponseCipher));
 
                 var aesKey = decryptedKeyHeader.AesKey;
-                var decryptedPayloadBytes = Core.Cryptography.Crypto.AesCbc.Decrypt(
+                var decryptedPayloadBytes = AesCbc.Decrypt(
                     cipherText: payloadResponseCipher,
                     Key: ref aesKey,
                     IV: decryptedKeyHeader.Iv);
@@ -710,7 +706,7 @@ namespace Youverse.Hosting.Tests.AppAPI.Drive
                 Assert.That(((MemoryStream)payloadCipher).ToArray(), Is.EqualTo(payloadResponseCipher));
 
                 var aesKey = decryptedKeyHeader.AesKey;
-                var decryptedPayloadBytes = Core.Cryptography.Crypto.AesCbc.Decrypt(
+                var decryptedPayloadBytes = AesCbc.Decrypt(
                     cipherText: payloadResponseCipher,
                     Key: ref aesKey,
                     IV: decryptedKeyHeader.Iv);

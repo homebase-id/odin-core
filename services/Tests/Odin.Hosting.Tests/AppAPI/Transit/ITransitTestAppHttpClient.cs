@@ -1,12 +1,9 @@
-﻿using System;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
+using Odin.Core.Services.Transit.ReceivingHost;
+using Odin.Hosting.Controllers.ClientToken;
 using Refit;
-using Youverse.Core;
-using Youverse.Core.Services.Transit.ReceivingHost;
-using Youverse.Hosting.Controllers.ClientToken;
-using Youverse.Hosting.Controllers.ClientToken.Transit;
 
-namespace Youverse.Hosting.Tests.AppAPI.Transit
+namespace Odin.Hosting.Tests.AppAPI.Transit
 {
     /// <summary>
     /// The interface for 

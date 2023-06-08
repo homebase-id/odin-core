@@ -1,8 +1,7 @@
-using System;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Identity;
+using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 
-namespace Youverse.Core.Services.Base
+namespace Odin.Core.Services.Base
 {
     public class OdinContext
     {

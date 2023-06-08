@@ -2,7 +2,7 @@
 using Serilog;
 using Serilog.Configuration;
 
-namespace Youverse.Core.Logging.CorrelationId.Serilog
+namespace Odin.Core.Logging.CorrelationId.Serilog
 {
     public static class CorrelationIdExtensions
     {

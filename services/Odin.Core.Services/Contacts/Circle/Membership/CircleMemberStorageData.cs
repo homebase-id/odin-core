@@ -1,6 +1,6 @@
-using Youverse.Core.Identity;
+using Odin.Core.Identity;
 
-namespace Youverse.Core.Services.Contacts.Circle.Membership;
+namespace Odin.Core.Services.Contacts.Circle.Membership;
 
 public record CircleMemberStorageData
 {

@@ -1,14 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
-using Youverse.Core.Identity;
+using Odin.Core.Identity;
 
 //
 // ImFollowing - this class stores all the people that follow me.
 // I.e. the people I need to notify when I update some content.
 //
 
-namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
+namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
     public class TableImFollowing : TableImFollowingCRUD
     {

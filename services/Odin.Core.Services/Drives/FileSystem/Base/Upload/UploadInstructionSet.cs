@@ -2,10 +2,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using Dawn;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Transit.SendingHost;
+using Odin.Core.Exceptions;
+using Odin.Core.Services.Transit.SendingHost;
 
-namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
+namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
 {
     /// <summary>
     /// Specifies how an upload should be handled

@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 
-namespace Youverse.Core.Services.Certificate;
+namespace Odin.Core.Services.Certificate;
 
 public class CertificateServiceFactory : ICertificateServiceFactory
 {

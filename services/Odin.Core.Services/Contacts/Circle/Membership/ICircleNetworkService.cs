@@ -1,14 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Authorization.Apps;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
-using Youverse.Core.Services.Contacts.Circle.Requests;
+using Odin.Core.Identity;
+using Odin.Core.Services.Authorization.Apps;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Contacts.Circle.Membership.Definition;
+using Odin.Core.Services.Contacts.Circle.Requests;
 
-namespace Youverse.Core.Services.Contacts.Circle.Membership
+namespace Odin.Core.Services.Contacts.Circle.Membership
 {
     /// <summary>
     /// Establishes connections between individuals

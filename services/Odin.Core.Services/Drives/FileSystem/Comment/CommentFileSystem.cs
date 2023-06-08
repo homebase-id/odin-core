@@ -1,13 +1,7 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Drives.FileSystem.Base;
-using Youverse.Core.Services.Transit;
+using Odin.Core.Services.Drives.FileSystem.Base;
 
-namespace Youverse.Core.Services.Drives.FileSystem.Comment;
+namespace Odin.Core.Services.Drives.FileSystem.Comment;
 
 public class CommentFileSystem : IDriveFileSystem
 {

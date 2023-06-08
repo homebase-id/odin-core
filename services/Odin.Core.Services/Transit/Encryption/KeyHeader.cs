@@ -1,9 +1,8 @@
 using System;
 using System.IO;
-using System.Threading.Tasks;
-using Youverse.Core.Cryptography;
+using Odin.Core.Cryptography.Crypto;
 
-namespace Youverse.Core.Services.Transit.Encryption
+namespace Odin.Core.Services.Transit.Encryption
 {
     public class KeyHeader
     {
@@ -30,7 +29,7 @@ namespace Youverse.Core.Services.Transit.Encryption
         public byte[] EncryptDataAes(byte[] data)
         {
             var key = this.AesKey;
-            var cipher = Core.Cryptography.Crypto.AesCbc.Encrypt(
+            var cipher = AesCbc.Encrypt(
                 data: data,
                 key: ref key,
                 iv: this.Iv);
@@ -74,7 +73,7 @@ namespace Youverse.Core.Services.Transit.Encryption
         public byte[] Decrypt(byte[] encryptedData)
         {
             var aesKey = this.AesKey;
-            var bytes = Core.Cryptography.Crypto.AesCbc.Decrypt(
+            var bytes = AesCbc.Decrypt(
                 cipherText: encryptedData,
                 Key: ref aesKey,
                 IV: this.Iv);

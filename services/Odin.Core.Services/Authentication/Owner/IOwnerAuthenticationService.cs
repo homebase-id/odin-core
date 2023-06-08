@@ -1,12 +1,12 @@
 using System;
 using System.Threading.Tasks;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Base;
+using Odin.Core.Cryptography;
+using Odin.Core.Cryptography.Data;
+using Odin.Core.Exceptions;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Base;
 
-namespace Youverse.Core.Services.Authentication.Owner
+namespace Odin.Core.Services.Authentication.Owner
 {
     /// <summary>
     /// Methods use for logging into the admin client of an Individual's DigitalIdentity

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Youverse.Core.Services.Certificate;
+namespace Odin.Core.Services.Certificate;
 
 /// <summary>
 /// Defines the domains to be setup for a given certificate

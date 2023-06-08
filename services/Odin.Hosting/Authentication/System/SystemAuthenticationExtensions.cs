@@ -1,7 +1,7 @@
 using System;
 using Microsoft.AspNetCore.Authentication;
 
-namespace Youverse.Hosting.Authentication.System
+namespace Odin.Hosting.Authentication.System
 {
     public static class SystemAuthenticationExtensions
     {

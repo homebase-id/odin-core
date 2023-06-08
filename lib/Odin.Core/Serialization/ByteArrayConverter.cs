@@ -2,7 +2,7 @@ using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Youverse.Core.Serialization;
+namespace Odin.Core.Serialization;
 
 public class ByteArrayConverter : JsonConverter<byte[]>
 {

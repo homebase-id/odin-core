@@ -3,7 +3,7 @@ using System.Diagnostics;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using NUnit.Framework;
 
-namespace Youverse.Core.Cryptography.Tests
+namespace Odin.Core.Cryptography.Tests
 {
     public class TestPbkdf2Management
     {

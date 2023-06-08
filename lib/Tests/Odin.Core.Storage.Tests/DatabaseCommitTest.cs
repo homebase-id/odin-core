@@ -2,9 +2,9 @@
 using System.Diagnostics;
 using System.Threading;
 using NUnit.Framework;
-using Youverse.Core.Storage.Sqlite.IdentityDatabase;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 
-namespace IdentityDatabaseTests
+namespace Odin.Core.Storage.Tests
 {
     public class DatabaseCommitTest
     {

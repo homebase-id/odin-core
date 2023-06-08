@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using Youverse.Core.Identity;
+using Odin.Core.Identity;
 
-namespace Youverse.Hosting.Tests
+namespace Odin.Hosting.Tests
 {
     /// <summary>
     /// Data returned when using the TransitTestUtils

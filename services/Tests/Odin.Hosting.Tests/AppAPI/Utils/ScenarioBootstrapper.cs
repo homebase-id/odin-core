@@ -1,14 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Youverse.Core;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
-using Youverse.Core.Services.Drives;
-using Youverse.Hosting.Tests.OwnerApi.Utils;
+using Odin.Core;
+using Odin.Core.Identity;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Contacts.Circle.Membership.Definition;
+using Odin.Core.Services.Drives;
+using Odin.Hosting.Tests.OwnerApi.Utils;
 
-namespace Youverse.Hosting.Tests.AppAPI.Utils;
+namespace Odin.Hosting.Tests.AppAPI.Utils;
 
 /// <summary>
 /// Creates various apps, identities, and connections for scenarios

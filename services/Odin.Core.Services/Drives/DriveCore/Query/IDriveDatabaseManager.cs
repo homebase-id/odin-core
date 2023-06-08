@@ -1,15 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives.DriveCore.Query.Sqlite;
-using Youverse.Core.Services.Drives.DriveCore.Storage;
-using Youverse.Core.Services.Drives.FileSystem;
-using Youverse.Core.Storage;
-using Youverse.Core.Storage.Sqlite.DriveDatabase;
+using Odin.Core.Identity;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives.DriveCore.Query.Sqlite;
+using Odin.Core.Services.Drives.DriveCore.Storage;
+using Odin.Core.Storage;
+using Odin.Core.Storage.SQLite.DriveDatabase;
 
-namespace Youverse.Core.Services.Drives.DriveCore.Query
+namespace Odin.Core.Services.Drives.DriveCore.Query
 {
     /// <summary>
     /// Surfaces functions of the DriveDatabase for a specific drive

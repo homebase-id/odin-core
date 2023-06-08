@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.AppNotifications;
+namespace Odin.Core.Services.AppNotifications;
 
 public enum ClientNotificationType
 {

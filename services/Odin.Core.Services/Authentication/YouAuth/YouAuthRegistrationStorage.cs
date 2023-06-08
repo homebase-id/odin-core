@@ -1,10 +1,9 @@
-using System;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Storage;
-
 #nullable enable
 
-namespace Youverse.Core.Services.Authentication.YouAuth
+using System;
+using Odin.Core.Services.Base;
+
+namespace Odin.Core.Services.Authentication.YouAuth
 {
     public class YouAuthRegistrationStorage : IYouAuthRegistrationStorage
     {

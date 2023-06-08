@@ -1,9 +1,8 @@
 ﻿using System;
-using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Youverse.Core
+namespace Odin.Core.Time
 {
     public class TimeZoneUtcConverter : JsonConverter<TimeZoneUtc>
     {

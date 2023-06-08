@@ -1,14 +1,14 @@
 using System;
 using MediatR;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives.FileSystem.Base;
-using Youverse.Core.Services.Drives.Management;
-using Youverse.Core.Storage;
+using Odin.Core.Exceptions;
+using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives.FileSystem.Base;
+using Odin.Core.Services.Drives.Management;
+using Odin.Core.Storage;
 
-namespace Youverse.Core.Services.Drives.FileSystem.Comment;
+namespace Odin.Core.Services.Drives.FileSystem.Comment;
 
 public class CommentFileStorageService : DriveStorageServiceBase
 {

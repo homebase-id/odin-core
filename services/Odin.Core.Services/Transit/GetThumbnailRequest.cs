@@ -1,6 +1,6 @@
-using Youverse.Core.Services.Drives;
+using Odin.Core.Services.Drives;
 
-namespace Youverse.Core.Services.Transit;
+namespace Odin.Core.Services.Transit;
 
 public class GetThumbnailRequest
 {

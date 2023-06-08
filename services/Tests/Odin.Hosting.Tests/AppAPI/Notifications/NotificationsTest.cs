@@ -1,24 +1,20 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Net;
 using System.Net.WebSockets;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Youverse.Core;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.AppNotifications;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives;
-using Youverse.Hosting.Authentication.ClientToken;
-using Youverse.Hosting.Controllers.ClientToken;
-using Youverse.Hosting.Controllers.OwnerToken;
-using Youverse.Hosting.Tests.AppAPI.ChatStructure.Api;
+using Odin.Core;
+using Odin.Core.Serialization;
+using Odin.Core.Services.AppNotifications;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives;
+using Odin.Hosting.Authentication.ClientToken;
+using Odin.Hosting.Controllers.ClientToken;
 
-namespace Youverse.Hosting.Tests.AppAPI.Notifications;
+namespace Odin.Hosting.Tests.AppAPI.Notifications;
 
 [TestFixture]
 public class NotificationsTest

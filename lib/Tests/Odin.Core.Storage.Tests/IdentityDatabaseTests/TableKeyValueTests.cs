@@ -3,10 +3,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using NUnit.Framework;
-using Youverse.Core;
-using Youverse.Core.Storage.Sqlite.IdentityDatabase;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 
-namespace IdentityDatabaseTests
+namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 
 {
     public class TableKeyValueTests

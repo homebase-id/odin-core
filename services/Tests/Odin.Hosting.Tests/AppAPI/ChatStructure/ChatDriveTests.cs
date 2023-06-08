@@ -3,13 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-using Microsoft.VisualBasic;
 using NUnit.Framework;
-using Youverse.Core;
-using Youverse.Core.Identity;
-using Youverse.Hosting.Tests.AppAPI.ChatStructure.Api;
+using Odin.Core;
+using Odin.Core.Identity;
+using Odin.Hosting.Tests.AppAPI.ChatStructure.Api;
 
-namespace Youverse.Hosting.Tests.AppAPI.ChatStructure
+namespace Odin.Hosting.Tests.AppAPI.ChatStructure
 {
     public class ChatDriveTests
     {

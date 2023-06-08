@@ -1,6 +1,6 @@
 using System;
 
-namespace Youverse.Core.Services.Registry.Registration
+namespace Odin.Core.Services.Registry.Registration
 {
     /// <summary>
     /// Holds information required when registering an Identity.

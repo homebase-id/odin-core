@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Services.Authorization.Apps;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Cryptography.Data;
+using Odin.Core.Services.Authorization.Apps;
+using Odin.Core.Services.Authorization.ExchangeGrants;
 
-namespace Youverse.Core.Services.Contacts.Circle.Membership;
+namespace Odin.Core.Services.Contacts.Circle.Membership;
 
 /// <summary>
 /// Bundles the exchange grant and access registration given to a single <see cref="IdentityConnectionRegistration"/>

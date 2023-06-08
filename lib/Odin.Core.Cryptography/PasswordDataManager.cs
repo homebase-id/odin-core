@@ -1,12 +1,11 @@
 ﻿using System;
-using System.IO;
 using System.Text;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
-using Youverse.Core.Cryptography.Crypto;
-using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Serialization;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Cryptography.Data;
+using Odin.Core.Serialization;
 
-namespace Youverse.Core.Cryptography
+namespace Odin.Core.Cryptography
 {
     public class DecryptedRSAPasswordHeader
     {

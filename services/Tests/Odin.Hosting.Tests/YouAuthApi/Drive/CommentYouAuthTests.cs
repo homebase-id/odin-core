@@ -1,13 +1,7 @@
-using System;
-using System.Net;
 using System.Reflection;
-using System.Threading.Tasks;
 using NUnit.Framework;
-using Refit;
-using Youverse.Core.Services.Drives.FileSystem;
-using Youverse.Hosting.Tests.DriveApi.YouAuth;
 
-namespace Youverse.Hosting.Tests.YouAuthApi.Drive
+namespace Odin.Hosting.Tests.YouAuthApi.Drive
 {
     public class CommentYouAuthTests
     {

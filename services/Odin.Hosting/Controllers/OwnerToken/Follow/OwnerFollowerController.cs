@@ -1,12 +1,12 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Odin.Core;
+using Odin.Core.Identity;
+using Odin.Core.Services.DataSubscription.Follower;
+using Odin.Hosting.Controllers.Base;
 using Refit;
-using Youverse.Core;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.DataSubscription.Follower;
-using Youverse.Hosting.Controllers.Base;
 
-namespace Youverse.Hosting.Controllers.OwnerToken.Follow
+namespace Odin.Hosting.Controllers.OwnerToken.Follow
 {
     /// <summary />
     [ApiController]

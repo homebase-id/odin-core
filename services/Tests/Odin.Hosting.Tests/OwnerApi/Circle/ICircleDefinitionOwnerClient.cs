@@ -1,14 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Net.Http;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
+using Odin.Core.Services.Contacts.Circle.Membership.Definition;
+using Odin.Hosting.Controllers.OwnerToken;
 using Refit;
-using Youverse.Core;
-using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
-using Youverse.Hosting.Controllers.OwnerToken;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Circle
+namespace Odin.Hosting.Tests.OwnerApi.Circle
 {
     public interface ICircleDefinitionOwnerClient
     {

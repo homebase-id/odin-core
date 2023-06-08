@@ -1,7 +1,7 @@
 using System;
 using Microsoft.AspNetCore.Authentication;
 
-namespace Youverse.Hosting.Authentication.ClientToken
+namespace Odin.Hosting.Authentication.ClientToken
 {
     public static class ClientTokenAuthenticationExtensions
     {

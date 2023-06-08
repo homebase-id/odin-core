@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Youverse.Core.Services.Authorization.ExchangeGrants
+namespace Odin.Core.Services.Authorization.ExchangeGrants
 {
     /// <summary>
     /// Represents the client parts of the <see cref="ClientAccessToken"/> sent from the client during each request. 

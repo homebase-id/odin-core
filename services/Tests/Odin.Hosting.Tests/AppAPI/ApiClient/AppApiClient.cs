@@ -1,17 +1,17 @@
 ﻿using System;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Odin.Core;
+using Odin.Core.Storage;
+using Odin.Hosting.Tests.AppAPI.ApiClient.Auth;
+using Odin.Hosting.Tests.AppAPI.ApiClient.Drive;
+using Odin.Hosting.Tests.AppAPI.ApiClient.Security;
+using Odin.Hosting.Tests.AppAPI.Utils;
+using Odin.Hosting.Tests.OwnerApi.ApiClient;
+using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
-using Youverse.Core;
-using Youverse.Core.Storage;
-using Youverse.Hosting.Tests.AppAPI.ApiClient.Auth;
-using Youverse.Hosting.Tests.AppAPI.ApiClient.Drive;
-using Youverse.Hosting.Tests.AppAPI.ApiClient.Security;
-using Youverse.Hosting.Tests.AppAPI.Utils;
-using Youverse.Hosting.Tests.OwnerApi.ApiClient;
-using Youverse.Hosting.Tests.OwnerApi.Utils;
 
-namespace Youverse.Hosting.Tests.AppAPI.ApiClient
+namespace Odin.Hosting.Tests.AppAPI.ApiClient
 {
     public class AppApiClient
     {

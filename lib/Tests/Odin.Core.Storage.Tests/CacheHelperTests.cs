@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Diagnostics;
 using NUnit.Framework;
-using Youverse.Core;
-using Youverse.Core.Storage;
+using Odin.Core.Storage.SQLite;
 
-namespace IdentityDatabaseTests
+namespace Odin.Core.Storage.Tests
 {
     public class CacheHelperTests
     {

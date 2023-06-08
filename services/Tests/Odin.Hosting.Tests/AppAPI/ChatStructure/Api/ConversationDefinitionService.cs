@@ -1,17 +1,15 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
-using Dawn;
-using Youverse.Core;
-using Youverse.Core.Identity;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Drives.DriveCore.Query;
-using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Core;
+using Odin.Core.Identity;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Drives.DriveCore.Query;
+using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 
-namespace Youverse.Hosting.Tests.AppAPI.ChatStructure.Api;
+namespace Odin.Hosting.Tests.AppAPI.ChatStructure.Api;
 
 /// <summary>
 /// Manages chat groups and their definitions

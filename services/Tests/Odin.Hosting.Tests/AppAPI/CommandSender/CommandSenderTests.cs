@@ -4,22 +4,20 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core;
+using Odin.Core.Identity;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Apps.CommandMessaging;
+using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Core.Services.Transit.ReceivingHost;
+using Odin.Hosting.Controllers.ClientToken.App;
+using Odin.Hosting.Tests.AppAPI.Transit;
+using Odin.Hosting.Tests.AppAPI.Utils;
 using Refit;
-using Youverse.Core;
-using Youverse.Core.Identity;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Apps.CommandMessaging;
-using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
-using Youverse.Core.Services.Transit.ReceivingHost;
-using Youverse.Hosting.Controllers.ClientToken.App;
-using Youverse.Hosting.Controllers.ClientToken.Transit;
-using Youverse.Hosting.Tests.AppAPI.Transit;
-using Youverse.Hosting.Tests.AppAPI.Utils;
 
-
-namespace Youverse.Hosting.Tests.AppAPI.CommandSender
+namespace Odin.Hosting.Tests.AppAPI.CommandSender
 {
     public class CommandSenderTests
     {

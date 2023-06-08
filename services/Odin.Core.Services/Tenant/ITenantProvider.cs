@@ -1,5 +1,5 @@
 ﻿#nullable enable
-namespace Youverse.Core.Services.Tenant
+namespace Odin.Core.Services.Tenant
 {
     public interface ITenantProvider
     {

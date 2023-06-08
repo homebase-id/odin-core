@@ -1,14 +1,14 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.FileSystem;
-using Youverse.Core.Services.Drives.FileSystem.Comment;
-using Youverse.Core.Services.Drives.FileSystem.Standard;
-using Youverse.Core.Storage;
+using Odin.Core.Exceptions;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.FileSystem;
+using Odin.Core.Services.Drives.FileSystem.Comment;
+using Odin.Core.Services.Drives.FileSystem.Standard;
+using Odin.Core.Storage;
 
-namespace Youverse.Core.Services.Base
+namespace Odin.Core.Services.Base
 {
     public class FileSystemResolver
     {

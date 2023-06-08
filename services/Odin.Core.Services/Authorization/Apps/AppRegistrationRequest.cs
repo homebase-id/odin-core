@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Base;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Authorization.Permissions;
+using Odin.Core.Services.Base;
 
-namespace Youverse.Core.Services.Authorization.Apps
+namespace Odin.Core.Services.Authorization.Apps
 {
     public class AppRegistrationRequest
     {

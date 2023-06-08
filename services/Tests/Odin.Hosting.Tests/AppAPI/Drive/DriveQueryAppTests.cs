@@ -4,15 +4,13 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Youverse.Core;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.DriveCore.Query;
-using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
-using Youverse.Core.Services.Transit;
-using Youverse.Hosting.Controllers;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.DriveCore.Query;
+using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Core.Time;
 
-namespace Youverse.Hosting.Tests.AppAPI.Drive
+namespace Odin.Hosting.Tests.AppAPI.Drive
 {
     public class DriveQueryAppTests
     {

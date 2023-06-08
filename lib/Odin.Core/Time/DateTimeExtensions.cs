@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Youverse.Core
+﻿namespace Odin.Core.Time
 {
     public static class DateTimeExtensions
     {

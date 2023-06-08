@@ -1,16 +1,14 @@
 using System;
 using System.Linq;
-using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
-using Grpc.Core.Interceptors;
 using NUnit.Framework;
-using Youverse.Core;
-using Youverse.Core.Services.Contacts.Circle.Requests;
-using Youverse.Hosting.Controllers;
-using Youverse.Hosting.Tests.OwnerApi.Circle;
+using Odin.Core;
+using Odin.Core.Services.Contacts.Circle.Requests;
+using Odin.Hosting.Controllers;
+using Odin.Hosting.Tests.OwnerApi.Circle;
 
-namespace Youverse.Hosting.Tests.AppAPI.Circle
+namespace Odin.Hosting.Tests.AppAPI.Circle
 {
     public class CircleNetworkServiceTests
     {

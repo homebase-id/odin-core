@@ -1,10 +1,9 @@
-﻿using System.Collections.Concurrent;
+﻿#nullable enable
+using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Http;
-using Youverse.Core.Services.Registry;
-using Youverse.Core.Trie;
+using Odin.Core.Services.Registry;
 
-#nullable enable
-namespace Youverse.Core.Services.Tenant
+namespace Odin.Core.Services.Tenant
 {
     public class TenantProvider : ITenantProvider
     {

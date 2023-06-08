@@ -1,7 +1,6 @@
-using System;
-using Youverse.Core.Services.Drives;
+using Odin.Core.Services.Drives;
 
-namespace Youverse.Core.Services.Apps.CommandMessaging;
+namespace Odin.Core.Services.Apps.CommandMessaging;
 
 public class CommandId
 {

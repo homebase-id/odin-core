@@ -4,9 +4,9 @@ using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Youverse.Hosting.Controllers.ClientToken;
+using Odin.Hosting.Controllers.ClientToken;
 
-namespace Youverse.Hosting.Tests.AppAPI.Security
+namespace Odin.Hosting.Tests.AppAPI.Security
 {
     public class AppCorsTest
     {

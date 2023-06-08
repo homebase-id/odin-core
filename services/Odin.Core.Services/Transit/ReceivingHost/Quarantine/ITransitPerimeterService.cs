@@ -2,15 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.DriveCore.Query;
-using Youverse.Core.Services.Drives.DriveCore.Storage;
-using Youverse.Core.Services.Drives.FileSystem.Base;
-using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Storage;
+using Odin.Core.Services.Apps;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.DriveCore.Query;
+using Odin.Core.Services.Drives.DriveCore.Storage;
+using Odin.Core.Services.Drives.FileSystem.Base;
+using Odin.Core.Services.Transit.Encryption;
+using Odin.Core.Storage;
 
-namespace Youverse.Core.Services.Transit.ReceivingHost.Quarantine
+namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine
 {
     /// <summary>
     /// Handles incoming payloads at the perimeter of the DI host.  

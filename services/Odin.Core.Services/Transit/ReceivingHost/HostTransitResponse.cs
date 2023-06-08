@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.Transit.ReceivingHost
+namespace Odin.Core.Services.Transit.ReceivingHost
 {
     /// <summary>
     /// The response from sending a transfer or request to another DI host

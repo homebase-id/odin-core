@@ -1,6 +1,6 @@
 ﻿using Dawn;
 
-namespace Youverse.Core.Services.Contacts.Circle.Requests
+namespace Odin.Core.Services.Contacts.Circle.Requests
 {
     /// <summary>
     /// Sent when a <see cref="ConnectionRequest"/> is accepted by the <see cref="ConnectionRequest.Recipient"/>

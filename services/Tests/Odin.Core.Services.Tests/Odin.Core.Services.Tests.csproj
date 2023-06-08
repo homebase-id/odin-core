@@ -7,8 +7,6 @@
         <Nullable>enable</Nullable>
 
         <IsPackable>false</IsPackable>
-
-        <RootNamespace>Youverse.Core.Services.Tests</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>

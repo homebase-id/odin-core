@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Youverse.Core.Services.Apps.CommandMessaging;
+namespace Odin.Core.Services.Apps.CommandMessaging;
 
 /// <summary>
 /// Defines the data transferred from the command message service to the recipient's command message service

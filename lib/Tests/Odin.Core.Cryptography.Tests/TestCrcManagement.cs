@@ -1,8 +1,8 @@
 using System.Text;
 using NUnit.Framework;
-using Youverse.Core.Cryptography.Crypto;
+using Odin.Core.Cryptography.Crypto;
 
-namespace Youverse.Core.Cryptography.Tests
+namespace Odin.Core.Cryptography.Tests
 {
     public class TestCrcManagement
     {

@@ -1,8 +1,8 @@
 using System;
 using MediatR;
-using Youverse.Core.Services.Drives;
+using Odin.Core.Services.Drives;
 
-namespace Youverse.Core.Services.Mediator;
+namespace Odin.Core.Services.Mediator;
 
 public class DriveDefinitionAddedNotification : EventArgs, INotification
 {

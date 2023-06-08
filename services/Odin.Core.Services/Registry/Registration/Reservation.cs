@@ -1,7 +1,8 @@
 using System;
-using Youverse.Core.Util;
+using Odin.Core.Time;
+using Odin.Core.Util;
 
-namespace Youverse.Core.Services.Registry.Registration
+namespace Odin.Core.Services.Registry.Registration
 {
     public class Reservation
     {

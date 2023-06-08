@@ -5,11 +5,11 @@ using System.Web;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core.Services.Authentication.YouAuth;
-using Youverse.Core.Services.Tenant;
-using Youverse.Hosting.Authentication.ClientToken;
+using Odin.Core.Services.Authentication.YouAuth;
+using Odin.Core.Services.Tenant;
+using Odin.Hosting.Authentication.ClientToken;
 
-namespace Youverse.Hosting.Controllers.Anonymous
+namespace Odin.Hosting.Controllers.Anonymous
 {
     [ApiController]
     [Route(YouAuthApiPathConstants.AuthV1)]

@@ -1,11 +1,11 @@
 ﻿using System.Net.Http;
 using System.Threading.Tasks;
+using Odin.Core;
+using Odin.Core.Services.DataSubscription.Follower;
+using Odin.Hosting.Controllers.OwnerToken;
 using Refit;
-using Youverse.Core;
-using Youverse.Core.Services.DataSubscription.Follower;
-using Youverse.Hosting.Controllers.OwnerToken;
 
-namespace Youverse.Hosting.Tests.OwnerApi.DataSubscription.Follower
+namespace Odin.Hosting.Tests.OwnerApi.DataSubscription.Follower
 {
     public interface ITestFollowerOwnerClient
     {

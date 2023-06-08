@@ -3,11 +3,11 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core.Services.Configuration;
+using Odin.Hosting.Tests.YouAuthApi.Circle;
 using Refit;
-using Youverse.Core.Services.Configuration;
-using Youverse.Hosting.Tests.YouAuthApi.Circle;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
+namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 {
     public class OwnerAnonymousDefaultsTests
     {

@@ -1,10 +1,8 @@
-using System;
-using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
-using Youverse.Core.Services.Registry;
+using Odin.Core.Services.Registry;
 
-namespace Youverse.Core.Services.Certificate
+namespace Odin.Core.Services.Certificate
 {
     public interface ICertificateService
     {

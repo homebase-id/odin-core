@@ -1,7 +1,7 @@
 using MediatR;
-using Youverse.Core.Identity;
+using Odin.Core.Identity;
 
-namespace Youverse.Core.Services.AppNotifications.ClientNotifications;
+namespace Odin.Core.Services.AppNotifications.ClientNotifications;
 
 public class IdentityConnectionRegistrationChangedNotification : INotification
 {

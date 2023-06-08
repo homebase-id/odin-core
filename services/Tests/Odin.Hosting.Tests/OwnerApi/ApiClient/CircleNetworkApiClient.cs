@@ -4,17 +4,17 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Youverse.Core;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Contacts.Circle.Membership;
-using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
-using Youverse.Core.Services.Contacts.Circle.Requests;
-using Youverse.Hosting.Controllers;
-using Youverse.Hosting.Controllers.OwnerToken.Circles;
-using Youverse.Hosting.Tests.OwnerApi.Circle;
-using Youverse.Hosting.Tests.OwnerApi.Utils;
+using Odin.Core;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Contacts.Circle.Membership;
+using Odin.Core.Services.Contacts.Circle.Membership.Definition;
+using Odin.Core.Services.Contacts.Circle.Requests;
+using Odin.Hosting.Controllers;
+using Odin.Hosting.Controllers.OwnerToken.Circles;
+using Odin.Hosting.Tests.OwnerApi.Circle;
+using Odin.Hosting.Tests.OwnerApi.Utils;
 
-namespace Youverse.Hosting.Tests.OwnerApi.ApiClient;
+namespace Odin.Hosting.Tests.OwnerApi.ApiClient;
 
 public class CircleNetworkApiClient
 {

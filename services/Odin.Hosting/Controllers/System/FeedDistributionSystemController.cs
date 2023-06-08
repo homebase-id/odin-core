@@ -1,12 +1,11 @@
-﻿using System;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core.Services.DataSubscription;
-using Youverse.Hosting.Authentication.System;
-using Youverse.Hosting.Controllers.OwnerToken;
+using Odin.Core.Services.DataSubscription;
+using Odin.Hosting.Authentication.System;
+using Odin.Hosting.Controllers.OwnerToken;
 
-namespace Youverse.Hosting.Controllers.System
+namespace Odin.Hosting.Controllers.System
 {
     /// <summary>
     /// Runs feed distribution from the system account

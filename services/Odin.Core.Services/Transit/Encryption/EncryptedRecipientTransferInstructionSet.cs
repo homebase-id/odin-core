@@ -1,7 +1,7 @@
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Storage;
+using Odin.Core.Services.Drives;
+using Odin.Core.Storage;
 
-namespace Youverse.Core.Services.Transit.Encryption
+namespace Odin.Core.Services.Transit.Encryption
 {
     /// <summary>
     /// The encrypted version of the KeyHeader for a given recipient

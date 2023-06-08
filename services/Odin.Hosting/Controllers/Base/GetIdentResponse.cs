@@ -1,5 +1,5 @@
 #nullable enable
-namespace Youverse.Hosting.Controllers.Base;
+namespace Odin.Hosting.Controllers.Base;
 
 public class GetIdentResponse
 {

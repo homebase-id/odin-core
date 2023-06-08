@@ -1,4 +1,4 @@
-﻿namespace Youverse.Core.Cryptography.Crypto
+﻿namespace Odin.Core.Cryptography.Crypto
 {
     public static class XorManagement
     {

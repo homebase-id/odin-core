@@ -1,7 +1,7 @@
 using System.IO;
 using System.Runtime.InteropServices;
 
-namespace Youverse.Core.Util
+namespace Odin.Core.Util
 {
     public static class PathUtil
     {

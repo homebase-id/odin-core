@@ -1,7 +1,6 @@
-﻿using System;
-using System.Security.Claims;
+﻿using System.Security.Claims;
 
-namespace Youverse.Core.Services.Authentication.YouAuth
+namespace Odin.Core.Services.Authentication.YouAuth
 {
     public static class YouAuthDefaults
     {

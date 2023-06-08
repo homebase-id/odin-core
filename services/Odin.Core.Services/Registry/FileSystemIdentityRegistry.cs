@@ -5,19 +5,18 @@ using System.Linq;
 using System.Net.Http;
 using System.Security.Authentication;
 using System.Threading.Tasks;
-using HttpClientFactoryLite;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Exceptions;
+using Odin.Core.Identity;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Certificate;
+using Odin.Core.Services.Registry.Registration;
+using Odin.Core.Trie;
 using Serilog;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Identity;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Certificate;
-using Youverse.Core.Services.Registry.Registration;
-using Youverse.Core.Trie;
 using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
-namespace Youverse.Core.Services.Registry;
+namespace Odin.Core.Services.Registry;
 
 /// <summary>
 /// Reads identities from the file system using a convention

@@ -2,12 +2,11 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
-using System.Threading.Tasks.Dataflow;
 using NUnit.Framework;
-using Youverse.Core;
-using Youverse.Core.Storage.Sqlite.ServerDatabase;
+using Odin.Core.Storage.SQLite.ServerDatabase;
+using Odin.Core.Time;
 
-namespace ServerDatabaseTests
+namespace Odin.Core.Storage.Tests.ServerDatabaseTests
 {
     public class TableCronTests
     {

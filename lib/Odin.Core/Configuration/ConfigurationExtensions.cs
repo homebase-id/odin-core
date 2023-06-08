@@ -1,8 +1,8 @@
-﻿using Microsoft.Extensions.Configuration;
-using Youverse.Core.Exceptions;
+﻿#nullable enable
+using Microsoft.Extensions.Configuration;
+using Odin.Core.Exceptions;
 
-#nullable enable
-namespace Youverse.Core.Configuration;
+namespace Odin.Core.Configuration;
 
 public static class ConfigurationExtensions
 {

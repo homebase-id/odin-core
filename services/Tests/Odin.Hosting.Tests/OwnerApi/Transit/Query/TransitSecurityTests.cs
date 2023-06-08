@@ -3,12 +3,12 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Youverse.Core;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives;
+using Odin.Core;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
+namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 {
     public class TransitSecurityTests
     {

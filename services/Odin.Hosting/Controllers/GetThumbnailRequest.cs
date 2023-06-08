@@ -1,9 +1,8 @@
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.FileSystem.Base;
-using Youverse.Core.Services.Transit;
-using Youverse.Hosting.Controllers.OwnerToken.Drive;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.FileSystem.Base;
+using Odin.Core.Services.Transit;
 
-namespace Youverse.Hosting.Controllers;
+namespace Odin.Hosting.Controllers;
 
 public class TransitGetThumbRequest : GetThumbnailRequest
 {

@@ -1,30 +1,21 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Youverse.Core;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Authorization.Apps;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Configuration;
-using Youverse.Core.Services.Contacts.Circle;
-using Youverse.Core.Services.Contacts.Circle.Membership;
-using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
-using Youverse.Core.Services.Contacts.Circle.Requests;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.Management;
-using Youverse.Core.Services.Transit;
-using Youverse.Hosting.Controllers;
-using Youverse.Hosting.Controllers.OwnerToken.Circles;
-using Youverse.Hosting.Controllers.OwnerToken.Drive;
-using Youverse.Hosting.Tests.OwnerApi.Circle;
-using Youverse.Hosting.Tests.OwnerApi.Drive;
-using Youverse.Hosting.Tests.OwnerApi.Drive.Management;
+using Odin.Core;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Configuration;
+using Odin.Core.Services.Contacts.Circle;
+using Odin.Core.Services.Contacts.Circle.Membership.Definition;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.Management;
+using Odin.Hosting.Controllers.OwnerToken.Drive;
+using Odin.Hosting.Tests.OwnerApi.Circle;
+using Odin.Hosting.Tests.OwnerApi.Drive.Management;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
+namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 {
     public class SystemInitializeConfigTests
     {

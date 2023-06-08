@@ -1,6 +1,6 @@
 ﻿using NUnit.Framework;
 
-namespace Youverse.Core.Tests
+namespace Odin.Core.Tests
 {
     [Ignore("Need to update IdentityCertificate codebase")]
     public class AttributeTests

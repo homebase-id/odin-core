@@ -1,9 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Drives.DriveCore.Storage;
+﻿using System.Collections.Generic;
+using Odin.Core.Exceptions;
+using Odin.Core.Services.Drives.DriveCore.Storage;
 
-namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload.Attachments
+namespace Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments
 {
     /// <summary>
     /// Specifies how an uploaded attachment (i.e. thumbnail or payload) should be handled

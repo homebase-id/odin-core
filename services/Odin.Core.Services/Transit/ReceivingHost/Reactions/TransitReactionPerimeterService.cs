@@ -1,14 +1,14 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Contacts.Circle.Membership;
-using Youverse.Core.Services.DataSubscription.Follower;
-using Youverse.Core.Services.Drives.Reactions;
-using Youverse.Core.Services.Transit.SendingHost;
+using Odin.Core.Exceptions;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Contacts.Circle.Membership;
+using Odin.Core.Services.DataSubscription.Follower;
+using Odin.Core.Services.Drives.Reactions;
+using Odin.Core.Services.Transit.SendingHost;
 
-namespace Youverse.Core.Services.Transit.ReceivingHost.Reactions;
+namespace Odin.Core.Services.Transit.ReceivingHost.Reactions;
 
 /// <summary>
 /// Handles incoming reactions and queries from followers

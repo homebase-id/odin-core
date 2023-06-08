@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.Serialization;
 
-namespace Youverse.Core.Trie
+namespace Odin.Core.Trie
 {
     [Serializable]
     public class EmptyKeyNotAllowedException : Exception

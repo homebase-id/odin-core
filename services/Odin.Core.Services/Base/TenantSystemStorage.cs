@@ -1,12 +1,12 @@
 ﻿using System;
 using System.IO;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Storage;
-using Youverse.Core.Storage.Sqlite;
-using Youverse.Core.Storage.Sqlite.IdentityDatabase;
-using Youverse.Core.Util;
+using Odin.Core.Storage;
+using Odin.Core.Storage.SQLite;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
+using Odin.Core.Util;
 
-namespace Youverse.Core.Services.Base
+namespace Odin.Core.Services.Base
 {
     public class TenantSystemStorage : IDisposable
     {

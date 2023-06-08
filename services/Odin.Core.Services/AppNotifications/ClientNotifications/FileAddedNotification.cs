@@ -1,8 +1,7 @@
-﻿using System;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Drives;
+﻿using Odin.Core.Identity;
+using Odin.Core.Services.Drives;
 
-namespace Youverse.Core.Services.AppNotifications.ClientNotifications
+namespace Odin.Core.Services.AppNotifications.ClientNotifications
 {
     public class FileAddedNotification : IClientNotification
     {

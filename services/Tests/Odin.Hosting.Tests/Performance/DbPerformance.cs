@@ -3,10 +3,10 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Youverse.Core.Storage.Sqlite.IdentityDatabase;
-using Youverse.Core.Storage;
+using Odin.Core.Storage;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 
-namespace Youverse.Hosting.Tests.Performance
+namespace Odin.Hosting.Tests.Performance
 {
 
     public class DbPerformanceTests

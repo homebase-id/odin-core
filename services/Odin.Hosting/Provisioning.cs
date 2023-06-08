@@ -8,7 +8,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
 
-namespace Youverse.Hosting;
+namespace Odin.Hosting;
 
 public static class Provisioning
 {

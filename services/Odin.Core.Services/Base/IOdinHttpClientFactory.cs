@@ -1,8 +1,8 @@
-﻿using Youverse.Core.Identity;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Storage;
+﻿using Odin.Core.Identity;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Storage;
 
-namespace Youverse.Core.Services.Base
+namespace Odin.Core.Services.Base
 {
     public interface IOdinHttpClientFactory
     {

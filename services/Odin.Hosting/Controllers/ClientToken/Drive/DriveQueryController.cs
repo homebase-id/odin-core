@@ -1,16 +1,11 @@
-﻿using System.Collections.Generic;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Odin.Core.Services.Drives;
+using Odin.Hosting.Controllers.Anonymous;
+using Odin.Hosting.Controllers.Base;
 using Swashbuckle.AspNetCore.Annotations;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Configuration;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Optimization.Cdn;
-using Youverse.Core.Services.Transit;
-using Youverse.Hosting.Controllers.Anonymous;
-using Youverse.Hosting.Controllers.Base;
 
-namespace Youverse.Hosting.Controllers.ClientToken.Drive
+namespace Odin.Hosting.Controllers.ClientToken.Drive
 {
     [ApiController]
     [Route(AppApiPathConstants.DrivesV1 + "/query")]

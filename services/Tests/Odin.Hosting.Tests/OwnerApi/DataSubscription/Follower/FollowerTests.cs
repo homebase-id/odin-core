@@ -5,11 +5,11 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.DataSubscription.Follower;
-using Youverse.Core.Services.Drives;
+using Odin.Core.Identity;
+using Odin.Core.Services.DataSubscription.Follower;
+using Odin.Core.Services.Drives;
 
-namespace Youverse.Hosting.Tests.OwnerApi.DataSubscription;
+namespace Odin.Hosting.Tests.OwnerApi.DataSubscription.Follower;
 
 public class FollowerTests
 {

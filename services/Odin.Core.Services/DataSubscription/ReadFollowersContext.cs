@@ -1,8 +1,8 @@
 using System;
-using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Base;
+using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Base;
 
-namespace Youverse.Core.Services.DataSubscription;
+namespace Odin.Core.Services.DataSubscription;
 
 public class ReadFollowersContext : IDisposable
 {

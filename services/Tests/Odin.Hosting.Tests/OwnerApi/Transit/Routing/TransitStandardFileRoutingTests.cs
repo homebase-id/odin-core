@@ -2,23 +2,22 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Youverse.Core;
-using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.DriveCore.Query;
-using Youverse.Core.Services.Drives.DriveCore.Storage;
-using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
-using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.SendingHost;
-using Youverse.Core.Storage;
-using Youverse.Hosting.Tests.OwnerApi.ApiClient;
+using Odin.Core;
+using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.DriveCore.Query;
+using Odin.Core.Services.Drives.DriveCore.Storage;
+using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Core.Services.Transit;
+using Odin.Core.Services.Transit.SendingHost;
+using Odin.Core.Storage;
+using Odin.Hosting.Tests.OwnerApi.ApiClient;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Transit.Routing
+namespace Odin.Hosting.Tests.OwnerApi.Transit.Routing
 {
     /// https://github.com/YouFoundation/stories-and-architecture-docs/blob/master/concepts/transit/transit_routing.md
     public class TransitStandardFileRoutingTests

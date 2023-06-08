@@ -1,7 +1,7 @@
 using System;
-using Youverse.Core.Services.Drives;
+using Odin.Core.Services.Drives;
 
-namespace Youverse.Hosting.Tests.AppAPI.ChatStructure.Api;
+namespace Odin.Hosting.Tests.AppAPI.ChatStructure.Api;
 
 public static class ChatApiConfig
 {

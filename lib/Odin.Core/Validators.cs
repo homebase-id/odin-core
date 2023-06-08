@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace Youverse.Core;
+namespace Odin.Core;
 
 public static class Validators
 {

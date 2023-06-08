@@ -1,7 +1,7 @@
 ﻿using System;
 using System.IO;
 
-namespace Youverse.Core
+namespace Odin.Core
 {
     public static class ArrayExtensions
     {

@@ -5,15 +5,15 @@ using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.AppNotifications.ClientNotifications;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.Management;
-using Youverse.Core.Services.Mediator;
-using Youverse.Core.Services.Transit.ReceivingHost;
+using Odin.Core.Serialization;
+using Odin.Core.Services.AppNotifications.ClientNotifications;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.Management;
+using Odin.Core.Services.Mediator;
+using Odin.Core.Services.Transit.ReceivingHost;
 
-namespace Youverse.Core.Services.AppNotifications
+namespace Odin.Core.Services.AppNotifications
 {
     public class AppNotificationHandler : INotificationHandler<IClientNotification>, INotificationHandler<IDriveNotification>,
         INotificationHandler<TransitFileReceivedNotification>

@@ -1,10 +1,9 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Routing.Constraints;
+using Odin.Core.Services.Optimization.Cdn;
 using Swashbuckle.AspNetCore.Annotations;
-using Youverse.Core.Services.Optimization.Cdn;
 
-namespace Youverse.Hosting.Controllers.OwnerToken.Cdn
+namespace Odin.Hosting.Controllers.OwnerToken.Cdn
 {
     [ApiController]
     [Route(OwnerApiPathConstants.CdnV1)]

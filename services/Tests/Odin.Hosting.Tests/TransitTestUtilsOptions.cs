@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Youverse.Hosting.Tests
+﻿namespace Odin.Hosting.Tests
 {
     public class TransitTestUtilsOptions
     {

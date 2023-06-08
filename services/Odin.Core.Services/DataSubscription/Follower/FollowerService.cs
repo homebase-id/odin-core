@@ -1,22 +1,20 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Identity;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.Management;
-using Youverse.Core.Services.EncryptionKeyService;
-using Youverse.Core.Storage;
-using Youverse.Core.Storage.Sqlite.IdentityDatabase;
+using Odin.Core.Exceptions;
+using Odin.Core.Identity;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Authorization.Permissions;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.Management;
+using Odin.Core.Services.EncryptionKeyService;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 
-namespace Youverse.Core.Services.DataSubscription.Follower
+namespace Odin.Core.Services.DataSubscription.Follower
 {
     /// <summary/>
     public class FollowerService

@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Youverse.Core.Exceptions;
+using Odin.Core.Exceptions;
 
-namespace Youverse.Core.Services.Authorization.Acl
+namespace Odin.Core.Services.Authorization.Acl
 {
     public class AccessControlList
     {

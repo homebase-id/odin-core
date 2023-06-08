@@ -1,9 +1,9 @@
 using System;
 using NUnit.Framework;
-using Youverse.Core.Trie;
-using Youverse.Core.Util;
+using Odin.Core.Trie;
+using Odin.Core.Util.Fluff;
 
-namespace Youverse.Core.Tests
+namespace Odin.Core.Tests
 {
     public class TrieTests
     {

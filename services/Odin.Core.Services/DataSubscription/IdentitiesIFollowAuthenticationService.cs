@@ -1,15 +1,15 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.AppNotifications.ClientNotifications;
-using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Configuration;
-using Youverse.Core.Services.DataSubscription.Follower;
+using Odin.Core.Identity;
+using Odin.Core.Services.AppNotifications.ClientNotifications;
+using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Configuration;
+using Odin.Core.Services.DataSubscription.Follower;
 
-namespace Youverse.Core.Services.DataSubscription;
+namespace Odin.Core.Services.DataSubscription;
 
 public class IdentitiesIFollowAuthenticationService
 {

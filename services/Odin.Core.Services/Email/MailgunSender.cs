@@ -11,7 +11,7 @@ using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
 #nullable enable
 
-namespace Youverse.Core.Services.Email;
+namespace Odin.Core.Services.Email;
 
 public class MailgunSender : IEmailSender
 {

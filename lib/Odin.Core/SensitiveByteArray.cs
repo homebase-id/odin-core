@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using System.Text.Json.Serialization;
 
-namespace Youverse.Core
+namespace Odin.Core
 {
     /// <summary>
     /// Use this class to store any "secret" byte[] in memory. The secret will

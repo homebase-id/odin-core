@@ -2,7 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Linq;
 
-namespace Youverse.Core.Services.Drives;
+namespace Odin.Core.Services.Drives;
 
 /// <summary>
 ///  A drive specifier for incoming requests to perform actions on a drive.  (essentially, this hides the internal DriveId).

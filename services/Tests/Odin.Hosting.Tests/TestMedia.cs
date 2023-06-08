@@ -1,6 +1,6 @@
-using Youverse.Core;
+using Odin.Core;
 
-namespace Youverse.Hosting.Tests;
+namespace Odin.Hosting.Tests;
 
 public static class TestMedia
 {

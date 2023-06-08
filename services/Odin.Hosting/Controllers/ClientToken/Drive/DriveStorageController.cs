@@ -1,24 +1,17 @@
 ﻿using System;
-using System.IO;
-using System.Net.Mime;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.FileSystem.Base;
+using Odin.Core.Services.Transit;
+using Odin.Core.Services.Transit.SendingHost;
+using Odin.Hosting.Controllers.Anonymous;
+using Odin.Hosting.Controllers.Base;
 using Swashbuckle.AspNetCore.Annotations;
-using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.FileSystem.Base;
-using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.SendingHost;
-using Youverse.Hosting.Authentication.ClientToken;
-using Youverse.Hosting.Controllers.Anonymous;
-using Youverse.Hosting.Controllers.Base;
-using Youverse.Hosting.Controllers.OwnerToken.Drive;
 
-namespace Youverse.Hosting.Controllers.ClientToken.Drive
+namespace Odin.Hosting.Controllers.ClientToken.Drive
 {
     /// <summary>
     /// Api endpoints for reading drives

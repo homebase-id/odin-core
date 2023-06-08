@@ -1,7 +1,7 @@
-﻿using System;
+﻿#nullable enable
+using System;
 
-#nullable enable
-namespace Youverse.Hosting.Multitenant
+namespace Odin.Hosting.Multitenant
 {
     internal class MultiTenantContainerDisposableAccessor : IDisposable
     {

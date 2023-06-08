@@ -1,6 +1,6 @@
-using Youverse.Core.Services.Drives;
+using Odin.Core.Services.Drives;
 
-namespace Youverse.Core.Services.Transit.ReceivingHost;
+namespace Odin.Core.Services.Transit.ReceivingHost;
 
 public class ProcessInboxRequest
 {

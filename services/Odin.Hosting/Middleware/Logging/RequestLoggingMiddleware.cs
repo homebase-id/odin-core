@@ -1,11 +1,10 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 
-namespace Youverse.Hosting.Middleware.Logging
+namespace Odin.Hosting.Middleware.Logging
 {
     public class RequestLoggingMiddleware
     {

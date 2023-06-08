@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using NUnit.Framework;
-using Youverse.Core;
-using Youverse.Core.Storage.Sqlite.DriveDatabase;
+using Odin.Core.Storage.SQLite.DriveDatabase;
 
-namespace DriveDatabaseTests
+namespace Odin.Core.Storage.Tests.DriveDatabaseTests
 {
     
     public class TableTagIndexTests

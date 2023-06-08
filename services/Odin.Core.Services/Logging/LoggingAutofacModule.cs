@@ -1,8 +1,8 @@
 ﻿using Autofac;
-using Youverse.Core.Logging.CorrelationId;
-using Youverse.Core.Logging.Hostname;
+using Odin.Core.Logging.CorrelationId;
+using Odin.Core.Logging.Hostname;
 
-namespace Youverse.Core.Services.Logging
+namespace Odin.Core.Services.Logging
 {
     public class LoggingAutofacModule : Module
     {

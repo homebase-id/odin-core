@@ -1,15 +1,12 @@
 ﻿using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Odin.Core;
+using Odin.Core.Services.Drives.Management;
+using Odin.Core.Services.Transit;
 using Swashbuckle.AspNetCore.Annotations;
-using Youverse.Core;
-using Youverse.Core.Services.Drives.Management;
-using Youverse.Core.Services.Transit;
-using Youverse.Hosting.Controllers.Anonymous;
-using Youverse.Hosting.Controllers.ClientToken;
-using Youverse.Hosting.Controllers.ClientToken.Drive;
 
-namespace Youverse.Hosting.Controllers.OwnerToken.Drive
+namespace Odin.Hosting.Controllers.OwnerToken.Drive
 {
     [ApiController]
     [Route(OwnerApiPathConstants.DrivesV1)]

@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using Dawn;
 using Microsoft.Extensions.Logging;
 
-namespace Youverse.Core.Services.Drives.DriveCore.Storage
+namespace Odin.Core.Services.Drives.DriveCore.Storage
 {
     /// <summary>
     /// Temporary storage for a given driven.  Used to stage incoming file parts from uploads and transfers.

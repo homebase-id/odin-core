@@ -1,13 +1,13 @@
 using System.Threading.Tasks;
+using Odin.Core.Identity;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Transit;
+using Odin.Core.Services.Transit.ReceivingHost;
+using Odin.Core.Storage;
 using Refit;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.ReceivingHost;
-using Youverse.Core.Storage;
 
-namespace Youverse.Core.Services.DataSubscription.SendingHost
+namespace Odin.Core.Services.DataSubscription.SendingHost
 {
     public class FeedDistributorService
     {

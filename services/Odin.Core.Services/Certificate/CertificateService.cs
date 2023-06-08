@@ -6,10 +6,10 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Registry;
+using Odin.Core.Exceptions;
+using Odin.Core.Services.Registry;
 
-namespace Youverse.Core.Services.Certificate
+namespace Odin.Core.Services.Certificate
 {
     // You can create me using ICertificateServiceFactory, if you prefer
     public class CertificateService : ICertificateService

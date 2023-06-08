@@ -1,9 +1,9 @@
 using System.Threading.Tasks;
-using Youverse.Core.Services.Base;
-using Youverse.Hosting.Tests.AppAPI.Utils;
-using Youverse.Hosting.Tests.OwnerApi.Utils;
+using Odin.Core.Services.Base;
+using Odin.Hosting.Tests.AppAPI.Utils;
+using Odin.Hosting.Tests.OwnerApi.Utils;
 
-namespace Youverse.Hosting.Tests.AppAPI.ApiClient.Security;
+namespace Odin.Hosting.Tests.AppAPI.ApiClient.Security;
 
 public class AppSecurityApiClient : AppApiTestUtils
 {

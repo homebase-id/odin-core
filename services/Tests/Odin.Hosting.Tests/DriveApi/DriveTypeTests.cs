@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
-using Youverse.Core;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Drives;
+using Odin.Core;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Drives;
 
-namespace Youverse.Hosting.Tests.DriveApi
+namespace Odin.Hosting.Tests.DriveApi
 {
     public class PermissionedDriveComparer : IEqualityComparer<PermissionedDrive>
     {

@@ -2,18 +2,17 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.DataSubscription.Follower;
-using Youverse.Core.Services.DataSubscription.ReceivingHost;
-using Youverse.Core.Services.DataSubscription.SendingHost;
-using Youverse.Core.Services.Drives.Management;
-using Youverse.Core.Services.EncryptionKeyService;
-using Youverse.Core.Services.Transit.ReceivingHost;
-using Youverse.Core.Storage;
-using Youverse.Hosting.Authentication.Perimeter;
-using Youverse.Hosting.Controllers.Base;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.DataSubscription.Follower;
+using Odin.Core.Services.DataSubscription.ReceivingHost;
+using Odin.Core.Services.DataSubscription.SendingHost;
+using Odin.Core.Services.Drives.Management;
+using Odin.Core.Services.EncryptionKeyService;
+using Odin.Core.Services.Transit.ReceivingHost;
+using Odin.Hosting.Authentication.Perimeter;
+using Odin.Hosting.Controllers.Base;
 
-namespace Youverse.Hosting.Controllers.Certificate.Feed
+namespace Odin.Hosting.Controllers.Certificate.Feed
 {
     /// <summary>
     /// Receives incoming data transfers from other hosts

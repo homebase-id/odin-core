@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Youverse.Core.Services.Apps.CommandMessaging;
+namespace Odin.Core.Services.Apps.CommandMessaging;
 
 /// <summary>
 /// A command received from an app on another identity

@@ -2,14 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection.PortableExecutable;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Certificate;
-using Youverse.Core.Services.Configuration;
-using Youverse.Core.Services.Registry;
-using Youverse.Core.Util;
+using Odin.Core.Identity;
+using Odin.Core.Services.Certificate;
+using Odin.Core.Services.Configuration;
+using Odin.Core.Services.Registry;
+using Odin.Core.Util;
 
-namespace Youverse.Hosting._dev
+namespace Odin.Hosting._dev
 {
     public static class DevEnvironmentSetup
     {

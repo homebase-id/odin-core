@@ -2,14 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Contacts.Circle;
-using Youverse.Core.Services.Contacts.Circle.Membership;
+using Odin.Core.Exceptions;
+using Odin.Core.Services.Base;
 
-namespace Youverse.Core.Services.Authorization.Acl
+namespace Odin.Core.Services.Authorization.Acl
 {
     public class DriveAclAuthorizationService : IDriveAclAuthorizationService
     {

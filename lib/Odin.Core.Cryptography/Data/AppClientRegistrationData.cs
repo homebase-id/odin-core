@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Youverse.Core.Cryptography.Data
+namespace Odin.Core.Cryptography.Data
 {
     // This token (table) maps between a client's token cookie 
     // and the AppTokenData table. E.g. imagine two chat clients

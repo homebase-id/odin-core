@@ -1,4 +1,4 @@
-﻿namespace Youverse.Core
+﻿namespace Odin.Core.Fluff
 {
     /// <summary>
     /// Result when calling API functions like delete or create which do not require a complex response.

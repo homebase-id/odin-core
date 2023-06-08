@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Youverse.Core.Storage.Sqlite
+namespace Odin.Core.Storage.SQLite
 {
     public class TableBase : IDisposable
     {

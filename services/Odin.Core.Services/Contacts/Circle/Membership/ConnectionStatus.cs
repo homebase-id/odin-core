@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.Contacts.Circle.Membership
+namespace Odin.Core.Services.Contacts.Circle.Membership
 {
     public enum ConnectionStatus
     {

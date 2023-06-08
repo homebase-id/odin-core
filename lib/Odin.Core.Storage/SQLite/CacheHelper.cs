@@ -2,7 +2,7 @@
 using System.Collections.Specialized;
 using System.Runtime.Caching;
 
-namespace Youverse.Core.Storage
+namespace Odin.Core.Storage.SQLite
 {
     /*
      *  If we want to cache more than atomic records then we can add a List<string> facets as

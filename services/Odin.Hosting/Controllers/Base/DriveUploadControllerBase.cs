@@ -1,18 +1,14 @@
 ﻿using System;
-using System.IO;
 using System.Linq;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
-using Youverse.Core.Services.Drives.FileSystem.Base.Upload.Attachments;
-using Youverse.Core.Services.Transit;
+using Odin.Core.Exceptions;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments;
 
-namespace Youverse.Hosting.Controllers.Base
+namespace Odin.Hosting.Controllers.Base
 {
     /// <summary>
     /// Base API Controller for uploading multi-part streams

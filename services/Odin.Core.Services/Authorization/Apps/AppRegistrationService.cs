@@ -1,25 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Policy;
 using System.Threading.Tasks;
 using Dawn;
 using MediatR;
-using MediatR.Pipeline;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Configuration;
-using Youverse.Core.Services.Contacts.Circle.Membership;
-using Youverse.Core.Services.Mediator;
-using Youverse.Core.Storage;
-using Youverse.Core.Util;
+using Odin.Core.Cryptography.Data;
+using Odin.Core.Exceptions;
+using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Configuration;
+using Odin.Core.Services.Mediator;
+using Odin.Core.Storage;
+using Odin.Core.Util;
 
-namespace Youverse.Core.Services.Authorization.Apps
+namespace Odin.Core.Services.Authorization.Apps
 {
     public class AppRegistrationService : IAppRegistrationService
     {

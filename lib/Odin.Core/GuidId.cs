@@ -1,11 +1,10 @@
 using System;
-using System.Linq;
 using System.Text.Json.Serialization;
 using Dawn;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Util;
+using Odin.Core.Exceptions;
+using Odin.Core.Util;
 
-namespace Youverse.Core;
+namespace Odin.Core;
 
 [JsonConverter(typeof(GuidIdConverter))]
 public class GuidId

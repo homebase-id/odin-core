@@ -2,14 +2,14 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Youverse.Core.Identity;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Storage;
+using Odin.Core.Identity;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Transit.Encryption;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 
-namespace Youverse.Core.Services.Transit.SendingHost.Outbox
+namespace Odin.Core.Services.Transit.SendingHost.Outbox
 {
     public class OutboxItemState
     {
@@ -66,7 +66,7 @@ namespace Youverse.Core.Services.Transit.SendingHost.Outbox
                 item.Priority,
                 state);*/
 
-            _tenantSystemStorage.Outbox.Insert(new Storage.Sqlite.IdentityDatabase.OutboxRecord() {
+            _tenantSystemStorage.Outbox.Insert(new OutboxRecord() {
                 boxId = item.File.DriveId,
                 recipient = item.Recipient,
                 fileId = item.File.FileId,

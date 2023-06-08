@@ -1,6 +1,6 @@
 using System;
 
-namespace Youverse.Core.Services.Registry.Registration
+namespace Odin.Core.Services.Registry.Registration
 {
     /// <summary>
     /// Holds the information required when requesting the reservation of a given domain name. 

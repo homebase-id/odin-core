@@ -1,6 +1,6 @@
-using Youverse.Core.Services.Drives.Management;
+using Odin.Core.Services.Drives.Management;
 
-namespace Youverse.Core.Services.Drives;
+namespace Odin.Core.Services.Drives;
 
 /// <summary>
 /// Built-in drives

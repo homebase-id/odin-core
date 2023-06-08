@@ -3,7 +3,7 @@ using System.ComponentModel;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 
-namespace Youverse.Core.Storage
+namespace Odin.Core.Storage
 {
     public interface IStorage<T> : IDisposable
     {

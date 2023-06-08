@@ -1,11 +1,11 @@
-﻿using System;
+﻿#nullable enable
+using System;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
-using Youverse.Core.Services.Tenant;
+using Odin.Core.Services.Tenant;
 
-#nullable enable
-namespace Youverse.Hosting.Multitenant
+namespace Odin.Hosting.Multitenant
 {
     public class MultiTenantServiceProviderFactory : IServiceProviderFactory<ContainerBuilder>
     {

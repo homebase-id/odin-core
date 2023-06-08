@@ -1,11 +1,9 @@
-﻿using System;
-using System.Globalization;
-using System.Threading;
+﻿using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Youverse.Core.Logging.CorrelationId;
+using Odin.Core.Logging.CorrelationId;
 
-namespace Youverse.Core.Tests.Logging.CorrelationId
+namespace Odin.Core.Tests.Logging.CorrelationId
 {
     [TestFixture]
     public class CorrelationContextTest

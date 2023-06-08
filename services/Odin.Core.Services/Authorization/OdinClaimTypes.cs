@@ -1,6 +1,6 @@
 ﻿using System.Security.Claims;
 
-namespace Youverse.Core.Services.Authorization
+namespace Odin.Core.Services.Authorization
 {
     /// <summary>
     /// List of the Claim types used by YouFoundation

@@ -1,7 +1,7 @@
 using Dawn;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Authorization.ExchangeGrants;
 
-namespace Youverse.Core.Services.Authorization.Apps;
+namespace Odin.Core.Services.Authorization.Apps;
 
 public sealed class AppClient
 {

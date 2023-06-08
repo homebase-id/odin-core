@@ -1,10 +1,10 @@
-﻿using NodaTime;
-using System;
+﻿using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
+using NodaTime;
 
-namespace Youverse.Core
+namespace Odin.Core.Time
 {
     public class UnixTimeUtcConverter : JsonConverter<UnixTimeUtc>
     {

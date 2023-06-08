@@ -1,8 +1,8 @@
-﻿using System;
-using Youverse.Core.Exceptions;
+﻿#nullable enable
+using System;
+using Odin.Core.Exceptions;
 
-#nullable enable
-namespace Youverse.Core.Services.Authentication.YouAuth
+namespace Odin.Core.Services.Authentication.YouAuth
 {
     public class YouAuthClientException : YouverseClientException
     {

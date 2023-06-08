@@ -1,8 +1,8 @@
 using System.Threading.Tasks;
+using Odin.Core.Services.Transit.ReceivingHost;
 using Refit;
-using Youverse.Core.Services.Transit.ReceivingHost;
 
-namespace Youverse.Core.Services.DataSubscription.SendingHost
+namespace Odin.Core.Services.DataSubscription.SendingHost
 {
     public interface IFeedDistributorHttpClient
     {

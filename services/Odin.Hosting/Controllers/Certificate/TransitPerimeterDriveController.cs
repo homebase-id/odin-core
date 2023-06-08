@@ -1,25 +1,21 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.FileSystem;
-using Youverse.Core.Services.Drives.Management;
-using Youverse.Core.Services.EncryptionKeyService;
-using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.ReceivingHost;
-using Youverse.Core.Services.Transit.ReceivingHost.Quarantine;
-using Youverse.Core.Storage;
-using Youverse.Hosting.Authentication.Perimeter;
-using Youverse.Hosting.Controllers.Base;
+using Odin.Core.Services.Apps;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.Management;
+using Odin.Core.Services.EncryptionKeyService;
+using Odin.Core.Services.Transit;
+using Odin.Core.Services.Transit.ReceivingHost;
+using Odin.Core.Services.Transit.ReceivingHost.Quarantine;
+using Odin.Hosting.Authentication.Perimeter;
+using Odin.Hosting.Controllers.Base;
 
-namespace Youverse.Hosting.Controllers.Certificate
+namespace Odin.Hosting.Controllers.Certificate
 {
     /// <summary>
     /// Receives incoming data transfers from other hosts

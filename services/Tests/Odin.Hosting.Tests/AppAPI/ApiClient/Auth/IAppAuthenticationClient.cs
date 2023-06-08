@@ -1,9 +1,9 @@
 using System.Net.Http;
 using System.Threading.Tasks;
+using Odin.Hosting.Controllers.ClientToken;
 using Refit;
-using Youverse.Hosting.Controllers.ClientToken;
 
-namespace Youverse.Hosting.Tests.AppAPI.ApiClient.Auth
+namespace Odin.Hosting.Tests.AppAPI.ApiClient.Auth
 {
     public interface IAppAuthenticationClient
     {

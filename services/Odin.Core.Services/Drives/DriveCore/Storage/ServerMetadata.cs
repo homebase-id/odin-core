@@ -1,7 +1,7 @@
-﻿using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Storage;
+﻿using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Storage;
 
-namespace Youverse.Core.Services.Drives.DriveCore.Storage
+namespace Odin.Core.Services.Drives.DriveCore.Storage
 {
     public class ServerMetadata
     {

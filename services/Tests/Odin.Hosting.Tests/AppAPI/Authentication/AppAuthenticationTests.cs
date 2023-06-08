@@ -1,27 +1,16 @@
-using Refit;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using NUnit.Framework;
 using System.Reflection;
 using System.Threading.Tasks;
-using Youverse.Core;
-using Youverse.Core.Services.Authentication;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Contacts.Circle.Requests;
-using Youverse.Core.Services.Drives;
-using Youverse.Hosting.Authentication.ClientToken;
-using Youverse.Hosting.Controllers;
-using Youverse.Hosting.Tests.Anonymous.ApiClient;
-using Youverse.Hosting.Tests.AppAPI.ApiClient.Auth;
-using Youverse.Hosting.Tests.AppAPI.Circle;
-using Youverse.Hosting.Tests.OwnerApi.ApiClient;
-using Youverse.Hosting.Tests.OwnerApi.Authentication;
-using Youverse.Hosting.Tests.OwnerApi.Circle;
+using NUnit.Framework;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Authorization.Permissions;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives;
+using Odin.Hosting.Authentication.ClientToken;
 
-namespace Youverse.Hosting.Tests.AppAPI.Authentication
+namespace Odin.Hosting.Tests.AppAPI.Authentication
 {
     [TestFixture]
     public class AppAuthenticationTests

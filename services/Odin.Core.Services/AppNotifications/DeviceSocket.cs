@@ -1,10 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Net.WebSockets;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Drives;
+using Odin.Core.Services.Authorization.ExchangeGrants;
 
-namespace Youverse.Core.Services.AppNotifications;
+namespace Odin.Core.Services.AppNotifications;
 
 public class DeviceSocket
 {

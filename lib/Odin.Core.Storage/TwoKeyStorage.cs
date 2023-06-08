@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Youverse.Core.Serialization;
-using Youverse.Core.Storage.Sqlite.IdentityDatabase;
+using Odin.Core.Serialization;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 
-namespace Youverse.Core.Storage;
+namespace Odin.Core.Storage;
 
 /// <summary>
 /// Key value storage using 2 keys; serializes as json

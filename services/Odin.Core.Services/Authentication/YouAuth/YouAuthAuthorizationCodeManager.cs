@@ -1,9 +1,9 @@
-﻿using System;
+﻿#nullable enable
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-#nullable enable
-namespace Youverse.Core.Services.Authentication.YouAuth
+namespace Odin.Core.Services.Authentication.YouAuth
 {
     public interface IYouAuthAuthorizationCodeManager
     {

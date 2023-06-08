@@ -1,15 +1,15 @@
 ﻿using System.Net.Http;
 using System.Threading.Tasks;
+using Odin.Core;
+using Odin.Core.Services.Apps;
+using Odin.Core.Services.Drives;
+using Odin.Hosting.Controllers;
+using Odin.Hosting.Controllers.ClientToken.Drive;
+using Odin.Hosting.Controllers.OwnerToken;
+using Odin.Hosting.Controllers.OwnerToken.Transit;
 using Refit;
-using Youverse.Core;
-using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Drives;
-using Youverse.Hosting.Controllers;
-using Youverse.Hosting.Controllers.ClientToken.Drive;
-using Youverse.Hosting.Controllers.OwnerToken;
-using Youverse.Hosting.Controllers.OwnerToken.Transit;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Transit.Query
+namespace Odin.Hosting.Tests.OwnerApi.Transit.Query
 {
     /// <summary>
     /// The interface for storing files

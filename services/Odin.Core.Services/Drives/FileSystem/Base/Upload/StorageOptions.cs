@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Youverse.Core.Services.Drives.FileSystem.Base.Upload
+namespace Odin.Core.Services.Drives.FileSystem.Base.Upload
 {
     /// <summary>
     /// Defines the options for storage

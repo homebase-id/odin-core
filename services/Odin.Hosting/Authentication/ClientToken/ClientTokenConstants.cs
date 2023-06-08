@@ -1,4 +1,4 @@
-﻿namespace Youverse.Hosting.Authentication.ClientToken
+﻿namespace Odin.Hosting.Authentication.ClientToken
 {
     public static class ClientTokenConstants
     {

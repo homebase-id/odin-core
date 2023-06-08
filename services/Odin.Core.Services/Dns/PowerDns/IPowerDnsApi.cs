@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Refit;
 
-namespace Youverse.Core.Services.Dns.PowerDns;
+namespace Odin.Core.Services.Dns.PowerDns;
 
 public interface IPowerDnsApi
 {

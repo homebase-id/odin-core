@@ -1,7 +1,7 @@
 using System;
 using Dawn;
 
-namespace Youverse.Core.Services.Contacts.Circle.Requests;
+namespace Odin.Core.Services.Contacts.Circle.Requests;
 
 /// <summary>
 /// Initial data sent with a connection request

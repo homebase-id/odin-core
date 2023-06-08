@@ -1,4 +1,4 @@
-namespace Youverse.Core.Util
+namespace Odin.Core.Util
 {
     public static class ValidationUtil
     {

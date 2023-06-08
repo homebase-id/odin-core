@@ -1,8 +1,8 @@
+#nullable enable
 using System.Collections.Generic;
 using System.Linq;
 
-#nullable enable
-namespace Youverse.Core.Services.Registry.Registration;
+namespace Odin.Core.Services.Registry.Registration;
 
 public class DnsConfigurationSet
 {

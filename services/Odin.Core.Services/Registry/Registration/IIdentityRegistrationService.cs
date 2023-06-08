@@ -1,10 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
-using Youverse.Core.Services.Configuration;
+using Odin.Core.Services.Configuration;
 
-namespace Youverse.Core.Services.Registry.Registration;
+namespace Odin.Core.Services.Registry.Registration;
 
 /// <summary>
 /// Handles registration of a new domain identities; including creating SSL certificates.

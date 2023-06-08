@@ -1,8 +1,7 @@
 using System.Collections.Generic;
 using Dawn;
-using Youverse.Core.Services.Authorization.Permissions;
 
-namespace Youverse.Core.Services.Contacts.Circle.Requests;
+namespace Odin.Core.Services.Contacts.Circle.Requests;
 
 public class AcceptRequestHeader
 {

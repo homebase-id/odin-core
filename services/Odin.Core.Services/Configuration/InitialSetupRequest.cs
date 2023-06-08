@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
-using Youverse.Core.Services.Drives.Management;
+using Odin.Core.Services.Contacts.Circle.Membership.Definition;
+using Odin.Core.Services.Drives.Management;
 
-namespace Youverse.Core.Services.Configuration;
+namespace Odin.Core.Services.Configuration;
 
 /// <summary>
 /// Set of parameters specifying how initial setup should be executed

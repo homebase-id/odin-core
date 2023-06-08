@@ -1,6 +1,6 @@
-using Youverse.Core.Exceptions;
+using Odin.Core.Exceptions;
 
-namespace Youverse.Core.Services.Email;
+namespace Odin.Core.Services.Email;
 
 public class EmailException : OdinException
 {

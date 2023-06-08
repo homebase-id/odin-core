@@ -3,14 +3,10 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Dawn;
 using Microsoft.AspNetCore.Mvc;
-using Refit;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Configuration;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Registry;
-using Youverse.Core.Services.Registry.Registration;
+using Odin.Core.Services.Configuration;
+using Odin.Core.Services.Drives;
 
-namespace Youverse.Hosting.Controllers.OwnerToken.Configuration;
+namespace Odin.Hosting.Controllers.OwnerToken.Configuration;
 
 /// <summary>
 /// Configuration for the owner's system

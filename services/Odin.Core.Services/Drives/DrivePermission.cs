@@ -1,6 +1,6 @@
 using System;
 
-namespace Youverse.Core.Services.Drives
+namespace Odin.Core.Services.Drives
 {
     //Note there is a separate Write permission as we have scenarios where we want to receive
     //but not let data be read; i.e. best buy sending me purchase receipts.  They cannot read

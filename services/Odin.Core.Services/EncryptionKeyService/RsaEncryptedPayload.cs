@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.EncryptionKeyService
+namespace Odin.Core.Services.EncryptionKeyService
 {
     /// <summary>
     /// A set of data encrypted using an Rsa Public Key

@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Data;
-using Youverse.Core.Cryptography.Crypto;
 using System.Timers;
 using Microsoft.Data.Sqlite;
-using Serilog;
-using System.Diagnostics;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Time;
 
 
 /*
@@ -20,7 +19,7 @@ https://www.sqlitetutorial.net/sqlite-index/
 */
 
 
-namespace Youverse.Core.Storage.Sqlite
+namespace Odin.Core.Storage.SQLite
 {
     public class DatabaseBase : IDisposable
     {

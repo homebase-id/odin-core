@@ -1,4 +1,4 @@
-﻿namespace Youverse.Core.Logging.CorrelationId
+﻿namespace Odin.Core.Logging.CorrelationId
 {
     public interface ICorrelationIdGenerator
     {

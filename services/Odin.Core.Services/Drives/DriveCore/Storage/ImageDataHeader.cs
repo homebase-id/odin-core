@@ -1,6 +1,6 @@
 using System;
 
-namespace Youverse.Core.Services.Drives.DriveCore.Storage;
+namespace Odin.Core.Services.Drives.DriveCore.Storage;
 
 public class ImageDataHeader: IEquatable<ImageDataHeader>
 {

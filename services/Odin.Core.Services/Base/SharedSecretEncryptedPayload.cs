@@ -4,11 +4,11 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using Youverse.Core.Cryptography.Crypto;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Serialization;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
 
-namespace Youverse.Core.Services.Base;
+namespace Odin.Core.Services.Base;
 
 public class SharedSecretEncryptedPayload
 {

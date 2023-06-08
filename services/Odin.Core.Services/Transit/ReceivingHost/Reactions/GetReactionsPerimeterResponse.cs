@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Youverse.Core.Services.Transit.ReceivingHost.Reactions;
+namespace Odin.Core.Services.Transit.ReceivingHost.Reactions;
 
 public class GetReactionsPerimeterResponse
 {

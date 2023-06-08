@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using System.Linq;
-using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Services.Authorization.Permissions;
+using Odin.Core.Cryptography.Data;
+using Odin.Core.Services.Authorization.Permissions;
 
-namespace Youverse.Core.Services.Authorization.ExchangeGrants;
+namespace Odin.Core.Services.Authorization.ExchangeGrants;
 
 /// <summary>
 /// Defines the information needed to grant system permissions and drive access

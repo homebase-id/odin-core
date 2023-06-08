@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
-using Youverse.Hosting.Authentication.ClientToken;
+using Odin.Hosting.Authentication.ClientToken;
 
-namespace Youverse.Hosting.Controllers.ClientToken;
+namespace Odin.Hosting.Controllers.ClientToken;
 
 public class AuthorizeValidExchangeGrant : AuthorizeAttribute
 {

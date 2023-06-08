@@ -1,14 +1,14 @@
-﻿using System;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Contacts.Circle.Requests;
-using Youverse.Core.Services.EncryptionKeyService;
-using Youverse.Hosting.Authentication.Perimeter;
+using Odin.Core;
+using Odin.Core.Fluff;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Contacts.Circle.Requests;
+using Odin.Core.Services.EncryptionKeyService;
+using Odin.Hosting.Authentication.Perimeter;
 
-namespace Youverse.Hosting.Controllers.Certificate
+namespace Odin.Hosting.Controllers.Certificate
 {
     /// <summary>
     /// Controller which accepts various invitations.  This controller 

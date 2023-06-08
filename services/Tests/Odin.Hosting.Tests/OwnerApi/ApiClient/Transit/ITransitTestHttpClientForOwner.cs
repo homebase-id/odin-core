@@ -1,11 +1,11 @@
 ﻿using System.Threading.Tasks;
+using Odin.Core.Services.Apps;
+using Odin.Core.Services.Transit.SendingHost;
+using Odin.Hosting.Controllers.OwnerToken;
+using Odin.Hosting.Controllers.OwnerToken.Transit;
 using Refit;
-using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Transit.SendingHost;
-using Youverse.Hosting.Controllers.OwnerToken;
-using Youverse.Hosting.Controllers.OwnerToken.Transit;
 
-namespace Youverse.Hosting.Tests.OwnerApi.ApiClient.Transit
+namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Transit
 {
     /// <summary>
     /// The interface for storing files

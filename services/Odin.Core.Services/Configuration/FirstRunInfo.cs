@@ -1,6 +1,6 @@
 using System;
 
-namespace Youverse.Core.Services.Configuration;
+namespace Odin.Core.Services.Configuration;
 
 public class FirstRunInfo
 {

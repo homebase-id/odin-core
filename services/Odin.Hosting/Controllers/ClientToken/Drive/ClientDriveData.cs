@@ -1,7 +1,6 @@
-using System;
-using Youverse.Core.Services.Drives;
+using Odin.Core.Services.Drives;
 
-namespace Youverse.Hosting.Controllers.ClientToken.Drive
+namespace Odin.Hosting.Controllers.ClientToken.Drive
 {
     public class ClientDriveData
     {

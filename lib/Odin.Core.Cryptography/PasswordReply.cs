@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Youverse.Core.Cryptography
+namespace Odin.Core.Cryptography
 {
     /// <summary>
     /// Holds the values when the client creates a new Digital Identity

@@ -1,8 +1,7 @@
-using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace Youverse.Core.Services.Authorization.Acl
+namespace Odin.Core.Services.Authorization.Acl
 {
     public interface IDriveAclAuthorizationService
     {

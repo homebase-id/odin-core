@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Text.Json.Serialization;
 using Dawn;
-using Youverse.Core.Services.Contacts.Circle.Membership;
+using Odin.Core.Services.Contacts.Circle.Membership;
 
-namespace Youverse.Core.Services.Contacts.Circle.Requests
+namespace Odin.Core.Services.Contacts.Circle.Requests
 {
     public class ConnectionRequest : ConnectionRequestHeader
     {

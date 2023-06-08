@@ -1,11 +1,10 @@
-﻿using Youverse.Core;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
-using Youverse.Core.Services.Transit.Encryption;
+﻿using Odin.Core.Serialization;
+using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Core.Services.Transit.Encryption;
 
-namespace Youverse.Hosting.Tests.AppAPI.Notifications;
+namespace Odin.Hosting.Tests.AppAPI.Notifications;
 
 public static class NotificationTestUtils
 {

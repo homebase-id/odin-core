@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.AppNotifications.ClientNotifications
+namespace Odin.Core.Services.AppNotifications.ClientNotifications
 {
     public class DeviceDisconnected :  IClientNotification
     {

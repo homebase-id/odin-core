@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.Base;
+namespace Odin.Core.Services.Base;
 
 public class HttpHeaderConstants
 {

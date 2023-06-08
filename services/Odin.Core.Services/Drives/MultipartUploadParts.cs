@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.Drives
+namespace Odin.Core.Services.Drives
 {
     public enum MultipartUploadParts
     {

@@ -1,18 +1,18 @@
 using System;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives.FileSystem;
-using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
-using Youverse.Core.Services.Drives.FileSystem.Base.Upload.Attachments;
-using Youverse.Core.Services.Drives.FileSystem.Comment;
-using Youverse.Core.Services.Drives.FileSystem.Comment.Attachments;
-using Youverse.Core.Services.Drives.FileSystem.Standard;
-using Youverse.Core.Services.Drives.FileSystem.Standard.Attachments;
-using Youverse.Core.Storage;
+using Odin.Core.Exceptions;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives.FileSystem;
+using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments;
+using Odin.Core.Services.Drives.FileSystem.Comment;
+using Odin.Core.Services.Drives.FileSystem.Comment.Attachments;
+using Odin.Core.Services.Drives.FileSystem.Standard;
+using Odin.Core.Services.Drives.FileSystem.Standard.Attachments;
+using Odin.Core.Storage;
 
-namespace Youverse.Hosting.Controllers.Base;
+namespace Odin.Hosting.Controllers.Base;
 
 /// <summary>
 /// Methods to resolve which <see cref="IDriveFileSystem"/> to use based on the

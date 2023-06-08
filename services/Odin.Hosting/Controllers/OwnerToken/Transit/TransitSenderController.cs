@@ -5,17 +5,17 @@ using System.Threading.Tasks;
 using Dawn;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
+using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Core.Services.Transit;
+using Odin.Core.Services.Transit.SendingHost;
+using Odin.Core.Storage;
+using Odin.Hosting.Controllers.Base;
 using Swashbuckle.AspNetCore.Annotations;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
-using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.SendingHost;
-using Youverse.Core.Storage;
-using Youverse.Hosting.Controllers.Base;
 
-namespace Youverse.Hosting.Controllers.OwnerToken.Transit
+namespace Odin.Hosting.Controllers.OwnerToken.Transit
 {
     /// <summary />
     [ApiController]

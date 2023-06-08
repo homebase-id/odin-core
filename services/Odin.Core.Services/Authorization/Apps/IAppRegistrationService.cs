@@ -1,14 +1,11 @@
-﻿using System;
+﻿#nullable enable
+
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Contacts.Circle;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Base;
 
-#nullable enable
-
-namespace Youverse.Core.Services.Authorization.Apps
+namespace Odin.Core.Services.Authorization.Apps
 {
     public interface IAppRegistrationService
     {

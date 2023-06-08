@@ -1,6 +1,4 @@
-using System.Collections.Generic;
-
-namespace Youverse.Hosting.Tests.AppAPI.Utils;
+namespace Odin.Hosting.Tests.AppAPI.Utils;
 
 public class AppTransitTestUtilsContext : TransitTestUtilsContext
 {

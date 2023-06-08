@@ -1,8 +1,6 @@
 using NUnit.Framework;
-using System.Diagnostics;
-using Youverse.Core.Serialization;
 
-namespace Youverse.Core.Tests
+namespace Odin.Core.Tests
 {
     public class DateRangeTests
     {

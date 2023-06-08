@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
 
-namespace Youverse.Core.Services.Authentication.Apps
+namespace Odin.Core.Services.Authentication.Apps
 {
     public interface IAppAuthenticationService
     {

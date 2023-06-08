@@ -3,11 +3,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using NUnit.Framework;
-using Youverse.Core;
-using Youverse.Core.Identity;
-using Youverse.Core.Storage.Sqlite.DriveDatabase;
+using Odin.Core.Identity;
+using Odin.Core.Storage.SQLite.DriveDatabase;
 
-namespace DriveDatabaseTests
+namespace Odin.Core.Storage.Tests.DriveDatabaseTests
 {
     
     public class TableReactions

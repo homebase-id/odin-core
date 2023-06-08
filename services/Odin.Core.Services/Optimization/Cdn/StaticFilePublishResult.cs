@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace Youverse.Core.Services.Optimization.Cdn;
+namespace Odin.Core.Services.Optimization.Cdn;
 
 public class StaticFilePublishResult
 {

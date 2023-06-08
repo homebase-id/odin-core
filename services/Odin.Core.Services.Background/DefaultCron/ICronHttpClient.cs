@@ -1,7 +1,7 @@
 using System.Threading.Tasks;
 using Refit;
 
-namespace Youverse.Core.Services.Workers.DefaultCron
+namespace Odin.Core.Services.Background.DefaultCron
 {
     public interface ICronHttpClient
     {

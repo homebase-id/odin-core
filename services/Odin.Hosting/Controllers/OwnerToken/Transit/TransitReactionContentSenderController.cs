@@ -1,14 +1,14 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Odin.Core.Identity;
+using Odin.Core.Services.Drives.Reactions;
+using Odin.Core.Services.Transit.ReceivingHost.Reactions;
+using Odin.Core.Services.Transit.SendingHost;
+using Odin.Hosting.Controllers.Base;
 using Swashbuckle.AspNetCore.Annotations;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Drives.Reactions;
-using Youverse.Core.Services.Transit.ReceivingHost.Reactions;
-using Youverse.Core.Services.Transit.SendingHost;
-using Youverse.Hosting.Controllers.Base;
 
-namespace Youverse.Hosting.Controllers.OwnerToken.Transit
+namespace Odin.Hosting.Controllers.OwnerToken.Transit
 {
     /// <summary>
     /// Routes reaction requests from the owner app to a target identity

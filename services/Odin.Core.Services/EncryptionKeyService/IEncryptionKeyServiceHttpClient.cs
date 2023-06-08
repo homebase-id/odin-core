@@ -1,9 +1,7 @@
 using System.Threading.Tasks;
 using Refit;
-using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Services.Transit;
 
-namespace Youverse.Core.Services.EncryptionKeyService
+namespace Odin.Core.Services.EncryptionKeyService
 {
     /// <summary>
     /// The interface for querying from a host to another host

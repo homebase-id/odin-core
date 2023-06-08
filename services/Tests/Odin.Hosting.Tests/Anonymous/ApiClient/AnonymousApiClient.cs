@@ -1,18 +1,8 @@
 ﻿using System;
-using System.Net;
 using System.Net.Http;
-using System.Threading.Tasks;
-using Youverse.Core;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Registry.Registration;
-using Youverse.Core.Storage;
-using Youverse.Hosting.Tests.AppAPI.Utils;
-using Youverse.Hosting.Tests.OwnerApi.ApiClient;
-using Youverse.Hosting.Tests.OwnerApi.Utils;
+using Odin.Core.Storage;
 
-namespace Youverse.Hosting.Tests.Anonymous.ApiClient
+namespace Odin.Hosting.Tests.Anonymous.ApiClient
 {
     public class AnonymousApiClient
     {

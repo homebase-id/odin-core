@@ -1,9 +1,9 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core.Services.Configuration;
-using Youverse.Hosting.Controllers.Anonymous;
+using Odin.Core.Services.Configuration;
+using Odin.Hosting.Controllers.Anonymous;
 
-namespace Youverse.Hosting.Controllers.ClientToken.Configuration;
+namespace Odin.Hosting.Controllers.ClientToken.Configuration;
 
 /// <summary>
 /// Configuration for the owner's system

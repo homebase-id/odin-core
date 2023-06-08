@@ -1,4 +1,4 @@
-namespace Youverse.Core;
+namespace Odin.Core;
 
 public class IntRange
 {

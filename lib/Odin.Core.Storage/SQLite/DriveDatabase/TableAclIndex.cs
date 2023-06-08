@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using Microsoft.Data.Sqlite;
 
-namespace Youverse.Core.Storage.Sqlite.DriveDatabase
+namespace Odin.Core.Storage.SQLite.DriveDatabase
 {
     public class TableAclIndex : TableAclIndexCRUD
     {

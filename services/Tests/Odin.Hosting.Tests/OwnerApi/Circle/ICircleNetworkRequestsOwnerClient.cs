@@ -1,11 +1,11 @@
 ﻿using System.Threading.Tasks;
+using Odin.Core;
+using Odin.Core.Services.Contacts.Circle.Requests;
+using Odin.Hosting.Controllers;
+using Odin.Hosting.Controllers.OwnerToken;
 using Refit;
-using Youverse.Core;
-using Youverse.Core.Services.Contacts.Circle.Requests;
-using Youverse.Hosting.Controllers;
-using Youverse.Hosting.Controllers.OwnerToken;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Circle
+namespace Odin.Hosting.Tests.OwnerApi.Circle
 {
     public interface ICircleNetworkRequestsOwnerClient
     {

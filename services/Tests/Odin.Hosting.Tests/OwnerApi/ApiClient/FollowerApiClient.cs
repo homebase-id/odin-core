@@ -2,14 +2,14 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core;
+using Odin.Core.Services.DataSubscription.Follower;
+using Odin.Core.Services.Drives;
+using Odin.Hosting.Tests.OwnerApi.DataSubscription.Follower;
+using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
-using Youverse.Core;
-using Youverse.Core.Services.DataSubscription.Follower;
-using Youverse.Core.Services.Drives;
-using Youverse.Hosting.Tests.OwnerApi.DataSubscription.Follower;
-using Youverse.Hosting.Tests.OwnerApi.Utils;
 
-namespace Youverse.Hosting.Tests.OwnerApi.ApiClient;
+namespace Odin.Hosting.Tests.OwnerApi.ApiClient;
 
 public class FollowerApiClient
 {

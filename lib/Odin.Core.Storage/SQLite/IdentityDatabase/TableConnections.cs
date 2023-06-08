@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
-using System.Security.Principal;
-using System.Xml;
+using Odin.Core.Time;
 
-namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
+namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
     public class TableConnections : TableConnectionsCRUD
     {

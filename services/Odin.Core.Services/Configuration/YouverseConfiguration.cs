@@ -4,14 +4,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using Microsoft.Extensions.Configuration;
-using Youverse.Core.Configuration;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Certificate;
-using Youverse.Core.Services.Email;
-using Youverse.Core.Services.Registry.Registration;
-using Youverse.Core.Util;
+using Odin.Core.Configuration;
+using Odin.Core.Exceptions;
+using Odin.Core.Services.Certificate;
+using Odin.Core.Services.Email;
+using Odin.Core.Services.Registry.Registration;
+using Odin.Core.Util;
 
-namespace Youverse.Core.Services.Configuration
+namespace Odin.Core.Services.Configuration
 {
     public class YouverseConfiguration
     {

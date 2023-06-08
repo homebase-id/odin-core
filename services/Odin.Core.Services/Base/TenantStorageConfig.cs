@@ -1,4 +1,4 @@
-﻿namespace Youverse.Core.Services.Base
+﻿namespace Odin.Core.Services.Base
 {
     /// <summary>
     /// Configuration for how data is stored.  This can include paths for storing images as well as database connection strings.

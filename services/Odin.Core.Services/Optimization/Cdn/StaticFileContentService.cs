@@ -3,24 +3,21 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Mime;
-using System.Text.Json;
 using System.Threading.Tasks;
 using Dawn;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.DriveCore.Query;
-using Youverse.Core.Services.Drives.DriveCore.Storage;
-using Youverse.Core.Services.Drives.FileSystem;
-using Youverse.Core.Services.Drives.FileSystem.Standard;
-using Youverse.Core.Services.Drives.Management;
-using Youverse.Core.Storage;
-using Youverse.Core.Util;
+using Odin.Core.Cryptography;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Apps;
+using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.DriveCore.Query;
+using Odin.Core.Services.Drives.DriveCore.Storage;
+using Odin.Core.Services.Drives.FileSystem.Standard;
+using Odin.Core.Services.Drives.Management;
+using Odin.Core.Util;
 
-namespace Youverse.Core.Services.Optimization.Cdn;
+namespace Odin.Core.Services.Optimization.Cdn;
 
 public enum CrossOriginBehavior
 {

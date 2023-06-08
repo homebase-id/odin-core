@@ -1,18 +1,18 @@
 using System;
 using System.Threading.Tasks;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.DataSubscription.Follower;
-using Youverse.Core.Services.DataSubscription.SendingHost;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.DriveCore.Storage;
-using Youverse.Core.Services.Drives.FileSystem;
-using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Services.Transit.ReceivingHost;
+using Odin.Core.Exceptions;
+using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.DataSubscription.Follower;
+using Odin.Core.Services.DataSubscription.SendingHost;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.DriveCore.Storage;
+using Odin.Core.Services.Drives.FileSystem;
+using Odin.Core.Services.Transit;
+using Odin.Core.Services.Transit.Encryption;
+using Odin.Core.Services.Transit.ReceivingHost;
 
-namespace Youverse.Core.Services.DataSubscription.ReceivingHost
+namespace Odin.Core.Services.DataSubscription.ReceivingHost
 {
     public class FeedDistributionPerimeterService
     {

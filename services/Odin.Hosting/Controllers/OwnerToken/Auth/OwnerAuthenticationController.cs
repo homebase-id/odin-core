@@ -1,17 +1,15 @@
 ﻿using System;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Services.Authentication.Owner;
-using Youverse.Core.Services.Authentication.YouAuth;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Hosting.Authentication.ClientToken;
-using Youverse.Hosting.Authentication.Owner;
+using Odin.Core.Cryptography;
+using Odin.Core.Cryptography.Data;
+using Odin.Core.Fluff;
+using Odin.Core.Services.Authentication.Owner;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Hosting.Authentication.ClientToken;
+using Odin.Hosting.Authentication.Owner;
 
-namespace Youverse.Hosting.Controllers.OwnerToken.Auth
+namespace Odin.Hosting.Controllers.OwnerToken.Auth
 {
     [ApiController]
     [Route(OwnerApiPathConstants.AuthV1)]

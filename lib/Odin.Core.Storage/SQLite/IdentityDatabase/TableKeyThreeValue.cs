@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using Microsoft.Data.Sqlite;
-
-namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
+﻿namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
     public class TableKeyThreeValue : TableKeyThreeValueCRUD
     {

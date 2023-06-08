@@ -1,13 +1,12 @@
-﻿using DnsClient;
-using DnsClient.Protocol;
-using System;
+﻿using System;
 using System.Globalization;
 using System.Linq;
-using Youverse.Core.Trie;
+using DnsClient;
+using DnsClient.Protocol;
 
 //using DnsClient; // https://www.nuget.org/packages/DnsClient/
 
-namespace Youverse.Core.Util
+namespace Odin.Core.Util
 {
     // Guaranteed to hold a valid, lowercased puny domain name
     //

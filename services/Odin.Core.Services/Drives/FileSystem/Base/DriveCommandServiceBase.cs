@@ -1,13 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Apps.CommandMessaging;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives.DriveCore.Query;
-using Youverse.Core.Services.Drives.Management;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Apps.CommandMessaging;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives.DriveCore.Query;
+using Odin.Core.Services.Drives.Management;
 
-namespace Youverse.Core.Services.Drives.FileSystem.Base;
+namespace Odin.Core.Services.Drives.FileSystem.Base;
 
 public abstract class DriveCommandServiceBase : RequirePermissionsBase
 {

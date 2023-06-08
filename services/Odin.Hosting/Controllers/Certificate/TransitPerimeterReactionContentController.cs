@@ -2,14 +2,13 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core.Services.Drives.Reactions;
-using Youverse.Core.Services.Transit.ReceivingHost;
-using Youverse.Core.Services.Transit.ReceivingHost.Reactions;
-using Youverse.Core.Services.Transit.SendingHost;
-using Youverse.Hosting.Authentication.Perimeter;
-using Youverse.Hosting.Controllers.Base;
+using Odin.Core.Services.Drives.Reactions;
+using Odin.Core.Services.Transit.ReceivingHost.Reactions;
+using Odin.Core.Services.Transit.SendingHost;
+using Odin.Hosting.Authentication.Perimeter;
+using Odin.Hosting.Controllers.Base;
 
-namespace Youverse.Hosting.Controllers.Certificate
+namespace Odin.Hosting.Controllers.Certificate
 {
     /// <summary>
     /// Receives incoming data transfers from other hosts

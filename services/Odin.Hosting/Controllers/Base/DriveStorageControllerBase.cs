@@ -4,18 +4,15 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.FileSystem.Base;
-using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.SendingHost;
-using Youverse.Core.Util;
-using Youverse.Hosting.Authentication.ClientToken;
-using NotImplementedException = System.NotImplementedException;
+using Odin.Core.Exceptions;
+using Odin.Core.Services.Apps;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Transit;
+using Odin.Core.Services.Transit.SendingHost;
+using Odin.Hosting.Authentication.ClientToken;
 
-namespace Youverse.Hosting.Controllers.Base
+namespace Odin.Hosting.Controllers.Base
 {
     /// <summary>
     /// Base class for any endpoint reading drive storage

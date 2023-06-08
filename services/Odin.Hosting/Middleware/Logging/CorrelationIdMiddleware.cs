@@ -1,9 +1,9 @@
 ﻿using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
-using Youverse.Core.Logging.CorrelationId;
+using Odin.Core.Logging.CorrelationId;
 
-namespace Youverse.Hosting.Middleware.Logging
+namespace Odin.Hosting.Middleware.Logging
 {
     public class CorrelationIdMiddleware
     {

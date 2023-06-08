@@ -1,8 +1,8 @@
 using System;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives.Management;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives.Management;
 
-namespace Youverse.Core.Services.Drives.FileSystem.Base;
+namespace Odin.Core.Services.Drives.FileSystem.Base;
 
 public abstract class RequirePermissionsBase
 {

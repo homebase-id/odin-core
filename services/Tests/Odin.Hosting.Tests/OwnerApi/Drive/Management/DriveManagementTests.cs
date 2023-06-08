@@ -2,12 +2,11 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.Management;
-using Youverse.Core.Services.Transit;
-using Youverse.Hosting.Controllers.OwnerToken.Drive;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.Management;
+using Odin.Hosting.Controllers.OwnerToken.Drive;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Drive.Management;
+namespace Odin.Hosting.Tests.OwnerApi.Drive.Management;
 
 public class DriveManagementTests
 {

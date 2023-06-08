@@ -1,4 +1,4 @@
-﻿namespace Youverse.Core.Services.Transit.SendingHost
+﻿namespace Odin.Core.Services.Transit.SendingHost
 {
     public enum TransferFailureReason
     {

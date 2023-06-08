@@ -1,8 +1,9 @@
 using System;
 using System.Threading.Tasks;
+using Odin.Core.Fluff;
 using Refit;
 
-namespace Youverse.Core.Services.Contacts.Circle.Membership
+namespace Odin.Core.Services.Contacts.Circle.Membership
 {
     /// <summary>
     /// Handles getting profile data from the profile drive

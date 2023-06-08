@@ -1,11 +1,9 @@
-﻿using System;
+﻿#nullable enable
+using System;
 using System.Collections.Generic;
-using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Contacts.Circle.Membership;
+using Odin.Core.Services.Contacts.Circle.Membership;
 
-#nullable enable
-namespace Youverse.Core.Services.Authentication.YouAuth
+namespace Odin.Core.Services.Authentication.YouAuth
 {
     public sealed class YouAuthRegistration
     {

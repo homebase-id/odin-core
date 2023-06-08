@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Youverse.Core;
-using Youverse.Core.Cryptography.Crypto;
-using Youverse.Core.Storage.Sqlite.DriveDatabase;
-using Youverse.Core.Util;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Storage.SQLite.DriveDatabase;
+using Odin.Core.Time;
+using Odin.Core.Util;
 
-namespace DriveDatabaseTests
+namespace Odin.Core.Storage.Tests.DriveDatabaseTests
 {
     public class DriveIndexDatabasePerformanceTests
     {

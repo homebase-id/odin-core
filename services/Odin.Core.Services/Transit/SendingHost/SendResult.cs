@@ -1,9 +1,9 @@
 ﻿using System;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Transit.SendingHost.Outbox;
+using Odin.Core.Identity;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Transit.SendingHost.Outbox;
 
-namespace Youverse.Core.Services.Transit.SendingHost
+namespace Odin.Core.Services.Transit.SendingHost
 {
     public enum Remote
     {

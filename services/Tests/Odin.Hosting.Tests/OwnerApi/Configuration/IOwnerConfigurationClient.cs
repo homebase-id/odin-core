@@ -1,11 +1,9 @@
-using System.Collections.Generic;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
+using Odin.Core.Services.Configuration;
+using Odin.Hosting.Controllers.OwnerToken;
 using Refit;
-using Youverse.Core.Services.Configuration;
-using Youverse.Hosting.Controllers.OwnerToken;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Configuration
+namespace Odin.Hosting.Tests.OwnerApi.Configuration
 {
     public interface IOwnerConfigurationClient
     {

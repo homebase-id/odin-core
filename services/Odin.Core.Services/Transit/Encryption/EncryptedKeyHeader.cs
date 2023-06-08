@@ -1,8 +1,8 @@
 using System;
-using Youverse.Core.Cryptography.Crypto;
-using Youverse.Core.Exceptions;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Exceptions;
 
-namespace Youverse.Core.Services.Transit.Encryption
+namespace Odin.Core.Services.Transit.Encryption
 {
     public class EncryptedKeyHeader
     {

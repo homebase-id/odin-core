@@ -4,12 +4,12 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core.Services.Authentication.YouAuth;
-using Youverse.Core.Services.Tenant;
-using Youverse.Core.Util;
-using Youverse.Hosting.Controllers.Anonymous;
+using Odin.Core.Services.Authentication.YouAuth;
+using Odin.Core.Services.Tenant;
+using Odin.Core.Util;
+using Odin.Hosting.Controllers.Anonymous;
 
-namespace Youverse.Hosting.Controllers.OwnerToken.YouAuth
+namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
 {
     /*
      * This controller handles the aspects of YouAuth that require

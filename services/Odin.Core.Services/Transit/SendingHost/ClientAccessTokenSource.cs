@@ -1,8 +1,7 @@
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Contacts.Circle.Membership;
-using Youverse.Core.Services.DataSubscription.Follower;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Contacts.Circle.Membership;
 
-namespace Youverse.Core.Services.Transit.SendingHost;
+namespace Odin.Core.Services.Transit.SendingHost;
 
 /// <summary>
 /// Specifies where Transit should get the <see cref="ClientAccessToken"/>

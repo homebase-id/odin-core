@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Contacts.Circle.Requests;
+using Odin.Core.Identity;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Contacts.Circle.Requests;
 
-namespace Youverse.Core.Services.Contacts.Circle.Membership
+namespace Odin.Core.Services.Contacts.Circle.Membership
 {
     /// <summary>
     /// Specifies that an identity shares a connection with another identity (i.e. friend request)

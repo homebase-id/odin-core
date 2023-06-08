@@ -1,7 +1,8 @@
 ﻿using System.Threading;
 using Serilog.Core;
 using Serilog.Events;
-namespace Youverse.Core.Logging.CorrelationId.Serilog
+
+namespace Odin.Core.Logging.CorrelationId.Serilog
 {
     public class CorrelationIdEnricher : ILogEventEnricher
     {

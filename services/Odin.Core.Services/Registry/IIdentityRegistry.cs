@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 
-namespace Youverse.Core.Services.Registry
+namespace Odin.Core.Services.Registry
 {
     public interface IIdentityRegistry
     {

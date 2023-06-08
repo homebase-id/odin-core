@@ -1,13 +1,13 @@
 ﻿using System.Threading.Tasks;
 using NUnit.Framework;
-using Youverse.Core.Services.Configuration;
-using Youverse.Hosting.Tests.OwnerApi.ApiClient.Cron;
-using Youverse.Hosting.Tests.OwnerApi.ApiClient.Security;
-using Youverse.Hosting.Tests.OwnerApi.ApiClient.Transit;
-using Youverse.Hosting.Tests.OwnerApi.Configuration;
-using Youverse.Hosting.Tests.OwnerApi.Utils;
+using Odin.Core.Services.Configuration;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Cron;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Security;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Transit;
+using Odin.Hosting.Tests.OwnerApi.Configuration;
+using Odin.Hosting.Tests.OwnerApi.Utils;
 
-namespace Youverse.Hosting.Tests.OwnerApi.ApiClient
+namespace Odin.Hosting.Tests.OwnerApi.ApiClient
 {
     public class OwnerApiClient
     {

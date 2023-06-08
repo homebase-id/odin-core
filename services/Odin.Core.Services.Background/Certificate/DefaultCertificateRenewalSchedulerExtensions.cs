@@ -1,8 +1,8 @@
 using System;
+using Odin.Core.Services.Configuration;
 using Quartz;
-using Youverse.Core.Services.Configuration;
 
-namespace Youverse.Core.Services.Workers.Certificate;
+namespace Odin.Core.Services.Background.Certificate;
 
 public static class DefaultCertificateRenewalSchedulerExtensions
 {

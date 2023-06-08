@@ -2,12 +2,11 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Contacts.Circle.Membership;
-using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
+using Odin.Core;
+using Odin.Core.Services.Contacts.Circle.Membership;
+using Odin.Core.Services.Contacts.Circle.Membership.Definition;
 
-namespace Youverse.Hosting.Controllers.OwnerToken.Circles
+namespace Odin.Hosting.Controllers.OwnerToken.Circles
 {
     [ApiController]
     [Route(OwnerApiPathConstants.CirclesV1 + "/definitions")]

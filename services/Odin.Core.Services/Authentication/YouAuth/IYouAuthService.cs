@@ -1,9 +1,8 @@
-﻿using System.Threading.Tasks;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
+﻿#nullable enable
+using System.Threading.Tasks;
+using Odin.Core.Services.Authorization.ExchangeGrants;
 
-#nullable enable
-namespace Youverse.Core.Services.Authentication.YouAuth
+namespace Odin.Core.Services.Authentication.YouAuth
 {
     public interface IYouAuthService
     {

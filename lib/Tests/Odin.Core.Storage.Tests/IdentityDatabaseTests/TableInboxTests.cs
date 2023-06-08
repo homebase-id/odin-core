@@ -1,10 +1,10 @@
-﻿using NUnit.Framework;
+﻿using System;
 using System.Collections.Generic;
-using System;
-using Youverse.Core;
-using Youverse.Core.Storage.Sqlite.IdentityDatabase;
+using NUnit.Framework;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
+using Odin.Core.Time;
 
-namespace IdentityDatabaseTests
+namespace Odin.Core.Storage.Tests.IdentityDatabaseTests
 {
     public class TableInboxTests
     {

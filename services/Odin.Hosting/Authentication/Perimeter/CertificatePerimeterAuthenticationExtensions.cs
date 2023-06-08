@@ -1,18 +1,16 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Certificate;
 using Microsoft.Extensions.DependencyInjection;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Authorization;
-using Youverse.Core.Util;
-using Youverse.Hosting.Authentication.CertificatePerimeter;
+using Odin.Core.Exceptions;
+using Odin.Core.Services.Authorization;
+using Odin.Core.Util;
 
-namespace Youverse.Hosting.Authentication.Perimeter
+namespace Odin.Hosting.Authentication.Perimeter
 {
     public static class CertificatePerimeterAuthenticationExtensions
     {

@@ -2,12 +2,11 @@
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Contacts.Circle.Membership;
-using NotImplementedException = System.NotImplementedException;
+using Odin.Core;
+using Odin.Core.Identity;
+using Odin.Core.Services.Contacts.Circle.Membership;
 
-namespace Youverse.Hosting.Controllers.OwnerToken.Circles
+namespace Odin.Hosting.Controllers.OwnerToken.Circles
 {
     [ApiController]
     [Route(OwnerApiPathConstants.CirclesV1 + "/connections")]

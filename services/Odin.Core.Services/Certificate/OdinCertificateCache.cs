@@ -1,12 +1,10 @@
+#nullable enable
 using System;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
-using System.Threading.Tasks;
-using Serilog;
 
-#nullable enable
-namespace Youverse.Core.Services.Certificate;
+namespace Odin.Core.Services.Certificate;
 
 // SEB:TODO dependency inject this class
 // SEB:NOTE no async here to minimize overhead in happy path

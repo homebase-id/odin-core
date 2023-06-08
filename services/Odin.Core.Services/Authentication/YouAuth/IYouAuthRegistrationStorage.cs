@@ -1,8 +1,8 @@
-using System;
-
 #nullable enable
 
-namespace Youverse.Core.Services.Authentication.YouAuth
+using System;
+
+namespace Odin.Core.Services.Authentication.YouAuth
 {
     public interface IYouAuthRegistrationStorage
     {

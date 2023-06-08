@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using Youverse.Core;
+using Odin.Core.Time;
 
-namespace Youverse.Hosting.Tests.AppAPI.ChatStructure.Api;
+namespace Odin.Hosting.Tests.AppAPI.ChatStructure.Api;
 
 public class ChatMessage
 {

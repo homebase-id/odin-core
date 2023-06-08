@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.Transit
+namespace Odin.Core.Services.Transit
 {
     public enum TransitResponseCode
     {

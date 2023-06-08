@@ -1,4 +1,4 @@
-﻿namespace Youverse.Hosting.Controllers.Anonymous
+﻿namespace Odin.Hosting.Controllers.Anonymous
 {
     public static class YouAuthApiPathConstants
     {

@@ -1,28 +1,10 @@
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Refit;
-using Youverse.Core;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Configuration;
-using Youverse.Core.Services.Contacts.Circle;
-using Youverse.Core.Services.Contacts.Circle.Membership;
-using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
-using Youverse.Core.Services.Contacts.Circle.Requests;
-using Youverse.Hosting.Controllers;
-using Youverse.Hosting.Controllers.OwnerToken.Circles;
-using Youverse.Hosting.Controllers.OwnerToken.Drive;
-using Youverse.Hosting.Tests.OwnerApi.Circle;
-using Youverse.Hosting.Tests.OwnerApi.Drive;
+using Odin.Core.Services.Configuration;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Configuration
+namespace Odin.Hosting.Tests.OwnerApi.Configuration
 {
     public class OwnerAppSettingsTests
     {

@@ -3,25 +3,24 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.DriveCore.Storage;
+using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Core.Services.Transit;
+using Odin.Core.Services.Transit.Encryption;
+using Odin.Hosting.Tests.AppAPI.Drive;
+using Odin.Hosting.Tests.AppAPI.Utils;
+using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Refit;
-using Youverse.Core;
-using Youverse.Core.Cryptography.Crypto;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.DriveCore.Storage;
-using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
-using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Hosting.Tests.AppAPI.Drive;
-using Youverse.Hosting.Tests.AppAPI.Utils;
-using Youverse.Hosting.Tests.OwnerApi.ApiClient;
 
-namespace Youverse.Hosting.Tests.Performance
+namespace Odin.Hosting.Tests.Performance
 {
     public class SecuredFilePerformanceTests
     {
@@ -313,7 +312,7 @@ namespace Youverse.Hosting.Tests.Performance
                 Assert.That(((MemoryStream)payloadCipher).ToArray(), Is.EqualTo(payloadResponseCipher));
 
                 var aesKey = decryptedKeyHeader.AesKey;
-                var decryptedPayloadBytes = Core.Cryptography.Crypto.AesCbc.Decrypt(
+                var decryptedPayloadBytes = AesCbc.Decrypt(
                     cipherText: payloadResponseCipher,
                     Key: ref aesKey,
                     IV: decryptedKeyHeader.Iv);

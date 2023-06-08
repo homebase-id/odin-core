@@ -1,6 +1,6 @@
 using System;
 
-namespace Youverse.Core.Services.Authorization.ExchangeGrants;
+namespace Odin.Core.Services.Authorization.ExchangeGrants;
 
 /// <summary>
 /// A request to get access to a drive along with a permission

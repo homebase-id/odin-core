@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
-using Youverse.Core.Services.Authorization;
+using Odin.Core.Services.Authorization;
 
-namespace Youverse.Hosting.Authentication.ClientToken
+namespace Odin.Hosting.Authentication.ClientToken
 {
     public static class ClientTokenPolicies
     {

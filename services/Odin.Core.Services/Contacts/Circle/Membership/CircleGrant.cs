@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using System.Linq;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Authorization.Permissions;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Authorization.Permissions;
 
-namespace Youverse.Core.Services.Contacts.Circle.Membership;
+namespace Odin.Core.Services.Contacts.Circle.Membership;
 
 /// <summary>
 /// Permissions granted for a given circle

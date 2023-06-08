@@ -1,6 +1,6 @@
 ﻿using System.Threading;
 
-namespace Youverse.Core.Logging.Hostname
+namespace Odin.Core.Logging.Hostname
 {
     public class StickyHostname : IStickyHostname
     {

@@ -1,4 +1,4 @@
-﻿namespace Youverse.Hosting.Authentication.Perimeter
+﻿namespace Odin.Hosting.Authentication.Perimeter
 {
     /// <summary />
     public static class PerimeterAuthConstants

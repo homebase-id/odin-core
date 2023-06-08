@@ -3,15 +3,15 @@ using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Odin.Core.Exceptions;
+using Odin.Core.Logging.CorrelationId;
+using Odin.Core.Logging.CorrelationId.Serilog;
+using Odin.Core.Logging.Hostname;
+using Odin.Core.Logging.Hostname.Serilog;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
 using WaitingListApi.Config;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Logging.CorrelationId;
-using Youverse.Core.Logging.CorrelationId.Serilog;
-using Youverse.Core.Logging.Hostname;
-using Youverse.Core.Logging.Hostname.Serilog;
 
 namespace WaitingListApi
 {

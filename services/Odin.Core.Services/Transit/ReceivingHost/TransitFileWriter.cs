@@ -2,20 +2,20 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Identity;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.DriveCore.Storage;
-using Youverse.Core.Services.Drives.FileSystem;
-using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Services.Transit.ReceivingHost.Incoming;
-using Youverse.Core.Storage;
+using Odin.Core.Exceptions;
+using Odin.Core.Identity;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Apps;
+using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.DriveCore.Storage;
+using Odin.Core.Services.Drives.FileSystem;
+using Odin.Core.Services.Transit.Encryption;
+using Odin.Core.Services.Transit.ReceivingHost.Incoming;
+using Odin.Core.Storage;
 
-namespace Youverse.Core.Services.Transit.ReceivingHost
+namespace Odin.Core.Services.Transit.ReceivingHost
 {
     //TODO: this should be split into a file writer for comments and a file writer for standard files.
 

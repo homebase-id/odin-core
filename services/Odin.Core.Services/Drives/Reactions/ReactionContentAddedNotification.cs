@@ -1,10 +1,10 @@
 using System;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.AppNotifications;
-using Youverse.Core.Services.AppNotifications.ClientNotifications;
-using Youverse.Core.Services.Drives.DriveCore.Query.Sqlite;
+using Odin.Core.Serialization;
+using Odin.Core.Services.AppNotifications;
+using Odin.Core.Services.AppNotifications.ClientNotifications;
+using Odin.Core.Services.Drives.DriveCore.Query.Sqlite;
 
-namespace Youverse.Core.Services.Drives.Reactions;
+namespace Odin.Core.Services.Drives.Reactions;
 
 public class ReactionContentAddedNotification : EventArgs, IClientNotification
 {

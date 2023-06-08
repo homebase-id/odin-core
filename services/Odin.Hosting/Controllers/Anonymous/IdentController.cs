@@ -1,12 +1,11 @@
 ﻿#nullable enable
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Registry;
-using Youverse.Hosting.Controllers.Base;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Registry;
+using Odin.Hosting.Controllers.Base;
 
-namespace Youverse.Hosting.Controllers.Anonymous
+namespace Odin.Hosting.Controllers.Anonymous
 {
     [ApiController]
     [Route(YouAuthApiPathConstants.AuthV1)]

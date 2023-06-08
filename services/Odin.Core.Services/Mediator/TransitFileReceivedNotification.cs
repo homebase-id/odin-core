@@ -1,12 +1,11 @@
 using System;
 using MediatR;
-using Youverse.Core.Services.AppNotifications;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.FileSystem;
-using Youverse.Core.Services.Transit;
-using Youverse.Core.Storage;
+using Odin.Core.Services.AppNotifications;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Transit;
+using Odin.Core.Storage;
 
-namespace Youverse.Core.Services.Mediator;
+namespace Odin.Core.Services.Mediator;
 
 public class TransitFileReceivedNotification : EventArgs, INotification
 {

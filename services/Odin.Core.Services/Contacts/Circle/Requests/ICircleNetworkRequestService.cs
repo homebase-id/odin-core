@@ -1,9 +1,7 @@
-﻿using System.Collections.Generic;
-using System.Threading.Tasks;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Authorization.Permissions;
+﻿using System.Threading.Tasks;
+using Odin.Core.Identity;
 
-namespace Youverse.Core.Services.Contacts.Circle.Requests
+namespace Odin.Core.Services.Contacts.Circle.Requests
 {
     /// <summary>
     /// Establishes connections between individuals

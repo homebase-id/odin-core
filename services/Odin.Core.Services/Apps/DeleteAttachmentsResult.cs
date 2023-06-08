@@ -1,6 +1,6 @@
 using System;
 
-namespace Youverse.Core.Services.Apps;
+namespace Odin.Core.Services.Apps;
 
 public class DeleteAttachmentsResult
 {

@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Youverse.Core.Services.Base
+namespace Odin.Core.Services.Base
 {
     /// <summary>
     /// Contains all information required to execute commands in the Odin.Core.Services services.

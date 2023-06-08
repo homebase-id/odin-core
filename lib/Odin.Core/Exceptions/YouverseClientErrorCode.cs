@@ -1,4 +1,4 @@
-namespace Youverse.Core.Exceptions;
+namespace Odin.Core.Exceptions;
 
 public enum YouverseClientErrorCode
 {

@@ -1,10 +1,10 @@
 using System;
 using System.Threading.Tasks;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives.DriveCore.Storage;
-using Youverse.Core.Services.Drives.FileSystem.Base.Upload.Attachments;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives.DriveCore.Storage;
+using Odin.Core.Services.Drives.FileSystem.Base.Upload.Attachments;
 
-namespace Youverse.Core.Services.Drives.FileSystem.Standard.Attachments;
+namespace Odin.Core.Services.Drives.FileSystem.Standard.Attachments;
 
 /// <summary />
 public class StandardFileAttachmentStreamWriter : AttachmentStreamWriterBase

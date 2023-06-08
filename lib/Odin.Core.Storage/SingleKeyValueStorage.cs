@@ -1,8 +1,8 @@
 using Dawn;
-using Youverse.Core.Serialization;
-using Youverse.Core.Storage.Sqlite.IdentityDatabase;
+using Odin.Core.Serialization;
+using Odin.Core.Storage.SQLite.IdentityDatabase;
 
-namespace Youverse.Core.Storage;
+namespace Odin.Core.Storage;
 
 public class SingleKeyValueStorage
 {

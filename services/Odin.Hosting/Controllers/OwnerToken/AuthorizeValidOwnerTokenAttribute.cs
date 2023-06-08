@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
-using Youverse.Hosting.Authentication.Owner;
+using Odin.Hosting.Authentication.Owner;
 
-namespace Youverse.Hosting.Controllers.OwnerToken
+namespace Odin.Hosting.Controllers.OwnerToken
 {
     /// <summary>
     /// Requests must come from the owner logged into the console.  There is no app associated

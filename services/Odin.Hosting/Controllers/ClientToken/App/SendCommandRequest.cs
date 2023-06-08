@@ -1,8 +1,8 @@
 #nullable enable
-using Youverse.Core.Services.Apps.CommandMessaging;
-using Youverse.Core.Services.Drives;
+using Odin.Core.Services.Apps.CommandMessaging;
+using Odin.Core.Services.Drives;
 
-namespace Youverse.Hosting.Controllers.ClientToken.App;
+namespace Odin.Hosting.Controllers.ClientToken.App;
 
 public class SendCommandRequest
 {

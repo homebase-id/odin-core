@@ -2,12 +2,11 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Server.Kestrel.Core.Internal.Http;
-using Youverse.Core;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Authorization.Apps;
+using Odin.Core.Fluff;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Authorization.Apps;
 
-namespace Youverse.Hosting.Controllers.OwnerToken.AppManagement
+namespace Odin.Hosting.Controllers.OwnerToken.AppManagement
 {
     [ApiController]
     [Route(OwnerApiPathConstants.AppManagementV1)]

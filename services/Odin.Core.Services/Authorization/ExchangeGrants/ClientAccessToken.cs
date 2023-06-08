@@ -1,6 +1,6 @@
 using System;
 
-namespace Youverse.Core.Services.Authorization.ExchangeGrants
+namespace Odin.Core.Services.Authorization.ExchangeGrants
 {
     public class ClientAccessToken
     {

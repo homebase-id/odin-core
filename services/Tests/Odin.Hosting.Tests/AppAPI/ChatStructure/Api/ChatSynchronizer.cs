@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Youverse.Core;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Apps.CommandMessaging;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Apps.CommandMessaging;
+using Odin.Core.Time;
 
-namespace Youverse.Hosting.Tests.AppAPI.ChatStructure.Api;
+namespace Odin.Hosting.Tests.AppAPI.ChatStructure.Api;
 
 /// <summary>
 /// Retrieves latest chat messages and commands; distributes accordingly

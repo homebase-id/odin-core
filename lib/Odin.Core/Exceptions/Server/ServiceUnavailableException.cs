@@ -1,7 +1,7 @@
 using System;
 using System.Net;
 
-namespace Youverse.Core.Exceptions.Server;
+namespace Odin.Core.Exceptions.Server;
 
 public class ServiceUnavailableException : ServerException
 {

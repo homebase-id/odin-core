@@ -16,31 +16,31 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
-using Quartz;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Certificate;
-using Youverse.Core.Services.Configuration;
-using Youverse.Core.Services.Dns;
-using Youverse.Core.Services.Dns.PowerDns;
-using Youverse.Core.Services.Email;
-using Youverse.Core.Services.Logging;
-using Youverse.Core.Services.Registry;
-using Youverse.Core.Services.Registry.Registration;
-using Youverse.Core.Services.Transit.SendingHost.Outbox;
-using Youverse.Core.Services.Workers.Certificate;
-using Youverse.Core.Services.Workers.DefaultCron;
-using Youverse.Hosting._dev;
-using Youverse.Hosting.Authentication.ClientToken;
-using Youverse.Hosting.Authentication.Owner;
-using Youverse.Hosting.Authentication.Perimeter;
-using Youverse.Hosting.Authentication.System;
-using Youverse.Hosting.Middleware;
-using Youverse.Hosting.Middleware.Logging;
-using Youverse.Hosting.Multitenant;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Background.Certificate;
+using Odin.Core.Services.Background.DefaultCron;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Certificate;
+using Odin.Core.Services.Configuration;
+using Odin.Core.Services.Dns;
+using Odin.Core.Services.Dns.PowerDns;
+using Odin.Core.Services.Email;
+using Odin.Core.Services.Logging;
+using Odin.Core.Services.Registry;
+using Odin.Core.Services.Registry.Registration;
+using Odin.Core.Services.Transit.SendingHost.Outbox;
+using Odin.Hosting._dev;
+using Odin.Hosting.Authentication.ClientToken;
+using Odin.Hosting.Authentication.Owner;
+using Odin.Hosting.Authentication.Perimeter;
+using Odin.Hosting.Authentication.System;
+using Odin.Hosting.Middleware;
+using Odin.Hosting.Middleware.Logging;
+using Odin.Hosting.Multitenant;
+using Quartz;
 
-namespace Youverse.Hosting
+namespace Odin.Hosting
 {
     public class Startup
     {

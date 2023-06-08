@@ -1,14 +1,14 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
+using Odin.Core;
+using Odin.Core.Identity;
+using Odin.Core.Services.Contacts.Circle.Membership;
+using Odin.Hosting.Controllers;
+using Odin.Hosting.Controllers.OwnerToken;
+using Odin.Hosting.Controllers.OwnerToken.Circles;
 using Refit;
-using Youverse.Core;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Contacts.Circle.Membership;
-using Youverse.Hosting.Controllers;
-using Youverse.Hosting.Controllers.OwnerToken;
-using Youverse.Hosting.Controllers.OwnerToken.Circles;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Circle
+namespace Odin.Hosting.Tests.OwnerApi.Circle
 {
     public interface ICircleNetworkConnectionsOwnerClient
     {

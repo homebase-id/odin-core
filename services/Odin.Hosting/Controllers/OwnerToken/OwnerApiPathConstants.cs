@@ -1,4 +1,4 @@
-﻿namespace Youverse.Hosting.Controllers.OwnerToken
+﻿namespace Odin.Hosting.Controllers.OwnerToken
 {
     /// <summary />
     public static class OwnerApiPathConstants

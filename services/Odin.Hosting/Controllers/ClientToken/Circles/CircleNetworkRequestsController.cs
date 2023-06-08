@@ -1,13 +1,10 @@
 ﻿using System.Linq;
-using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Contacts.Circle.Requests;
-using Youverse.Hosting.Controllers.OwnerToken;
+using Odin.Core;
+using Odin.Core.Services.Contacts.Circle.Requests;
 
-namespace Youverse.Hosting.Controllers.ClientToken.Circles
+namespace Odin.Hosting.Controllers.ClientToken.Circles
 {
     [ApiController]
     [Route(AppApiPathConstants.CirclesV1 + "/requests")]

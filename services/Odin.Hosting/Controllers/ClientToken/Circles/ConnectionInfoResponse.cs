@@ -1,6 +1,6 @@
-using Youverse.Core.Services.Contacts.Circle.Membership;
+using Odin.Core.Services.Contacts.Circle.Membership;
 
-namespace Youverse.Hosting.Controllers.ClientToken.Circles;
+namespace Odin.Hosting.Controllers.ClientToken.Circles;
 
 /// <summary>
 /// Information about a connection

@@ -1,11 +1,11 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core.Services.Transit.SendingHost;
-using Youverse.Hosting.Authentication.System;
-using Youverse.Hosting.Controllers.OwnerToken;
+using Odin.Core.Services.Transit.SendingHost;
+using Odin.Hosting.Authentication.System;
+using Odin.Hosting.Controllers.OwnerToken;
 
-namespace Youverse.Hosting.Controllers.System
+namespace Odin.Hosting.Controllers.System
 {
     /// <summary>
     /// Controller to enable kickoff of background tasks.  By running this over http, we keep the multi-tenant pattern working

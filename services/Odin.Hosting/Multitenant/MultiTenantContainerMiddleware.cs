@@ -1,11 +1,11 @@
-﻿using System.Threading.Tasks;
+﻿#nullable enable
+using System.Threading.Tasks;
 using Autofac.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Services.Registry;
+using Odin.Core.Services.Registry;
 
-#nullable enable
-namespace Youverse.Hosting.Multitenant
+namespace Odin.Hosting.Multitenant
 {
     internal class MultiTenantContainerMiddleware
     {

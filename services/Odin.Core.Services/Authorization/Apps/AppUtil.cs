@@ -1,7 +1,7 @@
-using Youverse.Core.Exceptions;
-using Youverse.Core.Util;
+using Odin.Core.Exceptions;
+using Odin.Core.Util;
 
-namespace Youverse.Core.Services.Authorization.Apps;
+namespace Odin.Core.Services.Authorization.Apps;
 
 public static class AppUtil
 {

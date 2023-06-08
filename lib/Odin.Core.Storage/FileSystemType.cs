@@ -1,4 +1,4 @@
-namespace Youverse.Core.Storage;
+namespace Odin.Core.Storage;
 
 public enum FileSystemType
 {

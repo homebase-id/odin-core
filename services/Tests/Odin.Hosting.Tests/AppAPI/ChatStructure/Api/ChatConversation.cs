@@ -1,6 +1,6 @@
 using System;
 
-namespace Youverse.Hosting.Tests.AppAPI.ChatStructure.Api;
+namespace Odin.Hosting.Tests.AppAPI.ChatStructure.Api;
 
 public class ChatConversation
 {

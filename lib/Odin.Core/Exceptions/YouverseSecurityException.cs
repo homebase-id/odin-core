@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.Serialization;
 
-namespace Youverse.Core.Exceptions
+namespace Odin.Core.Exceptions
 {
     public class YouverseSecurityException : YouverseException
     {

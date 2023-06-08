@@ -9,23 +9,23 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives.DriveCore.Storage;
-using Youverse.Core.Services.Drives.FileSystem;
-using Youverse.Core.Services.Drives.FileSystem.Comment;
-using Youverse.Core.Services.Drives.FileSystem.Standard;
-using Youverse.Core.Services.Drives.Management;
-using Youverse.Core.Services.EncryptionKeyService;
-using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Services.Transit.ReceivingHost;
-using Youverse.Core.Services.Transit.ReceivingHost.Quarantine;
-using Youverse.Core.Storage;
-using Youverse.Hosting.Authentication.Perimeter;
+using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives.DriveCore.Storage;
+using Odin.Core.Services.Drives.FileSystem;
+using Odin.Core.Services.Drives.FileSystem.Comment;
+using Odin.Core.Services.Drives.FileSystem.Standard;
+using Odin.Core.Services.Drives.Management;
+using Odin.Core.Services.EncryptionKeyService;
+using Odin.Core.Services.Transit;
+using Odin.Core.Services.Transit.Encryption;
+using Odin.Core.Services.Transit.ReceivingHost;
+using Odin.Core.Services.Transit.ReceivingHost.Quarantine;
+using Odin.Core.Storage;
+using Odin.Hosting.Authentication.Perimeter;
 
-namespace Youverse.Hosting.Controllers.Certificate
+namespace Odin.Hosting.Controllers.Certificate
 {
     /// <summary>
     /// Receives incoming data transfers from other hosts

@@ -1,8 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core.Services.Base;
-using Youverse.Hosting.Controllers.ClientToken;
+using Odin.Core.Services.Base;
 
-namespace Youverse.Hosting.Controllers.OwnerToken.Security;
+namespace Odin.Hosting.Controllers.OwnerToken.Security;
 
 /// <summary>
 /// Security information for the current user

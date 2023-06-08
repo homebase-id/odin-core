@@ -1,20 +1,14 @@
 using System;
-using System.Collections.Generic;
-using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core.Services.Background.DefaultCron;
+using Odin.Core.Services.Background.FeedDistributionApp;
+using Odin.Hosting.Tests.OwnerApi.Utils;
 using Quartz;
 using Quartz.Impl;
 using Refit;
-using Youverse.Core;
-using Youverse.Core.Services.DataSubscription.Follower;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Workers.DefaultCron;
-using Youverse.Core.Services.Workers.FeedDistributionApp;
-using Youverse.Hosting.Tests.OwnerApi.DataSubscription.Follower;
-using Youverse.Hosting.Tests.OwnerApi.Utils;
 
-namespace Youverse.Hosting.Tests.OwnerApi.ApiClient.Cron;
+namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Cron;
 
 public class CronApiClient
 {

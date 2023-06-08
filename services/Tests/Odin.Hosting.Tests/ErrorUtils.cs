@@ -1,10 +1,10 @@
 using System.Net;
 using NUnit.Framework;
+using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
 using Refit;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Serialization;
 
-namespace Youverse.Hosting.Tests;
+namespace Odin.Hosting.Tests;
 
 public static class ErrorUtils
 {

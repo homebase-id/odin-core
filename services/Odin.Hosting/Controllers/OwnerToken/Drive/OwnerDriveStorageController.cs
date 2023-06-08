@@ -3,18 +3,18 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Exceptions;
+using Odin.Core.Services.Apps;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.FileSystem.Base;
+using Odin.Core.Services.Transit;
+using Odin.Core.Services.Transit.SendingHost;
+using Odin.Core.Util;
+using Odin.Hosting.Controllers.Base;
 using Swashbuckle.AspNetCore.Annotations;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.FileSystem.Base;
-using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.SendingHost;
-using Youverse.Core.Util;
-using Youverse.Hosting.Controllers.Base;
 
-namespace Youverse.Hosting.Controllers.OwnerToken.Drive
+namespace Odin.Hosting.Controllers.OwnerToken.Drive
 {
     /// <summary />
     [ApiController]

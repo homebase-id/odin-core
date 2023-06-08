@@ -1,7 +1,7 @@
 using System.Collections.Generic;
-using Youverse.Core.Services.Apps;
+using Odin.Core.Services.Apps;
 
-namespace Youverse.Core.Services.Drives;
+namespace Odin.Core.Services.Drives;
 
 public class QueryModifiedResult
 {

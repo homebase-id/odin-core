@@ -1,13 +1,11 @@
 ﻿using System.Net.Http;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
+using Odin.Core.Services.Optimization.Cdn;
+using Odin.Hosting.Controllers.OwnerToken;
+using Odin.Hosting.Controllers.OwnerToken.Cdn;
 using Refit;
-using Youverse.Core.Services.Optimization.Cdn;
-using Youverse.Hosting.Controllers;
-using Youverse.Hosting.Controllers.OwnerToken;
-using Youverse.Hosting.Controllers.OwnerToken.Cdn;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Optimization.Cdn
+namespace Odin.Hosting.Tests.OwnerApi.Optimization.Cdn
 {
     /// <summary>
     /// The interface for storing files

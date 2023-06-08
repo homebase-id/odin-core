@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Contacts.Circle.Requests;
+using Odin.Core.Identity;
+using Odin.Core.Services.Contacts.Circle.Requests;
 
-namespace Youverse.Hosting.Tests
+namespace Odin.Hosting.Tests
 {
     public class TestIdentity
     {

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.Serialization;
 
-namespace Youverse.Core.Util
+namespace Odin.Core.Util.Fluff
 {
     [Serializable]
     public class DomainTooShortException : Exception

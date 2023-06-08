@@ -8,17 +8,16 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Youverse.Core;
-using Youverse.Core.Cryptography;
-using Youverse.Core.Cryptography.Crypto;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Base;
-using Youverse.Hosting.Controllers.ClientToken;
-using Youverse.Hosting.Controllers.OwnerToken;
+using Odin.Core;
+using Odin.Core.Cryptography;
+using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Base;
+using Odin.Hosting.Controllers.ClientToken;
+using Odin.Hosting.Controllers.OwnerToken;
 
-namespace Youverse.Hosting.Middleware
+namespace Odin.Hosting.Middleware
 {
     /// <summary>
     /// Decrypts requests and encrypts responses using the shared secret.  This does not handle websockets, they are

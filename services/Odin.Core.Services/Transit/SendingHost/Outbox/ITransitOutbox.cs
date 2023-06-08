@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Drives;
+using Odin.Core.Identity;
+using Odin.Core.Services.Drives;
 
-namespace Youverse.Core.Services.Transit.SendingHost.Outbox
+namespace Odin.Core.Services.Transit.SendingHost.Outbox
 {
     /// <summary>
     /// Items in the outbox for a given tenant

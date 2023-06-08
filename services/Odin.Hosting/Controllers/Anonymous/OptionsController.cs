@@ -1,12 +1,12 @@
 ﻿#nullable enable
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core.Services.Base;
-using Youverse.Hosting.Authentication.ClientToken;
-using Youverse.Hosting.Controllers.Base;
-using Youverse.Hosting.Controllers.ClientToken;
-using Youverse.Hosting.Controllers.OwnerToken;
+using Odin.Core.Services.Base;
+using Odin.Hosting.Authentication.ClientToken;
+using Odin.Hosting.Controllers.Base;
+using Odin.Hosting.Controllers.ClientToken;
+using Odin.Hosting.Controllers.OwnerToken;
 
-namespace Youverse.Hosting.Controllers.Anonymous
+namespace Odin.Hosting.Controllers.Anonymous
 {
     [ApiController]
     [Route(AppApiPathConstants.BasePathV1)]

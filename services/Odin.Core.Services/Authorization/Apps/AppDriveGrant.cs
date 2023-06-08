@@ -1,8 +1,8 @@
 using System;
-using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Services.Drives;
+using Odin.Core.Cryptography.Data;
+using Odin.Core.Services.Drives;
 
-namespace Youverse.Core.Services.Authorization.Apps
+namespace Odin.Core.Services.Authorization.Apps
 {
     /// <summary>
     /// Specifies a permissions granted to an app for a given drive

@@ -1,9 +1,9 @@
 using System;
+using Odin.Core.Services.Configuration;
 using Quartz;
 using Serilog;
-using Youverse.Core.Services.Configuration;
 
-namespace Youverse.Core.Services.Workers.DefaultCron
+namespace Odin.Core.Services.Background.DefaultCron
 {
     public static class DefaultCronProcessor
     {

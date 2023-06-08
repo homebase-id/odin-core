@@ -1,16 +1,11 @@
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
+using Odin.Core.Services.Drives.Reactions;
+using Odin.Core.Services.Transit.ReceivingHost.Reactions;
 using Refit;
-using Youverse.Core.Services.Apps;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.Reactions;
-using Youverse.Core.Services.Transit.ReceivingHost;
-using Youverse.Core.Services.Transit.ReceivingHost.Quarantine;
-using Youverse.Core.Services.Transit.ReceivingHost.Reactions;
 
-namespace Youverse.Core.Services.Transit.SendingHost
+namespace Odin.Core.Services.Transit.SendingHost
 {
     /// <summary>
     /// The interface for querying from a host to another host

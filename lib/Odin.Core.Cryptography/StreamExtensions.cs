@@ -1,6 +1,6 @@
 using System.IO;
 
-namespace Youverse.Core.Cryptography
+namespace Odin.Core.Cryptography
 {
     public static class StreamExtensions
     {

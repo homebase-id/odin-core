@@ -1,8 +1,8 @@
 using System.Collections.Generic;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Authorization.Permissions;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Authorization.Permissions;
 
-namespace Youverse.Core.Services.Base
+namespace Odin.Core.Services.Base
 {
     /// <summary>
     /// Indicates a set of permissions being requested

@@ -2,7 +2,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 
-namespace Youverse.Core.Services.Certificate;
+namespace Odin.Core.Services.Certificate;
 
 #nullable enable
 

@@ -1,9 +1,9 @@
 using System;
 using System.Security.Cryptography.X509Certificates;
 using Dawn;
-using Youverse.Core.Identity;
+using Odin.Core.Identity;
 
-namespace Youverse.Core.Util
+namespace Odin.Core.Util
 {
     public class DomainCertificateUtil
     {

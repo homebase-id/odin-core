@@ -11,9 +11,9 @@ using Certes.Pkcs;
 using HttpClientFactoryLite;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Exceptions;
+using Odin.Core.Exceptions;
 
-namespace Youverse.Core.Services.Certificate;
+namespace Odin.Core.Services.Certificate;
 
 #nullable enable
 

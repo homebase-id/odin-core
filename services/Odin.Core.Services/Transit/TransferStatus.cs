@@ -1,6 +1,6 @@
-using Youverse.Core.Services.Transit.Encryption;
+using Odin.Core.Services.Transit.Encryption;
 
-namespace Youverse.Core.Services.Transit
+namespace Odin.Core.Services.Transit
 {
     public enum TransferStatus
     {

@@ -1,10 +1,7 @@
 using System.Reflection;
-using System.Threading.Tasks;
 using NUnit.Framework;
-using Refit;
-using Youverse.Core.Services.Base;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Authentication
+namespace Odin.Hosting.Tests.OwnerApi.Authentication
 {
     public class OwnerConsoleAuthenticationTests
     {

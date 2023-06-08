@@ -1,15 +1,14 @@
 using System;
 using System.Threading.Tasks;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.EncryptionKeyService;
-using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Services.Transit.ReceivingHost.Incoming;
-using Youverse.Core.Services.Transit.SendingHost;
-using Youverse.Core.Storage;
+using Odin.Core.Exceptions;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.EncryptionKeyService;
+using Odin.Core.Services.Transit.Encryption;
+using Odin.Core.Services.Transit.ReceivingHost.Incoming;
+using Odin.Core.Services.Transit.SendingHost;
 
-namespace Youverse.Core.Services.Transit.ReceivingHost
+namespace Odin.Core.Services.Transit.ReceivingHost
 {
     public class TransitInboxProcessor 
     {

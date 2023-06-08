@@ -1,6 +1,6 @@
-﻿using Youverse.Core.Services.Transit.Encryption;
+﻿using Odin.Core.Services.Transit.Encryption;
 
-namespace Youverse.Core.Services.Drives.DriveCore.Storage
+namespace Odin.Core.Services.Drives.DriveCore.Storage
 {
     public class ServerFileHeader
     {

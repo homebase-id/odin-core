@@ -3,14 +3,14 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.FileSystem.Base;
-using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
-using Youverse.Core.Storage;
-using Youverse.Hosting.Tests.OwnerApi.ApiClient;
+using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.FileSystem.Base;
+using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Core.Storage;
+using Odin.Hosting.Tests.OwnerApi.ApiClient;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Drive.StandardFileSystem;
+namespace Odin.Hosting.Tests.OwnerApi.Drive.StandardFileSystem;
 
 public class DrivePayloadTests
 {

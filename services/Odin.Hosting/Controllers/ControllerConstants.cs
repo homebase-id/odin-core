@@ -1,4 +1,4 @@
-namespace Youverse.Hosting.Controllers;
+namespace Odin.Hosting.Controllers;
 
 public static class ControllerConstants
 {

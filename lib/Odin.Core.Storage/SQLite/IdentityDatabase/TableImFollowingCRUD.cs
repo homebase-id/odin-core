@@ -1,9 +1,10 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
-using Youverse.Core.Identity;
+using Odin.Core.Identity;
+using Odin.Core.Time;
 
-namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
+namespace Odin.Core.Storage.SQLite.IdentityDatabase
 {
     public class ImFollowingRecord
     {

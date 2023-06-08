@@ -6,9 +6,9 @@ using HttpClientFactoryLite;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
-using Youverse.Core.Services.Email;
+using Odin.Core.Services.Email;
 
-namespace Youverse.Core.Services.Tests.Email;
+namespace Odin.Core.Services.Tests.Email;
 
 #nullable enable
 

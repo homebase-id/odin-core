@@ -3,7 +3,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Youverse.Hosting.Tests;
+namespace Odin.Hosting.Tests;
 
 public class SwaggerTest
 {

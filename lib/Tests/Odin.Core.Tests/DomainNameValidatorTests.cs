@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Diagnostics;
 using NUnit.Framework;
-using Youverse.Core.Trie;
-using Youverse.Core.Util;
+using Odin.Core.Util;
 
-namespace Youverse.Core.Tests
+namespace Odin.Core.Tests
 {
     public class DomainNameValidatorTests
     {

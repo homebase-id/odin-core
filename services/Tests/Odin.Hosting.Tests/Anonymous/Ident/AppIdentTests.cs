@@ -1,16 +1,9 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Refit;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Drives;
 
-namespace Youverse.Hosting.Tests.Anonymous.Ident
+namespace Odin.Hosting.Tests.Anonymous.Ident
 {
     [TestFixture]
     public class AppIdentTests

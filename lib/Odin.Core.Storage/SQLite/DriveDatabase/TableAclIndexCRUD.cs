@@ -1,9 +1,8 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
-using Youverse.Core.Identity;
 
-namespace Youverse.Core.Storage.Sqlite.DriveDatabase
+namespace Odin.Core.Storage.SQLite.DriveDatabase
 {
     public class AclIndexRecord
     {

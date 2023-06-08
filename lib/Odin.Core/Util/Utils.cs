@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 
-namespace Youverse.Core.Util
+namespace Odin.Core.Util
 {
     public static class Utils
     {

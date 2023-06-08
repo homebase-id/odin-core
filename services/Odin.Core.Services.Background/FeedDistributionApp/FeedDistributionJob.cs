@@ -1,13 +1,14 @@
 using System;
 using System.Threading.Tasks;
+using Odin.Core.Exceptions;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Configuration;
+using Odin.Core.Services.DataSubscription;
+using Odin.Core.Storage.SQLite.ServerDatabase;
 using Quartz;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Configuration;
-using Youverse.Core.Storage.Sqlite.ServerDatabase;
 
-namespace Youverse.Core.Services.Workers.FeedDistributionApp
+namespace Odin.Core.Services.Background.FeedDistributionApp
 {
     /// <summary />
     [DisallowConcurrentExecution]

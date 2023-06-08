@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using Youverse.Core.Services.Apps;
-using Youverse.Core.Storage.Sqlite.DriveDatabase;
+using Odin.Core.Services.Apps;
+using Odin.Core.Storage.SQLite.DriveDatabase;
 
-namespace Youverse.Core.Services.Drives;
+namespace Odin.Core.Services.Drives;
 
 public class QueryBatchResult
 {

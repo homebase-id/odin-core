@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.Authorization.ExchangeGrants;
+namespace Odin.Core.Services.Authorization.ExchangeGrants;
 
 public enum ClientTokenType
 {

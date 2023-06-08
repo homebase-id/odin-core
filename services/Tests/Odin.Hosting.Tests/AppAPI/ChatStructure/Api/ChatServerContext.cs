@@ -4,26 +4,23 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Apps.CommandMessaging;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.DriveCore.Query;
+using Odin.Core.Services.Drives.FileSystem.Base.Upload;
+using Odin.Core.Services.Transit;
+using Odin.Core.Services.Transit.Encryption;
+using Odin.Core.Services.Transit.ReceivingHost;
+using Odin.Hosting.Controllers.ClientToken.App;
+using Odin.Hosting.Tests.AppAPI.CommandSender;
+using Odin.Hosting.Tests.AppAPI.Drive;
+using Odin.Hosting.Tests.AppAPI.Transit;
+using Odin.Hosting.Tests.AppAPI.Utils;
 using Refit;
-using Youverse.Core;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Apps.CommandMessaging;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.DriveCore.Query;
-using Youverse.Core.Services.Drives.FileSystem.Base.Upload;
-using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.Encryption;
-using Youverse.Core.Services.Transit.ReceivingHost;
-using Youverse.Hosting.Controllers;
-using Youverse.Hosting.Controllers.ClientToken.App;
-using Youverse.Hosting.Controllers.ClientToken.Drive;
-using Youverse.Hosting.Controllers.ClientToken.Transit;
-using Youverse.Hosting.Tests.AppAPI.CommandSender;
-using Youverse.Hosting.Tests.AppAPI.Drive;
-using Youverse.Hosting.Tests.AppAPI.Transit;
-using Youverse.Hosting.Tests.AppAPI.Utils;
 
-namespace Youverse.Hosting.Tests.AppAPI.ChatStructure.Api;
+namespace Odin.Hosting.Tests.AppAPI.ChatStructure.Api;
 
 public class ChatServerContext
 {

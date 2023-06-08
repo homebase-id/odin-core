@@ -1,9 +1,8 @@
 ﻿using System;
-using System.Linq;
 using System.Text.Json.Serialization;
-using Youverse.Core.Util;
+using Odin.Core.Util;
 
-namespace Youverse.Core.Identity
+namespace Odin.Core.Identity
 {
     /// <summary>
     /// Holds the identity for an individual using the dotYou platform

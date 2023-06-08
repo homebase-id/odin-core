@@ -1,7 +1,9 @@
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Mediator;
-using Youverse.Core.Storage;
+using Odin.Core.Identity;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Mediator;
+using Odin.Core.Storage;
+
+namespace Odin.Core.Services.DataSubscription;
 
 public class FeedDistributionInfo 
 {

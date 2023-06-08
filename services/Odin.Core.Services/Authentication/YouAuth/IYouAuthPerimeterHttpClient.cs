@@ -1,7 +1,7 @@
 using System.Threading.Tasks;
 using Refit;
 
-namespace Youverse.Core.Services.Authentication.YouAuth
+namespace Odin.Core.Services.Authentication.YouAuth
 {
     /// <summary>
     /// Sends outgoing invitations, email messages, and chat messages to other Digital Identities

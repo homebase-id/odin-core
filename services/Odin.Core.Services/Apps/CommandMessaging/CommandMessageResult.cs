@@ -1,10 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Youverse.Core.Services.Transit;
-using Youverse.Core.Services.Transit.Encryption;
+using Odin.Core.Services.Transit;
 
-namespace Youverse.Core.Services.Apps.CommandMessaging;
+namespace Odin.Core.Services.Apps.CommandMessaging;
 
 public class CommandMessage
 {

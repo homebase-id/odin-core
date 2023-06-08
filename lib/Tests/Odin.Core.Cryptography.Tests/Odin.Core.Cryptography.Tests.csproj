@@ -6,8 +6,6 @@
         <TargetFramework>net6.0</TargetFramework>
 
         <IsPackable>false</IsPackable>
-
-        <RootNamespace>Youverse.Core.Cryptography.Tests</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>

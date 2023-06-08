@@ -1,8 +1,7 @@
 using System.Reflection;
-using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Youverse.Hosting.Tests.OwnerApi.Configuration.SystemInit
+namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 {
     public class AuthenticatedDefaultsTests
     {

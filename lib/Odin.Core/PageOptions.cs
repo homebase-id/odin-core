@@ -2,7 +2,7 @@
 using System.Text.Json.Serialization;
 using MessagePack;
 
-namespace Youverse.Core
+namespace Odin.Core
 {
 
     /// <summary>

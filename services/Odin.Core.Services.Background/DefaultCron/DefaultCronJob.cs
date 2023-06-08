@@ -2,15 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Odin.Core.Exceptions;
+using Odin.Core.Identity;
+using Odin.Core.Services.Background.FeedDistributionApp;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Configuration;
+using Odin.Core.Storage.SQLite.ServerDatabase;
 using Quartz;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Configuration;
-using Youverse.Core.Services.Workers.FeedDistributionApp;
-using Youverse.Core.Storage.Sqlite.ServerDatabase;
 
-namespace Youverse.Core.Services.Workers.DefaultCron
+namespace Odin.Core.Services.Background.DefaultCron
 {
     /// <summary />
     [DisallowConcurrentExecution]

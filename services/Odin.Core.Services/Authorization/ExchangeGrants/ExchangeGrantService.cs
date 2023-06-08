@@ -1,22 +1,20 @@
-﻿using System;
+﻿#nullable enable
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
-using MediatR.Pipeline;
 using Microsoft.Extensions.Logging;
-using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Contacts.Circle;
-using Youverse.Core.Services.Contacts.Circle.Membership.Definition;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Services.Drives.Management;
+using Odin.Core.Cryptography.Data;
+using Odin.Core.Exceptions;
+using Odin.Core.Services.Authorization.Permissions;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Drives.Management;
+using Odin.Core.Time;
 
-#nullable enable
-
-namespace Youverse.Core.Services.Authorization.ExchangeGrants
+namespace Odin.Core.Services.Authorization.ExchangeGrants
 {
     /// <summary>
     /// Creates and manages grants the access of exchanging data.

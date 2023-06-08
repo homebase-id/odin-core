@@ -1,11 +1,11 @@
 ﻿using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core;
-using Youverse.Core.Services.Contacts.Circle.Membership;
-using Youverse.Hosting.Controllers.Anonymous;
+using Odin.Core;
+using Odin.Core.Services.Contacts.Circle.Membership;
+using Odin.Hosting.Controllers.Anonymous;
 
-namespace Youverse.Hosting.Controllers.ClientToken.Circles
+namespace Odin.Hosting.Controllers.ClientToken.Circles
 {
     [ApiController]
     [Route(AppApiPathConstants.CirclesV1 + "/connections")]

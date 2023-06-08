@@ -1,10 +1,10 @@
 ﻿using System;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Contacts.Circle.Requests;
-using Youverse.Core.Services.Drives;
+using Odin.Core.Identity;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Contacts.Circle.Requests;
+using Odin.Core.Services.Drives;
 
-namespace Youverse.Hosting.Tests
+namespace Odin.Hosting.Tests
 {
     public class TestAppContext
     {

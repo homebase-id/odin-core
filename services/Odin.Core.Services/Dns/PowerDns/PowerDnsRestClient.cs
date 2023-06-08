@@ -2,18 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 using System.Threading.Tasks;
+using HttpClientFactoryLite;
 using Microsoft.Extensions.Logging;
 using Refit;
-using Youverse.Core.Services.Configuration;
-using HttpClientFactoryLite;
-using Microsoft.Extensions.DependencyInjection;
-using Youverse.Core.Services.Base;
 using IHttpClientFactory = HttpClientFactoryLite.IHttpClientFactory;
 
-namespace Youverse.Core.Services.Dns.PowerDns;
+namespace Odin.Core.Services.Dns.PowerDns;
 
 public class PowerDnsRestClient : IDnsRestClient
 {

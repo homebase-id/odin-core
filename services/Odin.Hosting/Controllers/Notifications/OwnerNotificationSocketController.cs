@@ -1,22 +1,12 @@
 ﻿#nullable enable
-using System;
-using System.Collections.Generic;
-using System.Net.WebSockets;
-using System.Threading;
+
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Youverse.Core;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.AppNotifications;
-using Youverse.Core.Services.Authentication.YouAuth;
-using Youverse.Core.Services.Tenant;
-using Youverse.Core.Util;
-using Youverse.Hosting.Controllers.Anonymous;
-using Youverse.Hosting.Controllers.ClientToken;
-using Youverse.Hosting.Controllers.OwnerToken;
+using Odin.Core.Services.AppNotifications;
+using Odin.Hosting.Controllers.OwnerToken;
 
-namespace Youverse.Hosting.Controllers.Notifications
+namespace Odin.Hosting.Controllers.Notifications
 {
     [ApiController]
     [AuthorizeValidOwnerToken]

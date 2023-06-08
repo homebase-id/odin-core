@@ -3,16 +3,16 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Youverse.Core.Cryptography.Crypto;
-using Youverse.Core.Cryptography.Data;
-using Youverse.Core.Services.Authorization.Apps;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Base;
-using Youverse.Hosting.Controllers.OwnerToken.AppManagement;
-using Youverse.Hosting.Tests.OwnerApi.Apps;
-using Youverse.Hosting.Tests.OwnerApi.Utils;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Cryptography.Data;
+using Odin.Core.Services.Authorization.Apps;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Base;
+using Odin.Hosting.Controllers.OwnerToken.AppManagement;
+using Odin.Hosting.Tests.OwnerApi.Apps;
+using Odin.Hosting.Tests.OwnerApi.Utils;
 
-namespace Youverse.Hosting.Tests.OwnerApi.ApiClient;
+namespace Odin.Hosting.Tests.OwnerApi.ApiClient;
 
 public class AppsApiClient
 {

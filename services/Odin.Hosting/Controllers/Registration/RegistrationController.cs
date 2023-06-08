@@ -3,11 +3,10 @@ using System.Net.Mail;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Refit;
-using Youverse.Core.Exceptions.Client;
-using Youverse.Core.Services.Registry.Registration;
+using Odin.Core.Exceptions.Client;
+using Odin.Core.Services.Registry.Registration;
 
-namespace Youverse.Hosting.Controllers.Registration
+namespace Odin.Hosting.Controllers.Registration
 {
     [ApiController]
     [Route("/api/registration/v1/registration")]

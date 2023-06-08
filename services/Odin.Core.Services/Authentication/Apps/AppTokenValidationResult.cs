@@ -1,4 +1,4 @@
-namespace Youverse.Core.Services.Authentication.Apps
+namespace Odin.Core.Services.Authentication.Apps
 {
     public class AppTokenValidationResult
     {

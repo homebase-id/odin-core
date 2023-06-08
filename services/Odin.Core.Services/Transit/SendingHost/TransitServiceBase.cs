@@ -1,19 +1,17 @@
 using System;
-using System.Diagnostics;
 using System.Threading.Tasks;
 using Dawn;
-using Youverse.Core.Cryptography.Crypto;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Identity;
-using Youverse.Core.Serialization;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Base;
-using Youverse.Core.Services.Contacts.Circle.Membership;
-using Youverse.Core.Services.DataSubscription.Follower;
-using Youverse.Core.Services.Drives;
-using Youverse.Core.Storage;
+using Odin.Core.Exceptions;
+using Odin.Core.Identity;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Contacts.Circle.Membership;
+using Odin.Core.Services.DataSubscription.Follower;
+using Odin.Core.Services.Drives;
+using Odin.Core.Storage;
 
-namespace Youverse.Core.Services.Transit.SendingHost
+namespace Odin.Core.Services.Transit.SendingHost
 {
     /// <summary>
     /// Base class for the transit subsystem providing various functions specific to Transit

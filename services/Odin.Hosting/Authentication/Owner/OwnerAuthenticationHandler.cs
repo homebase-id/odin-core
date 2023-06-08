@@ -1,30 +1,23 @@
 ﻿#nullable enable
+#nullable enable
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
-using System.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Org.BouncyCastle.Asn1.Icao;
-using Serilog;
-using Youverse.Core;
-using Youverse.Core.Identity;
-using Youverse.Core.Services.Authentication.Owner;
-using Youverse.Core.Services.Authorization;
-using Youverse.Core.Services.Authorization.Acl;
-using Youverse.Core.Services.Authorization.ExchangeGrants;
-using Youverse.Core.Services.Authorization.Permissions;
-using Youverse.Core.Services.Base;
+using Odin.Core.Identity;
+using Odin.Core.Services.Authentication.Owner;
+using Odin.Core.Services.Authorization;
+using Odin.Core.Services.Authorization.Acl;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Base;
 
-#nullable enable
-namespace Youverse.Hosting.Authentication.Owner
+namespace Odin.Hosting.Authentication.Owner
 {
     /// <summary>
     /// Handles authenticating owners to their owner-console
