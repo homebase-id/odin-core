@@ -15,6 +15,7 @@ https://www.sqlitetutorial.net/sqlite-index/
 
 
 using System;
+using System.Runtime.CompilerServices;
 
 namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
 {
@@ -36,8 +37,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         public readonly string CN;
 
         private readonly CacheHelper _cache = new CacheHelper("identity");
-
-        public IdentityDatabase(string connectionString, long commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
+        private readonly string _file;
+        private readonly int _line;
+        public IdentityDatabase(string connectionString, long commitFrequencyMs = 5000, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1) : base(connectionString, commitFrequencyMs)
         {
             tblAppGrants = new TableAppGrants(this, _cache);
             tblKeyValue = new TableKeyValue(this, _cache);
@@ -53,6 +55,9 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
             tblConnections = new TableConnections(this, _cache);
 
             CN = connectionString;
+
+            _file = file;
+            _line = line;
         }
 
 
@@ -60,10 +65,10 @@ namespace Youverse.Core.Storage.Sqlite.IdentityDatabase
         {
 #if DEBUG
             if (!_wasDisposed)
-                throw new Exception("IdentityDatabase was not disposed properly.");
+                throw new Exception($"IdentityDatabase was not disposed properly [CN={CN}]. Instantiated from file {_file} line {_line}.");
 #else
             if (!_wasDisposed)
-               Log.Error("IdentityDatabase was not disposed properly.");
+               Log.Error($"IdentityDatabase was not disposed properly [CN={CN}]. Instantiated from file {_file} line {_line}.");
 #endif
         }
 
