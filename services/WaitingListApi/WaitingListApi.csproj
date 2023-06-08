@@ -15,8 +15,8 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\lib\Youverse.Core.Storage\Youverse.Core.Storage.csproj" />
-      <ProjectReference Include="..\..\lib\Youverse.Core\Youverse.Core.csproj" />
+      <ProjectReference Include="..\..\lib\Odin.Core.Storage\Odin.Core.Storage.csproj" />
+      <ProjectReference Include="..\..\lib\Odin.Core\Odin.Core.csproj" />
     </ItemGroup>
 
     <ItemGroup>

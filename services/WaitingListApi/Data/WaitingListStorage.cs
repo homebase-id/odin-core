@@ -1,8 +1,8 @@
+using Odin.Core.Storage.SQLite;
+using Odin.Core.Util;
 using WaitingListApi.Config;
 using WaitingListApi.Controllers;
 using WaitingListApi.Data.Database;
-using Youverse.Core.Storage.Sqlite;
-using Youverse.Core.Util;
 
 namespace WaitingListApi.Data;
 

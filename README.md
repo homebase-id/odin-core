@@ -8,7 +8,7 @@
 
 Notes:
 * The API tests use frodo.dotyou.cloud, sam.dotyou.cloud, merry.dotyou.cloud and pippin.dotyou.cloud. Public DNS has these configured to point to 127.0.0.1. If you want to test offline be sure to add these to your hosts file and be sure to also add them all with the 'api.' and 'capi.' prefix as well (e.g. api.samwisegamgee.me, capi.samwisegamgee.me)
-* For UI work, you should pull the repos for the react-client-apps and run ```npm install && npm start``` in each.  The web Youverse.Hosting project uses a proxy server to serve these in the dev env.
+* For UI work, you should pull the repos for the react-client-apps and run ```npm install && npm start``` in each.  The web Odin.Hosting project uses a proxy server to serve these in the dev env.
   * https://github.com/YouFoundation/owner-app
   * https://github.com/YouFoundation/public-app
   * https://github.com/YouFoundation/provisioning-app
@@ -27,7 +27,7 @@ Steps:
 
 To run the identity server
 1. ```dotyoucore/dotnet restore```
-2. ```dotnet run --project Youverse.Hosting/Youverse.Hosting.csproj```
+2. ```dotnet run --project Odin.Hosting/Odin.Hosting.csproj```
 
 After you have run the public-app and owner-app projects, you can navigate to https://frodo.dotyou.cloud or https://sam.dotyou.cloud
 
@@ -44,7 +44,7 @@ After you have run the public-app and owner-app projects, you can navigate to ht
 - Demo: https://demo.provisioning.id.pub
 
 #### 127.0.0.1 domains
-All folders in ```dotyoucore/services/Youverse.Hosting/https``` ending in 'dotyou.cloud' contain certificates for domains with an A record pointing to 127.0.0.1.
+All folders in ```dotyoucore/services/Odin.Hosting/https``` ending in 'dotyou.cloud' contain certificates for domains with an A record pointing to 127.0.0.1.
 
 Certficates are updated automatically on the demo-box. Download them by running the script ```get-certificates.sh```
 
@@ -58,5 +58,5 @@ Generate New CSR w/o requiring a passphase.
 Running from your Mac-M1
 * You can run but will not be able to debug due to Sqlite's incompatibility with M1's architecture
 
-`dotnet run --project Youverse.Hosting/Youverse.Hosting.csproj -r osx-x64`
+`dotnet run --project Odin.Hosting/Odin.Hosting.csproj -r osx-x64`
 

@@ -1,6 +1,6 @@
 using Microsoft.Data.Sqlite;
-using Youverse.Core;
-using Youverse.Core.Storage.Sqlite;
+using Odin.Core.Storage.SQLite;
+using Odin.Core.Time;
 
 namespace WaitingListApi.Data.Database
 {

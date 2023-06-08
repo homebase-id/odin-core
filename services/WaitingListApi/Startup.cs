@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Odin.Core.Serialization;
 using WaitingListApi.Config;
 using WaitingListApi.Data;
-using Youverse.Core.Serialization;
 
 namespace WaitingListApi
 {
@@ -36,41 +36,41 @@ namespace WaitingListApi
             services.AddControllers()
                 .AddJsonOptions(options =>
                 {
-                    foreach (var c in DotYouSystemSerializer.JsonSerializerOptions!.Converters)
+                    foreach (var c in OdinSystemSerializer.JsonSerializerOptions!.Converters)
                     {
                         options.JsonSerializerOptions.Converters.Add(c);
                     }
 
                     options.JsonSerializerOptions.IncludeFields =
-                        DotYouSystemSerializer.JsonSerializerOptions.IncludeFields;
-                    options.JsonSerializerOptions.Encoder = DotYouSystemSerializer.JsonSerializerOptions.Encoder;
-                    options.JsonSerializerOptions.MaxDepth = DotYouSystemSerializer.JsonSerializerOptions.MaxDepth;
+                        OdinSystemSerializer.JsonSerializerOptions.IncludeFields;
+                    options.JsonSerializerOptions.Encoder = OdinSystemSerializer.JsonSerializerOptions.Encoder;
+                    options.JsonSerializerOptions.MaxDepth = OdinSystemSerializer.JsonSerializerOptions.MaxDepth;
                     options.JsonSerializerOptions.NumberHandling =
-                        DotYouSystemSerializer.JsonSerializerOptions.NumberHandling;
+                        OdinSystemSerializer.JsonSerializerOptions.NumberHandling;
                     options.JsonSerializerOptions.ReferenceHandler =
-                        DotYouSystemSerializer.JsonSerializerOptions.ReferenceHandler;
+                        OdinSystemSerializer.JsonSerializerOptions.ReferenceHandler;
                     options.JsonSerializerOptions.WriteIndented =
-                        DotYouSystemSerializer.JsonSerializerOptions.WriteIndented;
+                        OdinSystemSerializer.JsonSerializerOptions.WriteIndented;
                     options.JsonSerializerOptions.AllowTrailingCommas =
-                        DotYouSystemSerializer.JsonSerializerOptions.AllowTrailingCommas;
+                        OdinSystemSerializer.JsonSerializerOptions.AllowTrailingCommas;
                     options.JsonSerializerOptions.DefaultBufferSize =
-                        DotYouSystemSerializer.JsonSerializerOptions.DefaultBufferSize;
+                        OdinSystemSerializer.JsonSerializerOptions.DefaultBufferSize;
                     options.JsonSerializerOptions.DefaultIgnoreCondition =
-                        DotYouSystemSerializer.JsonSerializerOptions.DefaultIgnoreCondition;
+                        OdinSystemSerializer.JsonSerializerOptions.DefaultIgnoreCondition;
                     options.JsonSerializerOptions.DictionaryKeyPolicy =
-                        DotYouSystemSerializer.JsonSerializerOptions.DictionaryKeyPolicy;
+                        OdinSystemSerializer.JsonSerializerOptions.DictionaryKeyPolicy;
                     options.JsonSerializerOptions.PropertyNamingPolicy =
-                        DotYouSystemSerializer.JsonSerializerOptions.PropertyNamingPolicy;
+                        OdinSystemSerializer.JsonSerializerOptions.PropertyNamingPolicy;
                     options.JsonSerializerOptions.ReadCommentHandling =
-                        DotYouSystemSerializer.JsonSerializerOptions.ReadCommentHandling;
+                        OdinSystemSerializer.JsonSerializerOptions.ReadCommentHandling;
                     options.JsonSerializerOptions.UnknownTypeHandling =
-                        DotYouSystemSerializer.JsonSerializerOptions.UnknownTypeHandling;
+                        OdinSystemSerializer.JsonSerializerOptions.UnknownTypeHandling;
                     options.JsonSerializerOptions.IgnoreReadOnlyFields =
-                        DotYouSystemSerializer.JsonSerializerOptions.IgnoreReadOnlyFields;
+                        OdinSystemSerializer.JsonSerializerOptions.IgnoreReadOnlyFields;
                     options.JsonSerializerOptions.IgnoreReadOnlyProperties =
-                        DotYouSystemSerializer.JsonSerializerOptions.IgnoreReadOnlyProperties;
+                        OdinSystemSerializer.JsonSerializerOptions.IgnoreReadOnlyProperties;
                     options.JsonSerializerOptions.PropertyNameCaseInsensitive =
-                        DotYouSystemSerializer.JsonSerializerOptions.PropertyNameCaseInsensitive;
+                        OdinSystemSerializer.JsonSerializerOptions.PropertyNameCaseInsensitive;
                 });
 
             services.AddEndpointsApiExplorer();

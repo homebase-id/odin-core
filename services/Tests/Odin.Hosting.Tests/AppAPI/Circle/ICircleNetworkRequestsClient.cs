@@ -1,0 +1,21 @@
+﻿using System.Threading.Tasks;
+using Odin.Core;
+using Odin.Hosting.Controllers;
+using Odin.Hosting.Controllers.ClientToken;
+using Refit;
+
+namespace Odin.Hosting.Tests.AppAPI.Circle
+{
+    public interface ICircleNetworkRequestsClient
+    {
+        private const string RootPath = AppApiPathConstants.CirclesV1 + "/requests";
+        private const string SentPathRoot = RootPath + "/sent/list";
+        private const string PendingPathRoot = RootPath + "/pending/list";
+
+        [Get(SentPathRoot)]
+        Task<ApiResponse<PagedResult<ConnectionRequestResponse>>> GetSentRequestList([Query] PageOptions pageRequest);
+        
+        [Get(PendingPathRoot)]
+        Task<ApiResponse<PagedResult<ConnectionRequestResponse>>> GetPendingRequestList([Query] PageOptions pageRequest);
+    }
+}

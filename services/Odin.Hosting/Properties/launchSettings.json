@@ -1,0 +1,14 @@
+﻿{
+  "profiles": {
+    "Odin.Hosting": {
+      "commandName": "Project",
+      "dotnetRunMessages": "true",
+      "launchBrowser": false,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DOTYOUCORE_EX_INFO": "1",
+        "DOTYOU_ENVIRONMENT": "development"
+      }
+    }
+  }
+}

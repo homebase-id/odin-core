@@ -3,15 +3,15 @@ using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Odin.Core.Exceptions;
+using Odin.Core.Logging.CorrelationId;
+using Odin.Core.Logging.CorrelationId.Serilog;
+using Odin.Core.Logging.Hostname;
+using Odin.Core.Logging.Hostname.Serilog;
 using Serilog;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
 using WaitingListApi.Config;
-using Youverse.Core.Exceptions;
-using Youverse.Core.Logging.CorrelationId;
-using Youverse.Core.Logging.CorrelationId.Serilog;
-using Youverse.Core.Logging.Hostname;
-using Youverse.Core.Logging.Hostname.Serilog;
 
 namespace WaitingListApi
 {
@@ -59,7 +59,7 @@ namespace WaitingListApi
 
             if (string.IsNullOrEmpty(env))
             {
-                throw new YouverseSystemException($"You must set an environment variable named [{envVar}] which specifies your environment.\n" +
+                throw new OdinSystemException($"You must set an environment variable named [{envVar}] which specifies your environment.\n" +
                                                   $"This must match your app settings file as follows 'appsettings.ENV.json'");
             }
 
@@ -86,13 +86,13 @@ namespace WaitingListApi
             var loggingDirInfo = Directory.CreateDirectory(waitingListConfig.Logging.LogFilePath);
             if (!loggingDirInfo.Exists)
             {
-                throw new YouverseClientException($"Could not create logging folder at [{waitingListConfig.Logging.LogFilePath}]");
+                throw new OdinClientException($"Could not create logging folder at [{waitingListConfig.Logging.LogFilePath}]");
             }
 
             var dataRootDirInfo = Directory.CreateDirectory(waitingListConfig.Host.SystemDataRootPath);
             if (!dataRootDirInfo.Exists)
             {
-                throw new YouverseClientException($"Could not create data folder at [{waitingListConfig.Host.SystemDataRootPath}]");
+                throw new OdinClientException($"Could not create data folder at [{waitingListConfig.Host.SystemDataRootPath}]");
             }
 
             var builder = Host.CreateDefaultBuilder(args)
@@ -133,9 +133,9 @@ namespace WaitingListApi
                     .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
                     .MinimumLevel.Override("Microsoft.AspNetCore.Authentication", LogEventLevel.Error)
                     .MinimumLevel.Override("Quartz", LogEventLevel.Warning)
-                    .MinimumLevel.Override("Youverse.Hosting.Middleware.Logging.RequestLoggingMiddleware", LogEventLevel.Information)
-                    .MinimumLevel.Override("Youverse.Core.Services.Transit.Outbox", LogEventLevel.Warning)
-                    .MinimumLevel.Override("Youverse.Core.Services.Workers.Transit.StokeOutboxJob", LogEventLevel.Warning)
+                    .MinimumLevel.Override("Odin.Hosting.Middleware.Logging.RequestLoggingMiddleware", LogEventLevel.Information)
+                    .MinimumLevel.Override("Odin.Core.Services.Transit.Outbox", LogEventLevel.Warning)
+                    .MinimumLevel.Override("Odin.Core.Services.Workers.Transit.StokeOutboxJob", LogEventLevel.Warning)
                     .Enrich.FromLogContext()
                     .Enrich.WithHostname(new StickyHostnameGenerator())
                     .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
@@ -153,7 +153,7 @@ namespace WaitingListApi
         //
 
         private static void ConfigureHttpListenOptions(
-            WaitingListConfig youverseConfig,
+            WaitingListConfig odinConfig,
             KestrelServerOptions kestrelOptions,
             ListenOptions listenOptions)
         {
@@ -167,7 +167,7 @@ namespace WaitingListApi
                 var hostName = clientHelloInfo.ServerName.ToLower();
 
                 var serviceProvider = kestrelOptions.ApplicationServices;
-                var cert = await ServerCertificateSelector(hostName, youverseConfig, serviceProvider);
+                var cert = await ServerCertificateSelector(hostName, odinConfig, serviceProvider);
 
                 if (cert == null)
                 {

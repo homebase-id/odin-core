@@ -28,9 +28,9 @@ jobs:
    #   run: dotnet test --no-build --verbosity normal
       
     - name: Publish
-      run: dotnet publish --no-restore /p:RuntimeIdentifier=linux-x64 /p:IncludeNativeLibrariesForSelfExtract=true /p:UseAppHost=true --self-contained true -r linux-x64 -c Release -o ./dist Youverse.Hosting/Youverse.Hosting.csproj
+      run: dotnet publish --no-restore /p:RuntimeIdentifier=linux-x64 /p:IncludeNativeLibrariesForSelfExtract=true /p:UseAppHost=true --self-contained true -r linux-x64 -c Release -o ./dist Odin.Hosting/Odin.Hosting.csproj
 
-    - name: SFTP uploader - Youverse.Hosting bin
+    - name: SFTP uploader - Odin.Hosting bin
       uses: wangyucode/sftp-upload-action@v1.3.2
       with:
         host: ${{ secrets.ftp_demo_server }}
