@@ -78,7 +78,7 @@ public static class OdinCertificateCache
         string keyPem;
         lock (FileMutex)
         {
-            if (!File.Exists(certificatePemPath) || !File.Exists(certificatePemPath))
+            if (!File.Exists(certificatePemPath) || !File.Exists(keyPemPath))
             {
                 return null;
             }

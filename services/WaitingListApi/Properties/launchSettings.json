@@ -1,0 +1,17 @@
+﻿{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "WaitingListApi": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "launchUrl": "http://dominion.dotyou.cloud/swagger",
+      "applicationUrl": "https://dominion.dotyou.cloud;http://dominion.dotyou.cloud",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DOTYOUCORE_EX_INFO": "1",
+        "DOTYOU_ENVIRONMENT": "development"
+      }
+    }
+  }
+}
