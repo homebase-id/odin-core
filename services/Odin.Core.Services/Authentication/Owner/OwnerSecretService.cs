@@ -29,11 +29,12 @@ namespace Odin.Core.Services.Authentication.Owner
         public async Task<NonceData> GenerateNewSalts()
         {
             var rsaKeyList = await this.GetRsaKeyList();
-            var key = RsaKeyListManagement.GetCurrentKey(ref RsaKeyListManagement.zeroSensitiveKey, ref rsaKeyList, out var keyListWasUpdated); // TODO
+            var key = RsaKeyListManagement.GetCurrentKey(rsaKeyList);
+            /* TODO TODD RSA LIST REMEMBER TO SAVE ELSEWHERE
             if (keyListWasUpdated)
             {
                 _tenantSystemStorage.SingleKeyValueStorage.Upsert(_rsaKeyStorageId, rsaKeyList);
-            }
+            }*/
 
             var nonce = NonceData.NewRandomNonce(key);
             _tenantSystemStorage.SingleKeyValueStorage.Upsert(nonce.Id, nonce);
@@ -94,12 +95,13 @@ namespace Odin.Core.Services.Authentication.Owner
         public async Task<(uint publicKeyCrc32C, string publicKeyPem)> GetCurrentAuthenticationRsaKey()
         {
             var rsaKeyList = await this.GetRsaKeyList();
-            var key = RsaKeyListManagement.GetCurrentKey(ref RsaKeyListManagement.zeroSensitiveKey, ref rsaKeyList, out var keyListWasUpdated); // TODO
+            var key = RsaKeyListManagement.GetCurrentKey(rsaKeyList);
 
+            /* TODD TODO RSA LIST REMEMBER TO GEENRATE AND SAVE ELSEWHERE
             if (keyListWasUpdated)
             {
                 _tenantSystemStorage.SingleKeyValueStorage.Upsert(_rsaKeyStorageId, rsaKeyList);
-            }
+            }*/
 
             return (key.crc32c, key.publicPem());
         }
@@ -122,9 +124,7 @@ namespace Odin.Core.Services.Authentication.Owner
 
         public async Task<RsaFullKeyListData> GenerateRsaKeyList()
         {
-            const int MAX_KEYS = 2; //leave this size
-
-            var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(ref RsaKeyListManagement.zeroSensitiveKey, MAX_KEYS); // TODO
+            var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(RsaKeyListManagement.zeroSensitiveKey, RsaKeyListManagement.DefaultMaxOfflineKeys, RsaKeyListManagement.DefaultHoursOfflineKey); // TODO
             _tenantSystemStorage.SingleKeyValueStorage.Upsert(_rsaKeyStorageId, rsaKeyList);
             return await Task.FromResult(rsaKeyList);
         }

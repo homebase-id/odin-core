@@ -21,11 +21,11 @@ namespace Odin.Core.Cryptography.Tests
             // Generate Host RSA key - on the server this key already pre-exists
             // The host RSA key is not encrypted on the server and thus the secret key
             // is accessible to the server even without a password.
-            var hostRsa = RsaKeyListManagement.CreateRsaKeyList(ref RsaKeyListManagement.zeroSensitiveKey, 2);
-            RsaKeyListManagement.GenerateNewKey(ref RsaKeyListManagement.zeroSensitiveKey, hostRsa, 24);
+            var hostRsa = RsaKeyListManagement.CreateRsaKeyList(RsaKeyListManagement.zeroSensitiveKey, 2, RsaKeyListManagement.DefaultHoursOfflineKey);
+            RsaKeyListManagement.GenerateNewKey(RsaKeyListManagement.zeroSensitiveKey, hostRsa, RsaKeyListManagement.DefaultHoursOfflineKey);
 
             // Client requests a noncePackage from the server (after password is entered)
-            var np = NonceData.NewRandomNonce(RsaKeyListManagement.GetCurrentKey(ref RsaKeyListManagement.zeroSensitiveKey, ref hostRsa, out var _));
+            var np = NonceData.NewRandomNonce(RsaKeyListManagement.GetCurrentKey(hostRsa));
 
             // Client calculates the passwordReply based on the password and noncePackage
             var pr = PasswordDataManager.CalculatePasswordReply("EnSøienØ", np);
@@ -133,12 +133,12 @@ namespace Odin.Core.Cryptography.Tests
         public void NewLoginTest2KeysPass()
         {
             // Generate Host RSA key
-            var hostRsa = RsaKeyListManagement.CreateRsaKeyList(ref RsaKeyListManagement.zeroSensitiveKey, 2);
-            RsaKeyListManagement.GenerateNewKey(ref RsaKeyListManagement.zeroSensitiveKey, hostRsa, 24);
+            var hostRsa = RsaKeyListManagement.CreateRsaKeyList(RsaKeyListManagement.zeroSensitiveKey, 2, RsaKeyListManagement.DefaultHoursOfflineKey);
+            RsaKeyListManagement.GenerateNewKey(RsaKeyListManagement.zeroSensitiveKey, hostRsa, 24);
 
-            var np = NonceData.NewRandomNonce(RsaKeyListManagement.GetCurrentKey(ref RsaKeyListManagement.zeroSensitiveKey, ref hostRsa, out var _));
+            var np = NonceData.NewRandomNonce(RsaKeyListManagement.GetCurrentKey(hostRsa));
 
-            RsaKeyListManagement.GenerateNewKey(ref RsaKeyListManagement.zeroSensitiveKey, hostRsa, 24);
+            RsaKeyListManagement.GenerateNewKey(RsaKeyListManagement.zeroSensitiveKey, hostRsa, RsaKeyListManagement.DefaultHoursOfflineKey);
 
             var pr = PasswordDataManager.CalculatePasswordReply("EnSøienØ", np); // Sanity check
 
@@ -153,10 +153,10 @@ namespace Odin.Core.Cryptography.Tests
         public void CreateInitialPasswordKeyPass()
         {
             // Generate Host RSA key 
-            var hostRsa = RsaKeyListManagement.CreateRsaKeyList(ref RsaKeyListManagement.zeroSensitiveKey, 2);
-            RsaKeyListManagement.GenerateNewKey(ref RsaKeyListManagement.zeroSensitiveKey, hostRsa, 24);
+            var hostRsa = RsaKeyListManagement.CreateRsaKeyList(RsaKeyListManagement.zeroSensitiveKey, 2, RsaKeyListManagement.DefaultHoursOfflineKey);
+            RsaKeyListManagement.GenerateNewKey(RsaKeyListManagement.zeroSensitiveKey, hostRsa, 24);
 
-            var np = NonceData.NewRandomNonce(RsaKeyListManagement.GetCurrentKey(ref RsaKeyListManagement.zeroSensitiveKey, ref hostRsa, out var _));
+            var np = NonceData.NewRandomNonce(RsaKeyListManagement.GetCurrentKey(hostRsa));
 
             // Sanity Values
             var SanityHashPassword = KeyDerivation.Pbkdf2("EnSøienØ", Convert.FromBase64String(np.SaltPassword64), KeyDerivationPrf.HMACSHA256, 100000, 16);
@@ -184,9 +184,9 @@ namespace Odin.Core.Cryptography.Tests
             }
 
             // Generate Host RSA key 
-            var hostRsa = RsaKeyListManagement.CreateRsaKeyList(ref RsaKeyListManagement.zeroSensitiveKey, 2);
+            var hostRsa = RsaKeyListManagement.CreateRsaKeyList(RsaKeyListManagement.zeroSensitiveKey, 2, RsaKeyListManagement.DefaultHoursOfflineKey);
 
-            var np = NonceData.NewRandomNonce(RsaKeyListManagement.GetCurrentKey(ref RsaKeyListManagement.zeroSensitiveKey, ref hostRsa, out var _));
+            var np = NonceData.NewRandomNonce(RsaKeyListManagement.GetCurrentKey(hostRsa));
 
             np.SaltPassword64 = Convert.ToBase64String(new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
             np.SaltKek64 = Convert.ToBase64String(new byte[] {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17});

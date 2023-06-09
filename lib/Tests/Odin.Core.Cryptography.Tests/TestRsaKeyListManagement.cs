@@ -15,7 +15,7 @@ namespace Odin.Core.Cryptography.Tests
         [Test]
         public void TestGenerateNewKeyDefaultsPass()
         {
-            var rsaList = RsaKeyListManagement.CreateRsaKeyList(ref RsaKeyListManagement.zeroSensitiveKey, 7);
+            var rsaList = RsaKeyListManagement.CreateRsaKeyList(RsaKeyListManagement.zeroSensitiveKey, 7, RsaKeyListManagement.DefaultHoursOfflineKey);
 
             if (rsaList.ListRSA.Count != 1)
                 Assert.Fail();
@@ -28,7 +28,7 @@ namespace Odin.Core.Cryptography.Tests
         {
             try
             {
-                var rsaList = RsaKeyListManagement.CreateRsaKeyList(ref RsaKeyListManagement.zeroSensitiveKey, 0);
+                var rsaList = RsaKeyListManagement.CreateRsaKeyList(RsaKeyListManagement.zeroSensitiveKey, 0, RsaKeyListManagement.DefaultHoursOfflineKey);
             }
             catch (Exception)
             {
@@ -44,7 +44,7 @@ namespace Odin.Core.Cryptography.Tests
         {
             try
             {
-                var rsaList = RsaKeyListManagement.CreateRsaKeyList(ref RsaKeyListManagement.zeroSensitiveKey, 1, 23);
+                var rsaList = RsaKeyListManagement.CreateRsaKeyList(RsaKeyListManagement.zeroSensitiveKey, 1, 23);
             }
             catch (Exception)
             {
@@ -59,17 +59,17 @@ namespace Odin.Core.Cryptography.Tests
         [Test]
         public void TestGenerateNewKeyPass()
         {
-            var rsaList = RsaKeyListManagement.CreateRsaKeyList(ref RsaKeyListManagement.zeroSensitiveKey, 1);
+            var rsaList = RsaKeyListManagement.CreateRsaKeyList(RsaKeyListManagement.zeroSensitiveKey, 1, RsaKeyListManagement.DefaultHoursOfflineKey);
 
             if (rsaList.ListRSA.Count != 1)
                 Assert.Fail();
 
-            RsaKeyListManagement.GenerateNewKey(ref RsaKeyListManagement.zeroSensitiveKey, rsaList, 24);
+            RsaKeyListManagement.GenerateNewKey(RsaKeyListManagement.zeroSensitiveKey, rsaList, RsaKeyListManagement.DefaultHoursOfflineKey);
 
             if (rsaList.ListRSA.Count != 1)
                 Assert.Fail();
 
-            RsaKeyListManagement.GenerateNewKey(ref RsaKeyListManagement.zeroSensitiveKey, rsaList, 24);
+            RsaKeyListManagement.GenerateNewKey(RsaKeyListManagement.zeroSensitiveKey, rsaList, RsaKeyListManagement.DefaultHoursOfflineKey);
 
             // Got to make this part of the code
             if (rsaList.ListRSA.Count != 1)
@@ -81,7 +81,7 @@ namespace Odin.Core.Cryptography.Tests
         [Test]
         public void TestGenerateNewKeyTwoPass()
         {
-            var rsaList = RsaKeyListManagement.CreateRsaKeyList(ref RsaKeyListManagement.zeroSensitiveKey, 2);
+            var rsaList = RsaKeyListManagement.CreateRsaKeyList(RsaKeyListManagement.zeroSensitiveKey, 2, RsaKeyListManagement.DefaultHoursOfflineKey);
 
             if (rsaList.ListRSA.Count != 1)
                 Assert.Fail();
@@ -94,7 +94,7 @@ namespace Odin.Core.Cryptography.Tests
             if (RsaKeyListManagement.FindKey(rsaList, crc1+1) != null)
                 Assert.Fail();
 
-            RsaKeyListManagement.GenerateNewKey(ref RsaKeyListManagement.zeroSensitiveKey, rsaList, 24);
+            RsaKeyListManagement.GenerateNewKey(RsaKeyListManagement.zeroSensitiveKey, rsaList, RsaKeyListManagement.DefaultHoursOfflineKey);
 
             if (rsaList.ListRSA.Count != 2)
                 Assert.Fail();
@@ -114,7 +114,7 @@ namespace Odin.Core.Cryptography.Tests
         [Test]
         public void TestEmptyList()
         {
-            var rsaList = RsaKeyListManagement.CreateRsaKeyList(ref RsaKeyListManagement.zeroSensitiveKey, 7);
+            var rsaList = RsaKeyListManagement.CreateRsaKeyList(RsaKeyListManagement.zeroSensitiveKey, 7, RsaKeyListManagement.DefaultHoursOfflineKey);
             rsaList.ListRSA.Clear();
 
             if (rsaList.ListRSA.Count != 0)

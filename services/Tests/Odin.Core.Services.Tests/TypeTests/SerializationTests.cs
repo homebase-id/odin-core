@@ -33,7 +33,7 @@ public class SerializationTests
     public void CanSerializeRsaFullKeyListData()
     {
         const int MAX_KEYS = 2; //leave this size 
-        var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(ref RsaKeyListManagement.zeroSensitiveKey, MAX_KEYS);
+        var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(RsaKeyListManagement.zeroSensitiveKey, MAX_KEYS, RsaKeyListManagement.DefaultHoursOfflineKey);
 
         var json = OdinSystemSerializer.Serialize(rsaKeyList);
         var deserializedValue = OdinSystemSerializer.Deserialize<RsaFullKeyListData>(json);
