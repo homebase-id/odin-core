@@ -1,0 +1,19 @@
+using Dawn;
+using Odin.Core.Services.Drives.DriveCore.Query;
+
+namespace Odin.Core.Services.Drives;
+
+public class CollectionQueryParamSection
+{
+    public string Name { get; set; }
+
+    public FileQueryParams QueryParams { get; set; }
+
+    public QueryBatchResultOptionsRequest ResultOptionsRequest { get; set; }
+
+    public void AssertIsValid()
+    {
+        Guard.Argument(this.Name, nameof(this.Name)).NotEmpty().NotNull();
+        QueryParams.AssertIsValid();
+    }
+}
