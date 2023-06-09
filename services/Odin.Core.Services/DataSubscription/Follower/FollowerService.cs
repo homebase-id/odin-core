@@ -22,12 +22,12 @@ namespace Odin.Core.Services.DataSubscription.Follower
         private readonly TenantSystemStorage _tenantStorage;
         private readonly DriveManager _driveManager;
         private readonly IOdinHttpClientFactory _httpClientFactory;
-        private readonly IPublicKeyService _rsaPublicKeyService;
+        private readonly RsaKeyService _rsaPublicKeyService;
         private readonly TenantContext _tenantContext;
         private readonly OdinContextAccessor _contextAccessor;
 
         public FollowerService(TenantSystemStorage tenantStorage, DriveManager driveManager, IOdinHttpClientFactory httpClientFactory,
-            IPublicKeyService rsaPublicKeyService,
+            RsaKeyService rsaPublicKeyService,
             TenantContext tenantContext, OdinContextAccessor contextAccessor)
         {
             _tenantStorage = tenantStorage;

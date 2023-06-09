@@ -34,7 +34,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly IMediator _mediator;
         private readonly TenantContext _tenantContext;
-        private readonly IPublicKeyService _rsaPublicKeyService;
+        private readonly RsaKeyService _rsaPublicKeyService;
         private readonly CircleDefinitionService _circleDefinitionService;
         private readonly ExchangeGrantService _exchangeGrantService;
 
@@ -48,7 +48,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
             TenantSystemStorage tenantSystemStorage,
             IMediator mediator,
             TenantContext tenantContext,
-            IPublicKeyService rsaPublicKeyService,
+            RsaKeyService rsaPublicKeyService,
             ExchangeGrantService exchangeGrantService,
             CircleDefinitionService circleDefinitionService)
         {

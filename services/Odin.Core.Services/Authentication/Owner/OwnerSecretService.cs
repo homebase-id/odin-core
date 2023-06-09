@@ -28,14 +28,8 @@ namespace Odin.Core.Services.Authentication.Owner
         /// <returns></returns>
         public async Task<NonceData> GenerateNewSalts()
         {
-            var rsaKeyList = await this.GetRsaKeyList();
+            var rsaKeyList = await this.GetOfflineRsaKeyList();
             var key = RsaKeyListManagement.GetCurrentKey(rsaKeyList);
-            /* TODO TODD RSA LIST REMEMBER TO SAVE ELSEWHERE
-            if (keyListWasUpdated)
-            {
-                _tenantSystemStorage.SingleKeyValueStorage.Upsert(_rsaKeyStorageId, rsaKeyList);
-            }*/
-
             var nonce = NonceData.NewRandomNonce(key);
             _tenantSystemStorage.SingleKeyValueStorage.Upsert(nonce.Id, nonce);
 
@@ -57,7 +51,7 @@ namespace Odin.Core.Services.Authentication.Owner
             Guid originalNoncePackageKey = new Guid(Convert.FromBase64String(reply.Nonce64));
             var originalNoncePackage = _tenantSystemStorage.SingleKeyValueStorage.Get<NonceData>(originalNoncePackageKey);
 
-            var keys = await this.GetRsaKeyList();
+            var keys = await this.GetOfflineRsaKeyList();
 
             var pk = PasswordDataManager.SetInitialPassword(originalNoncePackage, reply, keys);
             _tenantSystemStorage.SingleKeyValueStorage.Upsert(_passwordKey, pk);
@@ -94,15 +88,8 @@ namespace Odin.Core.Services.Authentication.Owner
 
         public async Task<(uint publicKeyCrc32C, string publicKeyPem)> GetCurrentAuthenticationRsaKey()
         {
-            var rsaKeyList = await this.GetRsaKeyList();
+            var rsaKeyList = await this.GetOfflineRsaKeyList();
             var key = RsaKeyListManagement.GetCurrentKey(rsaKeyList);
-
-            /* TODD TODO RSA LIST REMEMBER TO GEENRATE AND SAVE ELSEWHERE
-            if (keyListWasUpdated)
-            {
-                _tenantSystemStorage.SingleKeyValueStorage.Upsert(_rsaKeyStorageId, rsaKeyList);
-            }*/
-
             return (key.crc32c, key.publicPem());
         }
 
@@ -122,7 +109,7 @@ namespace Odin.Core.Services.Authentication.Owner
             });
         }
 
-        public async Task<RsaFullKeyListData> GenerateRsaKeyList()
+        public async Task<RsaFullKeyListData> GenerateOfflineRsaKeyList()
         {
             var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(RsaKeyListManagement.zeroSensitiveKey, RsaKeyListManagement.DefaultMaxOfflineKeys, RsaKeyListManagement.DefaultHoursOfflineKey); // TODO
             _tenantSystemStorage.SingleKeyValueStorage.Upsert(_rsaKeyStorageId, rsaKeyList);
@@ -134,14 +121,14 @@ namespace Odin.Core.Services.Authentication.Owner
             await Task.CompletedTask;
         }
 
-        public async Task<RsaFullKeyListData> GetRsaKeyList()
+        public async Task<RsaFullKeyListData> GetOfflineRsaKeyList()
         {
             var result = _tenantSystemStorage.SingleKeyValueStorage.Get<RsaFullKeyListData>(_rsaKeyStorageId);
 
 //            if (result == null || result.ListRSA == null) 
             if (result == null || result.ListRSA == null || result.ListRSA.Count == 0 || result.ListRSA.TrueForAll(x => x.IsDead()))
             {
-                return await this.GenerateRsaKeyList();
+                return await this.GenerateOfflineRsaKeyList();
             }
 
             return result;

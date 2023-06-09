@@ -31,7 +31,7 @@ namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine
     {
         private readonly OdinContextAccessor _contextAccessor;
         private readonly ITransitPerimeterTransferStateService _transitPerimeterTransferStateService;
-        private readonly IPublicKeyService _publicKeyService;
+        private readonly RsaKeyService _publicKeyService;
         private readonly DriveManager _driveManager;
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
         private readonly IDriveFileSystem _fileSystem;
@@ -40,7 +40,7 @@ namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine
 
         public TransitPerimeterService(
             OdinContextAccessor contextAccessor,
-            IPublicKeyService publicKeyService,
+            RsaKeyService publicKeyService,
             DriveManager driveManager,
             IDriveFileSystem fileSystem,
             TenantSystemStorage tenantSystemStorage,

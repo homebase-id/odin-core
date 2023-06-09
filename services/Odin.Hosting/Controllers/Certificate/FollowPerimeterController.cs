@@ -16,10 +16,10 @@ namespace Odin.Hosting.Controllers.Certificate
     public class FollowPerimeterController : ControllerBase
     {
         private readonly FollowerPerimeterService _followerPerimeterService;
-        private readonly IPublicKeyService _rsaPublicKeyService;
+        private readonly RsaKeyService _rsaPublicKeyService;
         
         /// <summary />
-        public FollowPerimeterController(IPublicKeyService rsaPublicKeyService, FollowerPerimeterService followerPerimeterService)
+        public FollowPerimeterController(RsaKeyService rsaPublicKeyService, FollowerPerimeterService followerPerimeterService)
         {
             _rsaPublicKeyService = rsaPublicKeyService;
             _followerPerimeterService = followerPerimeterService;

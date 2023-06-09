@@ -23,7 +23,7 @@ namespace Odin.Hosting.Controllers.Certificate.Feed
     public class FeedDrivePerimeterController : OdinControllerBase
     {
         private readonly OdinContextAccessor _contextAccessor;
-        private readonly IPublicKeyService _publicKeyService;
+        private readonly RsaKeyService _publicKeyService;
         private readonly DriveManager _driveManager;
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly IMediator _mediator;
@@ -31,7 +31,7 @@ namespace Odin.Hosting.Controllers.Certificate.Feed
         private readonly FollowerService _followerService;
 
         /// <summary />
-        public FeedDrivePerimeterController(OdinContextAccessor contextAccessor, IPublicKeyService publicKeyService, DriveManager driveManager,
+        public FeedDrivePerimeterController(OdinContextAccessor contextAccessor, RsaKeyService publicKeyService, DriveManager driveManager,
             TenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver, FollowerService followerService)
         {
             _contextAccessor = contextAccessor;

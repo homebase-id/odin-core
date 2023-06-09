@@ -14,10 +14,10 @@ namespace Odin.Hosting.Controllers.Certificate
     [Authorize(Policy = CertificatePerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PerimeterAuthConstants.PublicTransitAuthScheme)]
     public class EncryptionPublicKeyController : ControllerBase
     {
-        private readonly IPublicKeyService _publicKeyService;
+        private readonly RsaKeyService _publicKeyService;
         // private Guid _stateItemId;
 
-        public EncryptionPublicKeyController(IPublicKeyService publicKeyService)
+        public EncryptionPublicKeyController(RsaKeyService publicKeyService)
         {
             _publicKeyService = publicKeyService;
         }

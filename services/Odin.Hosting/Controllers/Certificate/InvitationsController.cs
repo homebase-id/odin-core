@@ -23,9 +23,9 @@ namespace Odin.Hosting.Controllers.Certificate
     public class InvitationsController : ControllerBase
     {
         private readonly ICircleNetworkRequestService _circleNetworkRequestService;
-        private IPublicKeyService _rsaPublicKeyService;
+        private readonly RsaKeyService _rsaPublicKeyService;
 
-        public InvitationsController(ICircleNetworkRequestService circleNetworkRequestService, IPublicKeyService rsaPublicKeyService)
+        public InvitationsController(ICircleNetworkRequestService circleNetworkRequestService, RsaKeyService rsaPublicKeyService)
         {
             _circleNetworkRequestService = circleNetworkRequestService;
             _rsaPublicKeyService = rsaPublicKeyService;

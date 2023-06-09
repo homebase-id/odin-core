@@ -17,6 +17,7 @@ using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Mediator;
+using Odin.Core.Services.Mediator.Owner;
 
 /// <summary>
 /// Goals here are that:
@@ -41,16 +42,18 @@ namespace Odin.Core.Services.Authentication.Owner
         private readonly ILogger<IOwnerAuthenticationService> _logger;
         private readonly DriveManager _driveManager;
 
+        private readonly IMediator _mediator;
         private readonly TenantContext _tenantContext;
 
         public OwnerAuthenticationService(ILogger<IOwnerAuthenticationService> logger, IOwnerSecretService secretService, TenantSystemStorage tenantSystemStorage,
-            TenantContext tenantContext, OdinConfiguration config, DriveManager driveManager)
+            TenantContext tenantContext, OdinConfiguration config, DriveManager driveManager, IMediator mediator)
         {
             _logger = logger;
             _secretService = secretService;
             _tenantSystemStorage = tenantSystemStorage;
             _tenantContext = tenantContext;
             _driveManager = driveManager;
+            _mediator = mediator;
             _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
         }
 
@@ -80,7 +83,7 @@ namespace Odin.Core.Services.Authentication.Owner
             // client's calculated nonceHash is equal to the same calculation on the server
             await _secretService.TryPasswordKeyMatch(reply.NonceHashedPassword64, reply.Nonce64);
 
-            var keys = await this._secretService.GetRsaKeyList();
+            var keys = await this._secretService.GetOfflineRsaKeyList();
             var (clientToken, serverToken) = OwnerConsoleTokenManager.CreateToken(noncePackage, reply, keys);
 
             _tenantSystemStorage.SingleKeyValueStorage.Upsert(serverToken.Id, serverToken);
@@ -181,6 +184,9 @@ namespace Odin.Core.Services.Authentication.Owner
                 return dotYouContext;
             });
 
+            //experimental:tell the system the owner is online
+            _mediator.Publish(new OwnerIsOnlineNotification() { });
+            
             return _cache.GetOrAddContext(token, creator);
         }
 
