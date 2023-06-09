@@ -51,6 +51,13 @@ namespace Odin.Hosting.Tests
                 {
                     UseCookies = false // DO NOT CHANGE!
                 }));
+            
+            HttpClientFactory.Register("no-cookies-no-redirects", b => 
+                b.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+                {
+                    AllowAutoRedirect = false, // DO NOT CHANGE!
+                    UseCookies = false         // DO NOT CHANGE!
+                }));
         }
 
         public WebScaffold(string folder)
@@ -63,6 +70,11 @@ namespace Odin.Hosting.Tests
         public static HttpClient CreateHttpClient<T>()
         {
             return HttpClientFactory.CreateClient<T>();
+        }
+        
+        public static HttpClient CreateDefaultHttpClient()
+        {
+            return HttpClientFactory.CreateClient("no-cookies-no-redirects");
         }
 
         public void RunBeforeAnyTests(bool initializeIdentity = true)
