@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using NUnit.Framework;
 using System.Net;
 using System.Net.Http;
 using System.Reflection;
@@ -9,11 +8,11 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Web;
+using NUnit.Framework;
 using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Data;
 using Odin.Hosting.Controllers.OwnerToken.Auth;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
-using Odin.Hosting.Tests;
 
 //
 // OWNER AUTHENTICATION:
@@ -39,7 +38,7 @@ using Odin.Hosting.Tests;
 //
 
 
-namespace Youverse.Hosting.Tests.YouAuthApi
+namespace Odin.Hosting.Tests.YouAuthApi
 {
     public class YouAuthLegacyTests
     {
