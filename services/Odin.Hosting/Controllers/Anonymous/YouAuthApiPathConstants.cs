@@ -8,9 +8,9 @@
 
         public const string ValidateAuthorizationCodeRequestMethodName = "validate-ac-req";
         public const string ValidateAuthorizationCodeRequestPath = AuthV1 + "/" + ValidateAuthorizationCodeRequestMethodName;
-        
+
         public const string FinalizeBridgeRequestMethodName = "finalize-bridge";
-        public const string FinalizeBridgeRequestRequestPath = AuthV1 + "/" + FinalizeBridgeRequestMethodName;        
+        public const string FinalizeBridgeRequestRequestPath = AuthV1 + "/" + FinalizeBridgeRequestMethodName;
 
         public const string IsAuthenticatedMethodName = "is-authenticated";
         public const string DeleteTokenMethodName = "delete-token";
@@ -22,8 +22,9 @@
         public const string SecurityV1 = BasePathV1 + "/security";
 
         public const string CdnV1 = BasePathV1 + "/cdn";
-        
+
         public const string PublicKeysV1 = BasePathV1 + "/public/keys";
+        public const string EchoMethodName = "echo";
 
     }
 }
