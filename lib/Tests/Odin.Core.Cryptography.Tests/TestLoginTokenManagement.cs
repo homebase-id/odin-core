@@ -32,7 +32,7 @@ namespace Odin.Core.Cryptography.Tests
             string password = "EnSøienØ";
 
             // The server always has a list of login RSA keys (usually with 24 hours duration per key)
-            var listRsa = RsaKeyListManagement.CreateRsaKeyList(ref RsaKeyListManagement.zeroSensitiveKey, 2);
+            var listRsa = RsaKeyListManagement.CreateRsaKeyList(RsaKeyListManagement.zeroSensitiveKey, 2, RsaKeyListManagement.DefaultHoursOfflineKey);
 
             // The user now enters his / her password.
 
@@ -41,7 +41,7 @@ namespace Odin.Core.Cryptography.Tests
 
             // The server receives the nonce request and first finds its current RSA key. 
             // If there are no RSA keys then this call to GetCurrentKey will automatically create one.
-            var currentKey = RsaKeyListManagement.GetCurrentKey(ref RsaKeyListManagement.zeroSensitiveKey, ref listRsa, out var _);
+            var currentKey = RsaKeyListManagement.GetCurrentKey(listRsa);
 
             // (If the list was updated, the server needs to save it), i.e. the out var _ shouldn't be ignored
 

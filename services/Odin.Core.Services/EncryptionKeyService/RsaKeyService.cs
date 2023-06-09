@@ -90,11 +90,12 @@ namespace Odin.Core.Services.EncryptionKeyService
 
             var key = GetOfflineKeyDecryptionKey();
 
-            var pk = RsaKeyListManagement.GetCurrentKey(ref key, ref keys, out var keyListWasUpdated); // TODO
+            var pk = RsaKeyListManagement.GetCurrentKey(keys);
+            /* TODD TODO RSA LIST - REMEBER TO CREATE & SAVE SOMEWHERE ELSE
             if (keyListWasUpdated)
             {
                 _tenantSystemStorage.SingleKeyValueStorage.Upsert(_rsaKeyStorageId, keys);
-            }
+            }*/
 
             return pk;
         }
@@ -166,7 +167,7 @@ namespace Odin.Core.Services.EncryptionKeyService
             if (result == null || result.ListRSA == null)
             {
                 var key = GetOfflineKeyDecryptionKey();
-                var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(ref key, 2);
+                var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(key, 2, RsaKeyListManagement.DefaultHoursOfflineKey);
 
                 _tenantSystemStorage.SingleKeyValueStorage.Upsert(_rsaKeyStorageId, rsaKeyList);
                 return Task.FromResult(rsaKeyList);

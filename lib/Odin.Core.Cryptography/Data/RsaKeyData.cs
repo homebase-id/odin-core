@@ -15,7 +15,7 @@ namespace Odin.Core.Cryptography.Data
         public byte[] publicKey { get; set; }    // DER encoded public key
 
         public UInt32 crc32c { get; set; }       // The CRC32C of the public key
-        public UnixTimeUtc expiration { get; set; } // Time when this key expires, Do NOT use a property or the code will return a copy and will be incomprehensible
+        public UnixTimeUtc expiration { get; set; } // Time when this key expires, be aware that since this is a property, you will get a copy and using e.g. .AddHours() will add to the copy
 
         public static RsaPublicKeyData FromDerEncodedPublicKey(byte[] derEncodedPublicKey, int hours = 1 )
         {
@@ -75,6 +75,20 @@ namespace Odin.Core.Cryptography.Data
             RsaKeyManagement.noEncryptions++;
 
             return cipherData;
+        }
+
+        public bool VerifySignature(byte[] dataThatWasSigned, byte[] signature)
+        {
+            var publicKeyRestored = PublicKeyFactory.CreateKey(publicKey);
+
+            ISigner signer = SignerUtilities.GetSigner("SHA256withRSA");
+            signer.Init(false, publicKeyRestored); // Init for verification (false), with the public key
+
+            signer.BlockUpdate(dataThatWasSigned, 0, dataThatWasSigned.Length);
+
+            bool isSignatureCorrect = signer.VerifySignature(signature);
+
+            return isSignatureCorrect;
         }
 
         public void Extend(int hours = 1)
@@ -272,20 +286,6 @@ namespace Odin.Core.Cryptography.Data
             byte[] signature = signer.GenerateSignature();
 
             return signature;
-        }
-
-        public bool VerifySignature(byte[] dataToSign, byte[] signature)
-        {
-            var publicKeyRestored = PublicKeyFactory.CreateKey(publicKey);
-
-            ISigner signer = SignerUtilities.GetSigner("SHA256withRSA");
-            signer.Init(false, publicKeyRestored); // Init for verification (false), with the public key
-
-            signer.BlockUpdate(dataToSign, 0, dataToSign.Length);
-
-            bool isSignatureCorrect = signer.VerifySignature(signature);
-
-            return isSignatureCorrect;
         }
     }
 }
