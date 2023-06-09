@@ -9,10 +9,15 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.Web;
 using NUnit.Framework;
+using Odin.Core;
 using Odin.Core.Cryptography;
+using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Serialization;
+using Odin.Core.Services.Base;
 using Odin.Hosting.Controllers.OwnerToken.Auth;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
+using Org.BouncyCastle.Utilities.Encoders;
 
 //
 // OWNER AUTHENTICATION:
@@ -40,7 +45,7 @@ using Odin.Hosting.Controllers.OwnerToken.YouAuth;
 
 namespace Odin.Hosting.Tests.YouAuthApi
 {
-    public class YouAuthLegacyTests
+    public class YouAuthIntegrationTests
     {
         private const string Password = "EnSøienØ";
         private const string OwnerCookieName = "DY0810";
@@ -49,7 +54,7 @@ namespace Odin.Hosting.Tests.YouAuthApi
         private WebScaffold _scaffold;
         private readonly JsonSerializerOptions _serializerOptions;
 
-        public YouAuthLegacyTests()
+        public YouAuthIntegrationTests()
         {
             _serializerOptions = new JsonSerializerOptions
             {
@@ -94,6 +99,11 @@ namespace Odin.Hosting.Tests.YouAuthApi
             string uri;
             string returnUrl;
             string location;
+            
+            // Prerequisite 1:
+            // Make sure we can't access home resource without valid home cookie
+            response = await apiClient.GetAsync("youauth/v1/auth/echo");
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
             
             //
             // Browser:
@@ -202,16 +212,21 @@ namespace Odin.Hosting.Tests.YouAuthApi
             returnUrl = queryParameters["returnUrl"];
             Assert.That(returnUrl, Is.Not.Null.And.Not.Empty);
             
-            // Step 8
-            // Access ressource using home cookie and shared secret
+            //
+            // YouAuth flow done
+            //
             
-            ;
-            
-            // DO IT!
-            
-            ;
-
-
+            // Postrequisite 1
+            // Access resource using home cookie and shared secret
+            uri = UriWithEncryptedQueryString("youauth/v1/auth/echo?text=helloworld", ss64);
+            request = new HttpRequestMessage(HttpMethod.Get, uri)
+            {
+                Headers = { { "Cookie", new Cookie(HomeCookieName, homeCookie).ToString() } }
+            };
+            response = await apiClient.SendAsync(request);
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            var text = await DecryptContent<string>(response, ss64);
+            Assert.That(text, Is.EqualTo("helloworld"));
         }
         
         //
@@ -240,6 +255,53 @@ namespace Odin.Hosting.Tests.YouAuthApi
                     result[name] = value;
                 }
             }
+
+            return result;
+        }
+        
+        //
+
+        private string UriWithEncryptedQueryString(string uri, string sharedSecretBase64)
+        {
+            var queryIndex = uri.IndexOf('?');
+            if (queryIndex == -1 || queryIndex == uri.Length - 1)
+            {
+                return uri;
+            }
+            
+            var path = uri[..queryIndex];
+            var query = uri[(queryIndex + 1)..];
+            
+            var keyBytes = Base64.Decode(sharedSecretBase64);
+            var key = new SensitiveByteArray(keyBytes);
+
+            var iv = ByteArrayUtil.GetRndByteArray(16);
+            var encryptedBytes = AesCbc.Encrypt(query.ToUtf8ByteArray(), ref key, iv);
+
+            var payload = new SharedSecretEncryptedPayload()
+            {
+                Iv = iv,
+                Data = encryptedBytes.ToBase64()
+            };
+
+            uri = $"{path}?ss={HttpUtility.UrlEncode(OdinSystemSerializer.Serialize(payload))}";
+
+            return uri;
+        }
+        
+        //
+
+        private async Task<T> DecryptContent<T>(HttpResponseMessage response, string sharedSecretBase64)
+        {
+            var cipherJson = await response.Content.ReadAsStringAsync();
+            var payload = OdinSystemSerializer.Deserialize<SharedSecretEncryptedPayload>(cipherJson);
+            
+            var keyBytes = Base64.Decode(sharedSecretBase64);
+            var key = new SensitiveByteArray(keyBytes);
+            
+            var plainJson = AesCbc.Decrypt(Convert.FromBase64String(payload.Data), ref key, payload.Iv);
+            
+            var result = JsonSerializer.Deserialize<T>(plainJson, _serializerOptions);
 
             return result;
         }

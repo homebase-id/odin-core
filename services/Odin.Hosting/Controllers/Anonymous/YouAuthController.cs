@@ -76,7 +76,7 @@ namespace Odin.Hosting.Controllers.Anonymous
         }
 
         //
-
+        
         [HttpGet(YouAuthApiPathConstants.DeleteTokenMethodName)]
         [Produces("application/json")]
         [Authorize(AuthenticationSchemes = ClientTokenConstants.YouAuthScheme)]
@@ -92,5 +92,16 @@ namespace Odin.Hosting.Controllers.Anonymous
         }
 
         //
+        
+        [HttpGet(YouAuthApiPathConstants.EchoMethodName)]
+        [Produces("application/json")]
+        [Authorize(AuthenticationSchemes = ClientTokenConstants.YouAuthScheme, Policy = ClientTokenPolicies.IsIdentified)]
+        public string GetEcho([FromQuery] string text)
+        {
+            return text;
+        }
+        
+        //
+        
     }
 }

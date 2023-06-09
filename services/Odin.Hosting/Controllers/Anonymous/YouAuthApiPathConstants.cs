@@ -19,6 +19,8 @@
         public const string SecurityV1 = BasePathV1 + "/security";
 
         public const string CdnV1 = BasePathV1 + "/cdn";
+        
+        public const string EchoMethodName = "echo";
 
     }
 }
