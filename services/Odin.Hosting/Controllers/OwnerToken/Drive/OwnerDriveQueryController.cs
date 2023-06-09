@@ -68,7 +68,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// <summary>
         /// Returns multiple <see cref="QueryBatchResponse"/>s
         /// </summary>
-        /// <param name="request"></param>
+        /// <param name="queries"></param>
         /// <returns></returns>
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpGet("batchcollection")]
