@@ -19,7 +19,7 @@ namespace Odin.Core.Services.EncryptionKeyService
         private readonly Guid _offlineKeyStorageId = Guid.Parse("AAAAAAAF-0f85-EEEE-E77E-e8e0b06c2777");
         private readonly Guid _onlineKeyStorageId = Guid.Parse("fc187615-deb4-4222-bcb5-35411bae25e3");
         private readonly Guid _signingKeyStorageId = Guid.Parse("d61a2789-2bc0-46c9-b6b9-19dcb3d076ab");
-        
+
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly OdinContextAccessor _contextAccessor;
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
@@ -36,22 +36,23 @@ namespace Odin.Core.Services.EncryptionKeyService
 
         public async Task<(bool, byte[])> DecryptKeyHeaderUsingOfflineKey(byte[] encryptedData, uint publicKeyCrc32, bool failIfNoMatchingPublicKey = true)
         {
-            var keys = await this.GetOfflineKeyInternal();
-            var key = GetOfflineKeyDecryptionKey();
-            var pk = RsaKeyListManagement.FindKey(keys, publicKeyCrc32);
-
-            if (null == pk)
-            {
-                if (failIfNoMatchingPublicKey)
-                {
-                    throw new OdinSecurityException("Invalid public key");
-                }
-
-                return (false, null);
-            }
-
-            var bytes = pk.Decrypt(ref key, encryptedData);
-            return (true, bytes);
+            throw new NotImplementedException("TODO: switch to using online key and rename");
+            // var keys = await this.GetOfflineKeyInternal();
+            // var key = GetOfflineKeyDecryptionKey();
+            // var pk = RsaKeyListManagement.FindKey(keys, publicKeyCrc32);
+            //
+            // if (null == pk)
+            // {
+            //     if (failIfNoMatchingPublicKey)
+            //     {
+            //         throw new OdinSecurityException("Invalid public key");
+            //     }
+            //
+            //     return (false, null);
+            // }
+            //
+            // var bytes = pk.Decrypt(ref key, encryptedData);
+            // return (true, bytes);
         }
 
         public async Task<(bool, byte[])> DecryptPayloadUsingOfflineKey(RsaEncryptedPayload payload)
@@ -84,38 +85,13 @@ namespace Odin.Core.Services.EncryptionKeyService
             await Task.CompletedTask;
         }
 
-        public async Task<bool> IsValidPublicKey(UInt32 crc)
-        {
-            return null != await GetOfflinePublicKey(crc);
-        }
-
-        /// <summary>
-        /// Gets the offline public key matching the specific CRC.
-        /// </summary>
-        public async Task<RsaFullKeyData> GetOfflinePublicKey(UInt32 crc)
-        {
-            var keys = await this.GetOfflineKeyInternal();
-            var key = RsaKeyListManagement.FindKey(keys, crc);
-            return key;
-        }
-
         /// <summary>
         /// Gets the latest effective offline public key
         /// </summary>
-        public async Task<RsaPublicKeyData> GetOfflinePublicKey()
+        public Task<RsaPublicKeyData> GetOfflinePublicKey()
         {
-            var keys = await this.GetOfflineKeyInternal();
-
-            var key = GetOfflineKeyDecryptionKey();
-
-            var pk = RsaKeyListManagement.GetCurrentKey(keys);
-            /* TODD TODO RSA LIST - REMEBER TO CREATE & SAVE SOMEWHERE ELSE
-            if (keyListWasUpdated)
-            {
-                _tenantSystemStorage.SingleKeyValueStorage.Upsert(_rsaKeyStorageId, keys);
-            }*/
-
-            return pk;
+            var k = this.GetCurrentKeyFromStorage(_offlineKeyStorageId);
+            return Task.FromResult(RsaPublicKeyData.FromDerEncodedPublicKey(k.publicKey));
         }
 
         public async Task<RsaPublicKeyData> GetRecipientOfflinePublicKey(OdinId recipient, bool lookupIfInvalid = true, bool failIfCannotRetrieve = true)
@@ -183,16 +159,16 @@ namespace Odin.Core.Services.EncryptionKeyService
 
         public Task<RsaPublicKeyData> GetSigningPublicKey()
         {
-            var k = this.GetKeyFromStorage(_signingKeyStorageId);
+            var k = this.GetCurrentKeyFromStorage(_signingKeyStorageId);
             return Task.FromResult(RsaPublicKeyData.FromDerEncodedPublicKey(k.publicKey));
         }
-        
+
         public Task<RsaPublicKeyData> GetOnlinePublicKey()
         {
-            var k = this.GetKeyFromStorage(_onlineKeyStorageId);
+            var k = this.GetCurrentKeyFromStorage(_onlineKeyStorageId);
             return Task.FromResult(RsaPublicKeyData.FromDerEncodedPublicKey(k.publicKey));
         }
-        
+
         /// <summary>
         /// Creates the initial set of RSA keys required by an identity
         /// </summary>
@@ -213,22 +189,6 @@ namespace Odin.Core.Services.EncryptionKeyService
             {
                 _keyCreationLock.Release();
             }
-        }
-        
-        private Task<RsaFullKeyListData> GetOfflineKeyInternal()
-        {
-            var result = _tenantSystemStorage.SingleKeyValueStorage.Get<RsaFullKeyListData>(_offlineKeyStorageId);
-
-            if (result == null || result.ListRSA == null)
-            {
-                var key = GetOfflineKeyDecryptionKey();
-                var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(key, 2, RsaKeyListManagement.DefaultHoursOfflineKey);
-
-                _tenantSystemStorage.SingleKeyValueStorage.Upsert(_offlineKeyStorageId, rsaKeyList);
-                return Task.FromResult(rsaKeyList);
-            }
-
-            return Task.FromResult(result);
         }
 
         private SensitiveByteArray GetOfflineKeyDecryptionKey()
@@ -284,11 +244,10 @@ namespace Odin.Core.Services.EncryptionKeyService
             return Task.CompletedTask;
         }
 
-        private RsaFullKeyData GetKeyFromStorage(Guid storageKey)
+        private RsaFullKeyData GetCurrentKeyFromStorage(Guid storageKey)
         {
             var k = _tenantSystemStorage.SingleKeyValueStorage.Get<RsaFullKeyListData>(storageKey);
             return RsaKeyListManagement.GetCurrentKey(k);
         }
-        
     }
 }

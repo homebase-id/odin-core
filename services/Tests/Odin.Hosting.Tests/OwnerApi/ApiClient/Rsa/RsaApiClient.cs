@@ -1,6 +1,7 @@
 using System.Threading.Tasks;
 using Odin.Hosting.Controllers.Anonymous.RsaKeys;
 using Odin.Hosting.Tests.OwnerApi.Utils;
+using Refit;
 
 namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Rsa;
 
@@ -19,7 +20,7 @@ public class RsaApiClient
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
-            var svc = RefitCreator.RestServiceFor<IRsaHttpClientForOwner>(client, ownerSharedSecret);
+            var svc = RestService.For<IRsaHttpClientForOwner>(client);
             var resp = await svc.GetSigningPublicKey();
 
             return resp.Content;
@@ -30,9 +31,18 @@ public class RsaApiClient
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
-            var svc = RefitCreator.RestServiceFor<IRsaHttpClientForOwner>(client, ownerSharedSecret);
+            var svc = RestService.For<IRsaHttpClientForOwner>(client);
             var resp = await svc.GetOnlinePublicKey();
-
+            return resp.Content;
+        }
+    }
+    
+    public async Task<GetPublicKeyResponse> GetOfflinePublicKey()
+    {
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        {
+            var svc = RestService.For<IRsaHttpClientForOwner>(client);
+            var resp = await svc.GetOfflinePublicKey();
             return resp.Content;
         }
     }

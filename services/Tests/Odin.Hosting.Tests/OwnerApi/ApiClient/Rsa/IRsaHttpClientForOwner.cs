@@ -17,5 +17,9 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Rsa
         
         [Get(RootEndpoint + "/online")]
         Task<ApiResponse<GetPublicKeyResponse>> GetOnlinePublicKey();
+        
+        [Get(RootEndpoint + "/offline")]
+        Task<ApiResponse<GetPublicKeyResponse>> GetOfflinePublicKey();
+
     }
 }

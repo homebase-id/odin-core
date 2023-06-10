@@ -75,8 +75,20 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             //
             // Online key should exist
             //
+            var onlinePublicKey = await ownerClient.Rsa.GetOnlinePublicKey();
+            Assert.IsTrue(onlinePublicKey.PublicKey.Length > 0);
+            Assert.IsTrue(onlinePublicKey.Crc32 > 0);
             
             
+            //
+            // offline key should exist
+            //
+            var offlinePublicKey = await ownerClient.Rsa.GetOfflinePublicKey();
+            Assert.IsTrue(offlinePublicKey.PublicKey.Length > 0);
+            Assert.IsTrue(offlinePublicKey.Crc32 > 0);
+            
+            CollectionAssert.AreNotEquivalent(signingKey.PublicKey, onlinePublicKey.PublicKey);
+            CollectionAssert.AreNotEquivalent(onlinePublicKey.PublicKey, offlinePublicKey.PublicKey);
         }
         
 
