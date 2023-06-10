@@ -6,6 +6,7 @@ using System.Net;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
+using MediatR;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -16,6 +17,7 @@ using Odin.Core.Services.Authorization;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Mediator.Owner;
 
 namespace Odin.Hosting.Authentication.Owner
 {
@@ -105,9 +107,14 @@ namespace Odin.Hosting.Authentication.Owner
             {
                 return false;
             }
-
+            
             odinContext.Caller = ctx.Caller;
             odinContext.SetPermissionContext(ctx.PermissionsContext);
+            
+            //experimental:tell the system the owner is online
+            var mediator = Context.RequestServices.GetRequiredService<IMediator>();
+            await mediator.Publish(new OwnerIsOnlineNotification() { });
+
             return true;
         }
 

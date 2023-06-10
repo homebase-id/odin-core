@@ -16,13 +16,16 @@ namespace Odin.Core.Services.EncryptionKeyService
 {
     public class RsaKeyService : INotificationHandler<OwnerIsOnlineNotification>
     {
-        private readonly Guid _rsaOfflineKeyStorageId = Guid.Parse("AAAAAAAF-0f85-EEEE-E77E-e8e0b06c2777");
-        private readonly Guid _rsaOnlineKeyStorageId = Guid.Parse("fc187615-deb4-4222-bcb5-35411bae25e3");
-
+        private readonly Guid _offlineKeyStorageId = Guid.Parse("AAAAAAAF-0f85-EEEE-E77E-e8e0b06c2777");
+        private readonly Guid _onlineKeyStorageId = Guid.Parse("fc187615-deb4-4222-bcb5-35411bae25e3");
+        private readonly Guid _signingKeyStorageId = Guid.Parse("d61a2789-2bc0-46c9-b6b9-19dcb3d076ab");
+        
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly OdinContextAccessor _contextAccessor;
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
         private static readonly SemaphoreSlim _rsaRecipientPublicKeyCacheLock = new SemaphoreSlim(1, 1);
+        private static readonly SemaphoreSlim _onlineKeyCreationLock = new SemaphoreSlim(1, 1);
+        private static readonly SemaphoreSlim _keyCreationLock = new SemaphoreSlim(1, 1);
 
         public RsaKeyService(TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor, IOdinHttpClientFactory odinHttpClientFactory)
         {
@@ -171,16 +174,57 @@ namespace Odin.Core.Services.EncryptionKeyService
             };
         }
 
+        public Task Handle(OwnerIsOnlineNotification notification, CancellationToken cancellationToken)
+        {
+            //TODO: add logic to ensure we only call this periodically 
+            this.CreateOrRotateOnlineKeys().GetAwaiter().GetResult();
+            return Task.CompletedTask;
+        }
+
+        public Task<RsaPublicKeyData> GetSigningPublicKey()
+        {
+            var k = this.GetKeyFromStorage(_signingKeyStorageId);
+            return Task.FromResult(RsaPublicKeyData.FromDerEncodedPublicKey(k.publicKey));
+        }
+        
+        public Task<RsaPublicKeyData> GetOnlinePublicKey()
+        {
+            var k = this.GetKeyFromStorage(_onlineKeyStorageId);
+            return Task.FromResult(RsaPublicKeyData.FromDerEncodedPublicKey(k.publicKey));
+        }
+        
+        /// <summary>
+        /// Creates the initial set of RSA keys required by an identity
+        /// </summary>
+        internal async Task CreateInitialKeys()
+        {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+
+            try
+            {
+                await _keyCreationLock.WaitAsync();
+                var mk = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+
+                await this.CreateNewRsaKeys(mk, _onlineKeyStorageId);
+                await this.CreateNewRsaKeys(mk, _signingKeyStorageId);
+                await this.CreateNewRsaKeys(GetOfflineKeyDecryptionKey(), _offlineKeyStorageId);
+            }
+            finally
+            {
+                _keyCreationLock.Release();
+            }
+        }
+        
         private Task<RsaFullKeyListData> GetOfflineKeyInternal()
         {
-            var result = _tenantSystemStorage.SingleKeyValueStorage.Get<RsaFullKeyListData>(_rsaOfflineKeyStorageId);
+            var result = _tenantSystemStorage.SingleKeyValueStorage.Get<RsaFullKeyListData>(_offlineKeyStorageId);
 
             if (result == null || result.ListRSA == null)
             {
                 var key = GetOfflineKeyDecryptionKey();
                 var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(key, 2, RsaKeyListManagement.DefaultHoursOfflineKey);
 
-                _tenantSystemStorage.SingleKeyValueStorage.Upsert(_rsaOfflineKeyStorageId, rsaKeyList);
+                _tenantSystemStorage.SingleKeyValueStorage.Upsert(_offlineKeyStorageId, rsaKeyList);
                 return Task.FromResult(rsaKeyList);
             }
 
@@ -198,39 +242,53 @@ namespace Odin.Core.Services.EncryptionKeyService
         /// <summary>
         /// Ensures online RSA keys exist and are update with the latest possible
         /// </summary>
-        private Task CreateOrRotateOnlineKeys()
+        private async Task CreateOrRotateOnlineKeys()
         {
-            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-            var keySet = _tenantSystemStorage.SingleKeyValueStorage.Get<RsaFullKeyListData>(_rsaOnlineKeyStorageId);
-            var key = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-            if (RsaKeyListManagement.IsValidKeySet(keySet))
+            await _onlineKeyCreationLock.WaitAsync();
+
+            try
             {
-                bool shouldRotate = true; //TODO: what is the logic for this?
-                if (shouldRotate)
+                _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+                var keySet = _tenantSystemStorage.SingleKeyValueStorage.Get<RsaFullKeyListData>(_onlineKeyStorageId);
+                var key = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+                if (RsaKeyListManagement.IsValidKeySet(keySet))
                 {
-                    int onlineKeyTTL = 48; //TODO: config
-                    RsaKeyListManagement.GenerateNewKey(key, keySet, onlineKeyTTL);
-                    _tenantSystemStorage.SingleKeyValueStorage.Upsert(_rsaOnlineKeyStorageId, keySet);
+                    bool shouldRotate = true; //TODO: what is the logic for this?
+                    if (shouldRotate)
+                    {
+                        int onlineKeyTTL = 48; //TODO: config
+                        RsaKeyListManagement.GenerateNewKey(key, keySet, onlineKeyTTL);
+                        _tenantSystemStorage.SingleKeyValueStorage.Upsert(_onlineKeyStorageId, keySet);
+                    }
+                }
+                else
+                {
+                    await this.CreateNewRsaKeys(key, _onlineKeyStorageId);
                 }
             }
-            else
+            finally
             {
-                //create a new key list
-                var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(key,
-                    RsaKeyListManagement.DefaultMaxOnlineKeys,
-                    RsaKeyListManagement.DefaultHoursOnlineKey);
-
-                _tenantSystemStorage.SingleKeyValueStorage.Upsert(_rsaOnlineKeyStorageId, rsaKeyList);
+                _onlineKeyCreationLock.Release();
             }
-
-            return Task.CompletedTask;
         }
 
-        public Task Handle(OwnerIsOnlineNotification notification, CancellationToken cancellationToken)
+        private Task CreateNewRsaKeys(SensitiveByteArray encryptionKey, Guid storageKey)
         {
-            //TODO: add logic to ensure we only call this periodically 
-            this.CreateOrRotateOnlineKeys().GetAwaiter().GetResult();
+            //create a new key list
+            var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(encryptionKey,
+                RsaKeyListManagement.DefaultMaxOnlineKeys,
+                RsaKeyListManagement.DefaultHoursOnlineKey);
+
+            _tenantSystemStorage.SingleKeyValueStorage.Upsert(storageKey, rsaKeyList);
+
             return Task.CompletedTask;
         }
+
+        private RsaFullKeyData GetKeyFromStorage(Guid storageKey)
+        {
+            var k = _tenantSystemStorage.SingleKeyValueStorage.Get<RsaFullKeyListData>(storageKey);
+            return RsaKeyListManagement.GetCurrentKey(k);
+        }
+        
     }
 }

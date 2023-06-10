@@ -42,18 +42,17 @@ namespace Odin.Core.Services.Authentication.Owner
         private readonly ILogger<IOwnerAuthenticationService> _logger;
         private readonly DriveManager _driveManager;
 
-        private readonly IMediator _mediator;
         private readonly TenantContext _tenantContext;
 
-        public OwnerAuthenticationService(ILogger<IOwnerAuthenticationService> logger, IOwnerSecretService secretService, TenantSystemStorage tenantSystemStorage,
-            TenantContext tenantContext, OdinConfiguration config, DriveManager driveManager, IMediator mediator)
+        public OwnerAuthenticationService(ILogger<IOwnerAuthenticationService> logger, IOwnerSecretService secretService,
+            TenantSystemStorage tenantSystemStorage,
+            TenantContext tenantContext, OdinConfiguration config, DriveManager driveManager)
         {
             _logger = logger;
             _secretService = secretService;
             _tenantSystemStorage = tenantSystemStorage;
             _tenantContext = tenantContext;
             _driveManager = driveManager;
-            _mediator = mediator;
             _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
         }
 
@@ -161,7 +160,7 @@ namespace Odin.Core.Services.Authentication.Owner
 
             throw new OdinSecurityException("Invalid owner token");
         }
-        
+
         public Task<OdinContext> GetDotYouContext(ClientAuthenticationToken token)
         {
             var creator = new Func<Task<OdinContext>>(async delegate
@@ -177,17 +176,16 @@ namespace Odin.Core.Services.Authentication.Owner
                 dotYouContext.SetPermissionContext(permissionContext);
 
                 dotYouContext.Caller = new CallerContext(
-                    odinId: _tenantContext.HostOdinId, //TODO: this works because we only have one identity per host.  this must be updated when i can have multiple identities for a single host
+                    odinId: _tenantContext
+                        .HostOdinId, //TODO: this works because we only have one identity per host.  this must be updated when i can have multiple identities for a single host
                     masterKey: masterKey,
                     securityLevel: SecurityGroupType.Owner);
 
                 return dotYouContext;
             });
 
-            //experimental:tell the system the owner is online
-            _mediator.Publish(new OwnerIsOnlineNotification() { });
-            
-            return _cache.GetOrAddContext(token, creator);
+            var ctx = _cache.GetOrAddContext(token, creator).GetAwaiter().GetResult();
+            return Task.FromResult(ctx);
         }
 
         public async Task ExtendTokenLife(Guid token, int ttlSeconds)

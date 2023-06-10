@@ -11,6 +11,7 @@ using Odin.Core.Services.Contacts.Circle.Membership;
 using Odin.Core.Services.Contacts.Circle.Membership.Definition;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.Management;
+using Odin.Core.Services.EncryptionKeyService;
 using Odin.Core.Services.Registry;
 using Odin.Core.Storage;
 using Odin.Core.Time;
@@ -29,10 +30,11 @@ public class TenantConfigService
     private readonly IIdentityRegistry _registry;
     private readonly IAppRegistrationService _appRegistrationService;
     private readonly DriveManager _driveManager;
+    private readonly RsaKeyService _rsaKeyService;
 
     public TenantConfigService(ICircleNetworkService cns, OdinContextAccessor contextAccessor,
         TenantSystemStorage storage, TenantContext tenantContext,
-        IIdentityRegistry registry, IAppRegistrationService appRegistrationService, DriveManager driveManager)
+        IIdentityRegistry registry, IAppRegistrationService appRegistrationService, DriveManager driveManager, RsaKeyService rsaKeyService)
     {
         _cns = cns;
         _contextAccessor = contextAccessor;
@@ -40,6 +42,7 @@ public class TenantConfigService
         _registry = registry;
         _appRegistrationService = appRegistrationService;
         _driveManager = driveManager;
+        _rsaKeyService = rsaKeyService;
         _configStorage = storage.SingleKeyValueStorage;
         _tenantContext.UpdateSystemConfig(this.GetTenantSettings());
     }
@@ -63,6 +66,7 @@ public class TenantConfigService
             await _registry.MarkRegistrationComplete(request.FirstRunToken.GetValueOrDefault());
         }
 
+        await _rsaKeyService.CreateInitialKeys();
 
         await CreateDriveIfNotExists(SystemDriveConstants.CreateChatDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateFeedDriveRequest);
@@ -75,8 +79,8 @@ public class TenantConfigService
         await CreateDriveIfNotExists(SystemDriveConstants.CreateProfileDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateWalletDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateTransientTempDriveRequest);
-        
-        
+
+
         foreach (var rd in request.Drives ?? new List<CreateDriveRequest>())
         {
             await CreateDriveIfNotExists(rd);

@@ -2,6 +2,7 @@
 using NUnit.Framework;
 using Odin.Core.Services.Configuration;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Cron;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Rsa;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Security;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Transit;
 using Odin.Hosting.Tests.OwnerApi.Configuration;
@@ -21,6 +22,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
         private readonly FollowerApiClient _followerApiClient;
         private readonly CronApiClient _cronApiClient;
         private readonly SecurityApiClient _securityApiClient;
+        private readonly RsaApiClient _rsaApiClient;
 
         public OwnerApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity)
         {
@@ -34,6 +36,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
             _followerApiClient = new FollowerApiClient(ownerApi, identity);
             _cronApiClient = new CronApiClient(ownerApi, identity);
             _securityApiClient = new SecurityApiClient(ownerApi, identity);
+            _rsaApiClient = new RsaApiClient(ownerApi, identity);
         }
 
         public TestIdentity Identity => _identity;
@@ -47,6 +50,9 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
         public CircleNetworkApiClient Network => _circleNetworkApiClient;
 
         public TransitApiClient Transit => _transitApiClient;
+
+
+        public RsaApiClient Rsa => _rsaApiClient;
 
         public DriveApiClient Drive => _driveApiClient;
 
