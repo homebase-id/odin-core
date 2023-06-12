@@ -1,4 +1,6 @@
-﻿using System;
+﻿#nullable enable
+
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -8,12 +10,8 @@ using Odin.Core.Services.Authentication.YouAuth;
 using Odin.Core.Services.Tenant;
 using Odin.Core.Util;
 using Odin.Hosting.Controllers.Anonymous;
-using Odin.Hosting.Controllers.OwnerToken;
-using Odin.Hosting.Controllers.OwnerToken.YouAuth;
 
-#nullable enable
-
-namespace Youverse.Hosting.Controllers.OwnerToken.YouAuth
+namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
 {
     /*
      * This controller handles the aspects of YouAuth that require
@@ -37,7 +35,7 @@ namespace Youverse.Hosting.Controllers.OwnerToken.YouAuth
         
         [HttpGet("create-token-flow")]
         [Produces("application/json")]
-        public async Task<CreateTokenFlowResponse> CreateTokenFlow([FromQuery(Name = YouAuthDefaults.ReturnUrl)]string returnUrl)
+        public async Task<ActionResult> CreateTokenFlow([FromQuery(Name = YouAuthDefaults.ReturnUrl)]string returnUrl)
         {
             if (!Uri.TryCreate(returnUrl, UriKind.Absolute, out Uri? uri))
             {
@@ -59,8 +57,8 @@ namespace Youverse.Hosting.Controllers.OwnerToken.YouAuth
             var redirectUrl = $"https://{initiator}".UrlAppend(
                 YouAuthApiPathConstants.ValidateAuthorizationCodeRequestPath,
                 queryString.ToUriComponent());
-
-            return new CreateTokenFlowResponse { RedirectUrl = redirectUrl };
+            
+            return Redirect(redirectUrl);
         }
         
     }

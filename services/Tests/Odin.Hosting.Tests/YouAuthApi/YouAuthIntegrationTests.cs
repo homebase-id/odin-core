@@ -111,15 +111,15 @@ namespace Odin.Hosting.Tests.YouAuthApi
             
             //
             // Browser:
-            // HOME "login" button redirects to:
-            //   https://frodo.dotyou.cloud/owner/login/youauth?returnUrl=https://frodo.dotyou.cloud/
+            // HOME "login" button click at frodo's home redirects to:
+            //   https://sam.dotyou.cloud/owner/login/youauth?returnUrl=https://frodo.dotyou.cloud/
             // This triggers OWNER login and in turn YOUAUTH flow below
             //
             
-            // Step 10:
+            // Step 1:
             // Check owner cookie (we don't send any).
             // Backend will return false and we move on to owner-authentication in step 2.
-            // https://frodo.dotyou.cloud/api/owner/v1/authentication/verifyToken
+            // https://sam.dotyou.cloud/api/owner/v1/authentication/verifyToken
             response = await apiClient.GetAsync($"https://{visitingHobbit}/api/owner/v1/authentication/verifyToken");
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
             json = await response.Content.ReadAsStringAsync();
@@ -135,18 +135,18 @@ namespace Odin.Hosting.Tests.YouAuthApi
             // This must be a backend redirect operation and home cookie must only be created if user approves
             //
             
-            // Step 20:
+            // Step 2
             // Get nonce for authentication
-            // https://frodo.dotyou.cloud/api/owner/v1/authentication/nonce
+            // https://sam.dotyou.cloud/api/owner/v1/authentication/nonce
             response = await apiClient.GetAsync($"https://{visitingHobbit}/api/owner/v1/authentication/nonce");
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
             json = await response.Content.ReadAsStringAsync();
             var nonceData = JsonSerializer.Deserialize<NonceData>(json, _serializerOptions);
             Assert.That(nonceData.Nonce64, Is.Not.Null.And.Not.Empty);
             
-            // Step 30:
+            // Step 3:
             // Authenticate
-            // https://frodo.dotyou.cloud/api/owner/v1/authentication
+            // https://sam.dotyou.cloud/api/owner/v1/authentication
             var passwordReply = PasswordDataManager.CalculatePasswordReply(Password, nonceData);
             json = JsonSerializer.Serialize(passwordReply);
             content = new StringContent(json, Encoding.UTF8, "application/json");
@@ -167,12 +167,12 @@ namespace Odin.Hosting.Tests.YouAuthApi
             // Browser:
             // Now we have owner cookie and shared secret, we can start the YOUAUTH flow
             // Browser redirects, using window.location, to:
-            //   https://frodo.dotyou.cloud/owner/login/youauth?returnUrl=https://frodo.dotyou.cloud/
+            //   https://sam.dotyou.cloud/owner/login/youauth?returnUrl=https://frodo.dotyou.cloud/
             //
             
-            // Step 40:
+            // Step 4:
             // Check owner cookie again (this time we have it, so send it)
-            // https://frodo.dotyou.cloud/api/owner/v1/authentication/verifyToken
+            // https://sam.dotyou.cloud/api/owner/v1/authentication/verifyToken
             request = new HttpRequestMessage(HttpMethod.Get, $"https://{visitingHobbit}/api/owner/v1/authentication/verifyToken")
             {
                 Headers = { { "Cookie", new Cookie(OwnerCookieName, ownerCookie).ToString() } }
@@ -187,10 +187,9 @@ namespace Odin.Hosting.Tests.YouAuthApi
             // Start the YOUAUTH flow!
             //
             
-            // Step 50:
+            // Step 5:
             // Create token flow authorization code
-            // SEB:TODO this must be a browser 302 redirect so attackers cannot pick up the code
-            // https://frodo.dotyou.cloud/api/owner/v1/youauth/create-token-flow?returnUrl=https://frodo.dotyou.cloud/?identity=frodo.dotyou.cloud
+            // https://sam.dotyou.cloud/api/owner/v1/youauth/create-token-flow?returnUrl=https://frodo.dotyou.cloud/?identity=sam.dotyou.cloud
             returnUrl = WebUtility.UrlEncode($"https://{visitedHobbit}/?identity=frodo.dotyou.cloud");
             uri = $"https://{visitingHobbit}/api/owner/v1/youauth/create-token-flow?returnUrl={returnUrl}";
             request = new HttpRequestMessage(HttpMethod.Get, uri)
@@ -198,19 +197,18 @@ namespace Odin.Hosting.Tests.YouAuthApi
                 Headers = { { "Cookie", new Cookie(OwnerCookieName, ownerCookie).ToString() } }
             };
             response = await apiClient.SendAsync(request);
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            json = await response.Content.ReadAsStringAsync();
-            var createTokenFlowResponse = JsonSerializer.Deserialize<CreateTokenFlowResponse>(json, _serializerOptions); 
-            Assert.That(createTokenFlowResponse.RedirectUrl, Is.Not.Null.And.Not.Empty);
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
+            location = GetHeaderValue(response, "Location");
+            Assert.That(location, Is.Not.Null.And.Not.Empty);
             
-            // Step 60:
+            // Step 6:
             // Begin token flow using authorization code.
             // This step will trigger the host-to-host back channel call to validate the code from step 5.
             // If validation succeeds the home cookie and shared secret are created.
             // Finally the client is redirected (302) to a pseudo finalize-endpoint, this is so the client
             // can cherrypick the shared secret from the url.
-            // https://frodo.dotyou.cloud/api/youauth/v1/auth/validate-ac-req?ac=<auth-code>&subject=frodo.dotyou.cloud&returnUrl=https://frodo.dotyou.cloud/?identity=frodo.dotyou.cloud
-            response = await apiClient.GetAsync(createTokenFlowResponse.RedirectUrl);
+            // https://frodo.dotyou.cloud/api/youauth/v1/auth/validate-ac-req?ac=<auth-code>&subject=sam.dotyou.cloud&returnUrl=https://frodo.dotyou.cloud/?identity=sam.dotyou.cloud
+            response = await apiClient.GetAsync(location);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
             location = GetHeaderValue(response, "Location");
             Assert.That(location, Does.StartWith("/home/youauth/finalize"));
@@ -218,9 +216,9 @@ namespace Odin.Hosting.Tests.YouAuthApi
             var homeCookie = cookies[HomeCookieName];
             Assert.That(homeCookie, Is.Not.Null.And.Not.Empty);
             
-            // Step 70:
+            // Step 7:
             // Finlalize pseudo endpoint (see above explation)
-            // https://frodo.dotyou.cloud/home/youauth/finalize?ss64=AI0LmSqYFF/PA91Tq16Rwg==&returnUrl=https://frodo.dotyou.cloud/?identity=frodo.dotyou.cloud
+            // https://frodo.dotyou.cloud/home/youauth/finalize?ss64=<shared-secret>&returnUrl=https://frodo.dotyou.cloud/?identity=sam.dotyou.cloud
             var finalize = new Uri($"https://{visitedHobbit}" + location);
             var queryParameters = HttpUtility.ParseQueryString(finalize.Query);
             var ss64 = queryParameters["ss64"];
