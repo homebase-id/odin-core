@@ -24,7 +24,7 @@
         public const string CdnV1 = BasePathV1 + "/cdn";
 
         public const string PublicKeysV1 = BasePathV1 + "/public/keys";
-        public const string EchoMethodName = "echo";
 
+        public const string PingMethodName = "ping";
     }
 }

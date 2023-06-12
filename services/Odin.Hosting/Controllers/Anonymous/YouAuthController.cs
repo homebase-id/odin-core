@@ -107,12 +107,12 @@ namespace Odin.Hosting.Controllers.Anonymous
 
         //
         
-        [HttpGet(YouAuthApiPathConstants.EchoMethodName)]
+        [HttpGet(YouAuthApiPathConstants.PingMethodName)]
         [Produces("application/json")]
         [Authorize(AuthenticationSchemes = ClientTokenConstants.YouAuthScheme, Policy = ClientTokenPolicies.IsIdentified)]
-        public string GetEcho([FromQuery] string text)
+        public string GetPing([FromQuery] string text)
         {
-            return text;
+            return $"ping from {_currentTenant}: {text}";
         }
         
         //
