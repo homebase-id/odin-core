@@ -20,7 +20,7 @@
 
         public const string CdnV1 = BasePathV1 + "/cdn";
         
-        public const string EchoMethodName = "echo";
+        public const string PingMethodName = "ping";
 
     }
 }
