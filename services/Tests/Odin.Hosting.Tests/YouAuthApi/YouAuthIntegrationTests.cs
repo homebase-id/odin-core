@@ -200,6 +200,7 @@ namespace Odin.Hosting.Tests.YouAuthApi
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
             location = GetHeaderValue(response, "Location");
             Assert.That(location, Is.Not.Null.And.Not.Empty);
+            Assert.That(location, Does.StartWith("https://api."));
             
             // Step 6:
             // Begin token flow using authorization code.
