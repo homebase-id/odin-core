@@ -410,8 +410,11 @@ namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine
         private async Task<TransitResponseCode> RouteToInbox(IncomingTransferStateItem stateItem)
         {
             //S1210 - Convert to Rsa encrypted header so this could be handled by the TransitInboxProcessor
-            var (rsaEncryptedKeyHeader, crc32) = await ConvertKeyHeaderToRsa(stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader);
-
+            var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader);
+            var combinedKey = decryptedKeyHeader.Combine();
+            var rsaEncryptedPayload = await _publicKeyService.EncryptPayload(RsaKeyType.OnlineKey, combinedKey.GetKey());
+            combinedKey.Wipe();
+            
             var item = new TransferInboxItem()
             {
                 Id = Guid.NewGuid(),
@@ -424,8 +427,7 @@ namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine
                 FileSystemType = stateItem.TransferInstructionSet.FileSystemType,
                 TransferFileType = stateItem.TransferInstructionSet.TransferFileType,
 
-                PublicKeyCrc = crc32,
-                RsaEncryptedKeyHeader = rsaEncryptedKeyHeader
+                RsaEncryptedKeyHeaderPayload = rsaEncryptedPayload,
             };
 
             await _transitInboxBoxStorage.Add(item);
@@ -442,17 +444,6 @@ namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine
             });
 
             return TransitResponseCode.AcceptedIntoInbox;
-        }
-
-        private async Task<(byte[] rsaEncryptedKeyHeader, UInt32 crc)> ConvertKeyHeaderToRsa(EncryptedKeyHeader sharedSecretEncryptedKeyHeader)
-        {
-            var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(sharedSecretEncryptedKeyHeader);
-            var pk = await _publicKeyService.GetOfflinePublicKey();
-            var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(pk.publicKey);
-            var combinedKey = decryptedKeyHeader.Combine();
-            var rsaEncryptedKeyHeader = publicKey.Encrypt(combinedKey.GetKey());
-            combinedKey.Wipe();
-            return (rsaEncryptedKeyHeader, pk.crc32c);
         }
     }
 }

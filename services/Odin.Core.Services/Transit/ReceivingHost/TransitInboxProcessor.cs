@@ -10,7 +10,7 @@ using Odin.Core.Services.Transit.SendingHost;
 
 namespace Odin.Core.Services.Transit.ReceivingHost
 {
-    public class TransitInboxProcessor 
+    public class TransitInboxProcessor
     {
         private readonly OdinContextAccessor _contextAccessor;
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
@@ -56,9 +56,11 @@ namespace Odin.Core.Services.Transit.ReceivingHost
 
                         if (inboxItem.InstructionType == TransferInstructionType.SaveFile)
                         {
+                            // var (isValidPublicKey, decryptedAesKeyHeaderBytes) =
+                            //     await _publicKeyService.DecryptPayload(RsaKeyType.OnlineKey, inboxItem.RsaEncryptedKeyHeader, inboxItem.PublicKeyCrc);
+
                             var (isValidPublicKey, decryptedAesKeyHeaderBytes) =
-                                await _publicKeyService.DecryptKeyHeaderUsingOfflineKey(inboxItem.RsaEncryptedKeyHeader,
-                                    inboxItem.PublicKeyCrc);
+                                await _publicKeyService.DecryptPayload(RsaKeyType.OnlineKey, inboxItem.RsaEncryptedKeyHeaderPayload);
 
                             if (!isValidPublicKey)
                             {

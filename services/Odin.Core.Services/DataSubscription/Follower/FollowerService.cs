@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Dawn;
 using Odin.Core.Exceptions;
@@ -13,6 +14,7 @@ using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.EncryptionKeyService;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
+using Refit;
 
 namespace Odin.Core.Services.DataSubscription.Follower
 {
@@ -57,26 +59,26 @@ namespace Odin.Core.Services.DataSubscription.Follower
             {
                 OdinId = _tenantContext.HostOdinId,
                 NotificationType = request.NotificationType,
-                Channels = request.Channels,
-                // PortableClientAuthToken = accessToken.ToPortableBytes()
+                Channels = request.Channels
             };
 
-            // var payloadBytes = DotYouSystemSerializer.Serialize(followRequest).ToUtf8ByteArray();
             var json = OdinSystemSerializer.Serialize(followRequest);
-            var rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(request.OdinId, json.ToUtf8ByteArray());
-            var client = CreateClient((OdinId)request.OdinId);
-            var response = await client.Follow(rsaEncryptedPayload);
 
-            if (response.IsSuccessStatusCode == false)
+            async Task<ApiResponse<HttpContent>> TryFollow()
+            {
+                var rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(RsaKeyType.OfflineKey, (OdinId)request.OdinId, json.ToUtf8ByteArray());
+                var client = CreateClient((OdinId)request.OdinId);
+                var response = await client.Follow(rsaEncryptedPayload);
+                return response;
+            }
+
+            if ((await TryFollow()).IsSuccessStatusCode == false)
             {
                 //public key might be invalid, destroy the cache item
                 await _rsaPublicKeyService.InvalidatePublicKey((OdinId)request.OdinId);
 
-                rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(request.OdinId, json.ToUtf8ByteArray());
-                response = await client.Follow(rsaEncryptedPayload);
-
                 //round 2, fail all together
-                if (response.IsSuccessStatusCode == false)
+                if ((await TryFollow()).IsSuccessStatusCode == false)
                 {
                     throw new OdinRemoteIdentityException("Remote Server failed to accept follow");
                 }
@@ -167,7 +169,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
         public async Task<CursoredResult<OdinId>> GetFollowers(TargetDrive targetDrive, int max, string cursor)
         {
             _contextAccessor.GetCurrent().PermissionsContext.HasPermission(PermissionKeys.ReadMyFollowers);
-            
+
             if (targetDrive.Type != SystemDriveConstants.ChannelDriveType)
             {
                 throw new OdinClientException("Invalid Drive Type", OdinClientErrorCode.InvalidTargetDrive);
@@ -283,7 +285,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
             var feedDrive = SystemDriveConstants.FeedDrive;
             var permissionSet = new PermissionSet(); //no permissions
             var sharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray(); //TODO: what shared secret for this?
-            
+
             var driveId = (await _driveManager.GetDriveIdByAlias(feedDrive, true)).GetValueOrDefault();
             var driveGrants = new List<DriveGrant>()
             {

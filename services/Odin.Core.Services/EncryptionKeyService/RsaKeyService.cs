@@ -23,9 +23,12 @@ namespace Odin.Core.Services.EncryptionKeyService
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly OdinContextAccessor _contextAccessor;
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
-        private static readonly SemaphoreSlim _rsaRecipientPublicKeyCacheLock = new SemaphoreSlim(1, 1);
-        private static readonly SemaphoreSlim _onlineKeyCreationLock = new SemaphoreSlim(1, 1);
-        private static readonly SemaphoreSlim _keyCreationLock = new SemaphoreSlim(1, 1);
+
+        private static readonly SemaphoreSlim RsaRecipientOfflinePublicKeyCacheLock = new(1, 1);
+        private static readonly SemaphoreSlim RsaRecipientOnlinePublicKeyCacheLock = new(1, 1);
+        private static readonly SemaphoreSlim OnlineKeyCreationLock = new(1, 1);
+        private static readonly SemaphoreSlim KeyCreationLock = new(1, 1);
+        private static readonly byte[] OfflinePrivateKeyEncryptionKey = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
         public RsaKeyService(TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor, IOdinHttpClientFactory odinHttpClientFactory)
         {
@@ -34,30 +37,9 @@ namespace Odin.Core.Services.EncryptionKeyService
             _odinHttpClientFactory = odinHttpClientFactory;
         }
 
-        public async Task<(bool, byte[])> DecryptKeyHeaderUsingOfflineKey(byte[] encryptedData, uint publicKeyCrc32, bool failIfNoMatchingPublicKey = true)
+        public async Task<(bool IsValidPublicKey, byte[] DecryptedBytes)> DecryptPayload(RsaKeyType keyType, RsaEncryptedPayload payload)
         {
-            throw new NotImplementedException("TODO: switch to using online key and rename");
-            // var keys = await this.GetOfflineKeyInternal();
-            // var key = GetOfflineKeyDecryptionKey();
-            // var pk = RsaKeyListManagement.FindKey(keys, publicKeyCrc32);
-            //
-            // if (null == pk)
-            // {
-            //     if (failIfNoMatchingPublicKey)
-            //     {
-            //         throw new OdinSecurityException("Invalid public key");
-            //     }
-            //
-            //     return (false, null);
-            // }
-            //
-            // var bytes = pk.Decrypt(ref key, encryptedData);
-            // return (true, bytes);
-        }
-
-        public async Task<(bool, byte[])> DecryptPayloadUsingOfflineKey(RsaEncryptedPayload payload)
-        {
-            var (isValidPublicKey, keyHeaderBytes) = await this.DecryptKeyHeaderUsingOfflineKey(payload.KeyHeader, payload.Crc32);
+            var (isValidPublicKey, keyHeaderBytes) = await this.DecryptKeyHeader(keyType, payload.RsaEncryptedKeyHeader, payload.Crc32);
             var keyHeader = KeyHeader.FromCombinedBytes(keyHeaderBytes);
 
             if (!isValidPublicKey)
@@ -71,7 +53,7 @@ namespace Odin.Core.Services.EncryptionKeyService
                 Key: ref key,
                 IV: keyHeader.Iv);
 
-            return (isValidPublicKey, bytes);
+            return (true, bytes);
         }
 
         /// <summary>
@@ -93,21 +75,23 @@ namespace Odin.Core.Services.EncryptionKeyService
             var k = this.GetCurrentKeyFromStorage(_offlineKeyStorageId);
             return Task.FromResult(RsaPublicKeyData.FromDerEncodedPublicKey(k.publicKey));
         }
-
-        public async Task<RsaPublicKeyData> GetRecipientOfflinePublicKey(OdinId recipient, bool lookupIfInvalid = true, bool failIfCannotRetrieve = true)
+        
+        private async Task<RsaPublicKeyData> ResolveRecipientKey(RsaKeyType keyType, OdinId recipient, bool failIfCannotRetrieve = true)
         {
-            //TODO: need to clean up the cache for expired items
-            //TODO: optimize by reading a dictionary cache
-
-            await _rsaRecipientPublicKeyCacheLock.WaitAsync();
+            await RsaRecipientOnlinePublicKeyCacheLock.WaitAsync();
             try
             {
-                var cacheItem = _tenantSystemStorage.SingleKeyValueStorage.Get<RsaPublicKeyData>(GuidId.FromString(recipient.DomainName));
+                string prefix = keyType == RsaKeyType.OfflineKey ? "offline" :
+                    keyType == RsaKeyType.OnlineKey ? "online" : throw new OdinSystemException("Unhandled key type");
 
-                if ((cacheItem == null || cacheItem.IsExpired()) && lookupIfInvalid)
+                GuidId cacheKey = GuidId.FromString($"{prefix}{recipient.DomainName}");
+
+                var cacheItem = _tenantSystemStorage.SingleKeyValueStorage.Get<RsaPublicKeyData>(cacheKey);
+
+                if ((cacheItem == null || cacheItem.IsExpired()))
                 {
                     var svc = _odinHttpClientFactory.CreateClient<IEncryptionKeyServiceHttpClient>(recipient);
-                    var tpkResponse = await svc.GetOfflinePublicKey();
+                    var tpkResponse = await svc.GetPublicKey(keyType);
 
                     if (tpkResponse.Content == null || !tpkResponse.IsSuccessStatusCode)
                     {
@@ -122,7 +106,7 @@ namespace Odin.Core.Services.EncryptionKeyService
                         expiration = new UnixTimeUtc(tpkResponse.Content.Expiration)
                     };
 
-                    _tenantSystemStorage.SingleKeyValueStorage.Upsert(GuidId.FromString(recipient.DomainName), cacheItem);
+                    _tenantSystemStorage.SingleKeyValueStorage.Upsert(cacheKey, cacheItem);
                 }
 
                 if (null == cacheItem && failIfCannotRetrieve)
@@ -134,20 +118,35 @@ namespace Odin.Core.Services.EncryptionKeyService
             }
             finally
             {
-                _rsaRecipientPublicKeyCacheLock.Release();
+                RsaRecipientOnlinePublicKeyCacheLock.Release();
             }
         }
-
-        public async Task<RsaEncryptedPayload> EncryptPayloadForRecipient(string recipient, byte[] payload)
+        
+        public async Task<RsaEncryptedPayload> EncryptPayload(RsaKeyType keyType, byte[] payload)
         {
-            var pk = await this.GetRecipientOfflinePublicKey((OdinId)recipient);
-            var keyHeader = KeyHeader.NewRandom16();
-            return new RsaEncryptedPayload()
+            RsaPublicKeyData pk;
+
+            switch (keyType)
             {
-                Crc32 = pk.crc32c,
-                KeyHeader = pk.Encrypt(keyHeader.Combine().GetKey()),
-                Data = keyHeader.EncryptDataAesAsStream(payload).ToByteArray()
-            };
+                case RsaKeyType.OfflineKey:
+                    pk = await this.GetOfflinePublicKey();
+                    break;
+
+                case RsaKeyType.OnlineKey:
+                    pk = await this.GetOnlinePublicKey();
+                    break;
+
+                default:
+                    throw new OdinSystemException("Unhandled RsaKeyType");
+            }
+
+            return Encrypt(pk, payload);
+        }
+
+        public async Task<RsaEncryptedPayload> EncryptPayloadForRecipient(RsaKeyType keyType, OdinId recipient, byte[] payload)
+        {
+            RsaPublicKeyData pk = await ResolveRecipientKey(keyType, recipient);
+            return Encrypt(pk, payload);
         }
 
         public Task Handle(OwnerIsOnlineNotification notification, CancellationToken cancellationToken)
@@ -178,25 +177,59 @@ namespace Odin.Core.Services.EncryptionKeyService
 
             try
             {
-                await _keyCreationLock.WaitAsync();
+                await KeyCreationLock.WaitAsync();
                 var mk = _contextAccessor.GetCurrent().Caller.GetMasterKey();
 
                 await this.CreateNewRsaKeys(mk, _onlineKeyStorageId);
                 await this.CreateNewRsaKeys(mk, _signingKeyStorageId);
-                await this.CreateNewRsaKeys(GetOfflineKeyDecryptionKey(), _offlineKeyStorageId);
+                await this.CreateNewRsaKeys(OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray(), _offlineKeyStorageId);
             }
             finally
             {
-                _keyCreationLock.Release();
+                KeyCreationLock.Release();
             }
         }
 
-        private SensitiveByteArray GetOfflineKeyDecryptionKey()
+        private async Task<(bool, byte[])> DecryptKeyHeader(RsaKeyType keyType, byte[] encryptedData, uint publicKeyCrc32,
+            bool failIfNoMatchingPublicKey = true)
         {
-            //fixed key
-            byte[] keyBytes = new byte[16];
-            Array.Fill<byte>(keyBytes, 1);
-            return keyBytes.ToSensitiveByteArray();
+            var (rsaKey, decryptionKey) = await ResolveKeyForDecryption(keyType, publicKeyCrc32);
+
+            if (null == rsaKey)
+            {
+                if (failIfNoMatchingPublicKey)
+                {
+                    throw new OdinSecurityException("Invalid public key");
+                }
+
+                return (false, null);
+            }
+
+            var bytes = rsaKey.Decrypt(ref decryptionKey, encryptedData);
+            return (true, bytes);
+        }
+
+        private Task<(RsaFullKeyData RsaKey, SensitiveByteArray DecryptionKey)> ResolveKeyForDecryption(RsaKeyType keyType, uint crc32)
+        {
+            RsaFullKeyListData keyList;
+            SensitiveByteArray decryptionKey;
+            switch (keyType)
+            {
+                case RsaKeyType.OfflineKey:
+                    keyList = this.GetKeyListFromStorage(_offlineKeyStorageId);
+                    decryptionKey = OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray();
+                    break;
+                case RsaKeyType.OnlineKey:
+                    keyList = this.GetKeyListFromStorage(_onlineKeyStorageId);
+                    decryptionKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(keyType), keyType, null);
+            }
+
+            var pk = RsaKeyListManagement.FindKey(keyList, crc32);
+            return Task.FromResult((pk, decryptionKey));
         }
 
         /// <summary>
@@ -204,7 +237,7 @@ namespace Odin.Core.Services.EncryptionKeyService
         /// </summary>
         private async Task CreateOrRotateOnlineKeys()
         {
-            await _onlineKeyCreationLock.WaitAsync();
+            await OnlineKeyCreationLock.WaitAsync();
 
             try
             {
@@ -228,7 +261,7 @@ namespace Odin.Core.Services.EncryptionKeyService
             }
             finally
             {
-                _onlineKeyCreationLock.Release();
+                OnlineKeyCreationLock.Release();
             }
         }
 
@@ -246,8 +279,26 @@ namespace Odin.Core.Services.EncryptionKeyService
 
         private RsaFullKeyData GetCurrentKeyFromStorage(Guid storageKey)
         {
-            var k = _tenantSystemStorage.SingleKeyValueStorage.Get<RsaFullKeyListData>(storageKey);
-            return RsaKeyListManagement.GetCurrentKey(k);
+            var keyList = GetKeyListFromStorage(storageKey);
+            return RsaKeyListManagement.GetCurrentKey(keyList);
+        }
+
+        private RsaFullKeyListData GetKeyListFromStorage(Guid storageKey)
+        {
+            return _tenantSystemStorage.SingleKeyValueStorage.Get<RsaFullKeyListData>(storageKey);
+        }
+
+        private RsaEncryptedPayload Encrypt(RsaPublicKeyData pk, byte[] payload)
+        {
+            var keyHeader = KeyHeader.NewRandom16();
+            return new RsaEncryptedPayload()
+            {
+                //Note: i leave out the key type here because the methods that receive
+                //this must decide the encryption they expect
+                Crc32 = pk.crc32c,
+                RsaEncryptedKeyHeader = pk.Encrypt(keyHeader.Combine().GetKey()),
+                Data = keyHeader.EncryptDataAesAsStream(payload).ToByteArray()
+            };
         }
     }
 }

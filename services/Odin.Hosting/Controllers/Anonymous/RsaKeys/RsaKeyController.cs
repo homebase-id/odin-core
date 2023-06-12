@@ -1,6 +1,7 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.EncryptionKeyService;
+using Odin.Hosting.Controllers.Base;
 
 namespace Odin.Hosting.Controllers.Anonymous.RsaKeys
 {

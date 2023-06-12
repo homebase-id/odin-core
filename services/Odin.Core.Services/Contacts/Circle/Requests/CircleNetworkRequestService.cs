@@ -7,6 +7,7 @@ using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
+using Odin.Core.Fluff;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Services.AppNotifications.ClientNotifications;
@@ -17,6 +18,7 @@ using Odin.Core.Services.Contacts.Circle.Membership;
 using Odin.Core.Services.Contacts.Circle.Membership.Definition;
 using Odin.Core.Services.EncryptionKeyService;
 using Odin.Core.Storage;
+using Refit;
 
 namespace Odin.Core.Services.Contacts.Circle.Requests
 {
@@ -94,19 +96,22 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
 
             if (header.Recipient == _contextAccessor.GetCurrent().Caller.OdinId)
             {
-                throw new OdinClientException("I get it, connecting with yourself is critical..yet send a connection request to yourself", OdinClientErrorCode.ConnectionRequestToYourself);
+                throw new OdinClientException("I get it, connecting with yourself is critical..yet send a connection request to yourself",
+                    OdinClientErrorCode.ConnectionRequestToYourself);
             }
 
             var incomingRequest = await this.GetPendingRequest((OdinId)header.Recipient);
             if (null != incomingRequest)
             {
-                throw new OdinClientException("You already have an incoming request from the recipient.", OdinClientErrorCode.CannotSendConnectionRequestToExistingIncomingRequest);
+                throw new OdinClientException("You already have an incoming request from the recipient.",
+                    OdinClientErrorCode.CannotSendConnectionRequestToExistingIncomingRequest);
             }
 
             var existingRequest = await this.GetSentRequest((OdinId)header.Recipient);
             if (existingRequest != null)
             {
-                throw new OdinClientException("You already sent a request to this recipient.", OdinClientErrorCode.CannotSendMultipleConnectionRequestToTheSameIdentity);
+                throw new OdinClientException("You already sent a request to this recipient.",
+                    OdinClientErrorCode.CannotSendMultipleConnectionRequestToTheSameIdentity);
             }
 
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
@@ -126,22 +131,22 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
             };
 
             var payloadBytes = OdinSystemSerializer.Serialize(outgoingRequest).ToUtf8ByteArray();
-            var rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(header.Recipient, payloadBytes);
-            _logger.LogInformation($"[{outgoingRequest.SenderOdinId}] is sending a request to the server of [{outgoingRequest.Recipient}]");
 
-            var client = _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((OdinId)outgoingRequest.Recipient); 
-            var response = await client.DeliverConnectionRequest(rsaEncryptedPayload);
-            if (response.Content is { Success: false } || response.IsSuccessStatusCode == false)
+            async Task<bool> TrySendRequest()
+            {
+                var rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(RsaKeyType.OnlineKey, (OdinId)header.Recipient, payloadBytes);
+                _logger.LogInformation($"[{outgoingRequest.SenderOdinId}] is sending a request to the server of [{outgoingRequest.Recipient}]");
+                var client = _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((OdinId)outgoingRequest.Recipient);
+                var response = await client.DeliverConnectionRequest(rsaEncryptedPayload);
+                return response.Content is { Success: true } && response.IsSuccessStatusCode;
+            }
+
+            if (!await TrySendRequest())
             {
                 //public key might be invalid, destroy the cache item
                 await _rsaPublicKeyService.InvalidatePublicKey((OdinId)header.Recipient);
 
-                rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(header.Recipient, payloadBytes);
-                _logger.LogInformation($"[{outgoingRequest.SenderOdinId}] is sending a request to the server of [{outgoingRequest.Recipient}], <mortal kombat voice> round 2");
-                response = await _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((OdinId)outgoingRequest.Recipient).DeliverConnectionRequest(rsaEncryptedPayload);
-
-                //round 2, fail all together
-                if (response.Content is { Success: false } || response.IsSuccessStatusCode == false)
+                if (!await TrySendRequest())
                 {
                     throw new OdinClientException("Failed to establish connection request");
                 }
@@ -182,7 +187,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
             //note: this would occur during the operation verification process
             request.Validate();
             _logger.LogInformation($"[{recipient}] is receiving a connection request from [{sender}]");
-            
+
             request.SenderOdinId = sender;
             _pendingRequestValueStorage.Upsert(sender.ToHashId(), GuidId.Empty, _pendingRequestsDataType, request);
 
@@ -248,24 +253,23 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
                 SharedSecretEncryptedCredentials = EncryptReplyExchangeCredentials(clientAccessTokenReply, remoteClientAccessToken.SharedSecret)
             };
 
-            //TODO: XXX - no need to do RSA encryption here since we have the remoteClientAccessToken.SharedSecret
-            var json = OdinSystemSerializer.Serialize(acceptedReq);
-            var payloadBytes = await _rsaPublicKeyService.EncryptPayloadForRecipient(pendingRequest.SenderOdinId, json.ToUtf8ByteArray());
-            var response = await _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((OdinId)pendingRequest.SenderOdinId).EstablishConnection(payloadBytes);
+            async Task<bool> TryAcceptRequest()
+            {
+                var json = OdinSystemSerializer.Serialize(acceptedReq);
+                var payloadBytes =
+                    await _rsaPublicKeyService.EncryptPayloadForRecipient(RsaKeyType.OnlineKey, (OdinId)pendingRequest.SenderOdinId, json.ToUtf8ByteArray());
+                var response = await _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((OdinId)pendingRequest.SenderOdinId)
+                    .EstablishConnection(payloadBytes);
+                return response.Content is { Success: true } && response.IsSuccessStatusCode;
+            }
 
-            if (response.Content is { Success: false } || response.IsSuccessStatusCode == false)
+            if (!await TryAcceptRequest())
             {
                 //public key might be invalid, destroy the cache item
                 await _rsaPublicKeyService.InvalidatePublicKey((OdinId)pendingRequest.SenderOdinId);
-
-                payloadBytes = await _rsaPublicKeyService.EncryptPayloadForRecipient(pendingRequest.SenderOdinId, json.ToUtf8ByteArray());
-                response = await _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((OdinId)pendingRequest.SenderOdinId).EstablishConnection(payloadBytes);
-
-                //round 2, fail all together
-                if (response.Content is { Success: false } || response.IsSuccessStatusCode == false)
+                if (!await TryAcceptRequest())
                 {
-                    throw new Exception(
-                        $"Failed to establish connection request.  Endpoint Server returned status code {response.StatusCode}.  Either response was empty or server returned a failure");
+                    throw new Exception($"Failed to establish connection request.  Either response was empty or server returned a failure");
                 }
             }
 
@@ -312,7 +316,8 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
             var sharedSecret = accessExchangeGrant.AccessRegistration.AccessKeyStoreKeyEncryptedSharedSecret;
             var remoteClientAccessToken = this.DecryptReplyExchangeCredentials(handshakeResponse.SharedSecretEncryptedCredentials, sharedSecret);
 
-            await _cns.Connect(handshakeResponse.SenderOdinId, originalRequest.PendingAccessExchangeGrant, remoteClientAccessToken, handshakeResponse.ContactData);
+            await _cns.Connect(handshakeResponse.SenderOdinId, originalRequest.PendingAccessExchangeGrant, remoteClientAccessToken,
+                handshakeResponse.ContactData);
 
             await this.DeleteSentRequestInternal((OdinId)originalRequest.Recipient);
             await this.DeletePendingRequestInternal((OdinId)originalRequest.Recipient);

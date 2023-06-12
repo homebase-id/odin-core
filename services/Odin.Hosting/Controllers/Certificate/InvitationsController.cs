@@ -34,7 +34,7 @@ namespace Odin.Hosting.Controllers.Certificate
         [HttpPost("connect")]
         public async Task<IActionResult> ReceiveConnectionRequest([FromBody] RsaEncryptedPayload payload)
         {
-            var (isValidPublicKey, payloadBytes) = await _rsaPublicKeyService.DecryptPayloadUsingOfflineKey(payload);
+            var (isValidPublicKey, payloadBytes) = await _rsaPublicKeyService.DecryptPayload(RsaKeyType.OnlineKey, payload);
             if (isValidPublicKey == false)
             {
                 //TODO: extend with error code indicated a bad public key 
@@ -50,14 +50,14 @@ namespace Odin.Hosting.Controllers.Certificate
         [HttpPost("establishconnection")]
         public async Task<IActionResult> EstablishConnection([FromBody] RsaEncryptedPayload payload)
         {
-            var (isValidPublicKey, payloadBytes) = await _rsaPublicKeyService.DecryptPayloadUsingOfflineKey(payload);
+            var (isValidPublicKey, payloadBytes) = await _rsaPublicKeyService.DecryptPayload(RsaKeyType.OnlineKey, payload);
 
             if (isValidPublicKey == false)
             {
                 //TODO: extend with error code indicated a bad public key 
                 return new JsonResult(new NoResultResponse(false));
             }
-            
+
             ConnectionRequestReply reply = OdinSystemSerializer.Deserialize<ConnectionRequestReply>(payloadBytes.ToStringFromUtf8Bytes());
 
             await _circleNetworkRequestService.EstablishConnection(reply);
