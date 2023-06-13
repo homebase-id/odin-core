@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Exceptions.Client;
 using Odin.Core.Services.Authentication.YouAuth;
-using Odin.Core.Services.Registry.Registration;
 using Odin.Core.Services.Tenant;
 using Odin.Core.Util;
 using Odin.Hosting.Controllers.Anonymous;
