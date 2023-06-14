@@ -9,6 +9,9 @@
         public const string ValidateAuthorizationCodeRequestMethodName = "validate-ac-req";
         public const string ValidateAuthorizationCodeRequestPath = AuthV1 + "/" + ValidateAuthorizationCodeRequestMethodName;
 
+        public const string FinalizeBridgeRequestMethodName = "finalize-bridge";
+        public const string FinalizeBridgeRequestRequestPath = AuthV1 + "/" + FinalizeBridgeRequestMethodName;
+        
         public const string IsAuthenticatedMethodName = "is-authenticated";
         public const string DeleteTokenMethodName = "delete-token";
 

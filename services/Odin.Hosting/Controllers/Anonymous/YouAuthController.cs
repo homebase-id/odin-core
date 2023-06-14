@@ -58,12 +58,26 @@ namespace Odin.Hosting.Controllers.Anonymous
             //TODO: RSA Encrypt shared secret
             var shareSecret64 = Convert.ToBase64String(clientAccessToken?.SharedSecret.GetKey() ?? Array.Empty<byte>());
             clientAccessToken?.Wipe();
+            
+            // SEB:NOTE before brigde-hack:
+            //var handlerUrl = $"/home/youauth/finalize?ss64={HttpUtility.UrlEncode(shareSecret64)}&returnUrl={HttpUtility.UrlEncode(returnUrl)}";
 
-            var handlerUrl = $"/home/youauth/finalize?ss64={HttpUtility.UrlEncode(shareSecret64)}&returnUrl={HttpUtility.UrlEncode(returnUrl)}";
+            var handlerUrl = $"https://{Request.Host}{YouAuthApiPathConstants.FinalizeBridgeRequestRequestPath}?ss64={HttpUtility.UrlEncode(shareSecret64)}&returnUrl={HttpUtility.UrlEncode(returnUrl)}";
             return Redirect(handlerUrl);
-            // return Ok(handlerUrl);
         }
-
+        
+        //
+        
+        [HttpGet(YouAuthApiPathConstants.FinalizeBridgeRequestMethodName)]
+        public ActionResult FinalizeBridgeReques(
+            [FromQuery(Name = YouAuthDefaults.SharedSecret)]
+            string ss64,
+            [FromQuery(Name = YouAuthDefaults.ReturnUrl)]
+            string returnUrl)
+        {
+            var handlerUrl = $"https://{_currentTenant}/home/youauth/finalize?ss64={ss64}&returnUrl={returnUrl}";
+            return Redirect(handlerUrl);
+        }
 
         //
 

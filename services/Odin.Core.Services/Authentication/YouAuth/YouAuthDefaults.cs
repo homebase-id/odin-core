@@ -8,6 +8,7 @@ namespace Odin.Core.Services.Authentication.YouAuth
         public const string Initiator = "initiator";
         public const string ReturnUrl = "returnUrl";
         public const string Subject = "subject";
+        public const string SharedSecret = "ss64";
         
         public const string XTokenCookieName = "XT32";
 

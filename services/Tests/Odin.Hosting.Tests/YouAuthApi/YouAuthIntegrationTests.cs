@@ -15,6 +15,7 @@ using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Base;
+using Odin.Hosting.Controllers.Anonymous;
 using Odin.Hosting.Controllers.OwnerToken.Auth;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
 using Org.BouncyCastle.Utilities.Encoders;
@@ -90,24 +91,17 @@ namespace Odin.Hosting.Tests.YouAuthApi
             )
         {
             //
-            // `visitor` logs on to `host`s home
+            // `visitingHobbit` logs on to `visitedHobbit`s home
             //
             
             var apiClient = WebScaffold.CreateDefaultHttpClient();
             
-            HttpRequestMessage request;
-            HttpResponseMessage response;
-            HttpContent content;
-            Dictionary<string, string> cookies;
-            string json;
-            string uri;
-            string returnUrl;
-            string location;
-            
             // Prerequisite A:
-            // Make sure we can't access home resource without valid home cookie
-            response = await apiClient.GetAsync($"https://{visitedHobbit}/api/youauth/v1/auth/ping");
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+            // Make sure we cannot access  home resource without valid home cookie
+            {
+                var response = await apiClient.GetAsync($"https://{visitedHobbit}/api/youauth/v1/auth/ping");
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+            }
             
             //
             // Browser:
@@ -119,11 +113,14 @@ namespace Odin.Hosting.Tests.YouAuthApi
             // Step 1:
             // Check owner cookie (we don't send any).
             // Backend will return false and we move on to owner-authentication in step 2.
+            //
             // https://sam.dotyou.cloud/api/owner/v1/authentication/verifyToken
-            response = await apiClient.GetAsync($"https://{visitingHobbit}/api/owner/v1/authentication/verifyToken");
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            json = await response.Content.ReadAsStringAsync();
-            Assert.That(JsonSerializer.Deserialize<bool>(json, _serializerOptions), Is.False);
+            {
+                var response = await apiClient.GetAsync($"https://{visitingHobbit}/api/owner/v1/authentication/verifyToken");
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                var json = await response.Content.ReadAsStringAsync();
+                Assert.That(JsonSerializer.Deserialize<bool>(json, _serializerOptions), Is.False);
+            }
             
             //
             // Browser:
@@ -137,31 +134,39 @@ namespace Odin.Hosting.Tests.YouAuthApi
             
             // Step 2
             // Get nonce for authentication
+            //
             // https://sam.dotyou.cloud/api/owner/v1/authentication/nonce
-            response = await apiClient.GetAsync($"https://{visitingHobbit}/api/owner/v1/authentication/nonce");
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            json = await response.Content.ReadAsStringAsync();
-            var nonceData = JsonSerializer.Deserialize<NonceData>(json, _serializerOptions);
-            Assert.That(nonceData.Nonce64, Is.Not.Null.And.Not.Empty);
-            
+            NonceData nonceData;
+            {
+                var response = await apiClient.GetAsync($"https://{visitingHobbit}/api/owner/v1/authentication/nonce");
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                var json = await response.Content.ReadAsStringAsync();
+                nonceData = JsonSerializer.Deserialize<NonceData>(json, _serializerOptions);
+                Assert.That(nonceData.Nonce64, Is.Not.Null.And.Not.Empty);
+            }
+
             // Step 3:
             // Authenticate
+            //
             // https://sam.dotyou.cloud/api/owner/v1/authentication
-            var passwordReply = PasswordDataManager.CalculatePasswordReply(Password, nonceData);
-            json = JsonSerializer.Serialize(passwordReply);
-            content = new StringContent(json, Encoding.UTF8, "application/json");
-            response = await apiClient.PostAsync($"https://{visitingHobbit}/api/owner/v1/authentication", content);
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            
-            // Shared secret
-            json = await response.Content.ReadAsStringAsync(); 
-            var ownerAuthResult = JsonSerializer.Deserialize<OwnerAuthenticationResult>(json, _serializerOptions);
-            Assert.That(ownerAuthResult.SharedSecret, Is.Not.Null.And.Not.Empty);
-            
-            // Owner cookie
-            cookies = GetCookies(response);
-            var ownerCookie = cookies[OwnerCookieName];
-            Assert.That(ownerCookie, Is.Not.Null.And.Not.Empty);
+            string ownerCookie;
+            {
+                var passwordReply = PasswordDataManager.CalculatePasswordReply(Password, nonceData);
+                var json = JsonSerializer.Serialize(passwordReply);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var response = await apiClient.PostAsync($"https://{visitingHobbit}/api/owner/v1/authentication", content);
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+                // Shared secret from response
+                json = await response.Content.ReadAsStringAsync(); 
+                var ownerAuthResult = JsonSerializer.Deserialize<OwnerAuthenticationResult>(json, _serializerOptions);
+                Assert.That(ownerAuthResult.SharedSecret, Is.Not.Null.And.Not.Empty);
+                
+                // Owner cookie from response
+                var cookies = GetResponseCookies(response);
+                ownerCookie = cookies[OwnerCookieName];
+                Assert.That(ownerCookie, Is.Not.Null.And.Not.Empty);
+            }
 
             //
             // Browser:
@@ -172,16 +177,21 @@ namespace Odin.Hosting.Tests.YouAuthApi
             
             // Step 4:
             // Check owner cookie again (this time we have it, so send it)
+            //
             // https://sam.dotyou.cloud/api/owner/v1/authentication/verifyToken
-            request = new HttpRequestMessage(HttpMethod.Get, $"https://{visitingHobbit}/api/owner/v1/authentication/verifyToken")
             {
-                Headers = { { "Cookie", new Cookie(OwnerCookieName, ownerCookie).ToString() } }
-            };
-            response = await apiClient.SendAsync(request);
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            json = await response.Content.ReadAsStringAsync();
-            Assert.That(JsonSerializer.Deserialize<bool>(json, _serializerOptions), Is.True);
+                var request = new HttpRequestMessage(HttpMethod.Get, $"https://{visitingHobbit}/api/owner/v1/authentication/verifyToken")
+                {
+                    Headers = { { "Cookie", new Cookie(OwnerCookieName, ownerCookie).ToString() } }
+                };
+                var response = await apiClient.SendAsync(request);
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                var json = await response.Content.ReadAsStringAsync();
+                Assert.That(JsonSerializer.Deserialize<bool>(json, _serializerOptions), Is.True);
+            }
             
+            //
+            // YOUAUTH YOUAUTH YOUAUTH YOUAUTH
             //
             // Frodo now has a verified session on frodo/owner via the owner cookie.
             // Start the YOUAUTH flow!
@@ -189,43 +199,74 @@ namespace Odin.Hosting.Tests.YouAuthApi
             
             // Step 5:
             // Create token flow authorization code
+            //
             // https://sam.dotyou.cloud/api/owner/v1/youauth/create-token-flow?returnUrl=https://frodo.dotyou.cloud/?identity=sam.dotyou.cloud
-            returnUrl = WebUtility.UrlEncode($"https://{visitedHobbit}/?identity=frodo.dotyou.cloud");
-            uri = $"https://{visitingHobbit}/api/owner/v1/youauth/create-token-flow?returnUrl={returnUrl}";
-            request = new HttpRequestMessage(HttpMethod.Get, uri)
+            string validateAuthorizationCodeUri;            
             {
-                Headers = { { "Cookie", new Cookie(OwnerCookieName, ownerCookie).ToString() } }
-            };
-            response = await apiClient.SendAsync(request);
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
-            location = GetHeaderValue(response, "Location");
-            Assert.That(location, Is.Not.Null.And.Not.Empty);
-            Assert.That(location, Does.StartWith("https://api."));
+                var returnUrl = WebUtility.UrlEncode($"https://{visitedHobbit}/?identity=frodo.dotyou.cloud");
+                var uri = $"https://{visitingHobbit}/api/owner/v1/youauth/create-token-flow?returnUrl={returnUrl}";
+                var request = new HttpRequestMessage(HttpMethod.Get, uri)
+                {
+                    Headers = { { "Cookie", new Cookie(OwnerCookieName, ownerCookie).ToString() } }
+                };
+                var response = await apiClient.SendAsync(request);
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
+                validateAuthorizationCodeUri = GetHeaderValue(response, "Location");
+                Assert.That(validateAuthorizationCodeUri, Does.StartWith($"https://api.{visitedHobbit}{YouAuthApiPathConstants.ValidateAuthorizationCodeRequestPath}"));
+            }
             
             // Step 6:
             // Begin token flow using authorization code.
-            // This step will trigger the host-to-host back channel call to validate the code from step 5.
+            // This step will trigger the backend `visitedHobbit` to `visitingHobbit` back channel call to validate the code from step 5.
+            //
             // If validation succeeds the home cookie and shared secret are created.
-            // Finally the client is redirected (302) to a pseudo finalize-endpoint, this is so the client
-            // can cherrypick the shared secret from the url.
+            // Client is the redirected to an api "bridge" endpoint with the shared secret.
+            // The brige endpoint will in turn redirect the client to the pseudo finalize-endpoint, 
+            //   from which the client can can cherrypick the shared secret from the url.
+            //
+            // The bridge information is put in place so that the shared secret will end up at the apex domain,
+            //   rather than the api domain, so it will be stored in local storage where it is actually needed.
+            //
             // https://frodo.dotyou.cloud/api/youauth/v1/auth/validate-ac-req?ac=<auth-code>&subject=sam.dotyou.cloud&returnUrl=https://frodo.dotyou.cloud/?identity=sam.dotyou.cloud
-            response = await apiClient.GetAsync(location);
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
-            location = GetHeaderValue(response, "Location");
-            Assert.That(location, Does.StartWith("/home/youauth/finalize"));
-            cookies = GetCookies(response);
-            var homeCookie = cookies[HomeCookieName];
-            Assert.That(homeCookie, Is.Not.Null.And.Not.Empty);
-            
-            // Step 7:
-            // Finlalize pseudo endpoint (see above explation)
+            string finalizeBridgeUri;
+            string homeCookie;
+            string ss64;
+            string finalizeReturnUrl;
+            {
+                var response = await apiClient.GetAsync(validateAuthorizationCodeUri);
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
+                finalizeBridgeUri = GetHeaderValue(response, "Location");
+                Assert.That(finalizeBridgeUri, Does.StartWith($"https://api.{visitedHobbit}{YouAuthApiPathConstants.FinalizeBridgeRequestRequestPath}"));
+                var cookies = GetResponseCookies(response);
+                homeCookie = cookies[HomeCookieName];
+                Assert.That(homeCookie, Is.Not.Null.And.Not.Empty);
+
+                var uri = new Uri(finalizeBridgeUri);
+                var queryParameters = HttpUtility.ParseQueryString(uri.Query);
+                ss64 = queryParameters["ss64"];
+                Assert.That(ss64, Is.Not.Null.And.Not.Empty);
+                finalizeReturnUrl = queryParameters["returnUrl"];
+                Assert.That(finalizeReturnUrl, Is.Not.Null.And.Not.Empty);
+            }
+
+            // Step 8:
+            // Finalize pseudo endpoint (see above explation)
             // https://frodo.dotyou.cloud/home/youauth/finalize?ss64=<shared-secret>&returnUrl=https://frodo.dotyou.cloud/?identity=sam.dotyou.cloud
-            var finalize = new Uri($"https://{visitedHobbit}" + location);
-            var queryParameters = HttpUtility.ParseQueryString(finalize.Query);
-            var ss64 = queryParameters["ss64"];
-            Assert.That(ss64, Is.Not.Null.And.Not.Empty);
-            returnUrl = queryParameters["returnUrl"];
-            Assert.That(returnUrl, Is.Not.Null.And.Not.Empty);
+            {
+                var response = await apiClient.GetAsync(finalizeBridgeUri);
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
+                var finalizeUri = GetHeaderValue(response, "Location");
+                Assert.That(finalizeUri, Does.StartWith($"https://{visitedHobbit}/home/youauth/finalize"));
+                var cookies = GetResponseCookies(response);
+                Assert.That(cookies.ContainsKey(HomeCookieName), Is.False);
+
+                var uri = new Uri(finalizeBridgeUri);
+                var queryParameters = HttpUtility.ParseQueryString(uri.Query);
+                var ss64Copy = queryParameters["ss64"];
+                Assert.That(ss64Copy, Is.EqualTo(ss64));
+                var finalizeReturnUrlCopy = queryParameters["returnUrl"];
+                Assert.That(finalizeReturnUrlCopy, Is.EqualTo(finalizeReturnUrl));
+            }
             
             //
             // YouAuth flow done
@@ -233,15 +274,17 @@ namespace Odin.Hosting.Tests.YouAuthApi
             
             // Postrequisite A
             // Access resource using home cookie and shared secret
-            uri = UriWithEncryptedQueryString($"https://{visitedHobbit}/api/youauth/v1/auth/ping?text=helloworld", ss64);
-            request = new HttpRequestMessage(HttpMethod.Get, uri)
             {
-                Headers = { { "Cookie", new Cookie(HomeCookieName, homeCookie).ToString() } }
-            };
-            response = await apiClient.SendAsync(request);
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            var text = await DecryptContent<string>(response, ss64);
-            Assert.That(text, Is.EqualTo($"ping from {visitedHobbit}: helloworld"));
+                var uri = UriWithEncryptedQueryString($"https://{visitedHobbit}/api/youauth/v1/auth/ping?text=helloworld", ss64);
+                var request = new HttpRequestMessage(HttpMethod.Get, uri)
+                {
+                    Headers = { { "Cookie", new Cookie(HomeCookieName, homeCookie).ToString() } }
+                };
+                var response = await apiClient.SendAsync(request);
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                var text = await DecryptContent<string>(response, ss64);
+                Assert.That(text, Is.EqualTo($"ping from {visitedHobbit}: helloworld"));
+            }
         }
         
         //
@@ -257,7 +300,7 @@ namespace Odin.Hosting.Tests.YouAuthApi
         
         //
 
-        private Dictionary<string, string> GetCookies(HttpResponseMessage response)
+        private Dictionary<string, string> GetResponseCookies(HttpResponseMessage response)
         {
             var result = new Dictionary<string, string>();
             
