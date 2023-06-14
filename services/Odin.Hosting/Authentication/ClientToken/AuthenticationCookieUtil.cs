@@ -8,6 +8,11 @@ internal static class AuthenticationCookieUtil
 {
     public static void SetCookie(HttpResponse response, string cookieName, ClientAuthenticationToken authToken)
     {
+        SetCookie(response,cookieName, authToken, null);
+    }
+
+    public static void SetCookie(HttpResponse response, string cookieName, ClientAuthenticationToken authToken, string domain)
+    {
         var options = new CookieOptions()
         {
             HttpOnly = true,
@@ -15,9 +20,10 @@ internal static class AuthenticationCookieUtil
             Secure = true,
             //Path = "/owner", //TODO: cannot use this until we adjust api paths
             SameSite = SameSiteMode.Strict,
-            Expires = DateTime.UtcNow.AddMonths(6)
+            Expires = DateTime.UtcNow.AddMonths(6),
+            Domain = string.IsNullOrEmpty(domain) ? null : $".${domain}"
         };
-            
+
         response.Cookies.Append(cookieName, authToken.ToString(), options);
     }
 }

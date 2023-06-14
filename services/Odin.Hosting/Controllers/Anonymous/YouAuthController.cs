@@ -53,29 +53,15 @@ namespace Odin.Hosting.Controllers.Anonymous
             }
 
             var clientAccessToken = await _youAuthService.RegisterBrowserAccess(subject, remoteIcrClientAuthToken);
-            AuthenticationCookieUtil.SetCookie(Response, YouAuthDefaults.XTokenCookieName, clientAccessToken.ToAuthenticationToken());
+            AuthenticationCookieUtil.SetCookie(Response, YouAuthDefaults.XTokenCookieName, clientAccessToken.ToAuthenticationToken(), _currentTenant);
 
             //TODO: RSA Encrypt shared secret
             var shareSecret64 = Convert.ToBase64String(clientAccessToken?.SharedSecret.GetKey() ?? Array.Empty<byte>());
             clientAccessToken?.Wipe();
 
-            // SEB:NOTE before brigde-hack:
-            //var handlerUrl = $"/home/youauth/finalize?ss64={HttpUtility.UrlEncode(shareSecret64)}&returnUrl={HttpUtility.UrlEncode(returnUrl)}";
+            // Redirect back to the client with the sharedSecret and the cookies set
+            var handlerUrl = $"https://{_currentTenant}/home/youauth/finalize?ss64={HttpUtility.UrlEncode(shareSecret64)}&returnUrl={HttpUtility.UrlEncode(returnUrl)}";
 
-            var handlerUrl = $"https://{Request.Host}{YouAuthApiPathConstants.FinalizeBridgeRequestRequestPath}?ss64={HttpUtility.UrlEncode(shareSecret64)}&returnUrl={HttpUtility.UrlEncode(returnUrl)}";
-            return Redirect(handlerUrl);
-        }
-
-        //
-
-        [HttpGet(YouAuthApiPathConstants.FinalizeBridgeRequestMethodName)]
-        public ActionResult FinalizeBridgeReques(
-            [FromQuery(Name = YouAuthDefaults.SharedSecret)]
-            string ss64,
-            [FromQuery(Name = YouAuthDefaults.ReturnUrl)]
-            string returnUrl)
-        {
-            var handlerUrl = $"https://{_currentTenant}/home/youauth/finalize?ss64={HttpUtility.UrlEncode(ss64)}&returnUrl={returnUrl}";
             return Redirect(handlerUrl);
         }
 
