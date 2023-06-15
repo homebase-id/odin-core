@@ -4,7 +4,9 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Odin.Core.Exceptions.Client;
 using Odin.Core.Services.Authentication.YouAuth;
+using Odin.Core.Services.Registry.Registration;
 using Odin.Core.Services.Tenant;
 using Odin.Core.Util;
 using Odin.Hosting.Controllers.Anonymous;
@@ -37,7 +39,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
         {
             if (!Uri.TryCreate(returnUrl, UriKind.Absolute, out Uri? uri))
             {
-                return BadRequest($"Missing or bad returnUrl '{returnUrl}'");
+                throw new BadRequestException(message: $"Missing or bad returnUrl '{returnUrl}'");
             }
 
             var initiator = uri.Host;
@@ -52,11 +54,11 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 {YouAuthDefaults.ReturnUrl, returnUrl},
             });
 
-            var redirectUrl = $"https://{initiator}".UrlAppend(
+            var redirectUrl = $"https://{DnsConfigurationSet.PrefixApi}.{initiator}".UrlAppend(
                 YouAuthApiPathConstants.ValidateAuthorizationCodeRequestPath,
                 queryString.ToUriComponent());
-
-            return new JsonResult(new { redirectUrl });
+            
+            return Redirect(redirectUrl);
         }
         
     }
