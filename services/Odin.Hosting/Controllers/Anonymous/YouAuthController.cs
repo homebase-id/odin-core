@@ -56,13 +56,13 @@ namespace Odin.Hosting.Controllers.Anonymous
             AuthenticationCookieUtil.SetCookie(Response, YouAuthDefaults.XTokenCookieName, clientAccessToken.ToAuthenticationToken());
 
             //TODO: RSA Encrypt shared secret
-            var shareSecret64 = Convert.ToBase64String(clientAccessToken?.SharedSecret.GetKey() ?? Array.Empty<byte>());
+            var sharedSecret64 = Convert.ToBase64String(clientAccessToken?.SharedSecret.GetKey() ?? Array.Empty<byte>());
             clientAccessToken?.Wipe();
             
             // SEB:NOTE before brigde-hack:
-            //var handlerUrl = $"/home/youauth/finalize?ss64={HttpUtility.UrlEncode(shareSecret64)}&returnUrl={HttpUtility.UrlEncode(returnUrl)}";
+            //var handlerUrl = $"/home/youauth/finalize?ss64={HttpUtility.UrlEncode(sharedSecret64)}&returnUrl={HttpUtility.UrlEncode(returnUrl)}";
 
-            var handlerUrl = $"https://{Request.Host}{YouAuthApiPathConstants.FinalizeBridgeRequestRequestPath}?ss64={HttpUtility.UrlEncode(shareSecret64)}&returnUrl={HttpUtility.UrlEncode(returnUrl)}";
+            var handlerUrl = $"https://{Request.Host}{YouAuthApiPathConstants.FinalizeBridgeRequestRequestPath}?ss64={HttpUtility.UrlEncode(sharedSecret64)}&returnUrl={HttpUtility.UrlEncode(returnUrl)}";
             return Redirect(handlerUrl);
         }
         
@@ -75,7 +75,7 @@ namespace Odin.Hosting.Controllers.Anonymous
             [FromQuery(Name = YouAuthDefaults.ReturnUrl)]
             string returnUrl)
         {
-            var handlerUrl = $"https://{_currentTenant}/home/youauth/finalize?ss64={ss64}&returnUrl={returnUrl}";
+            var handlerUrl = $"https://{_currentTenant}/home/youauth/finalize?ss64={HttpUtility.UrlEncode(ss64)}&returnUrl={HttpUtility.UrlEncode(returnUrl)}";
             return Redirect(handlerUrl);
         }
 
