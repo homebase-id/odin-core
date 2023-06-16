@@ -24,6 +24,7 @@ namespace Odin.Core.Services.Transit.Encryption
             {
                 var bytes = AesCbc.Decrypt(this.EncryptedAesKey, ref key, this.Iv);
                 var kh = KeyHeader.FromCombinedBytes(bytes, 16, 16);
+                bytes.ToSensitiveByteArray().Wipe();
                 return kh;
             }
 

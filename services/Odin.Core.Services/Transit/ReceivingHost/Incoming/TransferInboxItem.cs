@@ -1,6 +1,7 @@
 ﻿using System;
 using Odin.Core.Identity;
 using Odin.Core.Services.EncryptionKeyService;
+using Odin.Core.Services.Transit.Encryption;
 using Odin.Core.Services.Transit.SendingHost;
 using Odin.Core.Storage;
 using Odin.Core.Time;
@@ -48,6 +49,6 @@ namespace Odin.Core.Services.Transit.ReceivingHost.Incoming
 
         public TransferFileType TransferFileType { get; set; }
         
-        public RsaEncryptedPayload RsaEncryptedKeyHeaderPayload { get; set; }
+        public EncryptedKeyHeader SharedSecretEncryptedKeyHeader { get; set; }
     }
 }

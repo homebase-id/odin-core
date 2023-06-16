@@ -145,7 +145,6 @@ namespace Odin.Hosting.Controllers.Certificate
         {
             var fileSystem = base.GetFileSystemResolver().ResolveFileSystem();
             return new TransitPerimeterService(_contextAccessor,
-                _publicKeyService,
                 _driveManager,
                 fileSystem,
                 _tenantSystemStorage,

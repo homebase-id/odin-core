@@ -84,7 +84,7 @@ namespace Odin.Hosting.Controllers.Certificate
 
                 //End Optimizations
 
-                _perimeterService = new TransitPerimeterService(_contextAccessor, _publicKeyService,
+                _perimeterService = new TransitPerimeterService(_contextAccessor,
                     _driveManager, _fileSystem, _tenantSystemStorage, _mediator, _fileSystemResolver);
 
                 _stateItemId = await _perimeterService.InitializeIncomingTransfer(transferInstructionSet);
