@@ -85,7 +85,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
                 throw new OdinClientException("Invalid or expired public key", OdinClientErrorCode.InvalidOrExpiredRsaKey);
             }
 
-            // To use an only key, we need to store most of the payload encrypted but need to know who it's from
+            // To use an online key, we need to store most of the payload encrypted but need to know who it's from
             ConnectionRequest request = OdinSystemSerializer.Deserialize<ConnectionRequest>(payloadBytes.ToStringFromUtf8Bytes());
             request.ReceivedTimestampMilliseconds = header.ReceivedTimestampMilliseconds;
             request.SenderOdinId = header.SenderOdinId;
@@ -345,7 +345,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
         /// Establishes a connection between two individuals.  This should be called
         /// from a recipient who has accepted a sender's connection request
         /// </summary>
-        public async Task EstablishConnection(SharedSecretEncryptedPayload encryptedPayload, string authenticationToken64)
+        public async Task EstablishConnection(SharedSecretEncryptedPayload payload, string authenticationToken64)
         {
             // Note:
             // this method runs under the Transit Context because it's called by another identity
@@ -363,7 +363,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
             }
 
             var (_, sharedSecret) = originalRequest.PendingAccessExchangeGrant.AccessRegistration.DecryptUsingClientAuthenticationToken(authToken);
-            var payloadBytes = encryptedPayload.Decrypt(sharedSecret);
+            var payloadBytes = payload.Decrypt(sharedSecret);
 
             ConnectionRequestReply reply = OdinSystemSerializer.Deserialize<ConnectionRequestReply>(payloadBytes.ToStringFromUtf8Bytes());
             
