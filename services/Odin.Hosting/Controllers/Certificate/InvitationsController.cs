@@ -23,12 +23,12 @@ namespace Odin.Hosting.Controllers.Certificate
     public class InvitationsController : ControllerBase
     {
         private readonly CircleNetworkRequestService _circleNetworkRequestService;
-        private readonly RsaKeyService _rsaPublicKeyService;
+        private readonly RsaKeyService _rsaKeyService;
 
-        public InvitationsController(CircleNetworkRequestService circleNetworkRequestService, RsaKeyService rsaPublicKeyService)
+        public InvitationsController(CircleNetworkRequestService circleNetworkRequestService, RsaKeyService rsaKeyService)
         {
             _circleNetworkRequestService = circleNetworkRequestService;
-            _rsaPublicKeyService = rsaPublicKeyService;
+            _rsaKeyService = rsaKeyService;
         }
 
         [HttpPost("connect")]
@@ -52,7 +52,7 @@ namespace Odin.Hosting.Controllers.Certificate
         [HttpPost("establishconnection")]
         public async Task<IActionResult> EstablishConnection([FromBody] RsaEncryptedPayload payload)
         {
-            var (isValidPublicKey, payloadBytes) = await _rsaPublicKeyService.DecryptPayload(RsaKeyType.OfflineKey, payload);
+            var (isValidPublicKey, payloadBytes) = await _rsaKeyService.DecryptPayload(RsaKeyType.OfflineKey, payload);
 
             if (isValidPublicKey == false)
             {

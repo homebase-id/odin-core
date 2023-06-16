@@ -135,7 +135,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
 
             if (header.Recipient == _contextAccessor.GetCurrent().Caller.OdinId)
             {
-                throw new OdinClientException("I get it, connecting with yourself is critical..yet send a connection request to yourself",
+                throw new OdinClientException("I get it, connecting with yourself is critical..yet you sent a connection request to yourself but you are already you",
                     OdinClientErrorCode.ConnectionRequestToYourself);
             }
 
@@ -304,7 +304,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
             {
                 var json = OdinSystemSerializer.Serialize(acceptedReq);
                 var payloadBytes =
-                    await _rsaKeyService.EncryptPayloadForRecipient(RsaKeyType.OnlineKey, (OdinId)pendingRequest.SenderOdinId, json.ToUtf8ByteArray());
+                    await _rsaKeyService.EncryptPayloadForRecipient(RsaKeyType.OfflineKey, (OdinId)pendingRequest.SenderOdinId, json.ToUtf8ByteArray());
                 var response = await _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((OdinId)pendingRequest.SenderOdinId)
                     .EstablishConnection(payloadBytes);
                 return response.Content is { Success: true } && response.IsSuccessStatusCode;
@@ -394,6 +394,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
 
         private void UpsertSentConnectionRequest(ConnectionRequest request)
         {
+            request.SenderOdinId = _tenantContext.HostOdinId;
             _sentRequestValueStorage.Upsert(new OdinId(request.Recipient).ToHashId(), GuidId.Empty, _sentRequestsDataType, request);
         }
 
