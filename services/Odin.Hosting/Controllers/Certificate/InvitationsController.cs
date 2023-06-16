@@ -22,10 +22,10 @@ namespace Odin.Hosting.Controllers.Certificate
     [Authorize(Policy = CertificatePerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PerimeterAuthConstants.PublicTransitAuthScheme)]
     public class InvitationsController : ControllerBase
     {
-        private readonly ICircleNetworkRequestService _circleNetworkRequestService;
+        private readonly CircleNetworkRequestService _circleNetworkRequestService;
         private readonly RsaKeyService _rsaPublicKeyService;
 
-        public InvitationsController(ICircleNetworkRequestService circleNetworkRequestService, RsaKeyService rsaPublicKeyService)
+        public InvitationsController(CircleNetworkRequestService circleNetworkRequestService, RsaKeyService rsaPublicKeyService)
         {
             _circleNetworkRequestService = circleNetworkRequestService;
             _rsaPublicKeyService = rsaPublicKeyService;
@@ -34,15 +34,17 @@ namespace Odin.Hosting.Controllers.Certificate
         [HttpPost("connect")]
         public async Task<IActionResult> ReceiveConnectionRequest([FromBody] RsaEncryptedPayload payload)
         {
-            var (isValidPublicKey, payloadBytes) = await _rsaPublicKeyService.DecryptPayload(RsaKeyType.OnlineKey, payload);
-            if (isValidPublicKey == false)
-            {
-                //TODO: extend with error code indicated a bad public key 
-                return new JsonResult(new NoResultResponse(false));
-            }
-
-            ConnectionRequest request = OdinSystemSerializer.Deserialize<ConnectionRequest>(payloadBytes.ToStringFromUtf8Bytes());
-            await _circleNetworkRequestService.ReceiveConnectionRequest(request);
+            // var (isValidPublicKey, payloadBytes) = await _rsaPublicKeyService.DecryptPayload(RsaKeyType.OfflineKey, payload);
+            // if (isValidPublicKey == false)
+            // {
+            //     //TODO: extend with error code indicated a bad public key 
+            //     return new JsonResult(new NoResultResponse(false));
+            // }
+            //
+            // // To use an only key, we need to store most of the payload encrypted but need to know who it's from
+            // ConnectionRequest request = OdinSystemSerializer.Deserialize<ConnectionRequest>(payloadBytes.ToStringFromUtf8Bytes());
+            
+            await _circleNetworkRequestService.ReceiveConnectionRequest(payload);
             return new JsonResult(new NoResultResponse(true));
         }
 
@@ -50,7 +52,7 @@ namespace Odin.Hosting.Controllers.Certificate
         [HttpPost("establishconnection")]
         public async Task<IActionResult> EstablishConnection([FromBody] RsaEncryptedPayload payload)
         {
-            var (isValidPublicKey, payloadBytes) = await _rsaPublicKeyService.DecryptPayload(RsaKeyType.OnlineKey, payload);
+            var (isValidPublicKey, payloadBytes) = await _rsaPublicKeyService.DecryptPayload(RsaKeyType.OfflineKey, payload);
 
             if (isValidPublicKey == false)
             {

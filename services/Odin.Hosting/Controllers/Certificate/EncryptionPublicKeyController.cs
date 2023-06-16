@@ -18,43 +18,30 @@ namespace Odin.Hosting.Controllers.Certificate
     [Authorize(Policy = CertificatePerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PerimeterAuthConstants.PublicTransitAuthScheme)]
     public class EncryptionPublicKeyController : ControllerBase
     {
-        private readonly RsaKeyService _publicKeyService;
+        private readonly RsaKeyService _rsaKeyService;
         // private Guid _stateItemId;
 
-        public EncryptionPublicKeyController(RsaKeyService publicKeyService)
+        public EncryptionPublicKeyController(RsaKeyService rsaKeyService)
         {
-            _publicKeyService = publicKeyService;
+            _rsaKeyService = rsaKeyService;
         }
-        
+
         [HttpGet("publickey")]
         public async Task<GetPublicKeyResponse> GetRsaKey(RsaKeyType keyType)
         {
-            RsaPublicKeyData key;
-            switch (keyType)
-            {
-                case RsaKeyType.OfflineKey:
-                    key = await _publicKeyService.GetOfflinePublicKey();
-                    break;
-                case RsaKeyType.OnlineKey:
-                    key = await _publicKeyService.GetOnlinePublicKey();
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(keyType), keyType, null);
-            }
-
+            var key = await _rsaKeyService.GetPublicRsaKey(keyType);
             return new GetPublicKeyResponse()
             {
                 PublicKey = key.publicKey,
                 Crc32 = key.crc32c,
                 Expiration = key.expiration.milliseconds
             };
-            
         }
 
         [HttpGet("offlinekey")]
         public async Task<GetOfflinePublicKeyResponse> GetOfflinePublicKey()
         {
-            var key = await _publicKeyService.GetOfflinePublicKey();
+            var key = await _rsaKeyService.GetOfflinePublicKey();
 
             return new GetOfflinePublicKeyResponse()
             {
@@ -62,7 +49,6 @@ namespace Odin.Hosting.Controllers.Certificate
                 Crc32 = key.crc32c,
                 Expiration = key.expiration.milliseconds
             };
-            
         }
     }
 }

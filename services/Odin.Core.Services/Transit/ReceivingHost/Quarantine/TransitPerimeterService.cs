@@ -5,7 +5,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using MediatR;
-using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Apps;
@@ -412,7 +411,7 @@ namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine
             //S1210 - Convert to Rsa encrypted header so this could be handled by the TransitInboxProcessor
             var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader);
             var combinedKey = decryptedKeyHeader.Combine();
-            var rsaEncryptedPayload = await _publicKeyService.EncryptPayload(RsaKeyType.OnlineKey, combinedKey.GetKey());
+            var rsaEncryptedPayload = await _publicKeyService.EncryptPayload(RsaKeyType.OfflineKey, combinedKey.GetKey());
             combinedKey.Wipe();
             
             var item = new TransferInboxItem()

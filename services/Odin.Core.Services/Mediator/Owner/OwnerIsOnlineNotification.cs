@@ -1,4 +1,7 @@
+using System.Collections.Generic;
 using MediatR;
+using Odin.Core.Cryptography.Data;
+using Odin.Core.Services.EncryptionKeyService;
 
 namespace Odin.Core.Services.Mediator.Owner;
 
@@ -8,4 +11,18 @@ namespace Odin.Core.Services.Mediator.Owner;
 /// </summary>
 public class OwnerIsOnlineNotification : INotification
 {
+}
+
+public class RsaKeyRotatedNotification : INotification
+{
+    public RsaKeyType KeyType { get; }
+    public IList<RsaFullKeyData> ExpiredKeys { get; }
+    public RsaFullKeyListData NewKeySet { get; }
+
+    public RsaKeyRotatedNotification(RsaKeyType keyType, IList<RsaFullKeyData> expiredKeys, RsaFullKeyListData newKeySet)
+    {
+        this.KeyType = keyType;
+        ExpiredKeys = expiredKeys ?? new List<RsaFullKeyData>();
+        NewKeySet = newKeySet;
+    }
 }

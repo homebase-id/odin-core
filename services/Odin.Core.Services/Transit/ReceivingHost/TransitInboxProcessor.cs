@@ -1,31 +1,34 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
+using MediatR;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.EncryptionKeyService;
+using Odin.Core.Services.Mediator.Owner;
 using Odin.Core.Services.Transit.Encryption;
 using Odin.Core.Services.Transit.ReceivingHost.Incoming;
 using Odin.Core.Services.Transit.SendingHost;
 
 namespace Odin.Core.Services.Transit.ReceivingHost
 {
-    public class TransitInboxProcessor
+    public class TransitInboxProcessor : INotificationHandler<RsaKeyRotatedNotification>
     {
         private readonly OdinContextAccessor _contextAccessor;
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
         private readonly FileSystemResolver _fileSystemResolver;
-        private readonly RsaKeyService _publicKeyService;
+        private readonly RsaKeyService _rsaKeyService;
         private readonly TenantSystemStorage _tenantSystemStorage;
 
         public TransitInboxProcessor(OdinContextAccessor contextAccessor,
             TransitInboxBoxStorage transitInboxBoxStorage,
-            FileSystemResolver fileSystemResolver, RsaKeyService publicKeyService, TenantSystemStorage tenantSystemStorage)
+            FileSystemResolver fileSystemResolver, RsaKeyService rsaKeyService, TenantSystemStorage tenantSystemStorage)
         {
             _contextAccessor = contextAccessor;
             _transitInboxBoxStorage = transitInboxBoxStorage;
             _fileSystemResolver = fileSystemResolver;
-            _publicKeyService = publicKeyService;
+            _rsaKeyService = rsaKeyService;
             _tenantSystemStorage = tenantSystemStorage;
         }
 
@@ -56,11 +59,8 @@ namespace Odin.Core.Services.Transit.ReceivingHost
 
                         if (inboxItem.InstructionType == TransferInstructionType.SaveFile)
                         {
-                            // var (isValidPublicKey, decryptedAesKeyHeaderBytes) =
-                            //     await _publicKeyService.DecryptPayload(RsaKeyType.OnlineKey, inboxItem.RsaEncryptedKeyHeader, inboxItem.PublicKeyCrc);
-
                             var (isValidPublicKey, decryptedAesKeyHeaderBytes) =
-                                await _publicKeyService.DecryptPayload(RsaKeyType.OnlineKey, inboxItem.RsaEncryptedKeyHeaderPayload);
+                                await _rsaKeyService.DecryptPayload(RsaKeyType.OfflineKey, inboxItem.RsaEncryptedKeyHeaderPayload);
 
                             if (!isValidPublicKey)
                             {
@@ -106,6 +106,29 @@ namespace Odin.Core.Services.Transit.ReceivingHost
         public Task<PagedResult<TransferInboxItem>> GetQuarantinedItems(PageOptions pageOptions)
         {
             throw new NotImplementedException();
+        }
+
+        public Task Handle(RsaKeyRotatedNotification notification, CancellationToken cancellationToken)
+        {
+            // if (notification.KeyType == RsaKeyType.OnlineKey)
+            // {
+            //     var decryptionKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+            //
+            //     foreach (var expiredKey in notification.ExpiredKeys)
+            //     {
+            //         //Get all items with expired keys
+            //         var itemsWithExpiredKeys = _transitInboxBoxStorage.GetItemsByPublicKey(expiredKey.crc32c).GetAwaiter().GetResult();
+            //
+            //         foreach (var item in itemsWithExpiredKeys)
+            //         {
+            //             var newPayload = _rsaKeyService.UpgradeRsaKey(RsaKeyType.OnlineKey, expiredKey,
+            //                 decryptionKey, item.RsaEncryptedKeyHeaderPayload).GetAwaiter().GetResult();
+            //             _transitInboxBoxStorage.UpdateRsaPayload(item.FileId, newPayload);
+            //         }
+            //     }
+            // }
+
+            return Task.CompletedTask;
         }
     }
 }

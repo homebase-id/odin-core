@@ -6,14 +6,14 @@ namespace Odin.Core.Services.EncryptionKeyService
     public class RsaEncryptedPayload
     {
         /// <summary>
-        /// The Rsa Encrypted key header whose value is a <see cref="RsaEncryptedKeyHeader"/> used to encrypt the <see cref="Data"/>
+        /// The Rsa Encrypted key header whose value is a <see cref="RsaEncryptedKeyHeader"/> used to encrypt the <see cref="KeyHeaderEncryptedData"/>
         /// </summary>
         public byte[] RsaEncryptedKeyHeader { get; set; }
 
         /// <summary>
         /// The encrypted payload
         /// </summary>
-        public byte[] Data { get; set; }
+        public byte[] KeyHeaderEncryptedData { get; set; }
 
         /// <summary>
         /// The CRC of the public key used to encrypt this paylaod

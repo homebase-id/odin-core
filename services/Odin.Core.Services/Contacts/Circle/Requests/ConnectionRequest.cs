@@ -8,9 +8,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
     public class ConnectionRequest : ConnectionRequestHeader
     {
         [JsonConstructor]
-        public ConnectionRequest()
-        {
-        }
+        public ConnectionRequest() { }
 
         /// <summary>
         /// Individual who sent the invite

@@ -139,14 +139,17 @@ namespace Odin.Hosting
                 .As<INotificationHandler<AppRegistrationChangedNotification>>()
                 .SingleInstance();
 
-            cb.RegisterType<CircleNetworkRequestService>().As<ICircleNetworkRequestService>().SingleInstance();
+            cb.RegisterType<CircleNetworkRequestService>().AsSelf().SingleInstance();
 
             cb.RegisterType<FollowerService>().SingleInstance();
             cb.RegisterType<FollowerPerimeterService>().SingleInstance();
 
             cb.RegisterType<TransitOutbox>().As<ITransitOutbox>().SingleInstance();
 
-            cb.RegisterType<TransitInboxProcessor>().SingleInstance();
+            cb.RegisterType<TransitInboxProcessor>().AsSelf()
+                .As<INotificationHandler<RsaKeyRotatedNotification>>()
+                .SingleInstance();
+            
             cb.RegisterType<TransitAuthenticationService>()
                 .As<INotificationHandler<IdentityConnectionRegistrationChangedNotification>>()
                 .AsSelf()

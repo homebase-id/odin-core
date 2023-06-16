@@ -48,7 +48,6 @@ namespace Odin.Core.Services.Transit.ReceivingHost.Incoming
 
         public TransferFileType TransferFileType { get; set; }
         
-        // public byte[] RsaEncryptedKeyHeader { get; set; }
         public RsaEncryptedPayload RsaEncryptedKeyHeaderPayload { get; set; }
     }
 }

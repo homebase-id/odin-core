@@ -75,7 +75,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
             if ((await TryFollow()).IsSuccessStatusCode == false)
             {
                 //public key might be invalid, destroy the cache item
-                await _rsaPublicKeyService.InvalidatePublicKey((OdinId)request.OdinId);
+                await _rsaPublicKeyService.InvalidateRecipientPublicKey((OdinId)request.OdinId);
 
                 //round 2, fail all together
                 if ((await TryFollow()).IsSuccessStatusCode == false)
