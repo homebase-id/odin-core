@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Core.Fluff;
 using Odin.Core.Serialization;
+using Odin.Core.Services.Base;
 using Odin.Core.Services.Contacts.Circle.Requests;
 using Odin.Core.Services.EncryptionKeyService;
 using Odin.Hosting.Authentication.Perimeter;
@@ -34,35 +35,15 @@ namespace Odin.Hosting.Controllers.Certificate
         [HttpPost("connect")]
         public async Task<IActionResult> ReceiveConnectionRequest([FromBody] RsaEncryptedPayload payload)
         {
-            // var (isValidPublicKey, payloadBytes) = await _rsaPublicKeyService.DecryptPayload(RsaKeyType.OfflineKey, payload);
-            // if (isValidPublicKey == false)
-            // {
-            //     //TODO: extend with error code indicated a bad public key 
-            //     return new JsonResult(new NoResultResponse(false));
-            // }
-            //
-            // // To use an only key, we need to store most of the payload encrypted but need to know who it's from
-            // ConnectionRequest request = OdinSystemSerializer.Deserialize<ConnectionRequest>(payloadBytes.ToStringFromUtf8Bytes());
-            
             await _circleNetworkRequestService.ReceiveConnectionRequest(payload);
             return new JsonResult(new NoResultResponse(true));
         }
 
 
         [HttpPost("establishconnection")]
-        public async Task<IActionResult> EstablishConnection([FromBody] RsaEncryptedPayload payload)
+        public async Task<IActionResult> EstablishConnection([FromBody] SharedSecretEncryptedPayload payload, string authenticationToken64)
         {
-            var (isValidPublicKey, payloadBytes) = await _rsaKeyService.DecryptPayload(RsaKeyType.OfflineKey, payload);
-
-            if (isValidPublicKey == false)
-            {
-                //TODO: extend with error code indicated a bad public key 
-                return new JsonResult(new NoResultResponse(false));
-            }
-
-            ConnectionRequestReply reply = OdinSystemSerializer.Deserialize<ConnectionRequestReply>(payloadBytes.ToStringFromUtf8Bytes());
-
-            await _circleNetworkRequestService.EstablishConnection(reply);
+            await _circleNetworkRequestService.EstablishConnection(payload, authenticationToken64);
             return new JsonResult(new NoResultResponse(true));
         }
     }

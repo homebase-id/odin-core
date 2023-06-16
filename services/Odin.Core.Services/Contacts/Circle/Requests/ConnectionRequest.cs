@@ -17,7 +17,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
 
         public Int64 ReceivedTimestampMilliseconds { get; set; }
 
-        public string RSAEncryptedExchangeCredentials { get; set; }
+        public string ClientAccessToken64 { get; set; }
 
         /// <summary>
         /// The exchange grant which will be given to the recipient if the connection request is accepted

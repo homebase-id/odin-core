@@ -33,7 +33,8 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
         /// <summary>
         /// Creates an <see cref="ExchangeGrant"/> using the specified key store key and request
         /// </summary>
-        public async Task<ExchangeGrant> CreateExchangeGrant(SensitiveByteArray grantKeyStoreKey, PermissionSetGrantRequest request, SensitiveByteArray masterKey)
+        public async Task<ExchangeGrant> CreateExchangeGrant(SensitiveByteArray grantKeyStoreKey, PermissionSetGrantRequest request,
+            SensitiveByteArray masterKey)
         {
             return await this.CreateExchangeGrant(grantKeyStoreKey, permissionSet: request.PermissionSet, driveGrantRequests: request.Drives, masterKey);
         }
@@ -41,7 +42,8 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
         /// <summary>
         /// Creates an <see cref="ExchangeGrant"/> using the specified key store key
         /// </summary>
-        public async Task<ExchangeGrant> CreateExchangeGrant(SensitiveByteArray grantKeyStoreKey, PermissionSet permissionSet, IEnumerable<DriveGrantRequest> driveGrantRequests,
+        public async Task<ExchangeGrant> CreateExchangeGrant(SensitiveByteArray grantKeyStoreKey, PermissionSet permissionSet,
+            IEnumerable<DriveGrantRequest> driveGrantRequests,
             SensitiveByteArray masterKey)
         {
             var driveGrants = new List<DriveGrant>();
@@ -78,7 +80,8 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
         /// <param name="driveGrantRequests"></param>
         /// <param name="masterKey"></param>
         /// <returns></returns>
-        public async Task<ExchangeGrant> CreateExchangeGrant(PermissionSet permissionSet, IEnumerable<DriveGrantRequest> driveGrantRequests, SensitiveByteArray? masterKey)
+        public async Task<ExchangeGrant> CreateExchangeGrant(PermissionSet permissionSet, IEnumerable<DriveGrantRequest> driveGrantRequests,
+            SensitiveByteArray? masterKey)
         {
             var grantKeyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
@@ -95,7 +98,8 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
         /// <param name="masterKey"></param>
         /// <param name="tokenType"></param>
         /// <returns></returns>
-        public async Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessToken(ExchangeGrant grant, SensitiveByteArray? masterKey, ClientTokenType tokenType)
+        public async Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessToken(ExchangeGrant grant, SensitiveByteArray? masterKey,
+            ClientTokenType tokenType)
         {
             if (grant.IsRevoked)
             {
@@ -114,13 +118,15 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
             return token;
         }
 
-        public async Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessToken(SensitiveByteArray? grantKeyStoreKey, ClientTokenType tokenType)
+        public async Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessToken(SensitiveByteArray? grantKeyStoreKey, ClientTokenType tokenType,
+            SensitiveByteArray? sharedSecret = null)
         {
-            var (accessReg, clientAccessToken) = await this.CreateClientAccessTokenInternal(grantKeyStoreKey, tokenType);
+            var (accessReg, clientAccessToken) = await this.CreateClientAccessTokenInternal(grantKeyStoreKey, tokenType, sharedSecret: sharedSecret);
             return (accessReg, clientAccessToken);
         }
 
-        public async Task<PermissionContext> CreatePermissionContext(ClientAuthenticationToken authToken, Dictionary<Guid, ExchangeGrant> grants, AccessRegistration accessReg,
+        public async Task<PermissionContext> CreatePermissionContext(ClientAuthenticationToken authToken, Dictionary<Guid, ExchangeGrant> grants,
+            AccessRegistration accessReg,
             List<int>? additionalPermissionKeys = null, bool includeAnonymousDrives = false)
         {
             //TODO: Need to decide if we store shared secret clear text or decrypt just in time.
@@ -181,7 +187,7 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
         private DriveGrant CreateDriveGrant(StorageDrive drive, DrivePermission permission, SensitiveByteArray? grantKeyStoreKey, SensitiveByteArray? masterKey)
         {
             var storageKey = masterKey == null ? null : drive.MasterKeyEncryptedStorageKey.DecryptKeyClone(ref masterKey);
-            
+
             SymmetricKeyEncryptedAes? keyStoreKeyEncryptedStorageKey = null;
 
             bool shouldGetStorageKey = permission.HasFlag(DrivePermission.Read);
@@ -207,12 +213,12 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
         }
 
         private Task<(AccessRegistration, ClientAccessToken)> CreateClientAccessTokenInternal(SensitiveByteArray? grantKeyStoreKey, ClientTokenType tokenType,
-            AccessRegistrationClientType clientType = AccessRegistrationClientType.Other)
+            AccessRegistrationClientType clientType = AccessRegistrationClientType.Other, SensitiveByteArray? sharedSecret = null)
         {
             var accessKeyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var serverAccessKey = new SymmetricKeyEncryptedXor(ref accessKeyStoreKey, out var clientAccessKey);
 
-            var sharedSecret = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+            var ss = sharedSecret ?? ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
 
             var reg = new AccessRegistration()
             {
@@ -220,9 +226,11 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
                 AccessRegistrationClientType = clientType,
                 Created = UnixTimeUtc.Now().milliseconds,
                 ClientAccessKeyEncryptedKeyStoreKey = serverAccessKey,
-                AccessKeyStoreKeyEncryptedSharedSecret = new SymmetricKeyEncryptedAes(secret: ref accessKeyStoreKey, dataToEncrypt: ref sharedSecret),
+                AccessKeyStoreKeyEncryptedSharedSecret = new SymmetricKeyEncryptedAes(secret: ref accessKeyStoreKey, dataToEncrypt: ref ss),
                 IsRevoked = false,
-                AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey = grantKeyStoreKey == null ? null : new SymmetricKeyEncryptedAes(secret: ref accessKeyStoreKey, dataToEncrypt: ref grantKeyStoreKey)
+                AccessKeyStoreKeyEncryptedExchangeGrantKeyStoreKey = grantKeyStoreKey == null
+                    ? null
+                    : new SymmetricKeyEncryptedAes(secret: ref accessKeyStoreKey, dataToEncrypt: ref grantKeyStoreKey)
             };
 
             accessKeyStoreKey.Wipe();
@@ -232,7 +240,7 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
             {
                 Id = reg.Id,
                 AccessTokenHalfKey = clientAccessKey,
-                SharedSecret = sharedSecret,
+                SharedSecret = ss,
                 ClientTokenType = tokenType
             };
 
