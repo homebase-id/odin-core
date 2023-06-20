@@ -56,6 +56,17 @@ public class ReactionContentService
         if (_driveDatabaseHost.TryGetOrLoadQueryManager(file.DriveId, out var manager))
         {
             manager.DeleteReaction(context.GetCallerOdinIdOrFail(), file.FileId, reactionContent);
+            
+            _mediator.Publish(new ReactionDeletedNotification()
+            {
+                Reaction = new Reaction()
+                {
+                    OdinId = context.GetCallerOdinIdOrFail(),
+                    Created = default,
+                    ReactionContent = reactionContent,
+                    FileId = file
+                }
+            });
         }
     }
 

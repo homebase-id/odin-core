@@ -15,7 +15,7 @@ namespace Odin.Core.Services.Drives.Statistics;
 /// Listens for reaction file additions/changes and updates their target's preview
 /// </summary>
 public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification>,
-    INotificationHandler<ReactionContentAddedNotification>
+    INotificationHandler<ReactionContentAddedNotification>, INotificationHandler<ReactionDeletedNotification>
 {
     private readonly OdinContextAccessor _contextAccessor;
     private readonly FileSystemResolver _fileSystemResolver;
@@ -149,6 +149,38 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
         }
 
         reactionPreview.Count++;
+        reactionPreview.ReactionContent = notification.Reaction.ReactionContent;
+        reactionPreview.Key = key;
+
+        dict[key] = reactionPreview;
+
+        preview.Reactions = dict;
+
+        fs.Storage.UpdateReactionPreview(targetFile, preview).GetAwaiter().GetResult();
+        return Task.CompletedTask;
+    }
+
+    public Task Handle(ReactionDeletedNotification notification, CancellationToken cancellationToken)
+    {
+        var targetFile = notification.Reaction.FileId;
+        var fs = _fileSystemResolver.ResolveFileSystem(targetFile);
+        var header = fs.Storage.GetServerFileHeader(targetFile).GetAwaiter().GetResult();
+        var preview = header?.FileMetadata.ReactionPreview;
+
+        if (null == preview)
+        {
+            return Task.CompletedTask;
+        }
+
+        var dict = preview.Reactions ?? new Dictionary<Guid, ReactionContentPreview>();
+
+        var key = HashUtil.ReduceSHA256Hash(notification.Reaction.ReactionContent);
+        if (!dict.TryGetValue(key, out ReactionContentPreview reactionPreview))
+        {
+            return Task.CompletedTask;
+        }
+
+        reactionPreview.Count--;
         reactionPreview.ReactionContent = notification.Reaction.ReactionContent;
         reactionPreview.Key = key;
 
