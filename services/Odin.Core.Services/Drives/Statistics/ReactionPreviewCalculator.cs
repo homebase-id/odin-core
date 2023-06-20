@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.Reactions;
@@ -174,7 +175,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
 
         var dict = preview.Reactions ?? new Dictionary<Guid, ReactionContentPreview>();
 
-        var key = HashUtil.ReduceSHA256Hash(notification.Reaction.ReactionContent);
+        var key = ByteArrayUtil.ReduceSHA256Hash(notification.Reaction.ReactionContent);
         if (!dict.TryGetValue(key, out ReactionContentPreview reactionPreview))
         {
             return Task.CompletedTask;
