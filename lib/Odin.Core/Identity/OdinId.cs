@@ -27,7 +27,7 @@ namespace Odin.Core.Identity
             _domainName = new PunyDomainName(identifier);
 
             // I would have preferred if the HASH was evaluated lazily. But that's not possible with a RO struct.
-            _hash = new Guid(HashUtil.ReduceSHA256Hash(_domainName.DomainName.ToUtf8ByteArray()));
+            _hash = new Guid(ByteArrayUtil.ReduceSHA256Hash(_domainName.DomainName.ToUtf8ByteArray()));
         }
 
         public OdinId(PunyDomainName punyDomain)
@@ -35,7 +35,7 @@ namespace Odin.Core.Identity
             _domainName = punyDomain;
 
             // I would have preferred if the HASH was evaluated lazily. But that's not possible with a RO struct.
-            _hash = new Guid(HashUtil.ReduceSHA256Hash(_domainName.DomainName.ToUtf8ByteArray()));
+            _hash = new Guid(ByteArrayUtil.ReduceSHA256Hash(_domainName.DomainName.ToUtf8ByteArray()));
         }
 
 

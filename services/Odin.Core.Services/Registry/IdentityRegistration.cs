@@ -45,7 +45,7 @@ namespace Odin.Core.Services.Registry
             set
             {
                 _primaryDomainName = value.ToLower();
-                _domainKey = new Guid(HashUtil.ReduceSHA256Hash(value.ToUtf8ByteArray()));
+                _domainKey = new Guid(ByteArrayUtil.ReduceSHA256Hash(value.ToUtf8ByteArray()));
             }
         }
         

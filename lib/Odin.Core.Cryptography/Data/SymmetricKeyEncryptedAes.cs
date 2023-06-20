@@ -48,7 +48,7 @@ namespace Odin.Core.Cryptography.Data
             // KeyHash = ByteArrayUtil.EquiByteArrayXor(KeyHash, KeyIV);
             // return KeyHash;
             
-            var k = HashUtil.ReduceSHA256Hash(key.GetKey());
+            var k = ByteArrayUtil.ReduceSHA256Hash(key.GetKey());
             k = ByteArrayUtil.EquiByteArrayXor(k, KeyIV);
             return k;
         }

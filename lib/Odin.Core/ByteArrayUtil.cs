@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -89,6 +90,8 @@ namespace Odin.Core
             return ret;
         }
 
+        public static byte[] Combine(params byte[][] arrays) => arrays.SelectMany(a => a).ToArray();
+
         public static (byte[] part1, byte[] part2) Split(byte[] data, int len1, int len2)
         {
             var part1 = new byte[len1];
@@ -121,6 +124,30 @@ namespace Odin.Core
             Buffer.BlockCopy(data, len1 + len2, part3, 0, len3);
 
             return (part1, part2, part3);
+        }
+
+        public static byte[] CalculateSHA256Hash(byte[] input)
+        {
+            using (SHA256 sha256Hash = SHA256.Create())
+            {
+                // ComputeHash - returns byte array  
+                byte[] bytes = sha256Hash.ComputeHash(input);
+                return bytes;
+            }
+        }
+
+        public static Guid ReduceSHA256Hash(string input)
+        {
+            return new Guid(ReduceSHA256Hash(input.ToUtf8ByteArray()));
+        }
+
+        public static byte[] ReduceSHA256Hash(byte[] input)
+        {
+            var bytes = CalculateSHA256Hash(input);
+            var half = bytes.Length / 2;
+            var (part1, part2) = ByteArrayUtil.Split(bytes, half, half);
+            var reducedBytes = ByteArrayUtil.EquiByteArrayXor(part1, part2);
+            return reducedBytes;
         }
 
         public static string PrintByteArray(byte[] bytes)

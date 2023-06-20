@@ -32,16 +32,17 @@ namespace Odin.Core.Cryptography.Crypto
 
             return (RsaPublicKeyData.KeyCRC(RsaPublicKeyData.decodePublicPem(publicKey)), cipherData);
         }
+    }
 
-        public static byte[] FileSHA256(string fileName)
-        {
-            using (var stream = System.IO.File.OpenRead(fileName))
-            {
-                using (var hasher = SHA256.Create())
-                {
-                    return hasher.ComputeHash(stream);
-                }
-            }
-        }
+    public static class EccKeyManagement
+    {
+        public static int noKeysCreated = 0;
+        public static int noKeysExpired = 0;
+        public static int noKeysCreatedTest = 0;
+        public static int noEncryptions = 0;
+        public static int noDecryptions = 0;
+
+        public static int noDBOpened = 0;
+        public static int noDBClosed = 0;
     }
 }

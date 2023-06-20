@@ -771,7 +771,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
                 }
             }, null);
 
-            grants.Add(HashUtil.ReduceSHA256Hash("feed_drive_writer"), feedDriveWriteGrant);
+            grants.Add(ByteArrayUtil.ReduceSHA256Hash("feed_drive_writer"), feedDriveWriteGrant);
 
             List<int> permissionKeys = new List<int>() { };
             if (_tenantContext.Settings?.AllConnectedIdentitiesCanViewConnections ?? false)

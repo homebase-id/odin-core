@@ -44,7 +44,7 @@ namespace Odin.Core.Cryptography.Data
 
         public byte[] CalcKeyHash(ref SensitiveByteArray key)
         {
-            var k = HashUtil.ReduceSHA256Hash(key.GetKey());
+            var k = ByteArrayUtil.ReduceSHA256Hash(key.GetKey());
             return k;
         }
 
