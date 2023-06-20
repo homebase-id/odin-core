@@ -226,7 +226,7 @@ public class StaticFileContentService
 
     private GuidId GetConfigKey(string filename)
     {
-        return new GuidId(HashUtil.ReduceSHA256Hash(filename.ToLower()));
+        return new GuidId(ByteArrayUtil.ReduceSHA256Hash(filename.ToLower()));
     }
 
     private string EnsurePath()

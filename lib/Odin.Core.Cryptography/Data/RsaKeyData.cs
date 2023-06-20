@@ -194,7 +194,7 @@ namespace Odin.Core.Cryptography.Data
         private void CreatePrivate(ref SensitiveByteArray key, byte[] fullDerKey)
         {
             this.Iv = ByteArrayUtil.GetRndByteArray(16);
-            this.KeyHash = HashUtil.ReduceSHA256Hash(key.GetKey());
+            this.KeyHash = ByteArrayUtil.ReduceSHA256Hash(key.GetKey());
             this._privateKey = new SensitiveByteArray(fullDerKey);
             this.storedKey = AesCbc.Encrypt(this._privateKey.GetKey(), ref key, this.Iv);
         }
@@ -202,7 +202,7 @@ namespace Odin.Core.Cryptography.Data
 
         private ref SensitiveByteArray GetFullKey(ref SensitiveByteArray key)
         {
-            if (ByteArrayUtil.EquiByteArrayCompare(KeyHash, HashUtil.ReduceSHA256Hash(key.GetKey())) == false)
+            if (ByteArrayUtil.EquiByteArrayCompare(KeyHash, ByteArrayUtil.ReduceSHA256Hash(key.GetKey())) == false)
                 throw new Exception("Incorrect key");
 
             if (_privateKey == null)

@@ -175,7 +175,7 @@ namespace Odin.Core.Services.Authorization.Apps
                     AppUtil.AssertValidCorsHeader(appReg.CorsHostName);
                 }
 
-                var grantDictionary = new Dictionary<Guid, ExchangeGrant> { { HashUtil.ReduceSHA256Hash("app_exchange_grant"), appReg.Grant } };
+                var grantDictionary = new Dictionary<Guid, ExchangeGrant> { { ByteArrayUtil.ReduceSHA256Hash("app_exchange_grant"), appReg.Grant } };
 
                 //Note: isOwner = true because we passed ValidateClientAuthToken for an ap token above 
                 var permissionContext = _exchangeGrantService.CreatePermissionContext(token, grantDictionary, accessReg, includeAnonymousDrives: true)
