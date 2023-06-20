@@ -2,9 +2,7 @@ using System;
 using System.Text.Json.Serialization;
 using Dawn;
 using Odin.Core.Exceptions;
-using Odin.Core.Util;
-
-namespace Odin.Core;
+using Odin.Core;
 
 [JsonConverter(typeof(GuidIdConverter))]
 public class GuidId
@@ -164,7 +162,7 @@ public class GuidId
     public static GuidId FromString(string input, bool toLower = true)
     {
         Guard.Argument(input, nameof(input)).NotEmpty().NotNull("Invalid input");
-        var guid = HashUtil.ReduceSHA256Hash(toLower ? input.ToLower() : input);
+        var guid = ByteArrayUtil.ReduceSHA256Hash(toLower ? input.ToLower() : input);
         return new GuidId(guid);
     }
 

@@ -142,7 +142,7 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
 
         var dict = preview.Reactions ?? new Dictionary<Guid, ReactionContentPreview>();
 
-        var key = HashUtil.ReduceSHA256Hash(notification.Reaction.ReactionContent);
+        var key = ByteArrayUtil.ReduceSHA256Hash(notification.Reaction.ReactionContent);
         if (!dict.TryGetValue(key, out ReactionContentPreview reactionPreview))
         {
             reactionPreview = new ReactionContentPreview();

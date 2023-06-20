@@ -17,7 +17,7 @@ namespace Odin.Core.Services.Registry.Registration
             set
             {
                 _domain = value;
-                _domainKey = HashUtil.ReduceSHA256Hash(value);
+                _domainKey = ByteArrayUtil.ReduceSHA256Hash(value);
             }
         }
 

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Services.Certificate;
 using Odin.Core.Services.Configuration;
@@ -19,7 +20,7 @@ namespace Odin.Hosting._dev
             {
                 foreach (var domain in odinConfiguration.Development.PreconfiguredDomains)
                 {
-                    certificates.Add(HashUtil.ReduceSHA256Hash(domain), domain);
+                    certificates.Add(ByteArrayUtil.ReduceSHA256Hash(domain), domain);
                 }
             }
 
