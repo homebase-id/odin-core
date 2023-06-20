@@ -55,7 +55,7 @@ namespace Odin.Core.Cryptography.Tests
             Assert.IsNotNull(fullKeyData.createdTimeStamp);
 
             // Sign a message
-            var signature = fullKeyData.Sign(ref key, testMessage);
+            var signature = fullKeyData.Sign(key, testMessage);
 
             Assert.IsNotNull(signature);
 

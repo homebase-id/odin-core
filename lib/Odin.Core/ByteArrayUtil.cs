@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -88,6 +89,8 @@ namespace Odin.Core
             Buffer.BlockCopy(second, 0, ret, first.Length, second.Length);
             return ret;
         }
+
+        public static byte[] Combine(params byte[][] arrays) => arrays.SelectMany(a => a).ToArray();
 
         public static (byte[] part1, byte[] part2) Split(byte[] data, int len1, int len2)
         {

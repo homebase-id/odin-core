@@ -97,6 +97,7 @@ namespace Odin.Core.Cryptography.Data
 
     public class EccFullKeyData : EccPublicKeyData
     {
+        public static string eccSignatureAlgorithm = "SHA-384withECDSA";
         private static readonly byte[] eccSalt = Guid.Parse("145be569-0281-4abd-b03e-26a99f509f1d").ToByteArray();
         private SensitiveByteArray _privateKey;  // Cached decrypted private key, not stored
 
@@ -144,7 +145,7 @@ namespace Odin.Core.Cryptography.Data
             if (this.expiration <= this.createdTimeStamp)
                 throw new Exception("Expiration must be > 0");
 
-            CreatePrivate(ref key, privateKeyInfo.GetDerEncoded());  // TODO: Can we cleanup the generated key?
+            CreatePrivate(key, privateKeyInfo.GetDerEncoded());  // TODO: Can we cleanup the generated key?
 
             this.publicKey = publicKeyInfo.GetDerEncoded();
             this.crc32c = this.KeyCRC();
@@ -155,10 +156,10 @@ namespace Odin.Core.Cryptography.Data
         /// <summary>
         /// Hack used only for TESTING.
         /// </summary>
-        public EccFullKeyData(ref SensitiveByteArray key, byte[] derEncodedFullKey)
+        public EccFullKeyData(SensitiveByteArray key, byte[] derEncodedFullKey)
         {
             // ONLY USE FOR TESTING. DOES NOT CREATE PUBLIC KEY PROPERLY
-            CreatePrivate(ref key, derEncodedFullKey);
+            CreatePrivate(key, derEncodedFullKey);
 
             //_privateKey = new SensitiveByteArray(derEncodedFullKey);
             // createdTimeStamp = DateTimeExtensions.UnixTimeSeconds();
@@ -170,7 +171,7 @@ namespace Odin.Core.Cryptography.Data
 
 
 
-        private void CreatePrivate(ref SensitiveByteArray key, byte[] fullDerKey)
+        private void CreatePrivate(SensitiveByteArray key, byte[] fullDerKey)
         {
             this.iv = ByteArrayUtil.GetRndByteArray(16);
             this.keyHash = ByteArrayUtil.ReduceSHA256Hash(key.GetKey());
@@ -179,7 +180,7 @@ namespace Odin.Core.Cryptography.Data
         }
 
 
-        private ref SensitiveByteArray GetFullKey(ref SensitiveByteArray key)
+        private ref SensitiveByteArray GetFullKey(SensitiveByteArray key)
         {
             if (ByteArrayUtil.EquiByteArrayCompare(keyHash, ByteArrayUtil.ReduceSHA256Hash(key.GetKey())) == false)
                 throw new Exception("Incorrect key");
@@ -204,7 +205,7 @@ namespace Odin.Core.Cryptography.Data
         {
             // Either -----BEGIN RSA PRIVATE KEY----- and ExportRSAPrivateKey()
             // Or use -- BEGIN PRIVATE KEY -- and ExportPkcs8PrivateKey
-            var pk = GetFullKey(ref key);
+            var pk = GetFullKey(key);
             return Convert.ToBase64String(pk.GetKey());
         }
 
@@ -237,7 +238,7 @@ namespace Odin.Core.Cryptography.Data
 
 
             // Retrieve the private key from the secure storage
-            var privateKeyBytes = GetFullKey(ref key).GetKey();
+            var privateKeyBytes = GetFullKey(key).GetKey();
             var privateKeyParameters = (ECPrivateKeyParameters)PrivateKeyFactory.CreateKey(privateKeyBytes);
 
             // Construct the public key parameters from the provided data
@@ -258,14 +259,14 @@ namespace Odin.Core.Cryptography.Data
         }
 
 
-        public byte[] Sign(ref SensitiveByteArray key, byte[] dataToSign)
+        public byte[] Sign(SensitiveByteArray key, byte[] dataToSign)
         {
-            var pk = GetFullKey(ref key);
+            var pk = GetFullKey(key);
 
             var privateKeyRestored = PrivateKeyFactory.CreateKey(pk.GetKey());
 
             // Assuming that 'keys' is your AsymmetricCipherKeyPair
-            ISigner signer = SignerUtilities.GetSigner("SHA-384withECDSA");
+            ISigner signer = SignerUtilities.GetSigner(eccSignatureAlgorithm);
             signer.Init(true, privateKeyRestored); // Init for signing (true), with the private key
 
             signer.BlockUpdate(dataToSign, 0, dataToSign.Length);

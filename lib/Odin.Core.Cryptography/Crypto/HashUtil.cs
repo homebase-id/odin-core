@@ -9,6 +9,8 @@ namespace Odin.Core.Cryptography.Crypto
 {
     public static class HashUtil
     {
+        public const string SHA256Algorithm = "SHA-256";
+
         public static byte[] Hkdf(byte[] sharedEccSecret, byte[] salt, int outputKeySize)
         {
             if (sharedEccSecret == null)
