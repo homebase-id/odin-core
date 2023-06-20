@@ -34,5 +34,15 @@ namespace Odin.Core.Cryptography.Crypto
 
             return outputKey;
         }
+        public static byte[] FileSHA256(string fileName)
+        {
+            using (var stream = System.IO.File.OpenRead(fileName))
+            {
+                using (var hasher = SHA256.Create())
+                {
+                    return hasher.ComputeHash(stream);
+                }
+            }
+        }
     }
 }
