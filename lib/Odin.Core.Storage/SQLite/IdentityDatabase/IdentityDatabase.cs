@@ -39,6 +39,7 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
         private readonly CacheHelper _cache = new CacheHelper("identity");
         private readonly string _file;
         private readonly int _line;
+
         public IdentityDatabase(string connectionString, long commitFrequencyMs = 5000, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1) : base(connectionString, commitFrequencyMs)
         {
             tblAppGrants = new TableAppGrants(this, _cache);
