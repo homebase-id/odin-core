@@ -1,27 +1,31 @@
 ﻿using System;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Time;
+using Org.BouncyCastle.Asn1.Sec;
 using Org.BouncyCastle.Crypto;
+using Org.BouncyCastle.Crypto.Agreement;
 using Org.BouncyCastle.Crypto.Generators;
+using Org.BouncyCastle.Crypto.Parameters;
+using Org.BouncyCastle.Math;
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.X509;
 
 namespace Odin.Core.Cryptography.Data
 {
-    public class RsaPublicKeyData
+    public class EccPublicKeyData
     {
-        public byte[] publicKey { get; set; }    // DER encoded public key
+        public byte[] publicKey { get; set; } // DER encoded public key
 
-        public UInt32 crc32c { get; set; }       // The CRC32C of the public key
-        public UnixTimeUtc expiration { get; set; } // Time when this key expires, be aware that since this is a property, you will get a copy and using e.g. .AddHours() will add to the copy
+        public UInt32 crc32c { get; set; } // The CRC32C of the public key
+        public UnixTimeUtc expiration { get; set; } // Time when this key expires
 
-        public static RsaPublicKeyData FromDerEncodedPublicKey(byte[] derEncodedPublicKey, int hours = 1 )
+        public static EccPublicKeyData FromDerEncodedPublicKey(byte[] derEncodedPublicKey, int hours = 1)
         {
-            var publicKey = new RsaPublicKeyData()
+            var publicKey = new EccPublicKeyData()
             {
                 publicKey = derEncodedPublicKey,
-                crc32c = RsaPublicKeyData.KeyCRC(derEncodedPublicKey),
+                crc32c = EccPublicKeyData.KeyCRC(derEncodedPublicKey),
                 expiration = UnixTimeUtc.Now().AddSeconds(hours * 60 * 60)
             };
 
@@ -30,24 +34,20 @@ namespace Odin.Core.Cryptography.Data
 
         public string publicPem()
         {
-            // Either -- BEGIN RSA PUBLIC KEY -- and ExportRSAPublicKey
-            // Or use -- BEGIN PUBLIC KEY -- and ExportSubjectPublicKeyInfo
             return "-----BEGIN PUBLIC KEY-----\n" + publicDerBase64() + "\n-----END PUBLIC KEY-----";
         }
 
         public string publicDerBase64()
         {
-            // Either -- BEGIN RSA PUBLIC KEY -- and ExportRSAPublicKey
-            // Or use -- BEGIN PUBLIC KEY -- and ExportSubjectPublicKeyInfo
             return Convert.ToBase64String(publicKey);
         }
 
         public static byte[] decodePublicPem(string pem)
         {
             string publicKeyPEM = pem.Replace("-----BEGIN PUBLIC KEY-----", "")
-                                        .Replace("\n", "")
-                                        .Replace("\r", "")
-                                        .Replace("-----END PUBLIC KEY-----", "");
+                                      .Replace("\n", "")
+                                      .Replace("\r", "")
+                                      .Replace("-----END PUBLIC KEY-----", "");
 
             return Convert.FromBase64String(publicKeyPEM);
         }
@@ -62,25 +62,11 @@ namespace Odin.Core.Cryptography.Data
             return KeyCRC(publicKey);
         }
 
-        // Encrypt with the public key
-        public byte[] Encrypt(byte[] data)
-        {
-            var publicKeyRestored = PublicKeyFactory.CreateKey(publicKey);
-
-            var cipher = CipherUtilities.GetCipher("RSA/ECB/OAEPWithSHA256AndMGF1Padding");
-            cipher.Init(true, publicKeyRestored);
-            var cipherData = cipher.DoFinal(data);
-
-            RsaKeyManagement.noEncryptions++;
-
-            return cipherData;
-        }
-
         public bool VerifySignature(byte[] dataThatWasSigned, byte[] signature)
         {
             var publicKeyRestored = PublicKeyFactory.CreateKey(publicKey);
 
-            ISigner signer = SignerUtilities.GetSigner("SHA256withRSA");
+            ISigner signer = SignerUtilities.GetSigner("SHA384withECDSA");
             signer.Init(false, publicKeyRestored); // Init for verification (false), with the public key
 
             signer.BlockUpdate(dataThatWasSigned, 0, dataThatWasSigned.Length);
@@ -103,36 +89,29 @@ namespace Odin.Core.Cryptography.Data
                 return false;
         }
 
-
-        // Not expired, it's still good (it may be overdue for a refresh)
         public bool IsValid()
         {
             return !IsExpired();
         }
-
-
     }
 
-
-    // ===========================================
-    // NEW SHOT AT RSA KEY. ALWAYS ENCRYPTED. PASS CONSTANT FOR NON-ENCRYPTED. IS THAT NICE?
-    // ===========================================
-
-    public class RsaFullKeyData : RsaPublicKeyData
+    public class EccFullKeyData : EccPublicKeyData
     {
+        public static string eccSignatureAlgorithm = "SHA-384withECDSA";
+        private static readonly byte[] eccSalt = Guid.Parse("145be569-0281-4abd-b03e-26a99f509f1d").ToByteArray();
         private SensitiveByteArray _privateKey;  // Cached decrypted private key, not stored
 
         public byte[] storedKey { get; set; }  // The key as stored on disk encrypted with a secret key or constant
 
-        public byte[] Iv { get; set; }  // Iv used for encrypting the storedKey and the masterCopy
-        public byte[] KeyHash { get; set; }  // The hash of the encryption key 
+        public byte[] iv { get; set; }  // Iv used for encrypting the storedKey and the masterCopy
+        public byte[] keyHash { get; set; }  // The hash of the encryption key 
         public UnixTimeUtc createdTimeStamp { get; set; } // Time when this key was created, expiration is on the public key. Do NOT use a property or code will return a copy value.
 
 
         /// <summary>
         /// For LiteDB read only.
         /// </summary>
-        public RsaFullKeyData() 
+        public EccFullKeyData()
         {
             // Do not create with this
             // Do nothing when deserialized via LiteDB
@@ -146,12 +125,14 @@ namespace Odin.Core.Cryptography.Data
         /// <param name="hours">Lifespan of the key, required</param>
         /// <param name="minutes">Lifespan of the key, optional</param>
         /// <param name="seconds">Lifespan of the key, optional</param>
-        public RsaFullKeyData(ref SensitiveByteArray key, int hours, int minutes = 0, int seconds = 0)
+        public EccFullKeyData(SensitiveByteArray key, int hours, int minutes = 0, int seconds = 0)
         {
-            // Generate with BC an asymmetric key with BC, 2048 bits
-            RsaKeyPairGenerator r = new RsaKeyPairGenerator();
-            r.Init(new KeyGenerationParameters(new SecureRandom(), 2048));
-            AsymmetricCipherKeyPair keys = r.GenerateKeyPair();
+            // Generate an EC key with Bouncy Castle, curve secp384r1
+            ECKeyPairGenerator generator = new ECKeyPairGenerator();
+            var ecp = SecNamedCurves.GetByName("secp384r1");
+            var domainParams = new ECDomainParameters(ecp.Curve, ecp.G, ecp.N, ecp.H, ecp.GetSeed());
+            generator.Init(new ECKeyGenerationParameters(domainParams, new SecureRandom()));
+            AsymmetricCipherKeyPair keys = generator.GenerateKeyPair();
 
             // Extract the public and the private keys
             var privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(keys.Private);
@@ -164,21 +145,21 @@ namespace Odin.Core.Cryptography.Data
             if (this.expiration <= this.createdTimeStamp)
                 throw new Exception("Expiration must be > 0");
 
-            CreatePrivate(ref key, privateKeyInfo.GetDerEncoded());  // TODO: Can we cleanup the generated key?
+            CreatePrivate(key, privateKeyInfo.GetDerEncoded());  // TODO: Can we cleanup the generated key?
 
             this.publicKey = publicKeyInfo.GetDerEncoded();
             this.crc32c = this.KeyCRC();
 
-            RsaKeyManagement.noKeysCreated++;
+            EccKeyManagement.noKeysCreated++;
         }
 
         /// <summary>
         /// Hack used only for TESTING.
         /// </summary>
-        public RsaFullKeyData(ref SensitiveByteArray key, byte[] derEncodedFullKey)
+        public EccFullKeyData(SensitiveByteArray key, byte[] derEncodedFullKey)
         {
             // ONLY USE FOR TESTING. DOES NOT CREATE PUBLIC KEY PROPERLY
-            CreatePrivate(ref key, derEncodedFullKey);
+            CreatePrivate(key, derEncodedFullKey);
 
             //_privateKey = new SensitiveByteArray(derEncodedFullKey);
             // createdTimeStamp = DateTimeExtensions.UnixTimeSeconds();
@@ -190,23 +171,23 @@ namespace Odin.Core.Cryptography.Data
 
 
 
-        private void CreatePrivate(ref SensitiveByteArray key, byte[] fullDerKey)
+        private void CreatePrivate(SensitiveByteArray key, byte[] fullDerKey)
         {
-            this.Iv = ByteArrayUtil.GetRndByteArray(16);
-            this.KeyHash = ByteArrayUtil.ReduceSHA256Hash(key.GetKey());
+            this.iv = ByteArrayUtil.GetRndByteArray(16);
+            this.keyHash = ByteArrayUtil.ReduceSHA256Hash(key.GetKey());
             this._privateKey = new SensitiveByteArray(fullDerKey);
-            this.storedKey = AesCbc.Encrypt(this._privateKey.GetKey(), ref key, this.Iv);
+            this.storedKey = AesCbc.Encrypt(this._privateKey.GetKey(), ref key, this.iv);
         }
 
 
-        private ref SensitiveByteArray GetFullKey(ref SensitiveByteArray key)
+        private ref SensitiveByteArray GetFullKey(SensitiveByteArray key)
         {
-            if (ByteArrayUtil.EquiByteArrayCompare(KeyHash, ByteArrayUtil.ReduceSHA256Hash(key.GetKey())) == false)
+            if (ByteArrayUtil.EquiByteArrayCompare(keyHash, ByteArrayUtil.ReduceSHA256Hash(key.GetKey())) == false)
                 throw new Exception("Incorrect key");
 
             if (_privateKey == null)
             {
-                _privateKey = new SensitiveByteArray(AesCbc.Decrypt(storedKey, ref key, Iv));
+                _privateKey = new SensitiveByteArray(AesCbc.Decrypt(storedKey, ref key, iv));
             }
 
             return ref _privateKey;
@@ -224,24 +205,8 @@ namespace Odin.Core.Cryptography.Data
         {
             // Either -----BEGIN RSA PRIVATE KEY----- and ExportRSAPrivateKey()
             // Or use -- BEGIN PRIVATE KEY -- and ExportPkcs8PrivateKey
-            var pk = GetFullKey(ref key);
+            var pk = GetFullKey(key);
             return Convert.ToBase64String(pk.GetKey());
-        }
-
-        public byte[] Decrypt(ref SensitiveByteArray key, byte[] cipherData)
-        {
-            var pk = GetFullKey(ref key);
-
-            var privateKeyRestored = PrivateKeyFactory.CreateKey(pk.GetKey());
-
-            var cipher = CipherUtilities.GetCipher("RSA/ECB/OAEPWithSHA256AndMGF1Padding");
-            cipher.Init(false, privateKeyRestored);
-
-            var clearData = cipher.DoFinal(cipherData);
-
-            RsaKeyManagement.noDecryptions++;
-
-            return clearData;
         }
 
         // If more than twice the longevity beyond the expiration, or at most 24 hours beyond expiration, 
@@ -263,21 +228,45 @@ namespace Odin.Core.Cryptography.Data
                 return false;
         }
 
-
-        /// <summary>
-        /// Sign a block of data with a BC RSA key
-        /// </summary>
-        /// <param name="key">The key to unlock the RSA private key</param>
-        /// <param name="data">The data to sign</param>
-        /// <returns>The signature</returns>
-        public byte[] Sign(ref SensitiveByteArray key, byte[] dataToSign)
+        public byte[] GetSharedSecret(SensitiveByteArray key, EccPublicKeyData publicKeyData)
         {
-            var pk = GetFullKey(ref key);
+            if (publicKeyData == null)
+                throw new ArgumentNullException(nameof(publicKeyData));
+
+            if (publicKeyData.publicKey == null)
+                throw new ArgumentNullException(nameof(publicKeyData.publicKey));
+
+
+            // Retrieve the private key from the secure storage
+            var privateKeyBytes = GetFullKey(key).GetKey();
+            var privateKeyParameters = (ECPrivateKeyParameters)PrivateKeyFactory.CreateKey(privateKeyBytes);
+
+            // Construct the public key parameters from the provided data
+            var publicKeyParameters = (ECPublicKeyParameters)PublicKeyFactory.CreateKey(publicKeyData.publicKey);
+
+            // Initialize ECDH basic agreement
+            ECDHBasicAgreement ecdhUagree = new ECDHBasicAgreement();
+            ecdhUagree.Init(privateKeyParameters);
+
+            // Calculate the shared secret
+            BigInteger sharedSecret = ecdhUagree.CalculateAgreement(publicKeyParameters);
+
+            // Convert the shared secret to a byte array
+            byte[] sharedSecretBytes = sharedSecret.ToByteArrayUnsigned();
+
+            // Apply HKDF to derive a symmetric key from the shared secret
+            return HashUtil.Hkdf(sharedSecretBytes, eccSalt, 16);
+        }
+
+
+        public byte[] Sign(SensitiveByteArray key, byte[] dataToSign)
+        {
+            var pk = GetFullKey(key);
 
             var privateKeyRestored = PrivateKeyFactory.CreateKey(pk.GetKey());
 
             // Assuming that 'keys' is your AsymmetricCipherKeyPair
-            ISigner signer = SignerUtilities.GetSigner("SHA256withRSA");
+            ISigner signer = SignerUtilities.GetSigner(eccSignatureAlgorithm);
             signer.Init(true, privateKeyRestored); // Init for signing (true), with the private key
 
             signer.BlockUpdate(dataToSign, 0, dataToSign.Length);
@@ -288,5 +277,3 @@ namespace Odin.Core.Cryptography.Data
         }
     }
 }
-
-
