@@ -30,11 +30,11 @@ public class TenantConfigService
     private readonly IIdentityRegistry _registry;
     private readonly IAppRegistrationService _appRegistrationService;
     private readonly DriveManager _driveManager;
-    private readonly RsaKeyService _rsaKeyService;
+    private readonly PublicPrivateKeyService _publicPrivateKeyService;
 
     public TenantConfigService(ICircleNetworkService cns, OdinContextAccessor contextAccessor,
         TenantSystemStorage storage, TenantContext tenantContext,
-        IIdentityRegistry registry, IAppRegistrationService appRegistrationService, DriveManager driveManager, RsaKeyService rsaKeyService)
+        IIdentityRegistry registry, IAppRegistrationService appRegistrationService, DriveManager driveManager, PublicPrivateKeyService publicPrivateKeyService)
     {
         _cns = cns;
         _contextAccessor = contextAccessor;
@@ -42,7 +42,7 @@ public class TenantConfigService
         _registry = registry;
         _appRegistrationService = appRegistrationService;
         _driveManager = driveManager;
-        _rsaKeyService = rsaKeyService;
+        _publicPrivateKeyService = publicPrivateKeyService;
         _configStorage = storage.SingleKeyValueStorage;
         _tenantContext.UpdateSystemConfig(this.GetTenantSettings());
     }
@@ -66,7 +66,7 @@ public class TenantConfigService
             await _registry.MarkRegistrationComplete(request.FirstRunToken.GetValueOrDefault());
         }
 
-        await _rsaKeyService.CreateInitialKeys();
+        await _publicPrivateKeyService.CreateInitialKeys();
 
         await CreateDriveIfNotExists(SystemDriveConstants.CreateChatDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateFeedDriveRequest);

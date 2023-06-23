@@ -9,9 +9,9 @@ namespace Odin.Hosting.Controllers.Anonymous.RsaKeys
     [Route(YouAuthApiPathConstants.PublicKeysV1)]
     public class RsaKeyController : ControllerBase
     {
-        private readonly RsaKeyService _publicKeyService;
+        private readonly PublicPrivateKeyService _publicKeyService;
 
-        public RsaKeyController(RsaKeyService publicKeyService)
+        public RsaKeyController(PublicPrivateKeyService publicKeyService)
         {
             _publicKeyService = publicKeyService;
         }

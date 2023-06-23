@@ -178,7 +178,7 @@ namespace Odin.Hosting
 
             cb.RegisterType<TransitReactionPerimeterService>().AsSelf().SingleInstance();
 
-            cb.RegisterType<RsaKeyService>()
+            cb.RegisterType<PublicPrivateKeyService>()
                 .As<INotificationHandler<OwnerIsOnlineNotification>>()
                 .AsSelf()
                 .SingleInstance();

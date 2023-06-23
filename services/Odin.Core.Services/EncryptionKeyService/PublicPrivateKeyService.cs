@@ -15,7 +15,7 @@ using Odin.Core.Time;
 
 namespace Odin.Core.Services.EncryptionKeyService
 {
-    public class RsaKeyService : INotificationHandler<OwnerIsOnlineNotification>
+    public class PublicPrivateKeyService : INotificationHandler<OwnerIsOnlineNotification>
     {
         private readonly Guid _offlineKeyStorageId = Guid.Parse("AAAAAAAF-0f85-EEEE-E77E-e8e0b06c2777");
         private readonly Guid _onlineKeyStorageId = Guid.Parse("fc187615-deb4-4222-bcb5-35411bae25e3");
@@ -32,7 +32,7 @@ namespace Odin.Core.Services.EncryptionKeyService
         private static readonly SemaphoreSlim KeyCreationLock = new(1, 1);
         private static readonly byte[] OfflinePrivateKeyEncryptionKey = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-        public RsaKeyService(TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor, IOdinHttpClientFactory odinHttpClientFactory,
+        public PublicPrivateKeyService(TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor, IOdinHttpClientFactory odinHttpClientFactory,
             IMediator mediator)
         {
             _tenantSystemStorage = tenantSystemStorage;
@@ -141,10 +141,10 @@ namespace Odin.Core.Services.EncryptionKeyService
             return Task.CompletedTask;
         }
 
-        public Task<RsaPublicKeyData> GetSigningPublicKey()
+        public Task<EccPublicKeyData> GetSigningPublicKey()
         {
             var k = this.GetCurrentKeyFromStorage(_signingKeyStorageId);
-            return Task.FromResult(RsaPublicKeyData.FromDerEncodedPublicKey(k.publicKey));
+            return Task.FromResult(EccPublicKeyData.FromDerEncodedPublicKey(k.publicKey));
         }
 
         public Task<RsaPublicKeyData> GetOnlinePublicKey()
@@ -220,7 +220,7 @@ namespace Odin.Core.Services.EncryptionKeyService
                 var mk = _contextAccessor.GetCurrent().Caller.GetMasterKey();
 
                 await this.CreateNewRsaKeys(mk, _onlineKeyStorageId);
-                await this.CreateNewRsaKeys(mk, _signingKeyStorageId);
+                await this.CreateNewEccKeys(mk, _signingKeyStorageId);
                 await this.CreateNewRsaKeys(OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray(), _offlineKeyStorageId);
             }
             finally
@@ -325,6 +325,18 @@ namespace Odin.Core.Services.EncryptionKeyService
                 RsaKeyListManagement.DefaultHoursOnlineKey);
 
             _tenantSystemStorage.SingleKeyValueStorage.Upsert(storageKey, rsaKeyList);
+
+            return Task.CompletedTask;
+        }
+        
+        private Task CreateNewEccKeys(SensitiveByteArray encryptionKey, Guid storageKey)
+        {
+            //create a new key list
+            var eccKeyList = EccKeyListManagement.CreateEccKeyList(encryptionKey,
+                EccKeyListManagement.DefaultMaxOnlineKeys,
+                EccKeyListManagement.DefaultHoursOnlineKey);
+
+            _tenantSystemStorage.SingleKeyValueStorage.Upsert(storageKey, eccKeyList);
 
             return Task.CompletedTask;
         }

@@ -22,10 +22,23 @@ public class ReactionDeletedNotification : EventArgs, IClientNotification
 {
     public Reaction Reaction { get; set; }
 
-    public ClientNotificationType NotificationType { get; } = ClientNotificationType.ReactionContentAdded;
+    public ClientNotificationType NotificationType { get; } = ClientNotificationType.ReactionContentDeleted;
 
     public string GetClientData()
     {
         return OdinSystemSerializer.Serialize(this.Reaction);
+    }
+}
+
+public class AllReactionsByFileDeleted : EventArgs, IClientNotification
+{
+
+    public InternalDriveFileId FileId { get; set; }
+    
+    public ClientNotificationType NotificationType { get; } = ClientNotificationType.AllReactionsByFileDeleted;
+
+    public string GetClientData()
+    {
+        return OdinSystemSerializer.Serialize(this.FileId);
     }
 }

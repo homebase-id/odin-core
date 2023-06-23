@@ -16,7 +16,8 @@ namespace Odin.Core.Services.Drives.Statistics;
 /// Listens for reaction file additions/changes and updates their target's preview
 /// </summary>
 public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification>,
-    INotificationHandler<ReactionContentAddedNotification>, INotificationHandler<ReactionDeletedNotification>
+    INotificationHandler<ReactionContentAddedNotification>, INotificationHandler<ReactionDeletedNotification>,
+    INotificationHandler<AllReactionsByFileDeleted>
 {
     private readonly OdinContextAccessor _contextAccessor;
     private readonly FileSystemResolver _fileSystemResolver;
@@ -189,6 +190,27 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
 
         preview.Reactions = dict;
 
+        fs.Storage.UpdateReactionPreview(targetFile, preview).GetAwaiter().GetResult();
+        return Task.CompletedTask;
+    }
+
+    public Task Handle(AllReactionsByFileDeleted notification, CancellationToken cancellationToken)
+    {
+        var targetFile = notification.FileId;
+        var fs = _fileSystemResolver.ResolveFileSystem(targetFile);
+        var header = fs.Storage.GetServerFileHeader(targetFile).GetAwaiter().GetResult();
+        var preview = header?.FileMetadata.ReactionPreview;
+
+        if (null == preview)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (null != preview.Reactions)
+        {
+            preview.Reactions.Clear();
+        }
+        
         fs.Storage.UpdateReactionPreview(targetFile, preview).GetAwaiter().GetResult();
         return Task.CompletedTask;
     }

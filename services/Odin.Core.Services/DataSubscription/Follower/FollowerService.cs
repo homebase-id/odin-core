@@ -24,18 +24,18 @@ namespace Odin.Core.Services.DataSubscription.Follower
         private readonly TenantSystemStorage _tenantStorage;
         private readonly DriveManager _driveManager;
         private readonly IOdinHttpClientFactory _httpClientFactory;
-        private readonly RsaKeyService _rsaPublicKeyService;
+        private readonly PublicPrivateKeyService _publicPrivatePublicKeyService;
         private readonly TenantContext _tenantContext;
         private readonly OdinContextAccessor _contextAccessor;
 
         public FollowerService(TenantSystemStorage tenantStorage, DriveManager driveManager, IOdinHttpClientFactory httpClientFactory,
-            RsaKeyService rsaPublicKeyService,
+            PublicPrivateKeyService publicPrivatePublicKeyService,
             TenantContext tenantContext, OdinContextAccessor contextAccessor)
         {
             _tenantStorage = tenantStorage;
             _driveManager = driveManager;
             _httpClientFactory = httpClientFactory;
-            _rsaPublicKeyService = rsaPublicKeyService;
+            _publicPrivatePublicKeyService = publicPrivatePublicKeyService;
             _tenantContext = tenantContext;
             _contextAccessor = contextAccessor;
         }
@@ -66,7 +66,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
 
             async Task<ApiResponse<HttpContent>> TryFollow()
             {
-                var rsaEncryptedPayload = await _rsaPublicKeyService.EncryptPayloadForRecipient(RsaKeyType.OfflineKey, (OdinId)request.OdinId, json.ToUtf8ByteArray());
+                var rsaEncryptedPayload = await _publicPrivatePublicKeyService.EncryptPayloadForRecipient(RsaKeyType.OfflineKey, (OdinId)request.OdinId, json.ToUtf8ByteArray());
                 var client = CreateClient((OdinId)request.OdinId);
                 var response = await client.Follow(rsaEncryptedPayload);
                 return response;
@@ -75,7 +75,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
             if ((await TryFollow()).IsSuccessStatusCode == false)
             {
                 //public key might be invalid, destroy the cache item
-                await _rsaPublicKeyService.InvalidateRecipientPublicKey((OdinId)request.OdinId);
+                await _publicPrivatePublicKeyService.InvalidateRecipientPublicKey((OdinId)request.OdinId);
 
                 //round 2, fail all together
                 if ((await TryFollow()).IsSuccessStatusCode == false)

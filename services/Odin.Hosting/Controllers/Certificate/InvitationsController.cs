@@ -24,12 +24,12 @@ namespace Odin.Hosting.Controllers.Certificate
     public class InvitationsController : ControllerBase
     {
         private readonly CircleNetworkRequestService _circleNetworkRequestService;
-        private readonly RsaKeyService _rsaKeyService;
+        private readonly PublicPrivateKeyService _publicPrivateKeyService;
 
-        public InvitationsController(CircleNetworkRequestService circleNetworkRequestService, RsaKeyService rsaKeyService)
+        public InvitationsController(CircleNetworkRequestService circleNetworkRequestService, PublicPrivateKeyService publicPrivateKeyService)
         {
             _circleNetworkRequestService = circleNetworkRequestService;
-            _rsaKeyService = rsaKeyService;
+            _publicPrivateKeyService = publicPrivateKeyService;
         }
 
         [HttpPost("connect")]

@@ -18,18 +18,18 @@ namespace Odin.Hosting.Controllers.Certificate
     [Authorize(Policy = CertificatePerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PerimeterAuthConstants.PublicTransitAuthScheme)]
     public class EncryptionPublicKeyController : ControllerBase
     {
-        private readonly RsaKeyService _rsaKeyService;
+        private readonly PublicPrivateKeyService _publicPrivateKeyService;
         // private Guid _stateItemId;
 
-        public EncryptionPublicKeyController(RsaKeyService rsaKeyService)
+        public EncryptionPublicKeyController(PublicPrivateKeyService publicPrivateKeyService)
         {
-            _rsaKeyService = rsaKeyService;
+            _publicPrivateKeyService = publicPrivateKeyService;
         }
 
         [HttpGet("publickey")]
         public async Task<GetPublicKeyResponse> GetRsaKey(RsaKeyType keyType)
         {
-            var key = await _rsaKeyService.GetPublicRsaKey(keyType);
+            var key = await _publicPrivateKeyService.GetPublicRsaKey(keyType);
             return new GetPublicKeyResponse()
             {
                 PublicKey = key.publicKey,
@@ -41,7 +41,7 @@ namespace Odin.Hosting.Controllers.Certificate
         [HttpGet("offlinekey")]
         public async Task<GetOfflinePublicKeyResponse> GetOfflinePublicKey()
         {
-            var key = await _rsaKeyService.GetOfflinePublicKey();
+            var key = await _publicPrivateKeyService.GetOfflinePublicKey();
 
             return new GetOfflinePublicKeyResponse()
             {

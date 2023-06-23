@@ -35,7 +35,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
 
         private readonly IMediator _mediator;
         private readonly TenantContext _tenantContext;
-        private readonly RsaKeyService _rsaKeyService;
+        private readonly PublicPrivateKeyService _publicPrivateKeyService;
         private readonly ExchangeGrantService _exchangeGrantService;
 
         private readonly ThreeKeyValueStorage _pendingRequestValueStorage;
@@ -49,7 +49,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
             TenantSystemStorage tenantSystemStorage,
             IMediator mediator,
             TenantContext tenantContext,
-            RsaKeyService rsaKeyService,
+            PublicPrivateKeyService publicPrivateKeyService,
             ExchangeGrantService exchangeGrantService)
         {
             _contextAccessor = contextAccessor;
@@ -58,7 +58,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
             _odinHttpClientFactory = odinHttpClientFactory;
             _mediator = mediator;
             _tenantContext = tenantContext;
-            _rsaKeyService = rsaKeyService;
+            _publicPrivateKeyService = publicPrivateKeyService;
             _exchangeGrantService = exchangeGrantService;
             _contextAccessor = contextAccessor;
 
@@ -79,7 +79,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
                 return null;
             }
 
-            var (isValidPublicKey, payloadBytes) = await _rsaKeyService.DecryptPayload(RsaKeyType.OnlineKey, header.Payload);
+            var (isValidPublicKey, payloadBytes) = await _publicPrivateKeyService.DecryptPayload(RsaKeyType.OnlineKey, header.Payload);
             if (isValidPublicKey == false)
             {
                 throw new OdinClientException("Invalid or expired public key", OdinClientErrorCode.InvalidOrExpiredRsaKey);
@@ -153,7 +153,6 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
 
             var (accessRegistration, clientAccessToken) = await _exchangeGrantService.CreateClientAccessToken(keyStoreKey, ClientTokenType.Other);
 
-            //TODO: need to encrypt the message as well as the rsa credentials
             var outgoingRequest = new ConnectionRequest
             {
                 Id = header.Id,
@@ -167,7 +166,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
 
             async Task<bool> TrySendRequest()
             {
-                var rsaEncryptedPayload = await _rsaKeyService.EncryptPayloadForRecipient(RsaKeyType.OnlineKey, (OdinId)header.Recipient, payloadBytes);
+                var rsaEncryptedPayload = await _publicPrivateKeyService.EncryptPayloadForRecipient(RsaKeyType.OnlineKey, (OdinId)header.Recipient, payloadBytes);
                 var client = _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((OdinId)outgoingRequest.Recipient);
                 var response = await client.DeliverConnectionRequest(rsaEncryptedPayload);
                 return response.Content is { Success: true } && response.IsSuccessStatusCode;
@@ -176,7 +175,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
             if (!await TrySendRequest())
             {
                 //public key might be invalid, destroy the cache item
-                await _rsaKeyService.InvalidateRecipientPublicKey((OdinId)header.Recipient);
+                await _publicPrivateKeyService.InvalidateRecipientPublicKey((OdinId)header.Recipient);
 
                 if (!await TrySendRequest())
                 {
@@ -313,7 +312,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
             if (!await TryAcceptRequest())
             {
                 //public key might be invalid, destroy the cache item
-                await _rsaKeyService.InvalidateRecipientPublicKey((OdinId)pendingRequest.SenderOdinId);
+                // await _rsaKeyService.InvalidateRecipientPublicKey((OdinId)pendingRequest.SenderOdinId);
                 if (!await TryAcceptRequest())
                 {
                     throw new Exception($"Failed to establish connection request.  Either response was empty or server returned a failure");
