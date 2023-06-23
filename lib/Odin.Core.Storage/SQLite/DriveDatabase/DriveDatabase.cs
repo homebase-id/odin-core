@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using Odin.Core.Exceptions;
 using Odin.Core.Time;
 
@@ -62,9 +63,10 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
         public readonly TableCommandMessageQueue TblCmdMsgQueue = null;
 
         private readonly CacheHelper _cache = null; // No tables needing caching for now... otherwise new CacheHelper("drive");
+        private readonly string _file;
+        private readonly int _line;
 
-
-        public DriveDatabase(string connectionString, DatabaseIndexKind databaseKind, long commitFrequencyMs = 5000) : base(connectionString, commitFrequencyMs)
+        public DriveDatabase(string connectionString, DatabaseIndexKind databaseKind, long commitFrequencyMs = 5000, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1) : base(connectionString, commitFrequencyMs)
         {
             _kind = databaseKind;
 
@@ -73,16 +75,19 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             TblTagIndex = new TableTagIndex(this, _cache);
             TblCmdMsgQueue = new TableCommandMessageQueue(this, _cache);
             TblReactions = new TableReactions(this, _cache);
+
+            _file = file;
+            _line = line;
         }
 
         ~DriveDatabase()
         {
 #if DEBUG
             if (!_wasDisposed)
-                throw new Exception("DriveDatabase was not disposed properly.");
+                throw new Exception("DriveDatabase was not disposed properly. Instantiated from file {_file} line {_line}.");
 #else
             if (!_wasDisposed)
-               Log.Error("DriveDatabase was not disposed properly.");
+               Log.Error("DriveDatabase was not disposed properly. Instantiated from file {_file} line {_line}.");
 #endif
         }
 

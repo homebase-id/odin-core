@@ -12,14 +12,14 @@ namespace Odin.Core.Cryptography.Crypto
     // So it might be a bit counter intuitive. I'll have to cycle back and clean it up
     // but it'll morph anyway when I consider how to support other key types.
 
-    public static class RsaKeyListManagement
+    public static class EccKeyListManagement
     {
         public static readonly byte[] zero16 = new byte[] { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
         public static SensitiveByteArray zeroSensitiveKey = new SensitiveByteArray(zero16);
 
-        public const int DefaultHoursOfflineKey = 1 * 24; // 1 day
-        public const int DefaultHoursOnlineKey = 365 * 24; // 2 years
-        public const int DefaultHoursSignatureKey = 5 * 365 * 24; // 5 years
+        public const int DefaultHoursOfflineKey = 1 * 24;   // 1 day
+        public const int DefaultHoursOnlineKey = 365 * 24;  // 2 years
+        public const int DefaultHoursSignatureKey = 5 * 365 * 24;  // 5 years
 
         public const int DefaultMaxOfflineKeys = 2;
         public const int DefaultMaxOnlineKeys = 2;
@@ -28,7 +28,7 @@ namespace Odin.Core.Cryptography.Crypto
         private const int MinimumKeyHours = 24;
 
 
-        public static RsaFullKeyListData CreateRsaKeyList(SensitiveByteArray key, int maxKeysInList, int hours)
+        public static EccFullKeyListData CreateEccKeyList(SensitiveByteArray key, int maxKeysInList, int hours)
         {
             if (maxKeysInList < 1)
                 throw new Exception("Max cannot be less than 1");
@@ -36,8 +36,8 @@ namespace Odin.Core.Cryptography.Crypto
             if (hours < MinimumKeyHours)
                 throw new Exception("Hours cannot be less than 24");
 
-            var rkl = new RsaFullKeyListData();
-            rkl.ListRSA = new List<RsaFullKeyData>();
+            var rkl = new EccFullKeyListData();
+            rkl.ListEcc = new List<EccFullKeyData>();
             rkl.MaxKeys = maxKeysInList;
 
             GenerateNewKey(key, rkl, hours);
@@ -53,30 +53,30 @@ namespace Odin.Core.Cryptography.Crypto
         // The precise timing depends on how quickly we want keys to expire,
         // maybe the minimum is 24 hours. Generating a new key takes a significant
         // amount of CPU.
-        public static void GenerateNewKey(SensitiveByteArray key, RsaFullKeyListData listRsa, int hours)
+        public static void GenerateNewKey(SensitiveByteArray key, EccFullKeyListData listEcc, int hours)
         {
             if (hours < MinimumKeyHours)
-                throw new Exception("RSA key must live for at least 24 hours");
+                throw new Exception("Ecc key must live for at least 24 hours");
 
-            lock (listRsa)
+            lock (listEcc)
             {
-                var rsa = new RsaFullKeyData(ref key, hours);
+                var ecc = new EccFullKeyData(key, hours);
 
-                listRsa.ListRSA.Insert(0, rsa);
-                if (listRsa.ListRSA.Count > listRsa.MaxKeys)
-                    listRsa.ListRSA.RemoveAt(listRsa.ListRSA.Count - 1); // Remove last
+                listEcc.ListEcc.Insert(0, ecc);
+                if (listEcc.ListEcc.Count > listEcc.MaxKeys)
+                    listEcc.ListEcc.RemoveAt(listEcc.ListEcc.Count - 1); // Remove last
             }
         }
 
 
-        public static RsaFullKeyData GetCurrentKey(RsaFullKeyListData listRsa)
+        public static EccFullKeyData GetCurrentKey(EccFullKeyListData listEcc)
         {
-            if (listRsa.ListRSA == null)
+            if (listEcc.ListEcc == null)
                 throw new Exception("List shouldn't be null");
 
-            lock (listRsa)
+            lock (listEcc)
             {
-                return listRsa.ListRSA[0]; // First
+                return listEcc.ListEcc[0]; // First
             }
         }
 
@@ -84,36 +84,28 @@ namespace Odin.Core.Cryptography.Crypto
         /// <summary>
         /// Will return a valid or expired key, but remove any dead keys
         /// </summary>
-        /// <param name="listRsa"></param>
+        /// <param name="listEcc"></param>
         /// <param name="publicKeyCrc"></param>
         /// <returns></returns>
-        public static RsaFullKeyData FindKey(RsaFullKeyListData listRsa, UInt32 publicKeyCrc)
+        public static EccFullKeyData FindKey(EccFullKeyListData listEcc, UInt32 publicKeyCrc)
         {
-            if (listRsa.ListRSA == null)
+            if (listEcc.ListEcc == null)
                 throw new Exception("List shouldn't be null");
 
-            lock (listRsa)
+            lock (listEcc)
             {
-                if (listRsa.ListRSA.Count < 1)
+                if (listEcc.ListEcc.Count < 1)
                     return null;
 
-                for (int i = 0; i < listRsa.ListRSA.Count; i++)
+                for (int i = 0; i < listEcc.ListEcc.Count; i++)
                 {
-                    if (listRsa.ListRSA[i].crc32c == publicKeyCrc)
-                        return listRsa.ListRSA[i];
+                    if (listEcc.ListEcc[i].crc32c == publicKeyCrc)
+                        return listEcc.ListEcc[i];
+
                 }
 
                 return null;
             }
-        }
-
-        /// <summary>
-        /// Determines if the <see cref="RsaFullKeyListData"/> has at least one valid key
-        /// </summary>
-        public static bool IsValidKeySet(RsaFullKeyListData listRsa)
-        {
-            var isInvalid = listRsa == null || listRsa.ListRSA == null || listRsa.ListRSA.Count == 0 || listRsa.ListRSA.TrueForAll(x => x.IsDead());
-            return !isInvalid;
         }
     }
 }
