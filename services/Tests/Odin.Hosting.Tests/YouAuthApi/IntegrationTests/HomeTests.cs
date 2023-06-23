@@ -21,8 +21,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
         [Test, Combinatorial]
         public async Task VisitingHobbitCanAccessHomeOnVisitedHobbit(
             [Values("frodo.dotyou.cloud", "sam.dotyou.cloud")] string visitingHobbit, 
-            [Values("frodo.dotyou.cloud", "sam.dotyou.cloud")] string visitedHobbit
-            )
+            [Values("frodo.dotyou.cloud", "sam.dotyou.cloud")] string visitedHobbit)
         {
             //
             // `visitingHobbit` logs on to `visitedHobbit`s home
@@ -31,7 +30,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
             var apiClient = WebScaffold.CreateDefaultHttpClient();
             
             // Prerequisite A:
-            // Make sure we cannot access  home resource without valid home cookie
+            // Make sure we cannot access home resource without valid home cookie
             {
                 var response = await apiClient.GetAsync($"https://{visitedHobbit}/api/youauth/v1/auth/ping");
                 Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
@@ -44,17 +43,14 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
             // This triggers OWNER login and in turn YOUAUTH flow below
             //
             
-            // Step 1:
-            // Check owner cookie (we don't send any).
-            // Backend will return false and we move on to owner-authentication in step 2.
+            var (ownerCookie, _) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(visitingHobbit);
+            
             //
-            // https://sam.dotyou.cloud/api/owner/v1/authentication/verifyToken
-            {
-                var response = await apiClient.GetAsync($"https://{visitingHobbit}/api/owner/v1/authentication/verifyToken");
-                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-                var json = await response.Content.ReadAsStringAsync();
-                Assert.That(YouAuthTestHelper.Deserialize<bool>(json), Is.False);
-            }
+            // Browser:
+            // Now we have owner cookie and shared secret, we can start the YOUAUTH flow
+            // Browser redirects, using window.location, to:
+            //   https://sam.dotyou.cloud/owner/login/youauth?returnUrl=https://frodo.dotyou.cloud/
+            //
             
             //
             // Browser:
@@ -63,72 +59,8 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
             // and personalise your experience"
             //
             // SEB:TODO
-            // This must be a backend redirect operation and home cookie must only be created if user approves
-            //
-            
-            // Step 2
-            // Get nonce for authentication
-            //
-            // https://sam.dotyou.cloud/api/owner/v1/authentication/nonce
-            NonceData nonceData;
-            {
-                var response = await apiClient.GetAsync($"https://{visitingHobbit}/api/owner/v1/authentication/nonce");
-                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-                var json = await response.Content.ReadAsStringAsync();
-                nonceData = YouAuthTestHelper.Deserialize<NonceData>(json);
-                Assert.That(nonceData.Nonce64, Is.Not.Null.And.Not.Empty);
-            }
-
-            // Step 3:
-            // Authenticate
-            //
-            // https://sam.dotyou.cloud/api/owner/v1/authentication
-            string ownerCookie;
-            {
-                var passwordReply = PasswordDataManager.CalculatePasswordReply(YouAuthTestHelper.Password, nonceData);
-                var json = YouAuthTestHelper.Serialize(passwordReply);
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var response = await apiClient.PostAsync($"https://{visitingHobbit}/api/owner/v1/authentication", content);
-                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-                // Shared secret from response
-                json = await response.Content.ReadAsStringAsync(); 
-                var ownerAuthResult = YouAuthTestHelper.Deserialize<OwnerAuthenticationResult>(json);
-                Assert.That(ownerAuthResult.SharedSecret, Is.Not.Null.And.Not.Empty);
-                
-                // Owner cookie from response
-                var cookies = response.GetCookies();
-                ownerCookie = cookies[YouAuthTestHelper.OwnerCookieName];
-                Assert.That(ownerCookie, Is.Not.Null.And.Not.Empty);
-            }
-
-            //
-            // Browser:
-            // Now we have owner cookie and shared secret, we can start the YOUAUTH flow
-            // Browser redirects, using window.location, to:
-            //   https://sam.dotyou.cloud/owner/login/youauth?returnUrl=https://frodo.dotyou.cloud/
-            //
-            
-            // Step 4:
-            // Check owner cookie again (this time we have it, so send it)
-            //
-            // https://sam.dotyou.cloud/api/owner/v1/authentication/verifyToken
-            {
-                var request = new HttpRequestMessage(HttpMethod.Get, $"https://{visitingHobbit}/api/owner/v1/authentication/verifyToken")
-                {
-                    Headers = { { "Cookie", new Cookie(YouAuthTestHelper.OwnerCookieName, ownerCookie).ToString() } }
-                };
-                var response = await apiClient.SendAsync(request);
-                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-                var json = await response.Content.ReadAsStringAsync();
-                Assert.That(YouAuthTestHelper.Deserialize<bool>(json), Is.True);
-            }
-            
-            //
-            // YOUAUTH YOUAUTH YOUAUTH YOUAUTH
-            //
-            // Frodo now has a verified session on frodo/owner via the owner cookie.
-            // Start the YOUAUTH flow!
+            // This check is being done without involving the backend and can thus be bypassed. How do we 
+            // move check to backend so it cannot be bypassed?
             //
             
             // Step 5:
