@@ -150,8 +150,6 @@ namespace Odin.Core.Time
         }
 
         public Int64 milliseconds { get { return _milliseconds; } }
-
-        [JsonIgnore]
         public Int64 seconds { get { return _milliseconds / 1000; } }
 
         private readonly Int64 _milliseconds;
