@@ -1,17 +1,13 @@
+#nullable enable
 using System;
 using System.Net;
 using System.Net.Http;
-using System.Text;
 using System.Threading.Tasks;
 using System.Web;
 using NUnit.Framework;
-using Odin.Core.Cryptography;
-using Odin.Core.Cryptography.Data;
 using Odin.Hosting.Controllers.Anonymous;
-using Odin.Hosting.Controllers.OwnerToken.Auth;
 
-#nullable enable
-namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests
+namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Current
 {
     public class HomeTests : YouAuthIntegrationTestBase
     {

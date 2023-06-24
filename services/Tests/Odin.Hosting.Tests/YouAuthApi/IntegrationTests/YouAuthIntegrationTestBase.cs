@@ -130,4 +130,7 @@ public abstract class YouAuthIntegrationTestBase
 
         return (ownerCookie, sharedSecret);
     }
+    
+    //
+    
 }
