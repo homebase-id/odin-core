@@ -102,7 +102,7 @@ namespace Odin.Core.Cryptography.Data
             }
 
             var forSigningJson = GetJsonForNotariusPublicusSignature();
-            NotariusPublicus = SignatureData.Sign(forSigningJson.ToUtf8ByteArray(), identity, keyPwd, eccKey);
+            NotariusPublicus = SignatureData.NewSignature(forSigningJson.ToUtf8ByteArray(), identity, keyPwd, eccKey);
         }
 
         public bool VerifyNotariusPublicus()

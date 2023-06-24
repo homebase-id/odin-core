@@ -46,7 +46,7 @@ namespace Odin.Core.Cryptography.Data
         /// <param name="eccKey"></param>
         /// <returns></returns>
         /// <exception cref="ArgumentNullException"></exception>
-        public static SignatureData Sign(byte[] data, OdinId identity, SensitiveByteArray keyPwd, EccFullKeyData eccKey)
+        public static SignatureData NewSignature(byte[] data, OdinId identity, SensitiveByteArray keyPwd, EccFullKeyData eccKey)
         {
             if (data == null || data.Length == 0)
                 throw new ArgumentNullException(nameof(data));

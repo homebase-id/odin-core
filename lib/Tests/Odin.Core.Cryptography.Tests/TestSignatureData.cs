@@ -19,7 +19,7 @@ public class SignatureDataTest
         EccFullKeyData testEccKey = new EccFullKeyData(testKeyPwd, 1);
 
         // Act
-        SignatureData signature = SignatureData.Sign(testData, testIdentity, testKeyPwd, testEccKey);
+        SignatureData signature = SignatureData.NewSignature(testData, testIdentity, testKeyPwd, testEccKey);
         Assert.GreaterOrEqual(signature.DocumentSignature.Length, 16);
         bool isValid = SignatureData.Verify(signature, testData);
 
@@ -37,7 +37,7 @@ public class SignatureDataTest
         EccFullKeyData testEccKey = new EccFullKeyData(testKeyPwd, 1);
 
         // Sign data
-        SignatureData signature = SignatureData.Sign(testData, testIdentity, testKeyPwd, testEccKey);
+        SignatureData signature = SignatureData.NewSignature(testData, testIdentity, testKeyPwd, testEccKey);
 
         // Modify signed data
         byte[] modifiedData = System.Text.Encoding.UTF8.GetBytes("Modified data");

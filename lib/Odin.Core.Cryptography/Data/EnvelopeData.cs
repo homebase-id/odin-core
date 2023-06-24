@@ -57,7 +57,7 @@ namespace Odin.Core.Cryptography.Data
         public SignatureData SignEnvelope(OdinId identity, SensitiveByteArray keyPwd, EccFullKeyData eccKey)
         {
             var envelopeJson = this.GetCompactSortedJson();
-            var signature = SignatureData.Sign(envelopeJson.ToUtf8ByteArray(), identity, keyPwd, eccKey);
+            var signature = SignatureData.NewSignature(envelopeJson.ToUtf8ByteArray(), identity, keyPwd, eccKey);
             return signature;
         }
 
