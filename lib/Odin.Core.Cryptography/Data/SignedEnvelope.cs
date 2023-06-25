@@ -119,9 +119,9 @@ namespace Odin.Core.Cryptography.Data
         {
             var options = new JsonSerializerOptions
             {
-                IgnoreNullValues = true,
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
             };
-            return System.Text.Json.JsonSerializer.Serialize(this, options);
+            return JsonSerializer.Serialize(this, options);
         }
     }
 }
