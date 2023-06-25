@@ -7,6 +7,11 @@ using System.IO;
 using Odin.Core;
 using Odin.Core.Identity;
 using System.Text;
+using Odin.Core.Util;
+using NodaTime;
+using Odin.Core.Time;
+using System.Reflection.Metadata;
+using System.Globalization;
 
 namespace Odin.Tests
 {
@@ -91,34 +96,37 @@ namespace Odin.Tests
             return sb.ToString();
         }
 
-        [Test]
-        public void VerifiedIdentityExperiment()
+        public static void Attestation(PunyDomainName identity, SortedDictionary<string, object> dataToAttest)
         {
+            const string AUTHORITY_IDENTITY = "id.verifyssi.com";
+            const string VERIFYURL = "https://api.verifyssi.com/api/v1/verify?prpt=$signature"; // Replace $signature with the signatureBase64 when calling
+            const string ATTESTATIONTYPE_PERSONALINFO = "personalInfo";
+            string USAGEPOLICY_URL = $"https://{identity.DomainName}/policies/attestation-usage-policy";
+
+            const string CONTENTTYPE_ATTESTATION = "attestation";
+
+            // Verify dataToAttest is not null and contains data
+            if (dataToAttest == null || dataToAttest.Count == 0)
+            {
+                throw new ArgumentException("Invalid attestation data. Please ensure that dataToAttest contains data.");
+            }
+
             // Let's say we have a document (possibly a file)
             // We want some additional information in the envelope
             var additionalInfo = new SortedDictionary<string, object>
             {
-                { "identity", "frodo.baggins.me" },
-                { "issued", "2023-06-10" },
-                { "expiration", "2028-06-10" },
-                { "authority", "id.verifyssi.com" },
-                { "URL", "https://api.verifyssi.com/api/v1/verify?prpt=$signature" },  // Replace $signature with the signatureBase64
-                { "attestationFormat", "personalInfo" },  // Can be "personalInfo", "humanVerification", ... more to come ...
-                { "data", new SortedDictionary<string, object>
-                    {
-                        { "FN", "Frodo Baggins" },
-                        { "ADR", new SortedDictionary<string, string>
-                            {
-                                { "street", "Bag End" },
-                                { "city", "Hobbiton" },
-                                { "region", "The Shire" },
-                                { "postalCode", "4242" },
-                                { "country", "Middleearth" }
-                            }
-                        }
-                    }
-                }
+                { "identity", identity.DomainName },
+                { "issued", ((Instant) UnixTimeUtc.Now()).InUtc().Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) },
+                { "expiration", ((Instant) UnixTimeUtc.Now().AddSeconds(3600*24*365*5)).InUtc().Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) },
+                { "authority", AUTHORITY_IDENTITY },
+                { "URL", VERIFYURL },  
+                { "attestationFormat", ATTESTATIONTYPE_PERSONALINFO },
+                { "usagePolicyUrl", USAGEPOLICY_URL },
+                { "data", dataToAttest }  // Insert dataToAttest here
             };
+
+            // Make sure it's valid
+            EnvelopeData.VerifyAdditionalInfoTypes(additionalInfo);
 
             SortedDictionary<string, object> data = (SortedDictionary<string, object>)additionalInfo["data"];
             string doc = StringifyData(data);
@@ -126,10 +134,10 @@ namespace Odin.Tests
 
             // Create an Envelope for this document
             var envelope = new EnvelopeData();
-            envelope.CalculateContentHash(content, "attestation", additionalInfo);
+            envelope.CalculateContentHash(content, CONTENTTYPE_ATTESTATION, additionalInfo);
 
             // Create an identity and keys needed
-            OdinId testIdentity = new OdinId("id.verifyssi.com");
+            OdinId testIdentity = new OdinId(AUTHORITY_IDENTITY);
             SensitiveByteArray testKeyPwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
             EccFullKeyData testEccKey = new EccFullKeyData(testKeyPwd, 1);
 
@@ -138,10 +146,32 @@ namespace Odin.Tests
             //  Now let's sign the envelope.
             signedEnvelope.CreateEnvelopeSignature(testIdentity, testKeyPwd, testEccKey);
 
-
+            // Check everything is dandy
             signedEnvelope.VerifyEnvelopeSignatures();
 
+            // For michael to look at the JSON
             string s = signedEnvelope.GetCompactSortedJson();
+        }
+
+        [Test]
+        public void VerifiedIdentityExperiment()
+        {
+            var dataToAttest = new SortedDictionary<string, object>
+            {
+                { "FN", "Frodo Baggins" },
+                { "ADR", new SortedDictionary<string, string>
+                    {
+                        { "street", "Bag End" },
+                        { "city", "Hobbiton" },
+                        { "region", "The Shire" },
+                        { "postalCode", "4242" },
+                        { "country", "Middleearth" }
+                    }
+                }
+            };
+
+
+            Attestation(new PunyDomainName("frodo.baggins.me"), dataToAttest);
         }
 
 
