@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using Odin.Core;
 using Odin.Core.Identity;
+using System.Text;
 
 namespace Odin.Tests
 {
@@ -27,7 +28,7 @@ namespace Odin.Tests
 
             // Create an Envelope for this document
             var envelope = new EnvelopeData();
-            envelope.CalculateDocumentHash(document, additionalInfo);
+            envelope.CalculateContentHash(document, "test", additionalInfo);
 
             // Create an identity and keys needed
             OdinId testIdentity = new OdinId("odin.valhalla.com");
@@ -60,27 +61,56 @@ namespace Odin.Tests
             // string s = signedEnvelope.GetCompactSortedJson();
         }
 
+        public static string StringifyData(SortedDictionary<string, object> data)
+        {
+            StringBuilder sb = new StringBuilder();
+
+            foreach (KeyValuePair<string, object> entry in data)
+            {
+                sb.Append(entry.Key);
+                sb.Append(":");
+
+                if (entry.Value is SortedDictionary<string, string> nestedDict)
+                {
+                    foreach (KeyValuePair<string, string> nestedEntry in nestedDict)
+                    {
+                        sb.Append(nestedEntry.Key);
+                        sb.Append("=");
+                        sb.Append(nestedEntry.Value);
+                        sb.Append(";");
+                    }
+                }
+                else
+                {
+                    sb.Append(entry.Value.ToString());
+                }
+
+                sb.Append(",");
+            }
+
+            return sb.ToString();
+        }
 
         [Test]
         public void VerifiedIdentityExperiment()
         {
             // Let's say we have a document (possibly a file)
-            byte[] document = "Michael Seifert".ToUtf8ByteArray();
             // We want some additional information in the envelope
             var additionalInfo = new SortedDictionary<string, object>
             {
                 { "identity", "frodo.baggins.me" },
                 { "issued", "2023-06-10" },
                 { "expiration", "2028-06-10" },
-                { "authority", "id.vewrifyssi.com" },
-                { "URL", "https://api.verifyssi.com/api/v1/verify?prpt=" },
+                { "authority", "id.verifyssi.com" },
+                { "URL", "https://api.verifyssi.com/api/v1/verify?prpt=$signature" },  // Replace $signature with the signatureBase64
+                { "attestationFormat", "personalInfo" },  // Can be "personalInfo", "humanVerification", ... more to come ...
                 { "data", new SortedDictionary<string, object>
                     {
                         { "FN", "Frodo Baggins" },
                         { "ADR", new SortedDictionary<string, string>
                             {
                                 { "street", "Bag End" },
-                                { "city", "Hobbitsville" },
+                                { "city", "Hobbiton" },
                                 { "region", "The Shire" },
                                 { "postalCode", "4242" },
                                 { "country", "Middleearth" }
@@ -90,9 +120,13 @@ namespace Odin.Tests
                 }
             };
 
+            SortedDictionary<string, object> data = (SortedDictionary<string, object>)additionalInfo["data"];
+            string doc = StringifyData(data);
+            byte[] content = doc.ToUtf8ByteArray();
+
             // Create an Envelope for this document
             var envelope = new EnvelopeData();
-            envelope.CalculateDocumentHash(document, additionalInfo);
+            envelope.CalculateContentHash(content, "attestation", additionalInfo);
 
             // Create an identity and keys needed
             OdinId testIdentity = new OdinId("id.verifyssi.com");
@@ -120,12 +154,12 @@ namespace Odin.Tests
             var envelope = new EnvelopeData();
 
             // Act
-            envelope.CalculateDocumentHash(document, additionalInfo);
+            envelope.CalculateContentHash(document, "test", additionalInfo);
 
             // Assert
-            Assert.IsNotNull(envelope.DocumentHash);
+            Assert.IsNotNull(envelope.ContentHash);
             Assert.IsNotNull(envelope.Nonce);
-            Assert.AreEqual(HashUtil.SHA256Algorithm, envelope.DocumentHashAlgorithm);
+            Assert.AreEqual(HashUtil.SHA256Algorithm, envelope.ContentHashAlgorithm);
             Assert.IsNotNull(envelope.TimeStamp);
             Assert.AreEqual(document.Length, envelope.Length);
             Assert.AreEqual(additionalInfo, envelope.AdditionalInfo);
@@ -139,12 +173,12 @@ namespace Odin.Tests
             var envelope = new EnvelopeData();
 
             // Act
-            envelope.CalculateDocumentHash(document, null);
+            envelope.CalculateContentHash(document, "test", null);
 
             // Assert
-            Assert.IsNotNull(envelope.DocumentHash);
+            Assert.IsNotNull(envelope.ContentHash);
             Assert.IsNotNull(envelope.Nonce);
-            Assert.AreEqual(HashUtil.SHA256Algorithm, envelope.DocumentHashAlgorithm);
+            Assert.AreEqual(HashUtil.SHA256Algorithm, envelope.ContentHashAlgorithm);
             Assert.IsNotNull(envelope.TimeStamp);
             Assert.AreEqual(document.Length, envelope.Length);
             Assert.AreEqual(null, envelope.AdditionalInfo);
@@ -160,12 +194,12 @@ namespace Odin.Tests
             var envelope = new EnvelopeData();
 
             // Act
-            envelope.CalculateDocumentHash(fileName, additionalInfo);
+            envelope.CalculateContetntHash(fileName, "test", additionalInfo);
 
             // Assert
-            Assert.IsNotNull(envelope.DocumentHash);
+            Assert.IsNotNull(envelope.ContentHash);
             Assert.IsNotNull(envelope.Nonce);
-            Assert.AreEqual(HashUtil.SHA256Algorithm, envelope.DocumentHashAlgorithm);
+            Assert.AreEqual(HashUtil.SHA256Algorithm, envelope.ContentHashAlgorithm);
             Assert.IsNotNull(envelope.TimeStamp);
             Assert.AreEqual(new FileInfo(fileName).Length, envelope.Length);
             Assert.AreEqual(additionalInfo, envelope.AdditionalInfo);

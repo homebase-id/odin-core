@@ -30,7 +30,7 @@ namespace Odin.Core.Cryptography.Data
         public string SignatureAlgorithm { get; set; }
 
         [JsonPropertyOrder(8)]
-        public byte[] DocumentSignature { get; set; }
+        public byte[] Signature { get; set; }
 
         public SignatureData()
         {
@@ -65,7 +65,7 @@ namespace Odin.Core.Cryptography.Data
             s.SignatureAlgorithm = EccFullKeyData.eccSignatureAlgorithm;
             var bytesToSign = ByteArrayUtil.Combine(s.DataHash, s.DataHashAlgorithm.ToUtf8ByteArray(), s.Identity.ToByteArray(), s.PublicKeyDer, ByteArrayUtil.Int64ToBytes(s.TimeStamp.milliseconds), s.SignatureAlgorithm.ToUtf8ByteArray());
 
-            s.DocumentSignature = eccKey.Sign(keyPwd, bytesToSign);
+            s.Signature = eccKey.Sign(keyPwd, bytesToSign);
 
             return s;
         }
@@ -91,7 +91,7 @@ namespace Odin.Core.Cryptography.Data
                                     ByteArrayUtil.Int64ToBytes(signatureData.TimeStamp.milliseconds), 
                                     signatureData.SignatureAlgorithm.ToUtf8ByteArray());
 
-            return publicKey.VerifySignature(bytesToSign, signatureData.DocumentSignature);
+            return publicKey.VerifySignature(bytesToSign, signatureData.Signature);
         }
 
         public string GetCompactSortedJson()

@@ -19,21 +19,27 @@ namespace Odin.Core.Cryptography.Data
         public const int Version = 1;
 
         [JsonPropertyOrder(2)]
-        public byte[] DocumentHash { get; set; }
+        public byte[] ContentHash { get; set; }
 
         [JsonPropertyOrder(3)]
         public byte[] Nonce { get; set; }
 
         [JsonPropertyOrder(4)]
-        public string DocumentHashAlgorithm { get; set; }
+        public string ContentHashAlgorithm { get; set; }
 
+        /// <summary>
+        /// ContentType can currently be: Document, Attestation (proving e.g. my name), more to come
+        /// </summary>
         [JsonPropertyOrder(5)]
-        public UnixTimeUtc TimeStamp { get; set; }
+        public string ContentType { get; set; }
 
         [JsonPropertyOrder(6)]
-        public Int64 Length { get; set; }
+        public UnixTimeUtc TimeStamp { get; set; }
 
         [JsonPropertyOrder(7)]
+        public Int64 Length { get; set; }
+
+        [JsonPropertyOrder(8)]
         public SortedDictionary<string, object> AdditionalInfo { get; set; } = new SortedDictionary<string, object>();
 
         public EnvelopeData()
@@ -92,13 +98,13 @@ namespace Odin.Core.Cryptography.Data
         /// <summary>
         /// Make an envelope for a small document (do not use large files as a memory byte[])
         /// </summary>
-        /// <param name="document"></param>
+        /// <param name="content"></param>
         /// <param name="additionalInfo">For example, "author", "title", whatever is important for the document</param>
         /// <exception cref="ArgumentNullException"></exception>
-        public void CalculateDocumentHash(Stream document, SortedDictionary<string, object> additionalInfo)
+        public void CalculateContentHash(Stream content, string contentType, SortedDictionary<string, object> additionalInfo)
         {
-            if (document == null)
-                throw new ArgumentNullException(nameof(document));
+            if (content == null)
+                throw new ArgumentNullException(nameof(content));
             
             if (additionalInfo != null)
             {
@@ -109,8 +115,9 @@ namespace Odin.Core.Cryptography.Data
             }
 
             Nonce = ByteArrayUtil.GetRndByteArray(32);
-            (DocumentHash, Length) = HashUtil.StreamSHA256(document, Nonce);
-            DocumentHashAlgorithm = HashUtil.SHA256Algorithm;
+            (ContentHash, Length) = HashUtil.StreamSHA256(content, Nonce);
+            ContentHashAlgorithm = HashUtil.SHA256Algorithm;
+            ContentType = contentType;
             TimeStamp = UnixTimeUtc.Now();
             AdditionalInfo = additionalInfo;
         }
@@ -121,31 +128,31 @@ namespace Odin.Core.Cryptography.Data
         /// <param name="documentFilename"></param>
         /// <param name="additionalInfo">For example, "author", "title", whatever is important for the document</param>
         /// <exception cref="ArgumentNullException"></exception>
-        public void CalculateDocumentHash(string documentFileName, SortedDictionary<string, object> additionalInfo)
+        public void CalculateContetntHash(string contentFileName, string contentType, SortedDictionary<string, object> additionalInfo)
         {
-            if (string.IsNullOrEmpty(documentFileName))
-                throw new ArgumentNullException(nameof(documentFileName));
+            if (string.IsNullOrEmpty(contentFileName))
+                throw new ArgumentNullException(nameof(contentFileName));
 
-            using (var fileStream = File.OpenRead(documentFileName))
+            using (var fileStream = File.OpenRead(contentFileName))
             {
-                CalculateDocumentHash(fileStream, additionalInfo);
+                CalculateContentHash(fileStream, contentType, additionalInfo);
             }
         }
 
         /// <summary>
         /// Make an envelope from a small memory byte[]
         /// </summary>
-        /// <param name="document"></param>
+        /// <param name="content"></param>
         /// <param name="additionalInfo"></param>
         /// <exception cref="ArgumentNullException"></exception>
-        public void CalculateDocumentHash(byte[] document, SortedDictionary<string, object> additionalInfo)
+        public void CalculateContentHash(byte[] content, string contentType, SortedDictionary<string, object> additionalInfo)
         {
-            if (document == null)
-                throw new ArgumentNullException(nameof(document));
+            if (content == null)
+                throw new ArgumentNullException(nameof(content));
 
-            using (var memoryStream = new MemoryStream(document))
+            using (var memoryStream = new MemoryStream(content))
             {
-                CalculateDocumentHash(memoryStream, additionalInfo);
+                CalculateContentHash(memoryStream, contentType, additionalInfo);
             }
         }
     }

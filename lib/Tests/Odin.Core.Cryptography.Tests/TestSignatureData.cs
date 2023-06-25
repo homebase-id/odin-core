@@ -20,7 +20,7 @@ public class SignatureDataTest
 
         // Act
         SignatureData signature = SignatureData.NewSignature(testData, testIdentity, testKeyPwd, testEccKey);
-        Assert.GreaterOrEqual(signature.DocumentSignature.Length, 16);
+        Assert.GreaterOrEqual(signature.Signature.Length, 16);
         bool isValid = SignatureData.Verify(signature, testData);
 
         // Assert
