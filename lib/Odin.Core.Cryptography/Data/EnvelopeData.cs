@@ -46,6 +46,26 @@ namespace Odin.Core.Cryptography.Data
             return System.Text.Json.JsonSerializer.Serialize(this);
         }
 
+        public static bool VerifyAdditionalInfoTypes(SortedDictionary<string, object> additionalInfo)
+        {
+            foreach (var kvp in additionalInfo)
+            {
+                if (!(kvp.Value is string || kvp.Value is SortedDictionary<string, object>))
+                {
+                    return false;
+                }
+
+                if (kvp.Value is SortedDictionary<string, object> nestedDict)
+                {
+                    if (!VerifyAdditionalInfoTypes(nestedDict))
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
 
         /// <summary>
         /// Use to create a new signature for this envelope
@@ -79,6 +99,14 @@ namespace Odin.Core.Cryptography.Data
         {
             if (document == null)
                 throw new ArgumentNullException(nameof(document));
+            
+            if (additionalInfo != null)
+            {
+                if (!VerifyAdditionalInfoTypes(AdditionalInfo))
+                {
+                    throw new ArgumentException("Invalid type in AdditionalInfo.");
+                }
+            }
 
             Nonce = ByteArrayUtil.GetRndByteArray(32);
             (DocumentHash, Length) = HashUtil.StreamSHA256(document, Nonce);

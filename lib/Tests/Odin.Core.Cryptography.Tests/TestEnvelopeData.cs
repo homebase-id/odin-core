@@ -62,6 +62,56 @@ namespace Odin.Tests
 
 
         [Test]
+        public void VerifiedIdentityExperiment()
+        {
+            // Let's say we have a document (possibly a file)
+            byte[] document = "Michael Seifert".ToUtf8ByteArray();
+            // We want some additional information in the envelope
+            var additionalInfo = new SortedDictionary<string, object>
+            {
+                { "identity", "frodo.baggins.me" },
+                { "issued", "2023-06-10" },
+                { "expiration", "2028-06-10" },
+                { "authority", "id.vewrifyssi.com" },
+                { "URL", "https://api.verifyssi.com/api/v1/verify?prpt=" },
+                { "data", new SortedDictionary<string, object>
+                    {
+                        { "FN", "Frodo Baggins" },
+                        { "ADR", new SortedDictionary<string, string>
+                            {
+                                { "street", "Bag End" },
+                                { "city", "Hobbitsville" },
+                                { "region", "The Shire" },
+                                { "postalCode", "4242" },
+                                { "country", "Middleearth" }
+                            }
+                        }
+                    }
+                }
+            };
+
+            // Create an Envelope for this document
+            var envelope = new EnvelopeData();
+            envelope.CalculateDocumentHash(document, additionalInfo);
+
+            // Create an identity and keys needed
+            OdinId testIdentity = new OdinId("id.verifyssi.com");
+            SensitiveByteArray testKeyPwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            EccFullKeyData testEccKey = new EccFullKeyData(testKeyPwd, 1);
+
+            var signedEnvelope = new SignedEnvelope() { Envelope = envelope };
+
+            //  Now let's sign the envelope.
+            signedEnvelope.CreateEnvelopeSignature(testIdentity, testKeyPwd, testEccKey);
+
+
+            signedEnvelope.VerifyEnvelopeSignatures();
+
+            string s = signedEnvelope.GetCompactSortedJson();
+        }
+
+
+        [Test]
         public void CalculateDocumentHash_WithByteArray_CorrectlyInitializesProperties()
         {
             // Arrange
