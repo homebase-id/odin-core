@@ -57,7 +57,7 @@ namespace Odin.Core.Services.EncryptionKeyService
         /// </summary>
         public Task<RsaPublicKeyData> GetOfflinePublicKey()
         {
-            var k = this.GetCurrentKeyFromStorage(_offlineKeyStorageId);
+            var k = this.GetCurrentRsaKeyFromStorage(_offlineKeyStorageId);
             return Task.FromResult(RsaPublicKeyData.FromDerEncodedPublicKey(k.publicKey));
         }
 
@@ -143,13 +143,13 @@ namespace Odin.Core.Services.EncryptionKeyService
 
         public Task<EccPublicKeyData> GetSigningPublicKey()
         {
-            var k = this.GetCurrentKeyFromStorage(_signingKeyStorageId);
+            var k = this.GetCurrentEccKeyFromStorage(_signingKeyStorageId);
             return Task.FromResult(EccPublicKeyData.FromDerEncodedPublicKey(k.publicKey));
         }
 
         public Task<RsaPublicKeyData> GetOnlinePublicKey()
         {
-            var k = this.GetCurrentKeyFromStorage(_onlineKeyStorageId);
+            var k = this.GetCurrentRsaKeyFromStorage(_onlineKeyStorageId);
             return Task.FromResult(RsaPublicKeyData.FromDerEncodedPublicKey(k.publicKey));
         }
 
@@ -264,12 +264,12 @@ namespace Odin.Core.Services.EncryptionKeyService
             switch (keyType)
             {
                 case RsaKeyType.OfflineKey:
-                    keyList = this.GetKeyListFromStorage(_offlineKeyStorageId);
+                    keyList = this.GetRsaKeyListFromStorage(_offlineKeyStorageId);
                     decryptionKey = OfflinePrivateKeyEncryptionKey.ToSensitiveByteArray();
                     break;
 
                 case RsaKeyType.OnlineKey:
-                    keyList = this.GetKeyListFromStorage(_onlineKeyStorageId);
+                    keyList = this.GetRsaKeyListFromStorage(_onlineKeyStorageId);
                     decryptionKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
                     break;
 
@@ -341,17 +341,30 @@ namespace Odin.Core.Services.EncryptionKeyService
             return Task.CompletedTask;
         }
 
-        private RsaFullKeyData GetCurrentKeyFromStorage(Guid storageKey)
+        private RsaFullKeyData GetCurrentRsaKeyFromStorage(Guid storageKey)
         {
-            var keyList = GetKeyListFromStorage(storageKey);
+            var keyList = GetRsaKeyListFromStorage(storageKey);
             return RsaKeyListManagement.GetCurrentKey(keyList);
         }
+        
 
-        private RsaFullKeyListData GetKeyListFromStorage(Guid storageKey)
+        private RsaFullKeyListData GetRsaKeyListFromStorage(Guid storageKey)
         {
             return _tenantSystemStorage.SingleKeyValueStorage.Get<RsaFullKeyListData>(storageKey);
         }
 
+        private EccFullKeyData GetCurrentEccKeyFromStorage(Guid storageKey)
+        {
+            var keyList = GetEccKeyListFromStorage(storageKey);
+            return EccKeyListManagement.GetCurrentKey(keyList);
+        }
+        
+
+        private EccFullKeyListData GetEccKeyListFromStorage(Guid storageKey)
+        {
+            return _tenantSystemStorage.SingleKeyValueStorage.Get<EccFullKeyListData>(storageKey);
+        }
+        
         private RsaEncryptedPayload Encrypt(RsaPublicKeyData pk, byte[] payload)
         {
             var keyHeader = KeyHeader.NewRandom16();

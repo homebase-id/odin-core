@@ -68,14 +68,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             //
             // Signing Key should exist
             // 
-            var signingKey = await ownerClient.Rsa.GetSigningPublicKey();
+            var signingKey = await ownerClient.PublicPrivateKey.GetSigningPublicKey();
             Assert.IsTrue(signingKey.PublicKey.Length > 0);
             Assert.IsTrue(signingKey.Crc32 > 0);
             
             //
             // Online key should exist
             //
-            var onlinePublicKey = await ownerClient.Rsa.GetOnlinePublicKey();
+            var onlinePublicKey = await ownerClient.PublicPrivateKey.GetOnlinePublicKey();
             Assert.IsTrue(onlinePublicKey.PublicKey.Length > 0);
             Assert.IsTrue(onlinePublicKey.Crc32 > 0);
             
@@ -83,7 +83,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             //
             // offline key should exist
             //
-            var offlinePublicKey = await ownerClient.Rsa.GetOfflinePublicKey();
+            var offlinePublicKey = await ownerClient.PublicPrivateKey.GetOfflinePublicKey();
             Assert.IsTrue(offlinePublicKey.PublicKey.Length > 0);
             Assert.IsTrue(offlinePublicKey.Crc32 > 0);
             

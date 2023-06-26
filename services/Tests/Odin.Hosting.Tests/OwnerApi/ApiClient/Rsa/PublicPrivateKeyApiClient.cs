@@ -7,12 +7,12 @@ using Refit;
 
 namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Rsa;
 
-public class RsaApiClient
+public class PublicPrivateKeyApiClient
 {
     private readonly TestIdentity _identity;
     private readonly OwnerApiTestUtils _ownerApi;
 
-    public RsaApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity)
+    public PublicPrivateKeyApiClient(OwnerApiTestUtils ownerApi, TestIdentity identity)
     {
         _ownerApi = ownerApi;
         _identity = identity;
