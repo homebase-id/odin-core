@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Security.Cryptography;
 using Org.BouncyCastle.Crypto.Digests;
 using Org.BouncyCastle.Crypto.Generators;
@@ -36,14 +37,31 @@ namespace Odin.Core.Cryptography.Crypto
 
             return outputKey;
         }
-        public static byte[] FileSHA256(string fileName)
+
+        public static (byte[], Int64) StreamSHA256(Stream inputStream, byte[] optionalNonce = null)
         {
-            using (var stream = System.IO.File.OpenRead(fileName))
+            using (var hasher = SHA256.Create())
             {
-                using (var hasher = SHA256.Create())
+                // if nonce is provided, compute hash of nonce first
+                if (optionalNonce != null)
                 {
-                    return hasher.ComputeHash(stream);
+                    hasher.TransformBlock(optionalNonce, 0, optionalNonce.Length, null, 0);
                 }
+
+                Int64 streamLength = 0;
+
+                byte[] buffer = new byte[8192];
+                int bytesRead;
+                while ((bytesRead = inputStream.Read(buffer, 0, buffer.Length)) != 0)
+                {
+                    hasher.TransformBlock(buffer, 0, bytesRead, null, 0);
+                    streamLength += bytesRead;
+                }
+
+                // finalize the hash computation
+                hasher.TransformFinalBlock(buffer, 0, 0);
+
+                return (hasher.Hash, streamLength);
             }
         }
     }

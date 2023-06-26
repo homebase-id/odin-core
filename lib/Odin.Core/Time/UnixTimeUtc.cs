@@ -67,7 +67,7 @@ namespace Odin.Core.Time
         /// Returns a new UnixTimeUtc object with the seconds added.
         /// </summary>
         /// <param name="s"></param>
-        public UnixTimeUtc AddSeconds(int s)
+        public UnixTimeUtc AddSeconds(Int64 s)
         {
             return new UnixTimeUtc((Int64)(((Int64)_milliseconds) + (s * 1000)));
         }
@@ -76,7 +76,7 @@ namespace Odin.Core.Time
         /// Returns a new UnixTimeUtc object with the milliseconds added.
         /// </summary>
         /// <param name="ms"></param>
-        public UnixTimeUtc AddMilliseconds(int ms)
+        public UnixTimeUtc AddMilliseconds(Int64 ms)
         {
             return new UnixTimeUtc((Int64)(((Int64)_milliseconds) + ms));
         }
@@ -149,8 +149,8 @@ namespace Odin.Core.Time
             return this.milliseconds.GetHashCode();
         }
 
-        public Int64 seconds { get { return _milliseconds / 1000; } }
         public Int64 milliseconds { get { return _milliseconds; } }
+        public Int64 seconds { get { return _milliseconds / 1000; } }
 
         private readonly Int64 _milliseconds;
     }
