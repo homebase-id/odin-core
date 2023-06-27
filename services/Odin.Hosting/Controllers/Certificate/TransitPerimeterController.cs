@@ -36,7 +36,7 @@ namespace Odin.Hosting.Controllers.Certificate
     public class TransitPerimeterController : ControllerBase
     {
         private readonly OdinContextAccessor _contextAccessor;
-        private readonly IPublicKeyService _publicKeyService;
+        private readonly PublicPrivateKeyService _publicKeyService;
         private readonly DriveManager _driveManager;
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly FileSystemResolver _fileSystemResolver;
@@ -46,7 +46,7 @@ namespace Odin.Hosting.Controllers.Certificate
         private Guid _stateItemId;
 
         /// <summary />
-        public TransitPerimeterController(OdinContextAccessor contextAccessor, IPublicKeyService publicKeyService, DriveManager driveManager,
+        public TransitPerimeterController(OdinContextAccessor contextAccessor, PublicPrivateKeyService publicKeyService, DriveManager driveManager,
             TenantSystemStorage tenantSystemStorage, IMediator mediator, FileSystemResolver fileSystemResolver)
         {
             _contextAccessor = contextAccessor;
@@ -84,7 +84,7 @@ namespace Odin.Hosting.Controllers.Certificate
 
                 //End Optimizations
 
-                _perimeterService = new TransitPerimeterService(_contextAccessor, _publicKeyService,
+                _perimeterService = new TransitPerimeterService(_contextAccessor,
                     _driveManager, _fileSystem, _tenantSystemStorage, _mediator, _fileSystemResolver);
 
                 _stateItemId = await _perimeterService.InitializeIncomingTransfer(transferInstructionSet);

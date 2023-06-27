@@ -5,7 +5,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using MediatR;
-using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Apps;
@@ -16,7 +15,6 @@ using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem;
 using Odin.Core.Services.Drives.FileSystem.Base;
 using Odin.Core.Services.Drives.Management;
-using Odin.Core.Services.EncryptionKeyService;
 using Odin.Core.Services.Mediator;
 using Odin.Core.Services.Transit.Encryption;
 using Odin.Core.Services.Transit.ReceivingHost.Incoming;
@@ -31,7 +29,6 @@ namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine
     {
         private readonly OdinContextAccessor _contextAccessor;
         private readonly ITransitPerimeterTransferStateService _transitPerimeterTransferStateService;
-        private readonly IPublicKeyService _publicKeyService;
         private readonly DriveManager _driveManager;
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
         private readonly IDriveFileSystem _fileSystem;
@@ -40,7 +37,6 @@ namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine
 
         public TransitPerimeterService(
             OdinContextAccessor contextAccessor,
-            IPublicKeyService publicKeyService,
             DriveManager driveManager,
             IDriveFileSystem fileSystem,
             TenantSystemStorage tenantSystemStorage,
@@ -48,7 +44,6 @@ namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine
             FileSystemResolver fileSystemResolver)
         {
             _contextAccessor = contextAccessor;
-            _publicKeyService = publicKeyService;
             _driveManager = driveManager;
             _fileSystem = fileSystem;
             _transitInboxBoxStorage = new TransitInboxBoxStorage(tenantSystemStorage);
@@ -409,9 +404,6 @@ namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine
         /// </summary>
         private async Task<TransitResponseCode> RouteToInbox(IncomingTransferStateItem stateItem)
         {
-            //S1210 - Convert to Rsa encrypted header so this could be handled by the TransitInboxProcessor
-            var (rsaEncryptedKeyHeader, crc32) = await ConvertKeyHeaderToRsa(stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader);
-
             var item = new TransferInboxItem()
             {
                 Id = Guid.NewGuid(),
@@ -423,9 +415,7 @@ namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine
                 FileId = stateItem.TempFile.FileId,
                 FileSystemType = stateItem.TransferInstructionSet.FileSystemType,
                 TransferFileType = stateItem.TransferInstructionSet.TransferFileType,
-
-                PublicKeyCrc = crc32,
-                RsaEncryptedKeyHeader = rsaEncryptedKeyHeader
+                SharedSecretEncryptedKeyHeader = stateItem.TransferInstructionSet.SharedSecretEncryptedKeyHeader,
             };
 
             await _transitInboxBoxStorage.Add(item);
@@ -442,17 +432,6 @@ namespace Odin.Core.Services.Transit.ReceivingHost.Quarantine
             });
 
             return TransitResponseCode.AcceptedIntoInbox;
-        }
-
-        private async Task<(byte[] rsaEncryptedKeyHeader, UInt32 crc)> ConvertKeyHeaderToRsa(EncryptedKeyHeader sharedSecretEncryptedKeyHeader)
-        {
-            var decryptedKeyHeader = DecryptKeyHeaderWithSharedSecret(sharedSecretEncryptedKeyHeader);
-            var pk = await _publicKeyService.GetOfflinePublicKey();
-            var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(pk.publicKey);
-            var combinedKey = decryptedKeyHeader.Combine();
-            var rsaEncryptedKeyHeader = publicKey.Encrypt(combinedKey.GetKey());
-            combinedKey.Wipe();
-            return (rsaEncryptedKeyHeader, pk.crc32c);
         }
     }
 }

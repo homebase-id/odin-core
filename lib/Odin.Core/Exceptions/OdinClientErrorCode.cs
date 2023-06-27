@@ -83,5 +83,6 @@ public enum OdinClientErrorCode
     // System Errors 90xx
     InvalidFlagName = 9001,
     NotInitialized = 9002,
-    UnknownFlagName = 9003
+    UnknownFlagName = 9003,
+    InvalidOrExpiredRsaKey = 9004
 }

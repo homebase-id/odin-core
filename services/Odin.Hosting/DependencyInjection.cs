@@ -32,6 +32,7 @@ using Odin.Core.Services.Drives.Reactions;
 using Odin.Core.Services.Drives.Statistics;
 using Odin.Core.Services.EncryptionKeyService;
 using Odin.Core.Services.Mediator;
+using Odin.Core.Services.Mediator.Owner;
 using Odin.Core.Services.Optimization.Cdn;
 using Odin.Core.Services.Registry;
 using Odin.Core.Services.Tenant;
@@ -52,7 +53,7 @@ namespace Odin.Hosting
         internal static void ConfigureMultiTenantServices(ContainerBuilder cb, Tenant tenant)
         {
             RegisterMediator(ref cb);
-            
+
             // cb.RegisterType<ServerSystemStorage>().AsSelf().SingleInstance();
             cb.RegisterType<TenantSystemStorage>().AsSelf().SingleInstance();
 
@@ -95,10 +96,10 @@ namespace Odin.Hosting
 
             cb.RegisterType<DriveManager>().AsSelf().SingleInstance();
             cb.RegisterType<DriveAclAuthorizationService>().As<IDriveAclAuthorizationService>().SingleInstance();
-            
+
             cb.RegisterType<FileSystemResolver>().AsSelf().InstancePerDependency();
             cb.RegisterType<FileSystemHttpRequestResolver>().AsSelf().InstancePerDependency();
-            
+
             cb.RegisterType<StandardFileStreamWriter>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileAttachmentStreamWriter>().AsSelf().InstancePerDependency();
             cb.RegisterType<StandardFileDriveStorageService>().AsSelf().InstancePerDependency();
@@ -106,13 +107,13 @@ namespace Odin.Hosting
             cb.RegisterType<StandardDriveCommandService>().AsSelf().InstancePerDependency();
             //Note As<IDriveFileSystem> means this will be the default in cases where we do not resolve the filesystem
             cb.RegisterType<StandardFileSystem>().AsSelf().InstancePerDependency();
-            
+
             cb.RegisterType<CommentStreamWriter>().AsSelf().InstancePerDependency();
             cb.RegisterType<CommentAttachmentStreamWriter>().AsSelf().InstancePerDependency();
             cb.RegisterType<CommentFileStorageService>().AsSelf().InstancePerDependency();
             cb.RegisterType<CommentFileQueryService>().AsSelf().InstancePerDependency();
             cb.RegisterType<CommentFileSystem>().AsSelf().InstancePerDependency();
-            
+
             cb.RegisterType<DriveDatabaseHost>()
                 .As<INotificationHandler<DriveFileAddedNotification>>()
                 .As<INotificationHandler<DriveFileChangedNotification>>()
@@ -122,30 +123,33 @@ namespace Odin.Hosting
 
 
             cb.RegisterType<ReactionContentService>().AsSelf().SingleInstance();
-            
+
             cb.RegisterType<ReactionPreviewCalculator>()
                 .As<INotificationHandler<DriveFileAddedNotification>>()
                 .As<INotificationHandler<DriveFileChangedNotification>>()
                 .As<INotificationHandler<DriveFileDeletedNotification>>()
                 .As<INotificationHandler<ReactionContentAddedNotification>>();
-            
+
             cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>().SingleInstance();
-            
+
             cb.RegisterType<CircleDefinitionService>().As<CircleDefinitionService>().SingleInstance();
             cb.RegisterType<CircleNetworkService>()
                 .As<ICircleNetworkService>()
                 .As<INotificationHandler<DriveDefinitionAddedNotification>>()
                 .As<INotificationHandler<AppRegistrationChangedNotification>>()
                 .SingleInstance();
-            
-            cb.RegisterType<CircleNetworkRequestService>().As<ICircleNetworkRequestService>().SingleInstance();
+
+            cb.RegisterType<CircleNetworkRequestService>().AsSelf().SingleInstance();
 
             cb.RegisterType<FollowerService>().SingleInstance();
             cb.RegisterType<FollowerPerimeterService>().SingleInstance();
 
             cb.RegisterType<TransitOutbox>().As<ITransitOutbox>().SingleInstance();
 
-            cb.RegisterType<TransitInboxProcessor>().SingleInstance();
+            cb.RegisterType<TransitInboxProcessor>().AsSelf()
+                .As<INotificationHandler<RsaKeyRotatedNotification>>()
+                .SingleInstance();
+            
             cb.RegisterType<TransitAuthenticationService>()
                 .As<INotificationHandler<IdentityConnectionRegistrationChangedNotification>>()
                 .AsSelf()
@@ -160,21 +164,24 @@ namespace Odin.Hosting
                 .As<INotificationHandler<ReactionPreviewUpdatedNotification>>()
                 .AsSelf()
                 .SingleInstance();
-            
+
             cb.RegisterType<TransitInboxBoxStorage>().SingleInstance();
             cb.RegisterType<TransitService>().As<ITransitService>().SingleInstance();
 
             cb.RegisterType<CommandMessagingService>().AsSelf().SingleInstance();
-            
+
             cb.RegisterType<ExchangeGrantService>().AsSelf().SingleInstance();
 
             cb.RegisterType<TransitQueryService>().AsSelf().SingleInstance();
-            
+
             cb.RegisterType<TransitReactionContentSenderService>().AsSelf().SingleInstance();
 
             cb.RegisterType<TransitReactionPerimeterService>().AsSelf().SingleInstance();
 
-            cb.RegisterType<RsaKeyService>().As<IPublicKeyService>().SingleInstance();
+            cb.RegisterType<PublicPrivateKeyService>()
+                .As<INotificationHandler<OwnerIsOnlineNotification>>()
+                .AsSelf()
+                .SingleInstance();
 
             cb.RegisterType<StaticFileContentService>().AsSelf().SingleInstance();
         }
@@ -223,10 +230,12 @@ namespace Odin.Hosting
             var config = scope.Resolve<OdinConfiguration>();
             var tenantContext = scope.Resolve<TenantContext>();
 
-            var isPreconfigured = config.Development?.PreconfiguredDomains.Any(d => d.Equals(tenant.Name, StringComparison.InvariantCultureIgnoreCase)) ?? false;
+            var isPreconfigured = config.Development?.PreconfiguredDomains.Any(d => d.Equals(tenant.Name, StringComparison.InvariantCultureIgnoreCase)) ??
+                                  false;
 
             var reg = registry.Get(tenant.Name).GetAwaiter().GetResult();
-            tenantContext.Update(reg.Id, reg.PrimaryDomainName, config.Host.TenantDataRootPath, reg.FirstRunToken, isPreconfigured, config.Host.TenantPayloadRootPath);
+            tenantContext.Update(reg.Id, reg.PrimaryDomainName, config.Host.TenantDataRootPath, reg.FirstRunToken, isPreconfigured,
+                config.Host.TenantPayloadRootPath);
         }
     }
 }

@@ -16,12 +16,12 @@ namespace Odin.Hosting.Controllers.Certificate
     public class FollowPerimeterController : ControllerBase
     {
         private readonly FollowerPerimeterService _followerPerimeterService;
-        private readonly IPublicKeyService _rsaPublicKeyService;
-        
+        private readonly PublicPrivateKeyService _publicPrivatePublicKeyService;
+
         /// <summary />
-        public FollowPerimeterController(IPublicKeyService rsaPublicKeyService, FollowerPerimeterService followerPerimeterService)
+        public FollowPerimeterController(PublicPrivateKeyService publicPrivatePublicKeyService, FollowerPerimeterService followerPerimeterService)
         {
-            _rsaPublicKeyService = rsaPublicKeyService;
+            _publicPrivatePublicKeyService = publicPrivatePublicKeyService;
             _followerPerimeterService = followerPerimeterService;
         }
 
@@ -29,7 +29,7 @@ namespace Odin.Hosting.Controllers.Certificate
         [HttpPost("follow")]
         public async Task<IActionResult> ReceiveFollowRequest([FromBody] RsaEncryptedPayload payload)
         {
-            var (isValidPublicKey, payloadBytes) = await _rsaPublicKeyService.DecryptPayloadUsingOfflineKey(payload);
+            var (isValidPublicKey, payloadBytes) = await _publicPrivatePublicKeyService.DecryptPayload(RsaKeyType.OfflineKey, payload);
             if (isValidPublicKey == false)
             {
                 //TODO: extend with error code indicated a bad public key 
@@ -41,7 +41,7 @@ namespace Odin.Hosting.Controllers.Certificate
 
             return Ok();
         }
-        
+
         /// <summary />
         [HttpPost("unfollow")]
         public async Task<IActionResult> ReceiveUnfollowRequest()

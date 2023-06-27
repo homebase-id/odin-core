@@ -37,7 +37,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 Drives = null,
                 Circles = null
             });
-
+    
 
             var identity = TestIdentities.Samwise;
             await _scaffold.OldOwnerApi.InitializeIdentity(identity, new InitialSetupRequest()
@@ -76,22 +76,22 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
         public async Task SystemDefault_AnonymousVisitorsCannotViewConnections()
         {
             var utils = new ConfigurationTestUtilities(_scaffold);
-            await _scaffold.OldOwnerApi.InitializeIdentity(TestIdentities.Frodo, new InitialSetupRequest()
+            await _scaffold.OldOwnerApi.InitializeIdentity(TestIdentities.Merry, new InitialSetupRequest()
             {
                 Drives = null,
                 Circles = null
             });
             
-            await _scaffold.OldOwnerApi.InitializeIdentity(TestIdentities.Samwise, new InitialSetupRequest()
+            await _scaffold.OldOwnerApi.InitializeIdentity(TestIdentities.Pippin, new InitialSetupRequest()
             {
                 Drives = null,
                 Circles = null
             });
 
-            var (frodo, sam, _) = await utils.CreateConnectionRequestFrodoToSam();
+            var (frodo, sam, _) = await utils.CreateConnectionRequest(TestIdentities.Merry, TestIdentities.Pippin);
             await utils.AcceptConnectionRequest(sender: frodo, recipient: sam);
 
-            var client = _scaffold.CreateAnonymousApiHttpClient(TestIdentities.Frodo.OdinId);
+            var client = _scaffold.CreateAnonymousApiHttpClient(TestIdentities.Merry.OdinId);
             {
                 var youAuthCircleSvc = RestService.For<ICircleNetworkYouAuthClient>(client);
 

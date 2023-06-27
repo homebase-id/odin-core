@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Core.Fluff;
 using Odin.Core.Serialization;
+using Odin.Core.Services.Base;
 using Odin.Core.Services.Contacts.Circle.Requests;
 using Odin.Core.Services.EncryptionKeyService;
 using Odin.Hosting.Authentication.Perimeter;
@@ -22,45 +23,27 @@ namespace Odin.Hosting.Controllers.Certificate
     [Authorize(Policy = CertificatePerimeterPolicies.IsInOdinNetwork, AuthenticationSchemes = PerimeterAuthConstants.PublicTransitAuthScheme)]
     public class InvitationsController : ControllerBase
     {
-        private readonly ICircleNetworkRequestService _circleNetworkRequestService;
-        private IPublicKeyService _rsaPublicKeyService;
+        private readonly CircleNetworkRequestService _circleNetworkRequestService;
+        private readonly PublicPrivateKeyService _publicPrivateKeyService;
 
-        public InvitationsController(ICircleNetworkRequestService circleNetworkRequestService, IPublicKeyService rsaPublicKeyService)
+        public InvitationsController(CircleNetworkRequestService circleNetworkRequestService, PublicPrivateKeyService publicPrivateKeyService)
         {
             _circleNetworkRequestService = circleNetworkRequestService;
-            _rsaPublicKeyService = rsaPublicKeyService;
+            _publicPrivateKeyService = publicPrivateKeyService;
         }
 
         [HttpPost("connect")]
         public async Task<IActionResult> ReceiveConnectionRequest([FromBody] RsaEncryptedPayload payload)
         {
-            var (isValidPublicKey, payloadBytes) = await _rsaPublicKeyService.DecryptPayloadUsingOfflineKey(payload);
-            if (isValidPublicKey == false)
-            {
-                //TODO: extend with error code indicated a bad public key 
-                return new JsonResult(new NoResultResponse(false));
-            }
-
-            ConnectionRequest request = OdinSystemSerializer.Deserialize<ConnectionRequest>(payloadBytes.ToStringFromUtf8Bytes());
-            await _circleNetworkRequestService.ReceiveConnectionRequest(request);
+            await _circleNetworkRequestService.ReceiveConnectionRequest(payload);
             return new JsonResult(new NoResultResponse(true));
         }
 
 
         [HttpPost("establishconnection")]
-        public async Task<IActionResult> EstablishConnection([FromBody] RsaEncryptedPayload payload)
+        public async Task<IActionResult> EstablishConnection([FromBody] SharedSecretEncryptedPayload payload, string authenticationToken64)
         {
-            var (isValidPublicKey, payloadBytes) = await _rsaPublicKeyService.DecryptPayloadUsingOfflineKey(payload);
-
-            if (isValidPublicKey == false)
-            {
-                //TODO: extend with error code indicated a bad public key 
-                return new JsonResult(new NoResultResponse(false));
-            }
-            
-            ConnectionRequestReply reply = OdinSystemSerializer.Deserialize<ConnectionRequestReply>(payloadBytes.ToStringFromUtf8Bytes());
-
-            await _circleNetworkRequestService.EstablishConnection(reply);
+            await _circleNetworkRequestService.EstablishConnection(payload, authenticationToken64);
             return new JsonResult(new NoResultResponse(true));
         }
     }

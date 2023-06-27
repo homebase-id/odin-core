@@ -59,9 +59,14 @@ public class ConfigurationTestUtilities
 
     public async Task<(TestAppContext, TestAppContext, ConnectionRequestHeader)> CreateConnectionRequestFrodoToSam()
     {
+        return await CreateConnectionRequest(TestIdentities.Frodo, TestIdentities.Samwise);
+    }
+
+    public async Task<(TestAppContext, TestAppContext, ConnectionRequestHeader)> CreateConnectionRequest(TestIdentity senderIdentity, TestIdentity recipientIdentity)
+    {
         Guid appId = Guid.NewGuid();
-        var sender = await _scaffold.OldOwnerApi.SetupTestSampleApp(appId, TestIdentities.Frodo, canReadConnections: true);
-        var recipient = await _scaffold.OldOwnerApi.SetupTestSampleApp(appId, TestIdentities.Samwise, canReadConnections: true);
+        var sender = await _scaffold.OldOwnerApi.SetupTestSampleApp(appId, senderIdentity, canReadConnections: true);
+        var recipient = await _scaffold.OldOwnerApi.SetupTestSampleApp(appId, recipientIdentity, canReadConnections: true);
 
         var id = Guid.NewGuid();
         var requestHeader = new ConnectionRequestHeader()
@@ -98,7 +103,6 @@ public class ConfigurationTestUtilities
 
         return (sender, recipient, requestHeader);
     }
-
     public async Task AcceptConnectionRequest(TestAppContext sender, TestAppContext recipient)
     {
         var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(recipient.Identity, out var ownerSharedSecret);

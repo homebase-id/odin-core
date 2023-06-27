@@ -12,8 +12,13 @@ namespace Odin.Core.Services.Base;
 
 public class SharedSecretEncryptedPayload
 {
-    public byte[] Iv { get; set; } = System.Array.Empty<byte>();
+    public byte[] Iv { get; set; } = Array.Empty<byte>();
     public string Data { get; set; } = "";
+
+    public byte[] Decrypt(SensitiveByteArray key)
+    {
+        return DecryptInternal(this, key);
+    }
 
     public static SharedSecretEncryptedPayload Encrypt(byte[] payload, SensitiveByteArray encryptionKey)
     {
@@ -35,7 +40,7 @@ public class SharedSecretEncryptedPayload
         var ssp = await OdinSystemSerializer.Deserialize<SharedSecretEncryptedPayload>(stream, token);
         return DecryptInternal(ssp, key);
     }
-    
+
     public static byte[] Decrypt(byte[] buffer, SensitiveByteArray key)
     {
         return Decrypt(buffer.ToStringFromUtf8Bytes(), key);
