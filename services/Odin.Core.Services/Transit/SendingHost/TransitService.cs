@@ -8,6 +8,7 @@ using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Contacts.Circle.Membership;
@@ -63,6 +64,8 @@ namespace Odin.Core.Services.Transit.SendingHost
             TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType,
             ClientAccessTokenSource tokenSource = ClientAccessTokenSource.Circle)
         {
+            _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransit);
+
             Guard.Argument(options, nameof(options)).NotNull()
                 .Require(o => o.Recipients?.Any() ?? false)
                 .Require(o => o.Recipients.TrueForAll(r => r != _tenantContext.HostOdinId));
