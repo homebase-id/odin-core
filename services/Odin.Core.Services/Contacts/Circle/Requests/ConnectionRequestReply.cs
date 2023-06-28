@@ -1,4 +1,5 @@
 ﻿using Dawn;
+using Odin.Core.Services.Authorization.ExchangeGrants;
 
 namespace Odin.Core.Services.Contacts.Circle.Requests
 {
@@ -8,7 +9,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
     /// </summary>
     public class ConnectionRequestReply
     {
-        public string SharedSecretEncryptedCredentials { get; set; }
+        // public string SharedSecretEncryptedCredentials { get; set; }
 
         public ContactRequestData ContactData { get; set; }
 
@@ -16,10 +17,11 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
 
         public long ReceivedTimestampMilliseconds { get; set; }
 
-        public void Validate()
-        {
-            Guard.Argument(SenderOdinId.ToString(), nameof(SenderOdinId)).NotEmpty().NotNull();
-            Guard.Argument(ContactData.Name, nameof(ContactData.Name)).NotEmpty().NotNull();
-        }
+        /// <summary>
+        /// A base64 byte array of the <see cref="ClientAccessToken"/> used by the original sending
+        /// identity to authenticate to the receiving identity (to be stored in the ICR)
+        /// </summary>
+        public string ClientAccessTokenReply64 { get; set; }
+        
     }
 }

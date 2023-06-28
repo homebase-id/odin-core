@@ -42,6 +42,22 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
             return bytes;
         }
 
+        /// <summary>
+        /// Returns a base64 string of the <see cref="ToPortableBytes"/> method.  Wipes the intermediate bytes from memory.
+        /// </summary>
+        public string ToPortableBytes64()
+        {
+            var bytes = this.ToPortableBytes();
+            var bytes64 = Convert.ToBase64String(bytes);
+            bytes.ToSensitiveByteArray().Wipe();
+            return bytes64;
+        }
+
+        public static ClientAccessToken FromPortableBytes64(string data64)
+        {
+            return FromPortableBytes(Convert.FromBase64String(data64));
+            
+        }
         public static ClientAccessToken FromPortableBytes(byte[] data)
         {
             var (idBytes, halfKeyBytes, secondSet) = ByteArrayUtil.Split(data, 16, 16, 17);

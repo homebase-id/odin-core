@@ -11,12 +11,18 @@ namespace Odin.Core.Cryptography.Data
 {
     public class RsaPublicKeyData
     {
-        public byte[] publicKey { get; set; }    // DER encoded public key
+        public byte[] publicKey { get; set; } // DER encoded public key
 
-        public UInt32 crc32c { get; set; }       // The CRC32C of the public key
-        public UnixTimeUtc expiration { get; set; } // Time when this key expires, be aware that since this is a property, you will get a copy and using e.g. .AddHours() will add to the copy
+        public UInt32 crc32c { get; set; } // The CRC32C of the public key
 
-        public static RsaPublicKeyData FromDerEncodedPublicKey(byte[] derEncodedPublicKey, int hours = 1 )
+        public UnixTimeUtc
+            expiration
+        {
+            get;
+            set;
+        } // Time when this key expires, be aware that since this is a property, you will get a copy and using e.g. .AddHours() will add to the copy
+
+        public static RsaPublicKeyData FromDerEncodedPublicKey(byte[] derEncodedPublicKey, int hours = 1)
         {
             var publicKey = new RsaPublicKeyData()
             {
@@ -45,9 +51,9 @@ namespace Odin.Core.Cryptography.Data
         public static byte[] decodePublicPem(string pem)
         {
             string publicKeyPEM = pem.Replace("-----BEGIN PUBLIC KEY-----", "")
-                                        .Replace("\n", "")
-                                        .Replace("\r", "")
-                                        .Replace("-----END PUBLIC KEY-----", "");
+                .Replace("\n", "")
+                .Replace("\r", "")
+                .Replace("-----END PUBLIC KEY-----", "");
 
             return Convert.FromBase64String(publicKeyPEM);
         }
@@ -109,8 +115,6 @@ namespace Odin.Core.Cryptography.Data
         {
             return !IsExpired();
         }
-
-
     }
 
 
@@ -118,21 +122,26 @@ namespace Odin.Core.Cryptography.Data
     // NEW SHOT AT RSA KEY. ALWAYS ENCRYPTED. PASS CONSTANT FOR NON-ENCRYPTED. IS THAT NICE?
     // ===========================================
 
-    public class RsaFullKeyData : RsaPublicKeyData
+    public class RsaFullKeyData : RsaPublicKeyData, ICloneable
     {
-        private SensitiveByteArray _privateKey;  // Cached decrypted private key, not stored
+        private SensitiveByteArray _privateKey; // Cached decrypted private key, not stored
 
-        public byte[] storedKey { get; set; }  // The key as stored on disk encrypted with a secret key or constant
+        public byte[] storedKey { get; set; } // The key as stored on disk encrypted with a secret key or constant
 
-        public byte[] Iv { get; set; }  // Iv used for encrypting the storedKey and the masterCopy
-        public byte[] KeyHash { get; set; }  // The hash of the encryption key 
-        public UnixTimeUtc createdTimeStamp { get; set; } // Time when this key was created, expiration is on the public key. Do NOT use a property or code will return a copy value.
+        public byte[] Iv { get; set; } // Iv used for encrypting the storedKey and the masterCopy
+        public byte[] KeyHash { get; set; } // The hash of the encryption key 
 
-
+        public UnixTimeUtc
+            createdTimeStamp
+        {
+            get;
+            set;
+        } // Time when this key was created, expiration is on the public key. Do NOT use a property or code will return a copy value.
+        
         /// <summary>
         /// For LiteDB read only.
         /// </summary>
-        public RsaFullKeyData() 
+        public RsaFullKeyData()
         {
             // Do not create with this
             // Do nothing when deserialized via LiteDB
@@ -164,7 +173,7 @@ namespace Odin.Core.Cryptography.Data
             if (this.expiration <= this.createdTimeStamp)
                 throw new Exception("Expiration must be > 0");
 
-            CreatePrivate(ref key, privateKeyInfo.GetDerEncoded());  // TODO: Can we cleanup the generated key?
+            CreatePrivate(ref key, privateKeyInfo.GetDerEncoded()); // TODO: Can we cleanup the generated key?
 
             this.publicKey = publicKeyInfo.GetDerEncoded();
             this.crc32c = this.KeyCRC();
@@ -187,7 +196,6 @@ namespace Odin.Core.Cryptography.Data
             //publicKey = pk.GetDerEncoded();
             RsaKeyManagement.noKeysCreatedTest++;
         }
-
 
 
         private void CreatePrivate(ref SensitiveByteArray key, byte[] fullDerKey)
@@ -286,7 +294,18 @@ namespace Odin.Core.Cryptography.Data
 
             return signature;
         }
+        
+        public object Clone()
+        {
+            return new RsaFullKeyData()
+            {
+                publicKey = this.publicKey,
+                storedKey = this.storedKey,
+                expiration = this.expiration,
+                Iv = this.Iv,
+                KeyHash = this.KeyHash,
+                crc32c = this.crc32c
+            };
+        }
     }
 }
-
-

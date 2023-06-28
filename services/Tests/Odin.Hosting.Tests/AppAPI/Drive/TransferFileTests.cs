@@ -44,6 +44,117 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             _scaffold.RunAfterAnyTests();
         }
 
+        [Test(Description = "")]
+        public async Task FailToTransferWithoutUseTransitPermission()
+        {
+            var sender = TestIdentities.Frodo;
+            var recipient = TestIdentities.Samwise;
+
+            Guid appId = Guid.NewGuid();
+            var targetDrive = TargetDrive.NewTargetDrive();
+            var senderContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(appId, sender, canReadConnections: true, targetDrive,
+                driveAllowAnonymousReads: true, canUseTransit: false);
+            var recipientContext =
+                await _scaffold.OldOwnerApi.SetupTestSampleApp(senderContext.AppId, recipient, canReadConnections: true, targetDrive, canUseTransit: false);
+
+            Guid fileTag = Guid.NewGuid();
+
+            var senderCircleDef =
+                await _scaffold.OldOwnerApi.CreateCircleWithDrive(sender.OdinId, "Sender Circle",
+                    permissionKeys: new List<int>() { },
+                    drive: new PermissionedDrive()
+                    {
+                        Drive = targetDrive,
+                        Permission = DrivePermission.ReadWrite
+                    });
+
+            var recipientCircleDef =
+                await _scaffold.OldOwnerApi.CreateCircleWithDrive(recipient.OdinId, "Recipient Circle",
+                    permissionKeys: new List<int>() { },
+                    drive: new PermissionedDrive()
+                    {
+                        Drive = targetDrive,
+                        Permission = DrivePermission.ReadWrite
+                    });
+
+            await _scaffold.OldOwnerApi.CreateConnection(sender.OdinId, recipient.OdinId,
+                createConnectionOptions: new CreateConnectionOptions()
+                {
+                    CircleIdsGrantedToRecipient = new List<GuidId>() { senderCircleDef.Id },
+                    CircleIdsGrantedToSender = new List<GuidId>() { recipientCircleDef.Id }
+                });
+
+            var transferIv = ByteArrayUtil.GetRndByteArray(16);
+            var keyHeader = KeyHeader.NewRandom16();
+
+            var instructionSet = new UploadInstructionSet()
+            {
+                TransferIv = transferIv,
+                StorageOptions = new StorageOptions()
+                {
+                    Drive = senderContext.TargetDrive,
+                    OverwriteFileId = null
+                },
+
+                //Add recipients so system will try to send it
+                TransitOptions = new TransitOptions()
+                {
+                    Recipients = new List<string>() { recipient.OdinId },
+                    Schedule = ScheduleOptions.SendNowAwaitResponse,
+                    UseGlobalTransitId = true
+                }
+            };
+
+            var bytes = System.Text.Encoding.UTF8.GetBytes(OdinSystemSerializer.Serialize(instructionSet));
+            var instructionStream = new MemoryStream(bytes);
+
+            var key = senderContext.SharedSecret.ToSensitiveByteArray();
+            var descriptor = new UploadFileDescriptor()
+            {
+                EncryptedKeyHeader = EncryptedKeyHeader.EncryptKeyHeaderAes(keyHeader, transferIv, ref key),
+                FileMetadata = new()
+                {
+                    ContentType = "application/json",
+                    AllowDistribution = true,
+                    AppData = new()
+                    {
+                        Tags = new List<Guid>() { fileTag },
+                        ContentIsComplete = false,
+                        JsonContent = OdinSystemSerializer.Serialize(new { message = "We're going to the beach; this is encrypted by the app" }),
+                        PreviewThumbnail = new ImageDataContent()
+                        {
+                            PixelHeight = 100,
+                            PixelWidth = 100,
+                            ContentType = "image/png",
+                            Content = keyHeader.EncryptDataAes(TestMedia.PreviewPngThumbnailBytes)
+                        }
+                    },
+                    PayloadIsEncrypted = true,
+                    AccessControlList = new AccessControlList() { RequiredSecurityGroup = SecurityGroupType.Connected }
+                },
+            };
+
+            var fileDescriptorCipher = TestUtils.JsonEncryptAes(descriptor, transferIv, ref key);
+
+            var payloadData = "{payload:true, image:'b64 data'}";
+            var payloadCipher = keyHeader.EncryptDataAesAsStream(payloadData);
+
+            var client = _scaffold.AppApi.CreateAppApiHttpClient(senderContext);
+            {
+                var transitSvc = RestService.For<IDriveTestHttpClientForApps>(client);
+                var response = await transitSvc.Upload(
+                    new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
+                    new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
+                    new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)));
+
+                Assert.That(response.StatusCode == HttpStatusCode.Forbidden);
+
+            }
+
+            await _scaffold.OldOwnerApi.DisconnectIdentities(sender.OdinId, recipientContext.Identity);
+        }
+
+
         [Test]
         public async Task TransientFileIsDeletedAfterSending()
         {
@@ -80,7 +191,8 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             // 
             // On recipient identity - see that file was transferred
             // 
-            var getFileByTypeResponse = await _scaffold.AppApi.QueryBatch(recipientAppContext, FileQueryParams.FromFileType(recipientAppContext.TargetDrive, someFiletype),
+            var getFileByTypeResponse = await _scaffold.AppApi.QueryBatch(recipientAppContext,
+                FileQueryParams.FromFileType(recipientAppContext.TargetDrive, someFiletype),
                 QueryBatchResultOptionsRequest.Default);
 
             Assert.IsTrue(getFileByTypeResponse.IsSuccessStatusCode);
@@ -96,7 +208,8 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
             var sentThumbnail = ctx.UploadFileMetadata.AppData.AdditionalThumbnails.FirstOrDefault();
             Assert.IsNotNull(sentThumbnail);
-            var thumbnailResponse = await _scaffold.AppApi.GetThumbnail(recipientAppContext, recipientFile, sentThumbnail.PixelWidth, sentThumbnail.PixelHeight);
+            var thumbnailResponse =
+                await _scaffold.AppApi.GetThumbnail(recipientAppContext, recipientFile, sentThumbnail.PixelWidth, sentThumbnail.PixelHeight);
             Assert.IsTrue(thumbnailResponse.IsSuccessStatusCode);
             Assert.IsNotNull(thumbnailResponse.Content);
 
@@ -112,7 +225,8 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             var getSenderFileResponse = await _scaffold.AppApi.GetFileHeader(ctx.TestAppContext, sentFile);
             Assert.IsTrue(getSenderFileResponse.StatusCode == HttpStatusCode.NotFound, "Sender should no longer have the file since we used IsTransient");
 
-            var getSenderThumbnailResponse = await _scaffold.AppApi.GetThumbnail(ctx.TestAppContext, ctx.UploadedFile, sentThumbnail.PixelWidth, sentThumbnail.PixelHeight);
+            var getSenderThumbnailResponse =
+                await _scaffold.AppApi.GetThumbnail(ctx.TestAppContext, ctx.UploadedFile, sentThumbnail.PixelWidth, sentThumbnail.PixelHeight);
             Assert.IsTrue(getSenderThumbnailResponse.StatusCode == HttpStatusCode.NotFound);
 
             var getSenderPayloadResponse = await _scaffold.AppApi.GetFilePayload(ctx.TestAppContext, ctx.UploadedFile);
@@ -170,7 +284,8 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 GlobalTransitId = new List<Guid>() { sendFileResult.GlobalTransitId.GetValueOrDefault() }
             };
 
-            var getFirstFileByGlobalTransitIdResponse = await _scaffold.AppApi.QueryBatch(recipientAppContext, filesByGlobalTransitId, QueryBatchResultOptionsRequest.Default);
+            var getFirstFileByGlobalTransitIdResponse =
+                await _scaffold.AppApi.QueryBatch(recipientAppContext, filesByGlobalTransitId, QueryBatchResultOptionsRequest.Default);
 
             Assert.IsTrue(getFirstFileByGlobalTransitIdResponse.IsSuccessStatusCode);
             Assert.IsNotNull(getFirstFileByGlobalTransitIdResponse.Content);
@@ -186,7 +301,8 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
             //
             // sender server: Should still be in index and marked as deleted
             //
-            var qbResponse = await _scaffold.AppApi.QueryBatch(senderAppContext, FileQueryParams.FromFileType(senderAppContext.TargetDrive), QueryBatchResultOptionsRequest.Default);
+            var qbResponse = await _scaffold.AppApi.QueryBatch(senderAppContext, FileQueryParams.FromFileType(senderAppContext.TargetDrive),
+                QueryBatchResultOptionsRequest.Default);
             Assert.IsTrue(qbResponse.IsSuccessStatusCode);
             Assert.IsNotNull(qbResponse.Content);
             var qbDeleteFileEntry = qbResponse.Content.SearchResults.SingleOrDefault();
@@ -194,7 +310,8 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
             // recipient server: Should still be in index and marked as deleted
 
-            var recipientQbResponse = await _scaffold.AppApi.QueryBatch(recipientAppContext, FileQueryParams.FromFileType(recipientAppContext.TargetDrive), QueryBatchResultOptionsRequest.Default);
+            var recipientQbResponse = await _scaffold.AppApi.QueryBatch(recipientAppContext, FileQueryParams.FromFileType(recipientAppContext.TargetDrive),
+                QueryBatchResultOptionsRequest.Default);
             Assert.IsTrue(recipientQbResponse.IsSuccessStatusCode);
             Assert.IsNotNull(recipientQbResponse.Content);
             var recipientQbDeleteFileEntry = recipientQbResponse.Content.SearchResults.SingleOrDefault();
@@ -217,7 +334,8 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
             Guid appId = Guid.NewGuid();
             var targetDrive = TargetDrive.NewTargetDrive();
-            var senderContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(appId, sender, canReadConnections: true, targetDrive, driveAllowAnonymousReads: true);
+            var senderContext =
+                await _scaffold.OldOwnerApi.SetupTestSampleApp(appId, sender, canReadConnections: true, targetDrive, driveAllowAnonymousReads: true);
             var recipientContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(senderContext.AppId, recipient, canReadConnections: true, targetDrive);
 
             Guid fileTag = Guid.NewGuid();
@@ -325,8 +443,10 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
                     new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
-                    new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)),
-                    new StreamPart(new MemoryStream(thumbnail2CipherBytes), thumbnail2.GetFilename(), thumbnail2.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
+                    new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType,
+                        Enum.GetName(MultipartUploadParts.Thumbnail)),
+                    new StreamPart(new MemoryStream(thumbnail2CipherBytes), thumbnail2.GetFilename(), thumbnail2.ContentType,
+                        Enum.GetName(MultipartUploadParts.Thumbnail)));
 
                 Assert.That(response.IsSuccessStatusCode, Is.True);
                 Assert.That(response.Content, Is.Not.Null);
@@ -406,10 +526,13 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(decryptedKeyHeader.AesKey.GetKey(), keyHeader.AesKey.GetKey()));
 
                 //validate preview thumbnail
-                Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.ContentType == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.ContentType);
-                Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelHeight == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelHeight);
+                Assert.IsTrue(
+                    descriptor.FileMetadata.AppData.PreviewThumbnail.ContentType == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.ContentType);
+                Assert.IsTrue(
+                    descriptor.FileMetadata.AppData.PreviewThumbnail.PixelHeight == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelHeight);
                 Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelWidth == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelWidth);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(descriptor.FileMetadata.AppData.PreviewThumbnail.Content, clientFileHeader.FileMetadata.AppData.PreviewThumbnail.Content));
+                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(descriptor.FileMetadata.AppData.PreviewThumbnail.Content,
+                    clientFileHeader.FileMetadata.AppData.PreviewThumbnail.Content));
 
                 Assert.IsTrue(clientFileHeader.FileMetadata.AppData.AdditionalThumbnails.Count() == 2);
 
@@ -496,7 +619,8 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
 
             Guid appId = Guid.NewGuid();
             var targetDrive = TargetDrive.NewTargetDrive();
-            var senderContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(appId, sender, canReadConnections: true, targetDrive, driveAllowAnonymousReads: true);
+            var senderContext =
+                await _scaffold.OldOwnerApi.SetupTestSampleApp(appId, sender, canReadConnections: true, targetDrive, driveAllowAnonymousReads: true);
             var recipientContext = await _scaffold.OldOwnerApi.SetupTestSampleApp(senderContext.AppId, recipient, canReadConnections: true, targetDrive);
 
             Guid fileTag = Guid.NewGuid();
@@ -603,8 +727,10 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                     new StreamPart(instructionStream, "instructionSet.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Instructions)),
                     new StreamPart(fileDescriptorCipher, "fileDescriptor.encrypted", "application/json", Enum.GetName(MultipartUploadParts.Metadata)),
                     new StreamPart(payloadCipher, "payload.encrypted", "application/x-binary", Enum.GetName(MultipartUploadParts.Payload)),
-                    new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)),
-                    new StreamPart(new MemoryStream(thumbnail2CipherBytes), thumbnail2.GetFilename(), thumbnail2.ContentType, Enum.GetName(MultipartUploadParts.Thumbnail)));
+                    new StreamPart(new MemoryStream(thumbnail1CipherBytes), thumbnail1.GetFilename(), thumbnail1.ContentType,
+                        Enum.GetName(MultipartUploadParts.Thumbnail)),
+                    new StreamPart(new MemoryStream(thumbnail2CipherBytes), thumbnail2.GetFilename(), thumbnail2.ContentType,
+                        Enum.GetName(MultipartUploadParts.Thumbnail)));
 
                 Assert.That(response.IsSuccessStatusCode, Is.True);
                 Assert.That(response.Content, Is.Not.Null);
@@ -687,10 +813,13 @@ namespace Odin.Hosting.Tests.AppAPI.Drive
                 Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(decryptedKeyHeader.AesKey.GetKey(), keyHeader.AesKey.GetKey()));
 
                 //validate preview thumbnail
-                Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.ContentType == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.ContentType);
-                Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelHeight == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelHeight);
+                Assert.IsTrue(
+                    descriptor.FileMetadata.AppData.PreviewThumbnail.ContentType == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.ContentType);
+                Assert.IsTrue(
+                    descriptor.FileMetadata.AppData.PreviewThumbnail.PixelHeight == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelHeight);
                 Assert.IsTrue(descriptor.FileMetadata.AppData.PreviewThumbnail.PixelWidth == clientFileHeader.FileMetadata.AppData.PreviewThumbnail.PixelWidth);
-                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(descriptor.FileMetadata.AppData.PreviewThumbnail.Content, clientFileHeader.FileMetadata.AppData.PreviewThumbnail.Content));
+                Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(descriptor.FileMetadata.AppData.PreviewThumbnail.Content,
+                    clientFileHeader.FileMetadata.AppData.PreviewThumbnail.Content));
 
                 Assert.IsTrue(clientFileHeader.FileMetadata.AppData.AdditionalThumbnails.Count() == 2);
 

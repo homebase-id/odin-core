@@ -71,7 +71,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Circle
 
                 var response = await svc.SendConnectionRequest(requestHeader);
 
-                Assert.IsTrue(response.StatusCode == HttpStatusCode.InternalServerError, $"Should have failed sending the request to self.  Response code was [{response.StatusCode}]");
+                Assert.IsTrue(response.StatusCode == HttpStatusCode.InternalServerError,
+                    $"Should have failed sending the request to self.  Response code was [{response.StatusCode}]");
             }
         }
 
@@ -171,11 +172,41 @@ namespace Odin.Hosting.Tests.OwnerApi.Circle
                 Assert.IsNotNull(response.Content);
                 Assert.IsTrue(response.Content.TotalPages >= 1);
                 Assert.IsTrue(response.Content.Results.Count >= 1);
-                Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.SenderOdinId == frodo.Identity), $"Could not find request from {frodo.Identity} in the results");
+                Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.SenderOdinId == frodo.Identity),
+                    $"Could not find request from {frodo.Identity} in the results");
+
+                Assert.IsTrue(response.Content.Results.All(r => r.Payload == null));
             }
 
             await DeleteConnectionRequestsFromFrodoToSam(frodo, sam);
         }
+
+        [Test]
+        public async Task CanGetPendingConnectionFullDetails()
+        {
+            var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam();
+
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret);
+            {
+                var svc = RefitCreator.RestServiceFor<ICircleNetworkRequestsOwnerClient>(client, ownerSharedSecret);
+
+                var response = await svc.GetPendingRequest(new OdinIdRequest() { OdinId = frodo.Identity });
+                Assert.IsTrue(response.IsSuccessStatusCode, response.ReasonPhrase);
+                var request = response.Content;
+                Assert.IsNotNull(request);
+
+                Assert.IsTrue(request.Recipient == sam.Identity.DomainName);
+
+                Assert.IsTrue(request.ReceivedTimestampMilliseconds > 0);
+                Assert.IsTrue(request.Id != Guid.Empty);
+                Assert.IsTrue(request.SenderOdinId == frodo.Identity.DomainName);
+                // request.CircleIds
+                // request.ContactData
+            }
+
+            await DeleteConnectionRequestsFromFrodoToSam(frodo, sam);
+        }
+
 
         [Test]
         public async Task CanGetSentConnectionRequestList()
@@ -193,7 +224,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Circle
                 Assert.IsNotNull(response.Content, "No result returned");
                 Assert.IsTrue(response.Content.TotalPages >= 1);
                 Assert.IsTrue(response.Content.Results.Count >= 1);
-                Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.Recipient == sam.Identity), $"Could not find request with recipient {sam.Identity} in the results");
+                Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.Recipient == sam.Identity),
+                    $"Could not find request with recipient {sam.Identity} in the results");
             }
 
             await DeleteConnectionRequestsFromFrodoToSam(frodo, sam);
@@ -223,13 +255,16 @@ namespace Odin.Hosting.Tests.OwnerApi.Circle
         {
             //basically create 2 circles on frodo's identity, then give sam access
             var circleOnFrodosIdentity1 =
-                await this.CreateCircleWith2Drives(TestIdentities.Frodo.OdinId, "frodo c1", new List<int>() { PermissionKeys.ReadConnections, PermissionKeys.ReadConnections });
-            var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo.OdinId, "frodo c2", new List<int> { PermissionKeys.ReadCircleMembership });
+                await this.CreateCircleWith2Drives(TestIdentities.Frodo.OdinId, "frodo c1",
+                    new List<int>() { PermissionKeys.ReadConnections, PermissionKeys.ReadConnections });
+            var circleOnFrodosIdentity2 =
+                await this.CreateCircleWith2Drives(TestIdentities.Frodo.OdinId, "frodo c2", new List<int> { PermissionKeys.ReadCircleMembership });
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam(circleOnFrodosIdentity1, circleOnFrodosIdentity2);
 
             // create 2 circles on sam's identity and give frodo access
             var circleOnSamsIdentity1 = await this.CreateCircleWith2Drives(sam.Identity, "c1", new List<int>());
-            var circleOnSamsIdentity2 = await this.CreateCircleWith2Drives(sam.Identity, "c2", new List<int> { PermissionKeys.ReadConnections, PermissionKeys.ReadConnections });
+            var circleOnSamsIdentity2 =
+                await this.CreateCircleWith2Drives(sam.Identity, "c2", new List<int> { PermissionKeys.ReadConnections, PermissionKeys.ReadConnections });
 
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret);
             {
@@ -258,7 +293,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Circle
                 var samsConnetions = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
                 var getFrodoInfoResponse = await samsConnetions.GetConnectionInfo(new OdinIdRequest() { OdinId = frodo.Identity }, omitContactData: false);
 
-                Assert.IsTrue(getFrodoInfoResponse.IsSuccessStatusCode, $"Failed to get status for {frodo.Identity}.  Status code was {getFrodoInfoResponse.StatusCode}");
+                Assert.IsTrue(getFrodoInfoResponse.IsSuccessStatusCode,
+                    $"Failed to get status for {frodo.Identity}.  Status code was {getFrodoInfoResponse.StatusCode}");
                 Assert.IsNotNull(getFrodoInfoResponse.Content, $"No status for {frodo.Identity} found");
                 Assert.IsTrue(getFrodoInfoResponse.Content.Status == ConnectionStatus.Connected);
 
@@ -304,9 +340,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Circle
                 // Sam should be in Frodo's contacts network
                 //
                 var frodoConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
-                var getSamConnectionInfoResponse = await frodoConnections.GetConnectionInfo(new OdinIdRequest() { OdinId = sam.Identity }, omitContactData: false);
+                var getSamConnectionInfoResponse =
+                    await frodoConnections.GetConnectionInfo(new OdinIdRequest() { OdinId = sam.Identity }, omitContactData: false);
 
-                Assert.IsTrue(getSamConnectionInfoResponse.IsSuccessStatusCode, $"Failed to get status for {sam.Identity}.  Status code was {getSamConnectionInfoResponse.StatusCode}");
+                Assert.IsTrue(getSamConnectionInfoResponse.IsSuccessStatusCode,
+                    $"Failed to get status for {sam.Identity}.  Status code was {getSamConnectionInfoResponse.StatusCode}");
                 Assert.IsNotNull(getSamConnectionInfoResponse.Content, $"No status for {sam.Identity} found");
                 Assert.IsTrue(getSamConnectionInfoResponse.Content.Status == ConnectionStatus.Connected);
 
@@ -345,7 +383,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Circle
             #region Firstly, setup connections and put into circles
 
             var circleOnFrodosIdentity1 = await this.CreateCircleWith2Drives(TestIdentities.Frodo.OdinId, "frodo c1", new List<int>());
-            var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo.OdinId, "frodo c2", new List<int>() { PermissionKeys.ReadConnections });
+            var circleOnFrodosIdentity2 =
+                await this.CreateCircleWith2Drives(TestIdentities.Frodo.OdinId, "frodo c2", new List<int>() { PermissionKeys.ReadConnections });
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam(circleOnFrodosIdentity1, circleOnFrodosIdentity2);
 
             // create 2 circles on sam's identity and give frodo access
@@ -379,7 +418,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Circle
                 var samsConnetionsService = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
                 var getFrodoInfoResponse = await samsConnetionsService.GetConnectionInfo(new OdinIdRequest() { OdinId = frodo.Identity });
 
-                Assert.IsTrue(getFrodoInfoResponse.IsSuccessStatusCode, $"Failed to get status for {frodo.Identity}.  Status code was {getFrodoInfoResponse.StatusCode}");
+                Assert.IsTrue(getFrodoInfoResponse.IsSuccessStatusCode,
+                    $"Failed to get status for {frodo.Identity}.  Status code was {getFrodoInfoResponse.StatusCode}");
                 Assert.IsNotNull(getFrodoInfoResponse.Content, $"No status for {frodo.Identity} found");
                 Assert.IsTrue(getFrodoInfoResponse.Content.Status == ConnectionStatus.Connected);
 
@@ -419,7 +459,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Circle
                 var frodoConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
                 var getSamConnectionInfoResponse = await frodoConnections.GetConnectionInfo(new OdinIdRequest() { OdinId = sam.Identity });
 
-                Assert.IsTrue(getSamConnectionInfoResponse.IsSuccessStatusCode, $"Failed to get status for {sam.Identity}.  Status code was {getSamConnectionInfoResponse.StatusCode}");
+                Assert.IsTrue(getSamConnectionInfoResponse.IsSuccessStatusCode,
+                    $"Failed to get status for {sam.Identity}.  Status code was {getSamConnectionInfoResponse.StatusCode}");
                 Assert.IsNotNull(getSamConnectionInfoResponse.Content, $"No status for {sam.Identity} found");
                 Assert.IsTrue(getSamConnectionInfoResponse.Content.Status == ConnectionStatus.Connected);
 
@@ -447,7 +488,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Circle
             //
             // Create a new circle and grant frodo access circle access
             //
-            var newCircleDefinitionOnSamsIdentity = await this.CreateCircleWith2Drives(sam.Identity, "newly created circle", new List<int>() { PermissionKeys.ReadConnections });
+            var newCircleDefinitionOnSamsIdentity =
+                await this.CreateCircleWith2Drives(sam.Identity, "newly created circle", new List<int>() { PermissionKeys.ReadConnections });
 
             client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out ownerSharedSecret);
             {
@@ -482,7 +524,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Circle
                 var samsConnectionsService = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
                 var getFrodoInfoResponse = await samsConnectionsService.GetConnectionInfo(new OdinIdRequest() { OdinId = frodo.Identity });
 
-                Assert.IsTrue(getFrodoInfoResponse.IsSuccessStatusCode, $"Failed to get status for {frodo.Identity}.  Status code was {getFrodoInfoResponse.StatusCode}");
+                Assert.IsTrue(getFrodoInfoResponse.IsSuccessStatusCode,
+                    $"Failed to get status for {frodo.Identity}.  Status code was {getFrodoInfoResponse.StatusCode}");
                 Assert.IsNotNull(getFrodoInfoResponse.Content, $"No status for {frodo.Identity} found");
                 Assert.IsTrue(getFrodoInfoResponse.Content.Status == ConnectionStatus.Connected);
 
@@ -515,7 +558,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Circle
             #region Firstly, setup connections and put into circles
 
             var circleOnFrodosIdentity1 = await this.CreateCircleWith2Drives(TestIdentities.Frodo.OdinId, "frodo c1", new List<int>());
-            var circleOnFrodosIdentity2 = await this.CreateCircleWith2Drives(TestIdentities.Frodo.OdinId, "frodo c2", new List<int>() { PermissionKeys.ReadConnections });
+            var circleOnFrodosIdentity2 =
+                await this.CreateCircleWith2Drives(TestIdentities.Frodo.OdinId, "frodo c2", new List<int>() { PermissionKeys.ReadConnections });
             var (frodo, sam, _) = await CreateConnectionRequestFrodoToSam(circleOnFrodosIdentity1, circleOnFrodosIdentity2);
 
             // create 2 circles on sam's identity and give frodo access
@@ -549,7 +593,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Circle
                 var samsConnetionsService = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
                 var getFrodoInfoResponse = await samsConnetionsService.GetConnectionInfo(new OdinIdRequest() { OdinId = frodo.Identity });
 
-                Assert.IsTrue(getFrodoInfoResponse.IsSuccessStatusCode, $"Failed to get status for {frodo.Identity}.  Status code was {getFrodoInfoResponse.StatusCode}");
+                Assert.IsTrue(getFrodoInfoResponse.IsSuccessStatusCode,
+                    $"Failed to get status for {frodo.Identity}.  Status code was {getFrodoInfoResponse.StatusCode}");
                 Assert.IsNotNull(getFrodoInfoResponse.Content, $"No status for {frodo.Identity} found");
                 Assert.IsTrue(getFrodoInfoResponse.Content.Status == ConnectionStatus.Connected);
 
@@ -589,7 +634,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Circle
                 var frodoConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
                 var getSamConnectionInfoResponse = await frodoConnections.GetConnectionInfo(new OdinIdRequest() { OdinId = sam.Identity });
 
-                Assert.IsTrue(getSamConnectionInfoResponse.IsSuccessStatusCode, $"Failed to get status for {sam.Identity}.  Status code was {getSamConnectionInfoResponse.StatusCode}");
+                Assert.IsTrue(getSamConnectionInfoResponse.IsSuccessStatusCode,
+                    $"Failed to get status for {sam.Identity}.  Status code was {getSamConnectionInfoResponse.StatusCode}");
                 Assert.IsNotNull(getSamConnectionInfoResponse.Content, $"No status for {sam.Identity} found");
                 Assert.IsTrue(getSamConnectionInfoResponse.Content.Status == ConnectionStatus.Connected);
 
@@ -660,7 +706,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Circle
                 var samsConnectionsService = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
                 var getFrodoInfoResponse = await samsConnectionsService.GetConnectionInfo(new OdinIdRequest() { OdinId = frodo.Identity });
 
-                Assert.IsTrue(getFrodoInfoResponse.IsSuccessStatusCode, $"Failed to get status for {frodo.Identity}.  Status code was {getFrodoInfoResponse.StatusCode}");
+                Assert.IsTrue(getFrodoInfoResponse.IsSuccessStatusCode,
+                    $"Failed to get status for {frodo.Identity}.  Status code was {getFrodoInfoResponse.StatusCode}");
                 Assert.IsNotNull(getFrodoInfoResponse.Content, $"No status for {frodo.Identity} found");
                 Assert.IsTrue(getFrodoInfoResponse.Content.Status == ConnectionStatus.Connected);
 
@@ -678,7 +725,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Circle
 
             await DisconnectIdentities(frodo, sam);
         }
-        
+
 
         [Test]
         public async Task CanBlock()
@@ -806,7 +853,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Circle
                 var samsConnetions = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
                 var getFrodoInfoResponse = await samsConnetions.GetConnectionInfo(new OdinIdRequest() { OdinId = frodo.Identity }, omitContactData: false);
 
-                Assert.IsTrue(getFrodoInfoResponse.IsSuccessStatusCode, $"Failed to get status for {frodo.Identity}.  Status code was {getFrodoInfoResponse.StatusCode}");
+                Assert.IsTrue(getFrodoInfoResponse.IsSuccessStatusCode,
+                    $"Failed to get status for {frodo.Identity}.  Status code was {getFrodoInfoResponse.StatusCode}");
                 Assert.IsNotNull(getFrodoInfoResponse.Content, $"No status for {frodo.Identity} found");
                 Assert.IsTrue(getFrodoInfoResponse.Content.Status == ConnectionStatus.Connected);
 
@@ -845,7 +893,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Circle
                 var frodoConnections = RefitCreator.RestServiceFor<ICircleNetworkConnectionsOwnerClient>(client, ownerSharedSecret);
                 var getSamInfoResponse = await frodoConnections.GetConnectionInfo(new OdinIdRequest() { OdinId = sam.Identity }, omitContactData: false);
 
-                Assert.IsTrue(getSamInfoResponse.IsSuccessStatusCode, $"Failed to get status for {sam.Identity}.  Status code was {getSamInfoResponse.StatusCode}");
+                Assert.IsTrue(getSamInfoResponse.IsSuccessStatusCode,
+                    $"Failed to get status for {sam.Identity}.  Status code was {getSamInfoResponse.StatusCode}");
                 Assert.IsNotNull(getSamInfoResponse.Content, $"No status for {sam.Identity} found");
                 Assert.IsTrue(getSamInfoResponse.Content.Status == ConnectionStatus.Connected);
 
@@ -877,7 +926,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Circle
             {
                 //be sure it's in the list of granted drives; use Single to be sure it's only in there once
                 var result = actual.DriveGrants.SingleOrDefault(x =>
-                    x.PermissionedDrive.Drive == circleDriveGrant.PermissionedDrive.Drive && x.PermissionedDrive.Permission == circleDriveGrant.PermissionedDrive.Permission);
+                    x.PermissionedDrive.Drive == circleDriveGrant.PermissionedDrive.Drive &&
+                    x.PermissionedDrive.Permission == circleDriveGrant.PermissionedDrive.Permission);
                 Assert.NotNull(result);
             }
         }
@@ -903,7 +953,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Circle
             Assert.IsTrue(response.Content.Status == expected, $"{odinId} status does not match {expected}");
         }
 
-        private async Task<(TestAppContext, TestAppContext, ConnectionRequestHeader)> CreateConnectionRequestFrodoToSam(CircleDefinition circleDefinition1 = null,
+        private async Task<(TestAppContext, TestAppContext, ConnectionRequestHeader)> CreateConnectionRequestFrodoToSam(
+            CircleDefinition circleDefinition1 = null,
             CircleDefinition circleDefinition2 = null)
         {
             List<GuidId> cids = new List<GuidId>();

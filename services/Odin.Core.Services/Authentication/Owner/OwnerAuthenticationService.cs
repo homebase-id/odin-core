@@ -17,6 +17,7 @@ using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Mediator;
+using Odin.Core.Services.Mediator.Owner;
 
 /// <summary>
 /// Goals here are that:
@@ -43,7 +44,8 @@ namespace Odin.Core.Services.Authentication.Owner
 
         private readonly TenantContext _tenantContext;
 
-        public OwnerAuthenticationService(ILogger<IOwnerAuthenticationService> logger, IOwnerSecretService secretService, TenantSystemStorage tenantSystemStorage,
+        public OwnerAuthenticationService(ILogger<IOwnerAuthenticationService> logger, IOwnerSecretService secretService,
+            TenantSystemStorage tenantSystemStorage,
             TenantContext tenantContext, OdinConfiguration config, DriveManager driveManager)
         {
             _logger = logger;
@@ -80,7 +82,7 @@ namespace Odin.Core.Services.Authentication.Owner
             // client's calculated nonceHash is equal to the same calculation on the server
             await _secretService.TryPasswordKeyMatch(reply.NonceHashedPassword64, reply.Nonce64);
 
-            var keys = await this._secretService.GetRsaKeyList();
+            var keys = await this._secretService.GetOfflineRsaKeyList();
             var (clientToken, serverToken) = OwnerConsoleTokenManager.CreateToken(noncePackage, reply, keys);
 
             _tenantSystemStorage.SingleKeyValueStorage.Upsert(serverToken.Id, serverToken);
@@ -158,7 +160,7 @@ namespace Odin.Core.Services.Authentication.Owner
 
             throw new OdinSecurityException("Invalid owner token");
         }
-        
+
         public Task<OdinContext> GetDotYouContext(ClientAuthenticationToken token)
         {
             var creator = new Func<Task<OdinContext>>(async delegate
@@ -174,14 +176,16 @@ namespace Odin.Core.Services.Authentication.Owner
                 dotYouContext.SetPermissionContext(permissionContext);
 
                 dotYouContext.Caller = new CallerContext(
-                    odinId: _tenantContext.HostOdinId, //TODO: this works because we only have one identity per host.  this must be updated when i can have multiple identities for a single host
+                    odinId: _tenantContext
+                        .HostOdinId, //TODO: this works because we only have one identity per host.  this must be updated when i can have multiple identities for a single host
                     masterKey: masterKey,
                     securityLevel: SecurityGroupType.Owner);
 
                 return dotYouContext;
             });
 
-            return _cache.GetOrAddContext(token, creator);
+            var ctx = _cache.GetOrAddContext(token, creator).GetAwaiter().GetResult();
+            return Task.FromResult(ctx);
         }
 
         public async Task ExtendTokenLife(Guid token, int ttlSeconds)

@@ -17,4 +17,6 @@ public enum ClientNotificationType
     NewFollower = 1001,
     StatisticsChanged = 1002,
     ReactionContentAdded = 2003,
+    ReactionContentDeleted = 2004,
+    AllReactionsByFileDeleted = 2005
 }

@@ -30,7 +30,7 @@ namespace Odin.Core.Cryptography.Data
         public string SignatureAlgorithm { get; set; }
 
         [JsonPropertyOrder(8)]
-        public byte[] DocumentSignature { get; set; }
+        public byte[] Signature { get; set; }
 
         public SignatureData()
         {
@@ -46,7 +46,7 @@ namespace Odin.Core.Cryptography.Data
         /// <param name="eccKey"></param>
         /// <returns></returns>
         /// <exception cref="ArgumentNullException"></exception>
-        public static SignatureData Sign(byte[] data, OdinId identity, SensitiveByteArray keyPwd, EccFullKeyData eccKey)
+        public static SignatureData NewSignature(byte[] data, OdinId identity, SensitiveByteArray keyPwd, EccFullKeyData eccKey)
         {
             if (data == null || data.Length == 0)
                 throw new ArgumentNullException(nameof(data));
@@ -65,7 +65,7 @@ namespace Odin.Core.Cryptography.Data
             s.SignatureAlgorithm = EccFullKeyData.eccSignatureAlgorithm;
             var bytesToSign = ByteArrayUtil.Combine(s.DataHash, s.DataHashAlgorithm.ToUtf8ByteArray(), s.Identity.ToByteArray(), s.PublicKeyDer, ByteArrayUtil.Int64ToBytes(s.TimeStamp.milliseconds), s.SignatureAlgorithm.ToUtf8ByteArray());
 
-            s.DocumentSignature = eccKey.Sign(keyPwd, bytesToSign);
+            s.Signature = eccKey.Sign(keyPwd, bytesToSign);
 
             return s;
         }
@@ -80,7 +80,6 @@ namespace Odin.Core.Cryptography.Data
             // Verify that the original data hash is the same as in the signature
             if (ByteArrayUtil.EquiByteArrayCompare(dataHash, signatureData.DataHash) == false)
                 return false;
-
             // It's the same hash, validate the signature
             var publicKey = EccPublicKeyData.FromDerEncodedPublicKey(signatureData.PublicKeyDer);
             var bytesToSign = ByteArrayUtil.Combine(
@@ -91,7 +90,7 @@ namespace Odin.Core.Cryptography.Data
                                     ByteArrayUtil.Int64ToBytes(signatureData.TimeStamp.milliseconds), 
                                     signatureData.SignatureAlgorithm.ToUtf8ByteArray());
 
-            return publicKey.VerifySignature(bytesToSign, signatureData.DocumentSignature);
+            return publicKey.VerifySignature(bytesToSign, signatureData.Signature);
         }
 
         public string GetCompactSortedJson()

@@ -29,7 +29,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Circle
         Task<ApiResponse<bool>> DeleteSentRequest([Body] OdinIdRequest request);
 
         [Get(PendingPathRoot + "/list")]
-        Task<ApiResponse<PagedResult<ConnectionRequestResponse>>> GetPendingRequestList([Query] PageOptions pageRequest);
+        Task<ApiResponse<PagedResult<PendingConnectionRequestHeader>>> GetPendingRequestList([Query] PageOptions pageRequest);
 
         [Post(PendingPathRoot+ "/single")]
         Task<ApiResponse<ConnectionRequestResponse>> GetPendingRequest([Body] OdinIdRequest request);

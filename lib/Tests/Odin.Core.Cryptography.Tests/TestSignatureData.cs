@@ -19,8 +19,8 @@ public class SignatureDataTest
         EccFullKeyData testEccKey = new EccFullKeyData(testKeyPwd, 1);
 
         // Act
-        SignatureData signature = SignatureData.Sign(testData, testIdentity, testKeyPwd, testEccKey);
-        Assert.GreaterOrEqual(signature.DocumentSignature.Length, 16);
+        SignatureData signature = SignatureData.NewSignature(testData, testIdentity, testKeyPwd, testEccKey);
+        Assert.GreaterOrEqual(signature.Signature.Length, 16);
         bool isValid = SignatureData.Verify(signature, testData);
 
         // Assert
@@ -37,7 +37,7 @@ public class SignatureDataTest
         EccFullKeyData testEccKey = new EccFullKeyData(testKeyPwd, 1);
 
         // Sign data
-        SignatureData signature = SignatureData.Sign(testData, testIdentity, testKeyPwd, testEccKey);
+        SignatureData signature = SignatureData.NewSignature(testData, testIdentity, testKeyPwd, testEccKey);
 
         // Modify signed data
         byte[] modifiedData = System.Text.Encoding.UTF8.GetBytes("Modified data");
@@ -48,5 +48,30 @@ public class SignatureDataTest
 
         // Assert
         Assert.IsFalse(isValid);
+    }
+
+
+    [Test]
+    public void Not_Possible_To_Get_Full_key()
+    {
+        // Arrange
+        byte[] testData = System.Text.Encoding.UTF8.GetBytes("Test data");
+        OdinId testIdentity = new OdinId("odin.valhalla.com");
+        SensitiveByteArray testKeyPwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+        EccFullKeyData testEccKey = new EccFullKeyData(testKeyPwd, 1);
+
+        // Sign data
+        SignatureData signature = SignatureData.NewSignature(testData, testIdentity, testKeyPwd, testEccKey);
+
+        // Try to construct the full key from the public key
+        try
+        {
+            var fullKey = new EccFullKeyData(testKeyPwd, signature.PublicKeyDer);
+            Assert.Fail("Full key recovered");
+        }
+        catch (Exception)
+        {
+            Assert.Pass("OK");
+        }
     }
 }
