@@ -231,7 +231,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 client.DefaultRequestHeaders.Add("X-HACK-COOKIE", cookieValue);
                 client.DefaultRequestHeaders.Add("X-HACK-SHARED-SECRET", Convert.ToBase64String(sharedSecret.GetKey()));
             }
-           
+
             client.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, Enum.GetName(typeof(FileSystemType), fileSystemType));
             client.Timeout = TimeSpan.FromMinutes(15);
 
@@ -248,22 +248,23 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             bool ownerOnlyDrive = false,
             List<Guid> authorizedCircles = null,
             PermissionSetGrantRequest circleMemberGrantRequest = null,
-            string appCorsHostName = null)
+            string appCorsHostName = null,
+            bool canUseTransit = true)
         {
-            PermissionSet permissionSet;
+            var keys = new List<int>();
 
             if (canReadConnections)
             {
-                List<int> keys = new List<int>();
-
                 keys.Add(PermissionKeys.ReadConnections);
                 keys.Add(PermissionKeys.ReadConnectionRequests);
-                permissionSet = new PermissionSet(keys.ToArray());
             }
-            else
+
+            if (canUseTransit)
             {
-                permissionSet = new PermissionSet();
+                keys.Add(PermissionKeys.UseTransit);
             }
+
+            PermissionSet permissionSet = new PermissionSet(keys.ToArray());
 
 
             var client = this.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
@@ -413,7 +414,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             bool ownerOnlyDrive = false,
             List<Guid> authorizedCircles = null,
             PermissionSetGrantRequest circleMemberGrantRequest = null,
-            string appCorsHostName = null)
+            string appCorsHostName = null,
+            bool canUseTransit = true)
         {
             if (null == targetDrive)
             {
@@ -425,7 +427,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             }
 
             await this.AddAppWithAllDrivePermissions(identity.OdinId, appId, targetDrive, true, canReadConnections, driveAllowAnonymousReads, ownerOnlyDrive,
-                authorizedCircles, circleMemberGrantRequest, appCorsHostName: appCorsHostName);
+                authorizedCircles, circleMemberGrantRequest, appCorsHostName: appCorsHostName, canUseTransit);
 
             var (authResult, sharedSecret) = await this.AddAppClient(identity.OdinId, appId);
             return new TestAppContext()

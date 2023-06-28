@@ -53,6 +53,8 @@ namespace Odin.Hosting.Tests.AppAPI.Circle
                 Assert.IsTrue(response.Content.Results.Count >= 1);
                 Assert.IsNotNull(response.Content.Results.SingleOrDefault(r => r.SenderOdinId == frodo.Identity),
                     $"Could not find request from {frodo.Identity} in the results");
+
+                Assert.IsTrue(response.Content.Results.All(r => r.Payload == null), "Payload should not be sent to the client");
             }
 
             client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out var ownerSharedSecret);

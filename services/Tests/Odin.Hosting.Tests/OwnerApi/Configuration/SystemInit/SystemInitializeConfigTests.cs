@@ -12,6 +12,7 @@ using Odin.Core.Services.Contacts.Circle.Membership.Definition;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.Management;
 using Odin.Hosting.Controllers.OwnerToken.Drive;
+using Odin.Hosting.Tests.OwnerApi.ApiClient;
 using Odin.Hosting.Tests.OwnerApi.Circle;
 using Odin.Hosting.Tests.OwnerApi.Drive.Management;
 
@@ -34,6 +35,62 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
         {
             _scaffold.RunAfterAnyTests();
         }
+
+        [Test]
+        public async Task CanInitializeSystem_WithAllRsaKeys()
+        {
+            var identity = TestIdentities.Pippin;
+            //success = system drives created, other drives created
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(identity, out var ownerSharedSecret);
+            {
+                var svc = RefitCreator.RestServiceFor<IOwnerConfigurationClient>(client, ownerSharedSecret);
+
+                var getIsIdentityConfiguredResponse1 = await svc.IsIdentityConfigured();
+                Assert.IsTrue(getIsIdentityConfiguredResponse1.IsSuccessStatusCode);
+                Assert.IsFalse(getIsIdentityConfiguredResponse1.Content);
+
+                var setupConfig = new InitialSetupRequest()
+                {
+                    Drives = null,
+                    Circles = null
+                };
+
+                var initIdentityResponse = await svc.InitializeIdentity(setupConfig);
+                Assert.IsTrue(initIdentityResponse.IsSuccessStatusCode);
+
+                var getIsIdentityConfiguredResponse = await svc.IsIdentityConfigured();
+                Assert.IsTrue(getIsIdentityConfiguredResponse.IsSuccessStatusCode);
+                Assert.IsTrue(getIsIdentityConfiguredResponse.Content);
+            }
+
+            var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Pippin);
+
+            //
+            // Signing Key should exist
+            // 
+            var signingKey = await ownerClient.PublicPrivateKey.GetSigningPublicKey();
+            Assert.IsTrue(signingKey.PublicKey.Length > 0);
+            Assert.IsTrue(signingKey.Crc32 > 0);
+            
+            //
+            // Online key should exist
+            //
+            var onlinePublicKey = await ownerClient.PublicPrivateKey.GetOnlinePublicKey();
+            Assert.IsTrue(onlinePublicKey.PublicKey.Length > 0);
+            Assert.IsTrue(onlinePublicKey.Crc32 > 0);
+            
+            
+            //
+            // offline key should exist
+            //
+            var offlinePublicKey = await ownerClient.PublicPrivateKey.GetOfflinePublicKey();
+            Assert.IsTrue(offlinePublicKey.PublicKey.Length > 0);
+            Assert.IsTrue(offlinePublicKey.Crc32 > 0);
+            
+            CollectionAssert.AreNotEquivalent(signingKey.PublicKey, onlinePublicKey.PublicKey);
+            CollectionAssert.AreNotEquivalent(onlinePublicKey.PublicKey, offlinePublicKey.PublicKey);
+        }
+        
 
         [Test]
         public async Task CanInitializeSystem_WithNoAdditionalDrives_and_NoAdditionalCircles()
@@ -71,11 +128,16 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 var createdDrives = createdDrivesResponse.Content;
                 Assert.IsTrue(createdDrives.Results.Count == 6);
 
-                Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.ContactDrive), $"expected drive [{SystemDriveConstants.ContactDrive}] not found");
-                Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.ProfileDrive), $"expected drive [{SystemDriveConstants.ProfileDrive}] not found");
-                Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.WalletDrive), $"expected drive [{SystemDriveConstants.WalletDrive}] not found");
-                Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.ChatDrive), $"expected drive [{SystemDriveConstants.ChatDrive}] not found");
-                Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.FeedDrive), $"expected drive [{SystemDriveConstants.FeedDrive}] not found");
+                Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.ContactDrive),
+                    $"expected drive [{SystemDriveConstants.ContactDrive}] not found");
+                Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.ProfileDrive),
+                    $"expected drive [{SystemDriveConstants.ProfileDrive}] not found");
+                Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.WalletDrive),
+                    $"expected drive [{SystemDriveConstants.WalletDrive}] not found");
+                Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.ChatDrive),
+                    $"expected drive [{SystemDriveConstants.ChatDrive}] not found");
+                Assert.IsTrue(createdDrives.Results.Any(cd => cd.TargetDriveInfo == SystemDriveConstants.FeedDrive),
+                    $"expected drive [{SystemDriveConstants.FeedDrive}] not found");
 
                 var circleDefinitionService = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
 
@@ -91,7 +153,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 Assert.IsTrue(systemCircle.Id == GuidId.FromString("we_are_connected"));
                 Assert.IsTrue(systemCircle.Name == "System Circle");
                 Assert.IsTrue(systemCircle.Description == "All Connected Identities");
-                Assert.IsTrue(systemCircle.DriveGrants.Count() == 3, "By default, there should be two drive grants (standard profile, chat drive, and feed drive)");
+                Assert.IsTrue(systemCircle.DriveGrants.Count() == 3,
+                    "By default, there should be two drive grants (standard profile, chat drive, and feed drive)");
 
                 Assert.IsNotNull(systemCircle.DriveGrants.SingleOrDefault(dg =>
                     dg.PermissionedDrive.Drive == SystemDriveConstants.ProfileDrive && dg.PermissionedDrive.Permission == DrivePermission.Read));
@@ -100,7 +163,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 Assert.IsNotNull(systemCircle.DriveGrants.SingleOrDefault(
                     dg => dg.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive && dg.PermissionedDrive.Permission == DrivePermission.Write));
                 Assert.IsTrue(!systemCircle.Permissions.Keys.Any(), "By default, the system circle should have no permissions");
-                
+
                 Assert.IsNotNull(systemCircle.DriveGrants.SingleOrDefault(
                     dg => dg.PermissionedDrive.Drive == SystemDriveConstants.FeedDrive && dg.PermissionedDrive.Permission == DrivePermission.Write));
                 Assert.IsTrue(!systemCircle.Permissions.Keys.Any(), "By default, the system circle should have no permissions");
@@ -207,16 +270,19 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
                 Assert.IsTrue(systemCircle.Description == "All Connected Identities");
                 Assert.IsTrue(!systemCircle.Permissions.Keys.Any(), "By default, the system circle should have no permissions");
 
-                var newDriveGrant = systemCircle.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == newDrive.TargetDrive && dg.PermissionedDrive.Permission == DrivePermission.Read);
+                var newDriveGrant = systemCircle.DriveGrants.SingleOrDefault(dg =>
+                    dg.PermissionedDrive.Drive == newDrive.TargetDrive && dg.PermissionedDrive.Permission == DrivePermission.Read);
                 Assert.IsNotNull(newDriveGrant, "The new drive should be in the system circle");
 
                 var standardProfileDriveGrant =
-                    systemCircle.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == standardProfileDrive && dg.PermissionedDrive.Permission == DrivePermission.Read);
+                    systemCircle.DriveGrants.SingleOrDefault(dg =>
+                        dg.PermissionedDrive.Drive == standardProfileDrive && dg.PermissionedDrive.Permission == DrivePermission.Read);
                 Assert.IsNotNull(standardProfileDriveGrant, "The standard profile drive should be in the system circle");
 
                 //note: the permission for chat drive is write
                 var chatDriveGrant =
-                    systemCircle.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive && dg.PermissionedDrive.Permission == DrivePermission.Write);
+                    systemCircle.DriveGrants.SingleOrDefault(dg =>
+                        dg.PermissionedDrive.Drive == SystemDriveConstants.ChatDrive && dg.PermissionedDrive.Permission == DrivePermission.Write);
                 Assert.IsNotNull(chatDriveGrant, "the chat drive grant should exist in system circle");
 
 

@@ -1,5 +1,6 @@
 ﻿using System.Threading.Tasks;
 using Odin.Core;
+using Odin.Core.Services.Contacts.Circle.Requests;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.ClientToken;
 using Refit;
@@ -16,6 +17,6 @@ namespace Odin.Hosting.Tests.AppAPI.Circle
         Task<ApiResponse<PagedResult<ConnectionRequestResponse>>> GetSentRequestList([Query] PageOptions pageRequest);
         
         [Get(PendingPathRoot)]
-        Task<ApiResponse<PagedResult<ConnectionRequestResponse>>> GetPendingRequestList([Query] PageOptions pageRequest);
+        Task<ApiResponse<PagedResult<PendingConnectionRequestHeader>>> GetPendingRequestList([Query] PageOptions pageRequest);
     }
 }

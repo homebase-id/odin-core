@@ -14,9 +14,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Circles
     [AuthorizeValidOwnerToken]
     public class CircleNetworkRequestsController : ControllerBase
     {
-        readonly ICircleNetworkRequestService _requestService;
+        readonly CircleNetworkRequestService _requestService;
 
-        public CircleNetworkRequestsController(ICircleNetworkRequestService cn)
+        public CircleNetworkRequestsController(CircleNetworkRequestService cn)
         {
             _requestService = cn;
         }
@@ -28,11 +28,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.Circles
         /// <param name="pageSize"></param>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerCircles })]
         [HttpGet("pending/list")]
-        public async Task<PagedResult<ConnectionRequestResponse>> GetPendingRequestList(int pageNumber, int pageSize)
+        public async Task<PagedResult<PendingConnectionRequestHeader>> GetPendingRequestList(int pageNumber, int pageSize)
         {
             var result = await _requestService.GetPendingRequests(new PageOptions(pageNumber, pageSize));
-            var resp = result.Results.Select(ConnectionRequestResponse.FromConnectionRequest).ToList();
-            return new PagedResult<ConnectionRequestResponse>(result.Request, result.TotalPages, resp);
+            return result;
+            // var resp = result.Results.Select(ConnectionRequestResponse.FromConnectionRequest).ToList();
+            // return new PagedResult<PendingConnectionRequestHeader>(result.Request, result.TotalPages, resp);
         }
 
         /// <summary>

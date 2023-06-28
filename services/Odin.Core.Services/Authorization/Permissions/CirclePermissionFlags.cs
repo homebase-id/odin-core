@@ -16,9 +16,11 @@ namespace Odin.Core.Services.Authorization.Permissions
         
         public static readonly int ReadMyFollowers = 130;
 
+        public static readonly int UseTransit = 210;
+
         public static readonly List<int> All = new List<int>()
         {
-            ReadConnections, ReadConnectionRequests, ReadCircleMembership, ReadWhoIFollow, ReadMyFollowers
+            ReadConnections, ReadConnectionRequests, ReadCircleMembership, ReadWhoIFollow, ReadMyFollowers, UseTransit
         };
     }
 
@@ -34,7 +36,8 @@ namespace Odin.Core.Services.Authorization.Permissions
                 PermissionKeys.ReadConnections,
                 PermissionKeys.ReadCircleMembership,
                 PermissionKeys.ReadConnectionRequests,
-                PermissionKeys.ReadWhoIFollow
+                PermissionKeys.ReadWhoIFollow,
+                PermissionKeys.UseTransit
             });
 
             Circles = new ReadOnlyCollection<int>(new List<int>()

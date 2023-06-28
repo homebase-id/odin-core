@@ -36,6 +36,19 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
             return data;
         }
 
+        public string ToPortableBytes64()
+        {
+            var bytes = this.ToPortableBytes();
+            var bytes64 = Convert.ToBase64String(bytes);
+            bytes.ToSensitiveByteArray().Wipe();
+            return bytes64;
+        }
+
+        public static ClientAuthenticationToken FromPortableBytes64(string data64)
+        {
+            return FromPortableBytes(Convert.FromBase64String(data64));
+        }
+
         public Guid AsKey()
         {
             return new Guid(ByteArrayUtil.EquiByteArrayXor(Id.ToByteArray(), AccessTokenHalfKey.GetKey()));

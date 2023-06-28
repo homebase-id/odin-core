@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.Reactions;
@@ -15,7 +16,8 @@ namespace Odin.Core.Services.Drives.Statistics;
 /// Listens for reaction file additions/changes and updates their target's preview
 /// </summary>
 public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification>,
-    INotificationHandler<ReactionContentAddedNotification>
+    INotificationHandler<ReactionContentAddedNotification>, INotificationHandler<ReactionDeletedNotification>,
+    INotificationHandler<AllReactionsByFileDeleted>
 {
     private readonly OdinContextAccessor _contextAccessor;
     private readonly FileSystemResolver _fileSystemResolver;
@@ -156,6 +158,59 @@ public class ReactionPreviewCalculator : INotificationHandler<IDriveNotification
 
         preview.Reactions = dict;
 
+        fs.Storage.UpdateReactionPreview(targetFile, preview).GetAwaiter().GetResult();
+        return Task.CompletedTask;
+    }
+
+    public Task Handle(ReactionDeletedNotification notification, CancellationToken cancellationToken)
+    {
+        var targetFile = notification.Reaction.FileId;
+        var fs = _fileSystemResolver.ResolveFileSystem(targetFile);
+        var header = fs.Storage.GetServerFileHeader(targetFile).GetAwaiter().GetResult();
+        var preview = header?.FileMetadata.ReactionPreview;
+
+        if (null == preview)
+        {
+            return Task.CompletedTask;
+        }
+
+        var dict = preview.Reactions ?? new Dictionary<Guid, ReactionContentPreview>();
+
+        var key = ByteArrayUtil.ReduceSHA256Hash(notification.Reaction.ReactionContent);
+        if (!dict.TryGetValue(key, out ReactionContentPreview reactionPreview))
+        {
+            return Task.CompletedTask;
+        }
+
+        reactionPreview.Count--;
+        reactionPreview.ReactionContent = notification.Reaction.ReactionContent;
+        reactionPreview.Key = key;
+
+        dict[key] = reactionPreview;
+
+        preview.Reactions = dict;
+
+        fs.Storage.UpdateReactionPreview(targetFile, preview).GetAwaiter().GetResult();
+        return Task.CompletedTask;
+    }
+
+    public Task Handle(AllReactionsByFileDeleted notification, CancellationToken cancellationToken)
+    {
+        var targetFile = notification.FileId;
+        var fs = _fileSystemResolver.ResolveFileSystem(targetFile);
+        var header = fs.Storage.GetServerFileHeader(targetFile).GetAwaiter().GetResult();
+        var preview = header?.FileMetadata.ReactionPreview;
+
+        if (null == preview)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (null != preview.Reactions)
+        {
+            preview.Reactions.Clear();
+        }
+        
         fs.Storage.UpdateReactionPreview(targetFile, preview).GetAwaiter().GetResult();
         return Task.CompletedTask;
     }
