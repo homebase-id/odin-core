@@ -10,7 +10,6 @@ using System.Text;
 using Odin.Core.Util;
 using NodaTime;
 using Odin.Core.Time;
-using System.Reflection.Metadata;
 using System.Globalization;
 
 namespace Odin.Tests
