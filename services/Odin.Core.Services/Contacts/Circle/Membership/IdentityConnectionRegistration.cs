@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Odin.Core.Cryptography.Data;
 using Odin.Core.Identity;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Contacts.Circle.Requests;
@@ -54,12 +55,14 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
         /// The AccessTokenHalfKey of the <see cref="ClientAccessToken"/> to be sent when communicating with this OdinId's host
         /// </summary>
         public byte[] ClientAccessTokenHalfKey { get; set; }
-
+        
         /// <summary>
         /// The SharedSecret of the <see cref="ClientAccessToken"/> used to encrypt payloads when
         /// communicating with this OdinId's host.  This is never sent over the wire.
         /// </summary>
         public byte[] ClientAccessTokenSharedSecret { get; set; } //TODO: this needs to be encrypted when stored; 
+
+        public EncryptedClientAccessToken EncryptedClientAccessToken { get; set; }
 
         public long LastUpdated { get; set; }
         public long Created { get; set; }

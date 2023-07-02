@@ -42,7 +42,7 @@ namespace Odin.Core.Services.Transit.SendingHost
             TenantSystemStorage tenantSystemStorage,
             IOdinHttpClientFactory odinHttpClientFactory,
             TenantContext tenantContext,
-            ICircleNetworkService circleNetworkService,
+            CircleNetworkService circleNetworkService,
             FollowerService followerService,
             DriveManager driveManager,
             FileSystemResolver fileSystemResolver, OdinConfiguration odinConfiguration) : base(odinHttpClientFactory, circleNetworkService,
@@ -61,8 +61,7 @@ namespace Odin.Core.Services.Transit.SendingHost
 
 
         public async Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile,
-            TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType,
-            ClientAccessTokenSource tokenSource = ClientAccessTokenSource.Circle)
+            TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType)
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.UseTransit);
 
@@ -153,8 +152,7 @@ namespace Odin.Core.Services.Transit.SendingHost
             {
                 var r = (OdinId)recipient;
 
-                // var clientAccessToken = await ResolveClientAccessToken(r, sendFileOptions.ClientAccessTokenSource);
-                var clientAccessToken = await ResolveClientAccessToken(r, ClientAccessTokenSource.Circle);
+                var clientAccessToken = await ResolveClientAccessToken(r);
 
                 var client = _odinHttpClientFactory.CreateClientUsingAccessToken<ITransitHostHttpClient>(r, clientAccessToken.ToAuthenticationToken(),
                     fileSystemType: sendFileOptions.FileSystemType);
@@ -401,7 +399,7 @@ namespace Odin.Core.Services.Transit.SendingHost
                 try
                 {
                     //TODO: i need to resolve the token outside of transit, pass it in as options instead
-                    var clientAuthToken = await ResolveClientAccessToken(recipient, ClientAccessTokenSource.Circle);
+                    var clientAuthToken = await ResolveClientAccessToken(recipient);
 
                     transferStatus.Add(recipient, TransferStatus.TransferKeyCreated);
 

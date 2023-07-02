@@ -15,7 +15,7 @@ namespace Odin.Core.Services.Authentication.YouAuth
         private readonly IYouAuthAuthorizationCodeManager _youAuthAuthorizationCodeManager;
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
         private readonly IYouAuthRegistrationService _registrationService;
-        private readonly ICircleNetworkService _circleNetwork;
+        private readonly CircleNetworkService _circleNetwork;
 
         //
 
@@ -23,7 +23,7 @@ namespace Odin.Core.Services.Authentication.YouAuth
             ILogger<YouAuthService> logger,
             IYouAuthAuthorizationCodeManager youAuthAuthorizationCodeManager,
             IOdinHttpClientFactory odinHttpClientFactory,
-            ICircleNetworkService circleNetwork, IYouAuthRegistrationService registrationService)
+            CircleNetworkService circleNetwork, IYouAuthRegistrationService registrationService)
         {
             _logger = logger;
             _youAuthAuthorizationCodeManager = youAuthAuthorizationCodeManager;

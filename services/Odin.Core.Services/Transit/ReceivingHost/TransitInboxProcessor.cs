@@ -18,12 +18,12 @@ namespace Odin.Core.Services.Transit.ReceivingHost
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
         private readonly FileSystemResolver _fileSystemResolver;
         private readonly TenantSystemStorage _tenantSystemStorage;
-        private readonly ICircleNetworkService _circleNetworkService;
+        private readonly CircleNetworkService _circleNetworkService;
 
         public TransitInboxProcessor(OdinContextAccessor contextAccessor,
             TransitInboxBoxStorage transitInboxBoxStorage,
             FileSystemResolver fileSystemResolver,
-            TenantSystemStorage tenantSystemStorage, ICircleNetworkService circleNetworkService)
+            TenantSystemStorage tenantSystemStorage, CircleNetworkService circleNetworkService)
         {
             _contextAccessor = contextAccessor;
             _transitInboxBoxStorage = transitInboxBoxStorage;

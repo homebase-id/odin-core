@@ -29,7 +29,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
         private readonly GuidId _sentRequestsDataType = GuidId.FromString("sent_requests");
 
         private readonly OdinContextAccessor _contextAccessor;
-        private readonly ICircleNetworkService _cns;
+        private readonly CircleNetworkService _cns;
         private readonly ILogger<CircleNetworkRequestService> _logger;
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
 
@@ -43,7 +43,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
 
         public CircleNetworkRequestService(
             OdinContextAccessor contextAccessor,
-            ICircleNetworkService cns,
+            CircleNetworkService cns,
             ILogger<CircleNetworkRequestService> logger,
             IOdinHttpClientFactory odinHttpClientFactory,
             TenantSystemStorage tenantSystemStorage,
@@ -191,6 +191,9 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
 
             //create a grant per circle
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+
+            // SensitiveByteArray icrKey = GetIcrKey(masterKey);
+            
             outgoingRequest.PendingAccessExchangeGrant = new AccessExchangeGrant()
             {
                 //TODO: encrypting the key store key here is wierd.  this should be done in the exchange grant service
@@ -311,8 +314,6 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
 
             if (!await TryAcceptRequest())
             {
-                //public key might be invalid, destroy the cache item
-                // await _rsaKeyService.InvalidateRecipientPublicKey((OdinId)pendingRequest.SenderOdinId);
                 if (!await TryAcceptRequest())
                 {
                     throw new Exception($"Failed to establish connection request.  Either response was empty or server returned a failure");

@@ -19,7 +19,7 @@ public class TransitReactionPerimeterService : TransitServiceBase
 
     public TransitReactionPerimeterService(ReactionContentService reactionContentService,
         IOdinHttpClientFactory odinHttpClientFactory,
-        ICircleNetworkService circleNetworkService,
+        CircleNetworkService circleNetworkService,
         FollowerService followerService,
         OdinContextAccessor contextAccessor,
         FileSystemResolver fileSystemResolver) :
@@ -30,7 +30,7 @@ public class TransitReactionPerimeterService : TransitServiceBase
 
     public async Task AddReaction(SharedSecretEncryptedTransitPayload payload)
     {
-        var request = await DecryptUsingSharedSecret<AddRemoteReactionRequest>(payload, ClientAccessTokenSource.Circle);
+        var request = await DecryptUsingSharedSecret<AddRemoteReactionRequest>(payload);
         var fileId = await ResolveInternalFile(request.File);
         if (null == fileId)
         {
@@ -42,7 +42,7 @@ public class TransitReactionPerimeterService : TransitServiceBase
 
     public async Task DeleteReaction(SharedSecretEncryptedTransitPayload payload)
     {
-        var request = await DecryptUsingSharedSecret<DeleteReactionRequestByGlobalTransitId>(payload, ClientAccessTokenSource.Circle);
+        var request = await DecryptUsingSharedSecret<DeleteReactionRequestByGlobalTransitId>(payload);
 
         var fileId = await ResolveInternalFile(request.File);
         if (null == fileId)
@@ -55,7 +55,7 @@ public class TransitReactionPerimeterService : TransitServiceBase
 
     public async Task<GetReactionCountsResponse> GetReactionCountsByFile(SharedSecretEncryptedTransitPayload payload)
     {
-        var request = await DecryptUsingSharedSecret<GetRemoteReactionsRequest>(payload, ClientAccessTokenSource.Circle);
+        var request = await DecryptUsingSharedSecret<GetRemoteReactionsRequest>(payload);
 
         var fileId = await ResolveInternalFile(request.File);
         if (null == fileId)
@@ -68,7 +68,7 @@ public class TransitReactionPerimeterService : TransitServiceBase
 
     public async Task<List<string>> GetReactionsByIdentityAndFile(SharedSecretEncryptedTransitPayload payload)
     {
-        var request = await DecryptUsingSharedSecret<TransitGetReactionsByIdentityRequest>(payload, ClientAccessTokenSource.Circle);
+        var request = await DecryptUsingSharedSecret<TransitGetReactionsByIdentityRequest>(payload);
 
         var fileId = await ResolveInternalFile(request.File);
         if (null == fileId)
@@ -81,7 +81,7 @@ public class TransitReactionPerimeterService : TransitServiceBase
 
     public async Task DeleteAllReactions(SharedSecretEncryptedTransitPayload payload)
     {
-        var request = await DecryptUsingSharedSecret<DeleteReactionRequestByGlobalTransitId>(payload, ClientAccessTokenSource.Circle);
+        var request = await DecryptUsingSharedSecret<DeleteReactionRequestByGlobalTransitId>(payload);
 
         var fileId = await ResolveInternalFile(request.File);
         if (null == fileId)
@@ -94,7 +94,7 @@ public class TransitReactionPerimeterService : TransitServiceBase
 
     public async Task<GetReactionsPerimeterResponse> GetReactions(SharedSecretEncryptedTransitPayload payload)
     {
-        var request = await DecryptUsingSharedSecret<GetRemoteReactionsRequest>(payload, ClientAccessTokenSource.Circle);
+        var request = await DecryptUsingSharedSecret<GetRemoteReactionsRequest>(payload);
 
         var fileId = await ResolveInternalFile(request.File);
         if (null == fileId)

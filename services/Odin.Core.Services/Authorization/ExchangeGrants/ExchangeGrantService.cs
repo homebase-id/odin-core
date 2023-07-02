@@ -60,13 +60,14 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
                     driveGrants.Add(driveGrant);
                 }
             }
-
+            
             var grant = new ExchangeGrant()
             {
                 Created = UnixTimeUtc.Now().milliseconds,
                 MasterKeyEncryptedKeyStoreKey = masterKey == null ? null : new SymmetricKeyEncryptedAes(ref masterKey, ref grantKeyStoreKey),
                 IsRevoked = false,
                 KeyStoreKeyEncryptedDriveGrants = driveGrants.ToList(),
+                // KeyStoreKeyEncryptedIcrKey = new SymmetricKeyEncryptedAes(ref grantKeyStoreKey, ref icrKey),
                 PermissionSet = permissionSet
             };
 

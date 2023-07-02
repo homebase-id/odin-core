@@ -25,10 +25,10 @@ namespace Odin.Core.Services.Transit.SendingHost;
 public class TransitQueryService
 {
     private readonly IOdinHttpClientFactory _odinHttpClientFactory;
-    private readonly ICircleNetworkService _circleNetworkService;
+    private readonly CircleNetworkService _circleNetworkService;
     private readonly OdinContextAccessor _contextAccessor;
 
-    public TransitQueryService(IOdinHttpClientFactory odinHttpClientFactory, ICircleNetworkService circleNetworkService,
+    public TransitQueryService(IOdinHttpClientFactory odinHttpClientFactory, CircleNetworkService circleNetworkService,
         OdinContextAccessor contextAccessor)
     {
         _odinHttpClientFactory = odinHttpClientFactory;

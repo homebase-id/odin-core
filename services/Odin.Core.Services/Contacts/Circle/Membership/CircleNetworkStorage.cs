@@ -17,12 +17,10 @@ public class CircleNetworkStorage
 {
     private readonly GuidId _key = GuidId.FromString("circle_network_storage");
     private readonly TenantSystemStorage _tenantSystemStorage;
-    private readonly CircleDefinitionService _circleDefinitionService;
 
-    public CircleNetworkStorage(TenantSystemStorage tenantSystemStorage, CircleDefinitionService circleDefinitionService)
+    public CircleNetworkStorage(TenantSystemStorage tenantSystemStorage)
     {
         _tenantSystemStorage = tenantSystemStorage;
-        _circleDefinitionService = circleDefinitionService;
     }
 
     public IdentityConnectionRegistration Get(OdinId odinId)
