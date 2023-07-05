@@ -23,5 +23,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
         /// </summary>
         public string ClientAccessTokenReply64 { get; set; }
         
+        public byte[] TempKey { get; set; }
+        
     }
 }

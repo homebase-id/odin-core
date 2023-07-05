@@ -15,6 +15,10 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
     {
         private ConnectionStatus _status;
 
+        public IdentityConnectionRegistration()
+        {
+            
+        }
         public Guid Id
         {
             get { return this.OdinId; }

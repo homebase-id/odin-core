@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Dawn;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Services.Authorization.Acl;
@@ -39,10 +40,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
         private readonly GuidId _icrClientDataType = GuidId.FromString("__icr_client_reg");
         private readonly ThreeKeyValueStorage _icrClientValueStorage;
 
-        private readonly GuidId _icrKeyStorageId = GuidId.FromString("icr_key");
-
-
-        public CircleNetworkService(OdinContextAccessor contextAccessor, ILogger<CircleNetworkService> logger,
+        public CircleNetworkService(OdinContextAccessor contextAccessor,
             ExchangeGrantService exchangeGrantService, TenantContext tenantContext,
             CircleDefinitionService circleDefinitionService,
             IAppRegistrationService appRegistrationService, TenantSystemStorage tenantSystemStorage)
@@ -61,8 +59,6 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
         /// <summary>
         /// Creates a <see cref="PermissionContext"/> for the specified caller based on their access
         /// </summary>
-        /// <returns></returns>
-
         public async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreateTransitPermissionContext(OdinId odinId,
             ClientAuthenticationToken authToken)
         {
@@ -130,7 +126,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
                     masterKey: null,
                     securityLevel: SecurityGroupType.Authenticated);
 
-                List<int> permissionKeys = new List<int>() { };
+                List<int> permissionKeys = new List<int>();
                 if (_tenantContext.Settings.AuthenticatedIdentitiesCanViewConnections)
                 {
                     permissionKeys.Add(PermissionKeys.ReadConnections);
@@ -144,7 +140,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
                 //create permission context with anonymous drives only
                 var anonPermissionContext = await _exchangeGrantService.CreatePermissionContext(
                     authToken: authToken,
-                    grants: null,
+                    grants: null!,
                     accessReg: icr.AccessGrant.AccessRegistration,
                     additionalPermissionKeys: permissionKeys);
 
@@ -206,6 +202,22 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
         }
 
         /// <summary>
+        /// Gets profiles that have been marked as <see cref="ConnectionStatus.Blocked"/>
+        /// </summary>
+        public async Task<CursoredResult<long, IdentityConnectionRegistration>> GetBlockedProfiles(int count, long cursor)
+        {
+            return await Task.FromResult(this.GetConnectionsInternal(count, cursor, ConnectionStatus.Blocked));
+        }
+
+        /// <summary>
+        /// Returns a list of identities which are connected to this DI
+        /// </summary>
+        public async Task<CursoredResult<long, IdentityConnectionRegistration>> GetConnectedIdentities(int count, long cursor)
+        {
+            return await Task.FromResult(this.GetConnectionsInternal(count, cursor, ConnectionStatus.Connected));
+        }
+
+        /// <summary>
         /// Unblocks the specified <see cref="OdinId"/> from your network
         /// </summary>
         /// <param name="odinId"></param>
@@ -226,25 +238,10 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
         }
 
         /// <summary>
-        /// Gets profiles that have been marked as <see cref="ConnectionStatus.Blocked"/>
-        /// </summary>
-        public async Task<CursoredResult<long, IdentityConnectionRegistration>> GetBlockedProfiles(int count, long cursor)
-        {
-            return await Task.FromResult(this.GetConnectionsInternal(count, cursor, ConnectionStatus.Blocked));
-        }
-
-        /// <summary>
-        /// Returns a list of identities which are connected to this DI
-        /// </summary>
-        public async Task<CursoredResult<long, IdentityConnectionRegistration>> GetConnectedIdentities(int count, long cursor)
-        {
-            return await Task.FromResult(this.GetConnectionsInternal(count, cursor, ConnectionStatus.Connected));
-        }
-
-        /// <summary>
         /// Gets the current connection info
         /// </summary>
         /// <param name="odinId"></param>
+        /// <param name="overrideHack"></param>
         /// <returns></returns>
         public async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(OdinId odinId, bool overrideHack = false)
         {
@@ -289,7 +286,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
         {
             var connection = await GetIdentityConnectionRegistrationInternal(odinId);
 
-            if (connection?.AccessGrant.AccessRegistration == null || connection?.IsConnected() == false)
+            if (connection?.AccessGrant.AccessRegistration == null || connection.IsConnected() == false)
             {
                 throw new OdinSecurityException("Unauthorized Action");
             }
@@ -347,18 +344,23 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
                 throw new SecurityException("OdinId is blocked");
             }
         }
-        
+
         /// <summary>
         /// Adds the specified odinId to your network
         /// </summary>
         /// <param name="odinIdentity">The public key certificate containing the domain name which will be connected</param>
         /// <param name="accessGrant">The access to be given to this connection</param>
-        /// <param name="remoteClientAccessToken">The keys used when accessing the remote identity</param>
+        /// <param name="encryptedCat">The keys used when accessing the remote identity</param>
+        /// <param name="contactData"></param>
         /// <returns></returns>
-        public async Task Connect(string odinIdentity, AccessExchangeGrant accessGrant, ClientAccessToken remoteClientAccessToken,
-            ContactRequestData contactData)
+        public async Task Connect(string odinIdentity, AccessExchangeGrant accessGrant, EncryptedClientAccessToken encryptedCat, ContactRequestData contactData)
         {
             //TODO: need to add security that this method can be called
+
+            if (encryptedCat == null || encryptedCat.EncryptedData.KeyEncrypted.Length == 0)
+            {
+                throw new OdinSecurityException("Invalid EncryptedClientAccessToken");
+            }
 
             var odinId = (OdinId)odinIdentity;
 
@@ -382,11 +384,11 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
                 OriginalContactData = contactData,
                 AccessGrant = accessGrant,
 
-                ClientAccessTokenId = remoteClientAccessToken.Id,
-                ClientAccessTokenHalfKey = remoteClientAccessToken.AccessTokenHalfKey.GetKey(),
-                ClientAccessTokenSharedSecret = remoteClientAccessToken.SharedSecret.GetKey(),
+                // ClientAccessTokenId = remoteClientAccessToken.Id,
+                // ClientAccessTokenHalfKey = remoteClientAccessToken.AccessTokenHalfKey.GetKey(),
+                // ClientAccessTokenSharedSecret = remoteClientAccessToken.SharedSecret.GetKey(),
 
-                // EncryptedClientAccessToken = EncryptedClientAccessToken.Encrypt(icrKey, remoteClientAccessToken)
+                EncryptedClientAccessToken = encryptedCat
             };
 
             this.SaveIcr(newConnection);
@@ -457,7 +459,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
                 }
             }
 
-            //find the circle grant across all appsgrants and remove it
+            //find the circle grant across all app grants and remove it
             foreach (var (appKey, appCircleGrants) in icr.AccessGrant.AppGrants)
             {
                 appCircleGrants.Remove(circleId.Value);
@@ -650,7 +652,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
             _circleDefinitionService.CreateSystemCircle();
             return Task.CompletedTask;
         }
-        
+
         /// <summary>
         /// Creates a client for the IdentityConnectionRegistration
         /// </summary>
@@ -711,7 +713,40 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
             await this.ReconcileAuthorizedCircles(notification.OldAppRegistration, notification.NewAppRegistration);
         }
 
+        /// <summary>
+        /// Creates initial encryption keys
+        /// </summary>
+        public async Task CreateInitialKeys()
+        {
+            var mk = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+            _storage.CreateIcrKey(mk);
+            await Task.CompletedTask;
+        }
+
+        public SymmetricKeyEncryptedAes ReEncryptIcrKey(SensitiveByteArray encryptionKey)
+        {
+            var rawIcrKey = GetRawIcrKey();
+            var encryptedIcrKey = new SymmetricKeyEncryptedAes(ref encryptionKey, ref rawIcrKey);
+            rawIcrKey.Wipe();
+            return encryptedIcrKey;
+        }
+
+        public EncryptedClientAccessToken EncryptClientAccessToken(ClientAccessToken clientAccessToken)
+        {
+            var rawIcrKey = GetRawIcrKey();
+            var k = EncryptedClientAccessToken.Encrypt(rawIcrKey, clientAccessToken);
+            rawIcrKey.Wipe();
+            return k;
+        }
+
         //
+
+        private SensitiveByteArray GetRawIcrKey()
+        {
+            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+            var masterKeyEncryptedIcrKey = _storage.GetMasterKeyEncryptedIcrKey();
+            return masterKeyEncryptedIcrKey.DecryptKeyClone(ref masterKey);
+        }
 
         private async Task<AppCircleGrant> CreateAppCircleGrant(RedactedAppRegistration appReg, GuidId circleId, SensitiveByteArray keyStoreKey,
             SensitiveByteArray masterKey)
@@ -1010,8 +1045,6 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
                     this.SaveIcr(icr);
                 }
             }
-
-
             //
         }
     }

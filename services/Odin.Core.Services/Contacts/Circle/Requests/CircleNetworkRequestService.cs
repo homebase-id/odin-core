@@ -153,20 +153,23 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
 
             var (accessRegistration, clientAccessToken) = await _exchangeGrantService.CreateClientAccessToken(keyStoreKey, ClientTokenType.Other);
 
+            var tempIcrKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var outgoingRequest = new ConnectionRequest
             {
                 Id = header.Id,
                 ContactData = header.ContactData,
                 Recipient = header.Recipient,
                 Message = header.Message,
-                ClientAccessToken64 = clientAccessToken.ToPortableBytes64()
+                ClientAccessToken64 = clientAccessToken.ToPortableBytes64(),
+                TempKey = tempIcrKey.GetKey()
             };
 
             var payloadBytes = OdinSystemSerializer.Serialize(outgoingRequest).ToUtf8ByteArray();
 
             async Task<bool> TrySendRequest()
             {
-                var rsaEncryptedPayload = await _publicPrivateKeyService.EncryptPayloadForRecipient(RsaKeyType.OnlineKey, (OdinId)header.Recipient, payloadBytes);
+                var rsaEncryptedPayload = await _publicPrivateKeyService.EncryptPayloadForRecipient(RsaKeyType.OnlineKey,
+                    (OdinId)header.Recipient, payloadBytes);
                 var client = _odinHttpClientFactory.CreateClient<ICircleNetworkRequestHttpClient>((OdinId)outgoingRequest.Recipient);
                 var response = await client.DeliverConnectionRequest(rsaEncryptedPayload);
                 return response.Content is { Success: true } && response.IsSuccessStatusCode;
@@ -192,8 +195,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
             //create a grant per circle
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
 
-            // SensitiveByteArray icrKey = GetIcrKey(masterKey);
-            
+            outgoingRequest.TempEncryptedIcrKey = _cns.ReEncryptIcrKey(tempIcrKey);
             outgoingRequest.PendingAccessExchangeGrant = new AccessExchangeGrant()
             {
                 //TODO: encrypting the key store key here is wierd.  this should be done in the exchange grant service
@@ -203,10 +205,14 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
                 AppGrants = await _cns.CreateAppCircleGrantList(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey),
                 AccessRegistration = accessRegistration
             };
+
             keyStoreKey.Wipe();
+            tempIcrKey.Wipe();
+            ByteArrayUtil.WipeByteArray(outgoingRequest.TempKey);
 
             UpsertSentConnectionRequest(outgoingRequest);
         }
+
 
         /// <summary>
         /// Stores an new incoming request that is not yet accepted.
@@ -296,11 +302,12 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
             {
                 SenderOdinId = _tenantContext.HostOdinId,
                 ContactData = header.ContactData,
-                ClientAccessTokenReply64 = clientAccessTokenReply.ToPortableBytes64()
+                ClientAccessTokenReply64 = clientAccessTokenReply.ToPortableBytes64(),
+                TempKey = pendingRequest.TempKey
             };
 
             var authenticationToken64 = remoteClientAccessToken.ToAuthenticationToken().ToPortableBytes64();
-            
+
             async Task<bool> TryAcceptRequest()
             {
                 var json = OdinSystemSerializer.Serialize(acceptedReq);
@@ -332,7 +339,8 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
             };
             keyStoreKey.Wipe();
 
-            await _cns.Connect(pendingRequest.SenderOdinId, accessGrant, remoteClientAccessToken, pendingRequest.ContactData);
+            var encryptedCat = _cns.EncryptClientAccessToken(remoteClientAccessToken);
+            await _cns.Connect(pendingRequest.SenderOdinId, accessGrant, encryptedCat, pendingRequest.ContactData);
 
             remoteClientAccessToken.AccessTokenHalfKey.Wipe();
             remoteClientAccessToken.SharedSecret.Wipe();
@@ -353,7 +361,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
 
             //TODO: need to add a blacklist and other checks to see if we want to accept the request from the incoming DI
             var authToken = ClientAuthenticationToken.FromPortableBytes64(authenticationToken64);
-            
+
             var originalRequest = await GetSentRequestInternal(_contextAccessor.GetCurrent().GetCallerOdinIdOrFail());
 
             //Assert that I previously sent a request to the dotIdentity attempting to connected with me
@@ -366,9 +374,16 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
             var payloadBytes = payload.Decrypt(sharedSecret);
 
             ConnectionRequestReply reply = OdinSystemSerializer.Deserialize<ConnectionRequestReply>(payloadBytes.ToStringFromUtf8Bytes());
-            
+
             var remoteClientAccessToken = ClientAccessToken.FromPortableBytes64(reply.ClientAccessTokenReply64);
-            await _cns.Connect(reply.SenderOdinId, originalRequest.PendingAccessExchangeGrant, remoteClientAccessToken, reply.ContactData);
+
+            var tempKey = reply.TempKey.ToSensitiveByteArray();
+            var rawIcrKey = originalRequest.TempEncryptedIcrKey.DecryptKeyClone(ref tempKey);
+            var encryptedCat = EncryptedClientAccessToken.Encrypt(rawIcrKey, remoteClientAccessToken);
+            rawIcrKey.Wipe();
+            tempKey.Wipe();
+
+            await _cns.Connect(reply.SenderOdinId, originalRequest.PendingAccessExchangeGrant, encryptedCat, reply.ContactData);
 
             await this.DeleteSentRequestInternal((OdinId)originalRequest.Recipient);
             await this.DeletePendingRequestInternal((OdinId)originalRequest.Recipient);

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Text.Json.Serialization;
 using Dawn;
+using Odin.Core.Cryptography.Data;
 using Odin.Core.Services.Contacts.Circle.Membership;
 
 namespace Odin.Core.Services.Contacts.Circle.Requests
@@ -24,7 +25,9 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
         /// </summary>
         public AccessExchangeGrant PendingAccessExchangeGrant { get; set; }
 
-        public ContactRequestData ReceivedContactData { get; set; }
+        public SymmetricKeyEncryptedAes TempEncryptedIcrKey { get; set; }
+
+        public byte[] TempKey { get; set; }
 
         /// <summary>
         /// Validates this instance has the minimal amount of information to be used.

@@ -68,6 +68,8 @@ public class TenantConfigService
 
         await _publicPrivateKeyService.CreateInitialKeys();
 
+        await _cns.CreateInitialKeys();
+
         await CreateDriveIfNotExists(SystemDriveConstants.CreateChatDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateFeedDriveRequest);
 
@@ -79,7 +81,6 @@ public class TenantConfigService
         await CreateDriveIfNotExists(SystemDriveConstants.CreateProfileDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateWalletDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateTransientTempDriveRequest);
-
 
         foreach (var rd in request.Drives ?? new List<CreateDriveRequest>())
         {
@@ -172,7 +173,7 @@ public class TenantConfigService
             }
         }
 
-        _cns.UpdateCircleDefinition(systemCircle);
+        _cns.UpdateCircleDefinition(systemCircle).GetAwaiter().GetResult();
     }
 
     public TenantSettings GetTenantSettings()
