@@ -228,7 +228,8 @@ namespace Odin.Core.Cryptography.Data
                 return false;
         }
 
-        public byte[] GetSharedSecret(SensitiveByteArray key, EccPublicKeyData publicKeyData)
+        // Change to private
+        private SensitiveByteArray GetEcdhSharedSecret(SensitiveByteArray pwd, EccPublicKeyData publicKeyData)
         {
             if (publicKeyData == null)
                 throw new ArgumentNullException(nameof(publicKeyData));
@@ -238,7 +239,7 @@ namespace Odin.Core.Cryptography.Data
 
 
             // Retrieve the private key from the secure storage
-            var privateKeyBytes = GetFullKey(key).GetKey();
+            var privateKeyBytes = GetFullKey(pwd).GetKey();
             var privateKeyParameters = (ECPrivateKeyParameters)PrivateKeyFactory.CreateKey(privateKeyBytes);
 
             // Construct the public key parameters from the provided data
@@ -252,10 +253,27 @@ namespace Odin.Core.Cryptography.Data
             BigInteger sharedSecret = ecdhUagree.CalculateAgreement(publicKeyParameters);
 
             // Convert the shared secret to a byte array
-            byte[] sharedSecretBytes = sharedSecret.ToByteArrayUnsigned();
+            var sharedSecretBytes = sharedSecret.ToByteArrayUnsigned().ToSensitiveByteArray();
 
             // Apply HKDF to derive a symmetric key from the shared secret
-            return HashUtil.Hkdf(sharedSecretBytes, eccSalt, 16);
+            return HashUtil.Hkdf(sharedSecretBytes.GetKey(), eccSalt, 16).ToSensitiveByteArray();
+        }
+
+        public (byte[] tokenToTransmit, SensitiveByteArray SharedSecret) NewTransmittableSharedSecret(SensitiveByteArray pwd, EccPublicKeyData remotePublicKey)
+        {
+            var ecdhSS = GetEcdhSharedSecret(pwd, remotePublicKey);
+            var newSharedSecret = ByteArrayUtil.GetRndByteArray(16);
+            var token = ByteArrayUtil.EquiByteArrayXor(newSharedSecret, ecdhSS.GetKey());
+
+            return (token, newSharedSecret.ToSensitiveByteArray());
+        }
+
+        public SensitiveByteArray RetrieveSharedSecret(SensitiveByteArray pwd, byte[] tokenReceived, EccPublicKeyData remotePublicKey)
+        {
+            var ecdhSS = GetEcdhSharedSecret(pwd, remotePublicKey);
+            var sharedSecret = ByteArrayUtil.EquiByteArrayXor(ecdhSS.GetKey(), tokenReceived);
+
+            return sharedSecret.ToSensitiveByteArray();
         }
 
 
