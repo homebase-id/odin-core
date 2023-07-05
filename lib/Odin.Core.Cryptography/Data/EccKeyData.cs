@@ -180,7 +180,7 @@ namespace Odin.Core.Cryptography.Data
         }
 
 
-        private ref SensitiveByteArray GetFullKey(SensitiveByteArray key)
+        private SensitiveByteArray GetFullKey(SensitiveByteArray key)
         {
             if (ByteArrayUtil.EquiByteArrayCompare(keyHash, ByteArrayUtil.ReduceSHA256Hash(key.GetKey())) == false)
                 throw new Exception("Incorrect key");
@@ -190,18 +190,18 @@ namespace Odin.Core.Cryptography.Data
                 _privateKey = new SensitiveByteArray(AesCbc.Decrypt(storedKey, ref key, iv));
             }
 
-            return ref _privateKey;
+            return _privateKey;
         }
 
         // privatePEM needs work in case it's encrypted
-        public string privatePem(ref SensitiveByteArray key)
+        public string privatePem(SensitiveByteArray key)
         {
             // Either -----BEGIN RSA PRIVATE KEY----- and ExportRSAPrivateKey()
             // Or use -- BEGIN PRIVATE KEY -- and ExportPkcs8PrivateKey
-            return "-----BEGIN PRIVATE KEY-----\n" + privateDerBase64(ref key) + "\n-----END PRIVATE KEY-----";
+            return "-----BEGIN PRIVATE KEY-----\n" + privateDerBase64(key) + "\n-----END PRIVATE KEY-----";
         }
 
-        public string privateDerBase64(ref SensitiveByteArray key)
+        public string privateDerBase64(SensitiveByteArray key)
         {
             // Either -----BEGIN RSA PRIVATE KEY----- and ExportRSAPrivateKey()
             // Or use -- BEGIN PRIVATE KEY -- and ExportPkcs8PrivateKey
@@ -268,7 +268,7 @@ namespace Odin.Core.Cryptography.Data
             return (token, newSharedSecret.ToSensitiveByteArray());
         }
 
-        public SensitiveByteArray RetrieveSharedSecret(SensitiveByteArray pwd, byte[] tokenReceived, EccPublicKeyData remotePublicKey)
+        public SensitiveByteArray ResolveSharedSecret(SensitiveByteArray pwd, byte[] tokenReceived, EccPublicKeyData remotePublicKey)
         {
             var ecdhSS = GetEcdhSharedSecret(pwd, remotePublicKey);
             var sharedSecret = ByteArrayUtil.EquiByteArrayXor(ecdhSS.GetKey(), tokenReceived);
