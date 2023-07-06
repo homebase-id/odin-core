@@ -551,7 +551,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
         /// <summary>
         /// Updates a <see cref="CircleDefinition"/> and applies permission and drive changes to all existing circle members
         /// </summary>
-        /// <param name="circleDefinition"></param>
+        /// <param name="circleDef"></param>
         public async Task UpdateCircleDefinition(CircleDefinition circleDef)
         {
             Guard.Argument(circleDef, nameof(circleDef)).NotNull();
@@ -959,8 +959,8 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
         {
             var registration = _storage.Get(odinId);
 
-            //registration.ClientAccessTokenSharedSecret
-
+            var icrKey = _contextAccessor.GetCurrent().PermissionsContext.IcrKey;
+            
             if (null == registration)
             {
                 return new IdentityConnectionRegistration()

@@ -149,7 +149,7 @@ public class TransitReactionContentSenderService : TransitServiceBase
         EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
         if (sharedSecretEncryptedFileHeader.FileMetadata.PayloadIsEncrypted)
         {
-            var currentKey = icr.ClientAccessTokenSharedSecret.ToSensitiveByteArray();
+            var currentKey = icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.IcrKey).SharedSecret;
             var icrEncryptedKeyHeader = sharedSecretEncryptedFileHeader.SharedSecretEncryptedKeyHeader;
             ownerSharedSecretEncryptedKeyHeader = ReEncrypt(currentKey, icrEncryptedKeyHeader);
         }

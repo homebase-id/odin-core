@@ -41,11 +41,8 @@ public class CircleNetworkStorage
         var icrAccessRecord = new IcrAccessRecord()
         {
             AccessGrant = icr.AccessGrant,
-            ClientAccessTokenId = icr.ClientAccessTokenId,
-            ClientAccessTokenHalfKey = icr.ClientAccessTokenHalfKey,
-            ClientAccessTokenSharedSecret = icr.ClientAccessTokenSharedSecret,
             OriginalContactData = icr.OriginalContactData,
-            EncryptedClientAccessToken = icr.EncryptedClientAccessToken.EncryptedData.KeyEncrypted
+            EncryptedClientAccessToken = icr.EncryptedClientAccessToken.EncryptedData
         };
 
         using (_tenantSystemStorage.CreateCommitUnitOfWork())
@@ -167,8 +164,11 @@ public class CircleNetworkStorage
             // ClientAccessTokenId = data.ClientAccessTokenId,
             // ClientAccessTokenHalfKey = data.ClientAccessTokenHalfKey,
             // ClientAccessTokenSharedSecret = data.ClientAccessTokenSharedSecret,
-          
-            // EncryptedClientAccessToken = 
+
+            EncryptedClientAccessToken = new EncryptedClientAccessToken()
+            {
+                EncryptedData = data.EncryptedClientAccessToken
+            }
         };
     }
 
@@ -229,23 +229,8 @@ public class IcrAccessRecord
     /// The drives and permissions granted to this connection
     /// </summary>
     public AccessExchangeGrant AccessGrant { get; set; }
-
-    /// <summary>
-    /// The Id of the <see cref="ClientAccessToken"/> to be sent when communicating with this OdinId's host
-    /// </summary>
-    public Guid ClientAccessTokenId { get; set; }
-
-    /// <summary>
-    /// The AccessTokenHalfKey of the <see cref="ClientAccessToken"/> to be sent when communicating with this OdinId's host
-    /// </summary>
-    public byte[] ClientAccessTokenHalfKey { get; set; }
-
-    /// <summary>
-    /// The SharedSecret of the <see cref="ClientAccessToken"/> used to encrypt payloads when
-    /// communicating with this OdinId's host.  This is never sent over the wire.
-    /// </summary>
-    public byte[] ClientAccessTokenSharedSecret { get; set; } //TODO: this needs to be encrypted when stored; 
-
-    public byte[] EncryptedClientAccessToken { get; set; }
+    
+    // public byte[] EncryptedClientAccessToken { get; set; }
+    public SymmetricKeyEncryptedAes EncryptedClientAccessToken { get; set; }
     public ContactRequestData OriginalContactData { get; set; }
 }

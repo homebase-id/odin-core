@@ -17,11 +17,13 @@ namespace Odin.Core.Services.Base
         public PermissionContext(
             Dictionary<string, PermissionGroup> permissionGroups,
             SensitiveByteArray sharedSecretKey,
+            // SensitiveByteArray icrKey,
             bool isSystem = false)
         {
             Guard.Argument(permissionGroups, nameof(permissionGroups)).NotNull();
 
             this.SharedSecretKey = sharedSecretKey;
+            // IcrKey = icrKey;
             _permissionGroups = permissionGroups;
 
             // _instanceId = new Guid();
@@ -29,6 +31,7 @@ namespace Odin.Core.Services.Base
         }
 
         public SensitiveByteArray SharedSecretKey { get; }
+        public SensitiveByteArray IcrKey { get; }
 
         public bool HasDrivePermission(Guid driveId, DrivePermission permission)
         {
@@ -199,6 +202,7 @@ namespace Odin.Core.Services.Base
                 PermissionGroups = _permissionGroups.Values.Select(pg => pg.Redacted()),
             };
         }
+        
     }
 
     public class RedactedPermissionContext

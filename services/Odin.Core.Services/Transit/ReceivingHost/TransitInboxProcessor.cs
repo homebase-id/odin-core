@@ -59,11 +59,8 @@ namespace Odin.Core.Services.Transit.ReceivingHost
 
                         if (inboxItem.InstructionType == TransferInstructionType.SaveFile)
                         {
-                            // var (isValidPublicKey, decryptedAesKeyHeaderBytes) =
-                            //     await _rsaKeyService.DecryptPayload(RsaKeyType.OfflineKey, inboxItem.RsaEncryptedKeyHeaderPayload);
-
                             var icr = await _circleNetworkService.GetIdentityConnectionRegistration(inboxItem.Sender, overrideHack: true);
-                            var sharedSecret = icr.ClientAccessTokenSharedSecret.ToSensitiveByteArray();
+                            var sharedSecret = icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.IcrKey).SharedSecret;
                             var decryptedKeyHeader = inboxItem.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
 
                             await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender, inboxItem.FileSystemType, inboxItem.TransferFileType);
