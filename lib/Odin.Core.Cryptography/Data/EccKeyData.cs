@@ -180,7 +180,7 @@ namespace Odin.Core.Cryptography.Data
         }
 
 
-        private ref SensitiveByteArray GetFullKey(SensitiveByteArray key)
+        private SensitiveByteArray GetFullKey(SensitiveByteArray key)
         {
             if (ByteArrayUtil.EquiByteArrayCompare(keyHash, ByteArrayUtil.ReduceSHA256Hash(key.GetKey())) == false)
                 throw new Exception("Incorrect key");
@@ -190,18 +190,18 @@ namespace Odin.Core.Cryptography.Data
                 _privateKey = new SensitiveByteArray(AesCbc.Decrypt(storedKey, ref key, iv));
             }
 
-            return ref _privateKey;
+            return _privateKey;
         }
 
         // privatePEM needs work in case it's encrypted
-        public string privatePem(ref SensitiveByteArray key)
+        public string privatePem(SensitiveByteArray key)
         {
             // Either -----BEGIN RSA PRIVATE KEY----- and ExportRSAPrivateKey()
             // Or use -- BEGIN PRIVATE KEY -- and ExportPkcs8PrivateKey
-            return "-----BEGIN PRIVATE KEY-----\n" + privateDerBase64(ref key) + "\n-----END PRIVATE KEY-----";
+            return "-----BEGIN PRIVATE KEY-----\n" + privateDerBase64(key) + "\n-----END PRIVATE KEY-----";
         }
 
-        public string privateDerBase64(ref SensitiveByteArray key)
+        public string privateDerBase64(SensitiveByteArray key)
         {
             // Either -----BEGIN RSA PRIVATE KEY----- and ExportRSAPrivateKey()
             // Or use -- BEGIN PRIVATE KEY -- and ExportPkcs8PrivateKey
@@ -228,7 +228,8 @@ namespace Odin.Core.Cryptography.Data
                 return false;
         }
 
-        public byte[] GetSharedSecret(SensitiveByteArray key, EccPublicKeyData publicKeyData)
+        // Change to private
+        private SensitiveByteArray GetEcdhSharedSecret(SensitiveByteArray pwd, EccPublicKeyData publicKeyData)
         {
             if (publicKeyData == null)
                 throw new ArgumentNullException(nameof(publicKeyData));
@@ -238,7 +239,7 @@ namespace Odin.Core.Cryptography.Data
 
 
             // Retrieve the private key from the secure storage
-            var privateKeyBytes = GetFullKey(key).GetKey();
+            var privateKeyBytes = GetFullKey(pwd).GetKey();
             var privateKeyParameters = (ECPrivateKeyParameters)PrivateKeyFactory.CreateKey(privateKeyBytes);
 
             // Construct the public key parameters from the provided data
@@ -252,10 +253,27 @@ namespace Odin.Core.Cryptography.Data
             BigInteger sharedSecret = ecdhUagree.CalculateAgreement(publicKeyParameters);
 
             // Convert the shared secret to a byte array
-            byte[] sharedSecretBytes = sharedSecret.ToByteArrayUnsigned();
+            var sharedSecretBytes = sharedSecret.ToByteArrayUnsigned().ToSensitiveByteArray();
 
             // Apply HKDF to derive a symmetric key from the shared secret
-            return HashUtil.Hkdf(sharedSecretBytes, eccSalt, 16);
+            return HashUtil.Hkdf(sharedSecretBytes.GetKey(), eccSalt, 16).ToSensitiveByteArray();
+        }
+
+        public (byte[] tokenToTransmit, SensitiveByteArray SharedSecret) NewTransmittableSharedSecret(SensitiveByteArray pwd, EccPublicKeyData remotePublicKey)
+        {
+            var ecdhSS = GetEcdhSharedSecret(pwd, remotePublicKey);
+            var newSharedSecret = ByteArrayUtil.GetRndByteArray(16);
+            var token = ByteArrayUtil.EquiByteArrayXor(newSharedSecret, ecdhSS.GetKey());
+
+            return (token, newSharedSecret.ToSensitiveByteArray());
+        }
+
+        public SensitiveByteArray ResolveSharedSecret(SensitiveByteArray pwd, byte[] tokenReceived, EccPublicKeyData remotePublicKey)
+        {
+            var ecdhSS = GetEcdhSharedSecret(pwd, remotePublicKey);
+            var sharedSecret = ByteArrayUtil.EquiByteArrayXor(ecdhSS.GetKey(), tokenReceived);
+
+            return sharedSecret.ToSensitiveByteArray();
         }
 
 

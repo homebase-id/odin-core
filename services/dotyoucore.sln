@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.31129.286
+# Visual Studio Version 17
+VisualStudioVersion = 17.6.33712.159
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Odin.Core.Services", "Odin.Core.Services\Odin.Core.Services.csproj", "{6BCBC06F-E07B-4952-9A63-832F26B0891B}"
 EndProject
@@ -9,32 +9,34 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Odin.Hosting", "Odin.Hostin
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{A98EA801-5CF3-4550-920B-F48963F4C123}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.Hosting.Tests", "Tests\Odin.Hosting.Tests\Odin.Hosting.Tests.csproj", "{CD961B92-658E-4EEC-B430-85665BAC1830}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Odin.Hosting.Tests", "Tests\Odin.Hosting.Tests\Odin.Hosting.Tests.csproj", "{CD961B92-658E-4EEC-B430-85665BAC1830}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{8FEEC708-FFA8-4CAD-9C24-597F28ADBB9B}"
 	ProjectSection(SolutionItems) = preProject
 		..\README.md = ..\README.md
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.Core.Services.Background", "Odin.Core.Services.Background\Odin.Core.Services.Background.csproj", "{C521E36F-8DCC-413E-BBC4-BBEA8A8763C4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Odin.Core.Services.Background", "Odin.Core.Services.Background\Odin.Core.Services.Background.csproj", "{C521E36F-8DCC-413E-BBC4-BBEA8A8763C4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.Core.Services.Tests", "Tests\Odin.Core.Services.Tests\Odin.Core.Services.Tests.csproj", "{1F5F88D2-3F0C-4147-927F-5646AC79A65D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Odin.Core.Services.Tests", "Tests\Odin.Core.Services.Tests\Odin.Core.Services.Tests.csproj", "{1F5F88D2-3F0C-4147-927F-5646AC79A65D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.Core", "..\lib\Odin.Core\Odin.Core.csproj", "{E0E7DC9E-48E3-47FF-96EC-1F598072B2E8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Odin.Core", "..\lib\Odin.Core\Odin.Core.csproj", "{E0E7DC9E-48E3-47FF-96EC-1F598072B2E8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.Core.Cryptography", "..\lib\Odin.Core.Cryptography\Odin.Core.Cryptography.csproj", "{6CE05E06-E573-4EA5-96FE-DFABD46C2EF6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Odin.Core.Cryptography", "..\lib\Odin.Core.Cryptography\Odin.Core.Cryptography.csproj", "{6CE05E06-E573-4EA5-96FE-DFABD46C2EF6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.Core.Storage", "..\lib\Odin.Core.Storage\Odin.Core.Storage.csproj", "{04F38CEB-D6AD-41FE-B91F-ABA56B98C7DE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Odin.Core.Storage", "..\lib\Odin.Core.Storage\Odin.Core.Storage.csproj", "{04F38CEB-D6AD-41FE-B91F-ABA56B98C7DE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.Core.Storage.Tests", "..\lib\Tests\Odin.Core.Storage.Tests\Odin.Core.Storage.Tests.csproj", "{23C12B0C-1EB3-445E-B82A-5A74BD7F1C10}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Odin.Core.Storage.Tests", "..\lib\Tests\Odin.Core.Storage.Tests\Odin.Core.Storage.Tests.csproj", "{23C12B0C-1EB3-445E-B82A-5A74BD7F1C10}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.Core.Cryptography.Tests", "..\lib\Tests\Odin.Core.Cryptography.Tests\Odin.Core.Cryptography.Tests.csproj", "{F8073D0E-F016-434F-A2AB-94ECFB91A6C8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Odin.Core.Cryptography.Tests", "..\lib\Tests\Odin.Core.Cryptography.Tests\Odin.Core.Cryptography.Tests.csproj", "{F8073D0E-F016-434F-A2AB-94ECFB91A6C8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.Core.Tests", "..\lib\Tests\Odin.Core.Tests\Odin.Core.Tests.csproj", "{71BE6297-87A4-4C2B-94B6-6056DEF31664}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Odin.Core.Tests", "..\lib\Tests\Odin.Core.Tests\Odin.Core.Tests.csproj", "{71BE6297-87A4-4C2B-94B6-6056DEF31664}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WaitingListApi", "WaitingListApi\WaitingListApi.csproj", "{B5EB26BB-C63E-4707-B60D-92DFDFC53255}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WaitingListApi", "WaitingListApi\WaitingListApi.csproj", "{B5EB26BB-C63E-4707-B60D-92DFDFC53255}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.KeyChain", "Odin.KeyChain\Odin.KeyChain.csproj", "{484E8E87-BDA8-4A39-834E-0688E756DCA9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Odin.KeyChain", "Odin.KeyChain\Odin.KeyChain.csproj", "{484E8E87-BDA8-4A39-834E-0688E756DCA9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.KeyChainTests", "Odin.KeyChainTests\Odin.KeyChainTests.csproj", "{76F7A681-0627-4788-86CA-BA22D9575686}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -94,6 +96,10 @@ Global
 		{484E8E87-BDA8-4A39-834E-0688E756DCA9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{484E8E87-BDA8-4A39-834E-0688E756DCA9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{484E8E87-BDA8-4A39-834E-0688E756DCA9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{76F7A681-0627-4788-86CA-BA22D9575686}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{76F7A681-0627-4788-86CA-BA22D9575686}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{76F7A681-0627-4788-86CA-BA22D9575686}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{76F7A681-0627-4788-86CA-BA22D9575686}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -104,6 +110,7 @@ Global
 		{23C12B0C-1EB3-445E-B82A-5A74BD7F1C10} = {A98EA801-5CF3-4550-920B-F48963F4C123}
 		{F8073D0E-F016-434F-A2AB-94ECFB91A6C8} = {A98EA801-5CF3-4550-920B-F48963F4C123}
 		{71BE6297-87A4-4C2B-94B6-6056DEF31664} = {A98EA801-5CF3-4550-920B-F48963F4C123}
+		{76F7A681-0627-4788-86CA-BA22D9575686} = {A98EA801-5CF3-4550-920B-F48963F4C123}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {C1E48754-E921-4FC3-8BF2-123D1E7112F4}
