@@ -110,11 +110,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                 Assert.IsFalse(registeredApp.Grant.HasIcrKey, "Icr key should not be present when UseTransit permission is not given");
             }
         }
-
-        [Test]
-        public async Task RevokingUseTransitRemovesIcrKey()
-        {
-        }
+        //
+        // [Test]
+        // public async Task RevokingUseTransitRemovesIcrKey()
+        // {
+        // }
 
         // [Test]
         // public async Task CanRotateIcrKey()
