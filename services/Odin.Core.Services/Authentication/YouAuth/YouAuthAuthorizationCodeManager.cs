@@ -50,7 +50,7 @@ namespace Odin.Core.Services.Authentication.YouAuth
             var codeAsKey = codeId.ToByteArray().ToSensitiveByteArray();
             var code = codeId.ToString();
 
-            var icrKey = _contextAccessor.GetCurrent().PermissionsContext.IcrKey;
+            var icrKey = _contextAccessor.GetCurrent().PermissionsContext.GetIcrKey;
             var encryptedIcrKey = new SymmetricKeyEncryptedAes(ref codeAsKey, ref icrKey);
 
             var authorizationCode = new YouAuthAuthorizationCode(initiator, subject, code, _authorizationCodeLifeTime, encryptedIcrKey);

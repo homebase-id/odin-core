@@ -37,6 +37,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
         private readonly TenantContext _tenantContext;
         private readonly PublicPrivateKeyService _publicPrivateKeyService;
         private readonly ExchangeGrantService _exchangeGrantService;
+        private readonly IcrKeyService _icrKeyService;
 
         private readonly ThreeKeyValueStorage _pendingRequestValueStorage;
         private readonly ThreeKeyValueStorage _sentRequestValueStorage;
@@ -50,7 +51,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
             IMediator mediator,
             TenantContext tenantContext,
             PublicPrivateKeyService publicPrivateKeyService,
-            ExchangeGrantService exchangeGrantService)
+            ExchangeGrantService exchangeGrantService, IcrKeyService icrKeyService)
         {
             _contextAccessor = contextAccessor;
             _cns = cns;
@@ -60,6 +61,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
             _tenantContext = tenantContext;
             _publicPrivateKeyService = publicPrivateKeyService;
             _exchangeGrantService = exchangeGrantService;
+            _icrKeyService = icrKeyService;
             _contextAccessor = contextAccessor;
 
             _pendingRequestValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
@@ -195,7 +197,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
             //create a grant per circle
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
 
-            outgoingRequest.TempEncryptedIcrKey = _cns.ReEncryptIcrKey(tempIcrKey);
+            outgoingRequest.TempEncryptedIcrKey = _icrKeyService.ReEncryptIcrKey(tempIcrKey);
             outgoingRequest.PendingAccessExchangeGrant = new AccessExchangeGrant()
             {
                 //TODO: encrypting the key store key here is wierd.  this should be done in the exchange grant service
@@ -339,7 +341,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
             };
             keyStoreKey.Wipe();
 
-            var encryptedCat = _cns.EncryptClientAccessToken(remoteClientAccessToken);
+            var encryptedCat = _icrKeyService.EncryptClientAccessTokenUsingIrcKey(remoteClientAccessToken);
             await _cns.Connect(pendingRequest.SenderOdinId, accessGrant, encryptedCat, pendingRequest.ContactData);
 
             remoteClientAccessToken.AccessTokenHalfKey.Wipe();

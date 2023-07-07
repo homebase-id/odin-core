@@ -92,7 +92,7 @@ public class TransitQueryService
         if (payloadIsEncrypted)
         {
             var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeader);
-            ownerSharedSecretEncryptedKeyHeader = ReEncrypt(icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.IcrKey).SharedSecret, icrEncryptedKeyHeader);
+            ownerSharedSecretEncryptedKeyHeader = ReEncrypt(icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey).SharedSecret, icrEncryptedKeyHeader);
         }
         else
         {
@@ -131,7 +131,7 @@ public class TransitQueryService
         {
             var ssHeader = response.Headers.GetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header).Single();
             var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeader);
-            ownerSharedSecretEncryptedKeyHeader = ReEncrypt(icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.IcrKey).SharedSecret, icrEncryptedKeyHeader);
+            ownerSharedSecretEncryptedKeyHeader = ReEncrypt(icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey).SharedSecret, icrEncryptedKeyHeader);
         }
         else
         {
@@ -196,7 +196,7 @@ public class TransitQueryService
     private async Task<(IdentityConnectionRegistration, ITransitHostHttpClient)> CreateClient(OdinId odinId, FileSystemType? fileSystemType)
     {
         var icr = await _circleNetworkService.GetIdentityConnectionRegistration(odinId);
-        var authToken = icr.IsConnected() ? icr.CreateClientAuthToken(_contextAccessor.GetCurrent().PermissionsContext.IcrKey) : null;
+        var authToken = icr.IsConnected() ? icr.CreateClientAuthToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey) : null;
         if (authToken == null)
         {
             var httpClient = _odinHttpClientFactory.CreateClient<ITransitHostHttpClient>(odinId, fileSystemType);
@@ -232,7 +232,7 @@ public class TransitQueryService
         EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
         if (sharedSecretEncryptedFileHeader.FileMetadata.PayloadIsEncrypted)
         {
-            var currentKey = icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.IcrKey).SharedSecret;
+            var currentKey = icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey).SharedSecret;
             var icrEncryptedKeyHeader = sharedSecretEncryptedFileHeader.SharedSecretEncryptedKeyHeader;
             ownerSharedSecretEncryptedKeyHeader = ReEncrypt(currentKey, icrEncryptedKeyHeader);
         }

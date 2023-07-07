@@ -132,6 +132,7 @@ namespace Odin.Hosting
 
             cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>().SingleInstance();
 
+            cb.RegisterType<IcrKeyService>().AsSelf().SingleInstance();
             cb.RegisterType<CircleDefinitionService>().As<CircleDefinitionService>().SingleInstance();
             cb.RegisterType<CircleNetworkService>()
                 .AsSelf()

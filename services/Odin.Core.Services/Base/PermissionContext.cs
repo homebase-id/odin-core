@@ -31,7 +31,24 @@ namespace Odin.Core.Services.Base
         }
 
         public SensitiveByteArray SharedSecretKey { get; }
-        public SensitiveByteArray IcrKey { get; }
+
+        public SensitiveByteArray GetIcrKey
+        {
+            get
+            {
+                foreach (var group in _permissionGroups.Values)
+                {
+                    var key = group.GetIcrKey();
+                    if (key.HasValue)
+                    {
+                        //TODO: log key as source of permission.
+                        return key.Value;
+                    }
+                }
+
+                throw new OdinSecurityException($"No access permitted to drive alias {drive.Alias} and drive type {drive.Type}");
+            }
+        }
 
         public bool HasDrivePermission(Guid driveId, DrivePermission permission)
         {
@@ -202,7 +219,6 @@ namespace Odin.Core.Services.Base
                 PermissionGroups = _permissionGroups.Values.Select(pg => pg.Redacted()),
             };
         }
-        
     }
 
     public class RedactedPermissionContext

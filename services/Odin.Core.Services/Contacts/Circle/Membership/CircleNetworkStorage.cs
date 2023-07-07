@@ -127,7 +127,51 @@ public class CircleNetworkStorage
         var records = _tenantSystemStorage.Connections.PagingByCreated(count, (int)connectionStatus, adjustedCursor, out nextCursor);
         return records.Select(MapFromStorage);
     }
+    
+    public List<OdinId> GetCircleMembers(GuidId circleId)
+    {
+        //Note: this list is a cache of members for a circle.  the source of truth is the
+        //IdentityConnectionRegistration.AccessExchangeGrant.CircleGrants property for each OdinId
+        var memberBytesList = _tenantSystemStorage.CircleMemberStorage.GetCircleMembers(circleId);
+        var result = memberBytesList.Select(item =>
+        {
+            var data = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(item.data.ToStringFromUtf8Bytes());
+            return data.OdinId;
+        }).ToList();
 
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new icr key; fails if one already exists
+    /// </summary>
+    /// <param name="masterKey"></param>
+    /// <exception cref="OdinClientException"></exception>
+    public void CreateIcrKey(SensitiveByteArray masterKey)
+    {
+        var existingKey = _tenantSystemStorage.SingleKeyValueStorage.Get<IcrKeyRecord>(_icrKeyStorageId);
+        if (null != existingKey)
+        {
+            throw new OdinClientException("IcrKey already exists");
+        }
+
+        var icrKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+
+        var record = new IcrKeyRecord()
+        {
+            MasterKeyEncryptedIcrKey = new SymmetricKeyEncryptedAes(ref masterKey, ref icrKey),
+            Created = UnixTimeUtc.Now()
+        };
+
+        _tenantSystemStorage.SingleKeyValueStorage.Upsert(_icrKeyStorageId, record);
+    }
+
+    public SymmetricKeyEncryptedAes GetMasterKeyEncryptedIcrKey()
+    {
+        var key = _tenantSystemStorage.SingleKeyValueStorage.Get<IcrKeyRecord>(_icrKeyStorageId);
+        return key.MasterKeyEncryptedIcrKey;
+    }
+    
     private IdentityConnectionRegistration MapFromStorage(ConnectionsRecord record)
     {
         var json = record.data.ToStringFromUtf8Bytes();
@@ -172,49 +216,6 @@ public class CircleNetworkStorage
         };
     }
 
-    public List<OdinId> GetCircleMembers(GuidId circleId)
-    {
-        //Note: this list is a cache of members for a circle.  the source of truth is the
-        //IdentityConnectionRegistration.AccessExchangeGrant.CircleGrants property for each OdinId
-        var memberBytesList = _tenantSystemStorage.CircleMemberStorage.GetCircleMembers(circleId);
-        var result = memberBytesList.Select(item =>
-        {
-            var data = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(item.data.ToStringFromUtf8Bytes());
-            return data.OdinId;
-        }).ToList();
-
-        return result;
-    }
-
-    /// <summary>
-    /// Creates a new icr key; fails if one already exists
-    /// </summary>
-    /// <param name="masterKey"></param>
-    /// <exception cref="OdinClientException"></exception>
-    public void CreateIcrKey(SensitiveByteArray masterKey)
-    {
-        var existingKey = _tenantSystemStorage.SingleKeyValueStorage.Get<IcrKeyRecord>(_icrKeyStorageId);
-        if (null != existingKey)
-        {
-            throw new OdinClientException("IcrKey already exists");
-        }
-
-        var icrKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-
-        var record = new IcrKeyRecord()
-        {
-            MasterKeyEncryptedIcrKey = new SymmetricKeyEncryptedAes(ref masterKey, ref icrKey),
-            Created = UnixTimeUtc.Now()
-        };
-
-        _tenantSystemStorage.SingleKeyValueStorage.Upsert(_icrKeyStorageId, record);
-    }
-
-    public SymmetricKeyEncryptedAes GetMasterKeyEncryptedIcrKey()
-    {
-        var key = _tenantSystemStorage.SingleKeyValueStorage.Get<IcrKeyRecord>(_icrKeyStorageId);
-        return key.MasterKeyEncryptedIcrKey;
-    }
 }
 
 public class IcrKeyRecord

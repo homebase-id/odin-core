@@ -194,7 +194,7 @@ namespace Odin.Hosting.Middleware
 
             var permissionGroupMap = new Dictionary<string, PermissionGroup>
             {
-                { "read_anonymous_drives", new PermissionGroup(new PermissionSet(), anonDriveGrants, null) },
+                { "read_anonymous_drives", new PermissionGroup(new PermissionSet(), anonDriveGrants, null, null) },
             };
 
             odinContext.SetPermissionContext(

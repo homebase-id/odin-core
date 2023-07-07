@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Odin.Core.Cryptography.Data;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Drives;
@@ -16,13 +17,16 @@ public class PermissionGroup
 {
     private readonly PermissionSet _permissionSet;
     private readonly IEnumerable<DriveGrant>? _driveGrants;
-    private readonly SensitiveByteArray? _driveDecryptionKey;
+    private readonly SensitiveByteArray? _keyStoreKey;
+    private readonly SymmetricKeyEncryptedAes? _encryptedIcrKey;
 
-    public PermissionGroup(PermissionSet permissionSet, IEnumerable<DriveGrant>? driveGrants, SensitiveByteArray? driveDecryptionKey)
+    public PermissionGroup(PermissionSet permissionSet, IEnumerable<DriveGrant>? driveGrants, SensitiveByteArray? keyStoreKey,
+        SymmetricKeyEncryptedAes? encryptedIcrKey)
     {
         _permissionSet = permissionSet;
         _driveGrants = driveGrants;
-        _driveDecryptionKey = driveDecryptionKey;
+        _keyStoreKey = keyStoreKey;
+        _encryptedIcrKey = encryptedIcrKey;
     }
 
     public bool HasDrivePermission(Guid driveId, DrivePermission permission)
@@ -63,13 +67,13 @@ public class PermissionGroup
 
         //If we cannot decrypt the storage key BUT the caller has access to the drive,
         //this most likely denotes an anonymous drive.  Return an empty key which means encryption will fail
-        if (this._driveDecryptionKey == null || grant.KeyStoreKeyEncryptedStorageKey == null)
+        if (this._keyStoreKey == null || grant.KeyStoreKeyEncryptedStorageKey == null)
         {
             // return Array.Empty<byte>().ToSensitiveByteArray();
             return null;
         }
 
-        var key = this._driveDecryptionKey;
+        var key = this._keyStoreKey;
         var storageKey = grant.KeyStoreKeyEncryptedStorageKey.DecryptKeyClone(ref key);
         return storageKey;
     }
@@ -78,6 +82,12 @@ public class PermissionGroup
     {
         var grant = _driveGrants?.SingleOrDefault(g => g.DriveId == driveId);
         return grant?.PermissionedDrive.Drive;
+    }
+
+    public SensitiveByteArray? GetIcrKey()
+    {
+        var key = this._keyStoreKey;
+        return _encryptedIcrKey.DecryptKeyClone(ref key);
     }
 
     public RedactedPermissionGroup Redacted()

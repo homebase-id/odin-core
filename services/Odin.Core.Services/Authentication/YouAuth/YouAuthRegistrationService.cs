@@ -206,7 +206,7 @@ namespace Odin.Core.Services.Authentication.YouAuth
                 new Dictionary<string, PermissionGroup>
                 {
                     { "read_anonymous_drives", _exchangeGrantService.CreateAnonymousDrivePermissionGroup().GetAwaiter().GetResult() },
-                    { "read_connections", new PermissionGroup(new PermissionSet(permissionKeys), null, null) }
+                    { "read_connections", new PermissionGroup(new PermissionSet(permissionKeys), null, null, null) }
                 },
                 sharedSecretKey: ss);
 

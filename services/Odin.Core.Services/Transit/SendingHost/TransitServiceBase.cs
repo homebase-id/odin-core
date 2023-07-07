@@ -67,7 +67,7 @@ namespace Odin.Core.Services.Transit.SendingHost
                 throw new OdinClientException("Cannot resolve client access token; not connected", OdinClientErrorCode.NotAConnectedIdentity);
             }
 
-            return icr!.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.IcrKey);
+            return icr!.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey);
 
         }
 

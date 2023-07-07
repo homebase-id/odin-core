@@ -6,7 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Dawn;
 using MediatR;
-using Microsoft.Extensions.Logging;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
@@ -713,35 +712,9 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
             await this.ReconcileAuthorizedCircles(notification.OldAppRegistration, notification.NewAppRegistration);
         }
 
-        /// <summary>
-        /// Creates initial encryption keys
-        /// </summary>
-        public async Task CreateInitialKeys()
-        {
-            var mk = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-            _storage.CreateIcrKey(mk);
-            await Task.CompletedTask;
-        }
-
-        public SymmetricKeyEncryptedAes ReEncryptIcrKey(SensitiveByteArray encryptionKey)
-        {
-            var rawIcrKey = GetRawIcrKey();
-            var encryptedIcrKey = new SymmetricKeyEncryptedAes(ref encryptionKey, ref rawIcrKey);
-            rawIcrKey.Wipe();
-            return encryptedIcrKey;
-        }
-
-        public EncryptedClientAccessToken EncryptClientAccessToken(ClientAccessToken clientAccessToken)
-        {
-            var rawIcrKey = GetRawIcrKey();
-            var k = EncryptedClientAccessToken.Encrypt(rawIcrKey, clientAccessToken);
-            rawIcrKey.Wipe();
-            return k;
-        }
-
         //
 
-        private SensitiveByteArray GetRawIcrKey()
+        private SensitiveByteArray GetDecryptedIcrKey()
         {
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var masterKeyEncryptedIcrKey = _storage.GetMasterKeyEncryptedIcrKey();
@@ -851,7 +824,10 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
                         Created = 0,
                         Modified = 0,
                         IsRevoked = false, //TODO
+                        
                         KeyStoreKeyEncryptedDriveGrants = cg.KeyStoreKeyEncryptedDriveGrants,
+                        KeyStoreKeyEncryptedIcrKey = 
+                            
                         MasterKeyEncryptedKeyStoreKey = null, //not required since this is not being created for the owner
                         PermissionSet = cg.PermissionSet
                     });
@@ -959,8 +935,8 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
         {
             var registration = _storage.Get(odinId);
 
-            var icrKey = _contextAccessor.GetCurrent().PermissionsContext.IcrKey;
-            
+            var icrKey = _contextAccessor.GetCurrent().PermissionsContext.GetIcrKey;
+
             if (null == registration)
             {
                 return new IdentityConnectionRegistration()

@@ -43,8 +43,9 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
         /// Creates an <see cref="ExchangeGrant"/> using the specified key store key
         /// </summary>
         public async Task<ExchangeGrant> CreateExchangeGrant(SensitiveByteArray grantKeyStoreKey, PermissionSet permissionSet,
-            IEnumerable<DriveGrantRequest> driveGrantRequests,
-            SensitiveByteArray masterKey)
+            IEnumerable<DriveGrantRequest>? driveGrantRequests,
+            SensitiveByteArray masterKey,
+            SensitiveByteArray? icrKey = null)
         {
             var driveGrants = new List<DriveGrant>();
 
@@ -60,14 +61,14 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
                     driveGrants.Add(driveGrant);
                 }
             }
-            
+
             var grant = new ExchangeGrant()
             {
                 Created = UnixTimeUtc.Now().milliseconds,
                 MasterKeyEncryptedKeyStoreKey = masterKey == null ? null : new SymmetricKeyEncryptedAes(ref masterKey, ref grantKeyStoreKey),
                 IsRevoked = false,
                 KeyStoreKeyEncryptedDriveGrants = driveGrants.ToList(),
-                // KeyStoreKeyEncryptedIcrKey = new SymmetricKeyEncryptedAes(ref grantKeyStoreKey, ref icrKey),
+                KeyStoreKeyEncryptedIcrKey = icrKey == null ? null : new SymmetricKeyEncryptedAes(ref grantKeyStoreKey, ref icrKey),
                 PermissionSet = permissionSet
             };
 
@@ -81,7 +82,7 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
         /// <param name="driveGrantRequests"></param>
         /// <param name="masterKey"></param>
         /// <returns></returns>
-        public async Task<ExchangeGrant> CreateExchangeGrant(PermissionSet permissionSet, IEnumerable<DriveGrantRequest> driveGrantRequests,
+        public async Task<ExchangeGrant> CreateExchangeGrant(PermissionSet permissionSet, IEnumerable<DriveGrantRequest>? driveGrantRequests,
             SensitiveByteArray? masterKey)
         {
             var grantKeyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
@@ -114,6 +115,8 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
                 grantKeyStoreKey = grant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
             }
 
+            // grant.KeyStoreKeyEncryptedIcrKey
+                
             var token = await this.CreateClientAccessToken(grantKeyStoreKey, tokenType);
             grantKeyStoreKey?.Wipe();
             return token;
@@ -126,9 +129,11 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
             return (accessReg, clientAccessToken);
         }
 
-        public async Task<PermissionContext> CreatePermissionContext(ClientAuthenticationToken authToken, Dictionary<Guid, ExchangeGrant> grants,
+        public async Task<PermissionContext> CreatePermissionContext(ClientAuthenticationToken authToken,
+            Dictionary<Guid, ExchangeGrant>? grants,
             AccessRegistration accessReg,
-            List<int>? additionalPermissionKeys = null, bool includeAnonymousDrives = false)
+            List<int>? additionalPermissionKeys = null,
+            bool includeAnonymousDrives = false)
         {
             //TODO: Need to decide if we store shared secret clear text or decrypt just in time.
             var (grantKeyStoreKey, sharedSecret) = accessReg.DecryptUsingClientAuthenticationToken(authToken);
@@ -139,7 +144,8 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
                 foreach (var key in grants.Keys)
                 {
                     var exchangeGrant = grants[key];
-                    var pg = new PermissionGroup(exchangeGrant.PermissionSet, exchangeGrant.KeyStoreKeyEncryptedDriveGrants, grantKeyStoreKey);
+                        
+                    var pg = new PermissionGroup(exchangeGrant.PermissionSet, exchangeGrant.KeyStoreKeyEncryptedDriveGrants, grantKeyStoreKey, exchangeGrant.KeyStoreKeyEncryptedIcrKey);
                     permissionGroupMap.Add(key.ToString(), pg);
 
                     foreach (var x in exchangeGrant.KeyStoreKeyEncryptedDriveGrants)
@@ -159,7 +165,7 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
 
             if (additionalPermissionKeys != null)
             {
-                permissionGroupMap.Add("additional_permissions", new PermissionGroup(new PermissionSet(additionalPermissionKeys), null, null));
+                permissionGroupMap.Add("additional_permissions", new PermissionGroup(new PermissionSet(additionalPermissionKeys), null, null, null));
             }
 
             var permissionCtx = new PermissionContext(
@@ -180,7 +186,7 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
         {
             var anonymousDrives = await _driveManager.GetAnonymousDrives(PageOptions.All);
             var anonDriveGrants = anonymousDrives.Results.Select(drive => this.CreateDriveGrant(drive, DrivePermission.Read, null, null));
-            return new PermissionGroup(new PermissionSet(), anonDriveGrants, null);
+            return new PermissionGroup(new PermissionSet(), anonDriveGrants, null, null);
         }
 
         //
