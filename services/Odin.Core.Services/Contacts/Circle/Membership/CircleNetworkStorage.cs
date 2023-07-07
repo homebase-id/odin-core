@@ -169,7 +169,7 @@ public class CircleNetworkStorage
     public SymmetricKeyEncryptedAes GetMasterKeyEncryptedIcrKey()
     {
         var key = _tenantSystemStorage.SingleKeyValueStorage.Get<IcrKeyRecord>(_icrKeyStorageId);
-        return key.MasterKeyEncryptedIcrKey;
+        return key?.MasterKeyEncryptedIcrKey;
     }
     
     private IdentityConnectionRegistration MapFromStorage(ConnectionsRecord record)
