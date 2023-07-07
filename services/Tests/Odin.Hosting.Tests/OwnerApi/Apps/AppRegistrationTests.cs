@@ -115,7 +115,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
         public async Task RevokingUseTransitRemovesIcrKey()
         {
             var applicationId = Guid.NewGuid();
-            var name = "App with Use Transit Access";
 
             var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
             var appPermissionsGrant = new PermissionSetGrantRequest()
