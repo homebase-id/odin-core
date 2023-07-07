@@ -64,7 +64,7 @@ namespace Odin.Core.Services.Authorization.Apps
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-            var icrKey = request.PermissionSet.HasKey(PermissionKeys.UseTransit) ? _icrKeyService.GetDecryptedIcrKey() : null;
+            var icrKey = (request.PermissionSet?.HasKey(PermissionKeys.UseTransit) ?? false) ? _icrKeyService.GetDecryptedIcrKey() : null;
             var appGrant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, request.PermissionSet, request.Drives, masterKey, icrKey);
 
             //TODO: add check to ensure app name is unique
@@ -101,7 +101,7 @@ namespace Odin.Core.Services.Authorization.Apps
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var keyStoreKey = appReg.Grant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
-            var icrKey = request.PermissionSet.HasKey(PermissionKeys.UseTransit) ? _icrKeyService.GetDecryptedIcrKey() : null;
+            var icrKey = request.PermissionSet?.HasKey(PermissionKeys.UseTransit) ?? false ? _icrKeyService.GetDecryptedIcrKey() : null;
             appReg.Grant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, request.PermissionSet, request.Drives, masterKey, icrKey);
 
             _appRegistrationValueStorage.Upsert(request.AppId, GuidId.Empty, _appRegistrationDataType, appReg);
@@ -413,7 +413,7 @@ namespace Odin.Core.Services.Authorization.Apps
             {
                 throw new OdinClientException("App must be registered to add a client", OdinClientErrorCode.AppNotRegistered);
             }
-            
+
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var (accessRegistration, cat) = await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, masterKey, ClientTokenType.Other);
 
