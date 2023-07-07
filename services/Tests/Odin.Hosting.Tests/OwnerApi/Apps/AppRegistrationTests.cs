@@ -110,11 +110,38 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                 Assert.IsFalse(registeredApp.Grant.HasIcrKey, "Icr key should not be present when UseTransit permission is not given");
             }
         }
-        //
-        // [Test]
-        // public async Task RevokingUseTransitRemovesIcrKey()
-        // {
-        // }
+
+        [Test]
+        public async Task RevokingUseTransitRemovesIcrKey()
+        {
+            var applicationId = Guid.NewGuid();
+            var name = "App with Use Transit Access";
+
+            var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
+            var appPermissionsGrant = new PermissionSetGrantRequest()
+            {
+                Drives = null,
+                PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.UseTransit })
+            };
+
+             await frodoOwnerClient.Apps.RegisterApp(applicationId, appPermissionsGrant);
+       
+             var appReg = await frodoOwnerClient.Apps.GetAppRegistration(applicationId);
+             Assert.IsNotNull(appReg);
+             Assert.IsTrue(appReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransit));
+             Assert.IsTrue(appReg.Grant.HasIcrKey);
+
+             appPermissionsGrant.PermissionSet = new PermissionSet(); //remove use transit
+             await frodoOwnerClient.Apps.UpdateAppPermissions(applicationId, appPermissionsGrant);
+             
+             var updatedAppReg = await frodoOwnerClient.Apps.GetAppRegistration(applicationId);
+             Assert.IsNotNull(updatedAppReg);
+             Assert.IsFalse(updatedAppReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransit));
+             Assert.IsFalse(updatedAppReg.Grant.HasIcrKey);
+             
+             
+
+        }
 
         // [Test]
         // public async Task CanRotateIcrKey()
