@@ -6,7 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Dawn;
 using MediatR;
-using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Services.Authorization.Acl;
@@ -74,7 +73,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
             }
 
             var (permissionContext, enabledCircles) = await CreatePermissionContextInternal(
-                connectionRegistration: icr,
+                icr: icr,
                 authToken: authToken,
                 accessReg: icr.AccessGrant!.AccessRegistration,
                 applyAppCircleGrants: true);
@@ -96,7 +95,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
 
             client.AccessRegistration.AssertValidRemoteKey(authToken.AccessTokenHalfKey);
 
-            var icr = await this.GetIdentityConnectionRegistrationInternal(client.OdinId);
+            var icr = await GetIdentityConnectionRegistrationInternal(client.OdinId);
             bool isAuthenticated = icr.AccessGrant?.IsValid() ?? false;
             bool isConnected = icr.IsConnected();
 
@@ -104,9 +103,10 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
             if (isAuthenticated && isConnected)
             {
                 var (permissionContext, enabledCircles) = await CreatePermissionContextInternal(
-                    connectionRegistration: icr,
+                    icr: icr,
                     accessReg: client.AccessRegistration,
-                    authToken: authToken);
+                    authToken: authToken,
+                    applyAppCircleGrants: false);
 
                 var cc = new CallerContext(
                     odinId: client.OdinId,
@@ -245,7 +245,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
         public async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistration(OdinId odinId, bool overrideHack = false)
         {
             //TODO: need to cache here?
-            //HACK: DOING THIS WHILE DESIGNING XTOKEN - REMOVE THIS
+            //HACK: DOING THIS WHILE DESIGNING x-token - REMOVE THIS
             if (!overrideHack)
             {
                 _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadConnections);
@@ -255,7 +255,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
         }
 
         /// <summary>
-        /// Gets the connection info if the specified <param name="remoteClientAuthenticationToken">xtoken half key</param> is valid
+        /// Gets the connection info if the specified <param name="remoteClientAuthenticationToken">x-token half key</param> is valid
         /// </summary>
         /// <param name="odinId"></param>
         /// <param name="remoteClientAuthenticationToken"></param>
@@ -459,7 +459,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
             }
 
             //find the circle grant across all app grants and remove it
-            foreach (var (appKey, appCircleGrants) in icr.AccessGrant.AppGrants)
+            foreach (var (_, appCircleGrants) in icr.AccessGrant.AppGrants)
             {
                 appCircleGrants.Remove(circleId.Value);
             }
@@ -474,10 +474,10 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
             var circleGrants = new Dictionary<Guid, CircleGrant>();
 
             // Always put identities in the system circle
-            var cids = circleIds ?? new List<GuidId>();
-            cids.Add(CircleConstants.SystemCircleId);
+            var list = circleIds ?? new List<GuidId>();
+            list.Add(CircleConstants.SystemCircleId);
 
-            foreach (var id in cids ?? new List<GuidId>())
+            foreach (var id in list)
             {
                 var def = _circleDefinitionService.GetCircle(id);
 
@@ -500,7 +500,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
             {
                 var appsThatGrantThisCircle = allApps.Where(reg => reg?.AuthorizedCircles?.Any(c => c == circleId) ?? false);
 
-                foreach (var app in appsThatGrantThisCircle ?? new List<RedactedAppRegistration>())
+                foreach (var app in appsThatGrantThisCircle)
                 {
                     var appKey = app.AppId.Value;
                     var appCircleGrant = await this.CreateAppCircleGrant(app, circleId, keyStoreKey, masterKey);
@@ -714,13 +714,6 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
 
         //
 
-        private SensitiveByteArray GetDecryptedIcrKey()
-        {
-            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-            var masterKeyEncryptedIcrKey = _storage.GetMasterKeyEncryptedIcrKey();
-            return masterKeyEncryptedIcrKey.DecryptKeyClone(ref masterKey);
-        }
-
         private async Task<AppCircleGrant> CreateAppCircleGrant(RedactedAppRegistration appReg, GuidId circleId, SensitiveByteArray keyStoreKey,
             SensitiveByteArray masterKey)
         {
@@ -801,10 +794,10 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
         }
 
         private async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreatePermissionContextInternal(
-            IdentityConnectionRegistration connectionRegistration,
+            IdentityConnectionRegistration icr,
             ClientAuthenticationToken authToken,
             AccessRegistration accessReg,
-            bool applyAppCircleGrants = false)
+            bool applyAppCircleGrants)
         {
             //TODO: this code needs to be refactored to avoid all the mapping
 
@@ -813,7 +806,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
             // circle; this circle has grants to all drives marked allowAnonymous == true
             var grants = new Dictionary<Guid, ExchangeGrant>();
             var enabledCircles = new List<GuidId>();
-            foreach (var kvp in connectionRegistration.AccessGrant.CircleGrants)
+            foreach (var kvp in icr.AccessGrant.CircleGrants)
             {
                 var cg = kvp.Value;
                 if (_circleDefinitionService.IsEnabled(cg.CircleId))
@@ -824,10 +817,9 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
                         Created = 0,
                         Modified = 0,
                         IsRevoked = false, //TODO
-                        
+
                         KeyStoreKeyEncryptedDriveGrants = cg.KeyStoreKeyEncryptedDriveGrants,
-                        KeyStoreKeyEncryptedIcrKey = 
-                            
+                        KeyStoreKeyEncryptedIcrKey = null, // not allowed to use the icr CAT because you're not sending over
                         MasterKeyEncryptedKeyStoreKey = null, //not required since this is not being created for the owner
                         PermissionSet = cg.PermissionSet
                     });
@@ -836,12 +828,12 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
 
             if (applyAppCircleGrants)
             {
-                foreach (var kvp in connectionRegistration.AccessGrant.AppGrants)
+                foreach (var kvp in icr.AccessGrant.AppGrants)
                 {
-                    var appId = kvp.Key;
+                    // var appId = kvp.Key;
                     var appCircleGrantDictionary = kvp.Value;
 
-                    foreach (var (circleId, appCg) in appCircleGrantDictionary)
+                    foreach (var (_, appCg) in appCircleGrantDictionary)
                     {
                         var alreadyEnabledCircle = enabledCircles.Exists(cid => cid == appCg.CircleId);
                         if (alreadyEnabledCircle || _circleDefinitionService.IsEnabled(appCg.CircleId))
@@ -865,24 +857,9 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
                 }
             }
 
-            //Add write-ability to drives if this identity follows me
-            // var follower = await _followerService.GetFollower(connectionRegistration.OdinId);
-            // if (null != follower)
-            // {
-            //     if (follower.NotificationType == FollowerNotificationType.AllNotifications)
-            //     {
-            //         //get all drives that allow subscriptions of type channel
-            //         
-            //     }
-            //
-            //     if (follower.NotificationType == FollowerNotificationType.SelectedChannels)
-            //     {
-            //         follower.Channels
-            //     }
-            // }
-
             //TODO: only add this if I follow this identity
-            var feedDriveWriteGrant = await _exchangeGrantService.CreateExchangeGrant(new PermissionSet(), new List<DriveGrantRequest>()
+            var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+            var feedDriveWriteGrant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, new PermissionSet(), new List<DriveGrantRequest>()
             {
                 new()
                 {
@@ -896,7 +873,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
 
             grants.Add(ByteArrayUtil.ReduceSHA256Hash("feed_drive_writer"), feedDriveWriteGrant);
 
-            List<int> permissionKeys = new List<int>() { };
+            List<int> permissionKeys = new List<int>();
             if (_tenantContext.Settings?.AllConnectedIdentitiesCanViewConnections ?? false)
             {
                 permissionKeys.Add(PermissionKeys.ReadConnections);
@@ -934,8 +911,6 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
         private async Task<IdentityConnectionRegistration> GetIdentityConnectionRegistrationInternal(OdinId odinId)
         {
             var registration = _storage.Get(odinId);
-
-            var icrKey = _contextAccessor.GetCurrent().PermissionsContext.GetIcrKey;
 
             if (null == registration)
             {

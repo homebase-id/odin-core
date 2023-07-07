@@ -39,14 +39,14 @@ namespace Odin.Core.Services.Base
                 foreach (var group in _permissionGroups.Values)
                 {
                     var key = group.GetIcrKey();
-                    if (key.HasValue)
+                    if (key?.IsSet() ?? false)
                     {
                         //TODO: log key as source of permission.
-                        return key.Value;
+                        return key;
                     }
                 }
 
-                throw new OdinSecurityException($"No access permitted to drive alias {drive.Alias} and drive type {drive.Type}");
+                throw new OdinSecurityException($"No access permitted to the Icr Key");
             }
         }
 

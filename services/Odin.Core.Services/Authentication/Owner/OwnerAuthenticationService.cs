@@ -140,7 +140,7 @@ namespace Odin.Core.Services.Authentication.Owner
             {
                 var (masterKey, clientSharedSecret) = await GetMasterKey(token.Id, token.AccessTokenHalfKey);
 
-                var icrKey = _icrKeyService.GetIcrKey();
+                var icrKey = _icrKeyService.GetMasterKeyEncryptedIcrKey();
 
                 var allDrives = await _driveManager.GetDrives(PageOptions.All);
                 var allDriveGrants = allDrives.Results.Select(d => new DriveGrant()

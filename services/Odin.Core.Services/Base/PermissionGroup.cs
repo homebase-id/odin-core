@@ -87,7 +87,7 @@ public class PermissionGroup
     public SensitiveByteArray? GetIcrKey()
     {
         var key = this._keyStoreKey;
-        return _encryptedIcrKey.DecryptKeyClone(ref key);
+        return _encryptedIcrKey?.DecryptKeyClone(ref key);
     }
 
     public RedactedPermissionGroup Redacted()

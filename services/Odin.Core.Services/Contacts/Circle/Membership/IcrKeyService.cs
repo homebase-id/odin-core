@@ -1,27 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security;
-using System.Threading;
+﻿#nullable enable
 using System.Threading.Tasks;
-using Dawn;
-using MediatR;
-using Microsoft.Extensions.Logging;
 using Odin.Core.Cryptography.Data;
-using Odin.Core.Exceptions;
-using Odin.Core.Identity;
-using Odin.Core.Services.Authorization.Acl;
-using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.ExchangeGrants;
-using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
-using Odin.Core.Services.Contacts.Circle.Membership.Definition;
-using Odin.Core.Services.Contacts.Circle.Requests;
-using Odin.Core.Services.Drives;
-using Odin.Core.Services.Mediator;
-using Odin.Core.Storage;
-using Odin.Core.Time;
-using PermissionSet = Odin.Core.Services.Authorization.Permissions.PermissionSet;
 
 namespace Odin.Core.Services.Contacts.Circle.Membership
 {
@@ -38,7 +19,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
             _contextAccessor = contextAccessor;
             _storage = new CircleNetworkStorage(tenantSystemStorage);
         }
-        
+
         /// <summary>
         /// Creates initial encryption keys
         /// </summary>
@@ -49,30 +30,36 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
             await Task.CompletedTask;
         }
 
-        public SensitiveByteArray? GetIcrKey()
+        public SensitiveByteArray GetDecryptedIcrKey()
         {
-            return this.GetDecryptedIcrKey();
+            return this.GetDecryptedIcrKeyInternal();
+        }
+
+        public SymmetricKeyEncryptedAes GetMasterKeyEncryptedIcrKey()
+        {
+            var masterKeyEncryptedIcrKey = _storage.GetMasterKeyEncryptedIcrKey();
+            return masterKeyEncryptedIcrKey;
         }
 
         public SymmetricKeyEncryptedAes ReEncryptIcrKey(SensitiveByteArray encryptionKey)
         {
-            var rawIcrKey = GetDecryptedIcrKey();
+            var rawIcrKey = GetDecryptedIcrKeyInternal();
             var encryptedIcrKey = new SymmetricKeyEncryptedAes(ref encryptionKey, ref rawIcrKey);
             rawIcrKey.Wipe();
             return encryptedIcrKey;
         }
-        
+
         public EncryptedClientAccessToken EncryptClientAccessTokenUsingIrcKey(ClientAccessToken clientAccessToken)
         {
-            var rawIcrKey = GetDecryptedIcrKey();
+            var rawIcrKey = GetDecryptedIcrKeyInternal();
             var k = EncryptedClientAccessToken.Encrypt(rawIcrKey, clientAccessToken);
             rawIcrKey.Wipe();
             return k;
         }
-        
+
         //
 
-        private SensitiveByteArray GetDecryptedIcrKey()
+        private SensitiveByteArray GetDecryptedIcrKeyInternal()
         {
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var masterKeyEncryptedIcrKey = _storage.GetMasterKeyEncryptedIcrKey();

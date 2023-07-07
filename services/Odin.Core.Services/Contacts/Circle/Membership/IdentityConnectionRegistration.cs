@@ -76,14 +76,14 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
         /// </summary>
         public ContactRequestData OriginalContactData { get; set; }
 
-        public ClientAuthenticationToken CreateClientAuthToken(SensitiveByteArray key)
+        public ClientAuthenticationToken CreateClientAuthToken(SensitiveByteArray icrDecryptionKey)
         {
-            return this.CreateClientAccessToken(key).ToAuthenticationToken();
+            return this.CreateClientAccessToken(icrDecryptionKey).ToAuthenticationToken();
         }
 
-        public ClientAccessToken CreateClientAccessToken(SensitiveByteArray key)
+        public ClientAccessToken CreateClientAccessToken(SensitiveByteArray icrDecryptionKey)
         {
-            var cat = EncryptedClientAccessToken.Decrypt(key);
+            var cat = EncryptedClientAccessToken.Decrypt(icrDecryptionKey);
             return cat;
         }
 
