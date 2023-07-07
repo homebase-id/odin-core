@@ -66,23 +66,49 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                 };
 
                 var response = await svc.RegisterApp(request);
-                Assert.IsFalse(response.IsSuccessStatusCode, $"Should have failed to add app registration.  Status code was {response.StatusCode}");
+                Assert.IsTrue(response.IsSuccessStatusCode);
 
                 var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = applicationId });
                 Assert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {applicationId}");
 
                 var registeredApp = appResponse.Content;
                 Assert.IsNotNull(registeredApp, "App should exist");
-                
+
                 Assert.IsTrue(registeredApp.Grant.PermissionSet.HasKey(PermissionKeys.UseTransit), "App should have use transit permission");
-                
-                // registeredApp.Grant.
+                Assert.IsTrue(registeredApp.Grant.HasIcrKey, "missing icr key but UseTransit is true");
             }
         }
 
         [Test]
         public async Task RegisterNewApp_Without_UseTransit_HasNoIcrKey()
         {
+            var applicationId = Guid.NewGuid();
+            var name = "App with Use Transit Access";
+
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+            {
+                var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var request = new AppRegistrationRequest
+                {
+                    AppId = applicationId,
+                    Name = name,
+                    PermissionSet = new PermissionSet(new List<int>()),
+                    Drives = null,
+                    CorsHostName = default
+                };
+
+                var response = await svc.RegisterApp(request);
+                Assert.IsTrue(response.IsSuccessStatusCode);
+
+                var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = applicationId });
+                Assert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {applicationId}");
+
+                var registeredApp = appResponse.Content;
+                Assert.IsNotNull(registeredApp, "App should exist");
+
+                Assert.IsFalse(registeredApp.Grant.PermissionSet.HasKey(PermissionKeys.UseTransit), "App should not have UseTransit");
+                Assert.IsFalse(registeredApp.Grant.HasIcrKey, "Icr key should not be present when UseTransit permission is not given");
+            }
         }
 
         [Test]
