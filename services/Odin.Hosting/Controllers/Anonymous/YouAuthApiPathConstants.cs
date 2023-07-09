@@ -13,7 +13,7 @@
         public const string FinalizeBridgeRequestRequestPath = AuthV1 + "/" + FinalizeBridgeRequestMethodName;
 
         public const string IsAuthenticatedMethodName = "is-authenticated";
-        public const string DeleteTokenMethodName = "delete-token";
+        public const string DeleteTokenMethodName = "delete-token"; 
 
         public const string DrivesV1 = BasePathV1 + "/drive";
         public const string DriveReactionsV1 = DrivesV1 + "/files/reactions";

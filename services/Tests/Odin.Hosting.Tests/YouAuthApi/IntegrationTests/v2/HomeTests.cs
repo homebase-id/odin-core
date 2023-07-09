@@ -38,7 +38,9 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.v2
           
             /////////////////////////////////////////////////////////////////////////
             //
-            // Sam types his Odin ID sam.dotyou.cloud and clicks login on Frodo's 
+            // Sam types his Odin ID samwisegamgee.me
+            //   and clicks login on Frodo's identity host
+            //
             // home:  https://frodo.dotyou.cloud/home
             //
             /////////////////////////////////////////////////////////////////////////
@@ -47,11 +49,15 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.v2
             //
             // [010]
             //
-            // frodo.dotyou.cloud redirects Sam's browser to his own host and adds it's public key and returnURL
-            // Redirect: https://api.samwisegamgee.me/owner/login/youauth
+            // Frodo's identity host redirects Sam's browser to his own host for owner-authentication
+            //   and adds it's public key and returnURL
+            //
+            // Redirect:
+            //   https://sam.dotyou.cloud/owner/login/youauth?returnUrl=https://frodo.dotyou.cloud/
+            //
             // Parameters:
             //   rsa=base64string SEB:TODO
-            //   returnUrl=https://frodo.dotyou.cloud/home
+            //   returnUrl=https://frodo.dotyou.cloud/
             //
             
             //

@@ -35,7 +35,9 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Current
             //
             // Browser:
             // HOME "login" button click at frodo's home redirects to:
+            //
             //   https://sam.dotyou.cloud/owner/login/youauth?returnUrl=https://frodo.dotyou.cloud/
+            //
             // This triggers OWNER login and in turn YOUAUTH flow below
             //
             
@@ -44,6 +46,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Current
             //
             // Browser:
             // Now we have owner cookie and shared secret, we can start the YOUAUTH flow
+            //
             // Browser redirects, using window.location, to:
             //   https://sam.dotyou.cloud/owner/login/youauth?returnUrl=https://frodo.dotyou.cloud/
             //
@@ -51,8 +54,9 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Current
             //
             // Browser:
             // If visitingHobbit != visitedHobbit and the hobbits are not already connected,
-            // then browser shows approval page: By logging in you allow "frodo.dotyou.cloud" to verify your identity
-            // and personalise your experience"
+            // then browser shows approval page:
+            //   By logging in you allow "frodo.dotyou.cloud" to verify your identity
+            //   and personalise your experience"
             //
             // SEB:TODO
             // This check is being done without involving the backend and can thus be bypassed. How do we 
@@ -61,6 +65,8 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Current
             
             // Step 5:
             // Create token flow authorization code
+            //
+            // The authorization code is returned as a query parameter on the resulting 302 Redirect.
             //
             // https://sam.dotyou.cloud/api/owner/v1/youauth/create-token-flow?returnUrl=https://frodo.dotyou.cloud/?identity=sam.dotyou.cloud
             string validateAuthorizationCodeUri;            
@@ -77,12 +83,18 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Current
                 Assert.That(validateAuthorizationCodeUri, Does.StartWith($"https://api.{visitedHobbit}{YouAuthApiPathConstants.ValidateAuthorizationCodeRequestPath}"));
             }
             
+            //
+            // SEB:NOTE 
+            // If the transition here is handled in JS, the authorization code can be stolen by an XSS attack or malicious code.
+            //
+            
             // Step 6:
             // Begin token flow using authorization code.
             // This step will trigger the backend `visitedHobbit` to `visitingHobbit` back channel call to validate the code from step 5.
             //
             // If validation succeeds the home cookie and shared secret are created.
-            // Client is the redirected to an api "bridge" endpoint with the shared secret.
+            //
+            // The client is then redirected to an api "bridge" endpoint with the shared secret.
             // The brige endpoint will in turn redirect the client to the pseudo finalize-endpoint, 
             //   from which the client can can cherrypick the shared secret from the url.
             //
@@ -132,6 +144,15 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Current
             
             //
             // YouAuth flow done
+            //
+            
+            //
+            // SEB:TODO
+            // The home cookie is not part of YouAuth and should be created in a separate
+            // step unrelated to the finalization above.
+            // 
+            // It should instead return the relevant contents of the cookie in the form of an access token
+            // stored in header BX0900 (like the app-auth implementation does)
             //
             
             // Postrequisite A
