@@ -152,6 +152,85 @@ namespace Odin.Tests
             string s = signedEnvelope.GetCompactSortedJson();
         }
 
+
+        // This function attests that the OdinId is associated with a human.
+        void AttestHuman(PunyDomainName identity)
+        {
+            var dataToAttest = new SortedDictionary<string, object>
+            {
+                { "IsHuman", true }
+            };
+
+            Attestation(identity, dataToAttest);
+        }
+
+        // This function attests to the legal name of the owner of the OdinId.
+        void AttestLegalName(PunyDomainName identity, string legalName)
+        {
+            var dataToAttest = new SortedDictionary<string, object>
+            {
+                { "LegalName", legalName }
+            };
+
+            Attestation(identity, dataToAttest);
+        }
+
+        // This function attests to the residential address of the owner of the OdinId.
+        void AttestResidentialAddress(PunyDomainName identity, SortedDictionary<string, string> address)
+        {
+            var dataToAttest = new SortedDictionary<string, object>
+    {
+        { "ResidentialAddress", address }
+    };
+
+            Attestation(identity, dataToAttest);
+        }
+
+        // This function attests to the email address of the owner of the OdinId.
+        void AttestEmailAddress(PunyDomainName identity, string emailAddress)
+        {
+            var dataToAttest = new SortedDictionary<string, object>
+    {
+        { "EmailAddress", emailAddress }
+    };
+
+            Attestation(identity, dataToAttest);
+        }
+
+        // This function attests to the phone number of the owner of the OdinId.
+        void AttestPhoneNumber(PunyDomainName identity, string phoneNumber)
+        {
+            var dataToAttest = new SortedDictionary<string, object>
+    {
+        { "PhoneNumber", phoneNumber }
+    };
+
+            Attestation(identity, dataToAttest);
+        }
+
+        // This function attests to the birthdate of the owner of the OdinId.
+        void AttestBirthdate(PunyDomainName identity, DateTime birthdate)
+        {
+            var dataToAttest = new SortedDictionary<string, object>
+            {
+                { "Birthdate", birthdate }
+            };
+
+            Attestation(identity, dataToAttest);
+        }
+
+        // This function attests to the nationality of the owner of the OdinId.
+        void AttestNationality(PunyDomainName identity, string nationality)
+        {
+            var dataToAttest = new SortedDictionary<string, object>
+            {
+                { "Nationality", nationality }
+            };
+
+            Attestation(identity, dataToAttest);
+        }
+
+
         [Test]
         public void VerifiedIdentityExperiment()
         {
