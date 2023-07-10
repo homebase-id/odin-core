@@ -28,4 +28,10 @@ public class SecurityController : Controller
     {
         return _contextAccessor.GetCurrent().Redacted();
     }
+
+    [HttpGet("recovery-key")]
+    public string GetAccountRecoveryKey()
+    {
+        return "todo-account-recovery-key";
+    }
 }

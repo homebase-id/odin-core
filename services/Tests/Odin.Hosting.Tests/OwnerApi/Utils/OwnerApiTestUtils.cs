@@ -121,6 +121,47 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             var newPasswordResponse = await svc.SetNewPassword(saltyReply);
             Assert.IsTrue(newPasswordResponse.IsSuccessStatusCode, "failed forcing a new password");
         }
+        
+        
+        public async Task ResetPassword(string identity, string recoveryKey, string password)
+        {
+            var handler = new HttpClientHandler();
+            var jar = new CookieContainer();
+            handler.CookieContainer = jar;
+            handler.UseCookies = true;
+
+            handler.ServerCertificateCustomValidationCallback = ServerCertificateCustomValidation;
+
+            // SEB:TODO IHttpClientFactory, but we can't use HttpClientHandler
+            using HttpClient authClient = new(handler);
+            authClient.BaseAddress = new Uri($"https://{DnsConfigurationSet.PrefixApi}.{identity}");
+            var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
+
+            var saltResponse = await svc.GenerateNewSalts();
+            Assert.IsNotNull(saltResponse.Content, "failed to generate new salts");
+            Assert.IsTrue(saltResponse.IsSuccessStatusCode, "failed to generate new salts");
+
+            var clientSalts = saltResponse.Content;
+            var saltyNonce = new NonceData(clientSalts.SaltPassword64, clientSalts.SaltKek64, clientSalts.PublicPem, clientSalts.CRC)
+            {
+                Nonce64 = clientSalts.Nonce64
+            };
+
+            var saltyReply = PasswordDataManager.CalculatePasswordReply(password, saltyNonce);
+
+            //TODO: RSA Encrypt
+            string encryptedRecoveryKey = recoveryKey;
+            
+            var resetRequest = new ResetPasswordRequest()
+            {
+                RecoveryKey64 = encryptedRecoveryKey,
+                PasswordReply = saltyReply
+            };
+            
+            var resetPasswordResponse = await svc.ResetPassword(resetRequest);
+            Assert.IsTrue(resetPasswordResponse.IsSuccessStatusCode, "failed forcing a new password");
+        }
+        
 
         public async Task<(ClientAuthenticationToken cat, SensitiveByteArray sharedSecret)> LoginToOwnerConsole(string identity, string password)
         {

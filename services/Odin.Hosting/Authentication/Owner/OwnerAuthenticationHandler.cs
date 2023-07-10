@@ -88,7 +88,7 @@ namespace Odin.Hosting.Authentication.Owner
 
         private async Task<bool> UpdateDotYouContext(ClientAuthenticationToken token, OdinContext odinContext)
         {
-            var authService = Context.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
+            var authService = Context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
             odinContext.SetAuthContext(OwnerAuthConstants.SchemeName);
 
             //HACK: fix this
@@ -122,7 +122,7 @@ namespace Odin.Hosting.Authentication.Owner
         {
             if (GetToken(out var result) && result != null)
             {
-                var authService = Context.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
+                var authService = Context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
                 authService.ExpireToken(result.Id);
             }
 

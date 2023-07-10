@@ -4,6 +4,7 @@ using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Serialization;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
+using Odin.Core.Exceptions;
 
 namespace Odin.Core.Cryptography
 {
@@ -164,7 +165,7 @@ namespace Odin.Core.Cryptography
                 CryptographyConstants.HASH_SIZE);
 
             if (ByteArrayUtil.EquiByteArrayCompare(noncePasswordBytes, nonceHashedPassword) == false)
-                throw new Exception("Password mismatch");
+                throw new OdinSecurityException("Password mismatch");
         }
 
 
@@ -194,13 +195,13 @@ namespace Odin.Core.Cryptography
 
             pr.Nonce64 = nonce.Nonce64;
 
-            string HashedPassword64 = Convert.ToBase64String(KeyDerivation.Pbkdf2(password,
+            string hashedPassword64 = Convert.ToBase64String(KeyDerivation.Pbkdf2(password,
                 Convert.FromBase64String(nonce.SaltPassword64), KeyDerivationPrf.HMACSHA256,
                 CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE));
-            string KeK64 = Convert.ToBase64String(KeyDerivation.Pbkdf2(password,
+            string keK64 = Convert.ToBase64String(KeyDerivation.Pbkdf2(password,
                 Convert.FromBase64String(nonce.SaltKek64), KeyDerivationPrf.HMACSHA256,
                 CryptographyConstants.ITERATIONS, CryptographyConstants.HASH_SIZE));
-            pr.NonceHashedPassword64 = Convert.ToBase64String(KeyDerivation.Pbkdf2(HashedPassword64,
+            pr.NonceHashedPassword64 = Convert.ToBase64String(KeyDerivation.Pbkdf2(hashedPassword64,
                 Convert.FromBase64String(nonce.Nonce64), KeyDerivationPrf.HMACSHA256, CryptographyConstants.ITERATIONS,
                 CryptographyConstants.HASH_SIZE));
 
@@ -211,8 +212,8 @@ namespace Odin.Core.Cryptography
 
             var data = new
             {
-                hpwd64 = HashedPassword64,
-                kek64 = KeK64,
+                hpwd64 = hashedPassword64,
+                kek64 = keK64,
                 secret = ByteArrayUtil.GetRndByteArray(16)
             };
             var str = OdinSystemSerializer.Serialize(data);

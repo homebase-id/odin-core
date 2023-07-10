@@ -33,6 +33,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
         [Post(RootPath + "/passwd")]
         Task<ApiResponse<NoResultResponse>> SetNewPassword([Body] PasswordReply reply);
 
+        [Post(RootPath + "/resetpasswd")]
+        Task<IApiResponse> ResetPassword([Body] ResetPasswordRequest reply);
+        
         [Get(RootPath + "/getsalts")]
         Task<ApiResponse<ClientNoncePackage>> GenerateNewSalts();
     }

@@ -12,5 +12,8 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Security
     {
         [Get(OwnerApiPathConstants.SecurityV1 + "/context")]
         Task<ApiResponse<RedactedOdinContext>> GetDotYouContext();
+        
+        [Get(OwnerApiPathConstants.SecurityV1 + "/recovery-key")]
+        Task<ApiResponse<string>> GetAccountRecoveryKey();
     }
 }
