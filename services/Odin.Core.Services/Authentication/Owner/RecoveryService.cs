@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Base;
 using Odin.Core.Storage;
@@ -8,41 +9,54 @@ namespace Odin.Core.Services.Authentication.Owner;
 
 public class RecoveryService
 {
+    private readonly OdinContextAccessor _contextAccessor;
+
+
     private readonly SingleKeyValueStorage _storage;
     private readonly GuidId _recordKey = GuidId.FromString("_recoveryKey");
 
-    public RecoveryService(TenantSystemStorage tenantSystemStorage)
+    public RecoveryService(TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor)
     {
+        _contextAccessor = contextAccessor;
         _storage = tenantSystemStorage.SingleKeyValueStorage;
     }
 
-    public void AssertValidKey(SensitiveByteArray recoveryKey)
+    /// <summary>
+    /// Validates the recovery key and returns the decrypted master key, if valid.
+    /// </summary>
+    public SensitiveByteArray AssertValidKey(SensitiveByteArray recoveryKey)
     {
         var existingKey = _storage.Get<RecoveryKeyRecord>(_recordKey);
 
-        if (null == existingKey?.Key)
+        if (null == existingKey?.MasterKeyEncryptedRecoverKey)
         {
             throw new OdinSystemException("Recovery key not configured");
         }
-        
-        
+
+        var masterKey = existingKey.RecoveryKeyEncryptedMasterKey.DecryptKeyClone(ref recoveryKey);
     }
 
     public void SaveKey(SensitiveByteArray recoveryKey)
     {
+        //encrypt with master key
+        var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+
         //TODO: what validations are needed here?
         var record = new RecoveryKeyRecord()
         {
-            Key = recoveryKey.GetKey().ToBase64(),
-            Created  = UnixTimeUtc.Now()
+            MasterKeyEncryptedRecoverKey = new SymmetricKeyEncryptedAes(ref masterKey, ref recoveryKey),
+            RecoveryKeyEncryptedMasterKey = new SymmetricKeyEncryptedAes(ref recoveryKey, ref masterKey),
+            Created = UnixTimeUtc.Now()
         };
-        
+
         _storage.Upsert(_recordKey, record);
     }
 }
 
 public class RecoveryKeyRecord
 {
-    public string Key { get; set; }
+    public SymmetricKeyEncryptedAes MasterKeyEncryptedRecoverKey { get; set; }
+    public SymmetricKeyEncryptedAes RecoveryKeyEncryptedMasterKey { get; set; }
+
     public UnixTimeUtc Created { get; set; }
 }

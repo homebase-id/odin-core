@@ -181,25 +181,14 @@ namespace Odin.Core.Services.Authentication.Owner
         {
             var reply = request.PasswordReply;
 
-
-            //decrypt and validate account recovery key
+            //decrypt and validate account recovery key 
             var recoveryKey = (new byte[16]).ToSensitiveByteArray();
 
-            _recoveryService.AssertValidKey(recoveryKey);
+            var mk = _recoveryService.AssertValidKey(recoveryKey);
+            
+            //now that I have the master key...
 
             //
-
-            //validate the key is correct by decrypting the master key
-            bool canSet = reply.FirstRunToken == _tenantContext.FirstRunToken || _tenantContext.IsPreconfigured;
-            if (!canSet)
-            {
-                throw new OdinSystemException("Invalid first run token; cannot set password");
-            }
-
-            if (await IsMasterPasswordSet())
-            {
-                throw new OdinSecurityException("Password already set");
-            }
 
             Guid originalNoncePackageKey = new Guid(Convert.FromBase64String(reply.Nonce64));
             var originalNoncePackage = _tenantSystemStorage.SingleKeyValueStorage.Get<NonceData>(originalNoncePackageKey);
