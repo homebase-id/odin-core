@@ -19,12 +19,12 @@ using Odin.Core.Services.Transit;
 using Odin.Core.Services.Transit.Encryption;
 using Odin.Core.Services.Transit.ReceivingHost;
 using Odin.Core.Services.Transit.SendingHost;
-using Odin.Hosting.Tests.AppAPI.Transit;
+using Odin.Hosting.Tests.AppAPI.Drive;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
 
-namespace Odin.Hosting.Tests.AppAPI.Drive
+namespace Odin.Hosting.Tests.AppAPI.Transit
 {
     public class TransferFileTests
     {

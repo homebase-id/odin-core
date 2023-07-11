@@ -262,7 +262,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
 
             var groups = new Dictionary<string, PermissionGroup>()
             {
-                { "follower", new PermissionGroup(permissionSet, driveGrants, sharedSecret) }
+                { "follower", new PermissionGroup(permissionSet, driveGrants, sharedSecret, null) }
             };
 
             return new PermissionContext(groups, null);
@@ -303,7 +303,7 @@ namespace Odin.Core.Services.DataSubscription.Follower
 
             var groups = new Dictionary<string, PermissionGroup>()
             {
-                { "data_subscriber", new PermissionGroup(permissionSet, driveGrants, null) }
+                { "data_subscriber", new PermissionGroup(permissionSet, driveGrants, null, null) }
             };
 
             return new PermissionContext(groups, sharedSecret);

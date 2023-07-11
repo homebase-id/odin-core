@@ -48,6 +48,107 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
         }
 
         [Test]
+        public async Task RegisterNewAppWithUseTransitHasIcrKey()
+        {
+            var applicationId = Guid.NewGuid();
+            var name = "App with Use Transit Access";
+
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+            {
+                var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var request = new AppRegistrationRequest
+                {
+                    AppId = applicationId,
+                    Name = name,
+                    PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.UseTransit }),
+                    Drives = null,
+                    CorsHostName = default
+                };
+
+                var response = await svc.RegisterApp(request);
+                Assert.IsTrue(response.IsSuccessStatusCode);
+
+                var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = applicationId });
+                Assert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {applicationId}");
+
+                var registeredApp = appResponse.Content;
+                Assert.IsNotNull(registeredApp, "App should exist");
+
+                Assert.IsTrue(registeredApp.Grant.PermissionSet.HasKey(PermissionKeys.UseTransit), "App should have use transit permission");
+                Assert.IsTrue(registeredApp.Grant.HasIcrKey, "missing icr key but UseTransit is true");
+            }
+        }
+
+        [Test]
+        public async Task RegisterNewApp_Without_UseTransit_HasNoIcrKey()
+        {
+            var applicationId = Guid.NewGuid();
+            var name = "App with Use Transit Access";
+
+            var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+            {
+                var svc = _scaffold.RestServiceFor<IAppRegistrationClient>(client, ownerSharedSecret);
+                var request = new AppRegistrationRequest
+                {
+                    AppId = applicationId,
+                    Name = name,
+                    PermissionSet = new PermissionSet(new List<int>()),
+                    Drives = null,
+                    CorsHostName = default
+                };
+
+                var response = await svc.RegisterApp(request);
+                Assert.IsTrue(response.IsSuccessStatusCode);
+
+                var appResponse = await svc.GetRegisteredApp(new GetAppRequest() { AppId = applicationId });
+                Assert.IsTrue(appResponse.IsSuccessStatusCode, $"Could not retrieve the app {applicationId}");
+
+                var registeredApp = appResponse.Content;
+                Assert.IsNotNull(registeredApp, "App should exist");
+
+                Assert.IsFalse(registeredApp.Grant.PermissionSet.HasKey(PermissionKeys.UseTransit), "App should not have UseTransit");
+                Assert.IsFalse(registeredApp.Grant.HasIcrKey, "Icr key should not be present when UseTransit permission is not given");
+            }
+        }
+
+        [Test]
+        public async Task RevokingUseTransitRemovesIcrKey()
+        {
+            var applicationId = Guid.NewGuid();
+
+            var frodoOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
+            var appPermissionsGrant = new PermissionSetGrantRequest()
+            {
+                Drives = null,
+                PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.UseTransit })
+            };
+
+             await frodoOwnerClient.Apps.RegisterApp(applicationId, appPermissionsGrant);
+       
+             var appReg = await frodoOwnerClient.Apps.GetAppRegistration(applicationId);
+             Assert.IsNotNull(appReg);
+             Assert.IsTrue(appReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransit));
+             Assert.IsTrue(appReg.Grant.HasIcrKey);
+
+             appPermissionsGrant.PermissionSet = new PermissionSet(); //remove use transit
+             await frodoOwnerClient.Apps.UpdateAppPermissions(applicationId, appPermissionsGrant);
+             
+             var updatedAppReg = await frodoOwnerClient.Apps.GetAppRegistration(applicationId);
+             Assert.IsNotNull(updatedAppReg);
+             Assert.IsFalse(updatedAppReg.Grant.PermissionSet.HasKey(PermissionKeys.UseTransit));
+             Assert.IsFalse(updatedAppReg.Grant.HasIcrKey);
+             
+             
+
+        }
+
+        // [Test]
+        // public async Task CanRotateIcrKey()
+        // {
+        //    
+        // }
+
+        [Test]
         public async Task FailToRegisterNewAppWithInvalidCorsHostName()
         {
             var applicationId = Guid.NewGuid();
@@ -137,7 +238,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Apps
                 Assert.IsNull(appResponse.Content, "There should be no app");
             }
         }
-        
+
         [Test]
         public async Task RegisterNewAppWithDriveAndPermissions()
         {

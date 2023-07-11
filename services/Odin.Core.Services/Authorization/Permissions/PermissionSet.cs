@@ -16,8 +16,9 @@ namespace Odin.Core.Services.Authorization.Permissions
 
         public PermissionSet(IEnumerable<int> permissionKeys)
         {
-            Guard.Argument(permissionKeys, nameof(permissionKeys)).NotNull();
-            Keys = new List<int>(permissionKeys.ToList());
+            var pk = permissionKeys as int[] ?? permissionKeys.ToArray();
+            Guard.Argument(pk, nameof(permissionKeys)).NotNull();
+            Keys = new List<int>(pk);
         }
 
         public bool HasKey(int key)

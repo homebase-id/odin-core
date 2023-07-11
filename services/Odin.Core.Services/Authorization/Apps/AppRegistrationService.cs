@@ -9,19 +9,21 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Configuration;
+using Odin.Core.Services.Contacts.Circle.Membership;
 using Odin.Core.Services.Mediator;
 using Odin.Core.Storage;
-using Odin.Core.Util;
+
 
 namespace Odin.Core.Services.Authorization.Apps
 {
     public class AppRegistrationService : IAppRegistrationService
     {
         private readonly OdinContextAccessor _contextAccessor;
-        private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly ExchangeGrantService _exchangeGrantService;
+        private readonly IcrKeyService _icrKeyService;
 
         private readonly GuidId _appRegistrationDataType = GuidId.FromString("__app_reg");
         private readonly ThreeKeyValueStorage _appRegistrationValueStorage;
@@ -34,14 +36,14 @@ namespace Odin.Core.Services.Authorization.Apps
 
         private readonly IMediator _mediator;
 
-        public AppRegistrationService(OdinContextAccessor contextAccessor, ILogger<IAppRegistrationService> logger, TenantSystemStorage tenantSystemStorage,
-            ExchangeGrantService exchangeGrantService, OdinConfiguration config, TenantContext tenantContext, IMediator mediator)
+        public AppRegistrationService(OdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage,
+            ExchangeGrantService exchangeGrantService, OdinConfiguration config, TenantContext tenantContext, IMediator mediator, IcrKeyService icrKeyService)
         {
             _contextAccessor = contextAccessor;
-            _tenantSystemStorage = tenantSystemStorage;
             _exchangeGrantService = exchangeGrantService;
             _tenantContext = tenantContext;
             _mediator = mediator;
+            _icrKeyService = icrKeyService;
 
             _appRegistrationValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
             _appClientValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
@@ -61,7 +63,9 @@ namespace Odin.Core.Services.Authorization.Apps
             }
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-            var appGrant = await _exchangeGrantService.CreateExchangeGrant(request.PermissionSet, request.Drives, masterKey);
+            var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+            var icrKey = (request.PermissionSet?.HasKey(PermissionKeys.UseTransit) ?? false) ? _icrKeyService.GetDecryptedIcrKey() : null;
+            var appGrant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, request.PermissionSet, request.Drives, masterKey, icrKey);
 
             //TODO: add check to ensure app name is unique
             //TODO: add check if app is already registered
@@ -93,10 +97,12 @@ namespace Odin.Core.Services.Authorization.Apps
                 throw new OdinClientException("Invalid AppId", OdinClientErrorCode.AppNotRegistered);
             }
 
+            //TODO: Should we regen the key store key?  
+
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var keyStoreKey = appReg.Grant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
-            //TODO: Should we regen the key store key?  
-            appReg.Grant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, request.PermissionSet, request.Drives, masterKey);
+            var icrKey = request.PermissionSet?.HasKey(PermissionKeys.UseTransit) ?? false ? _icrKeyService.GetDecryptedIcrKey() : null;
+            appReg.Grant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, request.PermissionSet, request.Drives, masterKey, icrKey);
 
             _appRegistrationValueStorage.Upsert(request.AppId, GuidId.Empty, _appRegistrationDataType, appReg);
 
@@ -131,18 +137,18 @@ namespace Odin.Core.Services.Authorization.Apps
             ResetAppPermissionContextCache();
         }
 
-        public async Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClient(GuidId appId, byte[] clientPublicKey, string friendlyName)
+        public async Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClient(
+            GuidId appId, byte[] clientPublicKey, string friendlyName)
         {
             var (cat, corsHostName) = await this.RegisterClientInternal(appId, friendlyName);
 
-            //RSA encrypt using the public key and send to client
             var data = cat.ToPortableBytes();
             var publicKey = RsaPublicKeyData.FromDerEncodedPublicKey(clientPublicKey);
             var encryptedData = publicKey.Encrypt(data);
 
             data.WriteZeros();
 
-            var response =  new AppClientRegistrationResponse()
+            var response = new AppClientRegistrationResponse()
             {
                 EncryptionVersion = 1,
                 Token = cat.Id,
@@ -178,8 +184,7 @@ namespace Odin.Core.Services.Authorization.Apps
                 var grantDictionary = new Dictionary<Guid, ExchangeGrant> { { ByteArrayUtil.ReduceSHA256Hash("app_exchange_grant"), appReg.Grant } };
 
                 //Note: isOwner = true because we passed ValidateClientAuthToken for an ap token above 
-                var permissionContext = _exchangeGrantService.CreatePermissionContext(token, grantDictionary, accessReg, includeAnonymousDrives: true)
-                    .GetAwaiter().GetResult();
+                var permissionContext = await _exchangeGrantService.CreatePermissionContext(token, grantDictionary, accessReg, includeAnonymousDrives: true);
 
                 var dotYouContext = new OdinContext()
                 {
@@ -409,8 +414,8 @@ namespace Odin.Core.Services.Authorization.Apps
                 throw new OdinClientException("App must be registered to add a client", OdinClientErrorCode.AppNotRegistered);
             }
 
-            var (accessRegistration, cat) =
-                await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, _contextAccessor.GetCurrent().Caller.GetMasterKey(), ClientTokenType.Other);
+            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+            var (accessRegistration, cat) = await _exchangeGrantService.CreateClientAccessToken(appReg.Grant, masterKey, ClientTokenType.Other);
 
             var appClient = new AppClient(appId, friendlyName, accessRegistration);
             this.SaveClient(appClient);
