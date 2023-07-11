@@ -46,9 +46,11 @@ namespace Odin.Core.Services.Authentication.YouAuth
             }
 
             var codeId = Guid.NewGuid(); // SEB:TODO use secure?
-            
-            var codeAsKey = codeId.ToByteArray().ToSensitiveByteArray();
+
+            // var codeAsKey = codeId.ToByteArray().ToSensitiveByteArray();
+
             var code = codeId.ToString();
+            var codeAsKey = ByteArrayUtil.ReduceSHA256Hash(code).ToByteArray().ToSensitiveByteArray();
 
             var icrKey = _contextAccessor.GetCurrent().PermissionsContext.GetIcrKey;
             var encryptedIcrKey = new SymmetricKeyEncryptedAes(ref codeAsKey, ref icrKey);
