@@ -32,10 +32,8 @@ namespace Odin.Core.Services.Base
 
         public SensitiveByteArray SharedSecretKey { get; }
 
-        public SensitiveByteArray GetIcrKey
+        public SensitiveByteArray GetIcrKey()
         {
-            get
-            {
                 foreach (var group in _permissionGroups.Values)
                 {
                     var key = group.GetIcrKey();
@@ -47,7 +45,6 @@ namespace Odin.Core.Services.Base
                 }
 
                 throw new OdinSecurityException($"No access permitted to the Icr Key");
-            }
         }
 
         public bool HasDrivePermission(Guid driveId, DrivePermission permission)

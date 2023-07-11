@@ -60,7 +60,7 @@ namespace Odin.Core.Services.Transit.ReceivingHost
                         if (inboxItem.InstructionType == TransferInstructionType.SaveFile)
                         {
                             var icr = await _circleNetworkService.GetIdentityConnectionRegistration(inboxItem.Sender, overrideHack: true);
-                            var sharedSecret = icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey).SharedSecret;
+                            var sharedSecret = icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()).SharedSecret;
                             var decryptedKeyHeader = inboxItem.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
 
                             await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender, inboxItem.FileSystemType, inboxItem.TransferFileType);
