@@ -10,65 +10,83 @@ namespace Odin.Core
     /// </summary>
     public static class SequentialGuid
     {
+        private static readonly Random _rnd = new Random();
         static private Object _lock = new Object();
-        static private Random _rnd = new Random();
         static private UnixTimeUtc _lastMillisecond = new UnixTimeUtc(0);
         static private int _counter = 0;
 
-        public static Guid CreateGuid(UnixTimeUtc ts)
+        /// <summary>
+        /// Create a new Guid consisting of {44 bits milliseconds, 12 bits counter, 9 bytes random values}
+        /// </summary>
+        /// <param name="millisecondsWithCounter">Rightmost 56 bits (7 bytes) {miliseconds (44 bits), _counter(12 bits)}</param>
+        /// <returns>A new Guid</returns>
+        private static Guid CreateGuidFromMillisecond(UInt64 millisecondsWithCounter)
         {
-            // One year is 3600*24*365.25*1000 = 31,557,600,000 miliseconds (35 bits)
-            // Use 9 bits for the years, for a total of 44 bits (5½ bytes)
-            // Thus able to hold 557 years since 1970-01-01
-            // The counter is 12 bits, for a total of 4096, which gets us to ~1/4ns per guid before clash / wait()
-            // Total bit usage of milisecond time+counter is thus 44+12=56 bits aka 7 bytes
+            byte a0, a1, a2, a3, a4, a5, a6, a7, a8;
 
+            lock (_rnd)
+            {
+                a0 = (byte)_rnd.Next(0, 256);
+                a1 = (byte)_rnd.Next(0, 256);
+                a2 = (byte)_rnd.Next(0, 256);
+                a3 = (byte)_rnd.Next(0, 256);
+                a4 = (byte)_rnd.Next(0, 256);
+                a5 = (byte)_rnd.Next(0, 256);
+                a6 = (byte)_rnd.Next(0, 256);
+                a7 = (byte)_rnd.Next(0, 256);
+                a8 = (byte)_rnd.Next(0, 256);
+            }
 
-            // Create 56 bits (7 bytes) {miliseconds (44 bits), _counter(12 bits)}
-            // The counter is naught, since we're constructing this from the UNIX timestamp
-            //
-            UInt64 milisecondsctr = (UInt64)(ts.milliseconds << 12) | (UInt32) 0;
-
-            // I wonder if there is a neat way to not have to both create this and the GUID.
             byte[] byte16 = new byte[16] {
-            (byte) ((milisecondsctr  >> 48) & 0xFF),
-            (byte) ((milisecondsctr  >> 40) & 0xFF),
-            (byte) ((milisecondsctr  >> 32) & 0xFF),
-            (byte) ((milisecondsctr  >> 24) & 0xFF),
-            (byte) ((milisecondsctr  >> 16) & 0xFF),
-            (byte) ((milisecondsctr  >>  8) & 0xFF),
-            (byte) ((milisecondsctr  >>  0) & 0xFF),
-            (byte) _rnd.Next(0,255),
-            (byte) _rnd.Next(0,255), (byte) _rnd.Next(0,255),
-            (byte) _rnd.Next(0,255), (byte) _rnd.Next(0,255),
-            (byte) _rnd.Next(0,255), (byte) _rnd.Next(0,255),
-            (byte) _rnd.Next(0,255), (byte) _rnd.Next(0,255)};
+                (byte) ((millisecondsWithCounter  >> 48) & 0b_1111_1111_1111),
+                (byte) ((millisecondsWithCounter  >> 40) & 0b_1111_1111_1111),
+                (byte) ((millisecondsWithCounter  >> 32) & 0b_1111_1111_1111),
+                (byte) ((millisecondsWithCounter  >> 24) & 0b_1111_1111_1111),
+                (byte) ((millisecondsWithCounter  >> 16) & 0b_1111_1111_1111),
+                (byte) ((millisecondsWithCounter  >>  8) & 0b_1111_1111_1111),
+                (byte) ((millisecondsWithCounter  >>  0) & 0b_1111_1111_1111),
+                a0, a1, a2,a3, a4, a5, a6, a7, a8 };
 
             return new Guid(byte16);
         }
 
+        /// <summary>
+        /// Create a SequentialGuid from the supplied timestamp. The counter portion will be zero.
+        /// Not guaranteed unique timestamp.
+        /// </summary>
+        /// <param name="timestamp">Timestamp</param>
+        /// <returns>Guid with a timestamp</returns>
+        public static Guid CreateGuid(UnixTimeUtc timestamp)
+        {
+            UInt64 millisecondsctr = (UInt64)(timestamp.milliseconds << 12) | 0;
 
+            return CreateGuidFromMillisecond(millisecondsctr);
+        }
+
+
+        /// <summary>
+        /// Create a SequentialGuid using Now() as a timestamp with a counter. Guaranteed unique timestamp.
+        /// The timestamp is 44 bits, the counter is 12 bits (7 bytes, 9 bytes random). 
+        /// Able to hold 557 years since 1970-01-01
+        /// The counter yields ~1/4ns per guid before clash at which time it sleeps for a millisecond and does a recursive call.
+        /// </summary>
+        /// <returns></returns>
         public static Guid CreateGuid()
         {
-            // One year is 3600*24*365.25*1000 = 31,557,600,000 miliseconds (35 bits)
-            // Use 9 bits for the years, for a total of 44 bits (5½ bytes)
-            // Thus able to hold 557 years since 1970-01-01
-            // The counter is 12 bits, for a total of 4096, which gets us to ~1/4ns per guid before clash / wait()
-            // Total bit usage of milisecond time+counter is thus 44+12=56 bits aka 7 bytes
-
             UnixTimeUtc ts = new UnixTimeUtc();
 
             lock (_lock)
             {
                 if (ts.Equals(_lastMillisecond))
                 {
-                    //  bits counter 12 bits, aka 1111-1111-1111 / 0xFFF; 4.1M max / second, 1/4 ns
+                    //  bits counter 12 bits, aka 1111-1111-1111 / 0b_1111_1111_1111F; 4.1M max / second, 1/4 ns
                     _counter++;
-                    if (_counter >= 0xFFF)
+                    if (_counter >= 0b_1111_1111_1111)
                     {
                         Thread.Sleep(1);
                         // http://msdn.microsoft.com/en-us/library/c5kehkcz.aspx
                         // A lock knows which thread locked it. If the same thread comes again it just increments a counter and does not block.
+                        // Call recursively to try and get a new timestamp again
                         return CreateGuid();
                     }
                 }
@@ -80,39 +98,24 @@ namespace Odin.Core
             }
 
             // Create 56 bits (7 bytes) {miliseconds (44 bits), _counter(12 bits)}
-            UInt64 milisecondsctr = (UInt64)(ts.milliseconds << 12) | (UInt32)_counter;
+            UInt64 millisecondsctr = (UInt64)(ts.milliseconds << 12) | (UInt32)_counter;
 
-            // I wonder if there is a neat way to not have to both create this and the GUID.
-            byte[] byte16 = new byte[16] {
-            (byte) ((milisecondsctr  >> 48) & 0xFF),
-            (byte) ((milisecondsctr  >> 40) & 0xFF),
-            (byte) ((milisecondsctr  >> 32) & 0xFF),
-            (byte) ((milisecondsctr  >> 24) & 0xFF),
-            (byte) ((milisecondsctr  >> 16) & 0xFF),
-            (byte) ((milisecondsctr  >>  8) & 0xFF),
-            (byte) ((milisecondsctr  >>  0) & 0xFF),
-            (byte) _rnd.Next(0,255),
-            (byte) _rnd.Next(0,255), (byte) _rnd.Next(0,255),
-            (byte) _rnd.Next(0,255), (byte) _rnd.Next(0,255),
-            (byte) _rnd.Next(0,255), (byte) _rnd.Next(0,255),
-            (byte) _rnd.Next(0,255), (byte) _rnd.Next(0,255)};
-
-            return new Guid(byte16);
+            return CreateGuidFromMillisecond(millisecondsctr);
         }
 
         public static UnixTimeUtc ToUnixTimeUtc(Guid fileid)
         {
             byte[] fibytes = fileid.ToByteArray();
 
-            UInt64 i = (((UInt64)fibytes[0]) << 48) | (((UInt64)fibytes[1]) << 40) | (((UInt64)fibytes[2]) << 32) |
+            UInt64 t = (((UInt64)fibytes[0]) << 48) | (((UInt64)fibytes[1]) << 40) | (((UInt64)fibytes[2]) << 32) |
                         (((UInt64)fibytes[3]) << 24) | (((UInt64)fibytes[4]) << 16) | (((UInt64)fibytes[5]) << 8) |
                         (UInt64)fibytes[6];
 
-            i = i >> 12;
+            t = t >> 12;
 
-            Int64 si = (Int64) i;
+            Int64 st = (Int64) t;
 
-            return new UnixTimeUtc(si);
+            return new UnixTimeUtc(st);
         }
     }
 }   
