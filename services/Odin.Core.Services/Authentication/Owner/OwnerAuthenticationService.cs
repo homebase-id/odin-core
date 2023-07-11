@@ -14,10 +14,10 @@ using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Configuration;
+using Odin.Core.Services.Contacts.Circle.Membership;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Mediator;
-using Odin.Core.Services.Mediator.Owner;
 
 /// <summary>
 /// Goals here are that:
@@ -41,18 +41,21 @@ namespace Odin.Core.Services.Authentication.Owner
         private readonly OdinContextCache _cache;
         private readonly ILogger<IOwnerAuthenticationService> _logger;
         private readonly DriveManager _driveManager;
-
+        private readonly CircleNetworkService _circleNetworkService;
         private readonly TenantContext _tenantContext;
+        private readonly IcrKeyService _icrKeyService;
 
         public OwnerAuthenticationService(ILogger<IOwnerAuthenticationService> logger, IOwnerSecretService secretService,
             TenantSystemStorage tenantSystemStorage,
-            TenantContext tenantContext, OdinConfiguration config, DriveManager driveManager)
+            TenantContext tenantContext, OdinConfiguration config, DriveManager driveManager, CircleNetworkService circleNetworkService, IcrKeyService icrKeyService)
         {
             _logger = logger;
             _secretService = secretService;
             _tenantSystemStorage = tenantSystemStorage;
             _tenantContext = tenantContext;
             _driveManager = driveManager;
+            _circleNetworkService = circleNetworkService;
+            _icrKeyService = icrKeyService;
             _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
         }
 
@@ -136,6 +139,8 @@ namespace Odin.Core.Services.Authentication.Owner
             {
                 var (masterKey, clientSharedSecret) = await GetMasterKey(token.Id, token.AccessTokenHalfKey);
 
+                var icrKey = _icrKeyService.GetMasterKeyEncryptedIcrKey();
+
                 var allDrives = await _driveManager.GetDrives(PageOptions.All);
                 var allDriveGrants = allDrives.Results.Select(d => new DriveGrant()
                 {
@@ -150,7 +155,7 @@ namespace Odin.Core.Services.Authentication.Owner
 
                 var permissionGroupMap = new Dictionary<string, PermissionGroup>
                 {
-                    { "owner_drive_grants", new PermissionGroup(new PermissionSet(PermissionKeys.All), allDriveGrants, masterKey) },
+                    { "owner_grants", new PermissionGroup(new PermissionSet(PermissionKeys.All), allDriveGrants, masterKey, icrKey) },
                 };
 
                 var ctx = new PermissionContext(permissionGroupMap, clientSharedSecret);
@@ -176,8 +181,7 @@ namespace Odin.Core.Services.Authentication.Owner
                 dotYouContext.SetPermissionContext(permissionContext);
 
                 dotYouContext.Caller = new CallerContext(
-                    odinId: _tenantContext
-                        .HostOdinId, //TODO: this works because we only have one identity per host.  this must be updated when i can have multiple identities for a single host
+                    odinId: _tenantContext.HostOdinId, 
                     masterKey: masterKey,
                     securityLevel: SecurityGroupType.Owner);
 

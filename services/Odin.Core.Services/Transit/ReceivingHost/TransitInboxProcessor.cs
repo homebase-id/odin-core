@@ -18,12 +18,12 @@ namespace Odin.Core.Services.Transit.ReceivingHost
         private readonly TransitInboxBoxStorage _transitInboxBoxStorage;
         private readonly FileSystemResolver _fileSystemResolver;
         private readonly TenantSystemStorage _tenantSystemStorage;
-        private readonly ICircleNetworkService _circleNetworkService;
+        private readonly CircleNetworkService _circleNetworkService;
 
         public TransitInboxProcessor(OdinContextAccessor contextAccessor,
             TransitInboxBoxStorage transitInboxBoxStorage,
             FileSystemResolver fileSystemResolver,
-            TenantSystemStorage tenantSystemStorage, ICircleNetworkService circleNetworkService)
+            TenantSystemStorage tenantSystemStorage, CircleNetworkService circleNetworkService)
         {
             _contextAccessor = contextAccessor;
             _transitInboxBoxStorage = transitInboxBoxStorage;
@@ -59,11 +59,8 @@ namespace Odin.Core.Services.Transit.ReceivingHost
 
                         if (inboxItem.InstructionType == TransferInstructionType.SaveFile)
                         {
-                            // var (isValidPublicKey, decryptedAesKeyHeaderBytes) =
-                            //     await _rsaKeyService.DecryptPayload(RsaKeyType.OfflineKey, inboxItem.RsaEncryptedKeyHeaderPayload);
-
                             var icr = await _circleNetworkService.GetIdentityConnectionRegistration(inboxItem.Sender, overrideHack: true);
-                            var sharedSecret = icr.ClientAccessTokenSharedSecret.ToSensitiveByteArray();
+                            var sharedSecret = icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()).SharedSecret;
                             var decryptedKeyHeader = inboxItem.SharedSecretEncryptedKeyHeader.DecryptAesToKeyHeader(ref sharedSecret);
 
                             await writer.HandleFile(tempFile, fs, decryptedKeyHeader, inboxItem.Sender, inboxItem.FileSystemType, inboxItem.TransferFileType);

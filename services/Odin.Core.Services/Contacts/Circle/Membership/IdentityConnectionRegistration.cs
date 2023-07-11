@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Odin.Core.Cryptography.Data;
 using Odin.Core.Identity;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Contacts.Circle.Requests;
@@ -14,6 +15,10 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
     {
         private ConnectionStatus _status;
 
+        public IdentityConnectionRegistration()
+        {
+        }
+
         public Guid Id
         {
             get { return this.OdinId; }
@@ -24,7 +29,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
         }
 
         public OdinId OdinId { get; init; }
-        
+
         public ConnectionStatus Status
         {
             get { return _status; }
@@ -48,18 +53,20 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
         /// <summary>
         /// The Id of the <see cref="ClientAccessToken"/> to be sent when communicating with this OdinId's host
         /// </summary>
-        public Guid ClientAccessTokenId { get; set; }
+        public Guid ClientAccessTokenId { get; }
 
         /// <summary>
         /// The AccessTokenHalfKey of the <see cref="ClientAccessToken"/> to be sent when communicating with this OdinId's host
         /// </summary>
-        public byte[] ClientAccessTokenHalfKey { get; set; }
+        public byte[] ClientAccessTokenHalfKey { get; }
 
         /// <summary>
         /// The SharedSecret of the <see cref="ClientAccessToken"/> used to encrypt payloads when
         /// communicating with this OdinId's host.  This is never sent over the wire.
         /// </summary>
-        public byte[] ClientAccessTokenSharedSecret { get; set; } //TODO: this needs to be encrypted when stored; 
+        public byte[] ClientAccessTokenSharedSecret { get; }
+
+        public EncryptedClientAccessToken EncryptedClientAccessToken { get; set; }
 
         public long LastUpdated { get; set; }
         public long Created { get; set; }
@@ -69,27 +76,15 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
         /// </summary>
         public ContactRequestData OriginalContactData { get; set; }
 
-        public ClientAuthenticationToken CreateClientAuthToken()
+        public ClientAuthenticationToken CreateClientAuthToken(SensitiveByteArray icrDecryptionKey)
         {
-            var clientAuthToken = new ClientAuthenticationToken()
-            {
-                Id = this.ClientAccessTokenId,
-                AccessTokenHalfKey = this.ClientAccessTokenHalfKey.ToSensitiveByteArray(),
-                ClientTokenType = ClientTokenType.IdentityConnectionRegistration
-            };
-
-            return clientAuthToken;
+            return this.CreateClientAccessToken(icrDecryptionKey).ToAuthenticationToken();
         }
-        
-        public ClientAccessToken CreateClientAccessToken()
+
+        public ClientAccessToken CreateClientAccessToken(SensitiveByteArray icrDecryptionKey)
         {
-            return new ClientAccessToken()
-            {
-                Id = this.ClientAccessTokenId,
-                AccessTokenHalfKey = this.ClientAccessTokenHalfKey.ToSensitiveByteArray(),
-                ClientTokenType = ClientTokenType.IdentityConnectionRegistration,
-                SharedSecret = this.ClientAccessTokenSharedSecret.ToSensitiveByteArray()
-            };
+            var cat = EncryptedClientAccessToken.Decrypt(icrDecryptionKey);
+            return cat;
         }
 
         /// <summary>

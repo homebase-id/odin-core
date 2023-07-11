@@ -126,7 +126,7 @@ public class AppsApiClient
                 Name = $"Test_{appId}",
                 AppId = appId,
                 PermissionSet = appPermissions.PermissionSet,
-                Drives = appPermissions.Drives.ToList(),
+                Drives = appPermissions.Drives?.ToList(),
                 AuthorizedCircles = authorizedCircles,
                 CircleMemberPermissionGrant = circleMemberGrantRequest
             };

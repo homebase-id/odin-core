@@ -17,11 +17,13 @@ namespace Odin.Core.Services.Base
         public PermissionContext(
             Dictionary<string, PermissionGroup> permissionGroups,
             SensitiveByteArray sharedSecretKey,
+            // SensitiveByteArray icrKey,
             bool isSystem = false)
         {
             Guard.Argument(permissionGroups, nameof(permissionGroups)).NotNull();
 
             this.SharedSecretKey = sharedSecretKey;
+            // IcrKey = icrKey;
             _permissionGroups = permissionGroups;
 
             // _instanceId = new Guid();
@@ -29,6 +31,21 @@ namespace Odin.Core.Services.Base
         }
 
         public SensitiveByteArray SharedSecretKey { get; }
+
+        public SensitiveByteArray GetIcrKey()
+        {
+                foreach (var group in _permissionGroups.Values)
+                {
+                    var key = group.GetIcrKey();
+                    if (key?.IsSet() ?? false)
+                    {
+                        //TODO: log key as source of permission.
+                        return key;
+                    }
+                }
+
+                throw new OdinSecurityException($"No access permitted to the Icr Key");
+        }
 
         public bool HasDrivePermission(Guid driveId, DrivePermission permission)
         {

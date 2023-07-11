@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Odin.Core.Cryptography.Data;
+using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
-using Odin.Core.Services.Contacts.Circle.Membership.Definition;
 using Odin.Core.Services.Contacts.Circle.Requests;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
@@ -15,14 +16,12 @@ namespace Odin.Core.Services.Contacts.Circle.Membership;
 
 public class CircleNetworkStorage
 {
-    private readonly GuidId _key = GuidId.FromString("circle_network_storage");
+    private readonly GuidId _icrKeyStorageId = GuidId.FromString("icr_key");
     private readonly TenantSystemStorage _tenantSystemStorage;
-    private readonly CircleDefinitionService _circleDefinitionService;
 
-    public CircleNetworkStorage(TenantSystemStorage tenantSystemStorage, CircleDefinitionService circleDefinitionService)
+    public CircleNetworkStorage(TenantSystemStorage tenantSystemStorage)
     {
         _tenantSystemStorage = tenantSystemStorage;
-        _circleDefinitionService = circleDefinitionService;
     }
 
     public IdentityConnectionRegistration Get(OdinId odinId)
@@ -42,10 +41,8 @@ public class CircleNetworkStorage
         var icrAccessRecord = new IcrAccessRecord()
         {
             AccessGrant = icr.AccessGrant,
-            ClientAccessTokenId = icr.ClientAccessTokenId,
-            ClientAccessTokenHalfKey = icr.ClientAccessTokenHalfKey,
-            ClientAccessTokenSharedSecret = icr.ClientAccessTokenSharedSecret,
-            OriginalContactData = icr.OriginalContactData
+            OriginalContactData = icr.OriginalContactData,
+            EncryptedClientAccessToken = icr.EncryptedClientAccessToken.EncryptedData
         };
 
         using (_tenantSystemStorage.CreateCommitUnitOfWork())
@@ -127,11 +124,54 @@ public class CircleNetworkStorage
         ConnectionStatus connectionStatus)
     {
         var adjustedCursor = cursor.HasValue ? cursor.GetValueOrDefault().uniqueTime == 0 ? null : cursor : null;
-        var records = _tenantSystemStorage.Connections.PagingByCreated(count, (int)connectionStatus, adjustedCursor,
-            out nextCursor);
+        var records = _tenantSystemStorage.Connections.PagingByCreated(count, (int)connectionStatus, adjustedCursor, out nextCursor);
         return records.Select(MapFromStorage);
     }
+    
+    public List<OdinId> GetCircleMembers(GuidId circleId)
+    {
+        //Note: this list is a cache of members for a circle.  the source of truth is the
+        //IdentityConnectionRegistration.AccessExchangeGrant.CircleGrants property for each OdinId
+        var memberBytesList = _tenantSystemStorage.CircleMemberStorage.GetCircleMembers(circleId);
+        var result = memberBytesList.Select(item =>
+        {
+            var data = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(item.data.ToStringFromUtf8Bytes());
+            return data.OdinId;
+        }).ToList();
 
+        return result;
+    }
+
+    /// <summary>
+    /// Creates a new icr key; fails if one already exists
+    /// </summary>
+    /// <param name="masterKey"></param>
+    /// <exception cref="OdinClientException"></exception>
+    public void CreateIcrKey(SensitiveByteArray masterKey)
+    {
+        var existingKey = _tenantSystemStorage.SingleKeyValueStorage.Get<IcrKeyRecord>(_icrKeyStorageId);
+        if (null != existingKey)
+        {
+            throw new OdinClientException("IcrKey already exists");
+        }
+
+        var icrKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+
+        var record = new IcrKeyRecord()
+        {
+            MasterKeyEncryptedIcrKey = new SymmetricKeyEncryptedAes(ref masterKey, ref icrKey),
+            Created = UnixTimeUtc.Now()
+        };
+
+        _tenantSystemStorage.SingleKeyValueStorage.Upsert(_icrKeyStorageId, record);
+    }
+
+    public SymmetricKeyEncryptedAes GetMasterKeyEncryptedIcrKey()
+    {
+        var key = _tenantSystemStorage.SingleKeyValueStorage.Get<IcrKeyRecord>(_icrKeyStorageId);
+        return key?.MasterKeyEncryptedIcrKey;
+    }
+    
     private IdentityConnectionRegistration MapFromStorage(ConnectionsRecord record)
     {
         var json = record.data.ToStringFromUtf8Bytes();
@@ -151,8 +191,6 @@ public class CircleNetworkStorage
 
         foreach (var appGrantRecord in allAppGrants)
         {
-            // var appId = appGrantRecord.appId;
-            // var circleId = appGrantRecord.circleId;
             var appCircleGrant = OdinSystemSerializer.Deserialize<AppCircleGrant>(appGrantRecord.data.ToStringFromUtf8Bytes());
             data.AccessGrant.AddUpdateAppCircleGrant(appCircleGrant);
         }
@@ -165,26 +203,25 @@ public class CircleNetworkStorage
             Created = record.created.uniqueTime,
             LastUpdated = record.modified?.uniqueTime ?? default,
             AccessGrant = data.AccessGrant,
-            ClientAccessTokenId = data.ClientAccessTokenId,
-            ClientAccessTokenHalfKey = data.ClientAccessTokenHalfKey,
-            ClientAccessTokenSharedSecret = data.ClientAccessTokenSharedSecret,
-            OriginalContactData = data.OriginalContactData
+            OriginalContactData = data.OriginalContactData,
+
+            // ClientAccessTokenId = data.ClientAccessTokenId,
+            // ClientAccessTokenHalfKey = data.ClientAccessTokenHalfKey,
+            // ClientAccessTokenSharedSecret = data.ClientAccessTokenSharedSecret,
+
+            EncryptedClientAccessToken = new EncryptedClientAccessToken()
+            {
+                EncryptedData = data.EncryptedClientAccessToken
+            }
         };
     }
 
-    public List<OdinId> GetCircleMembers(GuidId circleId)
-    {
-        //Note: this list is a cache of members for a circle.  the source of truth is the
-        //IdentityConnectionRegistration.AccessExchangeGrant.CircleGrants property for each OdinId
-        var memberBytesList = _tenantSystemStorage.CircleMemberStorage.GetCircleMembers(circleId);
-        var result = memberBytesList.Select(item =>
-        {
-            var data = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(item.data.ToStringFromUtf8Bytes());
-            return data.OdinId;
-        }).ToList();
+}
 
-        return result;
-    }
+public class IcrKeyRecord
+{
+    public SymmetricKeyEncryptedAes MasterKeyEncryptedIcrKey { get; set; }
+    public UnixTimeUtc Created { get; set; }
 }
 
 public class IcrAccessRecord
@@ -193,22 +230,8 @@ public class IcrAccessRecord
     /// The drives and permissions granted to this connection
     /// </summary>
     public AccessExchangeGrant AccessGrant { get; set; }
-
-    /// <summary>
-    /// The Id of the <see cref="ClientAccessToken"/> to be sent when communicating with this OdinId's host
-    /// </summary>
-    public Guid ClientAccessTokenId { get; set; }
-
-    /// <summary>
-    /// The AccessTokenHalfKey of the <see cref="ClientAccessToken"/> to be sent when communicating with this OdinId's host
-    /// </summary>
-    public byte[] ClientAccessTokenHalfKey { get; set; }
-
-    /// <summary>
-    /// The SharedSecret of the <see cref="ClientAccessToken"/> used to encrypt payloads when
-    /// communicating with this OdinId's host.  This is never sent over the wire.
-    /// </summary>
-    public byte[] ClientAccessTokenSharedSecret { get; set; } //TODO: this needs to be encrypted when stored; 
-
+    
+    // public byte[] EncryptedClientAccessToken { get; set; }
+    public SymmetricKeyEncryptedAes EncryptedClientAccessToken { get; set; }
     public ContactRequestData OriginalContactData { get; set; }
 }

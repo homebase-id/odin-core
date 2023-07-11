@@ -74,7 +74,7 @@ public class TransitReactionContentSenderService : TransitServiceBase
     private readonly OdinContextAccessor _contextAccessor;
 
     public TransitReactionContentSenderService(IOdinHttpClientFactory odinHttpClientFactory,
-        ICircleNetworkService circleNetworkService,
+        CircleNetworkService circleNetworkService,
         OdinContextAccessor contextAccessor, FollowerService followerService, FileSystemResolver fileSystemResolver) : base(odinHttpClientFactory,
         circleNetworkService, contextAccessor,
         followerService, fileSystemResolver)
@@ -85,7 +85,7 @@ public class TransitReactionContentSenderService : TransitServiceBase
     /// <summary />
     public async Task AddReaction(OdinId odinId, AddRemoteReactionRequest request)
     {
-        var (token, client) = await CreateReactionContentClient(odinId, ClientAccessTokenSource.Circle);
+        var (token, client) = await CreateReactionContentClient(odinId);
 
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
 
@@ -101,16 +101,16 @@ public class TransitReactionContentSenderService : TransitServiceBase
     /// <summary />
     public async Task<GetReactionsPerimeterResponse> GetReactions(OdinId odinId, GetRemoteReactionsRequest request)
     {
-        var (token, client) = await CreateReactionContentClient(odinId, ClientAccessTokenSource.Fallback);
+        var (token, client) = await CreateReactionContentClient(odinId, failIfNotConnected: false);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
         var response = await client.GetReactions(payload);
         return response.Content;
     }
- 
+
     /// <summary />
     public async Task<GetReactionCountsResponse> GetReactionCounts(OdinId odinId, GetRemoteReactionsRequest request)
     {
-        var (token, client) = await CreateReactionContentClient(odinId, ClientAccessTokenSource.Fallback);
+        var (token, client) = await CreateReactionContentClient(odinId, failIfNotConnected: false);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
         var response = await client.GetReactionCountsByFile(payload);
         return response.Content;
@@ -118,7 +118,7 @@ public class TransitReactionContentSenderService : TransitServiceBase
 
     public async Task<List<string>> GetReactionsByIdentityAndFile(OdinId odinId, TransitGetReactionsByIdentityRequest request)
     {
-        var (token, client) = await CreateReactionContentClient(odinId, ClientAccessTokenSource.Fallback);
+        var (token, client) = await CreateReactionContentClient(odinId, failIfNotConnected: false);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
         var response = await client.GetReactionsByIdentity(payload);
         return response.Content;
@@ -126,14 +126,14 @@ public class TransitReactionContentSenderService : TransitServiceBase
 
     public async Task DeleteReaction(OdinId odinId, DeleteReactionRequestByGlobalTransitId request)
     {
-        var (token, client) = await CreateReactionContentClient(odinId, ClientAccessTokenSource.Circle);
+        var (token, client) = await CreateReactionContentClient(odinId);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
         await client.DeleteReactionContent(payload);
     }
 
     public async Task DeleteAllReactions(OdinId odinId, DeleteReactionRequestByGlobalTransitId request)
     {
-        var (token, client) = await CreateReactionContentClient(odinId, ClientAccessTokenSource.Circle);
+        var (token, client) = await CreateReactionContentClient(odinId);
         SharedSecretEncryptedTransitPayload payload = this.CreateSharedSecretEncryptedPayload(token, request);
         await client.GetReactionsByIdentity(payload);
     }
@@ -149,7 +149,7 @@ public class TransitReactionContentSenderService : TransitServiceBase
         EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
         if (sharedSecretEncryptedFileHeader.FileMetadata.PayloadIsEncrypted)
         {
-            var currentKey = icr.ClientAccessTokenSharedSecret.ToSensitiveByteArray();
+            var currentKey = icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()).SharedSecret;
             var icrEncryptedKeyHeader = sharedSecretEncryptedFileHeader.SharedSecretEncryptedKeyHeader;
             ownerSharedSecretEncryptedKeyHeader = ReEncrypt(currentKey, icrEncryptedKeyHeader);
         }

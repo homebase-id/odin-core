@@ -23,7 +23,7 @@ namespace Odin.Core.Services.Configuration;
 /// </summary>
 public class TenantConfigService
 {
-    private readonly ICircleNetworkService _cns;
+    private readonly CircleNetworkService _cns;
     private readonly OdinContextAccessor _contextAccessor;
     private readonly TenantContext _tenantContext;
     private readonly SingleKeyValueStorage _configStorage;
@@ -31,10 +31,14 @@ public class TenantConfigService
     private readonly IAppRegistrationService _appRegistrationService;
     private readonly DriveManager _driveManager;
     private readonly PublicPrivateKeyService _publicPrivateKeyService;
+    private readonly IcrKeyService _icrKeyService;
 
-    public TenantConfigService(ICircleNetworkService cns, OdinContextAccessor contextAccessor,
+    public TenantConfigService(CircleNetworkService cns, OdinContextAccessor contextAccessor,
         TenantSystemStorage storage, TenantContext tenantContext,
-        IIdentityRegistry registry, IAppRegistrationService appRegistrationService, DriveManager driveManager, PublicPrivateKeyService publicPrivateKeyService)
+        IIdentityRegistry registry, IAppRegistrationService appRegistrationService,
+        DriveManager driveManager,
+        PublicPrivateKeyService publicPrivateKeyService,
+        IcrKeyService icrKeyService)
     {
         _cns = cns;
         _contextAccessor = contextAccessor;
@@ -43,6 +47,7 @@ public class TenantConfigService
         _appRegistrationService = appRegistrationService;
         _driveManager = driveManager;
         _publicPrivateKeyService = publicPrivateKeyService;
+        _icrKeyService = icrKeyService;
         _configStorage = storage.SingleKeyValueStorage;
         _tenantContext.UpdateSystemConfig(this.GetTenantSettings());
     }
@@ -68,6 +73,8 @@ public class TenantConfigService
 
         await _publicPrivateKeyService.CreateInitialKeys();
 
+        await _icrKeyService.CreateInitialKeys();
+
         await CreateDriveIfNotExists(SystemDriveConstants.CreateChatDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateFeedDriveRequest);
 
@@ -79,7 +86,6 @@ public class TenantConfigService
         await CreateDriveIfNotExists(SystemDriveConstants.CreateProfileDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateWalletDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateTransientTempDriveRequest);
-
 
         foreach (var rd in request.Drives ?? new List<CreateDriveRequest>())
         {
@@ -172,7 +178,7 @@ public class TenantConfigService
             }
         }
 
-        _cns.UpdateCircleDefinition(systemCircle);
+        _cns.UpdateCircleDefinition(systemCircle).GetAwaiter().GetResult();
     }
 
     public TenantSettings GetTenantSettings()

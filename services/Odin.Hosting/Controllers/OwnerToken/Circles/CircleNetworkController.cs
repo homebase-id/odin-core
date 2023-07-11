@@ -13,9 +13,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Circles
     [AuthorizeValidOwnerToken]
     public class CircleNetworkController : ControllerBase
     {
-        private readonly ICircleNetworkService _circleNetwork;
+        private readonly CircleNetworkService _circleNetwork;
 
-        public CircleNetworkController(ICircleNetworkService cn)
+        public CircleNetworkController(CircleNetworkService cn)
         {
             _circleNetwork = cn;
         }

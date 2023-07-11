@@ -2,6 +2,7 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Odin.Core.Cryptography.Data;
 using Odin.Core.Identity;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
@@ -15,7 +16,7 @@ namespace Odin.Core.Services.Authentication.YouAuth
         private readonly IYouAuthAuthorizationCodeManager _youAuthAuthorizationCodeManager;
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
         private readonly IYouAuthRegistrationService _registrationService;
-        private readonly ICircleNetworkService _circleNetwork;
+        private readonly CircleNetworkService _circleNetwork;
 
         //
 
@@ -23,7 +24,7 @@ namespace Odin.Core.Services.Authentication.YouAuth
             ILogger<YouAuthService> logger,
             IYouAuthAuthorizationCodeManager youAuthAuthorizationCodeManager,
             IOdinHttpClientFactory odinHttpClientFactory,
-            ICircleNetworkService circleNetwork, IYouAuthRegistrationService registrationService)
+            CircleNetworkService circleNetwork, IYouAuthRegistrationService registrationService)
         {
             _logger = logger;
             _youAuthAuthorizationCodeManager = youAuthAuthorizationCodeManager;
@@ -90,7 +91,7 @@ namespace Odin.Core.Services.Authentication.YouAuth
 
         public async ValueTask<(bool, byte[])> ValidateAuthorizationCode(string initiator, string authorizationCode)
         {
-            var isValid = await _youAuthAuthorizationCodeManager.ValidateAuthorizationCode(initiator, authorizationCode);
+            var isValid = await _youAuthAuthorizationCodeManager.ValidateAuthorizationCode(initiator, authorizationCode, out var tempIcrKey);
 
             byte[] clientAuthTokenBytes = Array.Empty<byte>();
             if (isValid)
@@ -100,7 +101,8 @@ namespace Odin.Core.Services.Authentication.YouAuth
                 if (info.IsConnected())
                 {
                     //TODO: RSA Encrypt or used shared secret?
-                    clientAuthTokenBytes = info.CreateClientAuthToken().ToString().ToUtf8ByteArray();
+                    clientAuthTokenBytes = info.CreateClientAuthToken(tempIcrKey).ToString().ToUtf8ByteArray();
+                    tempIcrKey?.Wipe();
                 }
             }
 

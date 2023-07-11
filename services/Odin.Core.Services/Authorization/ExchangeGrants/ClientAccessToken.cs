@@ -1,7 +1,39 @@
 using System;
+using Odin.Core.Cryptography.Data;
 
 namespace Odin.Core.Services.Authorization.ExchangeGrants
 {
+    public class EncryptedClientAccessToken
+    {
+        // public Guid Id { get; set; }
+
+        // public SymmetricKeyEncryptedAes AccessTokenHalfKey { get; set; }
+        //
+        // public SymmetricKeyEncryptedAes SharedSecret { get; set; }
+
+        // public ClientTokenType ClientTokenType { get; set; }
+        
+        public SymmetricKeyEncryptedAes EncryptedData { get; set; }
+
+        public ClientAccessToken Decrypt(SensitiveByteArray key)
+        {
+            var rawBytes = EncryptedData.DecryptKeyClone(ref key);
+            return ClientAccessToken.FromPortableBytes(rawBytes.GetKey());
+           
+        }
+
+        public static EncryptedClientAccessToken Encrypt(SensitiveByteArray icrKey, ClientAccessToken cat)
+        {
+            var bytes = cat.ToPortableBytes().ToSensitiveByteArray();
+            var encryptedData = new SymmetricKeyEncryptedAes(ref icrKey, ref bytes);
+
+            return new EncryptedClientAccessToken()
+            {
+                EncryptedData = encryptedData
+            };
+        }
+    }
+
     public class ClientAccessToken
     {
         public Guid Id { get; set; }
@@ -56,8 +88,8 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
         public static ClientAccessToken FromPortableBytes64(string data64)
         {
             return FromPortableBytes(Convert.FromBase64String(data64));
-            
         }
+
         public static ClientAccessToken FromPortableBytes(byte[] data)
         {
             var (idBytes, halfKeyBytes, secondSet) = ByteArrayUtil.Split(data, 16, 16, 17);
