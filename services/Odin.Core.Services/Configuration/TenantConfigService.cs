@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Dawn;
 using Odin.Core.Exceptions;
+using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
@@ -31,10 +32,11 @@ public class TenantConfigService
     private readonly IAppRegistrationService _appRegistrationService;
     private readonly DriveManager _driveManager;
     private readonly PublicPrivateKeyService _publicPrivateKeyService;
-
+    private readonly RecoveryService _recoverService;
+    
     public TenantConfigService(ICircleNetworkService cns, OdinContextAccessor contextAccessor,
         TenantSystemStorage storage, TenantContext tenantContext,
-        IIdentityRegistry registry, IAppRegistrationService appRegistrationService, DriveManager driveManager, PublicPrivateKeyService publicPrivateKeyService)
+        IIdentityRegistry registry, IAppRegistrationService appRegistrationService, DriveManager driveManager, PublicPrivateKeyService publicPrivateKeyService, RecoveryService recoverService)
     {
         _cns = cns;
         _contextAccessor = contextAccessor;
@@ -43,6 +45,7 @@ public class TenantConfigService
         _appRegistrationService = appRegistrationService;
         _driveManager = driveManager;
         _publicPrivateKeyService = publicPrivateKeyService;
+        _recoverService = recoverService;
         _configStorage = storage.SingleKeyValueStorage;
         _tenantContext.UpdateSystemConfig(this.GetTenantSettings());
     }
@@ -65,6 +68,8 @@ public class TenantConfigService
         {
             await _registry.MarkRegistrationComplete(request.FirstRunToken.GetValueOrDefault());
         }
+
+        await _recoverService.CreateInitialKey();
 
         await _publicPrivateKeyService.CreateInitialKeys();
 

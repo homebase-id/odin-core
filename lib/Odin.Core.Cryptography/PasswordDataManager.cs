@@ -25,13 +25,13 @@ namespace Odin.Core.Cryptography
         /// </summary>
         /// <param name="passwordKeK">pbkdf2(SaltKek, password, 100000, 16)</param>
         /// <returns></returns>
-        private static PasswordData CreateInitialPasswordKey(NonceData nonce, string HashedPassword64, string KeK64)
+        private static PasswordData CreateInitialPasswordKey(NonceData nonce, string hashedPassword64, string kek64, SensitiveByteArray masterKey)
         {
             var passwordKey = new PasswordData()
             {
                 SaltPassword = Convert.FromBase64String(nonce.SaltPassword64),
                 SaltKek = Convert.FromBase64String(nonce.SaltKek64),
-                HashPassword = Convert.FromBase64String(HashedPassword64)
+                HashPassword = Convert.FromBase64String(hashedPassword64)
             };
 
             // TODO: Hm, I really DONT like that we pass the KEK as a string.
@@ -41,9 +41,17 @@ namespace Odin.Core.Cryptography
             // This way, once we RSA decrypt it is a byte array and we can zap it.
 
             // TODO: Change to using ()
-            var KekKey = new SensitiveByteArray(Convert.FromBase64String(KeK64));
-            passwordKey.KekEncryptedMasterKey = new SymmetricKeyEncryptedAes(ref KekKey);
-            KekKey.Wipe();
+            var kekKey = new SensitiveByteArray(Convert.FromBase64String(kek64));
+            if(null == masterKey)
+            {
+                passwordKey.KekEncryptedMasterKey = new SymmetricKeyEncryptedAes(ref kekKey);
+            }
+            else
+            {
+                passwordKey.KekEncryptedMasterKey = new SymmetricKeyEncryptedAes(ref kekKey, ref masterKey);
+            }
+            
+            kekKey.Wipe();
 
             return passwordKey;
         }
@@ -74,16 +82,15 @@ namespace Odin.Core.Cryptography
         /// On the server when you receive a PasswordReply and you have loaded the corresponding
         /// Nonce package, then call here to setup everything needed (HasedPassword, Kek, DeK)
         /// </summary>
-        /// <param name="loadedNoncePackage"></param>
-        /// <param name="reply"></param>
         /// <returns>The PasswordKey to store on the Identity</returns>
-        public static PasswordData SetInitialPassword(NonceData loadedNoncePackage, PasswordReply reply, RsaFullKeyListData listRsa)
+        public static PasswordData SetInitialPassword(NonceData loadedNoncePackage, PasswordReply reply, RsaFullKeyListData listRsa,
+            SensitiveByteArray masterKey = null)
         {
             var (hpwd64, kek64, sharedsecret) = ParsePasswordRSAReply(reply, listRsa);
 
             TryPasswordKeyMatch(hpwd64, reply.NonceHashedPassword64, reply.Nonce64);
 
-            var passwordKey = PasswordDataManager.CreateInitialPasswordKey(loadedNoncePackage, hpwd64, kek64);
+            var passwordKey = PasswordDataManager.CreateInitialPasswordKey(loadedNoncePackage, hpwd64, kek64, masterKey);
 
 
             return passwordKey;

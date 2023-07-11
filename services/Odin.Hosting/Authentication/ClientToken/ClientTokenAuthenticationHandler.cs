@@ -76,7 +76,7 @@ namespace Odin.Hosting.Authentication.ClientToken
             {
                 return AuthenticateResult.Fail("Invalid App Token");
             }
-
+            
             odinContext.Caller = ctx.Caller;
             odinContext.SetPermissionContext(ctx.PermissionsContext);
 
@@ -110,7 +110,7 @@ namespace Odin.Hosting.Authentication.ClientToken
             {
                 return AuthenticateResult.Success(await CreateAnonYouAuthTicket(odinContext));
             }
-
+            
             odinContext.Caller = ctx.Caller;
             odinContext.SetPermissionContext(ctx.PermissionsContext);
 

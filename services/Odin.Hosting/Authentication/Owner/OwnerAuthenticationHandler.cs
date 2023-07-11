@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Authorization;
@@ -107,6 +108,10 @@ namespace Odin.Hosting.Authentication.Owner
             {
                 return false;
             }
+            
+            //🐈⏰
+            var catTime = SequentialGuid.ToUnixTimeUtc(token.Id);
+            odinContext.AuthTokenCreated = catTime;
             
             odinContext.Caller = ctx.Caller;
             odinContext.SetPermissionContext(ctx.PermissionsContext);

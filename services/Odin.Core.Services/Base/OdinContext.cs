@@ -1,5 +1,8 @@
+using System;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Time;
 
 namespace Odin.Core.Services.Base
 {
@@ -29,7 +32,13 @@ namespace Odin.Core.Services.Base
         {
             get { return _permissionsContext; }
         }
-        
+
+
+        /// <summary>
+        /// The age of the <see cref="ClientAuthenticationToken"/>
+        /// </summary>
+        public UnixTimeUtc? AuthTokenCreated { get; set; }
+
         public void SetPermissionContext(PermissionContext pc)
         {
             //This is only exist to ensure we only set permissions in the DotYouContextMiddleware

@@ -108,14 +108,14 @@ namespace Odin.Core.Services.Authentication.Owner
             };
 
             EnsureFirstLoginSet();
-            
+
             return (auth, serverToken.SharedSecret.ToSensitiveByteArray());
         }
 
         /// <summary>
-        /// Determines if the <paramref name="token"/> is valid and has not expired.  
+        /// Determines if the <paramref name="sessionToken"/> is valid and has not expired.  
         /// </summary>
-        /// <param name="token">The token to be validated</param>
+        /// <param name="sessionToken">The token to be validated</param>
         /// <returns></returns>
         public async Task<bool> IsValidToken(Guid sessionToken)
         {
@@ -198,8 +198,7 @@ namespace Odin.Core.Services.Authentication.Owner
                 dotYouContext.SetPermissionContext(permissionContext);
 
                 dotYouContext.Caller = new CallerContext(
-                    odinId: _tenantContext
-                        .HostOdinId, //TODO: this works because we only have one identity per host.  this must be updated when i can have multiple identities for a single host
+                    odinId: _tenantContext.HostOdinId, //TODO: this works because we only have one identity per host.  this must be updated when i can have multiple identities for a single host
                     masterKey: masterKey,
                     securityLevel: SecurityGroupType.Owner);
 
@@ -270,9 +269,9 @@ namespace Odin.Core.Services.Authentication.Owner
 
             return Task.CompletedTask;
         }
-        
+
         //
-        
+
         private void EnsureFirstLoginSet()
         {
             var fli = _tenantSystemStorage.SingleKeyValueStorage.Get<FirstOwnerLoginInfo>(FirstOwnerLoginInfo.Key);
@@ -284,11 +283,5 @@ namespace Odin.Core.Services.Authentication.Owner
                 });
             }
         }
-    }
-
-    public class FirstOwnerLoginInfo
-    {
-        public static readonly GuidId Key = GuidId.FromString("first-login-key");
-        public UnixTimeUtc FirstLoginDate { get; set; }
     }
 }

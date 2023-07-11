@@ -173,7 +173,6 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
         /// <summary>
         /// Creates a permission group of anonymous drives
         /// </summary>
-        /// <param name="permissionKeys">The permission keys to add to the permission group</param>
         /// <returns></returns>
         public async Task<PermissionGroup> CreateAnonymousDrivePermissionGroup()
         {
@@ -222,7 +221,7 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
 
             var reg = new AccessRegistration()
             {
-                Id = GuidId.NewId(),
+                Id = SequentialGuid.CreateGuid(),
                 AccessRegistrationClientType = clientType,
                 Created = UnixTimeUtc.Now().milliseconds,
                 ClientAccessKeyEncryptedKeyStoreKey = serverAccessKey,

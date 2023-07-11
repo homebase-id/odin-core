@@ -193,7 +193,7 @@ namespace Odin.Core.Services.Authorization.Apps
                             AccessRegistrationId = accessReg.Id
                         })
                 };
-
+                
                 dotYouContext.SetPermissionContext(permissionContext);
                 return dotYouContext;
             }

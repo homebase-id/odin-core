@@ -10,8 +10,6 @@ namespace Odin.Core.Services.Authentication.Owner;
 public class RecoveryService
 {
     private readonly OdinContextAccessor _contextAccessor;
-
-
     private readonly SingleKeyValueStorage _storage;
     private readonly GuidId _recordKey = GuidId.FromString("_recoveryKey");
 
@@ -24,29 +22,56 @@ public class RecoveryService
     /// <summary>
     /// Validates the recovery key and returns the decrypted master key, if valid.
     /// </summary>
-    public SensitiveByteArray AssertValidKey(SensitiveByteArray recoveryKey)
+    public void AssertValidKey(SensitiveByteArray recoveryKey, out SensitiveByteArray masterKey)
     {
-        var existingKey = _storage.Get<RecoveryKeyRecord>(_recordKey);
-
+        var existingKey = GetKeyInternal();
         if (null == existingKey?.MasterKeyEncryptedRecoverKey)
         {
             throw new OdinSystemException("Recovery key not configured");
         }
 
-        var masterKey = existingKey.RecoveryKeyEncryptedMasterKey.DecryptKeyClone(ref recoveryKey);
+        masterKey = existingKey.RecoveryKeyEncryptedMasterKey.DecryptKeyClone(ref recoveryKey);
     }
 
-    public void SaveKey(SensitiveByteArray recoveryKey)
+    public async Task CreateInitialKey()
     {
-        //encrypt with master key
+        var keyRecord = _storage.Get<RecoveryKeyRecord>(_recordKey);
+        if (null != keyRecord)
+        {
+            throw new OdinSystemException("Recovery key already exists");
+        }
+
+        var key = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+        this.SaveKey(key);
+        await Task.CompletedTask;
+    }
+
+    public Task<byte[]> GetKey()
+    {
+        // _contextAccessor.GetCurrent().AuthTokenCreated?.
+        //TODO: check the age of the ClientAuthToken; it must be more than XX days old
+        var keyRecord = GetKeyInternal();
+        var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+        var recoverKey = keyRecord.MasterKeyEncryptedRecoverKey.DecryptKeyClone(ref masterKey);
+        return Task.FromResult(recoverKey.GetKey());
+    }
+
+    private RecoveryKeyRecord GetKeyInternal()
+    {
+        var existingKey = _storage.Get<RecoveryKeyRecord>(_recordKey);
+        return existingKey;
+    }
+
+    private void SaveKey(SensitiveByteArray recoveryKey)
+    {
         var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
 
         //TODO: what validations are needed here?
         var record = new RecoveryKeyRecord()
         {
             MasterKeyEncryptedRecoverKey = new SymmetricKeyEncryptedAes(ref masterKey, ref recoveryKey),
-            RecoveryKeyEncryptedMasterKey = new SymmetricKeyEncryptedAes(ref recoveryKey, ref masterKey),
-            Created = UnixTimeUtc.Now()
+            Created = UnixTimeUtc.Now(),
+            RecoveryKeyEncryptedMasterKey = new SymmetricKeyEncryptedAes(ref recoveryKey, ref masterKey)
         };
 
         _storage.Upsert(_recordKey, record);
