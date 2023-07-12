@@ -1,5 +1,6 @@
 using System;
 using Odin.Core.Services.Drives.DriveCore.Query;
+using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Time;
 
 namespace Odin.Core.Services.Drives;
@@ -20,6 +21,8 @@ public class GetQueryBatchRequest
 
     public int[] FileType { get; set; } = null;
     public int[] DataType { get; set; } = null;
+
+    public FileState[] FileState { get; set; } = null;
 
     public int[] ArchivalStatus { get; set; } = null;
 
@@ -59,7 +62,7 @@ public class GetQueryBatchRequest
 
     public Sorting Sorting { get; set; }
 
-    public QueryBatchRequest toQueryBatchRequest () {
+    public QueryBatchRequest ToQueryBatchRequest () {
         return new QueryBatchRequest() {
             QueryParams = new FileQueryParams() {
                 TargetDrive = new TargetDrive() {
@@ -68,6 +71,7 @@ public class GetQueryBatchRequest
                 },
                 FileType = this.FileType,
                 DataType = this.DataType,
+                FileState = this.FileState,
                 ArchivalStatus = this.ArchivalStatus,
                 Sender = this.Sender,
                 GroupId = this.GroupId,

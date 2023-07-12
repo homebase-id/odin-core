@@ -1,6 +1,7 @@
 using Dawn;
 using Odin.Core.Services.Drives.DriveCore.Query;
 using System;
+using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Time;
 
 namespace Odin.Core.Services.Drives;
@@ -30,6 +31,8 @@ public class GetCollectionQueryParamSection {
     public Guid Type { get; set; }
 
     public int[] FileType { get; set; } = null;
+    public FileState[] FileState { get; set; } = null;
+    
     public int[] DataType { get; set; } = null;
 
     public int[] ArchivalStatus { get; set; } = null;
@@ -70,7 +73,7 @@ public class GetCollectionQueryParamSection {
 
     public Sorting Sorting { get; set; }
 
-    public CollectionQueryParamSection toCollectionQueryParamSection () {
+    public CollectionQueryParamSection ToCollectionQueryParamSection () {
         return new CollectionQueryParamSection() {
             Name = this.Name,
             QueryParams = new FileQueryParams() {
@@ -79,6 +82,7 @@ public class GetCollectionQueryParamSection {
                     Type = this.Type,
                 },
                 FileType = this.FileType,
+                FileState = this.FileState,
                 DataType = this.DataType,
                 ArchivalStatus = this.ArchivalStatus,
                 Sender = this.Sender,

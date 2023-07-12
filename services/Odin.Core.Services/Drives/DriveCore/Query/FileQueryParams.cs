@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Dawn;
+using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Time;
 
 namespace Odin.Core.Services.Drives.DriveCore.Query;
@@ -9,6 +10,9 @@ public class FileQueryParams
 {
     public TargetDrive TargetDrive { get; set; }
     public IEnumerable<int> FileType { get; set; } = null;
+  
+    public IEnumerable<FileState> FileState { get; set; } = null;
+
     public IEnumerable<int> DataType { get; set; } = null;
 
     public IEnumerable<int> ArchivalStatus { get; set; } = null;
