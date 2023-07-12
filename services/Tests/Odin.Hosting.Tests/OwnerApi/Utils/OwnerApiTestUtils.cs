@@ -36,6 +36,7 @@ using Odin.Core.Storage;
 using Odin.Hosting.Authentication.Owner;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
+using Odin.Hosting.Controllers.OwnerToken.Auth;
 using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Odin.Hosting.Tests.AppAPI.Transit;
 using Odin.Hosting.Tests.AppAPI.Utils;
@@ -51,7 +52,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 {
     public class OwnerApiTestUtils
     {
-        private readonly string _password = "EnSøienØ";
+        private readonly string _defaultOwnerPassword = "EnSøienØ";
         private readonly Dictionary<string, OwnerAuthTokenContext> _ownerLoginTokens = new(StringComparer.InvariantCultureIgnoreCase);
 
         internal static bool ServerCertificateCustomValidation(HttpRequestMessage requestMessage, X509Certificate2 certificate, X509Chain chain,
@@ -121,9 +122,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             var newPasswordResponse = await svc.SetNewPassword(saltyReply);
             Assert.IsTrue(newPasswordResponse.IsSuccessStatusCode, "failed forcing a new password");
         }
-        
-        
-        public async Task ResetPassword(string identity, string recoveryKey, string password)
+
+
+        public async Task<ApiResponse<HttpContent>> ResetPassword(string identity, string recoveryKey, string password)
         {
             var handler = new HttpClientHandler();
             var jar = new CookieContainer();
@@ -151,17 +152,15 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
             //TODO: RSA Encrypt
             string encryptedRecoveryKey = recoveryKey;
-            
+
             var resetRequest = new ResetPasswordRequest()
             {
                 RecoveryKey64 = encryptedRecoveryKey,
                 PasswordReply = saltyReply
             };
-            
-            var resetPasswordResponse = await svc.ResetPassword(resetRequest);
-            Assert.IsTrue(resetPasswordResponse.IsSuccessStatusCode, "failed forcing a new password");
+
+            return await svc.ResetPassword(resetRequest);
         }
-        
 
         public async Task<(ClientAuthenticationToken cat, SensitiveByteArray sharedSecret)> LoginToOwnerConsole(string identity, string password)
         {
@@ -182,7 +181,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             Assert.IsTrue(nonceResponse.IsSuccessStatusCode, "server failed when getting nonce");
             var clientNonce = nonceResponse.Content;
 
-            //HACK: need to refactor types and drop the clientnoncepackage
+            //HACK: need to refactor types and drop the client nonce package
             var nonce = new NonceData(clientNonce!.SaltPassword64, clientNonce.SaltKek64, clientNonce.PublicPem, clientNonce.CRC)
             {
                 Nonce64 = clientNonce.Nonce64
@@ -216,12 +215,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             throw new Exception($"No token found for {identity}");
         }
 
-        public async Task SetupOwnerAccount(OdinId identity, bool initializeIdentity)
+        public async Task SetupOwnerAccount(OdinId identity, bool initializeIdentity, string password = null)
         {
-            const string password = "EnSøienØ";
-            await this.ForceNewPassword(identity, password);
+            var pwd = password ?? this._defaultOwnerPassword;
+            await this.ForceNewPassword(identity, pwd);
 
-            var (result, sharedSecret) = await this.LoginToOwnerConsole(identity, this._password);
+            var (result, sharedSecret) = await this.LoginToOwnerConsole(identity, pwd);
 
             var context = new OwnerAuthTokenContext()
             {

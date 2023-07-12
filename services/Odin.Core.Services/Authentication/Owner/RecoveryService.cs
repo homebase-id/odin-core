@@ -1,7 +1,9 @@
+using System;
 using System.Threading.Tasks;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Configuration;
 using Odin.Core.Storage;
 using Odin.Core.Time;
 
@@ -12,17 +14,19 @@ public class RecoveryService
     private readonly OdinContextAccessor _contextAccessor;
     private readonly SingleKeyValueStorage _storage;
     private readonly GuidId _recordKey = GuidId.FromString("_recoveryKey");
+    private readonly OdinConfiguration _odinConfiguration;
 
-    public RecoveryService(TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor)
+    public RecoveryService(TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor, OdinConfiguration odinConfiguration)
     {
         _contextAccessor = contextAccessor;
+        _odinConfiguration = odinConfiguration;
         _storage = tenantSystemStorage.SingleKeyValueStorage;
     }
 
     /// <summary>
     /// Validates the recovery key and returns the decrypted master key, if valid.
     /// </summary>
-    public void AssertValidKey(SensitiveByteArray recoveryKey, out SensitiveByteArray masterKey)
+    public void AssertValidKey(string recoveryKey, out SensitiveByteArray masterKey)
     {
         var existingKey = GetKeyInternal();
         if (null == existingKey?.MasterKeyEncryptedRecoverKey)
@@ -30,7 +34,9 @@ public class RecoveryService
             throw new OdinSystemException("Recovery key not configured");
         }
 
-        masterKey = existingKey.RecoveryKeyEncryptedMasterKey.DecryptKeyClone(ref recoveryKey);
+        var key = recoveryKey.ToUtf8ByteArray().ToSensitiveByteArray();
+
+        masterKey = existingKey.RecoveryKeyEncryptedMasterKey.DecryptKeyClone(ref key);
     }
 
     public async Task CreateInitialKey()
@@ -41,19 +47,45 @@ public class RecoveryService
             throw new OdinSystemException("Recovery key already exists");
         }
 
-        var key = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+        var key = new Guid(ByteArrayUtil.GetRndByteArray(16)).ToString("N");
         this.SaveKey(key);
+
         await Task.CompletedTask;
     }
 
-    public Task<byte[]> GetKey()
+    public Task<DecryptedRecoveryKey> GetKey()
     {
-        // _contextAccessor.GetCurrent().AuthTokenCreated?.
+        var ctx = _contextAccessor.GetCurrent();
+        ctx.Caller.AssertHasMasterKey();
+
+        if (ctx.AuthTokenCreated == null)
+        {
+            throw new OdinSecurityException("Could not validate token creation date");
+        }
+
+        var recoveryKeyWaitingPeriod = TimeSpan.FromDays(14);
+
+#if DEBUG
+        recoveryKeyWaitingPeriod = TimeSpan.FromSeconds(_odinConfiguration.Development!.RecoveryKeyWaitingPeriodSeconds);
+#endif
+
+        if (UnixTimeUtc.Now() > ctx.AuthTokenCreated!.Value.AddMilliseconds((Int64)recoveryKeyWaitingPeriod.TotalMilliseconds))
+        {
+            throw new OdinSecurityException($"Cannot reveal token before {recoveryKeyWaitingPeriod.Days} days from creation");
+        }
+
         //TODO: check the age of the ClientAuthToken; it must be more than XX days old
         var keyRecord = GetKeyInternal();
         var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
         var recoverKey = keyRecord.MasterKeyEncryptedRecoverKey.DecryptKeyClone(ref masterKey);
-        return Task.FromResult(recoverKey.GetKey());
+
+        var rk = new DecryptedRecoveryKey
+        {
+            Key = recoverKey.GetKey().ToStringFromUtf8Bytes(),
+            Created = keyRecord.Created
+        };
+
+        return Task.FromResult(rk);
     }
 
     private RecoveryKeyRecord GetKeyInternal()
@@ -62,8 +94,11 @@ public class RecoveryService
         return existingKey;
     }
 
-    private void SaveKey(SensitiveByteArray recoveryKey)
+    private void SaveKey(string key)
     {
+        //TODO: need to review the type of encryption im doing here. i.e. using
+        // SymmetricKeyEncryptedAes fixes my key size to 32 bytes
+        var recoveryKey = key.ToUtf8ByteArray().ToSensitiveByteArray();
         var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
 
         //TODO: what validations are needed here?
@@ -76,6 +111,12 @@ public class RecoveryService
 
         _storage.Upsert(_recordKey, record);
     }
+}
+
+public class DecryptedRecoveryKey
+{
+    public string Key { get; set; }
+    public UnixTimeUtc Created { get; set; }
 }
 
 public class RecoveryKeyRecord

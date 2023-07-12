@@ -1,4 +1,6 @@
+using System.Net.Http;
 using System.Threading.Tasks;
+using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Base;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
@@ -26,7 +28,7 @@ public class SecurityApiClient
         }
     }
 
-    public async Task<ApiResponse<string>> GetAccountRecoveryKey()
+    public async Task<ApiResponse<DecryptedRecoveryKey>> GetAccountRecoveryKey()
     {
         var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
@@ -36,8 +38,8 @@ public class SecurityApiClient
         }
     }
 
-    public async Task ResetPassword(string recoveryKey, string newPassword)
+    public async Task<ApiResponse<HttpContent>> ResetPassword(string recoveryKey, string newPassword)
     {
-        await _ownerApi.ResetPassword(this._identity.OdinId, recoveryKey, newPassword);
+        return await _ownerApi.ResetPassword(this._identity.OdinId, recoveryKey, newPassword);
     }
 }

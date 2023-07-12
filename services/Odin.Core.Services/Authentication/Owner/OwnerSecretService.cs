@@ -166,8 +166,8 @@ namespace Odin.Core.Services.Authentication.Owner
 
         public async Task ResetPassword(ResetPasswordRequest request)
         {
-            //decrypt and validate account recovery key 
-            var recoveryKey = (new byte[16]).ToSensitiveByteArray();
+            //TODO RSA or ECC - decrypt and validate account recovery key 
+            var recoveryKey = request.RecoveryKey64;
 
             _recoveryService.AssertValidKey(recoveryKey, out var masterKey);
             await SavePassword(request.PasswordReply, masterKey);

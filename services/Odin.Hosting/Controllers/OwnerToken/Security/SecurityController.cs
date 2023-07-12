@@ -35,7 +35,7 @@ public class SecurityController : Controller
     }
 
     [HttpGet("recovery-key")]
-    public async Task<byte[]> GetAccountRecoveryKey()
+    public async Task<DecryptedRecoveryKey> GetAccountRecoveryKey()
     {
         return await _recoveryService.GetKey();
     }

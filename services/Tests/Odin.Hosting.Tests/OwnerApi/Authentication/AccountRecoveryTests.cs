@@ -1,7 +1,16 @@
+using System;
+using System.Collections.Generic;
 using System.Net;
+using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core.Cryptography;
+using Odin.Core.Cryptography.Data;
+using Odin.Core.Services.Registry.Registration;
+using Odin.Core.Time;
+using Odin.Hosting.Controllers.OwnerToken.Auth;
+using Refit;
 
 namespace Odin.Hosting.Tests.OwnerApi.Authentication
 {
@@ -12,9 +21,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
-            string folder = MethodBase.GetCurrentMethod().DeclaringType.Name;
+            string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
             _scaffold = new WebScaffold(folder);
-            _scaffold.RunBeforeAnyTests();
+            
+            var dict = new Dictionary<string, string>()
+            {
+                { "Development__RecoveryKeyWaitingPeriodSeconds", "60" }
+            };
+            _scaffold.RunBeforeAnyTests(false, false);
         }
 
         [OneTimeTearDown]
@@ -24,54 +38,118 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
         }
 
         [Test]
-        [Ignore("Setup additional digital identities dedicated to testing these")]
+        // [Ignore("Setup additional digital identities dedicated to testing these")]
         public async Task CanGetAccountRecoveryKey()
         {
-            var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
-            var key = await ownerClient.Security.GetAccountRecoveryKey();
+            var identity = TestIdentities.Frodo;
+            await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, true);
 
-            Assert.IsNotNull(key.Content);
+            var ownerClient = _scaffold.CreateOwnerApiClient(identity);
+            var response = await ownerClient.Security.GetAccountRecoveryKey();
+
+            Assert.IsTrue(response.IsSuccessStatusCode);
+
+            var decryptedRecoveryKey = response.Content;
+            Assert.IsTrue(decryptedRecoveryKey.Created < UnixTimeUtc.Now());
+            Assert.IsNotEmpty(decryptedRecoveryKey.Key);
+            Assert.IsNotNull(decryptedRecoveryKey.Key);
+            Assert.IsTrue(decryptedRecoveryKey.Key.Length == 32);
+
             //TODO: additional checks on the key
         }
 
         [Test]
-        [Ignore("Setup additional digital identities dedicated to testing these")]
-        public async Task FailToGetAccountRecoveryKeyOutsideOfTimeWindow()
-        {
-            var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
-            var response = await ownerClient.Security.GetAccountRecoveryKey();
-            Assert.IsTrue(response.StatusCode == HttpStatusCode.BadRequest);
-        }
-
-        [Test]
-        [Ignore("Setup additional digital identities dedicated to testing these")]
         public async Task CanResetPasswordUsingAccountRecoveryKey()
         {
-            var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
+            var identity = TestIdentities.TomBombadil;
+            const string password = "8833CC039d!!~!";
+            const string newPassword = "672c~!!9402044";
+
+            await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, true, password);
+
+            //Ensure we can login using the first password
+            var firstLoginResponse = await this.Login(identity.OdinId, password);
+            Assert.IsTrue(firstLoginResponse.IsSuccessStatusCode);
+
+            var ownerClient = _scaffold.CreateOwnerApiClient(identity);
             var response = await ownerClient.Security.GetAccountRecoveryKey();
+            Assert.IsTrue(response.IsSuccessStatusCode);
 
-            string recoveryKey = response.Content;
-            const string newPassword = "##99coco!";
+            var decryptedRecoveryKey = response.Content;
+            Assert.IsTrue(decryptedRecoveryKey.Created < UnixTimeUtc.Now());
 
-            await ownerClient.Security.ResetPassword(recoveryKey, newPassword);
+            var key = decryptedRecoveryKey.Key;
+            var resetPasswordResponse = await ownerClient.Security.ResetPassword(key, newPassword);
+            Assert.IsTrue(resetPasswordResponse.IsSuccessStatusCode, $"failed resetting password to newPassword with key [{key}]");
 
-            //login with new password
+
+            //login with the password
+            var secondLogin = await this.Login(identity.OdinId, newPassword);
+            Assert.IsTrue(secondLogin.IsSuccessStatusCode);
+
+            // Additional tests
+            // Test that I can access data in drives as owner; this shows the master key is the same
+            // Test can i send a file over transit as owner; this shows the master key is still good for the Icr Encryption key
         }
 
         [Test]
-        [Ignore("Setup additional digital identities dedicated to testing these")]
         public async Task FailToResetPasswordUsingInvalidAccountRecoveryKey()
         {
-            var ownerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Frodo);
+            var identity = TestIdentities.Pippin;
+            const string password = "8833CC039d!!~!";
+            const string newPassword = "672c~!!9402044";
+
+            await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, true, password);
+
+            //Ensure we can login using the first password
+            var firstLogin = await this.Login(identity.OdinId, password);
+            Assert.IsTrue(firstLogin.IsSuccessStatusCode);
+
+            var ownerClient = _scaffold.CreateOwnerApiClient(identity);
             var response = await ownerClient.Security.GetAccountRecoveryKey();
+            Assert.IsTrue(response.IsSuccessStatusCode);
 
-            string recoveryKey = response.Content;
-            const string newPassword = "##99coco!";
+            var invalidRecoveryKey = Guid.NewGuid().ToString("N");
+            var resetPasswordResponse = await ownerClient.Security.ResetPassword(invalidRecoveryKey, newPassword);
+            Assert.IsFalse(resetPasswordResponse.IsSuccessStatusCode, $"shoudl have failed resetting password to newPassword with an invalid recovery key [{invalidRecoveryKey}]");
 
-            await ownerClient.Security.ResetPassword(recoveryKey, newPassword);
+            // Fail to login with new password
+            var secondLogin = await this.Login(identity.OdinId, newPassword);
+            Assert.IsTrue(secondLogin.StatusCode == HttpStatusCode.Forbidden, "Should have failed to login with the new password");
 
-            
-            //validate can login w/ old password
+            // Succeed in logging in with old password
+            var thirdLogin = await this.Login(identity.OdinId, password);
+            Assert.IsTrue(thirdLogin.IsSuccessStatusCode, "Should have been able to login with old password");
+        }
+
+        // [Test]
+        // public async Task FailToCreateInvalidAccountRecoveryKey()
+        // {
+        //     //too short
+        // }
+
+
+        private async Task<ApiResponse<OwnerAuthenticationResult>> Login(string identity, string password)
+        {
+            using HttpClient authClient = new()
+            {
+                BaseAddress = new Uri($"https://{DnsConfigurationSet.PrefixApi}.{identity}")
+            };
+
+            var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
+
+            var nonceResponse = await svc.GenerateNonce();
+            Assert.IsTrue(nonceResponse.IsSuccessStatusCode, "server failed when getting nonce");
+            var clientNonce = nonceResponse.Content;
+
+            var nonce = new NonceData(clientNonce!.SaltPassword64, clientNonce.SaltKek64, clientNonce.PublicPem, clientNonce.CRC)
+            {
+                Nonce64 = clientNonce.Nonce64
+            };
+
+            var reply = PasswordDataManager.CalculatePasswordReply(password, nonce);
+            var response = await svc.Authenticate(reply);
+            return response;
         }
     }
 }

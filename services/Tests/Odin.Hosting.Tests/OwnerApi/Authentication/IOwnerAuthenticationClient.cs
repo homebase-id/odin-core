@@ -1,4 +1,5 @@
 using System;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Odin.Core.Cryptography;
 using Odin.Core.Fluff;
@@ -34,7 +35,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
         Task<ApiResponse<NoResultResponse>> SetNewPassword([Body] PasswordReply reply);
 
         [Post(RootPath + "/resetpasswd")]
-        Task<IApiResponse> ResetPassword([Body] ResetPasswordRequest reply);
+        Task<ApiResponse<HttpContent>> ResetPassword([Body] ResetPasswordRequest reply);
         
         [Get(RootPath + "/getsalts")]
         Task<ApiResponse<ClientNoncePackage>> GenerateNewSalts();

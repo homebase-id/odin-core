@@ -13,6 +13,16 @@ namespace Odin.Hosting.Tests
 
     public static class TestIdentities
     {
+        public static readonly TestIdentity TomBombadil = new TestIdentity()
+        {
+            OdinId = (OdinId)"tom.dotyou.cloud",
+            ContactData = new ContactRequestData()
+            {
+                Name = "Tom Bombadil",
+                ImageId = new Guid()
+            }
+        };
+
         public static readonly TestIdentity Frodo = new TestIdentity()
         {
             OdinId = (OdinId)"frodo.dotyou.cloud",
@@ -56,7 +66,8 @@ namespace Odin.Hosting.Tests
             { Frodo.OdinId, Frodo },
             { Samwise.OdinId, Samwise },
             { Merry.OdinId, Merry },
-            { Pippin.OdinId, Pippin }
+            { Pippin.OdinId, Pippin },
+            { TomBombadil.OdinId, TomBombadil }
         };
     }
 }
