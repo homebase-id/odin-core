@@ -32,7 +32,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             _currentTenant = tenantProvider.GetCurrentTenant()!.Name;
             _youAuthService = youAuthService;
         }
-        
+
         [HttpGet("create-token-flow")]
         [Produces("application/json")]
         public async Task<ActionResult> CreateTokenFlow([FromQuery(Name = YouAuthDefaults.ReturnUrl)]string returnUrl)
@@ -54,12 +54,12 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 {YouAuthDefaults.ReturnUrl, returnUrl},
             });
 
-            var redirectUrl = $"https://{DnsConfigurationSet.PrefixApi}.{initiator}".UrlAppend(
+            var redirectUrl = $"https://{initiator}".UrlAppend(
                 YouAuthApiPathConstants.ValidateAuthorizationCodeRequestPath,
                 queryString.ToUriComponent());
-            
+
             return Redirect(redirectUrl);
         }
-        
+
     }
 }
