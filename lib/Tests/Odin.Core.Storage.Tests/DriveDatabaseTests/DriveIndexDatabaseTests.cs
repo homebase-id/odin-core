@@ -463,6 +463,58 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
 
 
         [Test]
+        public void FileStateTest()
+        {
+            using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            _testDatabase.CreateDatabase();
+
+            var f1 = SequentialGuid.CreateGuid();
+            var s1 = SequentialGuid.CreateGuid().ToByteArray();
+            var t1 = SequentialGuid.CreateGuid();
+            var f2 = SequentialGuid.CreateGuid();
+            var f3 = SequentialGuid.CreateGuid();
+            var f4 = SequentialGuid.CreateGuid();
+            var f5 = SequentialGuid.CreateGuid();
+
+            _testDatabase.AddEntry(f1, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 0, null, null, fileState: 1);
+            _testDatabase.AddEntry(f2, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 1, null, null, fileState: 1);
+            _testDatabase.AddEntry(f3, Guid.NewGuid(), 1, 1, s1, t1, null, 0, new UnixTimeUtc(0), 2, null, null, fileState: 2);
+            _testDatabase.AddEntry(f4, Guid.NewGuid(), 1, 1, s1, t1, null, 1, new UnixTimeUtc(0), 2, null, null, fileState: 2);
+            _testDatabase.AddEntry(f5, Guid.NewGuid(), 1, 1, s1, t1, null, 1, new UnixTimeUtc(0), 3, null, null, fileState: 3);
+
+            QueryBatchCursor cursor = null;
+            var (result, moreRows) = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange, fileStateAnyOf: new List<Int32>() { 0 });
+            Debug.Assert(result.Count == 0);
+            Debug.Assert(moreRows == false);
+
+            cursor = null;
+            (result, moreRows) = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange, fileStateAnyOf: new List<Int32>() { 3 });
+            Debug.Assert(result.Count == 1);
+            Debug.Assert(moreRows == false);
+
+            cursor = null;
+            (result, moreRows) = _testDatabase.QueryBatchAuto(10, ref cursor, requiredSecurityGroup: allIntRange, fileStateAnyOf: new List<Int32>() { 1, 2 });
+            Debug.Assert(result.Count == 4);
+            Debug.Assert(moreRows == false);
+
+            _testDatabase.UpdateEntryZapZap(f1, fileState: 42);
+
+            var c2 = new UnixTimeUtcUnique(0);
+            (result, moreRows) = _testDatabase.QueryModified(10, ref c2, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 1);
+            Debug.Assert(moreRows == false);
+
+            _testDatabase.UpdateEntry(f2, fileState: 43);
+
+            cursor = null;
+            (result, moreRows) = _testDatabase.QueryBatchAuto(10, ref cursor, fileStateAnyOf: new List<Int32>() { 42,43 }, requiredSecurityGroup: allIntRange);
+            Debug.Assert(result.Count == 2);
+            Debug.Assert(moreRows == false);
+        }
+
+
+
+        [Test]
         public void ArchivalStatusTest()
         {
             using DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
