@@ -28,6 +28,36 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                   _globalTransitId = value;
                }
         }
+        private Int32 _fileState;
+        public Int32 fileState
+        {
+           get {
+                   return _fileState;
+               }
+           set {
+                  _fileState = value;
+               }
+        }
+        private Int32 _requiredSecurityGroup;
+        public Int32 requiredSecurityGroup
+        {
+           get {
+                   return _requiredSecurityGroup;
+               }
+           set {
+                  _requiredSecurityGroup = value;
+               }
+        }
+        private Int32 _fileSystemType;
+        public Int32 fileSystemType
+        {
+           get {
+                   return _fileSystemType;
+               }
+           set {
+                  _fileSystemType = value;
+               }
+        }
         private UnixTimeUtc _userDate;
         public UnixTimeUtc userDate
         {
@@ -110,26 +140,6 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                   _uniqueId = value;
                }
         }
-        private Int32 _requiredSecurityGroup;
-        public Int32 requiredSecurityGroup
-        {
-           get {
-                   return _requiredSecurityGroup;
-               }
-           set {
-                  _requiredSecurityGroup = value;
-               }
-        }
-        private Int32 _fileSystemType;
-        public Int32 fileSystemType
-        {
-           get {
-                   return _fileSystemType;
-               }
-           set {
-                  _fileSystemType = value;
-               }
-        }
         private UnixTimeUtcUnique _created;
         public UnixTimeUtcUnique created
         {
@@ -171,6 +181,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
         private SqliteParameter _insertParam12 = null;
         private SqliteParameter _insertParam13 = null;
         private SqliteParameter _insertParam14 = null;
+        private SqliteParameter _insertParam15 = null;
         private SqliteCommand _updateCommand = null;
         private static Object _updateLock = new Object();
         private SqliteParameter _updateParam1 = null;
@@ -187,6 +198,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
         private SqliteParameter _updateParam12 = null;
         private SqliteParameter _updateParam13 = null;
         private SqliteParameter _updateParam14 = null;
+        private SqliteParameter _updateParam15 = null;
         private SqliteCommand _upsertCommand = null;
         private static Object _upsertLock = new Object();
         private SqliteParameter _upsertParam1 = null;
@@ -203,6 +215,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
         private SqliteParameter _upsertParam12 = null;
         private SqliteParameter _upsertParam13 = null;
         private SqliteParameter _upsertParam14 = null;
+        private SqliteParameter _upsertParam15 = null;
         private SqliteCommand _delete0Command = null;
         private static Object _delete0Lock = new Object();
         private SqliteParameter _delete0Param1 = null;
@@ -247,6 +260,9 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                     "CREATE TABLE IF NOT EXISTS mainIndex("
                      +"fileId BLOB NOT NULL, "
                      +"globalTransitId BLOB  UNIQUE, "
+                     +"fileState INT NOT NULL, "
+                     +"requiredSecurityGroup INT NOT NULL, "
+                     +"fileSystemType INT NOT NULL, "
                      +"userDate INT NOT NULL, "
                      +"fileType INT NOT NULL, "
                      +"dataType INT NOT NULL, "
@@ -255,8 +271,6 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                      +"senderId STRING , "
                      +"groupId BLOB , "
                      +"uniqueId BLOB  UNIQUE, "
-                     +"requiredSecurityGroup INT NOT NULL, "
-                     +"fileSystemType INT NOT NULL, "
                      +"created INT NOT NULL, "
                      +"modified INT  "
                      +", PRIMARY KEY (fileId)"
@@ -275,8 +289,8 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 if (_insertCommand == null)
                 {
                     _insertCommand = _database.CreateCommand();
-                    _insertCommand.CommandText = "INSERT INTO mainIndex (fileId,globalTransitId,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,requiredSecurityGroup,fileSystemType,created,modified) " +
-                                                 "VALUES ($fileId,$globalTransitId,$userDate,$fileType,$dataType,$archivalStatus,$historyStatus,$senderId,$groupId,$uniqueId,$requiredSecurityGroup,$fileSystemType,$created,$modified)";
+                    _insertCommand.CommandText = "INSERT INTO mainIndex (fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,created,modified) " +
+                                                 "VALUES ($fileId,$globalTransitId,$fileState,$requiredSecurityGroup,$fileSystemType,$userDate,$fileType,$dataType,$archivalStatus,$historyStatus,$senderId,$groupId,$uniqueId,$created,$modified)";
                     _insertParam1 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam1);
                     _insertParam1.ParameterName = "$fileId";
@@ -285,56 +299,60 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                     _insertParam2.ParameterName = "$globalTransitId";
                     _insertParam3 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam3);
-                    _insertParam3.ParameterName = "$userDate";
+                    _insertParam3.ParameterName = "$fileState";
                     _insertParam4 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam4);
-                    _insertParam4.ParameterName = "$fileType";
+                    _insertParam4.ParameterName = "$requiredSecurityGroup";
                     _insertParam5 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam5);
-                    _insertParam5.ParameterName = "$dataType";
+                    _insertParam5.ParameterName = "$fileSystemType";
                     _insertParam6 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam6);
-                    _insertParam6.ParameterName = "$archivalStatus";
+                    _insertParam6.ParameterName = "$userDate";
                     _insertParam7 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam7);
-                    _insertParam7.ParameterName = "$historyStatus";
+                    _insertParam7.ParameterName = "$fileType";
                     _insertParam8 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam8);
-                    _insertParam8.ParameterName = "$senderId";
+                    _insertParam8.ParameterName = "$dataType";
                     _insertParam9 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam9);
-                    _insertParam9.ParameterName = "$groupId";
+                    _insertParam9.ParameterName = "$archivalStatus";
                     _insertParam10 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam10);
-                    _insertParam10.ParameterName = "$uniqueId";
+                    _insertParam10.ParameterName = "$historyStatus";
                     _insertParam11 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam11);
-                    _insertParam11.ParameterName = "$requiredSecurityGroup";
+                    _insertParam11.ParameterName = "$senderId";
                     _insertParam12 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam12);
-                    _insertParam12.ParameterName = "$fileSystemType";
+                    _insertParam12.ParameterName = "$groupId";
                     _insertParam13 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam13);
-                    _insertParam13.ParameterName = "$created";
+                    _insertParam13.ParameterName = "$uniqueId";
                     _insertParam14 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam14);
-                    _insertParam14.ParameterName = "$modified";
+                    _insertParam14.ParameterName = "$created";
+                    _insertParam15 = _insertCommand.CreateParameter();
+                    _insertCommand.Parameters.Add(_insertParam15);
+                    _insertParam15.ParameterName = "$modified";
                     _insertCommand.Prepare();
                 }
                 _insertParam1.Value = item.fileId.ToByteArray();
                 _insertParam2.Value = item.globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
-                _insertParam3.Value = item.userDate.milliseconds;
-                _insertParam4.Value = item.fileType;
-                _insertParam5.Value = item.dataType;
-                _insertParam6.Value = item.archivalStatus;
-                _insertParam7.Value = item.historyStatus;
-                _insertParam8.Value = item.senderId ?? (object)DBNull.Value;
-                _insertParam9.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
-                _insertParam10.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
-                _insertParam11.Value = item.requiredSecurityGroup;
-                _insertParam12.Value = item.fileSystemType;
-                _insertParam13.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _insertParam14.Value = DBNull.Value;
+                _insertParam3.Value = item.fileState;
+                _insertParam4.Value = item.requiredSecurityGroup;
+                _insertParam5.Value = item.fileSystemType;
+                _insertParam6.Value = item.userDate.milliseconds;
+                _insertParam7.Value = item.fileType;
+                _insertParam8.Value = item.dataType;
+                _insertParam9.Value = item.archivalStatus;
+                _insertParam10.Value = item.historyStatus;
+                _insertParam11.Value = item.senderId ?? (object)DBNull.Value;
+                _insertParam12.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
+                _insertParam13.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
+                _insertParam14.Value = UnixTimeUtcUnique.Now().uniqueTime;
+                _insertParam15.Value = DBNull.Value;
                 var count = _database.ExecuteNonQuery(_insertCommand);
                 return count;
             } // Lock
@@ -347,10 +365,10 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 if (_upsertCommand == null)
                 {
                     _upsertCommand = _database.CreateCommand();
-                    _upsertCommand.CommandText = "INSERT INTO mainIndex (fileId,globalTransitId,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,requiredSecurityGroup,fileSystemType,created,modified) " +
-                                                 "VALUES ($fileId,$globalTransitId,$userDate,$fileType,$dataType,$archivalStatus,$historyStatus,$senderId,$groupId,$uniqueId,$requiredSecurityGroup,$fileSystemType,$created,$modified)"+
+                    _upsertCommand.CommandText = "INSERT INTO mainIndex (fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,created,modified) " +
+                                                 "VALUES ($fileId,$globalTransitId,$fileState,$requiredSecurityGroup,$fileSystemType,$userDate,$fileType,$dataType,$archivalStatus,$historyStatus,$senderId,$groupId,$uniqueId,$created,$modified)"+
                                                  "ON CONFLICT (fileId) DO UPDATE "+
-                                                 "SET globalTransitId = $globalTransitId,userDate = $userDate,fileType = $fileType,dataType = $dataType,archivalStatus = $archivalStatus,historyStatus = $historyStatus,senderId = $senderId,groupId = $groupId,uniqueId = $uniqueId,requiredSecurityGroup = $requiredSecurityGroup,fileSystemType = $fileSystemType,modified = $modified;";
+                                                 "SET globalTransitId = $globalTransitId,fileState = $fileState,requiredSecurityGroup = $requiredSecurityGroup,fileSystemType = $fileSystemType,userDate = $userDate,fileType = $fileType,dataType = $dataType,archivalStatus = $archivalStatus,historyStatus = $historyStatus,senderId = $senderId,groupId = $groupId,uniqueId = $uniqueId,modified = $modified;";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
                     _upsertParam1.ParameterName = "$fileId";
@@ -359,56 +377,60 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                     _upsertParam2.ParameterName = "$globalTransitId";
                     _upsertParam3 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam3);
-                    _upsertParam3.ParameterName = "$userDate";
+                    _upsertParam3.ParameterName = "$fileState";
                     _upsertParam4 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam4);
-                    _upsertParam4.ParameterName = "$fileType";
+                    _upsertParam4.ParameterName = "$requiredSecurityGroup";
                     _upsertParam5 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam5);
-                    _upsertParam5.ParameterName = "$dataType";
+                    _upsertParam5.ParameterName = "$fileSystemType";
                     _upsertParam6 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam6);
-                    _upsertParam6.ParameterName = "$archivalStatus";
+                    _upsertParam6.ParameterName = "$userDate";
                     _upsertParam7 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam7);
-                    _upsertParam7.ParameterName = "$historyStatus";
+                    _upsertParam7.ParameterName = "$fileType";
                     _upsertParam8 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam8);
-                    _upsertParam8.ParameterName = "$senderId";
+                    _upsertParam8.ParameterName = "$dataType";
                     _upsertParam9 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam9);
-                    _upsertParam9.ParameterName = "$groupId";
+                    _upsertParam9.ParameterName = "$archivalStatus";
                     _upsertParam10 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam10);
-                    _upsertParam10.ParameterName = "$uniqueId";
+                    _upsertParam10.ParameterName = "$historyStatus";
                     _upsertParam11 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam11);
-                    _upsertParam11.ParameterName = "$requiredSecurityGroup";
+                    _upsertParam11.ParameterName = "$senderId";
                     _upsertParam12 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam12);
-                    _upsertParam12.ParameterName = "$fileSystemType";
+                    _upsertParam12.ParameterName = "$groupId";
                     _upsertParam13 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam13);
-                    _upsertParam13.ParameterName = "$created";
+                    _upsertParam13.ParameterName = "$uniqueId";
                     _upsertParam14 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam14);
-                    _upsertParam14.ParameterName = "$modified";
+                    _upsertParam14.ParameterName = "$created";
+                    _upsertParam15 = _upsertCommand.CreateParameter();
+                    _upsertCommand.Parameters.Add(_upsertParam15);
+                    _upsertParam15.ParameterName = "$modified";
                     _upsertCommand.Prepare();
                 }
                 _upsertParam1.Value = item.fileId.ToByteArray();
                 _upsertParam2.Value = item.globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
-                _upsertParam3.Value = item.userDate.milliseconds;
-                _upsertParam4.Value = item.fileType;
-                _upsertParam5.Value = item.dataType;
-                _upsertParam6.Value = item.archivalStatus;
-                _upsertParam7.Value = item.historyStatus;
-                _upsertParam8.Value = item.senderId ?? (object)DBNull.Value;
-                _upsertParam9.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
-                _upsertParam10.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
-                _upsertParam11.Value = item.requiredSecurityGroup;
-                _upsertParam12.Value = item.fileSystemType;
-                _upsertParam13.Value = UnixTimeUtcUnique.Now().uniqueTime;
+                _upsertParam3.Value = item.fileState;
+                _upsertParam4.Value = item.requiredSecurityGroup;
+                _upsertParam5.Value = item.fileSystemType;
+                _upsertParam6.Value = item.userDate.milliseconds;
+                _upsertParam7.Value = item.fileType;
+                _upsertParam8.Value = item.dataType;
+                _upsertParam9.Value = item.archivalStatus;
+                _upsertParam10.Value = item.historyStatus;
+                _upsertParam11.Value = item.senderId ?? (object)DBNull.Value;
+                _upsertParam12.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
+                _upsertParam13.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
                 _upsertParam14.Value = UnixTimeUtcUnique.Now().uniqueTime;
+                _upsertParam15.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 var count = _database.ExecuteNonQuery(_upsertCommand);
                 return count;
             } // Lock
@@ -422,7 +444,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 {
                     _updateCommand = _database.CreateCommand();
                     _updateCommand.CommandText = "UPDATE mainIndex " +
-                                                 "SET globalTransitId = $globalTransitId,userDate = $userDate,fileType = $fileType,dataType = $dataType,archivalStatus = $archivalStatus,historyStatus = $historyStatus,senderId = $senderId,groupId = $groupId,uniqueId = $uniqueId,requiredSecurityGroup = $requiredSecurityGroup,fileSystemType = $fileSystemType,modified = $modified "+
+                                                 "SET globalTransitId = $globalTransitId,fileState = $fileState,requiredSecurityGroup = $requiredSecurityGroup,fileSystemType = $fileSystemType,userDate = $userDate,fileType = $fileType,dataType = $dataType,archivalStatus = $archivalStatus,historyStatus = $historyStatus,senderId = $senderId,groupId = $groupId,uniqueId = $uniqueId,modified = $modified "+
                                                  "WHERE (fileId = $fileId)";
                     _updateParam1 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam1);
@@ -432,62 +454,66 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                     _updateParam2.ParameterName = "$globalTransitId";
                     _updateParam3 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam3);
-                    _updateParam3.ParameterName = "$userDate";
+                    _updateParam3.ParameterName = "$fileState";
                     _updateParam4 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam4);
-                    _updateParam4.ParameterName = "$fileType";
+                    _updateParam4.ParameterName = "$requiredSecurityGroup";
                     _updateParam5 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam5);
-                    _updateParam5.ParameterName = "$dataType";
+                    _updateParam5.ParameterName = "$fileSystemType";
                     _updateParam6 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam6);
-                    _updateParam6.ParameterName = "$archivalStatus";
+                    _updateParam6.ParameterName = "$userDate";
                     _updateParam7 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam7);
-                    _updateParam7.ParameterName = "$historyStatus";
+                    _updateParam7.ParameterName = "$fileType";
                     _updateParam8 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam8);
-                    _updateParam8.ParameterName = "$senderId";
+                    _updateParam8.ParameterName = "$dataType";
                     _updateParam9 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam9);
-                    _updateParam9.ParameterName = "$groupId";
+                    _updateParam9.ParameterName = "$archivalStatus";
                     _updateParam10 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam10);
-                    _updateParam10.ParameterName = "$uniqueId";
+                    _updateParam10.ParameterName = "$historyStatus";
                     _updateParam11 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam11);
-                    _updateParam11.ParameterName = "$requiredSecurityGroup";
+                    _updateParam11.ParameterName = "$senderId";
                     _updateParam12 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam12);
-                    _updateParam12.ParameterName = "$fileSystemType";
+                    _updateParam12.ParameterName = "$groupId";
                     _updateParam13 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam13);
-                    _updateParam13.ParameterName = "$created";
+                    _updateParam13.ParameterName = "$uniqueId";
                     _updateParam14 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam14);
-                    _updateParam14.ParameterName = "$modified";
+                    _updateParam14.ParameterName = "$created";
+                    _updateParam15 = _updateCommand.CreateParameter();
+                    _updateCommand.Parameters.Add(_updateParam15);
+                    _updateParam15.ParameterName = "$modified";
                     _updateCommand.Prepare();
                 }
                 _updateParam1.Value = item.fileId.ToByteArray();
                 _updateParam2.Value = item.globalTransitId?.ToByteArray() ?? (object)DBNull.Value;
-                _updateParam3.Value = item.userDate.milliseconds;
-                _updateParam4.Value = item.fileType;
-                _updateParam5.Value = item.dataType;
-                _updateParam6.Value = item.archivalStatus;
-                _updateParam7.Value = item.historyStatus;
-                _updateParam8.Value = item.senderId ?? (object)DBNull.Value;
-                _updateParam9.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
-                _updateParam10.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
-                _updateParam11.Value = item.requiredSecurityGroup;
-                _updateParam12.Value = item.fileSystemType;
-                _updateParam13.Value = UnixTimeUtcUnique.Now().uniqueTime;
+                _updateParam3.Value = item.fileState;
+                _updateParam4.Value = item.requiredSecurityGroup;
+                _updateParam5.Value = item.fileSystemType;
+                _updateParam6.Value = item.userDate.milliseconds;
+                _updateParam7.Value = item.fileType;
+                _updateParam8.Value = item.dataType;
+                _updateParam9.Value = item.archivalStatus;
+                _updateParam10.Value = item.historyStatus;
+                _updateParam11.Value = item.senderId ?? (object)DBNull.Value;
+                _updateParam12.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
+                _updateParam13.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
                 _updateParam14.Value = UnixTimeUtcUnique.Now().uniqueTime;
+                _updateParam15.Value = UnixTimeUtcUnique.Now().uniqueTime;
                 var count = _database.ExecuteNonQuery(_updateCommand);
                 return count;
             } // Lock
         }
 
-        // SELECT fileId,globalTransitId,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,requiredSecurityGroup,fileSystemType,created,modified
+        // SELECT fileId,globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,created,modified
         public MainIndexRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
         {
             var result = new List<MainIndexRecord>();
@@ -522,90 +548,97 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.userDate = new UnixTimeUtc(rdr.GetInt64(2));
+                item.fileState = rdr.GetInt32(2);
             }
 
             if (rdr.IsDBNull(3))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.fileType = rdr.GetInt32(3);
+                item.requiredSecurityGroup = rdr.GetInt32(3);
             }
 
             if (rdr.IsDBNull(4))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.dataType = rdr.GetInt32(4);
+                item.fileSystemType = rdr.GetInt32(4);
             }
 
             if (rdr.IsDBNull(5))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.archivalStatus = rdr.GetInt32(5);
+                item.userDate = new UnixTimeUtc(rdr.GetInt64(5));
             }
 
             if (rdr.IsDBNull(6))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.historyStatus = rdr.GetInt32(6);
+                item.fileType = rdr.GetInt32(6);
             }
 
             if (rdr.IsDBNull(7))
-                item.senderId = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.senderId = rdr.GetString(7);
+                item.dataType = rdr.GetInt32(7);
             }
 
             if (rdr.IsDBNull(8))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.archivalStatus = rdr.GetInt32(8);
+            }
+
+            if (rdr.IsDBNull(9))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.historyStatus = rdr.GetInt32(9);
+            }
+
+            if (rdr.IsDBNull(10))
+                item.senderId = null;
+            else
+            {
+                item.senderId = rdr.GetString(10);
+            }
+
+            if (rdr.IsDBNull(11))
                 item.groupId = null;
             else
             {
-                bytesRead = rdr.GetBytes(8, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(11, 0, _guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in groupId...");
                 item.groupId = new Guid(_guid);
             }
 
-            if (rdr.IsDBNull(9))
+            if (rdr.IsDBNull(12))
                 item.uniqueId = null;
             else
             {
-                bytesRead = rdr.GetBytes(9, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(12, 0, _guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in uniqueId...");
                 item.uniqueId = new Guid(_guid);
             }
 
-            if (rdr.IsDBNull(10))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.requiredSecurityGroup = rdr.GetInt32(10);
-            }
-
-            if (rdr.IsDBNull(11))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.fileSystemType = rdr.GetInt32(11);
-            }
-
-            if (rdr.IsDBNull(12))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.created = new UnixTimeUtcUnique(rdr.GetInt64(12));
-            }
-
             if (rdr.IsDBNull(13))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.created = new UnixTimeUtcUnique(rdr.GetInt64(13));
+            }
+
+            if (rdr.IsDBNull(14))
                 item.modified = null;
             else
             {
-                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(13));
+                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(14));
             }
             return item;
        }
@@ -655,90 +688,97 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.userDate = new UnixTimeUtc(rdr.GetInt64(1));
+                item.fileState = rdr.GetInt32(1);
             }
 
             if (rdr.IsDBNull(2))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.fileType = rdr.GetInt32(2);
+                item.requiredSecurityGroup = rdr.GetInt32(2);
             }
 
             if (rdr.IsDBNull(3))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.dataType = rdr.GetInt32(3);
+                item.fileSystemType = rdr.GetInt32(3);
             }
 
             if (rdr.IsDBNull(4))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.archivalStatus = rdr.GetInt32(4);
+                item.userDate = new UnixTimeUtc(rdr.GetInt64(4));
             }
 
             if (rdr.IsDBNull(5))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.historyStatus = rdr.GetInt32(5);
+                item.fileType = rdr.GetInt32(5);
             }
 
             if (rdr.IsDBNull(6))
-                item.senderId = null;
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.senderId = rdr.GetString(6);
+                item.dataType = rdr.GetInt32(6);
             }
 
             if (rdr.IsDBNull(7))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.archivalStatus = rdr.GetInt32(7);
+            }
+
+            if (rdr.IsDBNull(8))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.historyStatus = rdr.GetInt32(8);
+            }
+
+            if (rdr.IsDBNull(9))
+                item.senderId = null;
+            else
+            {
+                item.senderId = rdr.GetString(9);
+            }
+
+            if (rdr.IsDBNull(10))
                 item.groupId = null;
             else
             {
-                bytesRead = rdr.GetBytes(7, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(10, 0, _guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in groupId...");
                 item.groupId = new Guid(_guid);
             }
 
-            if (rdr.IsDBNull(8))
+            if (rdr.IsDBNull(11))
                 item.uniqueId = null;
             else
             {
-                bytesRead = rdr.GetBytes(8, 0, _guid, 0, 16);
+                bytesRead = rdr.GetBytes(11, 0, _guid, 0, 16);
                 if (bytesRead != 16)
                     throw new Exception("Not a GUID in uniqueId...");
                 item.uniqueId = new Guid(_guid);
             }
 
-            if (rdr.IsDBNull(9))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.requiredSecurityGroup = rdr.GetInt32(9);
-            }
-
-            if (rdr.IsDBNull(10))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.fileSystemType = rdr.GetInt32(10);
-            }
-
-            if (rdr.IsDBNull(11))
-                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
-            else
-            {
-                item.created = new UnixTimeUtcUnique(rdr.GetInt64(11));
-            }
-
             if (rdr.IsDBNull(12))
+                throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
+            else
+            {
+                item.created = new UnixTimeUtcUnique(rdr.GetInt64(12));
+            }
+
+            if (rdr.IsDBNull(13))
                 item.modified = null;
             else
             {
-                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(12));
+                item.modified = new UnixTimeUtcUnique(rdr.GetInt64(13));
             }
             return item;
        }
@@ -750,7 +790,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 if (_get0Command == null)
                 {
                     _get0Command = _database.CreateCommand();
-                    _get0Command.CommandText = "SELECT globalTransitId,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,requiredSecurityGroup,fileSystemType,created,modified FROM mainIndex " +
+                    _get0Command.CommandText = "SELECT globalTransitId,fileState,requiredSecurityGroup,fileSystemType,userDate,fileType,dataType,archivalStatus,historyStatus,senderId,groupId,uniqueId,created,modified FROM mainIndex " +
                                                  "WHERE fileId = $fileId LIMIT 1;";
                     _get0Param1 = _get0Command.CreateParameter();
                     _get0Command.Parameters.Add(_get0Param1);

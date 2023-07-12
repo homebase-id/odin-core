@@ -147,12 +147,13 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             Int32 requiredSecurityGroup,
             List<Guid> accessControlList,
             List<Guid> tagIdList,
-            Int32 fileSystemType = (int)FileSystemType.Standard
+            Int32 fileSystemType = (int)FileSystemType.Standard,
+            Int32 fileState = 0  // TODO: Todd set this to "normal", perhaps add then enum to lib/
         )
         {
             using (CreateCommitUnitOfWork())
             {
-                TblMainIndex.Insert(new MainIndexRecord() { fileId = fileId, globalTransitId = globalTransitId, userDate = userDate,  fileType = fileType,  dataType = dataType, senderId = senderId.ToString(), groupId = groupId, uniqueId = uniqueId, archivalStatus = archivalStatus, historyStatus = 0, requiredSecurityGroup = requiredSecurityGroup, fileSystemType = fileSystemType });
+                TblMainIndex.Insert(new MainIndexRecord() { fileId = fileId, globalTransitId = globalTransitId, fileState = fileState, userDate = userDate,  fileType = fileType,  dataType = dataType, senderId = senderId.ToString(), groupId = groupId, uniqueId = uniqueId, archivalStatus = archivalStatus, historyStatus = 0, requiredSecurityGroup = requiredSecurityGroup, fileSystemType = fileSystemType });
                 TblAclIndex.InsertRows(fileId, accessControlList);
                 TblTagIndex.InsertRows(fileId, tagIdList);
             }
@@ -171,6 +172,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
         // We do not allow updating the fileId, globalTransitId
         public void UpdateEntry(Guid fileId,
             Guid? globalTransitId = null,
+            Int32? fileState = null,
             Int32? fileType = null,
             Int32? dataType = null,
             byte[] senderId = null,
@@ -186,7 +188,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
         {
             using (CreateCommitUnitOfWork())
             {
-                TblMainIndex.UpdateRow(fileId, globalTransitId: globalTransitId, fileType: fileType, dataType: dataType, senderId: senderId,
+                TblMainIndex.UpdateRow(fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType, senderId: senderId,
                     groupId: groupId, uniqueId: uniqueId, archivalStatus: archivalStatus, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup);
 
                 TblAclIndex.InsertRows(fileId, addAccessControlList);
@@ -202,6 +204,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
         // We do not allow updating the fileId, globalTransitId
         public void UpdateEntryZapZap(Guid fileId,
             Guid? globalTransitId = null,
+            Int32? fileState = null,
             Int32? fileType = null,
             Int32? dataType = null,
             byte[] senderId = null,
@@ -216,7 +219,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
         {
             using (CreateCommitUnitOfWork())
             {
-                TblMainIndex.UpdateRow(fileId, globalTransitId: globalTransitId, fileType: fileType, dataType: dataType, senderId: senderId,
+                TblMainIndex.UpdateRow(fileId, globalTransitId: globalTransitId, fileState: fileState, fileType: fileType, dataType: dataType, senderId: senderId,
                     groupId: groupId, uniqueId: uniqueId, archivalStatus: archivalStatus, userDate: userDate, requiredSecurityGroup: requiredSecurityGroup);
 
                 TblAclIndex.DeleteAllRows(fileId);
@@ -257,6 +260,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             bool newestFirstOrder,
             bool fileIdSort = true,
             Int32? fileSystemType = (int)FileSystemType.Standard,
+            List<int> fileStateAnyOf = null,
             IntRange requiredSecurityGroup = null,
             List<Guid> globalTransitIdAnyOf = null,
             List<int> filetypesAnyOf = null,
@@ -353,6 +357,11 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             {
                 listWhereAnd.Add($"((requiredSecurityGroup >= {requiredSecurityGroup.Start} AND requiredSecurityGroup <= {requiredSecurityGroup.End}) OR " +
                             $"(fileid IN (SELECT DISTINCT fileid FROM aclindex WHERE aclmemberid IN ({HexList(aclAnyOf)}))))");
+            }
+
+            if (IsSet(fileStateAnyOf))
+            {
+                listWhereAnd.Add($"fileState IN ({IntList(fileStateAnyOf)})");
             }
 
             if (IsSet(globalTransitIdAnyOf))
@@ -486,6 +495,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
         public (List<Guid>, bool moreRows) QueryBatchAuto(int noOfItems,
             ref QueryBatchCursor cursor,
             Int32? fileSystemType = (int)FileSystemType.Standard,
+            List<int> fileStateAnyOf = null,
             IntRange requiredSecurityGroup = null,
             List<Guid> globalTransitIdAnyOf = null,
             List<int> filetypesAnyOf = null,
@@ -507,6 +517,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                               newestFirstOrder: true,
                               fileIdSort: true,
                               fileSystemType,
+                              fileStateAnyOf,
                               requiredSecurityGroup,
                               globalTransitIdAnyOf,
                               filetypesAnyOf,
@@ -560,6 +571,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                     //
                     var (r2, moreRows2) = QueryBatchAuto(noOfItems - result.Count, ref cursor,
                         fileSystemType,
+                        fileStateAnyOf,
                         requiredSecurityGroup,
                         globalTransitIdAnyOf,
                         filetypesAnyOf,
@@ -591,6 +603,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                     cursor.pagingCursor = null;
                     return QueryBatchAuto(noOfItems, ref cursor, 
                         fileSystemType, 
+                        fileStateAnyOf,
                         requiredSecurityGroup, 
                         globalTransitIdAnyOf, 
                         filetypesAnyOf, 
