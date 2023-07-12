@@ -65,191 +65,49 @@ namespace Odin.Tests
             // string s = signedEnvelope.GetCompactSortedJson();
         }
 
-        public static string StringifyData(SortedDictionary<string, object> data)
-        {
-            StringBuilder sb = new StringBuilder();
-
-            foreach (KeyValuePair<string, object> entry in data)
-            {
-                sb.Append(entry.Key);
-                sb.Append(":");
-
-                if (entry.Value is SortedDictionary<string, string> nestedDict)
-                {
-                    foreach (KeyValuePair<string, string> nestedEntry in nestedDict)
-                    {
-                        sb.Append(nestedEntry.Key);
-                        sb.Append("=");
-                        sb.Append(nestedEntry.Value);
-                        sb.Append(";");
-                    }
-                }
-                else
-                {
-                    sb.Append(entry.Value.ToString());
-                }
-
-                sb.Append(",");
-            }
-
-            return sb.ToString();
-        }
-
-        public static void Attestation(PunyDomainName identity, SortedDictionary<string, object> dataToAttest)
-        {
-            const string AUTHORITY_IDENTITY = "id.verifyssi.com";
-            const string VERIFYURL = "https://api.verifyssi.com/api/v1/verify?prpt=$signature"; // Replace $signature with the signatureBase64 when calling
-            const string ATTESTATIONTYPE_PERSONALINFO = "personalInfo";
-            string USAGEPOLICY_URL = $"https://{identity.DomainName}/policies/attestation-usage-policy";
-
-            const string CONTENTTYPE_ATTESTATION = "attestation";
-
-            // Verify dataToAttest is not null and contains data
-            if (dataToAttest == null || dataToAttest.Count == 0)
-            {
-                throw new ArgumentException("Invalid attestation data. Please ensure that dataToAttest contains data.");
-            }
-
-            // Let's say we have a document (possibly a file)
-            // We want some additional information in the envelope
-            var additionalInfo = new SortedDictionary<string, object>
-            {
-                { "identity", identity.DomainName },
-                { "issued", ((Instant) UnixTimeUtc.Now()).InUtc().Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) },
-                { "expiration", ((Instant) UnixTimeUtc.Now().AddSeconds(3600*24*365*5)).InUtc().Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) },
-                { "authority", AUTHORITY_IDENTITY },
-                { "URL", VERIFYURL },  
-                { "attestationFormat", ATTESTATIONTYPE_PERSONALINFO },
-                { "usagePolicyUrl", USAGEPOLICY_URL },
-                { "data", dataToAttest }  // Insert dataToAttest here
-            };
-
-            // Make sure it's valid
-            EnvelopeData.VerifyAdditionalInfoTypes(additionalInfo);
-
-            SortedDictionary<string, object> data = (SortedDictionary<string, object>)additionalInfo["data"];
-            string doc = StringifyData(data);
-            byte[] content = doc.ToUtf8ByteArray();
-
-            // Create an Envelope for this document
-            var envelope = new EnvelopeData();
-            envelope.CalculateContentHash(content, CONTENTTYPE_ATTESTATION, additionalInfo);
-
-            // Create an identity and keys needed
-            OdinId testIdentity = new OdinId(AUTHORITY_IDENTITY);
-            SensitiveByteArray testKeyPwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-            EccFullKeyData testEccKey = new EccFullKeyData(testKeyPwd, 1);
-
-            var signedEnvelope = new SignedEnvelope() { Envelope = envelope };
-
-            //  Now let's sign the envelope.
-            signedEnvelope.CreateEnvelopeSignature(testIdentity, testKeyPwd, testEccKey);
-
-            // Check everything is dandy
-            signedEnvelope.VerifyEnvelopeSignatures();
-
-            // For michael to look at the JSON
-            string s = signedEnvelope.GetCompactSortedJson();
-        }
-
-
-        // This function attests that the OdinId is associated with a human.
-        void AttestHuman(PunyDomainName identity)
-        {
-            var dataToAttest = new SortedDictionary<string, object>
-            {
-                { "IsHuman", true }
-            };
-
-            Attestation(identity, dataToAttest);
-        }
-
-        // This function attests to the legal name of the owner of the OdinId.
-        void AttestLegalName(PunyDomainName identity, string legalName)
-        {
-            var dataToAttest = new SortedDictionary<string, object>
-            {
-                { "LegalName", legalName }
-            };
-
-            Attestation(identity, dataToAttest);
-        }
-
-        // This function attests to the residential address of the owner of the OdinId.
-        void AttestResidentialAddress(PunyDomainName identity, SortedDictionary<string, string> address)
-        {
-            var dataToAttest = new SortedDictionary<string, object>
-    {
-        { "ResidentialAddress", address }
-    };
-
-            Attestation(identity, dataToAttest);
-        }
-
-        // This function attests to the email address of the owner of the OdinId.
-        void AttestEmailAddress(PunyDomainName identity, string emailAddress)
-        {
-            var dataToAttest = new SortedDictionary<string, object>
-    {
-        { "EmailAddress", emailAddress }
-    };
-
-            Attestation(identity, dataToAttest);
-        }
-
-        // This function attests to the phone number of the owner of the OdinId.
-        void AttestPhoneNumber(PunyDomainName identity, string phoneNumber)
-        {
-            var dataToAttest = new SortedDictionary<string, object>
-    {
-        { "PhoneNumber", phoneNumber }
-    };
-
-            Attestation(identity, dataToAttest);
-        }
-
-        // This function attests to the birthdate of the owner of the OdinId.
-        void AttestBirthdate(PunyDomainName identity, DateTime birthdate)
-        {
-            var dataToAttest = new SortedDictionary<string, object>
-            {
-                { "Birthdate", birthdate }
-            };
-
-            Attestation(identity, dataToAttest);
-        }
-
-        // This function attests to the nationality of the owner of the OdinId.
-        void AttestNationality(PunyDomainName identity, string nationality)
-        {
-            var dataToAttest = new SortedDictionary<string, object>
-            {
-                { "Nationality", nationality }
-            };
-
-            Attestation(identity, dataToAttest);
-        }
-
 
         [Test]
         public void VerifiedIdentityExperiment()
         {
-            var dataToAttest = new SortedDictionary<string, object>
-            {
-                { "FN", "Frodo Baggins" },
-                { "ADR", new SortedDictionary<string, string>
-                    {
-                        { "street", "Bag End" },
-                        { "city", "Hobbiton" },
-                        { "region", "The Shire" },
-                        { "postalCode", "4242" },
-                        { "country", "Middleearth" }
-                    }
-                }
+            var pwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            var eccKey = new EccFullKeyData(pwd, 1);
+            var frodoPuny = new PunyDomainName("frodo.baggins.me");
+
+            var attestation = AttestationManagement.AttestHuman(eccKey, pwd, frodoPuny);
+            if (AttestationManagement.VerifyAttestation(attestation) != true)
+                throw new Exception("Humaaaan");
+
+            attestation = AttestationManagement.AttestNationality(eccKey, pwd, frodoPuny, "DK");
+            if (AttestationManagement.VerifyAttestation(attestation) != true)
+                throw new Exception("Nationality");
+
+            attestation = AttestationManagement.AttestEmailAddress(eccKey, pwd, frodoPuny, "frodo@baggins.me");
+            if (AttestationManagement.VerifyAttestation(attestation) != true)
+                throw new Exception("Email");
+
+            attestation = AttestationManagement.AttestBirthdate(eccKey, pwd, frodoPuny, new DateTime(2020,10,24));
+            if (AttestationManagement.VerifyAttestation(attestation) != true)
+                throw new Exception("Birthdate");
+
+            attestation = AttestationManagement.AttestLegalName(eccKey, pwd, frodoPuny, "Frodo Baggins");
+            if (AttestationManagement.VerifyAttestation(attestation) != true)
+                throw new Exception("Legal Name");
+
+            attestation = AttestationManagement.AttestPhoneNumber(eccKey, pwd, frodoPuny, "+45 12345678");
+            if (AttestationManagement.VerifyAttestation(attestation) != true)
+                throw new Exception("Phone number");
+
+            var address = new SortedDictionary<string, string>
+            { 
+                { "street", "Bag End" },
+                { "city", "Hobbiton" },
+                { "region", "The Shire" },
+                { "postalCode", "4242" },
+                { "country", "Middle Earth" }
             };
-
-
-            Attestation(new PunyDomainName("frodo.baggins.me"), dataToAttest);
+            attestation = AttestationManagement.AttestResidentialAddress(eccKey, pwd, frodoPuny, address);
+            if (AttestationManagement.VerifyAttestation(attestation) != true)
+                throw new Exception("Address");
         }
 
 
