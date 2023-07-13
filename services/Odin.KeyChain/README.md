@@ -1,6 +1,22 @@
+# KEY-CHAIN TODO
+
+@Todd - Create a space for the service on the same server as the Mail API ("keychain.odin.earth") - @seb reverse proxy?
+@Todd - Give alias to @ms
+@Ms   - Setup CNAME or A in Google for "keychain.odin.earth"
+@Todd - create the service that triggers registration, see code prepped for you.
+@Todd - Create something we can use for a "red circle" if not registered.
+@Todd - Create a red circle if the ECC signature key is rotated (punt for now?)
+@Stef - Add a checkbox step to the initial wizard to register the signing key (checked by default)
+@Stef - Add a red circle in the owner console if registration is missing
+@Stef - Add a button to register the signature key (for when key is rotated or if it failed in the initial wizard)
+@Stef - Add a red circle / green checkmark in some kind of status overview where you can see
+        your signature key. Maybe you can even get your public key there.
+
+@someone - Someday we should have a job that backs up the blockchain.db
+
 # Basic Blockchain Service for Public Key Registration
 
-This project is a simple yet robust blockchain service designed to securely register and store identities' public keys. Each row in the blockchain consists of several crucial elements that help guarantee the integrity and authenticity of the stored data.
+This project is a simple yet robust blockchain service designed to securely register and store identities' public signature keys. Each row in the blockchain consists of several crucial elements that help guarantee the integrity and authenticity of the stored data.
 
 ## Data Structure
 
@@ -12,7 +28,7 @@ Each row in the blockchain includes the following fields:
 - `nonce` (BLOB): A unique nonce value.
 - `signedNonce` (BLOB): The nonce signed by the registering entity.
 - `algorithm` (STRING): The cryptographic algorithm used for signing.
-- `publicKey` (BLOB): The registering entity's public key.
+- `publicKey` (BLOB): The registering entity's public signature key.
 - `recordHash` (BLOB): A unique hash value of this record.
 
 ## Security Features
