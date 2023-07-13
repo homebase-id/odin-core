@@ -23,11 +23,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
         {
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
             _scaffold = new WebScaffold(folder);
-            
-            var dict = new Dictionary<string, string>()
-            {
-                { "Development__RecoveryKeyWaitingPeriodSeconds", "60" }
-            };
             _scaffold.RunBeforeAnyTests(false, false);
         }
 
@@ -42,7 +37,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
         public async Task CanGetAccountRecoveryKey()
         {
             var identity = TestIdentities.Frodo;
-            await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, true);
+            await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, initializeIdentity: false);
 
             var ownerClient = _scaffold.CreateOwnerApiClient(identity);
             var response = await ownerClient.Security.GetAccountRecoveryKey();
@@ -111,7 +106,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
 
             var invalidRecoveryKey = Guid.NewGuid().ToString("N");
             var resetPasswordResponse = await ownerClient.Security.ResetPassword(invalidRecoveryKey, newPassword);
-            Assert.IsFalse(resetPasswordResponse.IsSuccessStatusCode, $"shoudl have failed resetting password to newPassword with an invalid recovery key [{invalidRecoveryKey}]");
+            Assert.IsFalse(resetPasswordResponse.IsSuccessStatusCode,
+                $"shoudl have failed resetting password to newPassword with an invalid recovery key [{invalidRecoveryKey}]");
 
             // Fail to login with new password
             var secondLogin = await this.Login(identity.OdinId, newPassword);

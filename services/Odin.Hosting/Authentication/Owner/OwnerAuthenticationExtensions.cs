@@ -1,5 +1,6 @@
 using System;
 using Microsoft.AspNetCore.Authentication;
+using Odin.Core.Services.Authentication.Owner;
 
 namespace Odin.Hosting.Authentication.Owner
 {

@@ -41,6 +41,7 @@ public class RecoveryService
 
     public async Task CreateInitialKey()
     {
+        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
         var keyRecord = _storage.Get<RecoveryKeyRecord>(_recordKey);
         if (null != keyRecord)
         {
