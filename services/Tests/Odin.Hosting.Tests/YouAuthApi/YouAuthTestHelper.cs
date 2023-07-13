@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Web;
+using Microsoft.AspNetCore.WebUtilities;
 using Odin.Core;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Serialization;
@@ -187,6 +188,32 @@ public static class YouAuthTestHelper
     
     //
 
+    public static Dictionary<string, string> ParseQueryString(string uri)
+    {
+        var result = new Dictionary<string, string>();
+        
+        var parameters = QueryHelpers.ParseQuery(new Uri(uri).Query);
+        foreach (var key in parameters.Keys)
+        {
+            // Sanity
+            if (result.ContainsKey(key))
+            {
+                throw new Exception("HTTP might allow duplicate keys, but we don't!");
+            }
+
+            var values = parameters[key];
+            
+            // Sanity
+            if (values.Count > 1)
+            {
+                throw new Exception("HTTP might allow multiple values, but we don't!");
+            }
+
+            result[key] = values.ToString();
+        }
+
+        return result;
+    }
     
 
 }

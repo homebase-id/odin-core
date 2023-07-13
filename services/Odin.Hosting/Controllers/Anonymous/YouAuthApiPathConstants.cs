@@ -1,4 +1,6 @@
-﻿namespace Odin.Hosting.Controllers.Anonymous
+﻿using System;
+
+namespace Odin.Hosting.Controllers.Anonymous
 {
     public static class YouAuthApiPathConstants
     {
@@ -6,12 +8,22 @@
 
         public const string AuthV1 = BasePathV1 + "/auth";
 
+        [Obsolete("SEB:TODO delete me")]
         public const string ValidateAuthorizationCodeRequestMethodName = "validate-ac-req";
+        [Obsolete("SEB:TODO delete me")]
         public const string ValidateAuthorizationCodeRequestPath = AuthV1 + "/" + ValidateAuthorizationCodeRequestMethodName;
 
+        [Obsolete("SEB:TODO delete me")]
         public const string FinalizeBridgeRequestMethodName = "finalize-bridge";
+        [Obsolete("SEB:TODO delete me")]
         public const string FinalizeBridgeRequestRequestPath = AuthV1 + "/" + FinalizeBridgeRequestMethodName;
-
+        
+        public const string RequestAuthorizationCodeMethodName = "authorize";
+        public const string RequestAuthorizationCodePath = AuthV1 + "/" + RequestAuthorizationCodeMethodName;
+        
+        public const string RedeemCodeForTokenRequestMethodName = "token";
+        public const string RedeemCodeForTokenCodeRequestPath = AuthV1 + "/" + RedeemCodeForTokenRequestMethodName;
+        
         public const string IsAuthenticatedMethodName = "is-authenticated";
         public const string DeleteTokenMethodName = "delete-token"; 
 

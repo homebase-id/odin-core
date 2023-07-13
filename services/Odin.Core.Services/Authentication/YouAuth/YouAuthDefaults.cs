@@ -1,4 +1,5 @@
-﻿using System.Security.Claims;
+﻿using System;
+using System.Security.Claims;
 
 namespace Odin.Core.Services.Authentication.YouAuth
 {
@@ -6,7 +7,9 @@ namespace Odin.Core.Services.Authentication.YouAuth
     {
         public const string AuthorizationCode = "ac";
         public const string Initiator = "initiator";
+        [Obsolete("SEB:TODO delete me")]
         public const string ReturnUrl = "returnUrl";
+        public const string RedirectUri = "redirect_uri";
         public const string Subject = "subject";
         public const string SharedSecret = "ss64";
         
