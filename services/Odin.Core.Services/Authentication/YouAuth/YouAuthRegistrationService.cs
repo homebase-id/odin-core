@@ -21,7 +21,7 @@ namespace Odin.Core.Services.Authentication.YouAuth
     {
         private readonly ILogger<YouAuthRegistrationService> _logger;
         private readonly IYouAuthRegistrationStorage _youAuthRegistrationStorage;
-        private readonly ICircleNetworkService _circleNetworkService;
+        private readonly CircleNetworkService _circleNetworkService;
         private readonly ExchangeGrantService _exchangeGrantService;
         private readonly CircleDefinitionService _circleDefinitionService;
         private readonly TenantContext _tenantContext;
@@ -29,7 +29,7 @@ namespace Odin.Core.Services.Authentication.YouAuth
         private readonly OdinContextCache _cache;
 
         public YouAuthRegistrationService(ILogger<YouAuthRegistrationService> logger, IYouAuthRegistrationStorage youAuthRegistrationStorage, ExchangeGrantService exchangeGrantService,
-            ICircleNetworkService circleNetworkService, CircleDefinitionService circleDefinitionService, TenantContext tenantContext)
+            CircleNetworkService circleNetworkService, CircleDefinitionService circleDefinitionService, TenantContext tenantContext)
         {
             _logger = logger;
             _youAuthRegistrationStorage = youAuthRegistrationStorage;
@@ -67,7 +67,6 @@ namespace Odin.Core.Services.Authentication.YouAuth
         /// Gets the <see cref="GetDotYouContext"/> for the specified token from cache or disk.
         /// </summary>
         /// <param name="token"></param>
-        /// <returns></returns>
         public async Task<OdinContext?> GetDotYouContext(ClientAuthenticationToken token)
         {
             var creator = new Func<Task<OdinContext?>>(async delegate
@@ -206,7 +205,7 @@ namespace Odin.Core.Services.Authentication.YouAuth
                 new Dictionary<string, PermissionGroup>
                 {
                     { "read_anonymous_drives", _exchangeGrantService.CreateAnonymousDrivePermissionGroup().GetAwaiter().GetResult() },
-                    { "read_connections", new PermissionGroup(new PermissionSet(permissionKeys), null, null) }
+                    { "read_connections", new PermissionGroup(new PermissionSet(permissionKeys), null, null, null) }
                 },
                 sharedSecretKey: ss);
 

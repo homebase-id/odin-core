@@ -49,7 +49,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         [HttpGet("batch")]
         public async Task<QueryBatchResponse> QueryBatchGet([FromQuery] GetQueryBatchRequest request)
         {
-            var queryBatchRequest = request.toQueryBatchRequest();
+            var queryBatchRequest = request.ToQueryBatchRequest();
             return await base.QueryBatch(queryBatchRequest);
         }
 
@@ -77,7 +77,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
             var sections = new List<CollectionQueryParamSection>();
             foreach(var query in queries)
             {
-                var section = query.toCollectionQueryParamSection();
+                var section = query.ToCollectionQueryParamSection();
                 section.AssertIsValid();
                 sections.Add(section);
             };

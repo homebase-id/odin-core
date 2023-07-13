@@ -14,10 +14,11 @@ using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Configuration;
+using Odin.Core.Services.Contacts.Circle.Membership;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Mediator;
-using Odin.Core.Services.Mediator.Owner;
+using Odin.Core.Time;
 
 /// <summary>
 /// Goals here are that:
@@ -27,35 +28,41 @@ using Odin.Core.Services.Mediator.Owner;
 ///   * the KEK is only given by the client to the server once when creating a user / changing password / logging in
 ///   * all sessions contain server and client data that when merged results in a KEK (using XOR for speed, maybe reconsider)
 /// </summary>
-///
 namespace Odin.Core.Services.Authentication.Owner
 {
     /// <summary>
+    /// Methods use for logging into the admin client of an Individual's DigitalIdentity
     /// Basic password authentication.  Returns a token you can use to maintain state of authentication (i.e. store in a cookie)
     /// </summary>
-    public class OwnerAuthenticationService : IOwnerAuthenticationService, INotificationHandler<DriveDefinitionAddedNotification>
+    public class OwnerAuthenticationService : INotificationHandler<DriveDefinitionAddedNotification>
     {
         private readonly TenantSystemStorage _tenantSystemStorage;
-        private readonly IOwnerSecretService _secretService;
+        private readonly OwnerSecretService _secretService;
 
         private readonly OdinContextCache _cache;
-        private readonly ILogger<IOwnerAuthenticationService> _logger;
+        private readonly ILogger<OwnerAuthenticationService> _logger;
         private readonly DriveManager _driveManager;
-
+        private readonly CircleNetworkService _circleNetworkService;
         private readonly TenantContext _tenantContext;
+        private readonly IcrKeyService _icrKeyService;
 
-        public OwnerAuthenticationService(ILogger<IOwnerAuthenticationService> logger, IOwnerSecretService secretService,
+        public OwnerAuthenticationService(ILogger<OwnerAuthenticationService> logger, OwnerSecretService secretService,
             TenantSystemStorage tenantSystemStorage,
-            TenantContext tenantContext, OdinConfiguration config, DriveManager driveManager)
+            TenantContext tenantContext, OdinConfiguration config, DriveManager driveManager, CircleNetworkService circleNetworkService, IcrKeyService icrKeyService)
         {
             _logger = logger;
             _secretService = secretService;
             _tenantSystemStorage = tenantSystemStorage;
             _tenantContext = tenantContext;
             _driveManager = driveManager;
+            _circleNetworkService = circleNetworkService;
+            _icrKeyService = icrKeyService;
             _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
         }
 
+        /// <summary>
+        /// Generates a one time value to used when authenticating a user
+        /// </summary>
         public async Task<NonceData> GenerateAuthenticationNonce()
         {
             var salts = await _secretService.GetStoredSalts();
@@ -66,6 +73,11 @@ namespace Odin.Core.Services.Authentication.Owner
             return nonce;
         }
 
+        /// <summary>
+        /// Authenticates the owner based on the <see cref="IPasswordReply"/> specified.
+        /// </summary>
+        /// <param name="reply"></param>
+        /// <exception cref="OdinSecurityException">Thrown when a user cannot be authenticated</exception>
         public async Task<(ClientAuthenticationToken, SensitiveByteArray)> Authenticate(IPasswordReply reply)
         {
             byte[] key = Convert.FromBase64String(reply.Nonce64);
@@ -80,8 +92,9 @@ namespace Odin.Core.Services.Authentication.Owner
 
             // Here we test if the client's provided nonce is saved on the server and if the
             // client's calculated nonceHash is equal to the same calculation on the server
-            await _secretService.TryPasswordKeyMatch(reply.NonceHashedPassword64, reply.Nonce64);
+            await _secretService.AssertPasswordKeyMatch(reply.NonceHashedPassword64, reply.Nonce64);
 
+            //now that the password key matches, we set return the client auth token
             var keys = await this._secretService.GetOfflineRsaKeyList();
             var (clientToken, serverToken) = OwnerConsoleTokenManager.CreateToken(noncePackage, reply, keys);
 
@@ -91,7 +104,6 @@ namespace Odin.Core.Services.Authentication.Owner
 
             // TODO: audit login some where, or in helper class below
 
-
             var auth = new ClientAuthenticationToken()
             {
                 Id = serverToken.Id,
@@ -99,9 +111,16 @@ namespace Odin.Core.Services.Authentication.Owner
                 ClientTokenType = ClientTokenType.Other
             };
 
+            EnsureFirstLoginSet();
+
             return (auth, serverToken.SharedSecret.ToSensitiveByteArray());
         }
 
+        /// <summary>
+        /// Determines if the <paramref name="sessionToken"/> is valid and has not expired.  
+        /// </summary>
+        /// <param name="sessionToken">The token to be validated</param>
+        /// <returns></returns>
         public async Task<bool> IsValidToken(Guid sessionToken)
         {
             //TODO: need to add some sort of validation that this deviceUid has not been rejected/blocked
@@ -109,6 +128,9 @@ namespace Odin.Core.Services.Authentication.Owner
             return await Task.FromResult(IsAuthTokenEntryValid(entry));
         }
 
+        /// <summary>
+        /// Returns the LoginKek used to access the primary and application data encryption keys
+        /// </summary>
         public async Task<(SensitiveByteArray, SensitiveByteArray)> GetMasterKey(Guid sessionToken, SensitiveByteArray clientSecret)
         {
             //TODO: need to audit who and what and why this was accessed (add justification/reason on parameters)
@@ -136,6 +158,8 @@ namespace Odin.Core.Services.Authentication.Owner
             {
                 var (masterKey, clientSharedSecret) = await GetMasterKey(token.Id, token.AccessTokenHalfKey);
 
+                var icrKey = _icrKeyService.GetMasterKeyEncryptedIcrKey();
+
                 var allDrives = await _driveManager.GetDrives(PageOptions.All);
                 var allDriveGrants = allDrives.Results.Select(d => new DriveGrant()
                 {
@@ -150,7 +174,7 @@ namespace Odin.Core.Services.Authentication.Owner
 
                 var permissionGroupMap = new Dictionary<string, PermissionGroup>
                 {
-                    { "owner_drive_grants", new PermissionGroup(new PermissionSet(PermissionKeys.All), allDriveGrants, masterKey) },
+                    { "owner_grants", new PermissionGroup(new PermissionSet(PermissionKeys.All), allDriveGrants, masterKey, icrKey) },
                 };
 
                 var ctx = new PermissionContext(permissionGroupMap, clientSharedSecret);
@@ -161,6 +185,10 @@ namespace Odin.Core.Services.Authentication.Owner
             throw new OdinSecurityException("Invalid owner token");
         }
 
+        /// <summary>
+        /// Gets the <see cref="GetDotYouContext"/> for the specified token from cache or disk.
+        /// </summary>
+        /// <param name="token"></param>
         public Task<OdinContext> GetDotYouContext(ClientAuthenticationToken token)
         {
             var creator = new Func<Task<OdinContext>>(async delegate
@@ -176,8 +204,7 @@ namespace Odin.Core.Services.Authentication.Owner
                 dotYouContext.SetPermissionContext(permissionContext);
 
                 dotYouContext.Caller = new CallerContext(
-                    odinId: _tenantContext
-                        .HostOdinId, //TODO: this works because we only have one identity per host.  this must be updated when i can have multiple identities for a single host
+                    odinId: _tenantContext.HostOdinId, 
                     masterKey: masterKey,
                     securityLevel: SecurityGroupType.Owner);
 
@@ -188,6 +215,10 @@ namespace Odin.Core.Services.Authentication.Owner
             return Task.FromResult(ctx);
         }
 
+        /// <summary>
+        /// Extends the token life by <param name="ttlSeconds"></param> if it is valid.  Otherwise an <see cref="InvalidTokenException"/> is thrown
+        /// </summary>
+        /// <param name="token"></param>
         public async Task ExtendTokenLife(Guid token, int ttlSeconds)
         {
             var entry = await GetValidatedEntry(token);
@@ -197,6 +228,11 @@ namespace Odin.Core.Services.Authentication.Owner
             _tenantSystemStorage.SingleKeyValueStorage.Upsert(entry.Id, entry);
         }
 
+        /// <summary>
+        /// Expires the <paramref name="token"/> thus making it invalid.  This can be used when a user
+        /// clicks logout.  Invalid or expired tokens are ignored.
+        /// </summary>
+        /// <param name="token"></param>
         public void ExpireToken(Guid token)
         {
             _tenantSystemStorage.SingleKeyValueStorage.Delete(token);
@@ -238,6 +274,20 @@ namespace Odin.Core.Services.Authentication.Owner
             }
 
             return Task.CompletedTask;
+        }
+
+        //
+
+        private void EnsureFirstLoginSet()
+        {
+            var fli = _tenantSystemStorage.SingleKeyValueStorage.Get<FirstOwnerLoginInfo>(FirstOwnerLoginInfo.Key);
+            if (fli == null)
+            {
+                _tenantSystemStorage.SingleKeyValueStorage.Upsert(FirstOwnerLoginInfo.Key, new FirstOwnerLoginInfo()
+                {
+                    FirstLoginDate = UnixTimeUtc.Now()
+                });
+            }
         }
     }
 }

@@ -66,7 +66,7 @@ namespace Odin.Hosting.Authentication.System
                     var systemPermissions = new Dictionary<string, PermissionGroup>()
                     {
                         {
-                            "read_followers_only", new PermissionGroup(permissionSet, new List<DriveGrant>() { }, sharedSecret)
+                            "read_followers_only", new PermissionGroup(permissionSet, new List<DriveGrant>() { }, sharedSecret, null)
                         }
                     };
 

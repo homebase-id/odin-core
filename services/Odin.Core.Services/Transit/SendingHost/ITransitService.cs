@@ -11,8 +11,7 @@ namespace Odin.Core.Services.Transit.SendingHost
         /// Sends the specified file
         /// </summary>
         /// <returns></returns>
-        Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile, TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType,
-            ClientAccessTokenSource tokenSource = ClientAccessTokenSource.Circle);
+        Task<Dictionary<string, TransferStatus>> SendFile(InternalDriveFileId internalFile, TransitOptions options, TransferFileType transferFileType, FileSystemType fileSystemType);
 
         /// <summary>
         /// Processes and sends any files in the outbox across all drives

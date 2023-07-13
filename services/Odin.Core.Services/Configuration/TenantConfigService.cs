@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Dawn;
 using Odin.Core.Exceptions;
+using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
@@ -23,7 +24,7 @@ namespace Odin.Core.Services.Configuration;
 /// </summary>
 public class TenantConfigService
 {
-    private readonly ICircleNetworkService _cns;
+    private readonly CircleNetworkService _cns;
     private readonly OdinContextAccessor _contextAccessor;
     private readonly TenantContext _tenantContext;
     private readonly SingleKeyValueStorage _configStorage;
@@ -31,10 +32,16 @@ public class TenantConfigService
     private readonly IAppRegistrationService _appRegistrationService;
     private readonly DriveManager _driveManager;
     private readonly PublicPrivateKeyService _publicPrivateKeyService;
+    private readonly RecoveryService _recoverService;
+    private readonly IcrKeyService _icrKeyService;
 
-    public TenantConfigService(ICircleNetworkService cns, OdinContextAccessor contextAccessor,
+    public TenantConfigService(CircleNetworkService cns, OdinContextAccessor contextAccessor,
         TenantSystemStorage storage, TenantContext tenantContext,
-        IIdentityRegistry registry, IAppRegistrationService appRegistrationService, DriveManager driveManager, PublicPrivateKeyService publicPrivateKeyService)
+        IIdentityRegistry registry, IAppRegistrationService appRegistrationService,
+        DriveManager driveManager,
+        PublicPrivateKeyService publicPrivateKeyService,
+        IcrKeyService icrKeyService,
+        RecoveryService recoverService)
     {
         _cns = cns;
         _contextAccessor = contextAccessor;
@@ -43,6 +50,8 @@ public class TenantConfigService
         _appRegistrationService = appRegistrationService;
         _driveManager = driveManager;
         _publicPrivateKeyService = publicPrivateKeyService;
+        _recoverService = recoverService;
+        _icrKeyService = icrKeyService;
         _configStorage = storage.SingleKeyValueStorage;
         _tenantContext.UpdateSystemConfig(this.GetTenantSettings());
     }
@@ -66,7 +75,11 @@ public class TenantConfigService
             await _registry.MarkRegistrationComplete(request.FirstRunToken.GetValueOrDefault());
         }
 
+        await _recoverService.CreateInitialKey();
+
         await _publicPrivateKeyService.CreateInitialKeys();
+
+        await _icrKeyService.CreateInitialKeys();
 
         await CreateDriveIfNotExists(SystemDriveConstants.CreateChatDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateFeedDriveRequest);
@@ -79,7 +92,6 @@ public class TenantConfigService
         await CreateDriveIfNotExists(SystemDriveConstants.CreateProfileDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateWalletDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateTransientTempDriveRequest);
-
 
         foreach (var rd in request.Drives ?? new List<CreateDriveRequest>())
         {
@@ -172,7 +184,7 @@ public class TenantConfigService
             }
         }
 
-        _cns.UpdateCircleDefinition(systemCircle);
+        _cns.UpdateCircleDefinition(systemCircle).GetAwaiter().GetResult();
     }
 
     public TenantSettings GetTenantSettings()

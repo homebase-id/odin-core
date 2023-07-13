@@ -76,7 +76,7 @@ namespace Odin.Hosting.Authentication.ClientToken
             {
                 return AuthenticateResult.Fail("Invalid App Token");
             }
-
+            
             odinContext.Caller = ctx.Caller;
             odinContext.SetPermissionContext(ctx.PermissionsContext);
 
@@ -110,12 +110,12 @@ namespace Odin.Hosting.Authentication.ClientToken
             {
                 return AuthenticateResult.Success(await CreateAnonYouAuthTicket(odinContext));
             }
-
+            
             odinContext.Caller = ctx.Caller;
             odinContext.SetPermissionContext(ctx.PermissionsContext);
 
             var claims = new List<Claim>();
-            claims.Add(new Claim(ClaimTypes.Name, odinContext.Caller.OdinId));
+            claims.Add(new Claim(ClaimTypes.Name, odinContext.GetCallerOdinIdOrFail()));
             claims.Add(new Claim(OdinClaimTypes.IsIdentityOwner, bool.FalseString, ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer));
             claims.Add(new Claim(OdinClaimTypes.IsAuthenticated, bool.TrueString.ToLower(), ClaimValueTypes.Boolean, OdinClaimTypes.YouFoundationIssuer));
 
@@ -171,7 +171,7 @@ namespace Odin.Hosting.Authentication.ClientToken
 
             var permissionGroupMap = new Dictionary<string, PermissionGroup>
             {
-                { "read_anonymous_drives", new PermissionGroup(new PermissionSet(anonPerms), anonDriveGrants, null) },
+                { "read_anonymous_drives", new PermissionGroup(new PermissionSet(anonPerms), anonDriveGrants, null, null) },
             };
 
             odinContext.Caller = new CallerContext(

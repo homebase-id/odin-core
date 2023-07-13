@@ -22,7 +22,6 @@ using Odin.Core.Cryptography.Data;
 
 namespace Odin.Core.Cryptography
 {
-
     public static class OwnerConsoleTokenManager
     {
         /// <summary>
@@ -39,9 +38,10 @@ namespace Odin.Core.Cryptography
         /// <param name="LoginKeK"></param>
         /// <param name="sharedSecret"></param>
         /// <returns></returns>
-        
+
         //public static (byte[] halfCookie, LoginTokenData token) CreateLoginToken(byte[] LoginKeK, byte[] sharedSecret)
-        public static (SensitiveByteArray clientToken, OwnerConsoleToken token) CreateToken(NonceData loadedNoncePackage, IPasswordReply reply, RsaFullKeyListData listRsa)
+        public static (SensitiveByteArray clientToken, OwnerConsoleToken token) CreateToken(NonceData loadedNoncePackage, IPasswordReply reply,
+            RsaFullKeyListData listRsa)
         {
             var (hpwd64, kek64, sharedsecret64) = PasswordDataManager.ParsePasswordRSAReply(reply, listRsa);
 
@@ -49,7 +49,8 @@ namespace Odin.Core.Cryptography
 
             var serverToken = new OwnerConsoleToken
             {
-                Id = ByteArrayUtil.GetRandomCryptoGuid(),
+                // Id = ByteArrayUtil.GetRandomCryptoGuid(),
+                Id = SequentialGuid.CreateGuid(),
                 SharedSecret = Convert.FromBase64String(sharedsecret64),
                 ExpiryUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds() + ttlSeconds
             };

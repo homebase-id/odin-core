@@ -36,7 +36,7 @@ namespace Odin.Core.Services.DataSubscription
         private readonly FileSystemResolver _fileSystemResolver;
         private readonly TenantSystemStorage _tenantSystemStorage;
         private readonly OdinContextAccessor _contextAccessor;
-        private readonly ICircleNetworkService _circleNetworkService;
+        private readonly CircleNetworkService _circleNetworkService;
         private readonly FeedDistributorService _feedDistributorService;
         private readonly OdinConfiguration _odinConfiguration;
 
@@ -47,7 +47,7 @@ namespace Odin.Core.Services.DataSubscription
             FollowerService followerService,
             ITransitService transitService, DriveManager driveManager, TenantContext tenantContext, ServerSystemStorage serverSystemStorage,
             FileSystemResolver fileSystemResolver, TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor,
-            ICircleNetworkService circleNetworkService,
+            CircleNetworkService circleNetworkService,
             IOdinHttpClientFactory odinHttpClientFactory, OdinConfiguration odinConfiguration)
         {
             _followerService = followerService;

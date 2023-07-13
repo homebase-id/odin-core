@@ -86,9 +86,10 @@ namespace Odin.Hosting
             cb.RegisterType<YouAuthRegistrationStorage>().As<IYouAuthRegistrationStorage>().SingleInstance();
             cb.RegisterType<YouAuthAuthorizationCodeManager>().As<IYouAuthAuthorizationCodeManager>().SingleInstance();
 
-            cb.RegisterType<OwnerSecretService>().As<IOwnerSecretService>().SingleInstance();
+            cb.RegisterType<RecoveryService>().AsSelf().SingleInstance();
+            cb.RegisterType<OwnerSecretService>().AsSelf().SingleInstance();
             cb.RegisterType<OwnerAuthenticationService>()
-                .As<IOwnerAuthenticationService>()
+                .AsSelf()
                 .As<INotificationHandler<DriveDefinitionAddedNotification>>()
                 .SingleInstance();
 
@@ -132,9 +133,10 @@ namespace Odin.Hosting
 
             cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>().SingleInstance();
 
+            cb.RegisterType<IcrKeyService>().AsSelf().SingleInstance();
             cb.RegisterType<CircleDefinitionService>().As<CircleDefinitionService>().SingleInstance();
             cb.RegisterType<CircleNetworkService>()
-                .As<ICircleNetworkService>()
+                .AsSelf()
                 .As<INotificationHandler<DriveDefinitionAddedNotification>>()
                 .As<INotificationHandler<AppRegistrationChangedNotification>>()
                 .SingleInstance();
@@ -149,7 +151,7 @@ namespace Odin.Hosting
             cb.RegisterType<TransitInboxProcessor>().AsSelf()
                 .As<INotificationHandler<RsaKeyRotatedNotification>>()
                 .SingleInstance();
-            
+
             cb.RegisterType<TransitAuthenticationService>()
                 .As<INotificationHandler<IdentityConnectionRegistrationChangedNotification>>()
                 .AsSelf()

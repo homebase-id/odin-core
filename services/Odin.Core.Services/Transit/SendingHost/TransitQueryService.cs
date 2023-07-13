@@ -25,10 +25,10 @@ namespace Odin.Core.Services.Transit.SendingHost;
 public class TransitQueryService
 {
     private readonly IOdinHttpClientFactory _odinHttpClientFactory;
-    private readonly ICircleNetworkService _circleNetworkService;
+    private readonly CircleNetworkService _circleNetworkService;
     private readonly OdinContextAccessor _contextAccessor;
 
-    public TransitQueryService(IOdinHttpClientFactory odinHttpClientFactory, ICircleNetworkService circleNetworkService,
+    public TransitQueryService(IOdinHttpClientFactory odinHttpClientFactory, CircleNetworkService circleNetworkService,
         OdinContextAccessor contextAccessor)
     {
         _odinHttpClientFactory = odinHttpClientFactory;
@@ -75,7 +75,7 @@ public class TransitQueryService
             FileChunk chunk, FileSystemType fileSystemType)
     {
         var (icr, httpClient) = await CreateClient(odinId, fileSystemType);
-        var response = await httpClient.GetPayloadStream(new GetPayloadRequest(){  File = file,Chunk = chunk} );
+        var response = await httpClient.GetPayloadStream(new GetPayloadRequest() { File = file, Chunk = chunk });
 
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
@@ -92,7 +92,7 @@ public class TransitQueryService
         if (payloadIsEncrypted)
         {
             var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeader);
-            ownerSharedSecretEncryptedKeyHeader = ReEncrypt(icr.ClientAccessTokenSharedSecret.ToSensitiveByteArray(), icrEncryptedKeyHeader);
+            ownerSharedSecretEncryptedKeyHeader = ReEncrypt(icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()).SharedSecret, icrEncryptedKeyHeader);
         }
         else
         {
@@ -131,7 +131,7 @@ public class TransitQueryService
         {
             var ssHeader = response.Headers.GetValues(HttpHeaderConstants.IcrEncryptedSharedSecret64Header).Single();
             var icrEncryptedKeyHeader = EncryptedKeyHeader.FromBase64(ssHeader);
-            ownerSharedSecretEncryptedKeyHeader = ReEncrypt(icr.ClientAccessTokenSharedSecret.ToSensitiveByteArray(), icrEncryptedKeyHeader);
+            ownerSharedSecretEncryptedKeyHeader = ReEncrypt(icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()).SharedSecret, icrEncryptedKeyHeader);
         }
         else
         {
@@ -196,8 +196,7 @@ public class TransitQueryService
     private async Task<(IdentityConnectionRegistration, ITransitHostHttpClient)> CreateClient(OdinId odinId, FileSystemType? fileSystemType)
     {
         var icr = await _circleNetworkService.GetIdentityConnectionRegistration(odinId);
-
-        var authToken = icr.IsConnected() ? icr.CreateClientAuthToken() : null;
+        var authToken = icr.IsConnected() ? icr.CreateClientAuthToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()) : null;
         if (authToken == null)
         {
             var httpClient = _odinHttpClientFactory.CreateClient<ITransitHostHttpClient>(odinId, fileSystemType);
@@ -233,7 +232,7 @@ public class TransitQueryService
         EncryptedKeyHeader ownerSharedSecretEncryptedKeyHeader;
         if (sharedSecretEncryptedFileHeader.FileMetadata.PayloadIsEncrypted)
         {
-            var currentKey = icr.ClientAccessTokenSharedSecret.ToSensitiveByteArray();
+            var currentKey = icr.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey()).SharedSecret;
             var icrEncryptedKeyHeader = sharedSecretEncryptedFileHeader.SharedSecretEncryptedKeyHeader;
             ownerSharedSecretEncryptedKeyHeader = ReEncrypt(currentKey, icrEncryptedKeyHeader);
         }

@@ -76,6 +76,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
             var (results, moreRows) = _db.QueryBatchAuto(
                 noOfItems: options.MaxRecords,
                 cursor: ref cursor,
+                fileStateAnyOf: qp.FileState?.Select(f => (int)f).ToList(),
                 fileSystemType: (Int32)fileSystemType,
                 requiredSecurityGroup: securityRange,
                 globalTransitIdAnyOf: qp.GlobalTransitId?.ToList(),
@@ -317,6 +318,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
             globalTransitIdAnyOf: qp.GlobalTransitId?.ToList(),
             filetypesAnyOf: qp.FileType?.ToList(),
             datatypesAnyOf: qp.DataType?.ToList(),
+            fileStateAnyOf: qp.FileState?.Select(f => (int)f).ToList(),
             senderidAnyOf: qp.Sender?.ToList(),
             groupIdAnyOf: qp.GroupId?.Select(g => g).ToList(),
             userdateSpan: qp.UserDate,

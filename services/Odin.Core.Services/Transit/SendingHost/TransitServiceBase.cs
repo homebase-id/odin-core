@@ -19,7 +19,7 @@ namespace Odin.Core.Services.Transit.SendingHost
     public abstract class TransitServiceBase
     {
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
-        private readonly ICircleNetworkService _circleNetworkService;
+        private readonly CircleNetworkService _circleNetworkService;
         private readonly OdinContextAccessor _contextAccessor;
         private readonly FollowerService _followerService;
         private readonly FileSystemResolver _fileSystemResolver;
@@ -27,7 +27,7 @@ namespace Odin.Core.Services.Transit.SendingHost
 
         protected OdinContext OdinContext => _contextAccessor.GetCurrent();
 
-        protected TransitServiceBase(IOdinHttpClientFactory odinHttpClientFactory, ICircleNetworkService circleNetworkService,
+        protected TransitServiceBase(IOdinHttpClientFactory odinHttpClientFactory, CircleNetworkService circleNetworkService,
             OdinContextAccessor contextAccessor, FollowerService followerService, FileSystemResolver fileSystemResolver)
         {
             _odinHttpClientFactory = odinHttpClientFactory;
@@ -54,36 +54,27 @@ namespace Odin.Core.Services.Transit.SendingHost
             return payload;
         }
 
-        protected async Task<ClientAccessToken> ResolveClientAccessToken(OdinId recipient, ClientAccessTokenSource source)
+        protected async Task<ClientAccessToken> ResolveClientAccessToken(OdinId recipient, bool failIfNotConnected = true)
         {
-            //assume source == ClientAccessTokenSource.Circle)
-
             var icr = await _circleNetworkService.GetIdentityConnectionRegistration(recipient);
             if (icr?.IsConnected() == false)
             {
-                if (source == ClientAccessTokenSource.Fallback)
+                if (failIfNotConnected)
                 {
                     return null;
-                    // return new ClientAccessToken()
-                    // {
-                    //     Id = Guid.Empty,
-                    //     AccessTokenHalfKey = Guid.Empty.ToByteArray().ToSensitiveByteArray(),
-                    //     ClientTokenType = ClientTokenType.Follower,
-                    //     SharedSecret = Guid.Empty.ToByteArray().ToSensitiveByteArray(),
-                    // };
                 }
 
                 throw new OdinClientException("Cannot resolve client access token; not connected", OdinClientErrorCode.NotAConnectedIdentity);
             }
 
-            return icr!.CreateClientAccessToken();
+            return icr!.CreateClientAccessToken(_contextAccessor.GetCurrent().PermissionsContext.GetIcrKey());
 
         }
 
-        protected async Task<(ClientAccessToken token, ITransitHostReactionHttpClient client)> CreateReactionContentClient(OdinId odinId, ClientAccessTokenSource tokenSource,
+        protected async Task<(ClientAccessToken token, ITransitHostReactionHttpClient client)> CreateReactionContentClient(OdinId odinId, bool failIfNotConnected = true,
             FileSystemType? fileSystemType = null)
         {
-            var token = await ResolveClientAccessToken(odinId, tokenSource);
+            var token = await ResolveClientAccessToken(odinId, failIfNotConnected);
 
             if (token == null)
             {
@@ -95,14 +86,9 @@ namespace Odin.Core.Services.Transit.SendingHost
                 var httpClient = _odinHttpClientFactory.CreateClientUsingAccessToken<ITransitHostReactionHttpClient>(odinId, token.ToAuthenticationToken(), fileSystemType);
                 return (token, httpClient);
             }
-
-
-            // var httpClient = _dotYouHttpClientFactory.CreateClientUsingAccessToken<ITransitHostReactionHttpClient>(
-            //     odinId, token?.ToAuthenticationToken(), fileSystemType);
-            // return (token, httpClient);
         }
 
-        protected async Task<T> DecryptUsingSharedSecret<T>(SharedSecretEncryptedTransitPayload payload, ClientAccessTokenSource tokenSource)
+        protected async Task<T> DecryptUsingSharedSecret<T>(SharedSecretEncryptedTransitPayload payload)
         {
             var caller = OdinContext.Caller.OdinId;
             Guard.Argument(caller, nameof(OdinContext.Caller.OdinId)).NotNull().Require(v => v.HasValue());

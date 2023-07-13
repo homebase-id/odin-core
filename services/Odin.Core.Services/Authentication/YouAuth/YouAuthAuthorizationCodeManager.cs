@@ -2,26 +2,33 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Cryptography.Data;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Base;
 
 namespace Odin.Core.Services.Authentication.YouAuth
 {
     public interface IYouAuthAuthorizationCodeManager
     {
         ValueTask<string> CreateAuthorizationCode(string initiator, string subject);
-        ValueTask<bool> ValidateAuthorizationCode(string initiator, string authorizationCode);
+        ValueTask<bool> ValidateAuthorizationCode(string initiator, string authorizationCode, out SensitiveByteArray? icrKey);
     }
 
     public sealed class YouAuthAuthorizationCodeManager : IYouAuthAuthorizationCodeManager
     {
-        private readonly TimeSpan _authorizationCodelifetime;
+        private readonly TimeSpan _authorizationCodeLifeTime;
         private readonly Dictionary<string, YouAuthAuthorizationCode> _authorizationCodes = new();
         private readonly object _mutex = new();
+        private readonly OdinContextAccessor _contextAccessor;
+
 
         //
 
-        public YouAuthAuthorizationCodeManager()
+        public YouAuthAuthorizationCodeManager(OdinContextAccessor contextAccessor)
         {
-            _authorizationCodelifetime = TimeSpan.FromSeconds(1000); // SEB:TODO from config
+            _contextAccessor = contextAccessor;
+            _authorizationCodeLifeTime = TimeSpan.FromSeconds(1000); // SEB:TODO from config
         }
 
         //
@@ -38,8 +45,17 @@ namespace Odin.Core.Services.Authentication.YouAuth
                 throw new YouAuthClientException("Invalid subject");
             }
 
-            var code = Guid.NewGuid().ToString(); // SEB:TODO use secure?
-            var authorizationCode = new YouAuthAuthorizationCode(initiator, subject, code, _authorizationCodelifetime);
+            var codeId = Guid.NewGuid(); // SEB:TODO use secure?
+
+            // var codeAsKey = codeId.ToByteArray().ToSensitiveByteArray();
+
+            var code = codeId.ToString();
+            var codeAsKey = ByteArrayUtil.ReduceSHA256Hash(code).ToByteArray().ToSensitiveByteArray();
+
+            var icrKey = _contextAccessor.GetCurrent().PermissionsContext.GetIcrKey();
+            var encryptedIcrKey = new SymmetricKeyEncryptedAes(ref codeAsKey, ref icrKey);
+
+            var authorizationCode = new YouAuthAuthorizationCode(initiator, subject, code, _authorizationCodeLifeTime, encryptedIcrKey);
 
             lock (_mutex)
             {
@@ -51,23 +67,28 @@ namespace Odin.Core.Services.Authentication.YouAuth
 
         //
 
-        public ValueTask<bool> ValidateAuthorizationCode(string initiator, string authorizationCode)
+        public ValueTask<bool> ValidateAuthorizationCode(string initiator, string authorizationCode, out SensitiveByteArray? icrKey)
         {
             if (string.IsNullOrEmpty(authorizationCode) || string.IsNullOrEmpty(initiator))
             {
+                icrKey = null;
                 return new ValueTask<bool>(false);
             }
 
             YouAuthAuthorizationCode? ac;
-            lock(_mutex)
+            lock (_mutex)
             {
                 _authorizationCodes.Remove(authorizationCode, out ac);
             }
 
             if (ac == null || ac.HasExpired || ac.Initiator != initiator)
             {
+                icrKey = null;
                 return new ValueTask<bool>(false);
             }
+
+            var key = ByteArrayUtil.ReduceSHA256Hash(authorizationCode).ToByteArray().ToSensitiveByteArray();
+            icrKey = ac.EncryptedEncryptedIcrKey.DecryptKeyClone(ref key);
 
             return new ValueTask<bool>(true);
         }
@@ -81,14 +102,16 @@ namespace Odin.Core.Services.Authentication.YouAuth
             public string Initiator { get; }
             public string Subject { get; }
             public string Value { get; }
+            public SymmetricKeyEncryptedAes EncryptedEncryptedIcrKey { get; }
 
-            public YouAuthAuthorizationCode(string initiator, string subject, string value, TimeSpan lifetime)
+            public YouAuthAuthorizationCode(string initiator, string subject, string value, TimeSpan lifetime, SymmetricKeyEncryptedAes encryptedIcrKey)
             {
                 CreatedAt = DateTimeOffset.Now;
                 Initiator = initiator;
                 Subject = subject;
                 Value = value;
                 ExpiresAt = CreatedAt + lifetime;
+                EncryptedEncryptedIcrKey = encryptedIcrKey;
             }
 
             public bool HasExpired => DateTimeOffset.Now > ExpiresAt;
@@ -96,6 +119,4 @@ namespace Odin.Core.Services.Authentication.YouAuth
     }
 
     //
-
-
 }

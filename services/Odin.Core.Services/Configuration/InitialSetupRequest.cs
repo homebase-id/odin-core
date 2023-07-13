@@ -10,7 +10,6 @@ namespace Odin.Core.Services.Configuration;
 /// </summary>
 public class InitialSetupRequest
 {
-    
     public Guid? FirstRunToken { get; set; }
     
     /// <summary>

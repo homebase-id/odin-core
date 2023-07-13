@@ -17,9 +17,9 @@ namespace Odin.Core.Services.Authentication.Transit;
 public class TransitAuthenticationService : INotificationHandler<IdentityConnectionRegistrationChangedNotification>
 {
     private readonly OdinContextCache _cache;
-    private readonly ICircleNetworkService _circleNetworkService;
+    private readonly CircleNetworkService _circleNetworkService;
 
-    public TransitAuthenticationService(ICircleNetworkService circleNetworkService, OdinConfiguration config)
+    public TransitAuthenticationService(CircleNetworkService circleNetworkService, OdinConfiguration config)
     {
         _circleNetworkService = circleNetworkService;
         _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);

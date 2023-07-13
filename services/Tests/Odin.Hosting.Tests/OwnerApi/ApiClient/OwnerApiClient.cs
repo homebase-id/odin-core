@@ -44,6 +44,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient
         public AppsApiClient Apps => _appsApiClient;
 
         public SecurityApiClient Security => _securityApiClient;
+
         public CronApiClient Cron => _cronApiClient;
 
         public FollowerApiClient Follower => _followerApiClient;
