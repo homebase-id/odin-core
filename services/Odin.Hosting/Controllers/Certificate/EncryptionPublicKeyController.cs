@@ -37,18 +37,5 @@ namespace Odin.Hosting.Controllers.Certificate
                 Expiration = key.expiration.milliseconds
             };
         }
-
-        [HttpGet("offlinekey")]
-        public async Task<GetOfflinePublicKeyResponse> GetOfflinePublicKey()
-        {
-            var key = await _publicPrivateKeyService.GetOfflinePublicKey();
-
-            return new GetOfflinePublicKeyResponse()
-            {
-                PublicKey = key.publicKey,
-                Crc32 = key.crc32c,
-                Expiration = key.expiration.milliseconds
-            };
-        }
     }
 }

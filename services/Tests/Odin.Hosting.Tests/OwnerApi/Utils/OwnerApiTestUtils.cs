@@ -28,12 +28,14 @@ using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.DriveCore.Storage;
 using Odin.Core.Services.Drives.FileSystem.Base.Upload;
 using Odin.Core.Services.Drives.Management;
+using Odin.Core.Services.EncryptionKeyService;
 using Odin.Core.Services.Registry.Registration;
 using Odin.Core.Services.Transit;
 using Odin.Core.Services.Transit.Encryption;
 using Odin.Core.Services.Transit.ReceivingHost;
 using Odin.Core.Services.Transit.SendingHost;
 using Odin.Core.Storage;
+using Odin.Core.Time;
 using Odin.Hosting.Authentication.Owner;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
@@ -151,12 +153,31 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
             var saltyReply = PasswordDataManager.CalculatePasswordReply(password, saltyNonce);
 
-            //TODO: RSA Encrypt
-            string encryptedRecoveryKey = recoveryKey;
+
+            var publicKeyResponse = await svc.GetPublicKey(RsaKeyType.OfflineKey);
+            Assert.IsTrue(publicKeyResponse.IsSuccessStatusCode);
+            var publicKey = publicKeyResponse.Content;
+
+            var pkData = new RsaPublicKeyData()
+            {
+                publicKey = publicKey.PublicKey,
+                crc32c = publicKey.Crc32,
+                expiration = new UnixTimeUtc(publicKey.Expiration)
+            };
+
+            var keyHeader = KeyHeader.NewRandom16();
+            var encryptedRecoveryKey = new RsaEncryptedPayload()
+            {
+                //Note: i exclude the key type here because the methods that receive
+                //this must decide the encryption they expect
+                Crc32 = pkData.crc32c,
+                RsaEncryptedKeyHeader = pkData.Encrypt(keyHeader.Combine().GetKey()),
+                KeyHeaderEncryptedData = keyHeader.EncryptDataAesAsStream(recoveryKey).ToByteArray()
+            };
 
             var resetRequest = new ResetPasswordRequest()
             {
-                RecoveryKey64 = encryptedRecoveryKey,
+                EncryptedRecoveryKey = encryptedRecoveryKey,
                 PasswordReply = saltyReply
             };
 

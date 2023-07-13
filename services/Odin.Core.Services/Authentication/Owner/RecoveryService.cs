@@ -75,7 +75,6 @@ public class RecoveryService
             throw new OdinSecurityException($"Cannot reveal token before {recoveryKeyWaitingPeriod.Days} days from creation");
         }
 
-        //TODO: check the age of the ClientAuthToken; it must be more than XX days old
         var keyRecord = GetKeyInternal();
         var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
         var recoverKey = keyRecord.MasterKeyEncryptedRecoverKey.DecryptKeyClone(ref masterKey);
@@ -112,18 +111,4 @@ public class RecoveryService
 
         _storage.Upsert(_recordKey, record);
     }
-}
-
-public class DecryptedRecoveryKey
-{
-    public string Key { get; set; }
-    public UnixTimeUtc Created { get; set; }
-}
-
-public class RecoveryKeyRecord
-{
-    public SymmetricKeyEncryptedAes MasterKeyEncryptedRecoverKey { get; set; }
-    public SymmetricKeyEncryptedAes RecoveryKeyEncryptedMasterKey { get; set; }
-
-    public UnixTimeUtc Created { get; set; }
 }

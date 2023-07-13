@@ -74,10 +74,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
             Assert.IsTrue(decryptedRecoveryKey.Created < UnixTimeUtc.Now());
 
             var key = decryptedRecoveryKey.Key;
+            
+            //encrypt using RSA
+            // _publicPrivateKeyService.EncryptPayload(RsaKeyType.OfflineKey, payload)
+            
             var resetPasswordResponse = await ownerClient.Security.ResetPassword(key, newPassword);
             Assert.IsTrue(resetPasswordResponse.IsSuccessStatusCode, $"failed resetting password to newPassword with key [{key}]");
-
-
+            
             //login with the password
             var secondLogin = await this.Login(identity.OdinId, newPassword);
             Assert.IsTrue(secondLogin.IsSuccessStatusCode);

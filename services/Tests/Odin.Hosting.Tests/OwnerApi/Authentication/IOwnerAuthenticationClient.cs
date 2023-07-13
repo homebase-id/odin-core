@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Odin.Core.Cryptography;
 using Odin.Core.Fluff;
 using Odin.Core.Services.Authentication.Owner;
+using Odin.Core.Services.EncryptionKeyService;
 using Odin.Hosting.Controllers.OwnerToken;
 using Odin.Hosting.Controllers.OwnerToken.Auth;
 using Refit;
@@ -39,5 +40,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
         
         [Get(RootPath + "/getsalts")]
         Task<ApiResponse<ClientNoncePackage>> GenerateNewSalts();
+        
+        [Get(RootPath + "/publickey")]
+        Task<ApiResponse<GetPublicKeyResponse>> GetPublicKey(RsaKeyType keyType);
     }
 }

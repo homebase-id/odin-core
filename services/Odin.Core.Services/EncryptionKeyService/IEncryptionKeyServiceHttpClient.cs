@@ -10,9 +10,6 @@ namespace Odin.Core.Services.EncryptionKeyService
     {
         private const string Root = "/api/perimeter/transit/encryption";
         
-        [Get(Root + "/offlineKey")]
-        Task<ApiResponse<GetOfflinePublicKeyResponse>> GetOfflinePublicKey();
-
         [Get(Root + "/publickey")]
         Task<ApiResponse<GetPublicKeyResponse>> GetPublicKey(RsaKeyType keyType);
     }
