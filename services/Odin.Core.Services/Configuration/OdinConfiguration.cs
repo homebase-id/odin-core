@@ -24,7 +24,7 @@ namespace Odin.Core.Services.Configuration
         public QuartzSection Quartz { get; }
         public CertificateRenewalSection CertificateRenewal { get; set; }
 
-        public MailgunSection Mailgun { get;}
+        public MailgunSection Mailgun { get; }
 
         public FeedSection Feed { get; }
         public TransitSection Transit { get; }
@@ -96,10 +96,12 @@ namespace Odin.Core.Services.Configuration
             {
                 PreconfiguredDomains = config.Required<List<string>>("Development:PreconfiguredDomains");
                 SslSourcePath = config.Required<string>("Development:SslSourcePath");
+                RecoveryKeyWaitingPeriodSeconds = config.Required<int>("Development:RecoveryKeyWaitingPeriodSeconds");
             }
 
             public List<string> PreconfiguredDomains { get; }
             public string SslSourcePath { get; }
+            public double RecoveryKeyWaitingPeriodSeconds { get; }
         }
 
         public class RegistrySection
@@ -266,9 +268,9 @@ namespace Odin.Core.Services.Configuration
                 };
             }
         }
-        
+
         //
-        
+
         public class MailgunSection
         {
             public string ApiKey { get; }
@@ -288,9 +290,8 @@ namespace Odin.Core.Services.Configuration
                 Enabled = config.Required<bool>("Mailgun:Enabled");
             }
         }
-        
+
         //
-        
     }
 
     public enum LoggingLevel

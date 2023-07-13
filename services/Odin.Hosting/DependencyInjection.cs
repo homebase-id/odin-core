@@ -86,9 +86,10 @@ namespace Odin.Hosting
             cb.RegisterType<YouAuthRegistrationStorage>().As<IYouAuthRegistrationStorage>().SingleInstance();
             cb.RegisterType<YouAuthAuthorizationCodeManager>().As<IYouAuthAuthorizationCodeManager>().SingleInstance();
 
-            cb.RegisterType<OwnerSecretService>().As<IOwnerSecretService>().SingleInstance();
+            cb.RegisterType<RecoveryService>().AsSelf().SingleInstance();
+            cb.RegisterType<OwnerSecretService>().AsSelf().SingleInstance();
             cb.RegisterType<OwnerAuthenticationService>()
-                .As<IOwnerAuthenticationService>()
+                .AsSelf()
                 .As<INotificationHandler<DriveDefinitionAddedNotification>>()
                 .SingleInstance();
 

@@ -199,7 +199,7 @@ namespace Odin.Core.Services.Authorization.ExchangeGrants
 
             var reg = new AccessRegistration()
             {
-                Id = GuidId.NewId(),
+                Id = SequentialGuid.CreateGuid(),
                 AccessRegistrationClientType = clientType,
                 Created = UnixTimeUtc.Now().milliseconds,
                 ClientAccessKeyEncryptedKeyStoreKey = serverAccessKey,

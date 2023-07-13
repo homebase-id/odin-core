@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Authorization;
@@ -88,7 +89,7 @@ namespace Odin.Hosting.Authentication.Owner
 
         private async Task<bool> UpdateDotYouContext(ClientAuthenticationToken token, OdinContext odinContext)
         {
-            var authService = Context.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
+            var authService = Context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
             odinContext.SetAuthContext(OwnerAuthConstants.SchemeName);
 
             //HACK: fix this
@@ -108,6 +109,10 @@ namespace Odin.Hosting.Authentication.Owner
                 return false;
             }
             
+            //🐈⏰
+            var catTime = SequentialGuid.ToUnixTimeUtc(token.Id);
+            odinContext.AuthTokenCreated = catTime;
+            
             odinContext.Caller = ctx.Caller;
             odinContext.SetPermissionContext(ctx.PermissionsContext);
             
@@ -122,7 +127,7 @@ namespace Odin.Hosting.Authentication.Owner
         {
             if (GetToken(out var result) && result != null)
             {
-                var authService = Context.RequestServices.GetRequiredService<IOwnerAuthenticationService>();
+                var authService = Context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
                 authService.ExpireToken(result.Id);
             }
 

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Cryptography;
@@ -15,10 +16,10 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
     [Route(OwnerApiPathConstants.AuthV1)]
     public class OwnerAuthenticationController : Controller
     {
-        private readonly IOwnerAuthenticationService _authService;
-        private readonly IOwnerSecretService _ss;
+        private readonly OwnerAuthenticationService _authService;
+        private readonly OwnerSecretService _ss;
 
-        public OwnerAuthenticationController(IOwnerAuthenticationService authService, IOwnerSecretService ss)
+        public OwnerAuthenticationController(OwnerAuthenticationService authService, OwnerSecretService ss)
         {
             _authService = authService;
             _ss = ss;
@@ -100,6 +101,13 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         {
             await _ss.SetNewPassword(reply);
             return new NoResultResponse(true);
+        }
+        
+        [HttpPost("resetpasswd")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest reply)
+        {
+            await _ss.ResetPassword(reply);
+            return new OkResult();
         }
         
         [HttpPost("ispasswordset")]

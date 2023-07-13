@@ -31,4 +31,10 @@ namespace Odin.Core.Cryptography
         public string RsaEncrypted { get; set; }
         public Guid? FirstRunToken { get; set; }
     }
+    
+    public class ResetPasswordRequest
+    {
+        public string RecoveryKey64 { get; set; }
+        public PasswordReply PasswordReply { get; set; }
+    }
 }

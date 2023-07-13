@@ -67,7 +67,6 @@ namespace Odin.Core.Services.Authentication.YouAuth
         /// Gets the <see cref="GetDotYouContext"/> for the specified token from cache or disk.
         /// </summary>
         /// <param name="token"></param>
-        /// <returns></returns>
         public async Task<OdinContext?> GetDotYouContext(ClientAuthenticationToken token)
         {
             var creator = new Func<Task<OdinContext?>>(async delegate

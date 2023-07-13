@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using HttpClientFactoryLite;
 using Microsoft.Extensions.Hosting;
@@ -23,8 +25,8 @@ namespace Odin.Hosting.Tests
     public class WebScaffold
     {
         // count TIME_WAIT: netstat -p tcp | grep TIME_WAIT | wc -l
-        public static readonly HttpClientFactoryLite.HttpClientFactory HttpClientFactory = new ();
-        
+        public static readonly HttpClientFactoryLite.HttpClientFactory HttpClientFactory = new();
+
         private readonly string _folder;
 
         // private readonly string _password = "EnSøienØ";
@@ -40,13 +42,13 @@ namespace Odin.Hosting.Tests
 
         static WebScaffold()
         {
-            HttpClientFactory.Register<OwnerApiTestUtils>(b => 
+            HttpClientFactory.Register<OwnerApiTestUtils>(b =>
                 b.ConfigurePrimaryHttpMessageHandler(() => new SharedSecretGetRequestHandler
                 {
                     UseCookies = false // DO NOT CHANGE!
                 }));
-            
-            HttpClientFactory.Register<AppApiTestUtils>(b => 
+
+            HttpClientFactory.Register<AppApiTestUtils>(b =>
                 b.ConfigurePrimaryHttpMessageHandler(() => new SharedSecretGetRequestHandler
                 {
                     UseCookies = false // DO NOT CHANGE!
@@ -59,13 +61,13 @@ namespace Odin.Hosting.Tests
             this._uniqueSubPath = Guid.NewGuid().ToString();
             _oldOwnerApi = new OwnerApiTestUtils();
         }
-        
+
         public static HttpClient CreateHttpClient<T>()
         {
             return HttpClientFactory.CreateClient<T>();
         }
 
-        public void RunBeforeAnyTests(bool initializeIdentity = true)
+        public void RunBeforeAnyTests(bool initializeIdentity = true, bool setupOwnerAccounts = true, Dictionary<string, string> envOverrides = null)
         {
             _testInstancePrefix = Guid.NewGuid().ToString("N");
 
@@ -74,7 +76,7 @@ namespace Odin.Hosting.Tests
 
             Environment.SetEnvironmentVariable("Development__SslSourcePath", "./https/");
             Environment.SetEnvironmentVariable("Development__PreconfiguredDomains",
-                "[\"frodo.dotyou.cloud\",\"sam.dotyou.cloud\", \"merry.dotyou.cloud\",\"pippin.dotyou.cloud\"]");
+                $"[{string.Join(",", TestIdentities.All.Values.Select(v => $"\"{v.OdinId}\""))}]");
 
             Environment.SetEnvironmentVariable("Registry__ProvisioningDomain", "provisioning.dotyou.cloud");
             Environment.SetEnvironmentVariable("Registry__ManagedDomains", "[\"dev.dotyou.cloud\"]");
@@ -117,16 +119,27 @@ namespace Odin.Hosting.Tests
             Environment.SetEnvironmentVariable("Mailgun__DefaultFromEmail", "no-reply@odin.earth");
             Environment.SetEnvironmentVariable("Mailgun__EmailDomain", "odin.earth");
             Environment.SetEnvironmentVariable("Mailgun__Enabled", "false");
-            
+
+            if (envOverrides != null)
+            {
+                foreach (var (key, value) in envOverrides)
+                {
+                    Environment.SetEnvironmentVariable(key, value);
+                }
+            }
+
             CreateData();
             CreateLogs();
 
             _webserver = Program.CreateHostBuilder(Array.Empty<string>()).Build();
             _webserver.Start();
 
-            foreach (var odinId in TestIdentities.All.Keys)
+            if (setupOwnerAccounts)
             {
-                _oldOwnerApi.SetupOwnerAccount((OdinId)odinId, initializeIdentity).GetAwaiter().GetResult();
+                foreach (var odinId in TestIdentities.All.Keys)
+                {
+                    _oldOwnerApi.SetupOwnerAccount((OdinId)odinId, initializeIdentity).GetAwaiter().GetResult();
+                }
             }
 
             _appApi = new AppApiTestUtils(_oldOwnerApi);
