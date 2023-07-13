@@ -38,8 +38,8 @@ namespace OdinsChains.Controllers
         }
 
         // Todd this is a function on an identity that responds to Odin's key chain service and signs a nonce
-        // 
-        public static string SignNonce(string nonceBase64, string tempCodeBase64)
+        //  _ecc would be the identity's signature key
+        public static string SignNonceForKeyChain(string nonceBase64, string tempCodeBase64)
         {
             // @Todd First sanity check the tempCode
             var tempCode = Convert.FromBase64String(tempCodeBase64);
@@ -65,7 +65,10 @@ namespace OdinsChains.Controllers
             // We return the signed data to the requestor
             return Convert.ToBase64String(signature);
         }
+
+        // Todd Look in the simulator "Simulate..." for triggering the registration
     }
+
 
     [ApiController]
     [Route("[controller]")]
@@ -227,6 +230,8 @@ namespace OdinsChains.Controllers
             var r1 = await GetRegister("frodo.baggins.me", Convert.ToBase64String(tempCode));
 
             // If it's OK 200, then you're done.
+            // Done.
+
 
             // Do another hacky one for testing
             SimulateFrodo.GenerateNewKeys();
@@ -384,7 +389,7 @@ namespace OdinsChains.Controllers
 
                 if (_simulate)
                 {
-                    signedNonceBase64 = SimulateFrodo.SignNonce(newRecordToInsert.nonce.ToBase64(), tempCode);
+                    signedNonceBase64 = SimulateFrodo.SignNonceForKeyChain(newRecordToInsert.nonce.ToBase64(), tempCode);
                 }
                 else
                 {
