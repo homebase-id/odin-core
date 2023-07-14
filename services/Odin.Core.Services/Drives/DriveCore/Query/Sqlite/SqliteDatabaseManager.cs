@@ -160,6 +160,7 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
                 requiredSecurityGroup: securityGroup,
                 accessControlList: acl,
                 tagIdList: tags,
+                fileState: (int)metadata.FileState,
                 fileSystemType: (int)header.ServerMetadata.FileSystemType);
         }
         else
@@ -177,7 +178,8 @@ public class SqliteDatabaseManager : IDriveDatabaseManager
                 requiredSecurityGroup: securityGroup,
                 accessControlList: acl,
                 tagIdList: tags,
-                (int)header.ServerMetadata.FileSystemType
+                fileState: (int)metadata.FileState,
+                fileSystemType: (int)header.ServerMetadata.FileSystemType
             );
         }
 

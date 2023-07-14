@@ -53,7 +53,7 @@ namespace Odin.Hosting.Authentication.Owner
 
                 var dotYouContext = Context.RequestServices.GetRequiredService<OdinContext>();
 
-                if (!await UpdateDotYouContext(authResult, dotYouContext))
+                if (!await UpdateOdinContext(authResult, dotYouContext))
                 {
                     return AuthenticateResult.Fail("Invalid Owner Token");
                 }
@@ -87,40 +87,10 @@ namespace Odin.Hosting.Authentication.Owner
             return AuthenticateResult.Fail("Invalid or missing token");
         }
 
-        private async Task<bool> UpdateDotYouContext(ClientAuthenticationToken token, OdinContext odinContext)
+        private async Task<bool> UpdateOdinContext(ClientAuthenticationToken token, OdinContext odinContext)
         {
             var authService = Context.RequestServices.GetRequiredService<OwnerAuthenticationService>();
-            odinContext.SetAuthContext(OwnerAuthConstants.SchemeName);
-
-            //HACK: fix this
-            //a bit of a hack here: we have to set the context as owner
-            //because it's required to build the permission context
-            // this is justified because we're heading down the owner api path
-            // just below this, we check to see if the token was good.  if not, the call fails.
-            odinContext.Caller = new CallerContext(
-                odinId: (OdinId)Request.Host.Host,
-                masterKey: null,
-                securityLevel: SecurityGroupType.Owner);
-
-            OdinContext ctx = await authService.GetDotYouContext(token);
-
-            if (null == ctx)
-            {
-                return false;
-            }
-            
-            //🐈⏰
-            var catTime = SequentialGuid.ToUnixTimeUtc(token.Id);
-            odinContext.AuthTokenCreated = catTime;
-            
-            odinContext.Caller = ctx.Caller;
-            odinContext.SetPermissionContext(ctx.PermissionsContext);
-            
-            //experimental:tell the system the owner is online
-            var mediator = Context.RequestServices.GetRequiredService<IMediator>();
-            await mediator.Publish(new OwnerIsOnlineNotification() { });
-
-            return true;
+            return await authService.UpdateOdinContext(token, odinContext);
         }
 
         public Task SignOutAsync(AuthenticationProperties? properties)

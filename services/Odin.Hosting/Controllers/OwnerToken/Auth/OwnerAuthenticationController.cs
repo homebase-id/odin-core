@@ -7,6 +7,7 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Fluff;
 using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.EncryptionKeyService;
 using Odin.Hosting.Authentication.ClientToken;
 using Odin.Hosting.Authentication.Owner;
 
@@ -18,11 +19,13 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
     {
         private readonly OwnerAuthenticationService _authService;
         private readonly OwnerSecretService _ss;
+        private readonly PublicPrivateKeyService _publicPrivateKeyService;
 
-        public OwnerAuthenticationController(OwnerAuthenticationService authService, OwnerSecretService ss)
+        public OwnerAuthenticationController(OwnerAuthenticationService authService, OwnerSecretService ss, PublicPrivateKeyService publicPrivateKeyService)
         {
             _authService = authService;
             _ss = ss;
+            _publicPrivateKeyService = publicPrivateKeyService;
         }
 
         [HttpGet("verifyToken")]
@@ -121,6 +124,18 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         {
             var salts = await _ss.GenerateNewSalts();
             return salts;
+        }
+        
+        [HttpGet("publickey")]
+        public async Task<GetPublicKeyResponse> GetRsaKey(RsaKeyType keyType)
+        {
+            var key = await _publicPrivateKeyService.GetPublicRsaKey(keyType);
+            return new GetPublicKeyResponse()
+            {
+                PublicKey = key.publicKey,
+                Crc32 = key.crc32c,
+                Expiration = key.expiration.milliseconds
+            };
         }
     }
 }

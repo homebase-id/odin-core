@@ -5,8 +5,8 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
 {
     public enum FileState
     {
+        Deleted = 0,
         Active = 1,
-        Deleted = 2,
         // Archived = 3
     }
     

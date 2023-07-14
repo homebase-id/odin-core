@@ -5,10 +5,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using Dawn;
 using MediatR;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
@@ -18,7 +21,9 @@ using Odin.Core.Services.Contacts.Circle.Membership;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.Management;
 using Odin.Core.Services.Mediator;
+using Odin.Core.Services.Mediator.Owner;
 using Odin.Core.Time;
+using Org.BouncyCastle.Asn1.Ocsp;
 
 /// <summary>
 /// Goals here are that:
@@ -42,21 +47,26 @@ namespace Odin.Core.Services.Authentication.Owner
         private readonly OdinContextCache _cache;
         private readonly ILogger<OwnerAuthenticationService> _logger;
         private readonly DriveManager _driveManager;
-        private readonly CircleNetworkService _circleNetworkService;
         private readonly TenantContext _tenantContext;
         private readonly IcrKeyService _icrKeyService;
+        private readonly TenantConfigService _tenantConfigService;
+        private readonly IHttpContextAccessor _httpContextAccessor;
+
 
         public OwnerAuthenticationService(ILogger<OwnerAuthenticationService> logger, OwnerSecretService secretService,
             TenantSystemStorage tenantSystemStorage,
-            TenantContext tenantContext, OdinConfiguration config, DriveManager driveManager, CircleNetworkService circleNetworkService, IcrKeyService icrKeyService)
+            TenantContext tenantContext, OdinConfiguration config, DriveManager driveManager, IcrKeyService icrKeyService,
+            TenantConfigService tenantConfigService, IHttpContextAccessor httpContextAccessor)
         {
             _logger = logger;
             _secretService = secretService;
             _tenantSystemStorage = tenantSystemStorage;
             _tenantContext = tenantContext;
             _driveManager = driveManager;
-            _circleNetworkService = circleNetworkService;
             _icrKeyService = icrKeyService;
+            _tenantConfigService = tenantConfigService;
+            _httpContextAccessor = httpContextAccessor;
+
             _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
         }
 
@@ -104,16 +114,19 @@ namespace Odin.Core.Services.Authentication.Owner
 
             // TODO: audit login some where, or in helper class below
 
-            var auth = new ClientAuthenticationToken()
+            var token = new ClientAuthenticationToken()
             {
                 Id = serverToken.Id,
                 AccessTokenHalfKey = new SensitiveByteArray(clientToken.GetKey()),
                 ClientTokenType = ClientTokenType.Other
             };
+            
+            //set the odin context so the request of this request can use the master key (note: this was added so we could set keys on first login)
+            var odinContext = _httpContextAccessor.HttpContext.RequestServices.GetRequiredService<OdinContext>();
+            await this.UpdateOdinContext(token, odinContext);
+            await EnsureFirstOperations(token);
 
-            EnsureFirstLoginSet();
-
-            return (auth, serverToken.SharedSecret.ToSensitiveByteArray());
+            return (token, serverToken.SharedSecret.ToSensitiveByteArray());
         }
 
         /// <summary>
@@ -204,7 +217,7 @@ namespace Odin.Core.Services.Authentication.Owner
                 dotYouContext.SetPermissionContext(permissionContext);
 
                 dotYouContext.Caller = new CallerContext(
-                    odinId: _tenantContext.HostOdinId, 
+                    odinId: _tenantContext.HostOdinId,
                     masterKey: masterKey,
                     securityLevel: SecurityGroupType.Owner);
 
@@ -278,16 +291,54 @@ namespace Odin.Core.Services.Authentication.Owner
 
         //
 
-        private void EnsureFirstLoginSet()
+        private async Task EnsureFirstOperations(ClientAuthenticationToken token)
         {
             var fli = _tenantSystemStorage.SingleKeyValueStorage.Get<FirstOwnerLoginInfo>(FirstOwnerLoginInfo.Key);
             if (fli == null)
             {
+                await _tenantConfigService.CreateInitialKeys();
+
                 _tenantSystemStorage.SingleKeyValueStorage.Upsert(FirstOwnerLoginInfo.Key, new FirstOwnerLoginInfo()
                 {
                     FirstLoginDate = UnixTimeUtc.Now()
                 });
             }
+        }
+
+        public async Task<bool> UpdateOdinContext(ClientAuthenticationToken token, OdinContext odinContext)
+        {
+            var context = _httpContextAccessor.HttpContext;
+            odinContext.SetAuthContext(OwnerAuthConstants.SchemeName);
+
+            //HACK: fix this
+            //a bit of a hack here: we have to set the context as owner
+            //because it's required to build the permission context
+            // this is justified because we're heading down the owner api path
+            // just below this, we check to see if the token was good.  if not, the call fails.
+            odinContext.Caller = new CallerContext(
+                odinId: (OdinId)context.Request.Host.Host,
+                masterKey: null,
+                securityLevel: SecurityGroupType.Owner);
+
+            OdinContext ctx = await this.GetDotYouContext(token);
+
+            if (null == ctx)
+            {
+                return false;
+            }
+
+            //🐈⏰
+            var catTime = SequentialGuid.ToUnixTimeUtc(token.Id);
+            odinContext.AuthTokenCreated = catTime;
+
+            odinContext.Caller = ctx.Caller;
+            odinContext.SetPermissionContext(ctx.PermissionsContext);
+
+            //experimental:tell the system the owner is online
+            var mediator = context.RequestServices.GetRequiredService<IMediator>();
+            await mediator.Publish(new OwnerIsOnlineNotification() { });
+
+            return true;
         }
     }
 }

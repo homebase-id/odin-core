@@ -1,4 +1,4 @@
-﻿namespace Odin.Hosting.Authentication.Owner
+﻿namespace Odin.Core.Services.Authentication.Owner
 {
     public static class OwnerAuthConstants
     {

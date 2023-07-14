@@ -148,7 +148,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             List<Guid> accessControlList,
             List<Guid> tagIdList,
             Int32 fileSystemType = (int)FileSystemType.Standard,
-            Int32 fileState = 0  // TODO: Todd set this to "normal", perhaps add then enum to lib/
+            Int32 fileState = 0 
         )
         {
             using (CreateCommitUnitOfWork())
