@@ -41,6 +41,7 @@ public class RecoveryService
 
     public async Task CreateInitialKey()
     {
+        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
         var keyRecord = _storage.Get<RecoveryKeyRecord>(_recordKey);
         if (null != keyRecord)
         {
@@ -48,6 +49,7 @@ public class RecoveryService
         }
 
         var key = new Guid(ByteArrayUtil.GetRndByteArray(16)).ToString("N");
+        // var key = RecoveryKeyGenerator.EncodeKey(ByteArrayUtil.GetRndByteArray(16));
         this.SaveKey(key);
 
         await Task.CompletedTask;
@@ -74,7 +76,6 @@ public class RecoveryService
             throw new OdinSecurityException($"Cannot reveal token before {recoveryKeyWaitingPeriod.Days} days from creation");
         }
 
-        //TODO: check the age of the ClientAuthToken; it must be more than XX days old
         var keyRecord = GetKeyInternal();
         var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
         var recoverKey = keyRecord.MasterKeyEncryptedRecoverKey.DecryptKeyClone(ref masterKey);
@@ -111,18 +112,5 @@ public class RecoveryService
 
         _storage.Upsert(_recordKey, record);
     }
-}
-
-public class DecryptedRecoveryKey
-{
-    public string Key { get; set; }
-    public UnixTimeUtc Created { get; set; }
-}
-
-public class RecoveryKeyRecord
-{
-    public SymmetricKeyEncryptedAes MasterKeyEncryptedRecoverKey { get; set; }
-    public SymmetricKeyEncryptedAes RecoveryKeyEncryptedMasterKey { get; set; }
-
-    public UnixTimeUtc Created { get; set; }
+    
 }

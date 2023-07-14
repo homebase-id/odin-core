@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Dawn;
 using MediatR;
 using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Crypto;
@@ -137,7 +138,7 @@ namespace Odin.Core.Services.EncryptionKeyService
         public Task Handle(OwnerIsOnlineNotification notification, CancellationToken cancellationToken)
         {
             //TODO: add logic to ensure we only call this periodically 
-            this.CreateOrRotateOnlineKeys().GetAwaiter().GetResult();
+            // this.CreateOrRotateOnlineKeys().GetAwaiter().GetResult();
             return Task.CompletedTask;
         }
 
@@ -280,45 +281,15 @@ namespace Odin.Core.Services.EncryptionKeyService
             var pk = RsaKeyListManagement.FindKey(keyList, crc32);
             return Task.FromResult((pk, decryptionKey));
         }
-
-        /// <summary>
-        /// Ensures online RSA keys exist and are update with the latest possible
-        /// </summary>
-        private async Task CreateOrRotateOnlineKeys()
-        {
-            await OnlineKeyCreationLock.WaitAsync();
-
-            try
-            {
-                _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-                var keySet = _tenantSystemStorage.SingleKeyValueStorage.Get<RsaFullKeyListData>(_onlineKeyStorageId);
-                var key = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-                if (RsaKeyListManagement.IsValidKeySet(keySet))
-                {
-                    bool shouldRotate = false; //TODO: what is the logic for this?
-                    if (shouldRotate)
-                    {
-                        int onlineKeyTTL = 48; //TODO: config
-
-                        RsaKeyListManagement.GenerateNewKey(key, keySet, onlineKeyTTL);
-                        _tenantSystemStorage.SingleKeyValueStorage.Upsert(_onlineKeyStorageId, keySet);
-
-                        // await _mediator.Publish(new RsaKeyRotatedNotification(RsaKeyType.OnlineKey, expiredKeys, keySet));
-                    }
-                }
-                else
-                {
-                    await this.CreateNewRsaKeys(key, _onlineKeyStorageId);
-                }
-            }
-            finally
-            {
-                OnlineKeyCreationLock.Release();
-            }
-        }
-
+        
         private Task CreateNewRsaKeys(SensitiveByteArray encryptionKey, Guid storageKey)
         {
+            var existingKeys = _tenantSystemStorage.SingleKeyValueStorage.Get<RsaFullKeyListData>(storageKey);
+            if (null != existingKeys)
+            {
+                throw new OdinSecurityException($"Rsa keys with storage key {storageKey} already exist.");
+            }
+            
             //create a new key list
             var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(encryptionKey,
                 RsaKeyListManagement.DefaultMaxOnlineKeys,
@@ -331,6 +302,13 @@ namespace Odin.Core.Services.EncryptionKeyService
         
         private Task CreateNewEccKeys(SensitiveByteArray encryptionKey, Guid storageKey)
         {
+            var existingKeys = _tenantSystemStorage.SingleKeyValueStorage.Get<EccFullKeyListData>(storageKey);
+            
+            if (null != existingKeys)
+            {
+                throw new OdinSecurityException($"Ecc keys with storage key {storageKey} already exist.");
+            }
+            
             //create a new key list
             var eccKeyList = EccKeyListManagement.CreateEccKeyList(encryptionKey,
                 EccKeyListManagement.DefaultMaxOnlineKeys,
@@ -370,7 +348,7 @@ namespace Odin.Core.Services.EncryptionKeyService
             var keyHeader = KeyHeader.NewRandom16();
             return new RsaEncryptedPayload()
             {
-                //Note: i leave out the key type here because the methods that receive
+                //Note: i exclude the key type here because the methods that receive
                 //this must decide the encryption they expect
                 Crc32 = pk.crc32c,
                 RsaEncryptedKeyHeader = pk.Encrypt(keyHeader.Combine().GetKey()),

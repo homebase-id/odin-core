@@ -63,6 +63,18 @@ public class TenantConfigService
         return firstRunInfo != null;
     }
 
+    public async Task CreateInitialKeys()
+    {
+        _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+        
+        await _recoverService.CreateInitialKey();
+
+        await _publicPrivateKeyService.CreateInitialKeys();
+
+        await _icrKeyService.CreateInitialKeys();
+
+    }
+
     /// <summary>
     /// Configures aspects of the owner's identity that require the master key
     /// </summary>
@@ -74,12 +86,6 @@ public class TenantConfigService
         {
             await _registry.MarkRegistrationComplete(request.FirstRunToken.GetValueOrDefault());
         }
-
-        await _recoverService.CreateInitialKey();
-
-        await _publicPrivateKeyService.CreateInitialKeys();
-
-        await _icrKeyService.CreateInitialKeys();
 
         await CreateDriveIfNotExists(SystemDriveConstants.CreateChatDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateFeedDriveRequest);

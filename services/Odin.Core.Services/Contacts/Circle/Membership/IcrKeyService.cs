@@ -23,10 +23,11 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
         /// <summary>
         /// Creates initial encryption keys
         /// </summary>
-        public async Task CreateInitialKeys()
+        internal async Task CreateInitialKeys()
         {
-            var mk = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-            _storage.CreateIcrKey(mk);
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+            _storage.CreateIcrKey(masterKey);
             await Task.CompletedTask;
         }
 

@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Registry.Registration;
 using Odin.Core.Time;
 using Odin.Hosting.Controllers.OwnerToken.Auth;
@@ -23,11 +24,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
         {
             string folder = MethodBase.GetCurrentMethod()!.DeclaringType!.Name;
             _scaffold = new WebScaffold(folder);
-            
-            var dict = new Dictionary<string, string>()
-            {
-                { "Development__RecoveryKeyWaitingPeriodSeconds", "60" }
-            };
             _scaffold.RunBeforeAnyTests(false, false);
         }
 
@@ -42,7 +38,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
         public async Task CanGetAccountRecoveryKey()
         {
             var identity = TestIdentities.Frodo;
-            await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, true);
+            await _scaffold.OldOwnerApi.SetupOwnerAccount(identity.OdinId, initializeIdentity: false);
 
             var ownerClient = _scaffold.CreateOwnerApiClient(identity);
             var response = await ownerClient.Security.GetAccountRecoveryKey();
@@ -56,6 +52,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
             Assert.IsTrue(decryptedRecoveryKey.Key.Length == 32);
 
             //TODO: additional checks on the key
+            // RecoveryKeyGenerator.Characters
         }
 
         [Test]
@@ -79,10 +76,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
             Assert.IsTrue(decryptedRecoveryKey.Created < UnixTimeUtc.Now());
 
             var key = decryptedRecoveryKey.Key;
+            
+            //encrypt using RSA
+            // _publicPrivateKeyService.EncryptPayload(RsaKeyType.OfflineKey, payload)
+            
             var resetPasswordResponse = await ownerClient.Security.ResetPassword(key, newPassword);
             Assert.IsTrue(resetPasswordResponse.IsSuccessStatusCode, $"failed resetting password to newPassword with key [{key}]");
-
-
+            
             //login with the password
             var secondLogin = await this.Login(identity.OdinId, newPassword);
             Assert.IsTrue(secondLogin.IsSuccessStatusCode);
@@ -111,7 +111,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
 
             var invalidRecoveryKey = Guid.NewGuid().ToString("N");
             var resetPasswordResponse = await ownerClient.Security.ResetPassword(invalidRecoveryKey, newPassword);
-            Assert.IsFalse(resetPasswordResponse.IsSuccessStatusCode, $"shoudl have failed resetting password to newPassword with an invalid recovery key [{invalidRecoveryKey}]");
+            Assert.IsFalse(resetPasswordResponse.IsSuccessStatusCode,
+                $"shoudl have failed resetting password to newPassword with an invalid recovery key [{invalidRecoveryKey}]");
 
             // Fail to login with new password
             var secondLogin = await this.Login(identity.OdinId, newPassword);
