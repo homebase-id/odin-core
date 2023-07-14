@@ -74,7 +74,9 @@ namespace Odin.Hosting.Controllers.Anonymous
                 this.Response.Headers.Add("Access-Control-Allow-Origin", "*");
             }
 
-            this.Response.Headers.Add("Cache-Control", "max-age=31536000");
+            // TODO: set cache control to 1 year; Needs last modified date on the response headers
+            // this.Response.Headers.Add("Cache-Control", "max-age=31536000");
+            this.Response.Headers.Add("Cache-Control", "max-age=120");
 
             return new FileStreamResult(stream, config.ContentType);
         }
