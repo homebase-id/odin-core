@@ -98,7 +98,6 @@ namespace Odin.Core.Cryptography.Data
     public class EccFullKeyData : EccPublicKeyData
     {
         public static string eccSignatureAlgorithm = "SHA-384withECDSA";
-        private static readonly byte[] eccSalt = Guid.Parse("145be569-0281-4abd-b03e-26a99f509f1d").ToByteArray();
         private SensitiveByteArray _privateKey;  // Cached decrypted private key, not stored
 
         public byte[] storedKey { get; set; }  // The key as stored on disk encrypted with a secret key or constant
@@ -228,8 +227,8 @@ namespace Odin.Core.Cryptography.Data
                 return false;
         }
 
-        // Change to private
-        private SensitiveByteArray GetEcdhSharedSecret(SensitiveByteArray pwd, EccPublicKeyData publicKeyData)
+
+        public SensitiveByteArray GetEcdhSharedSecret(SensitiveByteArray pwd, EccPublicKeyData publicKeyData, byte[] salt)
         {
             if (publicKeyData == null)
                 throw new ArgumentNullException(nameof(publicKeyData));
@@ -237,6 +236,11 @@ namespace Odin.Core.Cryptography.Data
             if (publicKeyData.publicKey == null)
                 throw new ArgumentNullException(nameof(publicKeyData.publicKey));
 
+            if (salt == null)
+                throw new ArgumentNullException(nameof(salt));
+
+            if (salt.Length < 16)
+                throw new ArgumentException("Salt must be at least 16 bytes");
 
             // Retrieve the private key from the secure storage
             var privateKeyBytes = GetFullKey(pwd).GetKey();
@@ -256,24 +260,23 @@ namespace Odin.Core.Cryptography.Data
             var sharedSecretBytes = sharedSecret.ToByteArrayUnsigned().ToSensitiveByteArray();
 
             // Apply HKDF to derive a symmetric key from the shared secret
-            return HashUtil.Hkdf(sharedSecretBytes.GetKey(), eccSalt, 16).ToSensitiveByteArray();
+            return HashUtil.Hkdf(sharedSecretBytes.GetKey(), salt, 16).ToSensitiveByteArray();
         }
 
-        public (byte[] tokenToTransmit, SensitiveByteArray SharedSecret) NewTransmittableSharedSecret(SensitiveByteArray pwd, EccPublicKeyData remotePublicKey)
+        [Obsolete("Use GetEcdhSharedSecret() instead and always use a random salt. Send the random salt over the wire.")]
+        public (byte[] tokenToTransmit, SensitiveByteArray SharedSecret) NewTransmittableSharedSecret(SensitiveByteArray pwd, EccPublicKeyData remotePublicKey, byte[] salt)
         {
-            var ecdhSS = GetEcdhSharedSecret(pwd, remotePublicKey);
-            var newSharedSecret = ByteArrayUtil.GetRndByteArray(16);
-            var token = ByteArrayUtil.EquiByteArrayXor(newSharedSecret, ecdhSS.GetKey());
+            var ecdhSS = GetEcdhSharedSecret(pwd, remotePublicKey, salt);
 
-            return (token, newSharedSecret.ToSensitiveByteArray());
+            return (salt, ecdhSS);
         }
 
-        public SensitiveByteArray ResolveSharedSecret(SensitiveByteArray pwd, byte[] tokenReceived, EccPublicKeyData remotePublicKey)
+        [Obsolete("Use GetEcdhSharedSecret() instead and always use a random salt. Send the random salt over the wire.")]
+        public SensitiveByteArray ResolveSharedSecret(SensitiveByteArray pwd, byte[] tokenReceived, EccPublicKeyData remotePublicKey, byte[] salt)
         {
-            var ecdhSS = GetEcdhSharedSecret(pwd, remotePublicKey);
-            var sharedSecret = ByteArrayUtil.EquiByteArrayXor(ecdhSS.GetKey(), tokenReceived);
+            var ecdhSS = GetEcdhSharedSecret(pwd, remotePublicKey, salt);
 
-            return sharedSecret.ToSensitiveByteArray();
+            return ecdhSS;
         }
 
 
