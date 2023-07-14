@@ -49,6 +49,7 @@ public class RecoveryService
         }
 
         var key = new Guid(ByteArrayUtil.GetRndByteArray(16)).ToString("N");
+        // var key = RecoveryKeyGenerator.EncodeKey(ByteArrayUtil.GetRndByteArray(16));
         this.SaveKey(key);
 
         await Task.CompletedTask;
@@ -111,4 +112,5 @@ public class RecoveryService
 
         _storage.Upsert(_recordKey, record);
     }
+    
 }

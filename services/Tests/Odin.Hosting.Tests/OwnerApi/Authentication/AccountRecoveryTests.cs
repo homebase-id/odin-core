@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Registry.Registration;
 using Odin.Core.Time;
 using Odin.Hosting.Controllers.OwnerToken.Auth;
@@ -51,6 +52,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
             Assert.IsTrue(decryptedRecoveryKey.Key.Length == 32);
 
             //TODO: additional checks on the key
+            // RecoveryKeyGenerator.Characters
         }
 
         [Test]
