@@ -72,19 +72,19 @@ namespace Odin.Core.Trie
         /// an existing domain name already registered in the Trie. For example it is not valid
         /// to register valhalla.com if odin.valhalla.com is already in the trie. And vice versa.
         /// </summary>
-        /// <param name="sName">domain name to check</param>
+        /// <param name="punyDomainName">domain name to check</param>
         /// <returns></returns>
         // This should probably be private (but then I can't unit test)
-        private bool IsDomainUniqueInHierarchy(string sName)
+        private bool IsDomainUniqueInHierarchy(string punyDomainName)
         {
-            PunyDomainNameValidator.AssertValidDomain(sName); // Throws an exception if not OK
+            PunyDomainNameValidator.AssertValidDomain(punyDomainName); // Throws an exception if not OK
 
             ref var p = ref m_NodeRoot;
 
             int c;
-            for (var i = sName.Length - 1; i >= 0; i--)
+            for (var i = punyDomainName.Length - 1; i >= 0; i--)
             {
-                c = m_aTrieMap[sName[i] & 127]; // Map (and ignore case)
+                c = m_aTrieMap[punyDomainName[i]]; // Map (and ignore case)
 
                 if (c == 128) // Illegal character
                     throw new Exception();
@@ -105,7 +105,7 @@ namespace Odin.Core.Trie
                     if (p.NodeArray == null) // If there are no mode nodes we are OK.
                         return true;
 
-                    ref var q = ref p.NodeArray[m_aTrieMap['.' & 127]];
+                    ref var q = ref p.NodeArray[m_aTrieMap['.']];
                     if (q.NodeArray != null) // A '.' in use, we're not OK
                         return false;
 
@@ -114,7 +114,7 @@ namespace Odin.Core.Trie
 
                 // If this is a registered name, then let's make sure it's not the full name (.)
                 if (!EqualityComparer<T>.Default.Equals(p.DataClass, default))
-                    if (sName[i - 1] == '.')
+                    if (punyDomainName[i - 1] == '.')
                         return false;
             }
 
@@ -126,9 +126,9 @@ namespace Odin.Core.Trie
         /// Searches for sName in the Trie. 
         /// TODO: Make a variant that returns the best match and prepended string.
         /// </summary>
-        /// <param name="sName"></param>
+        /// <param name="punyDomainName"></param>
         /// <returns>Returns default(T) if none or the data key if found.</returns>
-        public T LookupExactName(string sName)
+        public T LookupExactName(string punyDomainName)
         {
             _rwLock.EnterReadLock();
 
@@ -137,15 +137,12 @@ namespace Odin.Core.Trie
                 ref var p = ref m_NodeRoot;
 
                 int c;
-                for (var i = sName.Length - 1; i >= 0; i--)
+                for (var i = punyDomainName.Length - 1; i >= 0; i--)
                 {
-                    c = m_aTrieMap[sName[i] & 127]; // Map (and ignore case)
+                    c = m_aTrieMap[punyDomainName[i]]; // Map (and ignore case)
 
                     if (c == 128) // Illegal character
-                    {
-                        Console.WriteLine("Illegal character in " + sName + " " + c.ToString());
-                        continue;
-                    }
+                        throw new ArgumentException("Illegal character in " + punyDomainName + " " + c.ToString());
 
                     if (p.NodeArray == null)
                         return default;
@@ -169,9 +166,9 @@ namespace Odin.Core.Trie
         /// Searches for sName in the Trie. 
         /// TODO: Make a variant that returns the best match and prepended string.
         /// </summary>
-        /// <param name="sName"></param>
+        /// <param name="punyDomainName"></param>
         /// <returns>Returns default(T) if none or the data key if found.</returns>
-        public (T, string) LookupName(string sName)
+        public (T, string) LookupName(string punyDomainName)
         {
             _rwLock.EnterReadLock();
             try
@@ -179,15 +176,12 @@ namespace Odin.Core.Trie
                 ref var p = ref m_NodeRoot;
 
                 int c;
-                for (var i = sName.Length - 1; i >= 0; i--)
+                for (var i = punyDomainName.Length - 1; i >= 0; i--)
                 {
-                    c = m_aTrieMap[sName[i] & 127]; // Map (and ignore case)
+                    c = m_aTrieMap[punyDomainName[i]]; // Map (and ignore case)
 
                     if (c == 128) // Illegal character
-                    {
-                        Console.WriteLine("Illegal character in " + sName + " " + c.ToString());
-                        continue;
-                    }
+                        throw new ArgumentException("Illegal character in " + punyDomainName + " " + c.ToString());
 
                     if (p.NodeArray == null)
                         return (default, "");
@@ -201,10 +195,15 @@ namespace Odin.Core.Trie
                             return (p.DataClass, "");
 
                         // i is greater than zero
-                        if (sName[i - 1] == '.')
+                        if (punyDomainName[i - 1] == '.')
                         {
+                            // Make sure there are no illegal characters in the prefix
+                            for (int j = 0; j < i - 1; j++)
+                                if (m_aTrieMap[punyDomainName[i]] == 128)
+                                    throw new Exception();
+
                             // Build the prefix substring without including the period
-                            string prefix = sName.Substring(0, i - 1);
+                            string prefix = punyDomainName.Substring(0, i - 1).ToLower();
                             return (p.DataClass, prefix);
                         }
                     }
@@ -242,7 +241,7 @@ namespace Odin.Core.Trie
             int c;
             for (var i = sName.Length - 1; i >= 0; i--)
             {
-                c = m_aTrieMap[sName[i] & 127]; // Map and ignore case
+                c = m_aTrieMap[sName[i]]; // Map and ignore case
 
                 if (c == 128) // Illegal character
                     throw new DomainIllegalCharacterException();
@@ -299,7 +298,7 @@ namespace Odin.Core.Trie
             int c;
             for (var i = sName.Length - 1; i >= 0; i--)
             {
-                c = m_aTrieMap[sName[i] & 127]; // Map (and ignore case)
+                c = m_aTrieMap[sName[i]]; // Map (and ignore case)
 
                 if (c == 128) // Illegal character
                 {

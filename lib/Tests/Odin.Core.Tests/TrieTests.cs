@@ -89,6 +89,43 @@ namespace Odin.Core.Tests
         }
 
         [Test]
+        public void IllegalNameStuff()
+        {
+            var t = new Trie<Guid>();
+
+            try
+            {
+                t.AddDomain("øa.com", Guid.NewGuid());
+                Assert.Fail();
+            }
+            catch
+            {
+                Assert.Pass();
+            }
+
+            t.AddDomain("aa.com", Guid.NewGuid());
+            try
+            {
+                var g = t.LookupExactName("åa.com");
+                Assert.Fail();
+            }
+            catch (Exception)
+            {
+                Assert.Pass();
+            }
+
+            try
+            {
+                var g = t.LookupExactName("!a.com");
+                Assert.Fail();
+            }
+            catch (Exception)
+            {
+                Assert.Pass();
+            }
+        }
+
+        [Test]
         public void NameTooLongFails()
         {
             var t = new Trie<Guid>();
@@ -167,7 +204,7 @@ namespace Odin.Core.Tests
 
             try
             {
-                var g = t.LookupExactName("aa.com");
+                var g = t.LookupExactName("aA.com");
                 if (g == Guid.Empty)
                     Assert.Fail();
                 g = t.LookupExactName("a.com");
