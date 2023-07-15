@@ -262,7 +262,7 @@ namespace Odin.Core.Cryptography.Data
             // Apply HKDF to derive a symmetric key from the shared secret
             return HashUtil.Hkdf(sharedSecretBytes.GetKey(), salt, 16).ToSensitiveByteArray();
         }
-/*
+
         [Obsolete("Use GetEcdhSharedSecret() instead and always use a random salt. Send the random salt over the wire.")]
         public (byte[] tokenToTransmit, SensitiveByteArray SharedSecret) NewTransmittableSharedSecret(SensitiveByteArray pwd, EccPublicKeyData remotePublicKey, byte[] salt)
         {
@@ -278,7 +278,6 @@ namespace Odin.Core.Cryptography.Data
 
             return ecdhSS;
         }
-*/
 
         public byte[] Sign(SensitiveByteArray key, byte[] dataToSign)
         {
