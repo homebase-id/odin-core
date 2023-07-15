@@ -11,35 +11,35 @@ using Odin.Core.Util;
 using Odin.Core.Time;
 using Microsoft.Data.Sqlite;
 
-namespace OdinsChains.Controllers
+namespace OdinsAttestation.Controllers
 {
     public static class SimulateFrodo
     {
-        private static SensitiveByteArray _pwd;
-        private static EccFullKeyData _ecc;
+        private static SensitiveByteArray _frodoPwd;
+        private static EccFullKeyData _frodoEcc;
 
         static SimulateFrodo()
         {
-            _pwd = Guid.Empty.ToByteArray().ToSensitiveByteArray();
-            _ecc = new EccFullKeyData(_pwd, 1);
+            _frodoPwd = Guid.Empty.ToByteArray().ToSensitiveByteArray();
+            _frodoEcc = new EccFullKeyData(_frodoPwd, 1);
         }
 
         public static void GenerateNewKeys()
         {
-            _pwd = Guid.Empty.ToByteArray().ToSensitiveByteArray();
-            _ecc = new EccFullKeyData(_pwd, 1);
+            _frodoPwd = Guid.Empty.ToByteArray().ToSensitiveByteArray();
+            _frodoEcc = new EccFullKeyData(_frodoPwd, 1);
         }
 
         // Todd this is the function on an identity that should return Frodo's public (signature) key (ECC)
         // For example https://frodo.baggins.me/api/v1/signature/publickey
         public static string GetPublicKey()
         {
-            return _ecc.publicDerBase64();
+            return _frodoEcc.publicDerBase64();
         }
 
         // Todd this is a function on an identity that responds to Odin's key chain service and signs a nonce
-        //  _ecc would be the identity's signature key
-        public static string SignNonceForKeyChain(string nonceBase64, string tempCodeBase64)
+        // 
+        public static string SignNonce(string nonceBase64, string tempCodeBase64)
         {
             // @Todd First sanity check the tempCode
             var tempCode = Convert.FromBase64String(tempCodeBase64);
@@ -60,15 +60,12 @@ namespace OdinsChains.Controllers
                 throw new Exception("invalid nonce size");
 
             // We sign the nonce with the signature key
-            var signature = _ecc.Sign(_pwd, nonce);
+            var signature = _frodoEcc.Sign(_frodoPwd, nonce);
 
             // We return the signed data to the requestor
             return Convert.ToBase64String(signature);
         }
-
-        // Todd Look in the simulator "Simulate..." for triggering the registration
     }
-
 
     [ApiController]
     [Route("[controller]")]
@@ -79,12 +76,16 @@ namespace OdinsChains.Controllers
         private readonly BlockChainDatabase _db;
         private static SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
         private readonly bool _simulate = true;
+        private readonly EccFullKeyData _eccKey;
+        private readonly SensitiveByteArray _eccPwd;
 
-        public RegisterKeyController(ILogger<RegisterKeyController> logger, IHttpClientFactory httpClientFactory, BlockChainDatabase db)
+        public RegisterKeyController(ILogger<RegisterKeyController> logger, IHttpClientFactory httpClientFactory, BlockChainDatabase db, SensitiveByteArray pwdEcc, EccFullKeyData eccKey)
         {
             _logger = logger;
             _httpClientFactory = httpClientFactory;
             _db = db;
+            _eccKey = eccKey;
+            _eccPwd = pwdEcc;
         }
 
 
@@ -95,7 +96,10 @@ namespace OdinsChains.Controllers
         /// <param name="_db"></param>
         public static void InitializeDatabase(BlockChainDatabase _db)
         {
+            // OBSOLETE
+
             _db.CreateDatabase(dropExistingTables: true);
+
 
             var r = _db.tblBlockChain.GetLastLink();
 
@@ -111,7 +115,7 @@ namespace OdinsChains.Controllers
                 //
                 var genesis = NewBlockChainRecord();
 
-                genesis.identity = "odin.valhalla.com.livesforever";
+                genesis.identity = "id.odin.earth";
                 genesis.publicKey = eccGenesis.publicKey;
                 genesis.nonce = "May Odin's chain safeguard the identities of the many. Skål!".ToUtf8ByteArray();
                 var signature = eccGenesis.Sign(password, genesis.nonce);
@@ -230,8 +234,6 @@ namespace OdinsChains.Controllers
             var r1 = await GetRegister("frodo.baggins.me", Convert.ToBase64String(tempCode));
 
             // If it's OK 200, then you're done.
-            // Done.
-
 
             // Do another hacky one for testing
             SimulateFrodo.GenerateNewKeys();
@@ -245,26 +247,23 @@ namespace OdinsChains.Controllers
             return r2;
         }
 
-        [HttpGet("Verify")]
-        public IActionResult GetVerify(string identity)
+        [HttpGet("AttestHuman")]
+        public IActionResult GetAttestHuman(string identity)
         {
+            PunyDomainName id;
+
             try
             {
-                var id = new PunyDomainName(identity);
+                id = new PunyDomainName(identity);
             }
             catch (Exception ex) {
                 return BadRequest($"Invalid identity {ex.Message}");
             }
 
-            var r = _db.tblBlockChain.Get(identity);
-            if (r == null)
-            {
-                return NotFound("No such identity found.");
-            }
+            var attestation = AttestationManagement.AttestHuman(_eccKey, _eccPwd, id);
 
-            var msg = $"{r.timestamp.ToUnixTimeUtc().milliseconds / 1000}";
 
-            return Ok(msg);
+            return Ok(attestation.GetCompactSortedJson());
         }
 
         [HttpGet("VerifyKey")]
@@ -346,7 +345,7 @@ namespace OdinsChains.Controllers
             // don't block the semaphore needlessly
             //
             var _httpClient = _httpClientFactory.CreateClient();
-            _httpClient.BaseAddress = new Uri("https://" + domain.DomainName);
+            _httpClient.BaseAddress = new Uri("https://api." + domain.DomainName);
 
             EccPublicKeyData publicKey;
 
@@ -389,11 +388,11 @@ namespace OdinsChains.Controllers
 
                 if (_simulate)
                 {
-                    signedNonceBase64 = SimulateFrodo.SignNonceForKeyChain(newRecordToInsert.nonce.ToBase64(), tempCode);
+                    signedNonceBase64 = SimulateFrodo.SignNonce(newRecordToInsert.nonce.ToBase64(), tempCode);
                 }
                 else
                 {
-                    var response = await _httpClient.GetAsync("/api/v1/PublicKey/SignNonce");
+                    var response = await _httpClient.GetAsync("/api/v1/PublicKey/SignatureValidation");
                     signedNonceBase64 = await response.Content.ReadAsStringAsync();
                 }
 
