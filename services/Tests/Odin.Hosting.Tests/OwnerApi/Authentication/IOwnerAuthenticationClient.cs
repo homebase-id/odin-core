@@ -16,7 +16,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
         private const string RootPath = OwnerApiPathConstants.AuthV1;
 
         [Post(RootPath)]
-        Task<ApiResponse<OwnerAuthenticationResult>> Authenticate([Body] IPasswordReply package);
+        Task<ApiResponse<OwnerAuthenticationResult>> Authenticate([Body] PasswordReply package);
 
         [Post(RootPath + "/extend")]
         Task<ApiResponse<NoResultResponse>> ExtendTokenLife(Guid token, int ttlSeconds);
@@ -28,16 +28,19 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
         Task<ApiResponse<bool>> IsValid(Guid token);
 
         [Get(RootPath + "/nonce")]
-        Task<ApiResponse<ClientNoncePackage>> GenerateNonce();
+        Task<ApiResponse<ClientNoncePackage>> GenerateAuthenticationNonce();
 
         //TODO: move these to a secrets/provisioning controller
 
         [Post(RootPath + "/passwd")]
         Task<ApiResponse<NoResultResponse>> SetNewPassword([Body] PasswordReply reply);
 
+        [Post(RootPath + "/resetpasswdrk")]
+        Task<ApiResponse<HttpContent>> ResetPasswordUsingRecoveryKey([Body] ResetPasswordUsingRecoveryKeyRequest reply);
+
         [Post(RootPath + "/resetpasswd")]
-        Task<ApiResponse<HttpContent>> ResetPassword([Body] ResetPasswordRequest reply);
-        
+        Task<ApiResponse<HttpContent>> ResetPassword([Body] ResetPasswordUsingRecoveryKeyRequest reply);
+
         [Get(RootPath + "/getsalts")]
         Task<ApiResponse<ClientNoncePackage>> GenerateNewSalts();
         

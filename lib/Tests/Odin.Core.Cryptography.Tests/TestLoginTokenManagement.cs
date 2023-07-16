@@ -56,7 +56,7 @@ namespace Odin.Core.Cryptography.Tests
             // Pre-requisites, using the salt values from a fresh generated random Nonce:
 
             // The client calulates the data to send to the server
-            IPasswordReply rp = PasswordDataManager.CalculatePasswordReply(password, nonce);
+            PasswordReply rp = PasswordDataManager.CalculatePasswordReply(password, nonce);
             // The client sends the reply to the server
 
             // The server receives the reply

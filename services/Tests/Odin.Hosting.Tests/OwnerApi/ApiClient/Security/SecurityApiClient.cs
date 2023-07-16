@@ -38,8 +38,25 @@ public class SecurityApiClient
         }
     }
 
-    public async Task<ApiResponse<HttpContent>> ResetPassword(string recoveryKey, string newPassword)
+    public async Task<ApiResponse<HttpContent>> ResetPassword(string currentPassword, string newPassword)
     {
-        return await _ownerApi.ResetPassword(this._identity.OdinId, recoveryKey, newPassword);
+        using var authClient = _ownerApi.CreateAnonymousClient(_identity.OdinId);
+        var request = new ResetPasswordRequest()
+        {
+            CurrentAuthenticationPasswordReply = await _ownerApi.CalculateAuthenticationPasswordReply(authClient, currentPassword),
+            NewPasswordReply = await _ownerApi.CalculatePasswordReply(authClient, newPassword)
+        };
+
+        var client = this._ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<ITestSecurityContextOwnerClient>(client, ownerSharedSecret);
+            var apiResponse = await svc.ResetPassword(request);
+            return apiResponse;
+        }
+    }
+
+    public async Task<ApiResponse<HttpContent>> ResetPasswordUsingRecoveryKey(string recoveryKey, string newPassword)
+    {
+        return await _ownerApi.ResetPasswordUsingRecoveryKey(this._identity.OdinId, recoveryKey, newPassword);
     }
 }

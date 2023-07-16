@@ -110,35 +110,28 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
             Console.WriteLine($"forcing new password on {authClient.BaseAddress}");
 
-            var saltResponse = await svc.GenerateNewSalts();
-            Assert.IsNotNull(saltResponse.Content, "failed to generate new salts");
-            Assert.IsTrue(saltResponse.IsSuccessStatusCode, "failed to generate new salts");
-            var clientSalts = saltResponse.Content;
-            var saltyNonce = new NonceData(clientSalts.SaltPassword64, clientSalts.SaltKek64, clientSalts.PublicPem, clientSalts.CRC)
-            {
-                Nonce64 = clientSalts.Nonce64
-            };
-            var saltyReply = PasswordDataManager.CalculatePasswordReply(password, saltyNonce);
+            // var saltResponse = await svc.GenerateNewSalts();
+            // Assert.IsNotNull(saltResponse.Content, "failed to generate new salts");
+            // Assert.IsTrue(saltResponse.IsSuccessStatusCode, "failed to generate new salts");
+            // var clientSalts = saltResponse.Content;
+            // var saltyNonce = new NonceData(clientSalts.SaltPassword64, clientSalts.SaltKek64, clientSalts.PublicPem, clientSalts.CRC)
+            // {
+            //     Nonce64 = clientSalts.Nonce64
+            // };
+            // var saltyReply = PasswordDataManager.CalculatePasswordReply(password, saltyNonce);
 
+            var saltyReply = await CalculatePasswordReply(authClient, password);
             //saltyReply.FirstRunToken = ???
 
             var newPasswordResponse = await svc.SetNewPassword(saltyReply);
             Assert.IsTrue(newPasswordResponse.IsSuccessStatusCode, "failed forcing a new password");
         }
 
-
-        public async Task<ApiResponse<HttpContent>> ResetPassword(string identity, string recoveryKey, string password)
+        /// <summary>
+        /// Creates a password reply when you are setting the owner password
+        /// </summary>
+        public async Task<PasswordReply> CalculatePasswordReply(HttpClient authClient, string password)
         {
-            var handler = new HttpClientHandler();
-            var jar = new CookieContainer();
-            handler.CookieContainer = jar;
-            handler.UseCookies = true;
-
-            handler.ServerCertificateCustomValidationCallback = ServerCertificateCustomValidation;
-
-            // SEB:TODO IHttpClientFactory, but we can't use HttpClientHandler
-            using HttpClient authClient = new(handler);
-            authClient.BaseAddress = new Uri($"https://{DnsConfigurationSet.PrefixApi}.{identity}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
             var saltResponse = await svc.GenerateNewSalts();
@@ -153,7 +146,42 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
             var saltyReply = PasswordDataManager.CalculatePasswordReply(password, saltyNonce);
 
+            return saltyReply;
+        }
 
+        /// <summary>
+        /// Creates a password reply for use when you are authenticating as the owner
+        /// </summary>
+        public async Task<PasswordReply> CalculateAuthenticationPasswordReply(HttpClient authClient, string password)
+        {
+            var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
+
+            var nonceResponse = await svc.GenerateAuthenticationNonce();
+            Assert.IsTrue(nonceResponse.IsSuccessStatusCode, "server failed when getting nonce");
+            var clientNonce = nonceResponse.Content;
+
+            var nonce = new NonceData(clientNonce!.SaltPassword64, clientNonce.SaltKek64, clientNonce.PublicPem, clientNonce.CRC)
+            {
+                Nonce64 = clientNonce.Nonce64
+            };
+
+            var reply = PasswordDataManager.CalculatePasswordReply(password, nonce);
+            return reply;
+        }
+
+        public HttpClient CreateAnonymousClient(string identity)
+        {
+            HttpClient authClient = new();
+            authClient.BaseAddress = new Uri($"https://{DnsConfigurationSet.PrefixApi}.{identity}");
+            return authClient;
+        }
+
+        public async Task<ApiResponse<HttpContent>> ResetPasswordUsingRecoveryKey(string identity, string recoveryKey, string password)
+        {
+            using var authClient = CreateAnonymousClient(identity);
+            var saltyReply = await CalculatePasswordReply(authClient, password);
+
+            var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
             var publicKeyResponse = await svc.GetPublicKey(RsaKeyType.OfflineKey);
             Assert.IsTrue(publicKeyResponse.IsSuccessStatusCode);
             var publicKey = publicKeyResponse.Content;
@@ -175,13 +203,13 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
                 KeyHeaderEncryptedData = keyHeader.EncryptDataAesAsStream(recoveryKey).ToByteArray()
             };
 
-            var resetRequest = new ResetPasswordRequest()
+            var resetRequest = new ResetPasswordUsingRecoveryKeyRequest()
             {
                 EncryptedRecoveryKey = encryptedRecoveryKey,
                 PasswordReply = saltyReply
             };
 
-            return await svc.ResetPassword(resetRequest);
+            return await svc.ResetPasswordUsingRecoveryKey(resetRequest);
         }
 
         public async Task<(ClientAuthenticationToken cat, SensitiveByteArray sharedSecret)> LoginToOwnerConsole(string identity, string password)
@@ -199,16 +227,18 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             var uri = new Uri($"https://{DnsConfigurationSet.PrefixApi}.{identity}");
 
             Console.WriteLine($"authenticating to {uri}");
-            var nonceResponse = await svc.GenerateNonce();
-            Assert.IsTrue(nonceResponse.IsSuccessStatusCode, "server failed when getting nonce");
-            var clientNonce = nonceResponse.Content;
+            // var nonceResponse = await svc.GenerateAuthenticationNonce();
+            // Assert.IsTrue(nonceResponse.IsSuccessStatusCode, "server failed when getting nonce");
+            // var clientNonce = nonceResponse.Content;
+            //
+            // //HACK: need to refactor types and drop the client nonce package
+            // var nonce = new NonceData(clientNonce!.SaltPassword64, clientNonce.SaltKek64, clientNonce.PublicPem, clientNonce.CRC)
+            // {
+            //     Nonce64 = clientNonce.Nonce64
+            // };
+            // var reply = PasswordDataManager.CalculatePasswordReply(password, nonce);
 
-            //HACK: need to refactor types and drop the client nonce package
-            var nonce = new NonceData(clientNonce!.SaltPassword64, clientNonce.SaltKek64, clientNonce.PublicPem, clientNonce.CRC)
-            {
-                Nonce64 = clientNonce.Nonce64
-            };
-            var reply = PasswordDataManager.CalculatePasswordReply(password, nonce);
+            var reply = await this.CalculateAuthenticationPasswordReply(authClient, password);
             var response = await svc.Authenticate(reply);
 
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed to authenticate {identity}");
