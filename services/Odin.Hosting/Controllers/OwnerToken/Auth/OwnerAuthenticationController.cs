@@ -93,7 +93,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
         }
 
         [HttpGet("nonce")]
-        public async Task<NonceData> GenerateNonce()
+        public async Task<NonceData> GenerateAuthenticationNonce()
         {
             var result = await _authService.GenerateAuthenticationNonce();
             return result;
@@ -106,10 +106,10 @@ namespace Odin.Hosting.Controllers.OwnerToken.Auth
             return new NoResultResponse(true);
         }
         
-        [HttpPost("resetpasswd")]
-        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest reply)
+        [HttpPost("resetpasswdrk")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordUsingRecoveryKeyRequest reply)
         {
-            await _ss.ResetPassword(reply);
+            await _ss.ResetPasswordUsingRecoveryKey(reply);
             return new OkResult();
         }
         

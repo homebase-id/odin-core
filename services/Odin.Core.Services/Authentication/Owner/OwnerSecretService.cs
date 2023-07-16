@@ -20,13 +20,16 @@ namespace Odin.Core.Services.Authentication.Owner
         private readonly PublicPrivateKeyService _publicPrivateKeyService;
         private readonly RecoveryService _recoveryService;
 
+        private readonly OdinContextAccessor _contextAccessor;
+
         public OwnerSecretService(TenantContext tenantContext, TenantSystemStorage tenantSystemStorage, RecoveryService recoveryService,
-            PublicPrivateKeyService publicPrivateKeyService)
+            PublicPrivateKeyService publicPrivateKeyService, OdinContextAccessor contextAccessor)
         {
             _tenantContext = tenantContext;
             _tenantSystemStorage = tenantSystemStorage;
             _recoveryService = recoveryService;
             _publicPrivateKeyService = publicPrivateKeyService;
+            _contextAccessor = contextAccessor;
         }
 
         /// <summary>
@@ -168,7 +171,7 @@ namespace Odin.Core.Services.Authentication.Owner
             await Task.CompletedTask;
         }
 
-        public async Task ResetPassword(ResetPasswordRequest request)
+        public async Task ResetPasswordUsingRecoveryKey(ResetPasswordUsingRecoveryKeyRequest request)
         {
             var (isValidPublicKey, decryptedBytes) = await _publicPrivateKeyService.DecryptPayload(RsaKeyType.OfflineKey, request.EncryptedRecoveryKey);
 
@@ -176,10 +179,20 @@ namespace Odin.Core.Services.Authentication.Owner
             {
                 throw new OdinClientException("Invalid public key");
             }
-            
+
             var recoveryKey = decryptedBytes.ToStringFromUtf8Bytes();
             _recoveryService.AssertValidKey(recoveryKey, out var masterKey);
             await SavePassword(request.PasswordReply, masterKey);
+        }
+
+        public async Task ResetPassword(ResetPasswordRequest request)
+        {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+            
+            await this.AssertPasswordKeyMatch(request.CurrentPasswordReply.NonceHashedPassword64, request.CurrentPasswordReply.Nonce64);
+
+            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+            await SavePassword(request.NewPasswordReply, masterKey);
         }
 
         private async Task SavePassword(PasswordReply reply, SensitiveByteArray masterKey = null)

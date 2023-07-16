@@ -40,7 +40,7 @@ namespace Odin.Core.Cryptography
         /// <returns></returns>
 
         //public static (byte[] halfCookie, LoginTokenData token) CreateLoginToken(byte[] LoginKeK, byte[] sharedSecret)
-        public static (SensitiveByteArray clientToken, OwnerConsoleToken token) CreateToken(NonceData loadedNoncePackage, IPasswordReply reply,
+        public static (SensitiveByteArray clientToken, OwnerConsoleToken token) CreateToken(NonceData loadedNoncePackage, PasswordReply reply,
             RsaFullKeyListData listRsa)
         {
             var (hpwd64, kek64, sharedsecret64) = PasswordDataManager.ParsePasswordRSAReply(reply, listRsa);

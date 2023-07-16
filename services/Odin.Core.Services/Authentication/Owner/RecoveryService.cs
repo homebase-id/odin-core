@@ -48,8 +48,8 @@ public class RecoveryService
             throw new OdinSystemException("Recovery key already exists");
         }
 
-        var key = new Guid(ByteArrayUtil.GetRndByteArray(16)).ToString("N");
-        // var key = RecoveryKeyGenerator.EncodeKey(ByteArrayUtil.GetRndByteArray(16));
+        // var key = new Guid(ByteArrayUtil.GetRndByteArray(16)).ToString("N");
+        var key = RecoveryKeyGenerator.EncodeKey(ByteArrayUtil.GetRndByteArray(16));
         this.SaveKey(key);
 
         await Task.CompletedTask;

@@ -99,7 +99,7 @@ namespace Odin.Core.Cryptography
 
         // From the PasswordReply package received from the client, try to decrypt the RSA
         // encoded header and retrieve the hashedPassword, KeK, and SharedSecret values
-        public static (string pwd64, string kek64, string sharedsecret64) ParsePasswordRSAReply(IPasswordReply reply, RsaFullKeyListData listRsa)
+        public static (string pwd64, string kek64, string sharedsecret64) ParsePasswordRSAReply(PasswordReply reply, RsaFullKeyListData listRsa)
         {
             // The nonce matches, now let's decrypt the RSA encoded header and set the data
             //
@@ -153,7 +153,7 @@ namespace Odin.Core.Cryptography
         // Returns the kek64 and sharedSecret64 by the RSA encrypted reply from the client.
         // We should rename this function. The actual authentication is done in TryPasswordKeyMatch
         public static (byte[] kek64, byte[] sharedsecret64) Authenticate(NonceData loadedNoncePackage,
-            IPasswordReply reply, RsaFullKeyListData listRsa)
+            PasswordReply reply, RsaFullKeyListData listRsa)
         {
             var (hpwd64, kek64, sharedsecret64) = ParsePasswordRSAReply(reply, listRsa);
             return (Convert.FromBase64String(kek64), Convert.FromBase64String(sharedsecret64));
