@@ -74,9 +74,11 @@ namespace Odin.Core.Cryptography.Tests
             SensitiveByteArray keyBpwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
             EccFullKeyData fullKeyB = new EccFullKeyData(keyBpwd, 2);
 
+            var salt = ByteArrayUtil.GetRndByteArray(16);
+
             // Get the shared secret from both sides
-            var (tokenToTransmit, sharedSecretA) = fullKeyA.NewTransmittableSharedSecret(keyApwd, (EccPublicKeyData) fullKeyB);
-            var sharedSecretB = fullKeyB.ResolveSharedSecret(keyBpwd, tokenToTransmit, (EccPublicKeyData) fullKeyA);
+            var sharedSecretA = fullKeyA.GetEcdhSharedSecret(keyApwd, (EccPublicKeyData) fullKeyB, salt);
+            var sharedSecretB = fullKeyB.GetEcdhSharedSecret(keyBpwd, (EccPublicKeyData) fullKeyA, salt);
 
             // The shared secrets should be identical
             Assert.IsTrue(ByteArrayUtil.EquiByteArrayCompare(sharedSecretA.GetKey(), sharedSecretB.GetKey()));

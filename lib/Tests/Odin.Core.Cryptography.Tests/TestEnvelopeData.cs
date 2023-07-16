@@ -92,6 +92,7 @@ namespace Odin.Tests
             attestation = AttestationManagement.AttestLegalName(eccKey, pwd, frodoPuny, "Frodo Baggins");
             if (AttestationManagement.VerifyAttestation(attestation) != true)
                 throw new Exception("Legal Name");
+            string s = attestation.GetCompactSortedJson(); // For michael to look at
 
             attestation = AttestationManagement.AttestPhoneNumber(eccKey, pwd, frodoPuny, "+45 12345678");
             if (AttestationManagement.VerifyAttestation(attestation) != true)
