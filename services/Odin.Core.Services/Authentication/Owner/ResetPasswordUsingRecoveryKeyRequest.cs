@@ -11,6 +11,6 @@ public class ResetPasswordUsingRecoveryKeyRequest
 
 public class ResetPasswordRequest
 {
-    public PasswordReply CurrentPasswordReply { get; set; }
+    public PasswordReply CurrentAuthenticationPasswordReply { get; set; }
     public PasswordReply NewPasswordReply { get; set; }
 }

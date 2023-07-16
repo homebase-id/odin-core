@@ -189,7 +189,7 @@ namespace Odin.Core.Services.Authentication.Owner
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
             
-            await this.AssertPasswordKeyMatch(request.CurrentPasswordReply.NonceHashedPassword64, request.CurrentPasswordReply.Nonce64);
+            await this.AssertPasswordKeyMatch(request.CurrentAuthenticationPasswordReply.NonceHashedPassword64, request.CurrentAuthenticationPasswordReply.Nonce64);
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             await SavePassword(request.NewPasswordReply, masterKey);

@@ -43,7 +43,7 @@ public class SecurityApiClient
         using var authClient = _ownerApi.CreateAnonymousClient(_identity.OdinId);
         var request = new ResetPasswordRequest()
         {
-            CurrentPasswordReply = await _ownerApi.CalculateAuthenticationPasswordReply(authClient, currentPassword),
+            CurrentAuthenticationPasswordReply = await _ownerApi.CalculateAuthenticationPasswordReply(authClient, currentPassword),
             NewPasswordReply = await _ownerApi.CalculatePasswordReply(authClient, newPassword)
         };
 
