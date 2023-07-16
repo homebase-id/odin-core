@@ -55,10 +55,15 @@ jobs:
           token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }} # `GH_PAT` is a secret that contains your PAT
           path: client/provisioning-app
 
+#      - name: Authenticate to Github packages
+#        run: |
+#          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > client/owner-app/.npmrc
+#          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > client/public-app/.npmrc
+#          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > client/provisioning-app/.npmrc
+
+
       - name: Authenticate to Github packages
         run: |
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > client/owner-app/.npmrc
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > client/public-app/.npmrc
           echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > client/provisioning-app/.npmrc
 
 #      - name: Build owner-app
