@@ -11,12 +11,31 @@
 @Stef - Add a button to register the signature key (for when key is rotated or if it failed in the initial wizard)
 @Stef - Add a red circle / green checkmark in some kind of status overview where you can see
         your signature key. Maybe you can even get your public key there.
-
 @someone - Someday we should have a job that backs up the blockchain.db
 
 # Basic Blockchain Service for Public Key Registration
 
 This project is a simple yet robust blockchain service designed to securely register and store identities' public signature keys. Each row in the blockchain consists of several crucial elements that help guarantee the integrity and authenticity of the stored data.
+
+
+## Web Services
+
+### Verify(string identity)
+Returns HTTP 200 and the oldest registration timestamp of the provided identity, otherwise returns Not Found. 
+
+### VerifyKey(string identity, string publicKeyDerBase64)
+Returns HTTP 200 and the public key registration timestamp range of the provided identity, otherwise returns Not Found. 
+If the public key is still the last registered keu there is no end-range.
+
+### Register(string identity, string requestCode)
+Initiates a public key registration for the provided identity.
+The requestCode is a random value known only to the identity requesting registration.
+This service will:
+  - 020. Service calls Client.GetPublicKey() to get signature key
+  - 030. Service calls Client.SignNonce(requestCode, previousHash)
+  - 033. Client returns signedNonce
+  - 037. Service verifies signature
+And the new record is added to the immutable block-chain.
 
 ## Data Structure
 

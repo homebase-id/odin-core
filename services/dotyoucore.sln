@@ -36,7 +36,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WaitingListApi", "WaitingLi
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Odin.KeyChain", "Odin.KeyChain\Odin.KeyChain.csproj", "{484E8E87-BDA8-4A39-834E-0688E756DCA9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Odin.KeyChainTests", "Odin.KeyChainTests\Odin.KeyChainTests.csproj", "{76F7A681-0627-4788-86CA-BA22D9575686}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Odin.KeyChainTests", "Odin.KeyChainTests\Odin.KeyChainTests.csproj", "{76F7A681-0627-4788-86CA-BA22D9575686}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Odin.Attestation.Service", "Odin.Attestation.Service\Odin.Attestation.Service.csproj", "{D81FEA2B-4137-446A-8346-28CD9CE7251A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -100,6 +102,10 @@ Global
 		{76F7A681-0627-4788-86CA-BA22D9575686}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{76F7A681-0627-4788-86CA-BA22D9575686}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{76F7A681-0627-4788-86CA-BA22D9575686}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D81FEA2B-4137-446A-8346-28CD9CE7251A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D81FEA2B-4137-446A-8346-28CD9CE7251A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D81FEA2B-4137-446A-8346-28CD9CE7251A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D81FEA2B-4137-446A-8346-28CD9CE7251A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
