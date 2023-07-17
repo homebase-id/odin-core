@@ -34,12 +34,12 @@ jobs:
         with:
           path: dotyoucore
 
-     - name: Checkout dotyoucore-js monorepo
-       uses: actions/checkout@v3
-       with:
-         repository: YouFoundation/dotyoucore-js
-         token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }} # `GH_PAT` is a secret that contains your PAT
-         path: client/apps
+      - name: Checkout dotyoucorejs monorepo
+        uses: actions/checkout@v3
+        with:
+          repository: YouFoundation/dotyoucore-js
+          token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }} # `GH_PAT` is a secret that contains your PAT
+          path: client/apps
 
       - name: Checkout provisioning-app
         uses: actions/checkout@v3
@@ -52,9 +52,9 @@ jobs:
         run: |
           echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > client/provisioning-app/.npmrc
 
-     - name: Build owner-app
-       working-directory: ./client/apps
-       run: |
+      - name: Build owner-app
+        working-directory: ./client/apps
+        run: |
          npm ci
          touch .env
          echo VITE_VERSION=$(date +%s) >> .env
@@ -62,15 +62,15 @@ jobs:
          rm -rf ../../dotyoucore/services/Odin.Hosting/client/owner-app
          mv dist ../../dotyoucore/services/Odin.Hosting/client/owner-app
 
-     - name: Build public-app
-       working-directory: ./client/apps
-       run: |
-         npm ci
-         touch .env
-         echo VITE_VERSION=$(date +%s) >> .env
-         npm run build -w ./packages/public-app
-         rm -rf ../../dotyoucore/services/Odin.Hosting/client/public-app
-         mv dist ../../dotyoucore/services/Odin.Hosting/client/public-app
+      - name: Build public-app
+        working-directory: ./client/apps
+        run: |
+          npm ci
+          touch .env
+          echo VITE_VERSION=$(date +%s) >> .env
+          npm run build -w ./packages/public-app
+          rm -rf ../../dotyoucore/services/Odin.Hosting/client/public-app
+          mv dist ../../dotyoucore/services/Odin.Hosting/client/public-app
 
       - name: Build provisioning-app
         working-directory: ./client/provisioning-app
