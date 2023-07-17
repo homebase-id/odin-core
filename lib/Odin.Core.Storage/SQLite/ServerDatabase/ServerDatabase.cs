@@ -34,7 +34,7 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
                 throw new Exception("ServerDatabase was not disposed properly.");
 #else
             if (!_wasDisposed)
-               Log.Error("ServerDatabase was not disposed properly.");
+               Serilog.Log.Error("ServerDatabase was not disposed properly.");
 #endif
         }
 
