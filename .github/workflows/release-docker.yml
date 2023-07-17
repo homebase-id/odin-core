@@ -34,19 +34,12 @@ jobs:
         with:
           path: dotyoucore
 
-#      - name: Checkout owner-app
-#        uses: actions/checkout@v3
-#        with:
-#          repository: YouFoundation/owner-app
-#          token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }} # `GH_PAT` is a secret that contains your PAT
-#          path: client/owner-app
-
-#      - name: Checkout public-app
-#        uses: actions/checkout@v3
-#        with:
-#          repository: YouFoundation/public-app
-#          token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }} # `GH_PAT` is a secret that contains your PAT
-#          path: client/public-app
+     - name: Checkout dotyoucore-js monorepo
+       uses: actions/checkout@v3
+       with:
+         repository: YouFoundation/dotyoucore-js
+         token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }} # `GH_PAT` is a secret that contains your PAT
+         path: client/apps
 
       - name: Checkout provisioning-app
         uses: actions/checkout@v3
@@ -55,46 +48,39 @@ jobs:
           token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }} # `GH_PAT` is a secret that contains your PAT
           path: client/provisioning-app
 
-#      - name: Authenticate to Github packages
-#        run: |
-#          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > client/owner-app/.npmrc
-#          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > client/public-app/.npmrc
-#          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > client/provisioning-app/.npmrc
-
-
       - name: Authenticate to Github packages
         run: |
           echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > client/provisioning-app/.npmrc
 
-#      - name: Build owner-app
-#        working-directory: ./client/owner-app
-#        run: |
-#          npm ci
-#          touch .env
-#          echo REACT_APP_VERSION=$(date +%s) >> .env
-#          npm run build
-#          rm -rf ../../dotyoucore/services/Odin.Hosting/client/owner-app
-#          mv build ../../dotyoucore/services/Odin.Hosting/client/owner-app
+     - name: Build owner-app
+       working-directory: ./client/apps
+       run: |
+         npm ci
+         touch .env
+         echo VITE_VERSION=$(date +%s) >> .env
+         npm run build -w ./packages/owner-app
+         rm -rf ../../dotyoucore/services/Odin.Hosting/client/owner-app
+         mv dist ../../dotyoucore/services/Odin.Hosting/client/owner-app
 
-#      - name: Build public-app
-#        working-directory: ./client/public-app
-#        run: |
-#          npm ci
-#          touch .env
-#          echo REACT_APP_VERSION=$(date +%s) >> .env
-#          npm run build
-#          rm -rf ../../dotyoucore/services/Odin.Hosting/client/public-app
-#          mv build ../../dotyoucore/services/Odin.Hosting/client/public-app
+     - name: Build public-app
+       working-directory: ./client/apps
+       run: |
+         npm ci
+         touch .env
+         echo VITE_VERSION=$(date +%s) >> .env
+         npm run build -w ./packages/public-app
+         rm -rf ../../dotyoucore/services/Odin.Hosting/client/public-app
+         mv dist ../../dotyoucore/services/Odin.Hosting/client/public-app
 
       - name: Build provisioning-app
         working-directory: ./client/provisioning-app
         run: |
           npm ci
           touch .env
-          echo REACT_APP_VERSION=$(date +%s) >> .env
+          echo VITE_VERSION=$(date +%s) >> .env
           npm run build
           rm -rf ../../dotyoucore/services/Odin.Hosting/client/provisioning-app
-          mv build ../../dotyoucore/services/Odin.Hosting/client/provisioning-app
+          mv dist ../../dotyoucore/services/Odin.Hosting/client/provisioning-app
 
       - name: Log in to the Container registry
         uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
