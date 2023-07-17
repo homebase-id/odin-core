@@ -1,4 +1,4 @@
-name: Full Docker Release
+name: Build Docker image for stable release
 
 on:
   release:
@@ -115,7 +115,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-stable
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
