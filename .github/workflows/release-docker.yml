@@ -1,7 +1,20 @@
 name: Full Docker Release
 
 on:
-  workflow_dispatch:
+  release:
+    types: [published, created, edited]
+
+#   types
+#    published
+#    unpublished
+#    created
+#    edited
+#    deleted
+#    prereleased
+#    released
+
+#on:
+#  workflow_dispatch:
 # push:
 #   branches: [ release-docker ]
 #  pull_request:
@@ -104,5 +117,5 @@ jobs:
           context: ./dotyoucore
           file: ./dotyoucore/services/Odin.Hosting/Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ steps.meta.outputs.tags }},release
           labels: ${{ steps.meta.outputs.labels }}
