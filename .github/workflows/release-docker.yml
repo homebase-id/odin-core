@@ -60,7 +60,7 @@ jobs:
          echo VITE_VERSION=$(date +%s) >> .env
          npm run build -w ./packages/owner-app
          rm -rf ../../dotyoucore/services/Odin.Hosting/client/owner-app
-         mv dist ../../dotyoucore/services/Odin.Hosting/client/owner-app
+         mv packages/owner-app/dist ../../dotyoucore/services/Odin.Hosting/client/owner-app
 
       - name: Build public-app
         working-directory: ./client/apps
@@ -70,7 +70,7 @@ jobs:
           echo VITE_VERSION=$(date +%s) >> .env
           npm run build -w ./packages/public-app
           rm -rf ../../dotyoucore/services/Odin.Hosting/client/public-app
-          mv dist ../../dotyoucore/services/Odin.Hosting/client/public-app
+          mv packages/public-app/dist ../../dotyoucore/services/Odin.Hosting/client/public-app
 
       - name: Build provisioning-app
         working-directory: ./client/provisioning-app
