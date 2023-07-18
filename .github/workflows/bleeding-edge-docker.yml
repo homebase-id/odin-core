@@ -1,0 +1,110 @@
+name: Bleeding Edge Docker
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: 6.0.x
+
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16.x'
+          registry-url: 'https://npm.pkg.github.com'
+          # Defaults to the user or organization that owns the workflow file
+          scope: '@octocat'
+
+      - name: Checkout dotyoucore
+        uses: actions/checkout@v3
+        with:
+          path: dotyoucore
+
+      - name: Checkout dotyoucorejs monorepo
+        uses: actions/checkout@v3
+        with:
+          repository: YouFoundation/dotyoucore-js
+          token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }} # `GH_PAT` is a secret that contains your PAT
+          path: client/apps
+
+      - name: Checkout provisioning-app
+        uses: actions/checkout@v3
+        with:
+          repository: YouFoundation/provisioning-app
+          token: ${{ secrets.DOTYOUCORE_LIB_TOKEN }} # `GH_PAT` is a secret that contains your PAT
+          path: client/provisioning-app
+
+      - name: Authenticate to Github packages
+        run: |
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}" > client/provisioning-app/.npmrc
+
+      - name: Build libs & setup .env
+        working-directory: ./client/apps
+        run: |
+          npm ci
+          npm run build-libs
+          touch .env 
+          echo VITE_VERSION=$(date +%s) >> .env
+      
+      - name: Build owner-app
+        working-directory: ./client/apps
+        run: |
+          npm run build -w ./packages/owner-app
+          rm -rf ../../dotyoucore/services/Odin.Hosting/client/owner-app
+          mv packages/owner-app/dist ../../dotyoucore/services/Odin.Hosting/client/owner-app
+
+      - name: Build public-app
+        working-directory: ./client/apps
+        run: |
+          
+          npm run build -w ./packages/public-app
+          rm -rf ../../dotyoucore/services/Odin.Hosting/client/public-app
+          mv packages/public-app/dist ../../dotyoucore/services/Odin.Hosting/client/public-app
+
+      - name: Build provisioning-app
+        working-directory: ./client/provisioning-app
+        run: |
+          npm ci
+          touch .env
+          echo VITE_VERSION=$(date +%s) >> .env
+          npm run build
+          rm -rf ../../dotyoucore/services/Odin.Hosting/client/provisioning-app
+          mv dist ../../dotyoucore/services/Odin.Hosting/client/provisioning-app
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-edge
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./dotyoucore
+          file: ./dotyoucore/services/Odin.Hosting/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
