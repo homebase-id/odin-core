@@ -64,18 +64,23 @@ namespace Odin.Hosting
 
         public static (OdinConfiguration, IConfiguration) LoadConfig()
         {
+            const string configPathOverrideVariable = "ODIN_CONFIG_PATH";
+
+            var cfgPathOverride = Environment.GetEnvironmentVariable(configPathOverrideVariable);
+            var configFolder = string.IsNullOrEmpty(cfgPathOverride) ? Environment.CurrentDirectory : cfgPathOverride;
+            Log.Information($"Looking for configuration in folder: {configFolder}");
+
             const string envVar = "DOTYOU_ENVIRONMENT";
             var env = Environment.GetEnvironmentVariable(envVar) ?? "";
 
             if (string.IsNullOrEmpty(env))
             {
                 throw new OdinSystemException($"You must set an environment variable named [{envVar}] which specifies your environment.\n" +
-                                                  $"This must match your app settings file as follows 'appsettings.ENV.json'");
+                                              $"This must match your app settings file as follows 'appsettings.ENV.json'");
             }
 
             var appSettingsFile = $"appsettings.{env.ToLower()}.json";
-            Log.Information($"Current Folder: {Environment.CurrentDirectory}");
-            if (!File.Exists(Path.Combine(Environment.CurrentDirectory, appSettingsFile)))
+            if (!File.Exists(Path.Combine(configFolder, appSettingsFile)))
             {
                 Log.Information($"Missing {appSettingsFile}");
             }
@@ -229,10 +234,10 @@ namespace Odin.Hosting
             if (idReg != null)
             {
                 var tenantContext = TenantContext.Create(
-                    idReg.Id, 
-                    idReg.PrimaryDomainName, 
-                    config.Host.TenantDataRootPath, 
-                    config.Host.TenantPayloadRootPath, 
+                    idReg.Id,
+                    idReg.PrimaryDomainName,
+                    config.Host.TenantDataRootPath,
+                    config.Host.TenantPayloadRootPath,
                     false);
                 sslRoot = tenantContext.SslRoot;
                 domain = idReg.PrimaryDomainName;
