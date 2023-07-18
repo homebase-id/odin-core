@@ -82,7 +82,7 @@ namespace Odin.Hosting
             var appSettingsFile = $"appsettings.{env.ToLower()}.json";
             if (!File.Exists(Path.Combine(configFolder, appSettingsFile)))
             {
-                Log.Information($"Missing {appSettingsFile}");
+                throw new OdinSystemException($"Could not find configuration file [{appSettingsFile}]");
             }
 
             var config = new ConfigurationBuilder()
