@@ -84,6 +84,8 @@ namespace Odin.Hosting
             {
                 throw new OdinSystemException($"Could not find configuration file [{appSettingsFile}]");
             }
+            
+            Log.Information($"Loading configuration at [${appSettingsFile}]");
 
             var config = new ConfigurationBuilder()
                 // .AddJsonFile("appsettings.json", optional: false)
