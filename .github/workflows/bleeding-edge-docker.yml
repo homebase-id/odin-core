@@ -59,8 +59,10 @@ jobs:
         run: |
           npm ci
           npm run build-libs
-          touch .env 
-          echo VITE_VERSION=$(date +%s) >> .env
+          touch packages/public-app/.env 
+          echo VITE_VERSION=$(date +%s) >> packages/public-app/.env
+          touch packages/owner-app/.env 
+          echo VITE_VERSION=$(date +%s) >> packages/owner-app/.env
       
       - name: Build owner-app
         working-directory: ./client/apps
