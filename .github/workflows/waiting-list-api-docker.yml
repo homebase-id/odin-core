@@ -11,8 +11,7 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-#  IMAGE_NAME: ${{ github.repository }}
-  IMAGE_NAME: waiting-list-api
+  IMAGE_NAME: ${{ github.repository }}
   
 jobs:
   build:
@@ -40,7 +39,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-waiting-list-api
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
