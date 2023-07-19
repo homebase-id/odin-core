@@ -46,7 +46,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: ./dotyoucore
-          file: ./dotyoucore/services/WaitingListAPI/Dockerfile
+          file: ./dotyoucore/services/WaitingListApi/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
