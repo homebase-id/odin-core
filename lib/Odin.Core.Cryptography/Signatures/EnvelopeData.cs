@@ -5,8 +5,9 @@ using System.Collections.Generic;
 using System.IO;
 using Odin.Core.Identity;
 using System.Text.Json.Serialization;
+using Odin.Core.Cryptography.Data;
 
-namespace Odin.Core.Cryptography.Data
+namespace Odin.Core.Cryptography.Signatures
 {
     /// <summary>
     /// This envelope is designed to contain information about a document and to be used 
@@ -15,6 +16,11 @@ namespace Odin.Core.Cryptography.Data
     /// </summary>
     public class EnvelopeData
     {
+        public const string ContentTypeAttestation = "attestation";
+        public const string ContentTypeRequest = "request";
+        public const string ContentTypeDocument = "document";
+
+
         [JsonPropertyOrder(1)]
         public const int Version = 1;
 
@@ -28,7 +34,7 @@ namespace Odin.Core.Cryptography.Data
         public string ContentHashAlgorithm { get; set; }
 
         /// <summary>
-        /// ContentType can currently be: Document, Attestation (proving e.g. my name), more to come
+        /// ContentType can currently be: Document, Attestation (proving e.g. my name), Request, more to come
         /// </summary>
         [JsonPropertyOrder(5)]
         public string ContentType { get; set; }
@@ -37,7 +43,7 @@ namespace Odin.Core.Cryptography.Data
         public UnixTimeUtc TimeStamp { get; set; }
 
         [JsonPropertyOrder(7)]
-        public Int64 Length { get; set; }
+        public long Length { get; set; }
 
         [JsonPropertyOrder(8)]
         public SortedDictionary<string, object> AdditionalInfo { get; set; } = new SortedDictionary<string, object>();
@@ -82,7 +88,7 @@ namespace Odin.Core.Cryptography.Data
         /// <returns></returns>
         public SignatureData SignEnvelope(OdinId identity, SensitiveByteArray keyPwd, EccFullKeyData eccKey)
         {
-            var envelopeJson = this.GetCompactSortedJson();
+            var envelopeJson = GetCompactSortedJson();
             var signature = SignatureData.NewSignature(envelopeJson.ToUtf8ByteArray(), identity, keyPwd, eccKey);
             return signature;
         }
@@ -90,7 +96,7 @@ namespace Odin.Core.Cryptography.Data
 
         public bool VerifyEnvelopeSignature(SignatureData signature)
         {
-            var envelopeJson = this.GetCompactSortedJson();
+            var envelopeJson = GetCompactSortedJson();
             return SignatureData.Verify(signature, envelopeJson.ToUtf8ByteArray());
         }
 
@@ -105,7 +111,7 @@ namespace Odin.Core.Cryptography.Data
         {
             if (content == null)
                 throw new ArgumentNullException(nameof(content));
-            
+
             if (additionalInfo != null)
             {
                 if (!VerifyAdditionalInfoTypes(AdditionalInfo))

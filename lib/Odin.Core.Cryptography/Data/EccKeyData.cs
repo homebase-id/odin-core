@@ -17,7 +17,7 @@ namespace Odin.Core.Cryptography.Data
     {
         public byte[] publicKey { get; set; } // DER encoded public key
 
-        public UInt32 crc32c { get; set; } // The CRC32C of the public key
+        public uint crc32c { get; set; } // The CRC32C of the public key
         public UnixTimeUtc expiration { get; set; } // Time when this key expires
 
         public static EccPublicKeyData FromDerEncodedPublicKey(byte[] derEncodedPublicKey, int hours = 1)
@@ -25,7 +25,7 @@ namespace Odin.Core.Cryptography.Data
             var publicKey = new EccPublicKeyData()
             {
                 publicKey = derEncodedPublicKey,
-                crc32c = EccPublicKeyData.KeyCRC(derEncodedPublicKey),
+                crc32c = KeyCRC(derEncodedPublicKey),
                 expiration = UnixTimeUtc.Now().AddSeconds(hours * 60 * 60)
             };
 
@@ -52,12 +52,12 @@ namespace Odin.Core.Cryptography.Data
             return Convert.FromBase64String(publicKeyPEM);
         }
 
-        public static UInt32 KeyCRC(byte[] keyDerEncoded)
+        public static uint KeyCRC(byte[] keyDerEncoded)
         {
             return CRC32C.CalculateCRC32C(0, keyDerEncoded);
         }
 
-        public UInt32 KeyCRC()
+        public uint KeyCRC()
         {
             return KeyCRC(publicKey);
         }
@@ -138,16 +138,16 @@ namespace Odin.Core.Cryptography.Data
             var publicKeyInfo = SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(keys.Public);
 
             // Save the DER encoded private and public keys in our own data structure
-            this.createdTimeStamp = UnixTimeUtc.Now();
-            this.expiration = this.createdTimeStamp;
-            this.expiration = this.expiration.AddSeconds(hours * 3600 + minutes * 60 + seconds);
-            if (this.expiration <= this.createdTimeStamp)
+            createdTimeStamp = UnixTimeUtc.Now();
+            expiration = createdTimeStamp;
+            expiration = expiration.AddSeconds(hours * 3600 + minutes * 60 + seconds);
+            if (expiration <= createdTimeStamp)
                 throw new Exception("Expiration must be > 0");
 
             CreatePrivate(key, privateKeyInfo.GetDerEncoded());  // TODO: Can we cleanup the generated key?
 
-            this.publicKey = publicKeyInfo.GetDerEncoded();
-            this.crc32c = this.KeyCRC();
+            publicKey = publicKeyInfo.GetDerEncoded();
+            crc32c = KeyCRC();
 
             EccKeyManagement.noKeysCreated++;
         }
@@ -169,13 +169,13 @@ namespace Odin.Core.Cryptography.Data
         }
 
 
-         
+
         private void CreatePrivate(SensitiveByteArray key, byte[] fullDerKey)
         {
-            this.iv = ByteArrayUtil.GetRndByteArray(16);
-            this.keyHash = ByteArrayUtil.ReduceSHA256Hash(key.GetKey());
-            this._privateKey = new SensitiveByteArray(fullDerKey);
-            this.storedKey = AesCbc.Encrypt(this._privateKey.GetKey(), ref key, this.iv);
+            iv = ByteArrayUtil.GetRndByteArray(16);
+            keyHash = ByteArrayUtil.ReduceSHA256Hash(key.GetKey());
+            _privateKey = new SensitiveByteArray(fullDerKey);
+            storedKey = AesCbc.Encrypt(_privateKey.GetKey(), ref key, iv);
         }
 
 
@@ -218,8 +218,8 @@ namespace Odin.Core.Cryptography.Data
             if (createdTimeStamp.seconds <= 0)
                 throw new Exception("createdTimeStamp has not been initialized");
 
-            Int64 t = UnixTimeUtc.Now().seconds;
-            Int64 d = Math.Min(2 * (expiration.seconds - createdTimeStamp.seconds), 3600 * 24) + createdTimeStamp.seconds;
+            long t = UnixTimeUtc.Now().seconds;
+            long d = Math.Min(2 * (expiration.seconds - createdTimeStamp.seconds), 3600 * 24) + createdTimeStamp.seconds;
 
             if (t > d)
                 return true;
@@ -278,7 +278,6 @@ namespace Odin.Core.Cryptography.Data
 
             return ecdhSS;
         }
-
 
         public byte[] Sign(SensitiveByteArray key, byte[] dataToSign)
         {

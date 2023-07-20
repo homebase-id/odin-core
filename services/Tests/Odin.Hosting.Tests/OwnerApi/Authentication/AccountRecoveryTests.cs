@@ -34,7 +34,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
         }
 
         [Test]
-        // [Ignore("Setup additional digital identities dedicated to testing these")]
         public async Task CanGetAccountRecoveryKey()
         {
             var identity = TestIdentities.Frodo;
@@ -80,7 +79,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
             //encrypt using RSA
             // _publicPrivateKeyService.EncryptPayload(RsaKeyType.OfflineKey, payload)
             
-            var resetPasswordResponse = await ownerClient.Security.ResetPassword(key, newPassword);
+            var resetPasswordResponse = await ownerClient.Security.ResetPasswordUsingRecoveryKey(key, newPassword);
             Assert.IsTrue(resetPasswordResponse.IsSuccessStatusCode, $"failed resetting password to newPassword with key [{key}]");
             
             //login with the password
@@ -110,7 +109,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
             Assert.IsTrue(response.IsSuccessStatusCode);
 
             var invalidRecoveryKey = Guid.NewGuid().ToString("N");
-            var resetPasswordResponse = await ownerClient.Security.ResetPassword(invalidRecoveryKey, newPassword);
+            var resetPasswordResponse = await ownerClient.Security.ResetPasswordUsingRecoveryKey(invalidRecoveryKey, newPassword);
             Assert.IsFalse(resetPasswordResponse.IsSuccessStatusCode,
                 $"shoudl have failed resetting password to newPassword with an invalid recovery key [{invalidRecoveryKey}]");
 
@@ -123,13 +122,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
             Assert.IsTrue(thirdLogin.IsSuccessStatusCode, "Should have been able to login with old password");
         }
 
-        // [Test]
-        // public async Task FailToCreateInvalidAccountRecoveryKey()
-        // {
-        //     //too short
-        // }
-
-
         private async Task<ApiResponse<OwnerAuthenticationResult>> Login(string identity, string password)
         {
             using HttpClient authClient = new()
@@ -139,7 +131,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
 
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
-            var nonceResponse = await svc.GenerateNonce();
+            var nonceResponse = await svc.GenerateAuthenticationNonce();
             Assert.IsTrue(nonceResponse.IsSuccessStatusCode, "server failed when getting nonce");
             var clientNonce = nonceResponse.Content;
 

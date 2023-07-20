@@ -3,9 +3,56 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Odin.Core.Cryptography.Data;
 using Odin.Core.Identity;
 
-namespace Odin.Core.Cryptography.Data
+/* JSON outline of a signed envelope
+        {
+            "Envelope": {
+                "ContentHash": "FrEU5YYYjwVSGGNUpVwmnsiZOuTuXlpHHulHrCVrMxE=",
+                "Nonce": "Yg9LSbBLFCKGivA+KOzxQEyjbj2wbx2Nucr2ElhDFoI=",
+                "ContentHashAlgorithm": "SHA-256",
+                "ContentType": "test",
+                "TimeStamp": 1689613008423,
+                "Length": 5,
+                "AdditionalInfo": {
+                    "serialno": 42,
+                    "title": "test document"
+                }
+            },
+            "Signatures": [
+                {
+                    "DataHash": "JX4cQYJKbHhDJBM9AsYoLq/m+36kuDRjuE4xZ4SPrME=",
+                    "DataHashAlgorithm": "SHA-256",
+                    "Identity": "odin.valhalla.com",
+                    "PublicKeyDer": "<public key in DER format>",
+                    "TimeStamp": 1689613008535,
+                    "SignatureAlgorithm": "SHA-384withECDSA",
+                    "Signature": "<signature>"
+                },
+                {
+                    "DataHash": "JX4cQYJKbHhDJBM9AsYoLq/m+36kuDRjuE4xZ4SPrME=",
+                    "DataHashAlgorithm": "SHA-256",
+                    "Identity": "thor.valhalla.com",
+                    "PublicKeyDer": "<public key in DER format>",
+                    "TimeStamp": 1689613008574,
+                    "SignatureAlgorithm": "SHA-384withECDSA",
+                    "Signature": "<signature>"
+                }
+            ],
+            "NotariusPublicus": {
+                "DataHash": "L1q/x5APRQyEPq+X3OdqOEWH8yWfuPig3WGxztAOVAI=",
+                "DataHashAlgorithm": "SHA-256",
+                "Identity": "notarius.publicus.com",
+                "PublicKeyDer": "<public key in DER format>",
+                "TimeStamp": 1689613008613,
+                "SignatureAlgorithm": "SHA-384withECDSA",
+                "Signature": "<signature>"
+            }
+        }
+*/
+
+namespace Odin.Core.Cryptography.Signatures
 {
     /// <summary>
     /// This envelope is designed to contain information about a document and to be used 
@@ -32,7 +79,7 @@ namespace Odin.Core.Cryptography.Data
 
 
 
-        public SignedEnvelope() 
+        public SignedEnvelope()
         {
             // Sort the list by the timestamp in the SignatureData when loaded from the DB
             Signatures = Signatures.OrderBy(s => s.TimeStamp.milliseconds).ToList();
@@ -41,7 +88,7 @@ namespace Odin.Core.Cryptography.Data
 
         public void CreateEnvelopeSignature(OdinId identity, SensitiveByteArray keyPwd, EccFullKeyData eccKey)
         {
-            if (Envelope== null)
+            if (Envelope == null)
                 throw new ArgumentNullException(nameof(Envelope));
 
             var signature = Envelope.SignEnvelope(identity, keyPwd, eccKey);
@@ -60,7 +107,7 @@ namespace Odin.Core.Cryptography.Data
 
             if (NotariusPublicus != null)
             {
-                if (VerifyNotariusPublicus() == false) 
+                if (VerifyNotariusPublicus() == false)
                     return false;
 
                 // TODO: Call out to Odin's key chain to verify the public keys
@@ -74,8 +121,8 @@ namespace Odin.Core.Cryptography.Data
         {
             var copyForSigning = new SignedEnvelope
             {
-                Envelope = this.Envelope,
-                Signatures = this.Signatures,
+                Envelope = Envelope,
+                Signatures = Signatures,
                 NotariusPublicus = null
             };
             return copyForSigning.GetCompactSortedJson();

@@ -5,71 +5,15 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Text;
 using Odin.Core;
-using Odin.Core.Cryptography.Data;
 using Odin.Core.Storage.SQLite.BlockChainDatabase;
 using Odin.Core.Util;
 using Odin.Core.Time;
 using Microsoft.Data.Sqlite;
+using Odin.KeyChain;
+using Odin.Core.Cryptography.Data;
 
 namespace OdinsChains.Controllers
 {
-    public static class SimulateFrodo
-    {
-        private static SensitiveByteArray _pwd;
-        private static EccFullKeyData _ecc;
-
-        static SimulateFrodo()
-        {
-            _pwd = Guid.Empty.ToByteArray().ToSensitiveByteArray();
-            _ecc = new EccFullKeyData(_pwd, 1);
-        }
-
-        public static void GenerateNewKeys()
-        {
-            _pwd = Guid.Empty.ToByteArray().ToSensitiveByteArray();
-            _ecc = new EccFullKeyData(_pwd, 1);
-        }
-
-        // Todd this is the function on an identity that should return Frodo's public (signature) key (ECC)
-        // For example https://frodo.baggins.me/api/v1/signature/publickey
-        public static string GetPublicKey()
-        {
-            return _ecc.publicDerBase64();
-        }
-
-        // Todd this is a function on an identity that responds to Odin's key chain service and signs a nonce
-        //  _ecc would be the identity's signature key
-        public static string SignNonceForKeyChain(string nonceBase64, string tempCodeBase64)
-        {
-            // @Todd First sanity check the tempCode
-            var tempCode = Convert.FromBase64String(tempCodeBase64);
-            if ((tempCode.Length < 16) || (tempCode.Length > 32))
-                throw new Exception("invalid nonce size");
-
-            // @Todd then load the tempCode from the DB
-            // var tempCode = identityDb.tblKeyValue.Get(CONST_..._ID);
-            // If the tempCode is more than 10 seconds old, fail
-            // DELETE the tempCode from the DB
-            // identityDb.tblKeyValue.Delete(CONST_..._ID);
-
-            // tempCode was OK, we continue
-            var nonce = Convert.FromBase64String(nonceBase64);
-
-            // Todd need to check this JIC 
-            if ((nonce.Length < 16) || (nonce.Length > 32))
-                throw new Exception("invalid nonce size");
-
-            // We sign the nonce with the signature key
-            var signature = _ecc.Sign(_pwd, nonce);
-
-            // We return the signed data to the requestor
-            return Convert.ToBase64String(signature);
-        }
-
-        // Todd Look in the simulator "Simulate..." for triggering the registration
-    }
-
-
     [ApiController]
     [Route("[controller]")]
     public class RegisterKeyController : ControllerBase
@@ -87,131 +31,6 @@ namespace OdinsChains.Controllers
             _db = db;
         }
 
-
-        /// <summary>
-        /// Called once from the controller to make sure database is setup
-        /// Need to set drop to false in production
-        /// </summary>
-        /// <param name="_db"></param>
-        public static void InitializeDatabase(BlockChainDatabase _db)
-        {
-            _db.CreateDatabase(dropExistingTables: true);
-
-            var r = _db.tblBlockChain.GetLastLink();
-
-            // If the database is empty then we need to create the genesis record
-            if (r == null)
-            {
-                // Genesis ECC key
-                // 
-                var password = Guid.Empty.ToByteArray().ToSensitiveByteArray();
-                var eccGenesis = new EccFullKeyData(password, 1);
-
-                // Create the genesis block
-                //
-                var genesis = NewBlockChainRecord();
-
-                genesis.identity = "odin.valhalla.com.livesforever";
-                genesis.publicKey = eccGenesis.publicKey;
-                genesis.nonce = "May Odin's chain safeguard the identities of the many. Skål!".ToUtf8ByteArray();
-                var signature = eccGenesis.Sign(password, genesis.nonce);
-                genesis.signedNonce = signature;
-                genesis.previousHash = ByteArrayUtil.CalculateSHA256Hash(Guid.Empty.ToByteArray());
-                genesis.recordHash = CalculateRecordHash(genesis);
-                VerifyBlockChainRecord(genesis, null);
-                _db.tblBlockChain.Insert(genesis);
-            }
-        }
-
-        public static BlockChainRecord NewBlockChainRecord()
-        { 
-            var r = new BlockChainRecord();
-
-            r.nonce = ByteArrayUtil.GetRndByteArray(32);
-            r.timestamp = UnixTimeUtcUnique.Now();
-            r.algorithm = EccFullKeyData.eccSignatureAlgorithm;
-
-            return r;
-        }
-
-        private static byte[] CombineRecordBytes(BlockChainRecord record)
-        {
-            // Combine all columns, except ofc the recordHash, into a single byte array
-            return ByteArrayUtil.Combine(record.previousHash,
-                                         Encoding.UTF8.GetBytes(record.identity),
-                                         ByteArrayUtil.Int64ToBytes(record.timestamp.uniqueTime),
-                                         record.nonce,
-                                         record.signedNonce,
-                                         record.algorithm.ToUtf8ByteArray(),
-                                         record.publicKey);
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="record">Is the new record we want to insert into the chain</param>
-        /// <param name="previousHash">is the SHA-256 byte array of the last blockchain entry's hash value</param>
-        /// <returns></returns>
-        public static byte[] CalculateRecordHash(BlockChainRecord record)
-        {
-            // Compute hash for the combined byte array
-            var hash = ByteArrayUtil.CalculateSHA256Hash(CombineRecordBytes(record));
-
-            return hash;
-        }
-
-        /// <summary>
-        /// Verifies the integrity of the previousHash, the signature and the hash
-        /// </summary>
-        /// <param name="record"></param>
-        /// <param name="previousRowHash"></param>
-        /// <returns></returns>
-        public static bool VerifyBlockChainRecord(BlockChainRecord record, BlockChainRecord? previousRecord)
-        {
-            var publicKey = EccPublicKeyData.FromDerEncodedPublicKey(record.publicKey);
-            if (publicKey.VerifySignature(record.nonce, record.signedNonce) == false)
-                return false;
-
-            if (previousRecord != null)
-            {
-                if (ByteArrayUtil.EquiByteArrayCompare(previousRecord.recordHash, record.previousHash) == false)
-                    return false;
-
-                var hash = CalculateRecordHash(record);
-                if (ByteArrayUtil.EquiByteArrayCompare(hash, record.recordHash) == false)
-                    return false;
-
-                // Maybe we shouldn't do this. IDK.
-                if (record.timestamp.uniqueTime < previousRecord.timestamp.uniqueTime)
-                    return false;
-            }
-
-            return true;
-        }
-
-
-        // Verifies the entire chain
-        public static bool VerifyEntireBlockChain(BlockChainDatabase _db)
-        {
-            var _sqlcmd = _db.CreateCommand();
-            _sqlcmd.CommandText = "SELECT previousHash,identity,timestamp,nonce,signedNonce,algorithm,publicKey,recordHash FROM blockChain ORDER BY rowid ASC;";
-
-            using (SqliteDataReader rdr = _db.ExecuteReader(_sqlcmd, System.Data.CommandBehavior.SingleRow))
-            {
-                BlockChainRecord? previousRecord = null;
-
-                while (rdr.Read())
-                {
-                    var record = _db.tblBlockChain.ReadRecordFromReaderAll(rdr);
-                    if (VerifyBlockChainRecord(record, previousRecord) == false) 
-                        return false;
-                    previousRecord = record;
-                }
-            } // using
-
-            return true;
-
-        }
 
         /// <summary>
         /// This simulates that an identity requests it's signature key to be added to the block chain
@@ -237,7 +56,7 @@ namespace OdinsChains.Controllers
             SimulateFrodo.GenerateNewKeys();
             var r2 = await GetRegister("samwise.gamgee.me", Convert.ToBase64String("some temp code from Sam's server".ToUtf8ByteArray()));
 
-            if (VerifyEntireBlockChain(_db) == false)
+            if (BlockChainDatabaseUtil.VerifyEntireBlockChain(_db) == false)
             {
                 return Problem("Fenris broke the chain");
             }
@@ -266,6 +85,7 @@ namespace OdinsChains.Controllers
 
             return Ok(msg);
         }
+
 
         [HttpGet("VerifyKey")]
         public IActionResult GetVerifyKey(string identity, string publicKeyDerBase64)
@@ -338,7 +158,7 @@ namespace OdinsChains.Controllers
             }
 
 
-            var newRecordToInsert = NewBlockChainRecord();
+            var newRecordToInsert = BlockChainDatabaseUtil.NewBlockChainRecord();
 
             newRecordToInsert.identity = identity;
 
@@ -346,7 +166,7 @@ namespace OdinsChains.Controllers
             // don't block the semaphore needlessly
             //
             var _httpClient = _httpClientFactory.CreateClient();
-            _httpClient.BaseAddress = new Uri("https://api." + domain.DomainName);
+            _httpClient.BaseAddress = new Uri("https://" + domain.DomainName);
 
             EccPublicKeyData publicKey;
 
@@ -393,7 +213,7 @@ namespace OdinsChains.Controllers
                 }
                 else
                 {
-                    var response = await _httpClient.GetAsync("/api/v1/PublicKey/SignatureValidation");
+                    var response = await _httpClient.GetAsync("/api/v1/PublicKey/SignNonce");
                     signedNonceBase64 = await response.Content.ReadAsStringAsync();
                 }
 
@@ -433,10 +253,10 @@ namespace OdinsChains.Controllers
                 newRecordToInsert.previousHash = previousRowRecord.recordHash;
 
                 // 060 calculate new hash
-                newRecordToInsert.recordHash = CalculateRecordHash(newRecordToInsert);
+                newRecordToInsert.recordHash = BlockChainDatabaseUtil.CalculateRecordHash(newRecordToInsert);
 
                 // 070 verify record
-                if (VerifyBlockChainRecord(newRecordToInsert, previousRowRecord) == false)
+                if (BlockChainDatabaseUtil.VerifyBlockChainRecord(newRecordToInsert, previousRowRecord) == false)
                 {
                     return Problem("Cannot verify");
                 }

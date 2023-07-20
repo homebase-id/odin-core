@@ -1,7 +1,7 @@
-using Microsoft.AspNetCore.Mvc;
+using Odin.Core;
+using Odin.Core.Cryptography.Data;
 using Odin.Core.Storage.SQLite.BlockChainDatabase;
-using Odin.KeyChain;
-using OdinsChains.Controllers;
+using OdinsAttestation.Controllers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,10 +14,16 @@ builder.Services.AddHttpClient();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// ============== Initialize
+SensitiveByteArray eccPwd = new SensitiveByteArray(new Guid("86d6e007-cf89-468c-acc5-66bfa14b9ce7").ToByteArray());
+EccFullKeyData eccKey = EccKeyStorage.LoadKey(eccPwd);
+
 var _db = new BlockChainDatabase(@"Data Source=blockchain.db");
-BlockChainDatabaseUtil.InitializeDatabase(_db); // Only do this once per boot
+AttestationRequestController.InitializeDatabase(_db); // Only do this once per boot
 
 builder.Services.AddSingleton<BlockChainDatabase>(_db);
+builder.Services.AddSingleton<SensitiveByteArray>(eccPwd);
+builder.Services.AddSingleton<EccFullKeyData>(eccKey);
 
 var app = builder.Build();
 

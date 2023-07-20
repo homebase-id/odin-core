@@ -1,4 +1,5 @@
 ﻿using NodaTime;
+using Odin.Core.Cryptography.Data;
 using Odin.Core.Identity;
 using Odin.Core.Time;
 using Odin.Core.Util;
@@ -7,7 +8,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 
-namespace Odin.Core.Cryptography.Data
+namespace Odin.Core.Cryptography.Signatures
 {
     public class AttestationManagement
     {

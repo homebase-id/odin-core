@@ -84,11 +84,11 @@ namespace Odin.Core.Services.Authentication.Owner
         }
 
         /// <summary>
-        /// Authenticates the owner based on the <see cref="IPasswordReply"/> specified.
+        /// Authenticates the owner based on the <see cref="PasswordReply"/> specified.
         /// </summary>
         /// <param name="reply"></param>
         /// <exception cref="OdinSecurityException">Thrown when a user cannot be authenticated</exception>
-        public async Task<(ClientAuthenticationToken, SensitiveByteArray)> Authenticate(IPasswordReply reply)
+        public async Task<(ClientAuthenticationToken, SensitiveByteArray)> Authenticate(PasswordReply reply)
         {
             byte[] key = Convert.FromBase64String(reply.Nonce64);
             // Ensure that the Nonce given by the client can be loaded, throw exception otherwise

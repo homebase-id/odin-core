@@ -1,6 +1,7 @@
 using System.Text;
 using NUnit.Framework;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Serialization;
 using Odin.Core.Util;
 
 namespace Odin.Core.Cryptography.Tests
@@ -12,8 +13,21 @@ namespace Odin.Core.Cryptography.Tests
         {
         }
 
-
         [Test]
+        public void TestRecoveryKeyEncode()
+        {
+            var rk = ByteArrayUtil.GetRndByteArray(16);
+
+            var nicey = RecoveryKeyGenerator.EncodeKey(rk);
+            var rt = RecoveryKeyGenerator.DecodeKey(nicey);
+
+            if (!ByteArrayUtil.EquiByteArrayCompare(rk, rt))
+                Assert.Fail();
+            else
+                Assert.Pass();
+        }
+
+            [Test]
         // Should split this into its own file.
         public void TestSymKeyAes()
         {

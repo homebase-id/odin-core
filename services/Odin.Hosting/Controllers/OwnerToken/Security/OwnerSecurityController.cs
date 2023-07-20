@@ -12,16 +12,18 @@ namespace Odin.Hosting.Controllers.OwnerToken.Security;
 [ApiController]
 [Route(OwnerApiPathConstants.SecurityV1)]
 [AuthorizeValidOwnerToken]
-public class SecurityController : Controller
+public class OwnerSecurityController : Controller
 {
     private readonly OdinContextAccessor _contextAccessor;
     private readonly RecoveryService _recoveryService;
+    private readonly OwnerSecretService _ss;
 
     /// <summary />
-    public SecurityController(OdinContextAccessor contextAccessor, RecoveryService recoveryService)
+    public OwnerSecurityController(OdinContextAccessor contextAccessor, RecoveryService recoveryService, OwnerSecretService ss)
     {
         _contextAccessor = contextAccessor;
         _recoveryService = recoveryService;
+        _ss = ss;
     }
 
     /// <summary>
@@ -38,5 +40,12 @@ public class SecurityController : Controller
     public async Task<DecryptedRecoveryKey> GetAccountRecoveryKey()
     {
         return await _recoveryService.GetKey();
+    }
+    
+    [HttpPost("resetpasswd")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest reply)
+    {
+        await _ss.ResetPassword(reply);
+        return new OkResult();
     }
 }

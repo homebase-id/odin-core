@@ -1,5 +1,4 @@
 ﻿using NUnit.Framework;
-using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Crypto;
 using System;
 using System.Collections.Generic;
@@ -11,6 +10,8 @@ using Odin.Core.Util;
 using NodaTime;
 using Odin.Core.Time;
 using System.Globalization;
+using Odin.Core.Cryptography.Signatures;
+using Odin.Core.Cryptography.Data;
 
 namespace Odin.Tests
 {
@@ -62,7 +63,7 @@ namespace Odin.Tests
 
             signedEnvelope.VerifyEnvelopeSignatures();
 
-            // string s = signedEnvelope.GetCompactSortedJson();
+            string s = signedEnvelope.GetCompactSortedJson();
         }
 
 
