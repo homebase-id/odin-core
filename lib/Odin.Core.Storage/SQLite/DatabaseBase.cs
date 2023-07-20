@@ -114,7 +114,7 @@ namespace Odin.Core.Storage.SQLite
                 throw new Exception("Was not disposed: " + _connectionString);
 #else
             if (!_wasDisposed)
-               Log.Error("Was not disposed: " + _connectionString);
+                Serilog.Log.Error("Was not disposed: " + _connectionString);
 #endif
         }
 
@@ -281,8 +281,6 @@ namespace Odin.Core.Storage.SQLite
                 return true;
             }
         }
-
-
 
 
         public int TimerCount()

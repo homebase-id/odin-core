@@ -40,7 +40,7 @@ namespace Odin.Core.Storage.SQLite.BlockChainDatabase
                 throw new Exception($"BlockChainDatabase was not disposed properly [CN={CN}]. Instantiated from file {_file} line {_line}.");
 #else
             if (!_wasDisposed)
-               Log.Error($"BlockChainDatabase was not disposed properly [CN={CN}]. Instantiated from file {_file} line {_line}.");
+               Serilog.Log.Error($"BlockChainDatabase was not disposed properly [CN={CN}]. Instantiated from file {_file} line {_line}.");
 #endif
         }
 

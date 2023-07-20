@@ -3,7 +3,9 @@
     <PropertyGroup>
         <TargetFramework>net6.0</TargetFramework>
         <Nullable>enable</Nullable>
+        <RuntimeIdentifiers>win-x64;linux-x64;osx-x64</RuntimeIdentifiers>
         <ImplicitUsings>enable</ImplicitUsings>
+        <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     </PropertyGroup>
 
     <ItemGroup>
@@ -45,6 +47,9 @@
       <Content Update="ssl\dominion.dotyou.cloud\certificate.crt">
         <CopyToPublishDirectory>Always</CopyToPublishDirectory>
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Include="..\.dockerignore">
+        <Link>.dockerignore</Link>
       </Content>
     </ItemGroup>
 

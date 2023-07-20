@@ -1,25 +1,9 @@
-name: Build Docker image for stable release
+name: Bleeding Edge Docker
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
-
-#   types
-#    published
-#    unpublished
-#    created
-#    edited
-#    deleted
-#    prereleased
-#    released
-
-#on:
-#  workflow_dispatch:
-# push:
-#   branches: [ release-docker ]
-#  pull_request:
-#    branches: [ main ]
+  push:
+    branches: [ main ]
 
 permissions:
   contents: read
@@ -28,7 +12,6 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
- # IMAGE_NAME: dotyoucore-stable
   
 jobs:
   build:
@@ -117,7 +100,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-stable
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-edge
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v4

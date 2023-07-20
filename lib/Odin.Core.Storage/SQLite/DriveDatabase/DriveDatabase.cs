@@ -87,7 +87,7 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 throw new Exception("DriveDatabase was not disposed properly. Instantiated from file {_file} line {_line}.");
 #else
             if (!_wasDisposed)
-               Log.Error("DriveDatabase was not disposed properly. Instantiated from file {_file} line {_line}.");
+               Serilog.Log.Error("DriveDatabase was not disposed properly. Instantiated from file {_file} line {_line}.");
 #endif
         }
 

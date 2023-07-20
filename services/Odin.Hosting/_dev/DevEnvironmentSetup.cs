@@ -8,6 +8,7 @@ using Odin.Core.Services.Certificate;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Registry;
 using Odin.Core.Util;
+using Serilog;
 
 namespace Odin.Hosting._dev
 {
@@ -20,6 +21,8 @@ namespace Odin.Hosting._dev
             {
                 foreach (var domain in odinConfiguration.Development.PreconfiguredDomains)
                 {
+                    Log.Information($"Preconfigured domain added:[]{domain}");
+                    
                     certificates.Add(ByteArrayUtil.ReduceSHA256Hash(domain), domain);
                 }
             }
@@ -36,7 +39,7 @@ namespace Odin.Hosting._dev
                 {
                     OdinId = (OdinId)domain,
                 };
-                
+
                 try
                 {
                     var (sourcePublicKeyPath, sourcePrivateKeyPath) = GetSourceDomainPath(domain, odinConfiguration);
@@ -98,13 +101,13 @@ namespace Odin.Hosting._dev
         private static (string publicKey, string privateKey) GetSourceDomainPath(string domain, OdinConfiguration odinConfiguration)
         {
             var root = Path.Combine(odinConfiguration.Development!.SslSourcePath, domain);
-            
+
             var sourcePublicKeyPath = Path.Combine(root, "certificate.crt");
             if (!File.Exists(sourcePublicKeyPath))
             {
                 throw new Exception($"Cannot find [{sourcePublicKeyPath}]");
             }
-                
+
             var sourcePrivateKeyPath = Path.Combine(root, "private.key");
             if (!File.Exists(sourcePrivateKeyPath))
             {
