@@ -80,15 +80,15 @@ namespace Odin.Hosting
             }
 
             var appSettingsFile = $"appsettings.{env.ToLower()}.json";
-            if (!File.Exists(Path.Combine(configFolder, appSettingsFile)))
+            var configPath = Path.Combine(configFolder, appSettingsFile);
+            if (!File.Exists(configPath))
             {
                 throw new OdinSystemException($"Could not find configuration file [{appSettingsFile}]");
             }
-            
-            Log.Information($"Loading configuration at [${appSettingsFile}]");
+            -
+            Log.Information($"Loading configuration at [{appSettingsFile}]");
 
             var config = new ConfigurationBuilder()
-                // .AddJsonFile("appsettings.json", optional: false)
                 .AddJsonFile(appSettingsFile, optional: false)
                 .AddEnvironmentVariables()
                 .Build();
