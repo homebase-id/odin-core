@@ -33,7 +33,8 @@ namespace Odin.Tests
 
             // Create an Envelope for this document
             var envelope = new EnvelopeData();
-            envelope.CalculateContentHash(document, "test", additionalInfo);
+            envelope.SetAdditionalInfo(additionalInfo);
+            envelope.CalculateContentHash(document, "test");
 
             // Create an identity and keys needed
             OdinId testIdentity = new OdinId("odin.valhalla.com");
@@ -122,7 +123,8 @@ namespace Odin.Tests
             var envelope = new EnvelopeData();
 
             // Act
-            envelope.CalculateContentHash(document, "test", additionalInfo);
+            envelope.SetAdditionalInfo(additionalInfo);
+            envelope.CalculateContentHash(document, "test");
 
             // Assert
             Assert.IsNotNull(envelope.ContentHash);
@@ -141,7 +143,7 @@ namespace Odin.Tests
             var envelope = new EnvelopeData();
 
             // Act
-            envelope.CalculateContentHash(document, "test", null);
+            envelope.CalculateContentHash(document, "test");
 
             // Assert
             Assert.IsNotNull(envelope.ContentHash);
@@ -162,7 +164,8 @@ namespace Odin.Tests
             var envelope = new EnvelopeData();
 
             // Act
-            envelope.CalculateContetntHash(fileName, "test", additionalInfo);
+            envelope.SetAdditionalInfo(additionalInfo);
+            envelope.CalculateContentHash(fileName, "test");
 
             // Assert
             Assert.IsNotNull(envelope.ContentHash);

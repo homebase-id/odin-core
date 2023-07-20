@@ -37,19 +37,11 @@ namespace Odin.KeyChain
             return _ecc.publicDerBase64();
         }
 
-        public static SignedEnvelope RequestEnvelope(SortedDictionary<string, object>? dataToAttest)
+        public static SignedEnvelope RequestEnvelope()
         {
             // We create an empty envelope with a contentType of "request"
             //
-            var envelope = new EnvelopeData();
-            envelope.CalculateContentHash("".ToUtf8ByteArray(), EnvelopeData.ContentTypeRequest, null);
-
-            // Then we prepare a signed envelope
-            //
-            var signedEnvelope = new SignedEnvelope() { Envelope = envelope };
-
-            //  Now let's sign the envelope as Frodo
-            signedEnvelope.CreateEnvelopeSignature(new OdinId(Identity), _pwd, _ecc);
+            var signedEnvelope = RequestSignedEnvelope.CreateRequestAttestation(_ecc, _pwd, new PunyDomainName(Identity));
 
             return signedEnvelope;
         }

@@ -58,7 +58,7 @@ namespace OdinsAttestation.Controllers
         public async Task<IActionResult> GetSimulator()
         {
             // Let's build the envelope that Frodo will send
-            var signedEnvelope = SimulateFrodo.RequestEnvelope(null);
+            var signedEnvelope = SimulateFrodo.RequestEnvelope();
 
             // Call the attestation server via HttpClient(Factory)
             var r1 = await GetRequestAttestation(signedEnvelope.GetCompactSortedJson());
@@ -70,52 +70,25 @@ namespace OdinsAttestation.Controllers
         [HttpGet("RequestAttestation")]
         public async Task<IActionResult> GetRequestAttestation(string requestSignedEnvelope)
         {
-            if (requestSignedEnvelope.Length < 10)
-                return BadRequest("Expecting an ODIN signed envelope JSON");
-
-            // Deserialize the JSON
-
             SignedEnvelope? signedEnvelope;
             try
             {
-                signedEnvelope = JsonSerializer.Deserialize<SignedEnvelope>(requestSignedEnvelope);
-
-                if (signedEnvelope == null)
-                    return BadRequest($"Unable to parse JSON.");
+                signedEnvelope = RequestSignedEnvelope.VerifyRequestEnvelope(requestSignedEnvelope);
             }
             catch (Exception  ex)
             {
-                return BadRequest($"Unable to parse JSON {ex.Message}");
+                return BadRequest($"{ex.Message}");
             }
 
-            // Verify the embedded signature
-
-            if (signedEnvelope.VerifyEnvelopeSignatures() == false)
-                return BadRequest($"Unable to verify signatures.");
-
-            PunyDomainName id;
-            try
-            {
-                id = new PunyDomainName(signedEnvelope.Signatures[0].Identity);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest($"Invalid identity {ex.Message}");
-            }
+            var requestorId = new PunyDomainName(signedEnvelope.Signatures[0].Identity);
 
             // Let's fetch the identity's public key and make sure it's the same
             // This would be a web service call to Frodo
             //
-            var publicKey = GetIdentityPublicKey(id);
+            var publicKey = GetIdentityPublicKey(requestorId);
 
             if (ByteArrayUtil.EquiByteArrayCompare(publicKey, signedEnvelope.Signatures[0].PublicKeyDer) == false)
                 return BadRequest($"Identity public key does not match the request");
-
-            if (signedEnvelope.Envelope.ContentType != EnvelopeData.ContentTypeRequest)
-                return BadRequest($"ContentType must be 'request'");
-
-            if (signedEnvelope.Signatures[0].TimeStamp < UnixTimeUtc.Now().AddSeconds(-60*20) || signedEnvelope.Signatures[0].TimeStamp > UnixTimeUtc.Now().AddSeconds(+60 * 20))
-                return BadRequest($"Your clock is too much out of sync or request too old");
 
             // Ok, now we know for certain that the request came from Frodo
             // We know it's a valid type of request

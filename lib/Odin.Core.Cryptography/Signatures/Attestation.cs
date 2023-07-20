@@ -12,36 +12,6 @@ namespace Odin.Core.Cryptography.Signatures
 {
     public class AttestationManagement
     {
-        private static string StringifyData(SortedDictionary<string, object> data)
-        {
-            StringBuilder sb = new StringBuilder();
-
-            foreach (KeyValuePair<string, object> entry in data)
-            {
-                sb.Append(entry.Key);
-                sb.Append(":");
-
-                if (entry.Value is SortedDictionary<string, string> nestedDict)
-                {
-                    foreach (KeyValuePair<string, string> nestedEntry in nestedDict)
-                    {
-                        sb.Append(nestedEntry.Key);
-                        sb.Append("=");
-                        sb.Append(nestedEntry.Value);
-                        sb.Append(";");
-                    }
-                }
-                else
-                {
-                    sb.Append(entry.Value.ToString());
-                }
-
-                sb.Append(",");
-            }
-
-            return sb.ToString();
-        }
-
         public static bool VerifyAttestation(SignedEnvelope attestation)
         {
             // Don't know if we'll need more checks...
@@ -52,7 +22,7 @@ namespace Odin.Core.Cryptography.Signatures
         private static SignedEnvelope Attestation(EccFullKeyData eccKey, SensitiveByteArray pwd, PunyDomainName identity, SortedDictionary<string, object> dataToAttest)
         {
             // There's something to sort out here
-            const string AUTHORITY_IDENTITY = "id.odin.earth";
+            const string AUTHORITY_IDENTITY = "heimdallr.odin.earth";
             const string VERIFYURL = "https://heimdallr.odin.earth/api/v1/verify?prpt=$signature"; // Replace $signature with the signatureBase64 when calling
             const string ATTESTATIONTYPE_PERSONALINFO = "personalInfo";
             string USAGEPOLICY_URL = $"https://{identity.DomainName}/policies/attestation-usage-policy";
@@ -83,12 +53,13 @@ namespace Odin.Core.Cryptography.Signatures
             EnvelopeData.VerifyAdditionalInfoTypes(additionalInfo);
 
             SortedDictionary<string, object> data = (SortedDictionary<string, object>)additionalInfo["data"];
-            string doc = StringifyData(data);
+            string doc = EnvelopeData.StringifyData(data);
             byte[] content = doc.ToUtf8ByteArray();
 
-            // Create an Envelope for this document
+            // Create an Envelope for this document, we calculate the HASH based on the data attested
             var envelope = new EnvelopeData();
-            envelope.CalculateContentHash(content, CONTENTTYPE_ATTESTATION, additionalInfo);
+            envelope.SetAdditionalInfo(additionalInfo);
+            envelope.CalculateContentHash(content, CONTENTTYPE_ATTESTATION);
 
             // Create an identity and keys needed
             OdinId authorityIdentity = new OdinId(AUTHORITY_IDENTITY);

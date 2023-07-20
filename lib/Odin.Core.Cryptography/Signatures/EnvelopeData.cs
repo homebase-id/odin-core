@@ -6,6 +6,7 @@ using System.IO;
 using Odin.Core.Identity;
 using System.Text.Json.Serialization;
 using Odin.Core.Cryptography.Data;
+using System.Text;
 
 namespace Odin.Core.Cryptography.Signatures
 {
@@ -46,38 +47,96 @@ namespace Odin.Core.Cryptography.Signatures
         public long Length { get; set; }
 
         [JsonPropertyOrder(8)]
-        public SortedDictionary<string, object> AdditionalInfo { get; set; } = new SortedDictionary<string, object>();
+        public SortedDictionary<string, object> AdditionalInfo { get; set; } // I had to drop checking validity here, too much trouble
+
 
         public EnvelopeData()
         {
             // Default constructor for restoring via DB
         }
 
+
         public string GetCompactSortedJson()
         {
             return System.Text.Json.JsonSerializer.Serialize(this);
         }
 
-        public static bool VerifyAdditionalInfoTypes(SortedDictionary<string, object> additionalInfo)
+
+        /// <summary>
+        /// Converts a SortedDictionary into a string in a predictable and consistent manner.
+        /// The function iteratively appends keys and values from the SortedDictionary to a StringBuilder.
+        /// If a value is another SortedDictionary, the function calls itself recursively.
+        /// </summary>
+        /// <param name="data">The SortedDictionary to be converted into a string.</param>
+        /// <returns>A string representation of the SortedDictionary. Each key-value pair is represented as 'key:value'.
+        /// Pairs are separated by commas. If a value is a SortedDictionary, it is represented as 'key:{nested key:nested value,...}'.
+        /// The string does not have a trailing comma. The keys and values are sorted as per their natural ordering in the SortedDictionary.</returns>
+        public static string StringifyData(SortedDictionary<string, object> data)
         {
-            foreach (var kvp in additionalInfo)
+            StringBuilder sb = new StringBuilder();
+
+            foreach (KeyValuePair<string, object> entry in data)
             {
-                if (!(kvp.Value is string || kvp.Value is SortedDictionary<string, object>))
+                if (sb.Length > 0)
                 {
-                    return false;
+                    sb.Append(",");
                 }
 
+                sb.Append(entry.Key);
+                sb.Append(":");
+
+                if (entry.Value is SortedDictionary<string, object> nestedDict)
+                {
+                    sb.Append("{");
+                    sb.Append(StringifyData(nestedDict));
+                    sb.Append("}");
+                }
+                else
+                {
+                    sb.Append(entry.Value.ToString());
+                }
+            }
+
+            return sb.ToString();
+        }
+
+
+        private static bool IsAtomicJsonType(object obj)
+        {
+            return obj == null ||
+                   obj is string ||
+                   obj is bool ||
+                   obj is int ||
+                   obj is long ||
+                   obj is double ||
+                   obj is float;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="additionalInfo"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
+        public static bool VerifyAdditionalInfoTypes(SortedDictionary<string, object> additionalInfo)
+        {
+            if (additionalInfo == null)
+                return true;
+
+            foreach (var kvp in additionalInfo)
+            {
                 if (kvp.Value is SortedDictionary<string, object> nestedDict)
                 {
-                    if (!VerifyAdditionalInfoTypes(nestedDict))
-                    {
+                    if (!VerifyAdditionalInfoTypes(nestedDict))  // Use recursion here
                         return false;
-                    }
                 }
+                else if (!IsAtomicJsonType(kvp.Value))
+                    return false;
             }
 
             return true;
         }
+
 
         /// <summary>
         /// Use to create a new signature for this envelope
@@ -88,6 +147,8 @@ namespace Odin.Core.Cryptography.Signatures
         /// <returns></returns>
         public SignatureData SignEnvelope(OdinId identity, SensitiveByteArray keyPwd, EccFullKeyData eccKey)
         {
+            if (Nonce == null)
+                throw new Exception("You must call CalculateContentHash before signing");
             var envelopeJson = GetCompactSortedJson();
             var signature = SignatureData.NewSignature(envelopeJson.ToUtf8ByteArray(), identity, keyPwd, eccKey);
             return signature;
@@ -101,31 +162,42 @@ namespace Odin.Core.Cryptography.Signatures
         }
 
 
+        public void SetAdditionalInfo(SortedDictionary<string, object> additionalInfo)
+        {
+            if (AdditionalInfo != null)
+                throw new ArgumentException($"Trying to overwrite {nameof(AdditionalInfo)}");
+
+            if (!VerifyAdditionalInfoTypes(AdditionalInfo))
+                throw new ArgumentException($"Invalid type in {nameof(AdditionalInfo)}");
+
+            AdditionalInfo = additionalInfo; 
+        }
+
+
         /// <summary>
-        /// Make an envelope for a small document (do not use large files as a memory byte[])
+        /// Calculates the SHA256 hash of the provided content stream and a randomly generated nonce value.
+        /// The hash serves as a unique representation (digest) of the content, and is embedded in the envelope
+        /// rather than having to insert or save the whole file. 
+        /// The function also sets various properties of the envelope object based on the input and computed hash.
         /// </summary>
-        /// <param name="content"></param>
-        /// <param name="additionalInfo">For example, "author", "title", whatever is important for the document</param>
-        /// <exception cref="ArgumentNullException"></exception>
-        public void CalculateContentHash(Stream content, string contentType, SortedDictionary<string, object> additionalInfo)
+        /// <param name="content">The content stream to be hashed.</param>
+        /// <param name="contentType">The type of content that is being hashed.</param>
+        /// <param name="additionalInfo">Additional relevant information for the content. This could be metadata like 'author', 'title', etc.</param>
+        /// <exception cref="ArgumentNullException">Thrown when the content stream is null.</exception>
+        /// <exception cref="ArgumentException">Thrown when an invalid type is present in AdditionalInfo.</exception>
+        public void CalculateContentHash(Stream content, string contentType)
         {
             if (content == null)
                 throw new ArgumentNullException(nameof(content));
 
-            if (additionalInfo != null)
-            {
-                if (!VerifyAdditionalInfoTypes(AdditionalInfo))
-                {
-                    throw new ArgumentException("Invalid type in AdditionalInfo.");
-                }
-            }
+            if (Nonce != null)
+                throw new Exception("You already calculated the content hash");
 
             Nonce = ByteArrayUtil.GetRndByteArray(32);
             (ContentHash, Length) = HashUtil.StreamSHA256(content, Nonce);
             ContentHashAlgorithm = HashUtil.SHA256Algorithm;
             ContentType = contentType;
             TimeStamp = UnixTimeUtc.Now();
-            AdditionalInfo = additionalInfo;
         }
 
         /// <summary>
@@ -134,14 +206,14 @@ namespace Odin.Core.Cryptography.Signatures
         /// <param name="documentFilename"></param>
         /// <param name="additionalInfo">For example, "author", "title", whatever is important for the document</param>
         /// <exception cref="ArgumentNullException"></exception>
-        public void CalculateContetntHash(string contentFileName, string contentType, SortedDictionary<string, object> additionalInfo)
+        public void CalculateContentHash(string contentFileName, string contentType)
         {
             if (string.IsNullOrEmpty(contentFileName))
                 throw new ArgumentNullException(nameof(contentFileName));
 
             using (var fileStream = File.OpenRead(contentFileName))
             {
-                CalculateContentHash(fileStream, contentType, additionalInfo);
+                CalculateContentHash(fileStream, contentType);
             }
         }
 
@@ -151,14 +223,14 @@ namespace Odin.Core.Cryptography.Signatures
         /// <param name="content"></param>
         /// <param name="additionalInfo"></param>
         /// <exception cref="ArgumentNullException"></exception>
-        public void CalculateContentHash(byte[] content, string contentType, SortedDictionary<string, object> additionalInfo)
+        public void CalculateContentHash(byte[] content, string contentType)
         {
             if (content == null)
                 throw new ArgumentNullException(nameof(content));
 
             using (var memoryStream = new MemoryStream(content))
             {
-                CalculateContentHash(memoryStream, contentType, additionalInfo);
+                CalculateContentHash(memoryStream, contentType);
             }
         }
     }
