@@ -83,13 +83,13 @@ namespace Odin.Hosting
             var configPath = Path.Combine(configFolder, appSettingsFile);
             if (!File.Exists(configPath))
             {
-                throw new OdinSystemException($"Could not find configuration file [{appSettingsFile}]");
+                throw new OdinSystemException($"Could not find configuration file [{configPath}]");
             }
             
-            Log.Information($"Loading configuration at [{appSettingsFile}]");
+            Log.Information($"Loading configuration at [{configPath}]");
 
             var config = new ConfigurationBuilder()
-                .AddJsonFile(appSettingsFile, optional: false)
+                .AddJsonFile(configPath, optional: false)
                 .AddEnvironmentVariables()
                 .Build();
 

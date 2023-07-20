@@ -32,7 +32,8 @@ namespace Odin.Core.Services.EncryptionKeyService
         private static readonly SemaphoreSlim KeyCreationLock = new(1, 1);
         private static readonly byte[] OfflinePrivateKeyEncryptionKey = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-        public PublicPrivateKeyService(TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor, IOdinHttpClientFactory odinHttpClientFactory,
+        public PublicPrivateKeyService(TenantSystemStorage tenantSystemStorage, OdinContextAccessor contextAccessor,
+            IOdinHttpClientFactory odinHttpClientFactory,
             IMediator mediator)
         {
             _tenantSystemStorage = tenantSystemStorage;
@@ -146,13 +147,13 @@ namespace Odin.Core.Services.EncryptionKeyService
             var k = this.GetCurrentEccKeyFromStorage(_signingKeyStorageId);
             return Task.FromResult(EccPublicKeyData.FromDerEncodedPublicKey(k.publicKey));
         }
-        
+
         public Task<EccPublicKeyData> GetOnlineEccPublicKey()
         {
             var k = this.GetCurrentEccKeyFromStorage(_onlineEccKeyStorageId);
             return Task.FromResult(EccPublicKeyData.FromDerEncodedPublicKey(k.publicKey));
         }
-        
+
         public Task<RsaPublicKeyData> GetOnlinePublicKey()
         {
             var k = this.GetCurrentRsaKeyFromStorage(_onlineKeyStorageId);
@@ -211,6 +212,24 @@ namespace Odin.Core.Services.EncryptionKeyService
                 default:
                     throw new ArgumentOutOfRangeException(nameof(keyType), keyType, null);
             }
+        }
+
+
+        /// <summary>
+        /// Gets the Ecc key from the storage based on the CRC
+        /// </summary>
+        public Task<(EccFullKeyData EccKey, SensitiveByteArray DecryptionKey)> ResolveEccKeyForDecryption(uint crc32)
+        {
+            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
+            
+            EccFullKeyListData keyList;
+            SensitiveByteArray decryptionKey;
+
+            keyList = this.GetEccKeyListFromStorage(_onlineEccKeyStorageId);
+            decryptionKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+
+            var pk = EccKeyListManagement.FindKey(keyList, crc32);
+            return Task.FromResult((pk, decryptionKey));
         }
 
         /// <summary>
@@ -287,7 +306,7 @@ namespace Odin.Core.Services.EncryptionKeyService
             var pk = RsaKeyListManagement.FindKey(keyList, crc32);
             return Task.FromResult((pk, decryptionKey));
         }
-        
+
         private Task CreateNewRsaKeys(SensitiveByteArray encryptionKey, Guid storageKey)
         {
             var existingKeys = _tenantSystemStorage.SingleKeyValueStorage.Get<RsaFullKeyListData>(storageKey);
@@ -295,7 +314,7 @@ namespace Odin.Core.Services.EncryptionKeyService
             {
                 throw new OdinSecurityException($"Rsa keys with storage key {storageKey} already exist.");
             }
-            
+
             //create a new key list
             var rsaKeyList = RsaKeyListManagement.CreateRsaKeyList(encryptionKey,
                 RsaKeyListManagement.DefaultMaxOnlineKeys,
@@ -305,16 +324,16 @@ namespace Odin.Core.Services.EncryptionKeyService
 
             return Task.CompletedTask;
         }
-        
+
         private Task CreateNewEccKeys(SensitiveByteArray encryptionKey, Guid storageKey)
         {
             var existingKeys = _tenantSystemStorage.SingleKeyValueStorage.Get<EccFullKeyListData>(storageKey);
-            
+
             if (null != existingKeys)
             {
                 throw new OdinSecurityException($"Ecc keys with storage key {storageKey} already exist.");
             }
-            
+
             //create a new key list
             var eccKeyList = EccKeyListManagement.CreateEccKeyList(encryptionKey,
                 EccKeyListManagement.DefaultMaxOnlineKeys,
@@ -330,7 +349,6 @@ namespace Odin.Core.Services.EncryptionKeyService
             var keyList = GetRsaKeyListFromStorage(storageKey);
             return RsaKeyListManagement.GetCurrentKey(keyList);
         }
-        
 
         private RsaFullKeyListData GetRsaKeyListFromStorage(Guid storageKey)
         {
@@ -343,12 +361,11 @@ namespace Odin.Core.Services.EncryptionKeyService
             return EccKeyListManagement.GetCurrentKey(keyList);
         }
         
-
         private EccFullKeyListData GetEccKeyListFromStorage(Guid storageKey)
         {
             return _tenantSystemStorage.SingleKeyValueStorage.Get<EccFullKeyListData>(storageKey);
         }
-        
+
         private RsaEncryptedPayload Encrypt(RsaPublicKeyData pk, byte[] payload)
         {
             var keyHeader = KeyHeader.NewRandom16();
