@@ -10,7 +10,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Rsa
     /// <summary>
     /// The interface for storing files
     /// </summary>
-    public interface IRsaHttpClientForOwner
+    public interface IPublicPrivateKeyHttpClientForOwner
     {
         private const string RootEndpoint = YouAuthApiPathConstants.PublicKeysV1;
 
@@ -20,6 +20,9 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Rsa
         [Get(RootEndpoint + "/online")]
         Task<ApiResponse<GetPublicKeyResponse>> GetOnlinePublicKey();
         
+        [Get(RootEndpoint + "/online_ecc")]
+        Task<ApiResponse<GetPublicKeyResponse>> GetEccOnlinePublicKey();
+
         [Get(RootEndpoint + "/offline")]
         Task<ApiResponse<GetPublicKeyResponse>> GetOfflinePublicKey();
 

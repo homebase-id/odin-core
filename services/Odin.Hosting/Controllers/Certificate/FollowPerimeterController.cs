@@ -29,7 +29,7 @@ namespace Odin.Hosting.Controllers.Certificate
         [HttpPost("follow")]
         public async Task<IActionResult> ReceiveFollowRequest([FromBody] RsaEncryptedPayload payload)
         {
-            var (isValidPublicKey, payloadBytes) = await _publicPrivatePublicKeyService.DecryptPayload(RsaKeyType.OfflineKey, payload);
+            var (isValidPublicKey, payloadBytes) = await _publicPrivatePublicKeyService.RsaDecryptPayload(RsaKeyType.OfflineKey, payload);
             if (isValidPublicKey == false)
             {
                 //TODO: extend with error code indicated a bad public key 
