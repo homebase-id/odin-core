@@ -88,9 +88,17 @@ namespace OdinsAttestation.Controllers
             // Save request in database
             //
             var r = new AttestationRequestRecord() { identity = requestorId.DomainName, requestEnvelope = signedEnvelope.GetCompactSortedJson(), timestamp = UnixTimeUtc.Now() };
-            if (_db.tblAttestationRequest.Insert(r) < 1)
-                return BadRequest($"Had trouble inserting row into database, try again");
-                
+
+            try
+            {
+                if (_db.tblAttestationRequest.Insert(r) < 1)
+                    return BadRequest($"Had trouble inserting row into database, try again");
+            }
+            catch (Exception  ex)
+            {
+                return BadRequest($"Your previous request is being processed, wait: {ex.Message}");
+            }
+
             await Task.Delay(0); // Done to not get into async hell.
 
             return Ok("");
