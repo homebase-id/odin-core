@@ -10,6 +10,8 @@
         public const string AppManagementV1 = BasePathV1 + "/appmanagement";
 
         public const string YouAuthV1 = BasePathV1 + "/youauth";
+        public const string YouAuthV1Authorize = YouAuthV1 + "/authorize";
+        public const string YouAuthV1Token = YouAuthV1 + "/token";
 
         public const string DrivesV1 = BasePathV1 + "/drive";
         
@@ -42,6 +44,5 @@
         public const string ConfigurationV1 = BasePathV1 + "/config";
         
         public const string SecurityV1 = BasePathV1 + "/security";
-
     }
 }

@@ -8,6 +8,7 @@ using System.Text.Encodings.Web;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -19,6 +20,7 @@ using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Mediator.Owner;
+using Odin.Hosting.Controllers.OwnerToken;
 
 namespace Odin.Hosting.Authentication.Owner
 {
@@ -37,7 +39,18 @@ namespace Odin.Hosting.Authentication.Owner
         /// <summary/>
         protected override Task HandleChallengeAsync(AuthenticationProperties properties)
         {
-            Context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
+            // SEB:TODO we should split up these two into different handlers
+            if (Request.Path.StartsWithSegments(OwnerApiPathConstants.YouAuthV1))
+            {
+                var returnUrl = WebUtility.UrlEncode(Request.GetDisplayUrl());
+                // SEB:TODO constant?
+                var loginUrl = $"{Request.Scheme}://{Request.Host}/owner/login/youauth?returnUrl={returnUrl}";
+                Response.Redirect(loginUrl);                
+            }
+            else
+            {
+                Context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
+            }
             return Task.CompletedTask;
         }
 

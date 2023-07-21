@@ -1,4 +1,5 @@
 ﻿#nullable enable
+using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -8,6 +9,7 @@ namespace Odin.Hosting.Controllers.Anonymous
 {
     [ApiController]
     [Route("/api/perimeter/youauth")]
+    [Obsolete("SEB:TODO delete me")]
     public class YouAuthPerimeterController : Controller
     {
         private readonly IYouAuthService _youAuthService;

@@ -17,7 +17,7 @@ using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.X509;
 
-namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Current;
+namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Legacy;
 
 #nullable enable
 public class AppTests : YouAuthIntegrationTestBase

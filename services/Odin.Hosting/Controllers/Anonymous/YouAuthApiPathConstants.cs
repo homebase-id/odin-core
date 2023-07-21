@@ -18,12 +18,6 @@ namespace Odin.Hosting.Controllers.Anonymous
         [Obsolete("SEB:TODO delete me")]
         public const string FinalizeBridgeRequestRequestPath = AuthV1 + "/" + FinalizeBridgeRequestMethodName;
         
-        public const string RequestAuthorizationCodeMethodName = "authorize";
-        public const string RequestAuthorizationCodePath = AuthV1 + "/" + RequestAuthorizationCodeMethodName;
-        
-        public const string RedeemCodeForTokenRequestMethodName = "token";
-        public const string RedeemCodeForTokenCodeRequestPath = AuthV1 + "/" + RedeemCodeForTokenRequestMethodName;
-        
         public const string IsAuthenticatedMethodName = "is-authenticated";
         public const string DeleteTokenMethodName = "delete-token"; 
 
