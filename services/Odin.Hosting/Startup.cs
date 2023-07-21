@@ -297,11 +297,11 @@ namespace Odin.Hosting
 
             app.UseEndpoints(endpoints =>
             {
-                endpoints.MapGet("/", async context =>
-                {
-                    context.Response.Redirect("/home");
-                    await Task.CompletedTask;
-                });
+                // endpoints.MapGet("/", async context =>
+                // {
+                //     context.Response.Redirect("/home");
+                //     await Task.CompletedTask;
+                // });
                 endpoints.MapControllers();
             });
 
@@ -309,13 +309,6 @@ namespace Odin.Hosting
             {
                 app.UseSwagger();
                 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "OdinCore v1"));
-
-                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/home"),
-                    homeApp =>
-                    {
-                        homeApp.UseSpa(
-                            spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3000/home/"); });
-                    });
 
                 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
                     homeApp =>
@@ -333,6 +326,13 @@ namespace Odin.Hosting
                         {
                             spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:8080");
                         });
+                    });
+                
+                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/"),
+                    homeApp =>
+                    {
+                        homeApp.UseSpa(
+                            spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3000/"); });
                     });
             }
             else
@@ -356,7 +356,7 @@ namespace Odin.Hosting
                         });
                     });
 
-                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/home"),
+                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/"),
                     homeApp =>
                     {
                         var publicPath = Path.Combine(env.ContentRootPath, "client", "public-app");
