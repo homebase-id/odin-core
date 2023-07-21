@@ -34,8 +34,8 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                   _requestEnvelope = value;
                }
         }
-        private UnixTimeUtcUnique _timestamp;
-        public UnixTimeUtcUnique timestamp
+        private UnixTimeUtc _timestamp;
+        public UnixTimeUtc timestamp
         {
            get {
                    return _timestamp;
@@ -141,7 +141,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 }
                 _insertParam1.Value = item.identity;
                 _insertParam2.Value = item.requestEnvelope;
-                _insertParam3.Value = item.timestamp.uniqueTime;
+                _insertParam3.Value = item.timestamp.milliseconds;
                 var count = _database.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
                     _cache.AddOrUpdate("TableAttestationRequestCRUD", item.identity.ToString(), item);
@@ -173,7 +173,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 }
                 _upsertParam1.Value = item.identity;
                 _upsertParam2.Value = item.requestEnvelope;
-                _upsertParam3.Value = item.timestamp.uniqueTime;
+                _upsertParam3.Value = item.timestamp.milliseconds;
                 var count = _database.ExecuteNonQuery(_upsertCommand);
                 if (count > 0)
                     _cache.AddOrUpdate("TableAttestationRequestCRUD", item.identity.ToString(), item);
@@ -204,7 +204,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 }
                 _updateParam1.Value = item.identity;
                 _updateParam2.Value = item.requestEnvelope;
-                _updateParam3.Value = item.timestamp.uniqueTime;
+                _updateParam3.Value = item.timestamp.milliseconds;
                 var count = _database.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
                     _cache.AddOrUpdate("TableAttestationRequestCRUD", item.identity.ToString(), item);
@@ -241,7 +241,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.timestamp = new UnixTimeUtcUnique(rdr.GetInt64(2));
+                item.timestamp = new UnixTimeUtc(rdr.GetInt64(2));
             }
             return item;
        }
@@ -296,7 +296,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.timestamp = new UnixTimeUtcUnique(rdr.GetInt64(1));
+                item.timestamp = new UnixTimeUtc(rdr.GetInt64(1));
             }
             return item;
        }

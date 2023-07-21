@@ -2,11 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Signatures;
-using Odin.Core.Storage.SQLite.BlockChainDatabase;
+using Odin.Core.Storage.SQLite.AttestationDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
-using Odin.KeyChain;
-using System.Text.Json;
 
 namespace OdinsAttestation.Controllers
 {
@@ -16,13 +14,13 @@ namespace OdinsAttestation.Controllers
     {
         private readonly ILogger<AttestationRequestController> _logger;
         private readonly IHttpClientFactory _httpClientFactory;
-        private readonly BlockChainDatabase _db;
+        private readonly AttestationDatabase _db;
         private static SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
         //private readonly bool _simulate = true;
         private readonly EccFullKeyData _eccKey;
         private readonly SensitiveByteArray _eccPwd;
 
-        public AttestationRequestController(ILogger<AttestationRequestController> logger, IHttpClientFactory httpClientFactory, BlockChainDatabase db, SensitiveByteArray pwdEcc, EccFullKeyData eccKey)
+        public AttestationRequestController(ILogger<AttestationRequestController> logger, IHttpClientFactory httpClientFactory, AttestationDatabase db, SensitiveByteArray pwdEcc, EccFullKeyData eccKey)
         {
             _logger = logger;
             _httpClientFactory = httpClientFactory;
@@ -89,15 +87,11 @@ namespace OdinsAttestation.Controllers
 
             // Save request in database
             //
-
-            // TODO database table
-            //
-            // Table: requestTable
-            //    requestingIdentity STRING
-            //    signedRequestEnvelope STRING
-            //    DB created timestamp and modified
-            //
-            await Task.Delay(1);
+            var r = new AttestationRequestRecord() { identity = requestorId.DomainName, requestEnvelope = signedEnvelope.GetCompactSortedJson(), timestamp = UnixTimeUtc.Now() };
+            if (_db.tblAttestationRequest.Insert(r) < 1)
+                return BadRequest($"Had trouble inserting row into database, try again");
+                
+            await Task.Delay(0); // Done to not get into async hell.
 
             return Ok("");
         }

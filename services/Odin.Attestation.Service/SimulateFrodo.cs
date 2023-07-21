@@ -1,14 +1,9 @@
 ﻿using Odin.Core;
-using NodaTime;
-using Odin.Core.Identity;
-using Odin.Core.Time;
 using Odin.Core.Util;
-using System.Globalization;
-using System.Security.Cryptography.X509Certificates;
 using Odin.Core.Cryptography.Signatures;
 using Odin.Core.Cryptography.Data;
 
-namespace Odin.KeyChain
+namespace OdinsAttestation
 {
     public static class SimulateFrodo
     {
