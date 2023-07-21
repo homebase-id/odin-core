@@ -29,22 +29,22 @@ namespace Odin.Core.Cryptography.Signatures
         public byte[] ContentHash { get; set; }
 
         [JsonPropertyOrder(3)]
-        public byte[] Nonce { get; set; }
+        public long ContentLength { get; set; }
 
         [JsonPropertyOrder(4)]
+        public byte[] ContentNonce { get; set; }
+
+        [JsonPropertyOrder(5)]
         public string ContentHashAlgorithm { get; set; }
 
         /// <summary>
-        /// ContentType can currently be: Document, Attestation (proving e.g. my name), Request, more to come
+        /// ContentType should be one of the constants ContentType... above. More to come.
         /// </summary>
-        [JsonPropertyOrder(5)]
+        [JsonPropertyOrder(6)]
         public string ContentType { get; set; }
 
-        [JsonPropertyOrder(6)]
-        public UnixTimeUtc TimeStamp { get; set; }
-
         [JsonPropertyOrder(7)]
-        public long Length { get; set; }
+        public UnixTimeUtc TimeStamp { get; set; }
 
         [JsonPropertyOrder(8)]
         public SortedDictionary<string, object> AdditionalInfo { get; set; } // I had to drop checking validity here, too much trouble
@@ -147,7 +147,7 @@ namespace Odin.Core.Cryptography.Signatures
         /// <returns></returns>
         public SignatureData SignEnvelope(OdinId identity, SensitiveByteArray keyPwd, EccFullKeyData eccKey)
         {
-            if (Nonce == null)
+            if (ContentNonce == null)
                 throw new Exception("You must call CalculateContentHash before signing");
             var envelopeJson = GetCompactSortedJson();
             var signature = SignatureData.NewSignature(envelopeJson.ToUtf8ByteArray(), identity, keyPwd, eccKey);
@@ -181,7 +181,7 @@ namespace Odin.Core.Cryptography.Signatures
         /// The function also sets various properties of the envelope object based on the input and computed hash.
         /// </summary>
         /// <param name="content">The content stream to be hashed.</param>
-        /// <param name="contentType">The type of content that is being hashed.</param>
+        /// <param name="contentType">The type of content that is being hashed, e.g. attestation, document.</param>
         /// <param name="additionalInfo">Additional relevant information for the content. This could be metadata like 'author', 'title', etc.</param>
         /// <exception cref="ArgumentNullException">Thrown when the content stream is null.</exception>
         /// <exception cref="ArgumentException">Thrown when an invalid type is present in AdditionalInfo.</exception>
@@ -190,11 +190,11 @@ namespace Odin.Core.Cryptography.Signatures
             if (content == null)
                 throw new ArgumentNullException(nameof(content));
 
-            if (Nonce != null)
+            if (ContentNonce != null)
                 throw new Exception("You already calculated the content hash");
 
-            Nonce = ByteArrayUtil.GetRndByteArray(32);
-            (ContentHash, Length) = HashUtil.StreamSHA256(content, Nonce);
+            ContentNonce = ByteArrayUtil.GetRndByteArray(32);
+            (ContentHash, ContentLength) = HashUtil.StreamSHA256(content, ContentNonce);
             ContentHashAlgorithm = HashUtil.SHA256Algorithm;
             ContentType = contentType;
             TimeStamp = UnixTimeUtc.Now();

@@ -73,6 +73,7 @@ namespace OdinsAttestation.Controllers
 
             var attestation = AttestationManagement.AttestHuman(_eccKey, _eccPwd, id);
 
+            var tilSeb = attestation.GetCompactSortedJson();
 
             return Ok(attestation.GetCompactSortedJson());
         }

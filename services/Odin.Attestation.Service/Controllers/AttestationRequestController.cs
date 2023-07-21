@@ -80,6 +80,7 @@ namespace OdinsAttestation.Controllers
                 return BadRequest($"{ex.Message}");
             }
 
+            // This will work because it was already validated in the Verify... above
             var requestorId = new PunyDomainName(signedEnvelope.Signatures[0].Identity);
 
             // Let's fetch the identity's public key and make sure it's the same
@@ -101,9 +102,9 @@ namespace OdinsAttestation.Controllers
             // TODO database table
             //
             // Table: requestTable
-            //    identity STRING
-            //    signedEnvelope STRING
-            //    created timestamp (and modified)
+            //    requestingIdentity STRING
+            //    signedRequestEnvelope STRING
+            //    DB created timestamp and modified
             //
             await Task.Delay(1);
 

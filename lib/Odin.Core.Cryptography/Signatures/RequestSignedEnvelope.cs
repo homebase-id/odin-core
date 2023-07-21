@@ -18,7 +18,7 @@ namespace Odin.Core.Cryptography.Signatures
             if (requestSignedEnvelope.Length < 10)
                 throw new ArgumentException("Too small, expecting an ODIN signed envelope JSON");
 
-            SignedEnvelope? signedEnvelope;
+            SignedEnvelope signedEnvelope;
             try
             {
                 signedEnvelope = JsonSerializer.Deserialize<SignedEnvelope>(requestSignedEnvelope);

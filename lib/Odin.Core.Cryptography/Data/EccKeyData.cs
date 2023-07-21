@@ -228,18 +228,18 @@ namespace Odin.Core.Cryptography.Data
         }
 
 
-        public SensitiveByteArray GetEcdhSharedSecret(SensitiveByteArray pwd, EccPublicKeyData publicKeyData, byte[] salt)
+        public SensitiveByteArray GetEcdhSharedSecret(SensitiveByteArray pwd, EccPublicKeyData remotePublicKey, byte[] randomSalt)
         {
-            if (publicKeyData == null)
-                throw new ArgumentNullException(nameof(publicKeyData));
+            if (remotePublicKey == null)
+                throw new ArgumentNullException(nameof(remotePublicKey));
 
-            if (publicKeyData.publicKey == null)
-                throw new ArgumentNullException(nameof(publicKeyData.publicKey));
+            if (remotePublicKey.publicKey == null)
+                throw new ArgumentNullException(nameof(remotePublicKey.publicKey));
 
-            if (salt == null)
-                throw new ArgumentNullException(nameof(salt));
+            if (randomSalt == null)
+                throw new ArgumentNullException(nameof(randomSalt));
 
-            if (salt.Length < 16)
+            if (randomSalt.Length < 16)
                 throw new ArgumentException("Salt must be at least 16 bytes");
 
             // Retrieve the private key from the secure storage
@@ -247,7 +247,7 @@ namespace Odin.Core.Cryptography.Data
             var privateKeyParameters = (ECPrivateKeyParameters)PrivateKeyFactory.CreateKey(privateKeyBytes);
 
             // Construct the public key parameters from the provided data
-            var publicKeyParameters = (ECPublicKeyParameters)PublicKeyFactory.CreateKey(publicKeyData.publicKey);
+            var publicKeyParameters = (ECPublicKeyParameters)PublicKeyFactory.CreateKey(remotePublicKey.publicKey);
 
             // Initialize ECDH basic agreement
             ECDHBasicAgreement ecdhUagree = new ECDHBasicAgreement();
@@ -260,7 +260,7 @@ namespace Odin.Core.Cryptography.Data
             var sharedSecretBytes = sharedSecret.ToByteArrayUnsigned().ToSensitiveByteArray();
 
             // Apply HKDF to derive a symmetric key from the shared secret
-            return HashUtil.Hkdf(sharedSecretBytes.GetKey(), salt, 16).ToSensitiveByteArray();
+            return HashUtil.Hkdf(sharedSecretBytes.GetKey(), randomSalt, 16).ToSensitiveByteArray();
         }
 
         [Obsolete("Use GetEcdhSharedSecret() instead and always use a random salt. Send the random salt over the wire.")]
