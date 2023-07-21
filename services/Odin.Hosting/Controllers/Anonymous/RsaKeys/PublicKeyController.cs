@@ -1,17 +1,16 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.EncryptionKeyService;
-using Odin.Hosting.Controllers.Base;
 
 namespace Odin.Hosting.Controllers.Anonymous.RsaKeys
 {
     [ApiController]
     [Route(YouAuthApiPathConstants.PublicKeysV1)]
-    public class RsaKeyController : ControllerBase
+    public class PublicKeyController : ControllerBase
     {
         private readonly PublicPrivateKeyService _publicKeyService;
 
-        public RsaKeyController(PublicPrivateKeyService publicKeyService)
+        public PublicKeyController(PublicPrivateKeyService publicKeyService)
         {
             _publicKeyService = publicKeyService;
         }
@@ -28,7 +27,6 @@ namespace Odin.Hosting.Controllers.Anonymous.RsaKeys
             };
         }
         
-        
         [HttpGet("online")]
         public async Task<GetPublicKeyResponse> GetOnlineKey()
         {
@@ -41,7 +39,18 @@ namespace Odin.Hosting.Controllers.Anonymous.RsaKeys
             };
         }
         
-        
+        [HttpGet("online_ecc")]
+        public async Task<GetPublicKeyResponse> GetOnlineEccKey()
+        {
+            var key = await _publicKeyService.GetOnlineEccPublicKey();
+
+            return new GetPublicKeyResponse()
+            {
+                PublicKey = key.publicKey,
+                Crc32 = key.crc32c
+            };
+        }
+
         [HttpGet("offline")]
         public async Task<GetPublicKeyResponse> GetOfflinePublicKey()
         {

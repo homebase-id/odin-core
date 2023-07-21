@@ -81,7 +81,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
                 return null;
             }
 
-            var (isValidPublicKey, payloadBytes) = await _publicPrivateKeyService.DecryptPayload(RsaKeyType.OnlineKey, header.Payload);
+            var (isValidPublicKey, payloadBytes) = await _publicPrivateKeyService.RsaDecryptPayload(RsaKeyType.OnlineKey, header.Payload);
             if (isValidPublicKey == false)
             {
                 throw new OdinClientException("Invalid or expired public key", OdinClientErrorCode.InvalidOrExpiredRsaKey);

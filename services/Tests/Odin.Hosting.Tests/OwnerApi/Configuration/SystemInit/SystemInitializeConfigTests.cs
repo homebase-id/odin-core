@@ -79,6 +79,11 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             Assert.IsTrue(onlinePublicKey.PublicKey.Length > 0);
             Assert.IsTrue(onlinePublicKey.Crc32 > 0);
             
+            //
+            // Online Ecc key should exits
+            var onlineEccPk = await ownerClient.PublicPrivateKey.GetEccOnlinePublicKey();
+            Assert.IsTrue(onlineEccPk.PublicKey.Length > 0);
+            Assert.IsTrue(onlineEccPk.Crc32 > 0);
             
             //
             // offline key should exist

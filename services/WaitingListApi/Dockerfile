@@ -9,6 +9,7 @@ COPY ["lib/Odin.Core/Odin.Core.csproj", "lib/Odin.Core/"]
 COPY ["lib/Odin.Core.Storage/Odin.Core.Storage.csproj", "lib/Odin.Core.Storage/"]
 COPY ["lib/Odin.Core.Cryptography/Odin.Core.Cryptography.csproj", "lib/Odin.Core.Cryptography/"]
 COPY ["services/WaitingListApi/WaitingListApi.csproj", "services/WaitingListApi/"]
+
 RUN dotnet restore "services/WaitingListApi/WaitingListApi.csproj"
 COPY . .
 
