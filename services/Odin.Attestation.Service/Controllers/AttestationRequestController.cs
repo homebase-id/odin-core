@@ -32,15 +32,6 @@ namespace OdinsAttestation.Controllers
         }
 
 
-        /// <summary>
-        /// Called once from the controller to make sure database is setup
-        /// Need to set drop to false in production
-        /// </summary>
-        /// <param name="_db"></param>
-        public static void InitializeDatabase(BlockChainDatabase _db)
-        {
-        }
-
         private static byte[] GetIdentityPublicKey(PunyDomainName identity)
         {
             // @Todd - Here make an HTTP call instead of the simulation

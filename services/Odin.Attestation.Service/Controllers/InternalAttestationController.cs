@@ -37,16 +37,6 @@ namespace OdinsAttestation.Controllers
 
 
         /// <summary>
-        /// Called once from the controller to make sure database is setup
-        /// Need to set drop to false in production
-        /// </summary>
-        /// <param name="_db"></param>
-        public static void InitializeDatabase(BlockChainDatabase _db)
-        {
-        }
-
-
-        /// <summary>
         /// This simulates that an identity requests it's signature key to be added to the block chain
         /// </summary>
         /// <returns></returns>
