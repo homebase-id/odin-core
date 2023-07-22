@@ -171,5 +171,38 @@ namespace Odin.Core.Cryptography.Signatures
             };
             return JsonSerializer.Serialize(this, options);
         }
+
+        private static SortedDictionary<string, object> ConvertNestedObjectsToDicts(SortedDictionary<string, object> original)
+        {
+            if (original == null)
+                return null;
+
+            var result = new SortedDictionary<string, object>();
+            foreach (var kvp in original)
+            {
+                if (kvp.Value is JsonElement jsonElement && jsonElement.ValueKind == JsonValueKind.Object)
+                {
+                    var jsonString = jsonElement.GetRawText();
+                    var nestedDict = JsonSerializer.Deserialize<SortedDictionary<string, object>>(jsonString);
+                    result[kvp.Key] = ConvertNestedObjectsToDicts(nestedDict);
+                }
+                else
+                {
+                    result[kvp.Key] = kvp.Value;
+                }
+            }
+            return result;
+        }
+
+        public static SignedEnvelope Deserialize(string json)
+        {
+            SignedEnvelope signedEnvelope = JsonSerializer.Deserialize<SignedEnvelope>(json);
+
+            // Replaced nested sortedDicts with SortedDictionary
+            signedEnvelope.Envelope.AdditionalInfo = ConvertNestedObjectsToDicts(signedEnvelope.Envelope.AdditionalInfo);
+
+            return signedEnvelope;
+        }
+
     }
 }

@@ -46,8 +46,11 @@ namespace OdinsAttestation.Controllers
         [HttpGet("Simulator")]
         public async Task<IActionResult> GetSimulator()
         {
+            // Here we write all the attributes we want attested
+            var dataToAttest = new SortedDictionary<string, object>() { { "LegalName", "Frodo Baggins" } };
+
             // Let's build the envelope that Frodo will send
-            var signedEnvelope = SimulateFrodo.RequestEnvelope();
+            var signedEnvelope = SimulateFrodo.RequestEnvelope(dataToAttest);
 
             // Call the attestation server via HttpClient(Factory)
             var r1 = await GetRequestAttestation(signedEnvelope.GetCompactSortedJson());
@@ -91,15 +94,15 @@ namespace OdinsAttestation.Controllers
 
             try
             {
-                if (_db.tblAttestationRequest.Insert(r) < 1)
-                    return BadRequest($"Had trouble inserting row into database, try again");
+                if (_db.tblAttestationRequest.Upsert(r) < 1)
+                    return BadRequest($"Had trouble upserting row into database, try again");
             }
             catch (Exception  ex)
             {
-                return BadRequest($"Your previous request is being processed, wait: {ex.Message}");
+                return BadRequest($"There was an error: {ex.Message}");
             }
 
-            await Task.Delay(0); // Done to not get into async hell.
+            await Task.Delay(0); // Only to not get into async hell.
 
             return Ok("");
         }

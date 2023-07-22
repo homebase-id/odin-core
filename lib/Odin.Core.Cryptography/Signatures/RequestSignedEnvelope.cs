@@ -6,6 +6,7 @@ using Odin.Core.Util;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Numerics;
 using System.Text;
 using System.Text.Json;
 
@@ -19,12 +20,10 @@ namespace Odin.Core.Cryptography.Signatures
                 throw new ArgumentException("Too small, expecting an ODIN signed envelope JSON");
 
             SignedEnvelope signedEnvelope;
+
             try
             {
-                signedEnvelope = JsonSerializer.Deserialize<SignedEnvelope>(requestSignedEnvelope);
-
-                if (signedEnvelope == null)
-                    throw new ArgumentException($"Unable to parse JSON.");
+                signedEnvelope = SignedEnvelope.Deserialize(requestSignedEnvelope);
             }
             catch (Exception ex)
             {
@@ -32,7 +31,6 @@ namespace Odin.Core.Cryptography.Signatures
             }
 
             // Verify the embedded signature
-
             if (signedEnvelope.VerifyEnvelopeSignatures() == false)
                 throw new ArgumentException($"Unable to verify signatures.");
 
@@ -100,15 +98,12 @@ namespace Odin.Core.Cryptography.Signatures
         }
 
         // This function attests that the OdinId is associated with a human.
-        public static SignedEnvelope CreateRequestAttestation(EccFullKeyData eccKey, SensitiveByteArray pwd, PunyDomainName identity)
+        public static SignedEnvelope CreateRequestAttestation(EccFullKeyData eccKey, SensitiveByteArray pwd, PunyDomainName identity, SortedDictionary<string, object> dataToAtttest)
         {
-            var requestData = new SortedDictionary<string, object>
-            {
-                { "Request", "ServiceRequest" },
-                { "RequestType", "Attestation" }
-            };
+            dataToAtttest.Add("Request", "ServiceRequest");
+            dataToAtttest.Add("RequestType", "Attestation");
 
-            return CreateRequestEnvelope(eccKey, pwd, identity, requestData);
+            return CreateRequestEnvelope(eccKey, pwd, identity, dataToAtttest);
         }
     }
 }

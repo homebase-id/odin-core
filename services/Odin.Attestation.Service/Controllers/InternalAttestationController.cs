@@ -3,14 +3,14 @@
 
 
 using Microsoft.AspNetCore.Mvc;
-using System.Text;
 using Odin.Core;
-using Odin.Core.Storage.SQLite.BlockChainDatabase;
+using Odin.Core.Storage.SQLite.AttestationDatabase;
 using Odin.Core.Util;
-using Odin.Core.Time;
-using Microsoft.Data.Sqlite;
 using Odin.Core.Cryptography.Signatures;
 using Odin.Core.Cryptography.Data;
+using System.Text.Json;
+using System.Security.Cryptography.Xml;
+using System;
 
 namespace OdinsAttestation.Controllers
 {
@@ -20,13 +20,13 @@ namespace OdinsAttestation.Controllers
     {
         private readonly ILogger<AttestationRequestController> _logger;
         private readonly IHttpClientFactory _httpClientFactory;
-        private readonly BlockChainDatabase _db;
+        private readonly AttestationDatabase _db;
         private static SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
         // private readonly bool _simulate = true;
         private readonly EccFullKeyData _eccKey;
         private readonly SensitiveByteArray _eccPwd;
 
-        public InternalAttestationController(ILogger<AttestationRequestController> logger, IHttpClientFactory httpClientFactory, BlockChainDatabase db, SensitiveByteArray pwdEcc, EccFullKeyData eccKey)
+        public InternalAttestationController(ILogger<AttestationRequestController> logger, IHttpClientFactory httpClientFactory, AttestationDatabase db, SensitiveByteArray pwdEcc, EccFullKeyData eccKey)
         {
             _logger = logger;
             _httpClientFactory = httpClientFactory;
@@ -40,17 +40,75 @@ namespace OdinsAttestation.Controllers
         /// This simulates that an identity requests it's signature key to be added to the block chain
         /// </summary>
         /// <returns></returns>
-/*        [HttpGet("Simulator")]
+       [HttpGet("Simulator")]
         public async Task<IActionResult> GetSimulator()
         {
-        }*/
+            await Task.Delay(0);
+            return Ok();
+        }
 
-        [HttpGet("AttestHuman")]
-        public IActionResult GetAttestHuman(string requestCode)
+
+        private IActionResult DeleteRequest(PunyDomainName identity)
         {
-            // get identity from 
-            var identity = "frodo.com";
+            try
+            {
+                var n = _db.tblAttestationRequest.Delete(identity.DomainName);
 
+                if (n < 1)
+                    return BadRequest($"No such identity found deleted");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Error deleting for identity {ex.Message}");
+            }
+
+            return Ok();
+        }
+
+
+        [HttpGet("DeleteRequest")]
+        public IActionResult GetDeleteRequest(string identity)
+        {
+            PunyDomainName id;
+
+            try
+            {
+                id = new PunyDomainName(identity);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Invalid identity {ex.Message}");
+            }
+
+            return DeleteRequest(id);
+        }
+
+        private static T GetValueFromJsonElement<T>(SortedDictionary<string, object> dict, string key)
+        {
+            if (dict.TryGetValue(key, out var value))
+            {
+                if (value is JsonElement element)
+                {
+                    if (typeof(T) == typeof(string))
+                    {
+                        return (T)(object)element.GetString();
+                    }
+                    else if (typeof(T) == typeof(int))
+                    {
+                        return (T)(object)element.GetInt32();
+                    }
+                    // Add more types as needed...
+                }
+            }
+
+            throw new KeyNotFoundException($"Key '{key}' not found in the dictionary or value is not of the expected type.");
+        }
+
+
+
+        [HttpGet("ApproveRequest")]
+        public IActionResult GetApproveRequest(string identity)
+        {
             PunyDomainName id;
 
             try
@@ -61,48 +119,84 @@ namespace OdinsAttestation.Controllers
                 return BadRequest($"Invalid identity {ex.Message}");
             }
 
-            var attestation = AttestationManagement.AttestHuman(_eccKey, _eccPwd, id);
+            //
+            // First get the request from the database
+            // 
+            var r = _db.tblAttestationRequest.Get(id.DomainName);
 
-            var tilSeb = attestation.GetCompactSortedJson();
+            if (r == null)
+                return BadRequest("No such request present");
 
-            return Ok(attestation.GetCompactSortedJson());
-        }
-
-        [HttpGet("VerifyKey")]
-        public IActionResult GetVerifyKey(string identity, string publicKeyDerBase64)
-        {
+            SignedEnvelope? requestEnvelope;
             try
             {
-                var id = new PunyDomainName(identity);
+                requestEnvelope = RequestSignedEnvelope.VerifyRequestEnvelope(r.requestEnvelope);
             }
             catch (Exception ex)
             {
-                return BadRequest($"Invalid identity {ex.Message}");
+                return BadRequest($"Irrecoverable error, unable to deserialize signed envelope {ex.Message}");
             }
 
-            EccPublicKeyData publicKey;
+            if (!requestEnvelope.Envelope.AdditionalInfo.ContainsKey("data"))
+                return BadRequest("The request doesn't have a data section");
 
+
+            SortedDictionary<string, object>? dataObject = requestEnvelope.Envelope.AdditionalInfo["data"] as SortedDictionary<string, object>;
+
+            //
+            // Parse the additional info in the request and generate a series of attestations
+            // 
+            var attestationList = new List<SignedEnvelope>();
+
+            // We always verify the fact it's a human
             try
             {
-                var publicKeyDerBytes = Convert.FromBase64String(publicKeyDerBase64);
-                publicKey = EccPublicKeyData.FromDerEncodedPublicKey(publicKeyDerBytes);
+                var attestation = AttestationManagement.AttestHuman(_eccKey, _eccPwd, id);
+                attestationList.Add(attestation);
             }
-            catch(Exception)
+            catch(Exception ex)
             {
-                return BadRequest("Invalid public key");
+                return BadRequest($"Unable to attest Hooman {ex.Message}");
             }
 
-            var r = _db.tblBlockChain.Get(identity, publicKey.publicKey);
-            if (r == null)
+            // Let's check for legal name
+
+            if (dataObject!.TryGetValue("LegalName", out var legalNameObject))
             {
-                return NotFound("No such identity,key found.");
+                try
+                {
+                    string legalName = GetValueFromJsonElement<string>(dataObject, "LegalName");
+                    var attestation = AttestationManagement.AttestLegalName(_eccKey, _eccPwd, id, legalName);
+                    attestationList.Add(attestation);
+                }
+                catch (Exception ex)
+                {
+                    return BadRequest($"Unable to attest LegalName {ex.Message}");
+                }
             }
 
-            var msg = $"{r.timestamp.ToUnixTimeUtc().milliseconds / 1000} key registration";
+            //
+            // This is the JSON array of JSON
+            //
+            var jsonList = attestationList.Select(item => item.GetCompactSortedJson()).ToList();
 
-            return Ok(msg);
+            var jsonArray = JsonSerializer.Serialize(jsonList);
+
+            //
+            // Now call identity and deliver the attested data
+            //
+
+
+            //
+            // Now insert the block chain records
+            //
+
+            //
+            // Now delete the request from the database
+            //
+
+            return Ok();
         }
-
 
         /// <summary>
         /// 010. Client calls Server.RegisterKey(identity, tempcode)

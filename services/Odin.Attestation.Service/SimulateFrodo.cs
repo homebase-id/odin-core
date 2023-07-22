@@ -32,11 +32,11 @@ namespace OdinsAttestation
             return _ecc.publicDerBase64();
         }
 
-        public static SignedEnvelope RequestEnvelope()
+        public static SignedEnvelope RequestEnvelope(SortedDictionary<string, object> dataToAtttest)
         {
             // We create an empty envelope with a contentType of "request"
             //
-            var signedEnvelope = RequestSignedEnvelope.CreateRequestAttestation(_ecc, _pwd, new PunyDomainName(Identity));
+            var signedEnvelope = RequestSignedEnvelope.CreateRequestAttestation(_ecc, _pwd, new PunyDomainName(Identity), dataToAtttest);
 
             return signedEnvelope;
         }
