@@ -158,6 +158,11 @@ namespace Odin.Core.Services.Authorization.Apps
             return (response, corsHostName);
         }
 
+        public async Task<(ClientAccessToken cat, string corsHostName)> RegisterClientRaw(GuidId appId, string friendlyName)
+        {
+            return await this.RegisterClientInternal(appId, friendlyName);
+        }
+
         public async Task<RedactedAppRegistration> GetAppRegistration(GuidId appId)
         {
             var result = await GetAppRegistrationInternal(appId);
@@ -198,7 +203,7 @@ namespace Odin.Core.Services.Authorization.Apps
                             AccessRegistrationId = accessReg.Id
                         })
                 };
-                
+
                 dotYouContext.SetPermissionContext(permissionContext);
                 return dotYouContext;
             }

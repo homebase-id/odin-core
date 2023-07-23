@@ -61,6 +61,14 @@ namespace Odin.Core.Services.Authorization.Apps
         /// <returns></returns>
         Task<(AppClientRegistrationResponse registrationResponse, string corsHostName)> RegisterClient(GuidId appId, byte[] clientPublicKey, string friendlyName);
 
+        /// <summary>
+        /// Registers an application to be used on a given device
+        /// </summary>
+        /// <param name="appId"></param>
+        /// <param name="friendlyName"></param>
+        /// <returns></returns>
+        Task<(ClientAccessToken cat, string corsHostName)> RegisterClientRaw(GuidId appId, string friendlyName);
+        
         Task<List<RegisteredAppClientResponse>> GetRegisteredClients();
 
         /// <summary>

@@ -26,6 +26,9 @@ namespace Odin.Hosting.Controllers.Anonymous
 
         //
 
+        //
+        //Note: this call comes from a browser
+        //
         [HttpGet(YouAuthApiPathConstants.ValidateAuthorizationCodeRequestMethodName)]
         public async Task<ActionResult> ValidateAuthorizationCodeRequest(
             [FromQuery(Name = YouAuthDefaults.Subject)]
@@ -35,6 +38,8 @@ namespace Odin.Hosting.Controllers.Anonymous
             [FromQuery(Name = YouAuthDefaults.ReturnUrl)]
             string returnUrl)
         {
+            
+            //make a backend call to identity trying to login
             var (success, remoteIcrClientAuthToken) = await _youAuthService.ValidateAuthorizationCodeRequest(_currentTenant, subject, authorizationCode);
 
             if (!success)
@@ -52,6 +57,7 @@ namespace Odin.Hosting.Controllers.Anonymous
                 };
             }
 
+            //set the cookie from the identity being logged into 
             var clientAccessToken = await _youAuthService.RegisterBrowserAccess(subject, remoteIcrClientAuthToken);
             AuthenticationCookieUtil.SetCookie(Response, YouAuthDefaults.XTokenCookieName, clientAccessToken.ToAuthenticationToken());
 
