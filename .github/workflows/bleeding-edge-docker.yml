@@ -106,6 +106,19 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-edge
 
+      # - name: Build and push Docker image
+      #   uses: docker/build-push-action@v4
+      #   with:
+      #     context: ./dotyoucore
+      #     platforms: linux/amd64
+      #     file: ./dotyoucore/services/Odin.Hosting/Dockerfile
+      #     build-args: |
+      #       SDK_ARCH=amd64
+      #       RUNTIME_ARCH=linux-x64
+      #     push: true
+      #     tags: ${{ steps.meta.outputs.tags }}
+      #     labels: ${{ steps.meta.outputs.labels }}
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
@@ -113,8 +126,8 @@ jobs:
           platforms: linux/amd64
           file: ./dotyoucore/services/Odin.Hosting/Dockerfile
           build-args: |
-            SDK_ARCH=amd64
-            RUNTIME_ARCH=linux-x64
+            SDK_ARCH=arm64v8
+            RUNTIME_ARCH=linux-arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
