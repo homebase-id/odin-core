@@ -18,7 +18,8 @@ RUN dotnet build --warnaserror "services/Odin.Hosting/Odin.Hosting.csproj" -c Re
 
 FROM build AS publish
 #RUN dotnet publish "Odin.Hosting/Odin.Hosting.csproj" -c Release -o /app/publish
-RUN dotnet publish "services/Odin.Hosting/Odin.Hosting.csproj" /p:RuntimeIdentifier=linux-x64 /p:IncludeNativeLibrariesForSelfExtract=true /p:UseAppHost=true --self-contained true -r linux-x64 -c Release -o /app/publish
+#RUN dotnet publish "services/Odin.Hosting/Odin.Hosting.csproj" /p:RuntimeIdentifier=linux-x64 /p:IncludeNativeLibrariesForSelfExtract=true /p:UseAppHost=true --self-contained true -r linux-x64 -c Release -o /app/publish
+RUN dotnet publish "services/Odin.Hosting/Odin.Hosting.csproj" -c Release -o /app/publish
 
 FROM base AS final
 WORKDIR /app
