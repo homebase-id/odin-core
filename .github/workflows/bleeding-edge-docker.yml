@@ -3,7 +3,7 @@ name: Bleeding Edge Docker
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [main, build-x]
 
 permissions:
   contents: read
@@ -12,7 +12,7 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -26,10 +26,10 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v3
         with:
-          node-version: '16.x'
-          registry-url: 'https://npm.pkg.github.com'
+          node-version: "16.x"
+          registry-url: "https://npm.pkg.github.com"
           # Defaults to the user or organization that owns the workflow file
-          scope: '@octocat'
+          scope: "@octocat"
 
       - name: Checkout dotyoucore
         uses: actions/checkout@v3
@@ -63,7 +63,7 @@ jobs:
           echo VITE_VERSION=$(date +%s) >> packages/public-app/.env
           touch packages/owner-app/.env 
           echo VITE_VERSION=$(date +%s) >> packages/owner-app/.env
-      
+
       - name: Build owner-app
         working-directory: ./client/apps
         run: |
@@ -74,7 +74,7 @@ jobs:
       - name: Build public-app
         working-directory: ./client/apps
         run: |
-          
+
           npm run build -w ./packages/public-app
           rm -rf ../../dotyoucore/services/Odin.Hosting/client/public-app
           mv packages/public-app/dist ../../dotyoucore/services/Odin.Hosting/client/public-app
@@ -100,7 +100,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-edge
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-edge-x
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
