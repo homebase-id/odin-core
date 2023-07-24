@@ -110,7 +110,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: ./dotyoucore
-          platforms: linux/amd64,linux/arm/v8
+          platforms: linux/amd64
           file: ./dotyoucore/services/Odin.Hosting/Dockerfile
           build-args: |
             SDK_ARCH=amd64
