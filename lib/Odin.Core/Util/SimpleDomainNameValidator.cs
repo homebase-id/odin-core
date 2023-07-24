@@ -8,48 +8,52 @@ using DnsClient.Protocol;
 
 namespace Odin.Core.Util
 {
-    // Guaranteed to hold a valid, lowercased puny domain name
+    // Guaranteed to hold a valid, lowercased simple domain name
     //
-    public readonly struct PunyDomainName
+    public readonly struct SimpleDomainName
     {
-        private readonly string _punyDomainName;
+        private readonly string _simpleDomainName;
 
-        // Provide a public property to read the puny domain
-        public string DomainName => _punyDomainName;
+        // Provide a public property to read the simple domain
+        public string DomainName => _simpleDomainName;
 
-        public PunyDomainName(string punyDomainName)
+        public SimpleDomainName(string simpleDomainName)
         {
-            PunyDomainNameValidator.AssertValidDomain(punyDomainName);
-            _punyDomainName = punyDomainName.ToLower();
+            SimpleDomainNameValidator.AssertValidDomain(simpleDomainName);
+            _simpleDomainName = simpleDomainName.ToLower();
         }
-
-        // Get the IDN representation of the puny domain
-        public string ToIDN()
+        
+        /// <summary>
+        /// Get the IDN representation of the simple domain
+        /// </summary>
+        public string ToIdn()
         {
             var idnMapping = new IdnMapping();
-            string unicode = idnMapping.GetUnicode(_punyDomainName);
+            string unicode = idnMapping.GetUnicode(_simpleDomainName);
             return unicode;
         }
 
-        // Static function to create a PunyDomainName from an IDN
-        public static PunyDomainName FromIDN(string idnDomainName)
+        /// <summary>
+        /// Static function to create a SimpleDomainName from an IDN
+        /// </summary>
+        public static SimpleDomainName FromIdn(string idnDomainName)
         {
             var idnMapping = new IdnMapping();
             string punyCode = idnMapping.GetAscii(idnDomainName);
-            return new PunyDomainName(punyCode);
+            return new SimpleDomainName(punyCode);
         }
     }
 
 
     // DNS name is {label.}+label. Max 254 characters total. Max 127 levels
     //
-    public class PunyDomainNameValidator
+    public class SimpleDomainNameValidator
     {
         public const int MAX_DNS_LABEL_COUNT = 127;  // as per DNS RFC
         public const int MAX_DNS_LABEL_LENGTH = 63;  // as per DNS RFC
         public const int MAX_DNS_DOMAIN_LENGTH = 255;  // as per DNS RFC
 
-        public static readonly byte[] punyCodeAsciiMap =
+        public static readonly byte[] CodeAsciiMap =
         {
             128, 128, 128, 128, 128, 128, 128, 128, 128, 128, // 000-009
             128, 128, 128, 128, 128, 128, 128, 128, 128, 128, // 010-019
@@ -80,26 +84,26 @@ namespace Odin.Core.Util
         };
 
         // Not yet tested
-        public static bool TryValidateDomain(string punyDomainName)
+        public static bool TryValidateDomain(string simpleDomainName)
         {
-            if (punyDomainName is null)
+            if (simpleDomainName is null)
                 return false;
 
-            if (punyDomainName.Length < 3 || punyDomainName.Length > MAX_DNS_DOMAIN_LENGTH)
+            if (simpleDomainName.Length < 3 || simpleDomainName.Length > MAX_DNS_DOMAIN_LENGTH)
                 return false;
 
             int labelCount = 0;
             int labelLength = 0;
 
-            for (int i=0; i < punyDomainName.Length; i++)
+            for (int i=0; i < simpleDomainName.Length; i++)
             {
-                if (punyDomainName[i] > 255) // Illegal non-ASCII character
+                if (simpleDomainName[i] > 255) // Illegal non-ASCII character
                     return false;
 
-                if (punyCodeAsciiMap[punyDomainName[i]] == 128) // 128 is illegal punyCode character
+                if (CodeAsciiMap[simpleDomainName[i]] == 128) // 128 is illegal punyCode character
                     return false;
                 
-                if (punyDomainName[i] == '.')
+                if (simpleDomainName[i] == '.')
                 {
                     if (labelLength == 0) // Label cannot be empty
                         return false;
@@ -109,7 +113,7 @@ namespace Odin.Core.Util
                     if (labelLength > MAX_DNS_LABEL_LENGTH) // Too many labels per RFC
                         return false;
 
-                    if (punyDomainName[i-1] == '-') // Last label char cannot be hyphen
+                    if (simpleDomainName[i-1] == '-') // Last label char cannot be hyphen
                         return false;
 
                     labelLength = 0;
@@ -117,7 +121,7 @@ namespace Odin.Core.Util
                 else
                 {
                     if (labelLength ==0)
-                        if (punyDomainName[i] == '-') // First label char cannot be hyphen
+                        if (simpleDomainName[i] == '-') // First label char cannot be hyphen
                             return false;
 
                     labelLength++;
@@ -127,7 +131,7 @@ namespace Odin.Core.Util
             labelCount++; // The last label
 
             // Check for last label's length and it should not end with hyphen
-            if (labelLength == 0 || labelLength > MAX_DNS_LABEL_LENGTH || punyDomainName[punyDomainName.Length - 1] == '-')
+            if (labelLength == 0 || labelLength > MAX_DNS_LABEL_LENGTH || simpleDomainName[simpleDomainName.Length - 1] == '-')
                 return false;
 
             return labelCount >= 2 && labelCount < MAX_DNS_LABEL_COUNT;
@@ -136,10 +140,10 @@ namespace Odin.Core.Util
 
         // Check the whole domain name. Throw an exception if it is invalid.
 
-        public static void AssertValidDomain(string punyCodeDomain)
+        public static void AssertValidDomain(string simpleCodeDomain)
         {
-            if (TryValidateDomain(punyCodeDomain) == false)
-                throw new Exception("Illegal puny code domain name."); // Thrown an exception
+            if (TryValidateDomain(simpleCodeDomain) == false)
+                throw new Exception("Illegal simple code domain name."); // Thrown an exception
         }
 
 

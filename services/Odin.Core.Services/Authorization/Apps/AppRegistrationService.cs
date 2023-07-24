@@ -1,4 +1,5 @@
-﻿using System;
+﻿#nullable enable
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -65,7 +66,7 @@ namespace Odin.Core.Services.Authorization.Apps
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var icrKey = (request.PermissionSet?.HasKey(PermissionKeys.UseTransit) ?? false) ? _icrKeyService.GetDecryptedIcrKey() : null;
-            var appGrant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, request.PermissionSet, request.Drives, masterKey, icrKey);
+            var appGrant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, request.PermissionSet!, request.Drives, masterKey, icrKey);
 
             //TODO: add check to ensure app name is unique
             //TODO: add check if app is already registered
@@ -102,7 +103,7 @@ namespace Odin.Core.Services.Authorization.Apps
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var keyStoreKey = appReg.Grant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
             var icrKey = request.PermissionSet?.HasKey(PermissionKeys.UseTransit) ?? false ? _icrKeyService.GetDecryptedIcrKey() : null;
-            appReg.Grant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, request.PermissionSet, request.Drives, masterKey, icrKey);
+            appReg.Grant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, request.PermissionSet!, request.Drives, masterKey, icrKey);
 
             _appRegistrationValueStorage.Upsert(request.AppId, GuidId.Empty, _appRegistrationDataType, appReg);
 
@@ -163,7 +164,7 @@ namespace Odin.Core.Services.Authorization.Apps
             return await this.RegisterClientInternal(appId, friendlyName);
         }
 
-        public async Task<RedactedAppRegistration> GetAppRegistration(GuidId appId)
+        public async Task<RedactedAppRegistration?> GetAppRegistration(GuidId appId)
         {
             var result = await GetAppRegistrationInternal(appId);
             return result?.Redacted();
@@ -175,7 +176,7 @@ namespace Odin.Core.Services.Authorization.Apps
             {
                 var (isValid, accessReg, appReg) = await ValidateClientAuthToken(token);
 
-                if (!isValid)
+                if (!isValid || null == appReg || accessReg == null)
                 {
                     throw new OdinSecurityException("Invalid token");
                 }
@@ -212,25 +213,25 @@ namespace Odin.Core.Services.Authorization.Apps
             return result;
         }
 
-        public async Task<(bool isValid, AccessRegistration accessReg, AppRegistration appRegistration)> ValidateClientAuthToken(
+        public async Task<(bool isValid, AccessRegistration? accessReg, AppRegistration? appRegistration)> ValidateClientAuthToken(
             ClientAuthenticationToken authToken)
         {
             var appClient = _appClientValueStorage.Get<AppClient>(authToken.Id);
             if (null == appClient)
             {
-                return (false, null, null);
+                return (false, null, null)!;
             }
 
             var appReg = await this.GetAppRegistrationInternal(appClient.AppId);
 
             if (null == appReg || null == appReg.Grant)
             {
-                return (false, null, null);
+                return (false, null, null)!;
             }
 
             if (appClient.AccessRegistration.IsRevoked || appReg.Grant.IsRevoked)
             {
-                return (false, null, null);
+                return (false, null, null)!;
             }
 
             return (true, appClient.AccessRegistration, appReg);
@@ -383,13 +384,13 @@ namespace Odin.Core.Services.Authorization.Apps
             _appClientValueStorage.Upsert(appClient.AccessRegistration.Id, appClient.AppId, _appClientDataType, appClient);
         }
 
-        private async Task<AppRegistration> GetAppRegistrationInternal(GuidId appId)
+        private async Task<AppRegistration?> GetAppRegistrationInternal(GuidId appId)
         {
             var appReg = _appRegistrationValueStorage.Get<AppRegistration>(appId);
             return await Task.FromResult(appReg);
         }
 
-        private async Task NotifyAppChanged(AppRegistration oldAppRegistration, AppRegistration newAppRegistration)
+        private async Task NotifyAppChanged(AppRegistration? oldAppRegistration, AppRegistration newAppRegistration)
         {
             await _mediator.Publish(new AppRegistrationChangedNotification()
             {

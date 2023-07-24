@@ -32,10 +32,11 @@ public interface IYouAuthUnifiedService
     
     Task StoreConsent(string clientIdOrDomain, string permissionRequest);
     
-    Task<string> CreateAuthorizationCode(
-        ClientType clientType,
-        string permissionRequest, 
-        string codeChallenge, 
+    Task<string> CreateAuthorizationCode(ClientType clientType,
+        string clientId,
+        string clientInfo,
+        string permissionRequest,
+        string codeChallenge,
         TokenDeliveryOption tokenDeliveryOption);
 
     Task<bool> ExchangeCodeForToken(

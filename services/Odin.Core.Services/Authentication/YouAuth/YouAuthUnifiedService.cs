@@ -4,8 +4,10 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Caching.Memory;
+using Odin.Core.Exceptions;
 using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Base;
+using Odin.Core.Util;
 
 namespace Odin.Core.Services.Authentication.YouAuth;
 
@@ -20,17 +22,21 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     private readonly IAppRegistrationService _appRegistrationService;
     private readonly OdinContextAccessor _contextAccessor;
+    private readonly YouAuthConsentService _consentService;
 
-    public YouAuthUnifiedService(IAppRegistrationService appRegistrationService, OdinContextAccessor contextAccessor)
+    public YouAuthUnifiedService(IAppRegistrationService appRegistrationService, OdinContextAccessor contextAccessor, YouAuthConsentService consentService)
     {
         _appRegistrationService = appRegistrationService;
         _contextAccessor = contextAccessor;
+        _consentService = consentService;
     }
 
     //
-
+    
     public Task<bool> NeedConsent(string tenant, ClientType clientType, string clientIdOrDomain, string permissionRequest)
     {
+        AssertCanAcquireConsent(clientType, clientIdOrDomain, permissionRequest);
+
         // Lookup clientId and permissionRequest of previously stored consent.
         if (_authorizations.ContainsKey(clientIdOrDomain)) // SEB:TODO include permissionRequest in check
         {
@@ -39,12 +45,12 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         
         if (clientType == ClientType.domain)
         {
-            // TODD:YOUAUTH
-            // Here, we are checking if consent has already
-            // been granted to the domain
-            
-            // bool isConnected = IsConnected(clientIdOrDomain);
+            bool needsConsent = _consentService.IsConsentRequired(new SimpleDomainName(clientIdOrDomain))
+                .GetAwaiter()
+                .GetResult();
 
+            return Task.FromResult(needsConsent);
+            
             // SEB:TODO
             // if (!isConnected)
             // {
@@ -58,8 +64,8 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             // }
             // return Task.FromResult(true);
         }
-        
-        //Note: When clientType == app, consent from the owner is always needed
+
+        //clientType == app always needs consent
         return Task.FromResult(true);
     }
 
@@ -78,8 +84,9 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     //
 
-    public Task<string> CreateAuthorizationCode(
-        ClientType clientType,
+    public Task<string> CreateAuthorizationCode(ClientType clientType,
+        string clientId,
+        string clientInfo,
         string permissionRequest,
         string codeChallenge,
         TokenDeliveryOption tokenDeliveryOption)
@@ -88,15 +95,20 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
         if (clientType == ClientType.app)
         {
-            //TODO: SEB - you need to allow the following params to be set (appId and deviceFriendlyName)
-            Guid appId = Guid.Empty; //TODO: must be specified
-            var deviceFriendlyName = "device name..i.e. Todd's macbook or Google Pixel";
+            Guid appId = Guid.Parse(clientId);
+            var deviceFriendlyName = clientInfo;
 
-            var (clientAccessToken, corsHostName) = _appRegistrationService.RegisterClientRaw(
+            var (clientAccessToken, _) = _appRegistrationService.RegisterClientRaw(
                     appId,
                     deviceFriendlyName)
                 .GetAwaiter()
                 .GetResult();
+        }
+
+        if (clientType == ClientType.domain)
+        {
+            //
+
         }
 
         var code = Guid.NewGuid().ToString();
@@ -107,9 +119,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             permissionRequest,
             codeChallenge,
             tokenDeliveryOption);
-
-        // TODO: SEB - expand to hold preauthorized app Cat
-
+        
         _codesAndTokens.Set(code, ac, TimeSpan.FromMinutes(5));
 
         return Task.FromResult(code);
@@ -163,6 +173,23 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         return Task.FromResult(true);
     }
 
+    //
+    
+    private void AssertCanAcquireConsent(ClientType clientType, string clientIdOrDomain, string permissionRequest)
+    {
+        if (clientType == ClientType.app)
+        {
+            //check if app is registered
+            var appId = Guid.Parse(clientIdOrDomain);
+            var appReg = _appRegistrationService.GetAppRegistration(appId).GetAwaiter().GetResult();
+
+            if (null == appReg)
+            {
+                throw new OdinClientException("App not registered");
+            }
+        }
+    }
+    
     //
 
     private sealed class AuthorizationCodeAndToken

@@ -113,7 +113,7 @@ namespace OdinsChains.Controllers
 
                 genesis.identity = "odin.valhalla.com.livesforever";
                 genesis.publicKey = eccGenesis.publicKey;
-                genesis.nonce = "May Odin's chain safeguard the identities of the many. Skål!".ToUtf8ByteArray();
+                genesis.nonce = "May Odin's chain safeguard the identities of the many. Skï¿½l!".ToUtf8ByteArray();
                 var signature = eccGenesis.Sign(password, genesis.nonce);
                 genesis.signedNonce = signature;
                 genesis.previousHash = ByteArrayUtil.CalculateSHA256Hash(Guid.Empty.ToByteArray());
@@ -250,7 +250,7 @@ namespace OdinsChains.Controllers
         {
             try
             {
-                var id = new PunyDomainName(identity);
+                var id = new SimpleDomainName(identity);
             }
             catch (Exception ex) {
                 return BadRequest($"Invalid identity {ex.Message}");
@@ -272,7 +272,7 @@ namespace OdinsChains.Controllers
         {
             try
             {
-                var id = new PunyDomainName(identity);
+                var id = new SimpleDomainName(identity);
             }
             catch (Exception ex)
             {
@@ -322,10 +322,10 @@ namespace OdinsChains.Controllers
         [HttpGet("Register")]
         public async Task<IActionResult> GetRegister(string identity, string tempCode)
         {
-            PunyDomainName domain;
+            SimpleDomainName domain;
             try
             {
-                domain = new PunyDomainName(identity);
+                domain = new SimpleDomainName(identity);
             }
             catch (Exception)
             {

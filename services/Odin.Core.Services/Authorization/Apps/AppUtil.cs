@@ -16,7 +16,7 @@ public static class AppUtil
 
         if (parts.Length == 2)
         {
-            PunyDomainNameValidator.AssertValidDomain(parts[0]);
+            SimpleDomainNameValidator.AssertValidDomain(parts[0]);
             if (!int.TryParse(parts[1], out var port) || port > 65535)
             {
                 throw new OdinClientException("Invalid host name for CORS; port must be a number", OdinClientErrorCode.InvalidCorsHostName);
@@ -25,7 +25,7 @@ public static class AppUtil
 
         if (parts.Length == 1)
         {
-            PunyDomainNameValidator.AssertValidDomain(corsHostName);
+            SimpleDomainNameValidator.AssertValidDomain(corsHostName);
         }
     }
 }

@@ -117,7 +117,7 @@ namespace OdinsAttestation.Controllers
 
                 genesis.identity = "id.odin.earth";
                 genesis.publicKey = eccGenesis.publicKey;
-                genesis.nonce = "May Odin's chain safeguard the identities of the many. Skål!".ToUtf8ByteArray();
+                genesis.nonce = "May Odin's chain safeguard the identities of the many. Skï¿½l!".ToUtf8ByteArray();
                 var signature = eccGenesis.Sign(password, genesis.nonce);
                 genesis.signedNonce = signature;
                 genesis.previousHash = ByteArrayUtil.CalculateSHA256Hash(Guid.Empty.ToByteArray());
@@ -250,11 +250,11 @@ namespace OdinsAttestation.Controllers
         [HttpGet("AttestHuman")]
         public IActionResult GetAttestHuman(string identity)
         {
-            PunyDomainName id;
+            SimpleDomainName id;
 
             try
             {
-                id = new PunyDomainName(identity);
+                id = new SimpleDomainName(identity);
             }
             catch (Exception ex) {
                 return BadRequest($"Invalid identity {ex.Message}");
@@ -271,7 +271,7 @@ namespace OdinsAttestation.Controllers
         {
             try
             {
-                var id = new PunyDomainName(identity);
+                var id = new SimpleDomainName(identity);
             }
             catch (Exception ex)
             {
@@ -321,10 +321,10 @@ namespace OdinsAttestation.Controllers
         [HttpGet("Register")]
         public async Task<IActionResult> GetRegister(string identity, string tempCode)
         {
-            PunyDomainName domain;
+            SimpleDomainName domain;
             try
             {
-                domain = new PunyDomainName(identity);
+                domain = new SimpleDomainName(identity);
             }
             catch (Exception)
             {

@@ -87,7 +87,8 @@ namespace Odin.Hosting
             cb.RegisterType<YouAuthAuthorizationCodeManager>().As<IYouAuthAuthorizationCodeManager>().SingleInstance();
             
             cb.RegisterType<YouAuthUnifiedService>().As<IYouAuthUnifiedService>().SingleInstance();
-
+            cb.RegisterType<YouAuthConsentService>().AsSelf().SingleInstance();
+            
             cb.RegisterType<RecoveryService>().AsSelf().SingleInstance();
             cb.RegisterType<OwnerSecretService>().AsSelf().SingleInstance();
             cb.RegisterType<OwnerAuthenticationService>()

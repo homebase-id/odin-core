@@ -16,41 +16,41 @@ namespace Odin.Core.Tests
         [Test(Description = "Label cannot be empty")]
         public void LabelEmptyTest()
         {
-            Assert.IsFalse(PunyDomainNameValidator.TryValidateDomain(".aaa"));
-            Assert.IsFalse(PunyDomainNameValidator.TryValidateDomain("aaa."));
+            Assert.IsFalse(SimpleDomainNameValidator.TryValidateDomain(".aaa"));
+            Assert.IsFalse(SimpleDomainNameValidator.TryValidateDomain("aaa."));
         }
 
         [Test(Description = "Test 63 character label is OK")]
         public void LabelLengthOKTest()
         {
-            Assert.IsTrue(PunyDomainNameValidator.TryValidateDomain("012345678901234567890123456789012345678901234567890123456789012.aaa"));
+            Assert.IsTrue(SimpleDomainNameValidator.TryValidateDomain("012345678901234567890123456789012345678901234567890123456789012.aaa"));
         }
 
         [Test(Description = "Test 64 character label fails")]
         public void LabelLengthFailTest()
         {
-            Assert.IsFalse(PunyDomainNameValidator.TryValidateDomain("0123456789012345678901234567890123456789012345678901234567890123.aaa"));
+            Assert.IsFalse(SimpleDomainNameValidator.TryValidateDomain("0123456789012345678901234567890123456789012345678901234567890123.aaa"));
         }
 
         [Test(Description = "Test first char isn't a dash")]
         public void LabelStartDashFailTest()
         {
-            Assert.IsFalse(PunyDomainNameValidator.TryValidateDomain("-a.aaa"));
-            Assert.IsFalse(PunyDomainNameValidator.TryValidateDomain("aa.-aaa"));
+            Assert.IsFalse(SimpleDomainNameValidator.TryValidateDomain("-a.aaa"));
+            Assert.IsFalse(SimpleDomainNameValidator.TryValidateDomain("aa.-aaa"));
         }
 
 
         [Test(Description = "Test last char isn't a dash")]
         public void LabelLastDashFailTest()
         {
-            Assert.IsFalse(PunyDomainNameValidator.TryValidateDomain("a-.aaa"));
-            Assert.IsFalse(PunyDomainNameValidator.TryValidateDomain("aa.aaa-"));
+            Assert.IsFalse(SimpleDomainNameValidator.TryValidateDomain("a-.aaa"));
+            Assert.IsFalse(SimpleDomainNameValidator.TryValidateDomain("aa.aaa-"));
         }
 
         [Test(Description = "Test 'a' is OK as a label")]
         public void LabelPassTest()
         {
-            Assert.IsTrue(PunyDomainNameValidator.TryValidateDomain("a.a"));
+            Assert.IsTrue(SimpleDomainNameValidator.TryValidateDomain("a.a"));
         }
 
         [Test(Description = "Test shortest valid domain")]
@@ -58,7 +58,7 @@ namespace Odin.Core.Tests
         {
             try
             {
-                PunyDomainNameValidator.AssertValidDomain("a.b");
+                SimpleDomainNameValidator.AssertValidDomain("a.b");
             }
             catch (Exception)
             {
@@ -75,7 +75,7 @@ namespace Odin.Core.Tests
             // Assert.Throws<Exception>(c=> DomainNameValidator.TryValidateDomain(".com"), "domain test failed"),
             try
             {
-                PunyDomainNameValidator.AssertValidDomain(".com");
+                SimpleDomainNameValidator.AssertValidDomain(".com");
             }
             catch (Exception)
             {
@@ -90,7 +90,7 @@ namespace Odin.Core.Tests
         {
             try
             {
-                PunyDomainNameValidator.AssertValidDomain("com.");
+                SimpleDomainNameValidator.AssertValidDomain("com.");
             }
             catch (Exception)
             {
@@ -106,7 +106,7 @@ namespace Odin.Core.Tests
         {
             try
             {
-                PunyDomainNameValidator.AssertValidDomain("-a.com");
+                SimpleDomainNameValidator.AssertValidDomain("-a.com");
             }
             catch (Exception)
             {
@@ -121,7 +121,7 @@ namespace Odin.Core.Tests
         {
             try
             {
-                PunyDomainNameValidator.AssertValidDomain("a.com-");
+                SimpleDomainNameValidator.AssertValidDomain("a.com-");
             }
             catch (Exception)
             {
@@ -136,7 +136,7 @@ namespace Odin.Core.Tests
         {
             try
             {
-                PunyDomainNameValidator.AssertValidDomain("=xyyaa.com");
+                SimpleDomainNameValidator.AssertValidDomain("=xyyaa.com");
                 Assert.Fail();
             }
             catch (Exception)
@@ -151,7 +151,7 @@ namespace Odin.Core.Tests
         {
             try
             {
-                PunyDomainNameValidator.AssertValidDomain("xn--hxajbheg2az3al.xn--jxalpdlp");
+                SimpleDomainNameValidator.AssertValidDomain("xn--hxajbheg2az3al.xn--jxalpdlp");
             }
             catch (Exception)
             {
@@ -168,7 +168,7 @@ namespace Odin.Core.Tests
         {
             try
             {
-                PunyDomainNameValidator.AssertValidDomain(".");
+                SimpleDomainNameValidator.AssertValidDomain(".");
             }
             catch (Exception)
             {
@@ -183,7 +183,7 @@ namespace Odin.Core.Tests
         {
             try
             {
-                PunyDomainNameValidator.AssertValidDomain("..");
+                SimpleDomainNameValidator.AssertValidDomain("..");
             }
             catch (Exception)
             {
@@ -198,7 +198,7 @@ namespace Odin.Core.Tests
         {
             try
             {
-                PunyDomainNameValidator.AssertValidDomain("...");
+                SimpleDomainNameValidator.AssertValidDomain("...");
             }
             catch (Exception)
             {
@@ -214,7 +214,7 @@ namespace Odin.Core.Tests
         {
             try
             {
-                PunyDomainNameValidator.AssertValidDomain("a.");
+                SimpleDomainNameValidator.AssertValidDomain("a.");
                 Assert.Fail();
             }
             catch (Exception)
@@ -223,7 +223,7 @@ namespace Odin.Core.Tests
             }
             try
             {
-                PunyDomainNameValidator.AssertValidDomain(".a");
+                SimpleDomainNameValidator.AssertValidDomain(".a");
                 Assert.Fail();
             }
             catch (Exception)
@@ -247,14 +247,14 @@ namespace Odin.Core.Tests
 
             dom = "a" + dom + "como";
             Assert.IsTrue(dom.Length == 255);
-            PunyDomainNameValidator.AssertValidDomain(dom);
+            SimpleDomainNameValidator.AssertValidDomain(dom);
 
             dom = "a" + dom;
             Assert.IsTrue(dom.Length == 256);
 
             try
             {
-                PunyDomainNameValidator.AssertValidDomain(dom);
+                SimpleDomainNameValidator.AssertValidDomain(dom);
                 Assert.Fail();
             }
             catch (Exception)
@@ -268,24 +268,24 @@ namespace Odin.Core.Tests
         public void MiscTestsMovedFromOtherCode()
         {
             // Test valid labels
-            Debug.Assert(PunyDomainNameValidator.TryValidateDomain("") == false, "Empty name error");
-            Debug.Assert(PunyDomainNameValidator.TryValidateDomain("012345678901234567890123456789012345678901234567890123456789012.aa") == true,
+            Debug.Assert(SimpleDomainNameValidator.TryValidateDomain("") == false, "Empty name error");
+            Debug.Assert(SimpleDomainNameValidator.TryValidateDomain("012345678901234567890123456789012345678901234567890123456789012.aa") == true,
                 "63 chars not allowed");
-            Debug.Assert(PunyDomainNameValidator.TryValidateDomain("0123456789012345678901234567890123456789012345678901234567890123.aa") == false,
+            Debug.Assert(SimpleDomainNameValidator.TryValidateDomain("0123456789012345678901234567890123456789012345678901234567890123.aa") == false,
                 "64 chars allowed");
-            Debug.Assert(PunyDomainNameValidator.TryValidateDomain("-a.aa") == false, "Allowed to start with -");
-            Debug.Assert(PunyDomainNameValidator.TryValidateDomain("a-.aa") == false, "Allowed to end with -");
+            Debug.Assert(SimpleDomainNameValidator.TryValidateDomain("-a.aa") == false, "Allowed to start with -");
+            Debug.Assert(SimpleDomainNameValidator.TryValidateDomain("a-.aa") == false, "Allowed to end with -");
 
-            PunyDomainNameValidator.AssertValidDomain("a.com");
+            SimpleDomainNameValidator.AssertValidDomain("a.com");
 
-            try { PunyDomainNameValidator.AssertValidDomain(".com"); Assert.Fail(); } catch { }
-            try { PunyDomainNameValidator.AssertValidDomain("a."); Assert.Fail(); } catch { }
-            try { PunyDomainNameValidator.AssertValidDomain("-a.com"); Assert.Fail(); } catch { }
-            try { PunyDomainNameValidator.AssertValidDomain("a-.com"); Assert.Fail(); } catch { }
-            try { PunyDomainNameValidator.AssertValidDomain("a.com-"); Assert.Fail(); } catch { }
-            try { PunyDomainNameValidator.AssertValidDomain("."); Assert.Fail(); } catch { }
-            try { PunyDomainNameValidator.AssertValidDomain(".."); Assert.Fail(); } catch { }
-            try { PunyDomainNameValidator.AssertValidDomain("..."); Assert.Fail(); } catch { }
+            try { SimpleDomainNameValidator.AssertValidDomain(".com"); Assert.Fail(); } catch { }
+            try { SimpleDomainNameValidator.AssertValidDomain("a."); Assert.Fail(); } catch { }
+            try { SimpleDomainNameValidator.AssertValidDomain("-a.com"); Assert.Fail(); } catch { }
+            try { SimpleDomainNameValidator.AssertValidDomain("a-.com"); Assert.Fail(); } catch { }
+            try { SimpleDomainNameValidator.AssertValidDomain("a.com-"); Assert.Fail(); } catch { }
+            try { SimpleDomainNameValidator.AssertValidDomain("."); Assert.Fail(); } catch { }
+            try { SimpleDomainNameValidator.AssertValidDomain(".."); Assert.Fail(); } catch { }
+            try { SimpleDomainNameValidator.AssertValidDomain("..."); Assert.Fail(); } catch { }
 
             Assert.Pass();
         }
@@ -296,10 +296,10 @@ namespace Odin.Core.Tests
         {
             string s;
 
-            s = PunyDomainNameValidator.CNameLookup("alias.id.pub");
+            s = SimpleDomainNameValidator.CNameLookup("alias.id.pub");
             Debug.Assert(s == "odin.earth.");
 
-            s = PunyDomainNameValidator.CNameLookup("corleone.com");
+            s = SimpleDomainNameValidator.CNameLookup("corleone.com");
             Debug.Assert(s == null);
 
             Assert.Pass();
