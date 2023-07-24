@@ -64,7 +64,7 @@ namespace Odin.Hosting
             //
             // IHttpClientFactory rules when creating a HttpClient:
             // - It is not the HttpClient that is managed by IHttpClientFactory, it is the HttpClientHandler
-            //   that is explictly or implicitly attached to the HttpClient instance that is managed and shared by 
+            //   that is explictly or implicitly attached to the HttpClient instance that is managed and shared by
             //   different HttpClients and on different threads.
             // - It is OK to change properties on the HttpClient instance (e.g. AddDefaultHeaders)
             //   as long as you make sure that the instance is short-lived and not mutated on another thread.
@@ -201,7 +201,7 @@ namespace Odin.Hosting
 
             services.AddSingleton<IDnsRestClient>(sp => new PowerDnsRestClient(
                 sp.GetRequiredService<ILogger<PowerDnsRestClient>>(),
-                sp.GetRequiredService<IHttpClientFactory>(), 
+                sp.GetRequiredService<IHttpClientFactory>(),
                 new Uri($"https://{config.Registry.PowerDnsHostAddress}/api/v1"),
                 config.Registry.PowerDnsApiKey));
 
@@ -297,11 +297,11 @@ namespace Odin.Hosting
 
             app.UseEndpoints(endpoints =>
             {
-                endpoints.MapGet("/", async context =>
-                {
-                    context.Response.Redirect("/home");
-                    await Task.CompletedTask;
-                });
+                // endpoints.MapGet("/", async context =>
+                // {
+                //     context.Response.Redirect("/home");
+                //     await Task.CompletedTask;
+                // });
                 endpoints.MapControllers();
             });
 
@@ -309,13 +309,6 @@ namespace Odin.Hosting
             {
                 app.UseSwagger();
                 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "OdinCore v1"));
-
-                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/home"),
-                    homeApp =>
-                    {
-                        homeApp.UseSpa(
-                            spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3000/home/"); });
-                    });
 
                 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
                     homeApp =>
@@ -325,7 +318,7 @@ namespace Odin.Hosting
                             spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3001/owner/");
                         });
                     });
-                
+
                 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/chat"),
                     homeApp =>
                     {
@@ -333,6 +326,14 @@ namespace Odin.Hosting
                         {
                             spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:8080");
                         });
+                    });
+
+                // No idea why this should be true instead of `ctx.Request.Path.StartsWithSegments("/")`
+                app.MapWhen(ctx => true,
+                    homeApp =>
+                    {
+                        homeApp.UseSpa(
+                            spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3000/"); });
                     });
             }
             else
@@ -356,7 +357,7 @@ namespace Odin.Hosting
                         });
                     });
 
-                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/home"),
+                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/"),
                     homeApp =>
                     {
                         var publicPath = Path.Combine(env.ContentRootPath, "client", "public-app");
@@ -375,7 +376,7 @@ namespace Odin.Hosting
                         });
                     });
             }
-            
+
             lifetime.ApplicationStarted.Register(() =>
             {
                 DevEnvironmentSetup.ConfigureIfPresent(config, registry);
