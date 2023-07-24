@@ -18,8 +18,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+      # - name: Set up QEMU
+      #   uses: docker/setup-qemu-action@v2
 
       - name: Set up Docker Buildx
         id: buildx
