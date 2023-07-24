@@ -354,7 +354,7 @@ namespace Odin.Hosting
                         homeApp.UseStaticFiles(new StaticFileOptions()
                         {
                             FileProvider = new PhysicalFileProvider(publicPath),
-                            RequestPath = "/"
+                            // RequestPath = "/"
                         });
 
                         homeApp.Run(async context =>
