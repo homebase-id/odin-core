@@ -18,9 +18,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Set up Docker Buildx
-        id: buildx
-        uses: docker/setup-buildx-action@v2
+      # - name: Set up Docker Buildx
+      #   id: buildx
+      #   uses: docker/setup-buildx-action@v2
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v1
@@ -123,7 +123,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: ./dotyoucore
-          platforms: linux/amd64
+          # platforms: linux/amd64
           file: ./dotyoucore/services/Odin.Hosting/Dockerfile
           build-args: |
             SDK_ARCH=arm64v8
