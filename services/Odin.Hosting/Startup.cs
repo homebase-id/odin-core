@@ -311,22 +311,10 @@ namespace Odin.Hosting
                 app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "OdinCore v1"));
 
                 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/owner"),
-                    homeApp =>
-                    {
-                        homeApp.UseSpa(spa =>
-                        {
-                            spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3001/owner/");
-                        });
-                    });
+                    homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dev.dotyou.cloud:3001/owner/"); }); });
 
                 app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/chat"),
-                    homeApp =>
-                    {
-                        homeApp.UseSpa(spa =>
-                        {
-                            spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:8080");
-                        });
-                    });
+                    homeApp => { homeApp.UseSpa(spa => { spa.UseProxyToSpaDevelopmentServer($"https://dominion.id:8080"); }); });
 
                 // No idea why this should be true instead of `ctx.Request.Path.StartsWithSegments("/")`
                 app.MapWhen(ctx => true,
@@ -357,7 +345,8 @@ namespace Odin.Hosting
                         });
                     });
 
-                app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/"),
+                // app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/"),
+                app.MapWhen(ctx => true,
                     homeApp =>
                     {
                         var publicPath = Path.Combine(env.ContentRootPath, "client", "public-app");
@@ -377,10 +366,7 @@ namespace Odin.Hosting
                     });
             }
 
-            lifetime.ApplicationStarted.Register(() =>
-            {
-                DevEnvironmentSetup.ConfigureIfPresent(config, registry);
-            });
+            lifetime.ApplicationStarted.Register(() => { DevEnvironmentSetup.ConfigureIfPresent(config, registry); });
         }
 
         private void PrepareEnvironment(OdinConfiguration cfg)
