@@ -1,5 +1,6 @@
 using System;
 using System.Buffers.Text;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Reflection;
@@ -8,6 +9,10 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Authorization.Permissions;
+using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives;
 using Odin.Hosting.Controllers.OwnerToken.Auth;
 
 //
@@ -16,7 +21,7 @@ using Odin.Hosting.Controllers.OwnerToken.Auth;
 //     - Half-key (byte array): Half of the zero-knowledge key to "access" identity's resources on the server.
 //       The half-key is stored in the ```DY0810``` by the authentication controller.
 //     - Session ID (uuid)
-    
+
 //
 //   Response when cookie is created:
 //     Shared secret: the shared key for doing symmetric encryption client<->server (on top of TLS).
@@ -55,14 +60,40 @@ public abstract class YouAuthIntegrationTestBase
     {
         Scaffold.RunAfterAnyTests();
     }
-    
+
     // 
 
     // Authenticate and return owner cookie and shared secret
     protected async Task<(string, string)> AuthenticateOwnerReturnOwnerCookieAndSharedSecret(string identity)
     {
         var apiClient = WebScaffold.CreateDefaultHttpClient();
-    
+
+
+        var ownerClient = Scaffold.CreateOwnerApiClient(TestIdentities.All[identity]);
+
+        var drive = TargetDrive.NewTargetDrive();
+        var _ = await ownerClient.Drive.CreateDrive(drive, "", "", false, false, false);
+        
+        var appId = Guid.NewGuid();
+        var appPermissionsGrant = new PermissionSetGrantRequest()
+        {
+            Drives = new List<DriveGrantRequest>()
+            {
+                new()
+                {
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = drive,
+                        Permission = DrivePermission.All
+                    }
+                }
+            },
+            PermissionSet = new PermissionSet(PermissionKeys.All)
+        };
+
+        var appRegistration = await ownerClient.Apps.RegisterApp(appId, appPermissionsGrant);
+
+
         // Step 1:
         // Check owner cookie (we don't send any).
         // Backend will return false and we move on to owner-authentication in step 2.
@@ -74,7 +105,7 @@ public abstract class YouAuthIntegrationTestBase
             var json = await response.Content.ReadAsStringAsync();
             Assert.That(YouAuthTestHelper.Deserialize<bool>(json), Is.False);
         }
-        
+
         // Step 2
         // Get nonce for authentication
         //
@@ -102,17 +133,17 @@ public abstract class YouAuthIntegrationTestBase
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
             // Shared secret from response
-            json = await response.Content.ReadAsStringAsync(); 
+            json = await response.Content.ReadAsStringAsync();
             var ownerAuthResult = YouAuthTestHelper.Deserialize<OwnerAuthenticationResult>(json);
-            sharedSecret = Convert.ToBase64String(ownerAuthResult.SharedSecret); 
+            sharedSecret = Convert.ToBase64String(ownerAuthResult.SharedSecret);
             Assert.That(sharedSecret, Is.Not.Null.And.Not.Empty);
-            
+
             // Owner cookie from response
             var cookies = response.GetCookies();
             ownerCookie = cookies[YouAuthTestHelper.OwnerCookieName];
             Assert.That(ownerCookie, Is.Not.Null.And.Not.Empty);
         }
-        
+
         // Step 4:
         // Check owner cookie again (this time we have it, so send it)
         //
@@ -130,7 +161,6 @@ public abstract class YouAuthIntegrationTestBase
 
         return (ownerCookie, sharedSecret);
     }
-    
+
     //
-    
 }
