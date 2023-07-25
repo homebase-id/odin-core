@@ -157,7 +157,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 tokenRequest.Code,
                 tokenRequest.CodeVerifier,
                 out var sharedSecret,
-                out var clientAccessToken);
+                out var clientAuthToken);
 
             //
             // [120] Return 403 if code lookup failed
@@ -173,7 +173,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             var result = new YouAuthTokenResponse
             {
                 Base64SharedSecret = sharedSecret == null ? null : Convert.ToBase64String(sharedSecret),
-                Base64ClientAccessToken = clientAccessToken == null ? null : Convert.ToBase64String(clientAccessToken)
+                Base64ClientAccessToken = clientAuthToken == null ? null : Convert.ToBase64String(clientAuthToken)
             };
 
             return await Task.FromResult(result);

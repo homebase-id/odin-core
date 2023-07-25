@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Caching.Memory;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Authorization.Apps;
+using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
 using Odin.Core.Util;
 
@@ -23,16 +24,18 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
     private readonly IAppRegistrationService _appRegistrationService;
     private readonly OdinContextAccessor _contextAccessor;
     private readonly YouAuthConsentService _consentService;
+    private readonly ExchangeGrantService _exchangeGrantService;
 
-    public YouAuthUnifiedService(IAppRegistrationService appRegistrationService, OdinContextAccessor contextAccessor, YouAuthConsentService consentService)
+    public YouAuthUnifiedService(IAppRegistrationService appRegistrationService, OdinContextAccessor contextAccessor, YouAuthConsentService consentService, ExchangeGrantService exchangeGrantService)
     {
         _appRegistrationService = appRegistrationService;
         _contextAccessor = contextAccessor;
         _consentService = consentService;
+        _exchangeGrantService = exchangeGrantService;
     }
 
     //
-    
+
     public Task<bool> NeedConsent(string tenant, ClientType clientType, string clientIdOrDomain, string permissionRequest)
     {
         AssertCanAcquireConsent(clientType, clientIdOrDomain, permissionRequest);
@@ -42,7 +45,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         {
             return Task.FromResult(false);
         }
-        
+
         if (clientType == ClientType.domain)
         {
             bool needsConsent = _consentService.IsConsentRequired(new SimpleDomainName(clientIdOrDomain))
@@ -50,7 +53,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
                 .GetResult();
 
             return Task.FromResult(needsConsent);
-            
+
             // SEB:TODO
             // if (!isConnected)
             // {
@@ -93,12 +96,13 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
+        ClientAccessToken token = null;
         if (clientType == ClientType.app)
         {
             Guid appId = Guid.Parse(clientId);
             var deviceFriendlyName = clientInfo;
 
-            var (clientAccessToken, _) = _appRegistrationService.RegisterClientRaw(
+            (token, _) = _appRegistrationService.RegisterClientRaw(
                     appId,
                     deviceFriendlyName)
                 .GetAwaiter()
@@ -107,8 +111,14 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
         if (clientType == ClientType.domain)
         {
-            //
+            var emptyKey = Guid.Empty.ToByteArray().ToSensitiveByteArray();
+            (var accessRegistration, token) = _exchangeGrantService.CreateClientAccessToken(emptyKey, ClientTokenType.YouAuth)
+                .GetAwaiter()
+                .GetResult();
 
+            var client = new YouAuthUnifiedClient(accessRegistration.Id, new SimpleDomainName(clientId), accessRegistration);
+
+            //SEB: todo- store the client in your youauth authorizations database
         }
 
         var code = Guid.NewGuid().ToString();
@@ -118,8 +128,9 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             clientType,
             permissionRequest,
             codeChallenge,
-            tokenDeliveryOption);
-        
+            tokenDeliveryOption,
+            token);
+
         _codesAndTokens.Set(code, ac, TimeSpan.FromMinutes(5));
 
         return Task.FromResult(code);
@@ -131,10 +142,10 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         string code,
         string codeVerifier,
         out byte[]? sharedSecret,
-        out byte[]? clientAccessToken)
+        out byte[]? clientAuthToken)
     {
         sharedSecret = null;
-        clientAccessToken = null;
+        clientAuthToken = null;
 
         var ac = _codesAndTokens.Get<AuthorizationCodeAndToken>(code);
 
@@ -151,30 +162,23 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
         _codesAndTokens.Remove(code);
 
-        if (ac.ClientType == ClientType.app)
-        {
-            sharedSecret = "Put shared secret here".ToUtf8ByteArray();
-            clientAccessToken = "Put client access token here ac.TokenDeliveryOption == json".ToUtf8ByteArray();
-        }
 
-        if (ac.ClientType == ClientType.domain)
-        {
-            //
-            // TODD:YOUAUTH
-            // Create CAT and shared secret here. Use: 
-            //   ac.ClientType determines if it's an app or domain (aka thirdparty, aka identity)
-            //   ac.TokenDeliveryOption determines if put CAT in cookie or json response
-            //
+        //
+        // TODD:YOUAUTH
+        // Create CAT and shared secret here. Use: 
+        //   ac.ClientType determines if it's an app or domain (aka thirdparty, aka identity)
+        //   ac.TokenDeliveryOption determines if put CAT in cookie or json response
+        //
+        var accessToken = ac.PreCreatedClientAccessToken;
+        sharedSecret = accessToken.SharedSecret.GetKey();
+        clientAuthToken = accessToken.ToAuthenticationToken().ToPortableBytes();
 
-            sharedSecret = "Put shared secret here".ToUtf8ByteArray();
-            clientAccessToken = "Put client access token here ac.TokenDeliveryOption == json".ToUtf8ByteArray();
-        }
 
         return Task.FromResult(true);
     }
 
     //
-    
+
     private void AssertCanAcquireConsent(ClientType clientType, string clientIdOrDomain, string permissionRequest)
     {
         if (clientType == ClientType.app)
@@ -189,7 +193,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             }
         }
     }
-    
+
     //
 
     private sealed class AuthorizationCodeAndToken
@@ -200,18 +204,21 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         public string CodeChallenge { get; }
         public TokenDeliveryOption TokenDeliveryOption { get; }
 
-        public AuthorizationCodeAndToken(
-            string code,
+        public ClientAccessToken PreCreatedClientAccessToken { get; }
+
+        public AuthorizationCodeAndToken(string code,
             ClientType clientType,
             string permissionRequest,
             string codeChallenge,
-            TokenDeliveryOption tokenDeliveryOption)
+            TokenDeliveryOption tokenDeliveryOption,
+            ClientAccessToken clientAccessToken)
         {
             Code = code;
             ClientType = clientType;
             PermissionRequest = permissionRequest;
             CodeChallenge = codeChallenge;
             TokenDeliveryOption = tokenDeliveryOption;
+            PreCreatedClientAccessToken = clientAccessToken;
         }
     }
 

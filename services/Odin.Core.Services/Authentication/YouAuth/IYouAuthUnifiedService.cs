@@ -43,5 +43,5 @@ public interface IYouAuthUnifiedService
         string code,
         string codeVerifier,
         out byte[]? sharedSecret,
-        out byte[]? clientAccessToken);
+        out byte[]? clientAuthToken);
 }
