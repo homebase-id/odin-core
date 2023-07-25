@@ -166,6 +166,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             {
                 return Unauthorized();
             }
+            
+            //SEB TODO: ECC encrypt response
 
             //
             // [140] Return client access token to client

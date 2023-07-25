@@ -149,14 +149,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         }
 
         _codesAndTokens.Remove(code);
-
-
-        //
-        // TODD:YOUAUTH
-        // Create CAT and shared secret here. Use: 
-        //   ac.ClientType determines if it's an app or domain (aka thirdparty, aka identity)
-        //   ac.TokenDeliveryOption determines if put CAT in cookie or json response
-        //
+        
         var accessToken = ac.PreCreatedClientAccessToken;
         sharedSecret = accessToken.SharedSecret.GetKey();
         clientAuthToken = accessToken.ToAuthenticationToken().ToPortableBytes();
