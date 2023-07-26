@@ -30,8 +30,6 @@ namespace Odin.Core.Services.Drives
             _loggerFactory = loggerFactory;
             _driveManager = driveManager;
             _queryManagers = new Dictionary<Guid, IDriveDatabaseManager>();
-
-            InitializeQueryManagers();
         }
 
         public bool TryGetOrLoadQueryManager(Guid driveId, out IDriveDatabaseManager manager)
@@ -45,7 +43,12 @@ namespace Odin.Core.Services.Drives
             }
 
             var drive = _driveManager.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
-            LoadQueryManager(drive, out manager);
+            var logger = _loggerFactory.CreateLogger<IDriveDatabaseManager>();
+
+            manager = new SqliteDatabaseManager(drive, logger);
+            _queryManagers.TryAdd(drive.Id, manager);
+            manager.LoadLatestIndex().GetAwaiter().GetResult();
+            
             return true;
         }
 
@@ -87,24 +90,6 @@ namespace Odin.Core.Services.Drives
                 }
             }
         }
-
-        private async void InitializeQueryManagers()
-        {
-            var allDrives = await _driveManager.GetDrives(new PageOptions(1, Int32.MaxValue));
-            foreach (var drive in allDrives.Results)
-            {
-                await this.LoadQueryManager(drive, out var _);
-            }
-        }
-
-        private Task LoadQueryManager(StorageDrive drive, out IDriveDatabaseManager manager)
-        {
-            var logger = _loggerFactory.CreateLogger<IDriveDatabaseManager>();
-
-            manager = new SqliteDatabaseManager(drive, logger);
-            _queryManagers.TryAdd(drive.Id, manager);
-            manager.LoadLatestIndex().GetAwaiter().GetResult();
-            return Task.CompletedTask;
-        }
+        
     }
 }
