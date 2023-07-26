@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
@@ -20,20 +20,25 @@ namespace Odin.Core.Services.Drives
         INotificationHandler<DriveFileDeletedNotification>
     {
         private readonly DriveManager _driveManager;
-        private readonly ConcurrentDictionary<Guid, IDriveDatabaseManager> _queryManagers;
+        private readonly Dictionary<Guid, IDriveDatabaseManager> _queryManagers;
         private readonly ILoggerFactory _loggerFactory;
+
+        private readonly SemaphoreSlim _slimShady = new SemaphoreSlim(1, 1);
 
         public DriveDatabaseHost(ILoggerFactory loggerFactory, DriveManager driveManager)
         {
             _loggerFactory = loggerFactory;
             _driveManager = driveManager;
-            _queryManagers = new ConcurrentDictionary<Guid, IDriveDatabaseManager>();
+            _queryManagers = new Dictionary<Guid, IDriveDatabaseManager>();
 
             InitializeQueryManagers();
         }
 
         public bool TryGetOrLoadQueryManager(Guid driveId, out IDriveDatabaseManager manager)
         {
+
+            _slimShady.WaitAsync();
+            
             if (_queryManagers.TryGetValue(driveId, out manager))
             {
                 return true;
