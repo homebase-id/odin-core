@@ -1,8 +1,7 @@
 using System;
-using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using LazyCache;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Services.Drives.DriveCore.Query;
@@ -21,37 +20,33 @@ namespace Odin.Core.Services.Drives
         INotificationHandler<DriveFileDeletedNotification>
     {
         private readonly DriveManager _driveManager;
-        private readonly ConcurrentDictionary<Guid, IDriveDatabaseManager> _queryManagers;
+        private readonly Dictionary<Guid, IDriveDatabaseManager> _queryManagers;
         private readonly ILoggerFactory _loggerFactory;
-        private readonly IAppCache _queryManagerCache;
+
+        private readonly SemaphoreSlim _slimShady = new SemaphoreSlim(1, 1);
 
         public DriveDatabaseHost(ILoggerFactory loggerFactory, DriveManager driveManager)
         {
             _loggerFactory = loggerFactory;
             _driveManager = driveManager;
-            _queryManagers = new ConcurrentDictionary<Guid, IDriveDatabaseManager>();
+            _queryManagers = new Dictionary<Guid, IDriveDatabaseManager>();
 
-            _queryManagerCache = new CachingService();
-            // InitializeQueryManagers();
+            InitializeQueryManagers();
         }
 
         public bool TryGetOrLoadQueryManager(Guid driveId, out IDriveDatabaseManager manager)
         {
-            var creator = new Func<Task<IDriveDatabaseManager>>(delegate
+
+            _slimShady.WaitAsync();
+            
+            if (_queryManagers.TryGetValue(driveId, out manager))
             {
-                var logger = _loggerFactory.CreateLogger<IDriveDatabaseManager>();
-                var drive = _driveManager.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
+                return true;
+            }
 
-                var m = new SqliteDatabaseManager(drive, logger);
-                m.LoadLatestIndex().GetAwaiter().GetResult();
-                return Task.FromResult<IDriveDatabaseManager>(m);
-            });
-
-            manager = _queryManagerCache.GetOrAdd(driveId.ToString(), creator).GetAwaiter().GetResult();
-
-            //TODO: probably not needed anymore
-            return manager != null;
-
+            var drive = _driveManager.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
+            LoadQueryManager(drive, out manager);
+            return true;
         }
 
         public Task Handle(DriveFileChangedNotification notification, CancellationToken cancellationToken)
@@ -93,23 +88,23 @@ namespace Odin.Core.Services.Drives
             }
         }
 
-        // private async void InitializeQueryManagers()
-        // {
-        //     var allDrives = await _driveManager.GetDrives(new PageOptions(1, Int32.MaxValue));
-        //     foreach (var drive in allDrives.Results)
-        //     {
-        //         await this.LoadQueryManager(drive, out var _);
-        //     }
-        // }
+        private async void InitializeQueryManagers()
+        {
+            var allDrives = await _driveManager.GetDrives(new PageOptions(1, Int32.MaxValue));
+            foreach (var drive in allDrives.Results)
+            {
+                await this.LoadQueryManager(drive, out var _);
+            }
+        }
 
-        // private Task LoadQueryManager(StorageDrive drive, out IDriveDatabaseManager manager)
-        // {
-        //     var logger = _loggerFactory.CreateLogger<IDriveDatabaseManager>();
-        //
-        //     manager = new SqliteDatabaseManager(drive, logger);
-        //     _queryManagers.TryAdd(drive.Id, manager);
-        //     manager.LoadLatestIndex().GetAwaiter().GetResult();
-        //     return Task.CompletedTask;
-        // }
+        private Task LoadQueryManager(StorageDrive drive, out IDriveDatabaseManager manager)
+        {
+            var logger = _loggerFactory.CreateLogger<IDriveDatabaseManager>();
+
+            manager = new SqliteDatabaseManager(drive, logger);
+            _queryManagers.TryAdd(drive.Id, manager);
+            manager.LoadLatestIndex().GetAwaiter().GetResult();
+            return Task.CompletedTask;
+        }
     }
 }
