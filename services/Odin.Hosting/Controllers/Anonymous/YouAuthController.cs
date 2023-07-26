@@ -66,7 +66,7 @@ namespace Odin.Hosting.Controllers.Anonymous
             clientAccessToken?.Wipe();
 
             // SEB:NOTE before brigde-hack:
-            //var handlerUrl = $"/home/youauth/finalize?ss64={HttpUtility.UrlEncode(sharedSecret64)}&returnUrl={HttpUtility.UrlEncode(returnUrl)}";
+            //var handlerUrl = $"/youauth/finalize?ss64={HttpUtility.UrlEncode(sharedSecret64)}&returnUrl={HttpUtility.UrlEncode(returnUrl)}";
 
             var handlerUrl = $"https://{Request.Host}{YouAuthApiPathConstants.FinalizeBridgeRequestRequestPath}?ss64={HttpUtility.UrlEncode(sharedSecret64)}&returnUrl={HttpUtility.UrlEncode(returnUrl)}";
             return Redirect(handlerUrl);
@@ -81,7 +81,7 @@ namespace Odin.Hosting.Controllers.Anonymous
             [FromQuery(Name = YouAuthDefaults.ReturnUrl)]
             string returnUrl)
         {
-            var handlerUrl = $"https://{_currentTenant}/home/youauth/finalize?ss64={HttpUtility.UrlEncode(ss64)}&returnUrl={HttpUtility.UrlEncode(returnUrl)}";
+            var handlerUrl = $"https://{_currentTenant}/youauth/finalize?ss64={HttpUtility.UrlEncode(ss64)}&returnUrl={HttpUtility.UrlEncode(returnUrl)}";
             return Redirect(handlerUrl);
         }
 
