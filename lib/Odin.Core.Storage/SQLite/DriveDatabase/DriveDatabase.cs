@@ -78,23 +78,31 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
 
             _file = file;
             _line = line;
+#if DEBUG
+            Console.WriteLine($"DriveDatabase Create: Line:{_line} in file:{_file}");
+#endif
         }
+
 
         ~DriveDatabase()
         {
 #if DEBUG
             if (!_wasDisposed)
-                throw new Exception("DriveDatabase was not disposed properly. Instantiated from file {_file} line {_line}.");
+                throw new Exception($"DriveDatabase was not disposed properly. Instantiated from file {_file} line {_line}.");
 #else
             if (!_wasDisposed)
-               Serilog.Log.Error("DriveDatabase was not disposed properly. Instantiated from file {_file} line {_line}.");
+               Serilog.Log.Error($"DriveDatabase was not disposed properly. Instantiated from file {_file} line {_line}.");
 #endif
         }
 
 
         public override void Dispose()
         {
+#if DEBUG
+            Console.WriteLine($"DriveDatabase Dispose: Line:{_line} in file:{_file}");
+#endif
             Commit();
+
 
             TblMainIndex?.Dispose();
             TblAclIndex?.Dispose();

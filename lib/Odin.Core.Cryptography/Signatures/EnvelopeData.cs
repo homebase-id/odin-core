@@ -7,6 +7,7 @@ using Odin.Core.Identity;
 using System.Text.Json.Serialization;
 using Odin.Core.Cryptography.Data;
 using System.Text;
+using System.Text.Json;
 
 namespace Odin.Core.Cryptography.Signatures
 {
@@ -101,7 +102,66 @@ namespace Odin.Core.Cryptography.Signatures
         }
 
 
-        private static bool IsAtomicJsonType(object obj)
+        public static T GetValueFromJsonObject<T>(object value)
+        {
+            if (value is JsonElement element)
+            {
+                if (typeof(T) == typeof(string))
+                {
+                    return (T)(object)(element.GetString() ?? "");
+                }
+                else if (typeof(T) == typeof(int))
+                {
+                    return (T)(object)element.GetInt32();
+                }
+                else if (typeof(T) == typeof(bool))
+                {
+                    return (T)(object)element.GetBoolean();
+                }
+                else if (typeof(T) == typeof(long))
+                {
+                    return (T)(object)element.GetInt64();
+                }
+                else if (typeof(T) == typeof(double))
+                {
+                    return (T)(object)element.GetDouble();
+                }
+                else if (typeof(T) == typeof(float))
+                {
+                    return (T)(object)element.GetSingle();
+                }
+                // Add more types as needed...
+            }
+            throw new KeyNotFoundException($"'{value}' not able to convert type.");
+        }
+
+        /// <summary>
+        /// Can be used to convert from a JSON type to a C# type for the atomic types we support
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="dict"></param>
+        /// <param name="key"></param>
+        /// <returns></returns>
+        /// <exception cref="KeyNotFoundException"></exception>
+        public static T GetValueFromJsonElement<T>(SortedDictionary<string, object> dict, string key)
+        {
+            if (dict.TryGetValue(key, out var value))
+            {
+                if (value is JsonElement element)
+                {
+                    return GetValueFromJsonObject<T>(value);
+                }
+            }
+
+            throw new KeyNotFoundException($"Key '{key}' not found in the dictionary or value is not of the expected type.");
+        }
+
+        /// <summary>
+        /// Can be used to verify if the JSON object is valid
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <returns></returns>
+        public static bool IsAtomicJsonType(object obj)
         {
             return obj == null ||
                    obj is string ||

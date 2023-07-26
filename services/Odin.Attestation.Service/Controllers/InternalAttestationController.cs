@@ -83,27 +83,127 @@ namespace OdinsAttestation.Controllers
             return DeleteRequest(id);
         }
 
-        private static T GetValueFromJsonElement<T>(SortedDictionary<string, object> dict, string key)
+
+
+        private List<SignedEnvelope> GenerateAttestationsFromRequest(PunyDomainName identity, SignedEnvelope requestEnvelope)
         {
-            if (dict.TryGetValue(key, out var value))
+
+            if (!requestEnvelope.Envelope.AdditionalInfo.ContainsKey("data"))
+                throw new ArgumentException("The requestEnvelope doesn't have a data section");
+
+            SortedDictionary<string, object>? dataObject = requestEnvelope.Envelope.AdditionalInfo["data"] as SortedDictionary<string, object>;
+
+            //
+            // Parse the additional info in the request and generate a series of attestations
+            // 
+            var attestationList = new List<SignedEnvelope>();
+
+            // We always verify the fact it's a human
+            try
             {
-                if (value is JsonElement element)
+                var attestation = AttestationManagement.AttestHuman(_eccKey, _eccPwd, identity);
+                attestationList.Add(attestation);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Unable to attest Hooman {ex.Message}");
+            }
+
+            // Let's check for legal name
+            if (dataObject!.TryGetValue(AttestationManagement.JsonKeyLegalName, out var legalNameObject))
+            {
+                try
                 {
-                    if (typeof(T) == typeof(string))
-                    {
-                        return (T)(object)element.GetString();
-                    }
-                    else if (typeof(T) == typeof(int))
-                    {
-                        return (T)(object)element.GetInt32();
-                    }
-                    // Add more types as needed...
+                    string legalName = EnvelopeData.GetValueFromJsonObject<string>(legalNameObject);
+                    var attestation = AttestationManagement.AttestLegalName(_eccKey, _eccPwd, identity, legalName);
+                    attestationList.Add(attestation);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Unable to attest LegalName {ex.Message}");
                 }
             }
 
-            throw new KeyNotFoundException($"Key '{key}' not found in the dictionary or value is not of the expected type.");
-        }
+            // Let's check for nationality
+            if (dataObject!.TryGetValue(AttestationManagement.JsonKeyNationality, out var nationalityObject))
+            {
+                try
+                {
+                    string nationality = EnvelopeData.GetValueFromJsonObject<string>(nationalityObject);
+                    var attestation = AttestationManagement.AttestNationality(_eccKey, _eccPwd, identity, nationality);
+                    attestationList.Add(attestation);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Unable to attest nationality {ex.Message}");
+                }
+            }
 
+            // Let's check for phone
+            if (dataObject!.TryGetValue(AttestationManagement.JsonKeyPhoneNumber, out var phoneObject))
+            {
+                try
+                {
+                    string phoneNumber = EnvelopeData.GetValueFromJsonObject<string>(phoneObject);
+                    var attestation = AttestationManagement.AttestPhoneNumber(_eccKey, _eccPwd, identity, phoneNumber);
+                    attestationList.Add(attestation);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Unable to attest phone {ex.Message}");
+                }
+            }
+
+            // Let's check for email
+            if (dataObject!.TryGetValue(AttestationManagement.JsonKeyEmailAddress, out var emailObject))
+            {
+                try
+                {
+                    string email = EnvelopeData.GetValueFromJsonObject<string>(emailObject);
+                    var attestation = AttestationManagement.AttestEmailAddress(_eccKey, _eccPwd, identity, email);
+                    attestationList.Add(attestation);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Unable to attest email {ex.Message}");
+                }
+            }
+
+            // Let's check for birthdate
+            if (dataObject!.TryGetValue(AttestationManagement.JsonKeyBirthdate, out var birthDateObject))
+            {
+                try
+                {
+                    string bday = EnvelopeData.GetValueFromJsonObject<string>(birthDateObject);
+
+                    var attestation = AttestationManagement.AttestBirthdate(_eccKey, _eccPwd, identity, DateOnly.FromDateTime(DateTime.Parse(bday)));
+                    attestationList.Add(attestation);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Unable to attest birth date {ex.Message}");
+                }
+            }
+
+            // Let's check for residential address
+            if (dataObject!.TryGetValue(AttestationManagement.JsonKeyResidentialAddress, out var addressObject))
+            {
+                try
+                {
+                    var addressDict = SignedEnvelope.ConvertJsonObjectToSortedDict(addressObject);
+                    if (addressDict == null)
+                        throw new Exception("address is null");
+                    var attestation = AttestationManagement.AttestResidentialAddress(_eccKey, _eccPwd, identity, addressDict);
+                    attestationList.Add(attestation);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Unable to attest birth date {ex.Message}");
+                }
+            }
+
+            return attestationList;
+        }
 
 
         [HttpGet("ApproveRequest")]
@@ -115,7 +215,8 @@ namespace OdinsAttestation.Controllers
             {
                 id = new PunyDomainName(identity);
             }
-            catch (Exception ex) {
+            catch (Exception ex)
+            {
                 return BadRequest($"Invalid identity {ex.Message}");
             }
 
@@ -137,42 +238,15 @@ namespace OdinsAttestation.Controllers
                 return BadRequest($"Irrecoverable error, unable to deserialize signed envelope {ex.Message}");
             }
 
-            if (!requestEnvelope.Envelope.AdditionalInfo.ContainsKey("data"))
-                return BadRequest("The request doesn't have a data section");
+            List<SignedEnvelope> attestationList;
 
-
-            SortedDictionary<string, object>? dataObject = requestEnvelope.Envelope.AdditionalInfo["data"] as SortedDictionary<string, object>;
-
-            //
-            // Parse the additional info in the request and generate a series of attestations
-            // 
-            var attestationList = new List<SignedEnvelope>();
-
-            // We always verify the fact it's a human
             try
             {
-                var attestation = AttestationManagement.AttestHuman(_eccKey, _eccPwd, id);
-                attestationList.Add(attestation);
+                attestationList = GenerateAttestationsFromRequest(id, requestEnvelope);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                return BadRequest($"Unable to attest Hooman {ex.Message}");
-            }
-
-            // Let's check for legal name
-
-            if (dataObject!.TryGetValue("LegalName", out var legalNameObject))
-            {
-                try
-                {
-                    string legalName = GetValueFromJsonElement<string>(dataObject, "LegalName");
-                    var attestation = AttestationManagement.AttestLegalName(_eccKey, _eccPwd, id, legalName);
-                    attestationList.Add(attestation);
-                }
-                catch (Exception ex)
-                {
-                    return BadRequest($"Unable to attest LegalName {ex.Message}");
-                }
+                return BadRequest($"Unable to generate attestation list: {ex.Message}");
             }
 
             //

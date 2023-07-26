@@ -87,13 +87,18 @@ namespace Odin.Tests
             if (AttestationManagement.VerifyAttestation(attestation) != true)
                 throw new Exception("Email");
 
-            attestation = AttestationManagement.AttestBirthdate(eccKey, pwd, frodoPuny, new DateTime(2020,10,24));
+            attestation = AttestationManagement.AttestBirthdate(eccKey, pwd, frodoPuny, DateOnly.FromDateTime(new DateTime(2020,10,24)));
             if (AttestationManagement.VerifyAttestation(attestation) != true)
                 throw new Exception("Birthdate");
 
             attestation = AttestationManagement.AttestLegalName(eccKey, pwd, frodoPuny, "Frodo Baggins");
             if (AttestationManagement.VerifyAttestation(attestation) != true)
                 throw new Exception("Legal Name");
+
+            attestation = AttestationManagement.AttestSubsetLegalName(eccKey, pwd, frodoPuny, "F. Baggins");
+            if (AttestationManagement.VerifyAttestation(attestation) != true)
+                throw new Exception("Subset Legal Name");
+
             string s = attestation.GetCompactSortedJson(); // For michael to look at
 
             attestation = AttestationManagement.AttestPhoneNumber(eccKey, pwd, frodoPuny, "+45 12345678");

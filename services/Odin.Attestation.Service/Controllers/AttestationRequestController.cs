@@ -46,8 +46,23 @@ namespace OdinsAttestation.Controllers
         [HttpGet("Simulator")]
         public async Task<IActionResult> GetSimulator()
         {
+            var address = new SortedDictionary<string, string>
+            {
+                { "street", "Bag End" },
+                { "city", "Hobbiton" },
+                { "region", "The Shire" },
+                { "postalCode", "4242" },
+                { "country", "Middle Earth" }
+            };
+
             // Here we write all the attributes we want attested
-            var dataToAttest = new SortedDictionary<string, object>() { { "LegalName", "Frodo Baggins" } };
+            var dataToAttest = new SortedDictionary<string, object>() 
+                    { { AttestationManagement.JsonKeyLegalName, "Frodo Baggins" },
+                      { AttestationManagement.JsonKeyNationality, "Middle Earth" },
+                      { AttestationManagement.JsonKeyPhoneNumber, "+45 26 44 70 33"},
+                      { AttestationManagement.JsonKeyBirthdate, "1073-10-29" },
+                      { AttestationManagement.JsonKeyEmailAddress, "f@baggins.me" },
+                      { AttestationManagement.JsonKeyResidentialAddress, address } };
 
             // Let's build the envelope that Frodo will send
             var signedEnvelope = SimulateFrodo.RequestEnvelope(dataToAttest);

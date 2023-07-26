@@ -124,7 +124,7 @@ namespace Odin.Core.Cryptography.Signatures
             {
                 Envelope = Envelope,
                 Signatures = Signatures,
-                NotariusPublicus = null
+                NotariusPublicus = null  // I forgot what's the whole point of this copyForSigning?
             };
             return copyForSigning.GetCompactSortedJson();
         }
@@ -172,7 +172,24 @@ namespace Odin.Core.Cryptography.Signatures
             return JsonSerializer.Serialize(this, options);
         }
 
-        private static SortedDictionary<string, object> ConvertNestedObjectsToDicts(SortedDictionary<string, object> original)
+        public static SortedDictionary<string, string> ConvertJsonObjectToSortedDict(object jsonObject)
+        {
+            var result = new SortedDictionary<string, string>();
+
+            if (jsonObject is JsonElement jsonElement && jsonElement.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var property in jsonElement.EnumerateObject())
+                {
+                    result[property.Name] = property.Value.ValueKind == JsonValueKind.Object ?
+                                            (object)property.Value as string :
+                                            property.Value.ToString();
+                }
+            }
+
+            return result;
+        }
+
+        public static SortedDictionary<string, object> ConvertNestedObjectsToDicts(SortedDictionary<string, object> original)
         {
             if (original == null)
                 return null;
