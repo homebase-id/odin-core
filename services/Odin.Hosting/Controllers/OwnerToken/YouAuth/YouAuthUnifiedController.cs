@@ -73,7 +73,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 
                 // SEB:TODO use path const from..?
                 // SEB:TODO clientId, clientInfo, permissionRequest?
-                var consentPage = $"{Request.Scheme}://{Request.Host}/owner/youauth/authorize?returnUrl={returnUrl}";
+                var consentPage = $"{Request.Scheme}://{Request.Host}/owner/consent?returnUrl={returnUrl}";
                 
                 return Redirect(consentPage);
             }

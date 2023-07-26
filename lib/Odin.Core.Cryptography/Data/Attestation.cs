@@ -48,7 +48,7 @@ namespace Odin.Core.Cryptography.Data
             return attestation.VerifyEnvelopeSignatures();
         }
 
-        private static SignedEnvelope Attestation(EccFullKeyData eccKey, SensitiveByteArray pwd, SimpleDomainName identity, SortedDictionary<string, object> dataToAttest)
+        private static SignedEnvelope Attestation(EccFullKeyData eccKey, SensitiveByteArray pwd, AsciiDomainName identity, SortedDictionary<string, object> dataToAttest)
         {
             // There's something to sort out here
             const string AUTHORITY_IDENTITY = "id.odin.earth";
@@ -105,7 +105,7 @@ namespace Odin.Core.Cryptography.Data
         }
 
         // This function attests that the OdinId is associated with a human.
-        public static SignedEnvelope AttestHuman(EccFullKeyData eccKey, SensitiveByteArray pwd, SimpleDomainName identity)
+        public static SignedEnvelope AttestHuman(EccFullKeyData eccKey, SensitiveByteArray pwd, AsciiDomainName identity)
         {
             var dataToAttest = new SortedDictionary<string, object>
             {
@@ -116,7 +116,7 @@ namespace Odin.Core.Cryptography.Data
         }
 
         // This function attests to the legal name of the owner of the OdinId.
-        public static SignedEnvelope AttestLegalName(EccFullKeyData eccKey, SensitiveByteArray pwd, SimpleDomainName identity, string legalName)
+        public static SignedEnvelope AttestLegalName(EccFullKeyData eccKey, SensitiveByteArray pwd, AsciiDomainName identity, string legalName)
         {
             var dataToAttest = new SortedDictionary<string, object>
             {
@@ -127,7 +127,7 @@ namespace Odin.Core.Cryptography.Data
         }
 
         // This function attests to the residential address of the owner of the OdinId.
-        public static SignedEnvelope AttestResidentialAddress(EccFullKeyData eccKey, SensitiveByteArray pwd, SimpleDomainName identity, SortedDictionary<string, string> address)
+        public static SignedEnvelope AttestResidentialAddress(EccFullKeyData eccKey, SensitiveByteArray pwd, AsciiDomainName identity, SortedDictionary<string, string> address)
         {
             var dataToAttest = new SortedDictionary<string, object>
             {
@@ -138,7 +138,7 @@ namespace Odin.Core.Cryptography.Data
         }
 
         // This function attests to the email address of the owner of the OdinId.
-        public static SignedEnvelope AttestEmailAddress(EccFullKeyData eccKey, SensitiveByteArray pwd, SimpleDomainName identity, string emailAddress)
+        public static SignedEnvelope AttestEmailAddress(EccFullKeyData eccKey, SensitiveByteArray pwd, AsciiDomainName identity, string emailAddress)
         {
             var dataToAttest = new SortedDictionary<string, object>
             {
@@ -149,7 +149,7 @@ namespace Odin.Core.Cryptography.Data
         }
 
         // This function attests to the phone number of the owner of the OdinId.
-        public static SignedEnvelope AttestPhoneNumber(EccFullKeyData eccKey, SensitiveByteArray pwd, SimpleDomainName identity, string phoneNumber)
+        public static SignedEnvelope AttestPhoneNumber(EccFullKeyData eccKey, SensitiveByteArray pwd, AsciiDomainName identity, string phoneNumber)
         {
             var dataToAttest = new SortedDictionary<string, object>
             {
@@ -160,7 +160,7 @@ namespace Odin.Core.Cryptography.Data
         }
 
         // This function attests to the birthdate of the owner of the OdinId.
-        public static SignedEnvelope AttestBirthdate(EccFullKeyData eccKey, SensitiveByteArray pwd, SimpleDomainName identity, DateTime birthdate)
+        public static SignedEnvelope AttestBirthdate(EccFullKeyData eccKey, SensitiveByteArray pwd, AsciiDomainName identity, DateTime birthdate)
         {
             var dataToAttest = new SortedDictionary<string, object>
             {
@@ -171,7 +171,7 @@ namespace Odin.Core.Cryptography.Data
         }
 
         // This function attests to the nationality of the owner of the OdinId.
-        public static SignedEnvelope AttestNationality(EccFullKeyData eccKey, SensitiveByteArray pwd, SimpleDomainName identity, string nationality)
+        public static SignedEnvelope AttestNationality(EccFullKeyData eccKey, SensitiveByteArray pwd, AsciiDomainName identity, string nationality)
         {
             var dataToAttest = new SortedDictionary<string, object>
             {

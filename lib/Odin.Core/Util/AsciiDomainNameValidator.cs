@@ -10,16 +10,16 @@ namespace Odin.Core.Util
 {
     // Guaranteed to hold a valid, lowercased simple domain name
     //
-    public readonly struct SimpleDomainName
+    public readonly struct AsciiDomainName
     {
         private readonly string _simpleDomainName;
 
         // Provide a public property to read the simple domain
         public string DomainName => _simpleDomainName;
 
-        public SimpleDomainName(string simpleDomainName)
+        public AsciiDomainName(string simpleDomainName)
         {
-            SimpleDomainNameValidator.AssertValidDomain(simpleDomainName);
+            AsciiDomainNameValidator.AssertValidDomain(simpleDomainName);
             _simpleDomainName = simpleDomainName.ToLower();
         }
         
@@ -36,18 +36,18 @@ namespace Odin.Core.Util
         /// <summary>
         /// Static function to create a SimpleDomainName from an IDN
         /// </summary>
-        public static SimpleDomainName FromIdn(string idnDomainName)
+        public static AsciiDomainName FromIdn(string idnDomainName)
         {
             var idnMapping = new IdnMapping();
             string punyCode = idnMapping.GetAscii(idnDomainName);
-            return new SimpleDomainName(punyCode);
+            return new AsciiDomainName(punyCode);
         }
     }
 
 
     // DNS name is {label.}+label. Max 254 characters total. Max 127 levels
     //
-    public class SimpleDomainNameValidator
+    public class AsciiDomainNameValidator
     {
         public const int MAX_DNS_LABEL_COUNT = 127;  // as per DNS RFC
         public const int MAX_DNS_LABEL_LENGTH = 63;  // as per DNS RFC

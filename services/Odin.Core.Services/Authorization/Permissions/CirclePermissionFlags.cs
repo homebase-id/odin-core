@@ -46,6 +46,13 @@ namespace Odin.Core.Services.Authorization.Permissions
                 PermissionKeys.ReadCircleMembership,
                 PermissionKeys.ReadWhoIFollow
             });
+
+            YouAuthDomains = new ReadOnlyCollection<int>(new List<int>()
+            {
+                PermissionKeys.ReadConnections,
+                PermissionKeys.ReadCircleMembership,
+                PermissionKeys.ReadWhoIFollow
+            });
         }
 
         public static bool IsValidAppPermission(int key)
@@ -57,6 +64,8 @@ namespace Odin.Core.Services.Authorization.Permissions
         {
             return Circles.Any(k => k == key);
         }
+
+        public static ReadOnlyCollection<int> YouAuthDomains { get; }
 
         public static ReadOnlyCollection<int> Apps { get; }
 

@@ -250,11 +250,11 @@ namespace OdinsAttestation.Controllers
         [HttpGet("AttestHuman")]
         public IActionResult GetAttestHuman(string identity)
         {
-            SimpleDomainName id;
+            AsciiDomainName id;
 
             try
             {
-                id = new SimpleDomainName(identity);
+                id = new AsciiDomainName(identity);
             }
             catch (Exception ex) {
                 return BadRequest($"Invalid identity {ex.Message}");
@@ -271,7 +271,7 @@ namespace OdinsAttestation.Controllers
         {
             try
             {
-                var id = new SimpleDomainName(identity);
+                var id = new AsciiDomainName(identity);
             }
             catch (Exception ex)
             {
@@ -321,10 +321,10 @@ namespace OdinsAttestation.Controllers
         [HttpGet("Register")]
         public async Task<IActionResult> GetRegister(string identity, string tempCode)
         {
-            SimpleDomainName domain;
+            AsciiDomainName domain;
             try
             {
-                domain = new SimpleDomainName(identity);
+                domain = new AsciiDomainName(identity);
             }
             catch (Exception)
             {

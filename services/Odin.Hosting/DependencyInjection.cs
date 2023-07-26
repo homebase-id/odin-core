@@ -15,6 +15,7 @@ using Odin.Core.Services.Authentication.YouAuth;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Authorization.YouAuth;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Contacts.Circle.Membership;
@@ -87,7 +88,7 @@ namespace Odin.Hosting
             cb.RegisterType<YouAuthAuthorizationCodeManager>().As<IYouAuthAuthorizationCodeManager>().SingleInstance();
             
             cb.RegisterType<YouAuthUnifiedService>().As<IYouAuthUnifiedService>().SingleInstance();
-            cb.RegisterType<YouAuthConsentService>().AsSelf().SingleInstance();
+            cb.RegisterType<YouAuthDomainRegistrationService>().AsSelf().SingleInstance();
             
             cb.RegisterType<RecoveryService>().AsSelf().SingleInstance();
             cb.RegisterType<OwnerSecretService>().AsSelf().SingleInstance();

@@ -77,7 +77,7 @@ namespace Odin.Core.Trie
         // This should probably be private (but then I can't unit test)
         private bool IsDomainUniqueInHierarchy(string asciiName)
         {
-            SimpleDomainNameValidator.AssertValidDomain(asciiName); // Throws an exception if not OK
+            AsciiDomainNameValidator.AssertValidDomain(asciiName); // Throws an exception if not OK
 
             ref var p = ref m_NodeRoot;
 

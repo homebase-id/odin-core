@@ -10,7 +10,7 @@ namespace Odin.Core.Identity
     [JsonConverter(typeof(OdinIdConverter))]
     public readonly struct OdinId
     {
-        private readonly SimpleDomainName _domainName;
+        private readonly AsciiDomainName _domainName;
         private readonly Guid _hash;
 
         /// <summary>
@@ -24,15 +24,15 @@ namespace Odin.Core.Identity
                 throw new ArgumentNullException(nameof(identifier));
 
 
-            _domainName = new SimpleDomainName(identifier);
+            _domainName = new AsciiDomainName(identifier);
 
             // I would have preferred if the HASH was evaluated lazily. But that's not possible with a RO struct.
             _hash = new Guid(ByteArrayUtil.ReduceSHA256Hash(_domainName.DomainName.ToUtf8ByteArray()));
         }
 
-        public OdinId(SimpleDomainName simpleDomain)
+        public OdinId(AsciiDomainName asciiDomain)
         {
-            _domainName = simpleDomain;
+            _domainName = asciiDomain;
 
             // I would have preferred if the HASH was evaluated lazily. But that's not possible with a RO struct.
             _hash = new Guid(ByteArrayUtil.ReduceSHA256Hash(_domainName.DomainName.ToUtf8ByteArray()));
@@ -106,7 +106,7 @@ namespace Odin.Core.Identity
         public static void Validate(string odinId)
         {
             // Will always return true
-            SimpleDomainNameValidator.AssertValidDomain(odinId);
+            AsciiDomainNameValidator.AssertValidDomain(odinId);
         }
     }
 }

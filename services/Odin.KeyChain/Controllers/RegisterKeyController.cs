@@ -250,7 +250,7 @@ namespace OdinsChains.Controllers
         {
             try
             {
-                var id = new SimpleDomainName(identity);
+                var id = new AsciiDomainName(identity);
             }
             catch (Exception ex) {
                 return BadRequest($"Invalid identity {ex.Message}");
@@ -272,7 +272,7 @@ namespace OdinsChains.Controllers
         {
             try
             {
-                var id = new SimpleDomainName(identity);
+                var id = new AsciiDomainName(identity);
             }
             catch (Exception ex)
             {
@@ -322,10 +322,10 @@ namespace OdinsChains.Controllers
         [HttpGet("Register")]
         public async Task<IActionResult> GetRegister(string identity, string tempCode)
         {
-            SimpleDomainName domain;
+            AsciiDomainName domain;
             try
             {
-                domain = new SimpleDomainName(identity);
+                domain = new AsciiDomainName(identity);
             }
             catch (Exception)
             {
