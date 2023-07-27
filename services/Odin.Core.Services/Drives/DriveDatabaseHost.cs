@@ -35,9 +35,9 @@ namespace Odin.Core.Services.Drives
         public async Task<IDriveDatabaseManager> TryGetOrLoadQueryManager(Guid driveId)
         {
             //  AsyncLazy: https://devblogs.microsoft.com/pfxteam/asynclazyt/
-            var manager = _queryManagers.GetOrAdd(driveId, new AsyncLazy<IDriveDatabaseManager>(async () =>
+            var manager = _queryManagers.GetOrAdd(driveId, id => new AsyncLazy<IDriveDatabaseManager>(async () =>
             {
-                var drive = await _driveManager.GetDrive(driveId, failIfInvalid: true);
+                var drive = await _driveManager.GetDrive(id, failIfInvalid: true);
                 var logger = _loggerFactory.CreateLogger<IDriveDatabaseManager>();
 
                 var manager = new SqliteDatabaseManager(drive, logger);
