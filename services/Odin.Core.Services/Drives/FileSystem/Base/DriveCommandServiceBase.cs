@@ -25,15 +25,15 @@ public abstract class DriveCommandServiceBase : RequirePermissionsBase
     protected override DriveManager DriveManager { get; }
     protected override OdinContextAccessor ContextAccessor { get; }
 
-    public Task EnqueueCommandMessage(Guid driveId, List<Guid> fileIds)
+    public async Task EnqueueCommandMessage(Guid driveId, List<Guid> fileIds)
     {
-        TryGetOrLoadQueryManager(driveId, out var manager);
-        return manager.AddCommandMessage(fileIds);
+        var manager = await TryGetOrLoadQueryManager(driveId);
+        await manager.AddCommandMessage(fileIds);
     }
 
     public async Task<List<ReceivedCommand>> GetUnprocessedCommands(Guid driveId, int count)
     {
-        TryGetOrLoadQueryManager(driveId, out var manager);
+        var manager = await TryGetOrLoadQueryManager(driveId);
         var unprocessedCommands = await manager.GetUnprocessedCommands(count);
 
         var result = new List<ReceivedCommand>();
@@ -65,12 +65,12 @@ public abstract class DriveCommandServiceBase : RequirePermissionsBase
 
     public async Task MarkCommandsProcessed(Guid driveId, List<Guid> idList)
     {
-        TryGetOrLoadQueryManager(driveId, out var manager);
+        var manager = await TryGetOrLoadQueryManager(driveId);
         await manager.MarkCommandsCompleted(idList);
     }
 
-    private bool TryGetOrLoadQueryManager(Guid driveId, out IDriveDatabaseManager manager, bool onlyReadyManagers = true)
+    private async Task<IDriveDatabaseManager> TryGetOrLoadQueryManager(Guid driveId, bool onlyReadyManagers = true)
     {
-        return _driveDatabaseHost.TryGetOrLoadQueryManager(driveId, out manager);
+        return await _driveDatabaseHost.TryGetOrLoadQueryManager(driveId);
     }
 }

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Odin.Core.Services.Drives.Reactions;
 
 namespace Odin.Hosting.Controllers.Base;
@@ -17,38 +18,38 @@ public class DriveReactionContentControllerBase : OdinControllerBase
     }
 
     /// <summary />
-    protected void AddReaction(AddReactionRequest request)
+    protected async Task AddReaction(AddReactionRequest request)
     {
-        _reactionContentService.AddReaction(MapToInternalFile(request.File), request.Reaction);
+        await _reactionContentService.AddReaction(MapToInternalFile(request.File), request.Reaction);
     }
 
     /// <summary />
-    protected void DeleteReaction(DeleteReactionRequest request)
+    protected async Task DeleteReaction(DeleteReactionRequest request)
     {
-        _reactionContentService.DeleteReaction(MapToInternalFile(request.File), request.Reaction);
+        await _reactionContentService.DeleteReaction(MapToInternalFile(request.File), request.Reaction);
     }
 
     /// <summary />
-    protected void DeleteAllReactions(DeleteReactionRequest request)
+    protected async Task DeleteAllReactions(DeleteReactionRequest request)
     {
-        _reactionContentService.DeleteAllReactions(MapToInternalFile(request.File));
+        await _reactionContentService.DeleteAllReactions(MapToInternalFile(request.File));
     }
 
     /// <summary />
-    protected GetReactionsResponse GetReactions(GetReactionsRequest request)
+    protected async Task<GetReactionsResponse> GetReactions(GetReactionsRequest request)
     {
-        return _reactionContentService.GetReactions(MapToInternalFile(request.File), cursor: request.Cursor,
+        return await _reactionContentService.GetReactions(MapToInternalFile(request.File), cursor: request.Cursor,
             maxCount: request.MaxRecords);
     }
 
     /// <summary />
-    protected GetReactionCountsResponse GetReactionCounts(GetReactionsRequest request)
+    protected async Task<GetReactionCountsResponse> GetReactionCounts(GetReactionsRequest request)
     {
-        return _reactionContentService.GetReactionCountsByFile(MapToInternalFile(request.File));
+        return await _reactionContentService.GetReactionCountsByFile(MapToInternalFile(request.File));
     }
 
-    protected List<string> GetReactionsByIdentityAndFile(GetReactionsByIdentityRequest request)
+    protected async Task<List<string>> GetReactionsByIdentityAndFile(GetReactionsByIdentityRequest request)
     {
-        return _reactionContentService.GetReactionsByIdentityAndFile(request.Identity, MapToInternalFile(request.File));
+        return await _reactionContentService.GetReactionsByIdentityAndFile(request.Identity, MapToInternalFile(request.File));
     }
 }

@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using LazyCache;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Services.Drives.DriveCore.Query;
@@ -20,76 +22,70 @@ namespace Odin.Core.Services.Drives
         INotificationHandler<DriveFileDeletedNotification>
     {
         private readonly DriveManager _driveManager;
-        private readonly Dictionary<Guid, IDriveDatabaseManager> _queryManagers;
+        private readonly ConcurrentDictionary<Guid, AsyncLazy<IDriveDatabaseManager>> _queryManagers = new();
         private readonly ILoggerFactory _loggerFactory;
-
-        private readonly SemaphoreSlim _slimShady = new SemaphoreSlim(1, 1);
 
         public DriveDatabaseHost(ILoggerFactory loggerFactory, DriveManager driveManager)
         {
             _loggerFactory = loggerFactory;
             _driveManager = driveManager;
-            _queryManagers = new Dictionary<Guid, IDriveDatabaseManager>();
         }
 
-        public bool TryGetOrLoadQueryManager(Guid driveId, out IDriveDatabaseManager manager)
+        // SEB:NOTE if this blows up, revert to commit 5a92a50c4d9a5dbe0790a1a15df9c20b6dc1192a
+        public async Task<IDriveDatabaseManager> TryGetOrLoadQueryManager(Guid driveId)
         {
-
-            _slimShady.WaitAsync();
-            
-            if (_queryManagers.TryGetValue(driveId, out manager))
+            //  AsyncLazy: https://devblogs.microsoft.com/pfxteam/asynclazyt/
+            var manager = _queryManagers.GetOrAdd(driveId, id => new AsyncLazy<IDriveDatabaseManager>(async () =>
             {
-                return true;
-            }
+                var drive = await _driveManager.GetDrive(id, failIfInvalid: true);
+                var logger = _loggerFactory.CreateLogger<IDriveDatabaseManager>();
 
-            var drive = _driveManager.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
-            var logger = _loggerFactory.CreateLogger<IDriveDatabaseManager>();
+                var manager = new SqliteDatabaseManager(drive, logger);
+                await manager.LoadLatestIndex();
 
-            manager = new SqliteDatabaseManager(drive, logger);
-            _queryManagers.TryAdd(drive.Id, manager);
-            manager.LoadLatestIndex().GetAwaiter().GetResult();
-            
-            return true;
+                return manager;
+            }));
+
+            return await manager.Value;
         }
 
-        public Task Handle(DriveFileChangedNotification notification, CancellationToken cancellationToken)
+        public async Task Handle(DriveFileChangedNotification notification, CancellationToken cancellationToken)
         {
-            this.TryGetOrLoadQueryManager(notification.File.DriveId, out var manager);
-            return manager.UpdateCurrentIndex(notification.ServerFileHeader);
+            var manager = await TryGetOrLoadQueryManager(notification.File.DriveId);
+            await manager.UpdateCurrentIndex(notification.ServerFileHeader);
         }
 
-        public Task Handle(DriveFileDeletedNotification notification, CancellationToken cancellationToken)
+        public async Task Handle(DriveFileDeletedNotification notification, CancellationToken cancellationToken)
         {
-            this.TryGetOrLoadQueryManager(notification.File.DriveId, out var manager);
+            var manager = await TryGetOrLoadQueryManager(notification.File.DriveId);
 
             if (notification.IsHardDelete)
             {
-                return manager.RemoveFromCurrentIndex(notification.File);
+                 await manager.RemoveFromCurrentIndex(notification.File);
             }
 
-            return manager.UpdateCurrentIndex(notification.ServerFileHeader);
+            await manager.UpdateCurrentIndex(notification.ServerFileHeader);
         }
 
-        public Task Handle(DriveFileAddedNotification notification, CancellationToken cancellationToken)
+        public async Task Handle(DriveFileAddedNotification notification, CancellationToken cancellationToken)
         {
-            this.TryGetOrLoadQueryManager(notification.File.DriveId, out var manager);
-            return manager.UpdateCurrentIndex(notification.ServerFileHeader);
+            var manager = await TryGetOrLoadQueryManager(notification.File.DriveId);
+            await manager.UpdateCurrentIndex(notification.ServerFileHeader);
         }
 
         public void Dispose()
         {
-            foreach (var manager in _queryManagers.Values)
+            while (!_queryManagers.IsEmpty)
             {
-                try
+                foreach (var key in _queryManagers.Keys)
                 {
-                    manager.Dispose();
-                }
-                catch
-                {
-                    //ignored
+                    if (_queryManagers.TryRemove(key, out var manager))
+                    {
+                        manager.Value.GetAwaiter().GetResult().Dispose();
+                        break; // POP!
+                    }
                 }
             }
         }
-        
     }
 }
