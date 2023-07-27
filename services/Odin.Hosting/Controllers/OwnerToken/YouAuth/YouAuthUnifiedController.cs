@@ -73,7 +73,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 
                 // SEB:TODO use path const from..?
                 // SEB:TODO clientId, clientInfo, permissionRequest?
-                var consentPage = $"{Request.Scheme}://{Request.Host}/owner/consent?returnUrl={returnUrl}";
+                var consentPage = $"{Request.Scheme}://{Request.Host}/owner/youauth/consent?returnUrl={returnUrl}";
                 
                 return Redirect(consentPage);
             }
@@ -120,7 +120,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             string returnUrl)
         {
             // SEB:TODO CSRF ValidateAntiForgeryToken
-
+            
+            //
             //
             // [055] Give consent and redirect back
             //
@@ -136,8 +137,16 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             }
 
             var authorize = YouAuthAuthorizeRequest.FromQueryString(returnUri.Query);
-            authorize.Validate();
+            
+            //TODO: this seems to be missing here (since it's done earlier in the process)?
+            // If we're authorizing a domain, overwrite ClientId with domain name
+            // if (authorize.ClientType == ClientType.domain)
+            // {
+            //     authorize.ClientId = redirectUri.Host;
+            // }
 
+            authorize.Validate();
+            
             await _youAuthService.StoreConsent(authorize.ClientId, authorize.PermissionRequest);
 
             return Redirect(returnUrl);

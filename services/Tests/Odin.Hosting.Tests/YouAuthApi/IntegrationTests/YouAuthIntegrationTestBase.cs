@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -64,7 +65,7 @@ public abstract class YouAuthIntegrationTestBase
     // 
 
     // Authenticate and return owner cookie and shared secret
-    protected async Task<(string, string)> AuthenticateOwnerReturnOwnerCookieAndSharedSecret(string identity)
+    protected async Task<(string, string)> AuthenticateOwnerReturnOwnerCookieAndSharedSecret(string identity, Guid? appId = null)
     {
         var apiClient = WebScaffold.CreateDefaultHttpClient();
 
@@ -72,9 +73,8 @@ public abstract class YouAuthIntegrationTestBase
         var ownerClient = Scaffold.CreateOwnerApiClient(TestIdentities.All[identity]);
 
         var drive = TargetDrive.NewTargetDrive();
-        var _ = await ownerClient.Drive.CreateDrive(drive, "", "", false, false, false);
-        
-        var appId = Guid.NewGuid();
+        var _ = await ownerClient.Drive.CreateDrive(drive, "Test Drive", "Test Drive", false, false, false);
+
         var appPermissionsGrant = new PermissionSetGrantRequest()
         {
             Drives = new List<DriveGrantRequest>()
@@ -91,7 +91,7 @@ public abstract class YouAuthIntegrationTestBase
             PermissionSet = new PermissionSet(PermissionKeys.All)
         };
 
-        var appRegistration = await ownerClient.Apps.RegisterApp(appId, appPermissionsGrant);
+        var appRegistration = await ownerClient.Apps.RegisterApp(appId.GetValueOrDefault(Guid.NewGuid()), appPermissionsGrant);
 
 
         // Step 1:

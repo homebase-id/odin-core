@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
@@ -20,6 +21,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
     private readonly IAppRegistrationService _appRegistrationService;
     private readonly OdinContextAccessor _contextAccessor;
     private readonly YouAuthDomainRegistrationService _domainRegistrationService;
+    private readonly Dictionary<string, bool> _tempConsent;
 
     public YouAuthUnifiedService(IAppRegistrationService appRegistrationService,
         OdinContextAccessor contextAccessor,
@@ -28,6 +30,8 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         _appRegistrationService = appRegistrationService;
         _contextAccessor = contextAccessor;
         _domainRegistrationService = domainRegistrationService;
+
+        _tempConsent = new Dictionary<string, bool>(StringComparer.InvariantCultureIgnoreCase);
     }
 
     //
@@ -35,6 +39,8 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
     public Task<bool> NeedConsent(string tenant, ClientType clientType, string clientIdOrDomain, string permissionRequest)
     {
         AssertCanAcquireConsent(clientType, clientIdOrDomain, permissionRequest);
+
+        return Task.FromResult(!_tempConsent.ContainsKey(clientIdOrDomain));
 
         if (clientType == ClientType.domain)
         {
@@ -61,7 +67,9 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         //TODO: i wonder if consent should be stored here or by the UI call on the backend.
         // if the latter, we need a mechanism proving the result of the consent
 
-        // _authorizations[clientIdOrDomain] = permissionRequest;
+        //so for now i'll just use this dictionary
+        _tempConsent[clientIdOrDomain] = true;
+
         return Task.CompletedTask;
     }
 
@@ -81,6 +89,8 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         {
             Guid appId = Guid.Parse(clientId);
             var deviceFriendlyName = clientInfo;
+
+            //TODO: Need to check if the app is registered, if not need redirect to get consent.
 
             (token, _) = _appRegistrationService.RegisterClientRaw(
                     appId,
