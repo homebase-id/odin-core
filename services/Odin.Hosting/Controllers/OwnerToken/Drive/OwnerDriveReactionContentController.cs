@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Services.Drives.Reactions;
 using Odin.Hosting.Controllers.Base;
@@ -20,36 +21,36 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// <summary />
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("add")]
-        public IActionResult AddReactionContent([FromBody] AddReactionRequest request)
+        public async Task<IActionResult> AddReactionContent([FromBody] AddReactionRequest request)
         {
-            base.AddReaction(request);
+            await base.AddReaction(request);
             return NoContent();
         }
 
         /// <summary />
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("delete")]
-        public IActionResult DeleteReactionContent([FromBody] DeleteReactionRequest request)
+        public async Task<IActionResult> DeleteReactionContent([FromBody] DeleteReactionRequest request)
         {
-            base.DeleteReaction(request);
+            await base.DeleteReaction(request);
             return NoContent();
         }
 
         /// <summary />
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("deleteall")]
-        public IActionResult DeleteAllReactionsOnFile([FromBody] DeleteReactionRequest request)
+        public async Task<IActionResult> DeleteAllReactionsOnFile([FromBody] DeleteReactionRequest request)
         {
-            base.DeleteAllReactions(request);
+            await base.DeleteAllReactions(request);
             return NoContent();
         }
 
         /// <summary />
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("list")]
-        public GetReactionsResponse GetAllReactions2([FromBody] GetReactionsRequest request)
+        public async Task<GetReactionsResponse> GetAllReactions2([FromBody] GetReactionsRequest request)
         {
-            return base.GetReactions(request);
+            return await base.GetReactions(request);
         }
         
         /// <summary>
@@ -57,9 +58,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("summary")]
-        public GetReactionCountsResponse GetReactionCountsByFile([FromBody] GetReactionsRequest request)
+        public async Task<GetReactionCountsResponse> GetReactionCountsByFile([FromBody] GetReactionsRequest request)
         {
-            return base.GetReactionCounts(request);
+            return await base.GetReactionCounts(request);
         }
         
         /// <summary>
@@ -67,9 +68,9 @@ namespace Odin.Hosting.Controllers.OwnerToken.Drive
         /// </summary>
         [SwaggerOperation(Tags = new[] { ControllerConstants.OwnerDrive })]
         [HttpPost("listbyidentity")]
-        public List<string> GetReactionsByIdentity([FromBody] GetReactionsByIdentityRequest request)
+        public async Task<List<string>> GetReactionsByIdentity([FromBody] GetReactionsByIdentityRequest request)
         {
-            return base.GetReactionsByIdentityAndFile(request);
+            return await base.GetReactionsByIdentityAndFile(request);
         }
     }
 }

@@ -23,7 +23,7 @@ namespace Odin.Core.Services.Drives
         private readonly Dictionary<Guid, IDriveDatabaseManager> _queryManagers;
         private readonly ILoggerFactory _loggerFactory;
 
-        private readonly SemaphoreSlim _slimShady = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim _mutex = new (1, 1);
 
         public DriveDatabaseHost(ILoggerFactory loggerFactory, DriveManager driveManager)
         {
@@ -32,62 +32,60 @@ namespace Odin.Core.Services.Drives
             _queryManagers = new Dictionary<Guid, IDriveDatabaseManager>();
         }
 
-        public bool TryGetOrLoadQueryManager(Guid driveId, out IDriveDatabaseManager manager)
+        public async Task<IDriveDatabaseManager> TryGetOrLoadQueryManager(Guid driveId)
         {
-
-            _slimShady.WaitAsync();
-            
-            if (_queryManagers.TryGetValue(driveId, out manager))
+            await _mutex.WaitAsync();
+            try
             {
-                return true;
+                if (_queryManagers.TryGetValue(driveId, out var manager))
+                {
+                    return manager;
+                }
+
+                var drive = await _driveManager.GetDrive(driveId, failIfInvalid: true);
+                var logger = _loggerFactory.CreateLogger<IDriveDatabaseManager>();
+
+                manager = new SqliteDatabaseManager(drive, logger);
+                _queryManagers.TryAdd(drive.Id, manager);
+                await manager.LoadLatestIndex();
+
+                return manager;
             }
-
-            var drive = _driveManager.GetDrive(driveId, failIfInvalid: true).GetAwaiter().GetResult();
-            var logger = _loggerFactory.CreateLogger<IDriveDatabaseManager>();
-
-            manager = new SqliteDatabaseManager(drive, logger);
-            _queryManagers.TryAdd(drive.Id, manager);
-            manager.LoadLatestIndex().GetAwaiter().GetResult();
-            
-            return true;
+            finally
+            {
+                _mutex.Release();
+            }
         }
 
-        public Task Handle(DriveFileChangedNotification notification, CancellationToken cancellationToken)
+        public async Task Handle(DriveFileChangedNotification notification, CancellationToken cancellationToken)
         {
-            this.TryGetOrLoadQueryManager(notification.File.DriveId, out var manager);
-            return manager.UpdateCurrentIndex(notification.ServerFileHeader);
+            var manager = await TryGetOrLoadQueryManager(notification.File.DriveId);
+            await manager.UpdateCurrentIndex(notification.ServerFileHeader);
         }
 
-        public Task Handle(DriveFileDeletedNotification notification, CancellationToken cancellationToken)
+        public async Task Handle(DriveFileDeletedNotification notification, CancellationToken cancellationToken)
         {
-            this.TryGetOrLoadQueryManager(notification.File.DriveId, out var manager);
+            var manager = await TryGetOrLoadQueryManager(notification.File.DriveId);
 
             if (notification.IsHardDelete)
             {
-                return manager.RemoveFromCurrentIndex(notification.File);
+                 await manager.RemoveFromCurrentIndex(notification.File);
             }
 
-            return manager.UpdateCurrentIndex(notification.ServerFileHeader);
+            await manager.UpdateCurrentIndex(notification.ServerFileHeader);
         }
 
-        public Task Handle(DriveFileAddedNotification notification, CancellationToken cancellationToken)
+        public async Task Handle(DriveFileAddedNotification notification, CancellationToken cancellationToken)
         {
-            this.TryGetOrLoadQueryManager(notification.File.DriveId, out var manager);
-            return manager.UpdateCurrentIndex(notification.ServerFileHeader);
+            var manager = await TryGetOrLoadQueryManager(notification.File.DriveId);
+            await manager.UpdateCurrentIndex(notification.ServerFileHeader);
         }
 
         public void Dispose()
         {
             foreach (var manager in _queryManagers.Values)
             {
-                try
-                {
-                    manager.Dispose();
-                }
-                catch
-                {
-                    //ignored
-                }
+                manager.Dispose();
             }
         }
         

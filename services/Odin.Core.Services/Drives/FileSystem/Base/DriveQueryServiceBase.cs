@@ -38,7 +38,9 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             QueryModifiedResultOptions options)
         {
             AssertCanReadDrive(driveId);
-            if (TryGetOrLoadQueryManager(driveId, out var queryManager))
+
+            var queryManager = await TryGetOrLoadQueryManager(driveId);
+            if (queryManager != null)
             {
                 var (updatedCursor, fileIdList, hasMoreRows) =
                     await queryManager.GetModified(ContextAccessor.GetCurrent(), GetFileSystemType(), qp, options);
@@ -61,7 +63,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
         {
             AssertCanReadDrive(driveId);
 
-            if (TryGetOrLoadQueryManager(driveId, out var queryManager))
+            var queryManager = await TryGetOrLoadQueryManager(driveId);
+            if (queryManager != null)
             {
                 var queryTime = UnixTimeUtcUnique.Now();
                 var (cursor, fileIdList, hasMoreRows) = await queryManager.GetBatch(ContextAccessor.GetCurrent(),
@@ -177,9 +180,9 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
             return results;
         }
 
-        private bool TryGetOrLoadQueryManager(Guid driveId, out IDriveDatabaseManager manager)
+        private async Task<IDriveDatabaseManager> TryGetOrLoadQueryManager(Guid driveId)
         {
-            return _driveDatabaseHost.TryGetOrLoadQueryManager(driveId, out manager);
+            return await _driveDatabaseHost.TryGetOrLoadQueryManager(driveId);
         }
 
         /// <summary>
@@ -203,7 +206,8 @@ namespace Odin.Core.Services.Drives.FileSystem.Base
                 ExcludePreviewThumbnail = true
             };
 
-            if (TryGetOrLoadQueryManager(driveId, out var queryManager))
+            var queryManager = await TryGetOrLoadQueryManager(driveId);
+            if (queryManager != null)
             {
                 var (_, fileIdList, _) = await queryManager.GetBatch(ContextAccessor.GetCurrent(),
                     GetFileSystemType(),

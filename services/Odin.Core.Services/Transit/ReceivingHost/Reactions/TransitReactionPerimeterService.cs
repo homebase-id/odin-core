@@ -37,7 +37,7 @@ public class TransitReactionPerimeterService : TransitServiceBase
             throw new OdinRemoteIdentityException("Invalid global transit id");
         }
 
-        _reactionContentService.AddReaction(fileId.Value, request.Reaction);
+        await _reactionContentService.AddReaction(fileId.Value, request.Reaction);
     }
 
     public async Task DeleteReaction(SharedSecretEncryptedTransitPayload payload)
@@ -50,7 +50,7 @@ public class TransitReactionPerimeterService : TransitServiceBase
             throw new OdinRemoteIdentityException("Invalid global transit id");
         }
 
-        _reactionContentService.DeleteReaction(fileId.Value, request.Reaction);
+        await _reactionContentService.DeleteReaction(fileId.Value, request.Reaction);
     }
 
     public async Task<GetReactionCountsResponse> GetReactionCountsByFile(SharedSecretEncryptedTransitPayload payload)
@@ -63,7 +63,7 @@ public class TransitReactionPerimeterService : TransitServiceBase
             throw new OdinRemoteIdentityException("Invalid global transit id");
         }
 
-        return _reactionContentService.GetReactionCountsByFile(fileId.Value);
+        return await _reactionContentService.GetReactionCountsByFile(fileId.Value);
     }
 
     public async Task<List<string>> GetReactionsByIdentityAndFile(SharedSecretEncryptedTransitPayload payload)
@@ -76,7 +76,7 @@ public class TransitReactionPerimeterService : TransitServiceBase
             throw new OdinRemoteIdentityException("Invalid global transit id");
         }
 
-        return _reactionContentService.GetReactionsByIdentityAndFile(request.Identity, fileId.Value);
+        return await _reactionContentService.GetReactionsByIdentityAndFile(request.Identity, fileId.Value);
     }
 
     public async Task DeleteAllReactions(SharedSecretEncryptedTransitPayload payload)
@@ -89,7 +89,7 @@ public class TransitReactionPerimeterService : TransitServiceBase
             throw new OdinRemoteIdentityException("Invalid global transit id");
         }
 
-        _reactionContentService.DeleteAllReactions(fileId.Value);
+        await _reactionContentService.DeleteAllReactions(fileId.Value);
     }
 
     public async Task<GetReactionsPerimeterResponse> GetReactions(SharedSecretEncryptedTransitPayload payload)
@@ -102,7 +102,7 @@ public class TransitReactionPerimeterService : TransitServiceBase
             throw new OdinRemoteIdentityException("Invalid global transit id");
         }
 
-        var list = _reactionContentService.GetReactions(fileId.Value, request.Cursor, request.MaxRecords);
+        var list = await _reactionContentService.GetReactions(fileId.Value, request.Cursor, request.MaxRecords);
 
         return new GetReactionsPerimeterResponse()
         {
