@@ -8,6 +8,7 @@
         public const string AuthV1 = BasePathV1 + "/authentication";
         
         public const string AppManagementV1 = BasePathV1 + "/appmanagement";
+        public const string YouAuthDomainManagementV1 = BasePathV1 + "/youauthdomain";
 
         public const string YouAuthV1 = BasePathV1 + "/youauth";
         public const string YouAuthV1Authorize = YouAuthV1 + "/authorize";

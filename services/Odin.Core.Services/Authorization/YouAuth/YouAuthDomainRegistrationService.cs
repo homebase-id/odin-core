@@ -370,11 +370,11 @@ namespace Odin.Core.Services.Authorization.YouAuth
             await Task.CompletedTask;
         }
 
-        public async Task<List<RedactedAppRegistration>> GetRegisteredApps()
+        public async Task<List<RedactedYouAuthDomainRegistration>> GetRegisteredDomains()
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-            var apps = _registrationValueStorage.GetByKey3<AppRegistration>(_appRegistrationDataType);
+            var apps = _registrationValueStorage.GetByKey3<YouAuthDomainRegistration>(_appRegistrationDataType);
             var redactedList = apps.Select(app => app.Redacted()).ToList();
             return await Task.FromResult(redactedList);
         }
