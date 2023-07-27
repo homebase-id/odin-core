@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using LazyCache;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Services.Drives.DriveCore.Query;
@@ -20,41 +22,31 @@ namespace Odin.Core.Services.Drives
         INotificationHandler<DriveFileDeletedNotification>
     {
         private readonly DriveManager _driveManager;
-        private readonly Dictionary<Guid, IDriveDatabaseManager> _queryManagers;
+        private readonly ConcurrentDictionary<Guid, AsyncLazy<IDriveDatabaseManager>> _queryManagers = new();
         private readonly ILoggerFactory _loggerFactory;
-
-        private readonly SemaphoreSlim _mutex = new (1, 1);
 
         public DriveDatabaseHost(ILoggerFactory loggerFactory, DriveManager driveManager)
         {
             _loggerFactory = loggerFactory;
             _driveManager = driveManager;
-            _queryManagers = new Dictionary<Guid, IDriveDatabaseManager>();
         }
 
+        // SEB:NOTE if this blows up, revert to commit 5a92a50c4d9a5dbe0790a1a15df9c20b6dc1192a
         public async Task<IDriveDatabaseManager> TryGetOrLoadQueryManager(Guid driveId)
         {
-            await _mutex.WaitAsync();
-            try
+            //  AsyncLazy: https://devblogs.microsoft.com/pfxteam/asynclazyt/
+            var manager = _queryManagers.GetOrAdd(driveId, new AsyncLazy<IDriveDatabaseManager>(async () =>
             {
-                if (_queryManagers.TryGetValue(driveId, out var manager))
-                {
-                    return manager;
-                }
-
                 var drive = await _driveManager.GetDrive(driveId, failIfInvalid: true);
                 var logger = _loggerFactory.CreateLogger<IDriveDatabaseManager>();
 
-                manager = new SqliteDatabaseManager(drive, logger);
-                _queryManagers.TryAdd(drive.Id, manager);
+                var manager = new SqliteDatabaseManager(drive, logger);
                 await manager.LoadLatestIndex();
 
                 return manager;
-            }
-            finally
-            {
-                _mutex.Release();
-            }
+            }));
+
+            return await manager.Value;
         }
 
         public async Task Handle(DriveFileChangedNotification notification, CancellationToken cancellationToken)
@@ -83,11 +75,17 @@ namespace Odin.Core.Services.Drives
 
         public void Dispose()
         {
-            foreach (var manager in _queryManagers.Values)
+            while (!_queryManagers.IsEmpty)
             {
-                manager.Dispose();
+                foreach (var key in _queryManagers.Keys)
+                {
+                    if (_queryManagers.TryRemove(key, out var manager))
+                    {
+                        manager.Value.GetAwaiter().GetResult().Dispose();
+                        break; // POP!
+                    }
+                }
             }
         }
-        
     }
 }
