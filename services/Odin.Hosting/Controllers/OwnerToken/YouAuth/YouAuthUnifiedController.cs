@@ -85,22 +85,22 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             //
             // Step [050] Consent needed?
             //
-            // var needConsent = await _youAuthService.NeedConsent(
-            //     _currentTenant,
-            //     authorize.ClientType,
-            //     authorize.ClientId,
-            //     authorize.PermissionRequest);
-            //
-            // if (needConsent)
-            // {
-            //     var returnUrl = WebUtility.UrlEncode(Request.GetDisplayUrl());
-            //
-            //     // SEB:TODO use path const from..?
-            //     // SEB:TODO clientId, clientInfo, permissionRequest?
-            //     var consentPage = $"{Request.Scheme}://{Request.Host}/owner/consent?returnUrl={returnUrl}";
-            //
-            //     return Redirect(consentPage);
-            // }
+            var needConsent = await _youAuthService.NeedConsent(
+                _currentTenant,
+                authorize.ClientType,
+                authorize.ClientId,
+                authorize.PermissionRequest);
+
+            if (needConsent)
+            {
+                var returnUrl = WebUtility.UrlEncode(Request.GetDisplayUrl());
+
+                // SEB:TODO use path const from..?
+                // SEB:TODO clientId, clientInfo, permissionRequest?
+                var consentPage = $"{Request.Scheme}://{Request.Host}/owner/consent?returnUrl={returnUrl}";
+
+                return Redirect(consentPage);
+            }
 
             //
             // [060] Validate scopes.

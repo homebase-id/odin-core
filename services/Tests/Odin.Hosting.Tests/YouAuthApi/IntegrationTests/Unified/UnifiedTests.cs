@@ -190,7 +190,6 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             var codeVerifier = Guid.NewGuid().ToString();
             var codeChallenge = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(codeVerifier)).ToBase64();
 
-            Uri returnUrl;
             const string thirdParty = "frodo.dotyou.cloud";
             var finalRedirectUri = new Uri($"https://{thirdParty}/foo/code/callback");
 
@@ -473,7 +472,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
         //
         
         [Test]
-        public async Task d1_domain_ItShouldExchangeAuthCodeForToken()
+        public async Task d1_domain_WithImplicitConsentItShouldExchangeAuthorizationCodeForToken()
         {
             const string hobbit = "sam.dotyou.cloud";
             var apiClient = WebScaffold.CreateDefaultHttpClient();
@@ -485,7 +484,6 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             var codeVerifier = Guid.NewGuid().ToString();
             var codeChallenge = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(codeVerifier)).ToBase64();
 
-            Uri returnUrl;
             const string thirdParty = "frodo.dotyou.cloud";
             var finalRedirectUri = new Uri($"https://{thirdParty}/foo/code/callback");
 
@@ -541,7 +539,8 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var tokenRequest = new YouAuthTokenRequest
                 {
                     Code = code,
-                    CodeVerifier = codeVerifier
+                    CodeVerifier = codeVerifier,
+                    TokenDeliveryOption = TokenDeliveryOption.cookie
                 };
                 var body = OdinSystemSerializer.Serialize(tokenRequest);
                 
@@ -558,14 +557,13 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var token = OdinSystemSerializer.Deserialize<YouAuthTokenResponse>(content);
                 
                 Assert.That(token!.Base64SharedSecret, Is.Not.Null.And.Not.Empty);
-                Assert.That(token!.Base64ClientAuthToken, Is.Not.Null.And.Not.Empty);
             }
         }
         
         //
         
         [Test]
-        public async Task d2_domain_ClientAccessTokenShouldBeDeliveredAsCookieWhenTokenDeliveryOptionIsCookie()
+        public async Task d2_domain_WithImplicitConsentClientAccessTokenShouldBeDeliveredAsCookieWhenTokenDeliveryOptionIsCookie()
         {
             const string hobbit = "sam.dotyou.cloud";
             var apiClient = WebScaffold.CreateDefaultHttpClient();
@@ -577,7 +575,6 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             var codeVerifier = Guid.NewGuid().ToString();
             var codeChallenge = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(codeVerifier)).ToBase64();
 
-            Uri returnUrl;
             const string thirdParty = "frodo.dotyou.cloud";
             var finalRedirectUri = new Uri($"https://{thirdParty}/foo/code/callback");
 
@@ -663,7 +660,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
         //
         
         [Test]
-        public async Task d3_domain_ClientAccessTokenShouldBeDeliveredAsJsonResponseWhenTokenDeliveryOptionIsJson()
+        public async Task d3_domain_WithImplicitConsentClientAccessTokenShouldBeDeliveredAsJsonResponseWhenTokenDeliveryOptionIsJson()
         {
             const string hobbit = "sam.dotyou.cloud";
             var apiClient = WebScaffold.CreateDefaultHttpClient();
@@ -675,7 +672,6 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             var codeVerifier = Guid.NewGuid().ToString();
             var codeChallenge = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(codeVerifier)).ToBase64();
 
-            Uri returnUrl;
             const string thirdParty = "frodo.dotyou.cloud";
             var finalRedirectUri = new Uri($"https://{thirdParty}/foo/code/callback");
 
@@ -755,7 +751,312 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 Assert.That(cookies.ContainsKey(YouAuthTestHelper.HomeCookieName), Is.False);
             }
         }
-        
+        [Test]
+        public async Task d4_domain_WithExplicitConsentClientAccessTokenShouldBeDeliveredAsCookieWhenTokenDeliveryOptionIsCookie()
+        {
+            const string hobbit = "sam.dotyou.cloud";
+            var apiClient = WebScaffold.CreateDefaultHttpClient();
+            var (ownerCookie, ownerSharedSecret) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit);
+
+            //
+            // [010] Generate code verifier
+            //
+            var codeVerifier = Guid.NewGuid().ToString();
+            var codeChallenge = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(codeVerifier)).ToBase64();
+
+            Uri returnUrl;
+            const string thirdParty = "frodo.dotyou.cloud";
+            var finalRedirectUri = new Uri($"https://{thirdParty}/foo/code/callback");
+
+            //
+            // [030] Request authorization code
+            //
+            {
+                var payload = new YouAuthAuthorizeRequest
+                {
+                    ClientId = thirdParty,
+                    ClientType = ClientType.domain,
+                    ClientInfo = "",
+                    CodeChallenge = codeChallenge,
+                    PermissionRequest = "",
+                    RedirectUri = $"https://{thirdParty}/foo/code/callback"
+                };
+
+                var uri =
+                    new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}")
+                    {
+                        Query = payload.ToQueryString()
+                    }.ToString();
+
+                var request = new HttpRequestMessage(HttpMethod.Get, uri)
+                {
+                    Headers = { { "Cookie", new Cookie(YouAuthTestHelper.OwnerCookieName, ownerCookie).ToString() } },
+                };
+
+                var response = await apiClient.SendAsync(request);
+
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
+
+                // ... /owner/youauth/authorize
+                var location = response.GetHeaderValue("Location") ?? throw new Exception("missing location");
+                var consentUri = new Uri(location);
+                Assert.That(consentUri.Scheme, Is.EqualTo("https"));
+                Assert.That(consentUri.Host, Is.EqualTo($"{hobbit}"));
+                Assert.That(consentUri.AbsolutePath, Is.EqualTo("/owner/consent"));
+
+                // ... ?returnUrl= ...
+                var qs = YouAuthTestHelper.ParseQueryString(location);
+                returnUrl = new Uri(qs["returnUrl"]);
+                Assert.That(returnUrl.ToString(), Does.StartWith($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}"));
+            }
+
+            //
+            // [050] Consent needed
+            //
+            Uri authorizeUri;
+            {
+                //
+                // The frontend consent page (/owner/youauth/authorize) shows a form
+                // with app name, app description and scopes the user must authorize.
+                //
+                // When the user consents, i.e. clicks OK, the form does a POST to the backend authorize endpoint:
+                //
+
+                var uri = new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}");
+
+                var request = new HttpRequestMessage(HttpMethod.Post, uri.ToString())
+                {
+                    Headers = { { "Cookie", new Cookie(YouAuthTestHelper.OwnerCookieName, ownerCookie).ToString() } },
+                    Content = new FormUrlEncodedContent(new Dictionary<string, string>
+                    {
+                        { YouAuthAuthorizeConsentGiven.ReturnUrlName, returnUrl.ToString() }
+                    })
+                };
+
+                var response = await apiClient.SendAsync(request);
+
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
+
+                var location = response.GetHeaderValue("Location") ?? throw new Exception("missing location");
+                authorizeUri = new Uri(location);
+                Assert.That(authorizeUri.Scheme, Is.EqualTo("https"));
+                Assert.That(authorizeUri.Host, Is.EqualTo($"{hobbit}"));
+                Assert.That(authorizeUri.AbsolutePath, Is.EqualTo(OwnerApiPathConstants.YouAuthV1Authorize));
+            }
+
+            //
+            // [070] Create auth code
+            //
+            string code;
+            {
+                var request = new HttpRequestMessage(HttpMethod.Get, authorizeUri.ToString())
+                {
+                    Headers = { { "Cookie", new Cookie(YouAuthTestHelper.OwnerCookieName, ownerCookie).ToString() } },
+                };
+
+                var response = await apiClient.SendAsync(request);
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
+
+                var location = response.GetHeaderValue("Location") ?? throw new Exception("missing location");
+                var redirectUri = new Uri(location);
+                Assert.That(redirectUri.Scheme, Is.EqualTo("https"));
+                Assert.That(redirectUri.Host, Is.EqualTo($"{thirdParty}"));
+                Assert.That(redirectUri.AbsolutePath, Is.EqualTo(finalRedirectUri.AbsolutePath));
+
+                var qs = HttpUtility.ParseQueryString(redirectUri.Query);
+                Assert.That(qs["code"], Is.Not.Null.And.Not.Empty);
+                code = qs["code"]!;
+            }
+
+            //
+            // [100] Exchange auth code for access token
+            // [140] Return client access token to client
+            //
+            {
+                var uri = new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Token}");
+                var tokenRequest = new YouAuthTokenRequest
+                {
+                    Code = code,
+                    CodeVerifier = codeVerifier,
+                    TokenDeliveryOption = TokenDeliveryOption.cookie
+                };
+                var body = OdinSystemSerializer.Serialize(tokenRequest);
+
+                var request = new HttpRequestMessage(HttpMethod.Post, uri.ToString())
+                {
+                    Headers = { { "Cookie", new Cookie(YouAuthTestHelper.OwnerCookieName, ownerCookie).ToString() } },
+                    Content = new StringContent(body, Encoding.UTF8, "application/json")
+                };
+
+                var response = await apiClient.SendAsync(request);
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+                var content = await response.Content.ReadAsStringAsync();
+                var token = OdinSystemSerializer.Deserialize<YouAuthTokenResponse>(content);
+
+                Assert.That(token!.Base64SharedSecret, Is.Not.Null.And.Not.Empty);
+                Assert.That(token!.Base64ClientAuthToken, Is.Null.Or.Empty);
+
+                var cookies = response.GetCookies();
+                Assert.That(cookies.ContainsKey(YouAuthTestHelper.HomeCookieName), Is.True);
+                var homeCookie = cookies[YouAuthTestHelper.HomeCookieName];
+                Assert.That(homeCookie, Is.Not.Null.And.Not.Empty);
+            }
+        }
+
+        //
+
+        [Test]
+        public async Task d5_domain_WithExplicitConsentClientAccessTokenShouldBeDeliveredAsJsonResponseWhenTokenDeliveryOptionIsJson()
+        {
+            const string hobbit = "sam.dotyou.cloud";
+            var apiClient = WebScaffold.CreateDefaultHttpClient();
+            var (ownerCookie, ownerSharedSecret) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit);
+
+            //
+            // [010] Generate code verifier
+            //
+            var codeVerifier = Guid.NewGuid().ToString();
+            var codeChallenge = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(codeVerifier)).ToBase64();
+
+            Uri returnUrl;
+            const string thirdParty = "frodo.dotyou.cloud";
+            var finalRedirectUri = new Uri($"https://{thirdParty}/foo/code/callback");
+
+            //
+            // [030] Request authorization code
+            //
+            {
+                var payload = new YouAuthAuthorizeRequest
+                {
+                    ClientId = thirdParty,
+                    ClientType = ClientType.domain,
+                    ClientInfo = "",
+                    CodeChallenge = codeChallenge,
+                    PermissionRequest = "",
+                    RedirectUri = $"https://{thirdParty}/foo/code/callback"
+                };
+
+                var uri =
+                    new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}")
+                    {
+                        Query = payload.ToQueryString()
+                    }.ToString();
+
+                var request = new HttpRequestMessage(HttpMethod.Get, uri)
+                {
+                    Headers = { { "Cookie", new Cookie(YouAuthTestHelper.OwnerCookieName, ownerCookie).ToString() } },
+                };
+
+                var response = await apiClient.SendAsync(request);
+
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
+
+                // ... /owner/youauth/authorize
+                var location = response.GetHeaderValue("Location") ?? throw new Exception("missing location");
+                var consentUri = new Uri(location);
+                Assert.That(consentUri.Scheme, Is.EqualTo("https"));
+                Assert.That(consentUri.Host, Is.EqualTo($"{hobbit}"));
+                Assert.That(consentUri.AbsolutePath, Is.EqualTo("/owner/consent"));
+
+                // ... ?returnUrl= ...
+                var qs = YouAuthTestHelper.ParseQueryString(location);
+                returnUrl = new Uri(qs["returnUrl"]);
+                Assert.That(returnUrl.ToString(), Does.StartWith($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}"));
+            }
+
+            //
+            // [050] Consent needed
+            //
+            Uri authorizeUri;
+            {
+                //
+                // The frontend consent page (/owner/youauth/authorize) shows a form
+                // with app name, app description and scopes the user must authorize.
+                //
+                // When the user consents, i.e. clicks OK, the form does a POST to the backend authorize endpoint:
+                //
+
+                var uri = new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}");
+
+                var request = new HttpRequestMessage(HttpMethod.Post, uri.ToString())
+                {
+                    Headers = { { "Cookie", new Cookie(YouAuthTestHelper.OwnerCookieName, ownerCookie).ToString() } },
+                    Content = new FormUrlEncodedContent(new Dictionary<string, string>
+                    {
+                        { YouAuthAuthorizeConsentGiven.ReturnUrlName, returnUrl.ToString() }
+                    })
+                };
+
+                var response = await apiClient.SendAsync(request);
+
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
+
+                var location = response.GetHeaderValue("Location") ?? throw new Exception("missing location");
+                authorizeUri = new Uri(location);
+                Assert.That(authorizeUri.Scheme, Is.EqualTo("https"));
+                Assert.That(authorizeUri.Host, Is.EqualTo($"{hobbit}"));
+                Assert.That(authorizeUri.AbsolutePath, Is.EqualTo(OwnerApiPathConstants.YouAuthV1Authorize));
+            }
+
+            //
+            // [070] Create auth code
+            //
+            string code;
+            {
+                var request = new HttpRequestMessage(HttpMethod.Get, authorizeUri.ToString())
+                {
+                    Headers = { { "Cookie", new Cookie(YouAuthTestHelper.OwnerCookieName, ownerCookie).ToString() } },
+                };
+
+                var response = await apiClient.SendAsync(request);
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
+
+                var location = response.GetHeaderValue("Location") ?? throw new Exception("missing location");
+                var redirectUri = new Uri(location);
+                Assert.That(redirectUri.Scheme, Is.EqualTo("https"));
+                Assert.That(redirectUri.Host, Is.EqualTo($"{thirdParty}"));
+                Assert.That(redirectUri.AbsolutePath, Is.EqualTo(finalRedirectUri.AbsolutePath));
+
+                var qs = HttpUtility.ParseQueryString(redirectUri.Query);
+                Assert.That(qs["code"], Is.Not.Null.And.Not.Empty);
+                code = qs["code"]!;
+            }
+
+            //
+            // [100] Exchange auth code for access token
+            // [140] Return client access token to client
+            //
+            {
+                var uri = new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Token}");
+                var tokenRequest = new YouAuthTokenRequest
+                {
+                    Code = code,
+                    CodeVerifier = codeVerifier,
+                    TokenDeliveryOption = TokenDeliveryOption.json
+                };
+                var body = OdinSystemSerializer.Serialize(tokenRequest);
+
+                var request = new HttpRequestMessage(HttpMethod.Post, uri.ToString())
+                {
+                    Headers = { { "Cookie", new Cookie(YouAuthTestHelper.OwnerCookieName, ownerCookie).ToString() } },
+                    Content = new StringContent(body, Encoding.UTF8, "application/json")
+                };
+
+                var response = await apiClient.SendAsync(request);
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+                var content = await response.Content.ReadAsStringAsync();
+                var token = OdinSystemSerializer.Deserialize<YouAuthTokenResponse>(content);
+
+                Assert.That(token!.Base64SharedSecret, Is.Not.Null.And.Not.Empty);
+                Assert.That(token!.Base64ClientAuthToken, Is.Not.Null.And.Not.Empty);
+
+                var cookies = response.GetCookies();
+                Assert.That(cookies.ContainsKey(YouAuthTestHelper.HomeCookieName), Is.False);
+            }
+        }
+
     }
 }
 

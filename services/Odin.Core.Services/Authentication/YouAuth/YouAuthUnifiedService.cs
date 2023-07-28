@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
@@ -19,6 +20,8 @@ namespace Odin.Core.Services.Authentication.YouAuth;
 public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 {
     private readonly IMemoryCache _codesAndTokens = new MemoryCache(new MemoryCacheOptions());
+    private readonly ConcurrentDictionary<string, string>
+        _authorizations = new(); // SEB:TODO this should go to the database instead
 
     private readonly IAppRegistrationService _appRegistrationService;
     private readonly OdinContextAccessor _contextAccessor;
@@ -37,6 +40,12 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     public async Task<bool> NeedConsent(string tenant, ClientType clientType, string clientIdOrDomain, string permissionRequest)
     {
+        if (_authorizations.ContainsKey(clientIdOrDomain))
+        {
+            // we end up here when user has POSTed consent
+            return false;
+        }
+
         await AssertCanAcquireConsent(clientType, clientIdOrDomain, permissionRequest);
 
         if (clientType == ClientType.domain)
@@ -54,13 +63,13 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
     {
         if (string.IsNullOrWhiteSpace(clientIdOrDomain))
         {
-            throw new ArgumentException("Missing clientId");
+            throw new ArgumentException("Missing clientIdOrDomain");
         }
 
         //TODO: i wonder if consent should be stored here or by the UI call on the backend.
         // if the latter, we need a mechanism proving the result of the consent
 
-        // _authorizations[clientIdOrDomain] = permissionRequest;
+        _authorizations[clientIdOrDomain] = permissionRequest;
         return Task.CompletedTask;
     }
 
@@ -82,7 +91,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
             (token, _) = await _appRegistrationService.RegisterClientRaw(appId, deviceFriendlyName);
         }
-        else // (clientType == ClientType.domain)
+        else if (clientType == ClientType.domain)
         {
             var domain = new AsciiDomainName(clientId);
             var request = new YouAuthDomainRegistrationRequest()
@@ -95,6 +104,10 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             };
 
             (token, _) = await _domainRegistrationService.RegisterClient(domain, domain.DomainName, request);
+        }
+        else
+        {
+            throw new OdinSystemException($"Invalid clientType '{clientType}'");
         }
 
         var code = Guid.NewGuid().ToString();
@@ -167,6 +180,15 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     private void DoRedirectToAppReg()
     {
+        // https://merry.dotyou.cloud/owner/appreg
+        //     ?n=Odin - Photos
+        //     &o=dev.dotyou.cloud:3005
+        //     &appId=32f0bdbf-017f-4fc0-8004-2d4631182d1e
+        //     &fn=Chrome | macOS
+        //     &return=https://dev.dotyou.cloud:3005/auth/finalize?returnUrl=%2F
+        //     &d=[{"a":"6483b7b1f71bd43eb6896c86148668cc","t":"2af68fe72fb84896f39f97c59d60813a","n":"Photo Library","d":"Place for your memories","p":3}]
+        //     &pk=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvcBZgKzmDqEnELk/hsOjVKi77tkU8RGWyCHbahcui9ftKQLuKGzU9iP+RaDUbDbo6hheUdq971LgRSFZfn37ooJhTKHs
+
         //example: https://frodo.digital/owner/appreg?n=Odin%20-%20Photos&o=photos.odin.earth&appId=32f0bdbf-017f-4fc0-8004-2d4631182d1e&fn=Firefox%20%7C%20macOS&return=https%3A%2F%2Fphotos.odin.earth%2Fauth%2Ffinalize%3FreturnUrl%3D%252F%26&d=%5B%7B%22a%22%3A%226483b7b1f71bd43eb6896c86148668cc%22%2C%22t%22%3A%222af68fe72fb84896f39f97c59d60813a%22%2C%22n%22%3A%22Photo%20Library%22%2C%22d%22%3A%22Place%20for%20your%20memories%22%2C%22p%22%3A3%7D%5D&pk=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3lESpzsGk5PXQysoPZxXJ4Cp2FXycnAGxETP%2FF47EWWqDyKaR3Q1er16h4JNBZbvGQjoCgDUT5Q8vknBrnTJGL2z%2FVVdPsIenZ4IWsvI4hM%2FxQ7bQ3N4v4OJNb5f7dGtHAWrDEhpRYv1dw5s2ZnvxnxipkUc%2FUiazUuCrNV4OGTKsyeRAXdcteXrO13KK2ywl9s2eUBPLjy9OD5Vm4Du3FLDdJ2xkW6klKnINA%2BYPMFTLfeuhgJIloBMbNCyWxz0LLWiztB%2Bx0kqJyXGYPGcHxhPfUJppna6bsoJcQ462zFpkozZ%2BHROAfV324S4nHyL%2B4BvMfdcjLvEjwZAtcYy9QIDAQAB
 
         //TODO: the following are parameters that come in from the App
