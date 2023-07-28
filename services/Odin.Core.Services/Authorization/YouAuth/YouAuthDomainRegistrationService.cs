@@ -129,6 +129,7 @@ namespace Odin.Core.Services.Authorization.YouAuth
                 }
                 
                 await this.RegisterDomain(request);
+                reg = await this.GetDomainRegistrationInternal(domain);
             }
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();

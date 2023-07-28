@@ -5,5 +5,5 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth;
 public class YouAuthTokenResponse
 {
     public string? Base64SharedSecret { get; set; }
-    public string? Base64ClientAccessToken { get; set; }
+    public string? Base64ClientAuthToken { get; set; }
 }

@@ -34,10 +34,7 @@ public class YouAuthAuthorizeRequest
     [BindProperty(Name = PermissionRequestName, SupportsGet = true)]
     public string PermissionRequest { get; set; } = ""; 
 
-    public const string TokenDeliveryOptionName = "token_delivery_option";
-    [BindProperty(Name = TokenDeliveryOptionName, SupportsGet = true)]
-    public TokenDeliveryOption TokenDeliveryOption { get; set; } = TokenDeliveryOption.unknown; 
-    
+
     //
 
     public YouAuthAuthorizeRequest()
@@ -51,7 +48,6 @@ public class YouAuthAuthorizeRequest
         string redirectUri,
         ClientType clientType,
         string clientId,
-        TokenDeliveryOption tokenDeliveryOption,
         string codeChallenge,
         string permissionRequest,
         string clientInfo
@@ -60,7 +56,6 @@ public class YouAuthAuthorizeRequest
         RedirectUri = redirectUri;
         ClientType = clientType;
         ClientId = clientId;
-        TokenDeliveryOption = tokenDeliveryOption;
         CodeChallenge = codeChallenge;
         PermissionRequest = permissionRequest;
         ClientInfo = clientInfo;
@@ -78,8 +73,7 @@ public class YouAuthAuthorizeRequest
         qs[CodeChallengeName] = CodeChallenge;
         qs[RedirectUriName] = RedirectUri;
         qs[PermissionRequestName] = PermissionRequest;
-        qs[TokenDeliveryOptionName] = TokenDeliveryOption.ToString();
-    
+
         return qs.ToString() ?? string.Empty;
     }
     
@@ -94,16 +88,10 @@ public class YouAuthAuthorizeRequest
             clientType = ClientType.unknown;
         }
         
-        if (!Enum.TryParse(qs[TokenDeliveryOptionName], out TokenDeliveryOption tokenDeliveryOption))
-        {
-            tokenDeliveryOption = TokenDeliveryOption.unknown;
-        }
-
         return new YouAuthAuthorizeRequest(
             redirectUri: qs[RedirectUriName] ?? string.Empty,
             clientType: clientType,
             clientId: qs[ClientIdName] ?? string.Empty,
-            tokenDeliveryOption: tokenDeliveryOption,
             codeChallenge: qs[CodeChallengeName] ?? string.Empty,
             permissionRequest: qs[PermissionRequestName] ?? string.Empty,
             clientInfo: qs[ClientInfoName] ?? string.Empty);
@@ -111,6 +99,7 @@ public class YouAuthAuthorizeRequest
     
     //
 
+    // SEB:TODO implement IValidatableObject instead of below
     public void Validate()
     {
         if (ClientType != ClientType.app && ClientType != ClientType.domain)
@@ -128,10 +117,6 @@ public class YouAuthAuthorizeRequest
         if (string.IsNullOrWhiteSpace(RedirectUri))
         {
             throw new BadRequestException($"Bad or missing {RedirectUriName}");
-        }
-        if (TokenDeliveryOption != TokenDeliveryOption.cookie && TokenDeliveryOption != TokenDeliveryOption.json)
-        {
-            throw new BadRequestException($"Bad or missing {TokenDeliveryOption}");
         }
     }
 }

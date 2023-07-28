@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Odin.Core.Services.Authorization.ExchangeGrants;
 
 namespace Odin.Core.Services.Authentication.YouAuth;
 
@@ -24,6 +25,8 @@ public enum TokenDeliveryOption
 
 public interface IYouAuthUnifiedService
 {
+    Task<bool> AppNeedsRegistration(ClientType clientType, string clientIdOrDomain, string permissionRequest);
+
     Task<bool> NeedConsent(
         string tenant, 
         ClientType clientType, 
@@ -36,12 +39,7 @@ public interface IYouAuthUnifiedService
         string clientId,
         string clientInfo,
         string permissionRequest,
-        string codeChallenge,
-        TokenDeliveryOption tokenDeliveryOption);
+        string codeChallenge);
 
-    Task<bool> ExchangeCodeForToken(
-        string code,
-        string codeVerifier,
-        out byte[]? sharedSecret,
-        out byte[]? clientAuthToken);
+    Task<ClientAccessToken?> ExchangeCodeForToken(string code, string codeVerifier);
 }

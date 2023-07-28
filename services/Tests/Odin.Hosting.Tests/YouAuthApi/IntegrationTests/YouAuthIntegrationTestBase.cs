@@ -68,31 +68,27 @@ public abstract class YouAuthIntegrationTestBase
     {
         var apiClient = WebScaffold.CreateDefaultHttpClient();
 
-
-        var ownerClient = Scaffold.CreateOwnerApiClient(TestIdentities.All[identity]);
-
-        var drive = TargetDrive.NewTargetDrive();
-        var _ = await ownerClient.Drive.CreateDrive(drive, "", "", false, false, false);
-        
-        var appId = Guid.NewGuid();
-        var appPermissionsGrant = new PermissionSetGrantRequest()
-        {
-            Drives = new List<DriveGrantRequest>()
-            {
-                new()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = drive,
-                        Permission = DrivePermission.All
-                    }
-                }
-            },
-            PermissionSet = new PermissionSet(PermissionKeys.All)
-        };
-
-        var appRegistration = await ownerClient.Apps.RegisterApp(appId, appPermissionsGrant);
-
+        // SEB:TODO enable this when testing apps
+        // var ownerClient = Scaffold.CreateOwnerApiClient(TestIdentities.All[identity]);
+        // var drive = TargetDrive.NewTargetDrive();
+        // var _ = await ownerClient.Drive.CreateDrive(drive, "", "", false, false, false);
+        // var appId = Guid.NewGuid();
+        // var appPermissionsGrant = new PermissionSetGrantRequest()
+        // {
+        //     Drives = new List<DriveGrantRequest>()
+        //     {
+        //         new()
+        //         {
+        //             PermissionedDrive = new PermissionedDrive()
+        //             {
+        //                 Drive = drive,
+        //                 Permission = DrivePermission.All
+        //             }
+        //         }
+        //     },
+        //     PermissionSet = new PermissionSet(PermissionKeys.All)
+        // };
+        // var appRegistration = await ownerClient.Apps.RegisterApp(appId, appPermissionsGrant);
 
         // Step 1:
         // Check owner cookie (we don't send any).

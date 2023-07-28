@@ -2,7 +2,10 @@ using System;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using Certes;
 using Microsoft.Extensions.Caching.Memory;
+using Odin.Core.Exceptions;
+using Odin.Core.Exceptions.Client;
 using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.YouAuth;
@@ -32,21 +35,17 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     //
 
-    public Task<bool> NeedConsent(string tenant, ClientType clientType, string clientIdOrDomain, string permissionRequest)
+    public async Task<bool> NeedConsent(string tenant, ClientType clientType, string clientIdOrDomain, string permissionRequest)
     {
-        AssertCanAcquireConsent(clientType, clientIdOrDomain, permissionRequest);
+        await AssertCanAcquireConsent(clientType, clientIdOrDomain, permissionRequest);
 
         if (clientType == ClientType.domain)
         {
-            bool needsConsent = _domainRegistrationService.IsConsentRequired(new AsciiDomainName(clientIdOrDomain))
-                .GetAwaiter()
-                .GetResult();
-
-            return Task.FromResult(needsConsent);
+            return await _domainRegistrationService.IsConsentRequired(new AsciiDomainName(clientIdOrDomain));
         }
 
-        //clientType == app always needs consent
-        return Task.FromResult(true);
+        // clientType == app always needs consent
+        return true;
     }
 
     //
@@ -67,29 +66,23 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     //
 
-    public Task<string> CreateAuthorizationCode(ClientType clientType,
+    public async Task<string> CreateAuthorizationCode(ClientType clientType,
         string clientId,
         string clientInfo,
         string permissionRequest,
-        string codeChallenge,
-        TokenDeliveryOption tokenDeliveryOption)
+        string codeChallenge)
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-        ClientAccessToken token = null;
+        ClientAccessToken token;
         if (clientType == ClientType.app)
         {
             Guid appId = Guid.Parse(clientId);
             var deviceFriendlyName = clientInfo;
 
-            (token, _) = _appRegistrationService.RegisterClientRaw(
-                    appId,
-                    deviceFriendlyName)
-                .GetAwaiter()
-                .GetResult();
+            (token, _) = await _appRegistrationService.RegisterClientRaw(appId, deviceFriendlyName);
         }
-
-        if (clientType == ClientType.domain)
+        else // (clientType == ClientType.domain)
         {
             var domain = new AsciiDomainName(clientId);
             var request = new YouAuthDomainRegistrationRequest()
@@ -101,7 +94,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
                 PermissionSet = default
             };
 
-            (token, _) = _domainRegistrationService.RegisterClient(domain, "", request).GetAwaiter().GetResult();
+            (token, _) = await _domainRegistrationService.RegisterClient(domain, domain.DomainName, request);
         }
 
         var code = Guid.NewGuid().ToString();
@@ -111,66 +104,66 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             clientType,
             permissionRequest,
             codeChallenge,
-            tokenDeliveryOption,
             token);
 
         _codesAndTokens.Set(code, ac, TimeSpan.FromMinutes(5));
 
-        return Task.FromResult(code);
+        return code;
     }
 
     //
 
-    public Task<bool> ExchangeCodeForToken(
-        string code,
-        string codeVerifier,
-        out byte[]? sharedSecret,
-        out byte[]? clientAuthToken)
+    public Task<ClientAccessToken?> ExchangeCodeForToken(string code, string codeVerifier)
     {
-        sharedSecret = null;
-        clientAuthToken = null;
-
         var ac = _codesAndTokens.Get<AuthorizationCodeAndToken>(code);
 
         if (ac == null)
         {
-            return Task.FromResult(false);
+            return Task.FromResult<ClientAccessToken?>(null);
         }
 
         var codeChallenge = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(codeVerifier)).ToBase64();
         if (codeChallenge != ac.CodeChallenge)
         {
-            return Task.FromResult(false);
+            return Task.FromResult<ClientAccessToken?>(null);
         }
 
         _codesAndTokens.Remove(code);
 
         var accessToken = ac.PreCreatedClientAccessToken;
-        sharedSecret = accessToken.SharedSecret.GetKey();
-        clientAuthToken = accessToken.ToAuthenticationToken().ToPortableBytes();
 
-
-        return Task.FromResult(true);
+        return Task.FromResult(accessToken)!;
     }
 
     //
 
-    private void AssertCanAcquireConsent(ClientType clientType, string clientIdOrDomain, string permissionRequest)
+    public async Task<bool> AppNeedsRegistration(ClientType clientType, string clientIdOrDomain, string permissionRequest)
+    {
+        if (clientType != ClientType.app)
+        {
+            throw new OdinSystemException($"Invalid clientType '{clientType}'");
+        }
+
+        var appId = Guid.Parse(clientIdOrDomain);
+        var appReg = await _appRegistrationService.GetAppRegistration(appId);
+
+        return appReg == null;
+    }
+
+    //
+
+    private async Task AssertCanAcquireConsent(ClientType clientType, string clientIdOrDomain, string permissionRequest)
     {
         if (clientType == ClientType.app)
         {
-            //check if app is registered
-            var appId = Guid.Parse(clientIdOrDomain);
-            var appReg = _appRegistrationService.GetAppRegistration(appId).GetAwaiter().GetResult();
-
-            if (null == appReg)
+            if (await AppNeedsRegistration(clientType, clientIdOrDomain, permissionRequest))
             {
-                //SEB: TODO = do a redirect to app registration
-                // throw new OdinClientException("App not registered");
-                DoRedirectToAppReg();
+                throw new OdinSystemException("App must be registered before consent check is possible");
             }
         }
     }
+
+    //
 
     private void DoRedirectToAppReg()
     {
@@ -199,7 +192,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         //                   $"&return={returnUrl}";
     }
 
-//
+    //
 
     private sealed class AuthorizationCodeAndToken
     {
@@ -207,7 +200,6 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         public ClientType ClientType { get; }
         public string PermissionRequest { get; }
         public string CodeChallenge { get; }
-        public TokenDeliveryOption TokenDeliveryOption { get; }
 
         public ClientAccessToken PreCreatedClientAccessToken { get; }
 
@@ -215,17 +207,15 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             ClientType clientType,
             string permissionRequest,
             string codeChallenge,
-            TokenDeliveryOption tokenDeliveryOption,
             ClientAccessToken clientAccessToken)
         {
             Code = code;
             ClientType = clientType;
             PermissionRequest = permissionRequest;
             CodeChallenge = codeChallenge;
-            TokenDeliveryOption = tokenDeliveryOption;
             PreCreatedClientAccessToken = clientAccessToken;
         }
     }
 
-//
+    //
 }

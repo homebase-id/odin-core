@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Exceptions.Client;
 using Odin.Core.Services.Authentication.YouAuth;
 using Odin.Core.Services.Tenant;
+using Odin.Hosting.Authentication.ClientToken;
 
 namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
 {
@@ -41,7 +42,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             // Step [030] Get authorization code
             // Validate parameters
             //
-            authorize.Validate();
+            authorize.Validate(); // SEB:TODO call ModelState.IsValid instead
             if (!Uri.TryCreate(authorize.RedirectUri, UriKind.Absolute, out var redirectUri))
             {
                 throw new BadRequestException(message: $"Bad {YouAuthAuthorizeRequest.RedirectUriName} '{authorize.RedirectUri}'");
@@ -59,24 +60,47 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             //
 
             //
-            // Step [050] Consent needed?
+            // Step [045] App registered?
+            // If we're authorizing an app and it's not already registered, start that flow and return here.
             //
-            var needConsent = await _youAuthService.NeedConsent(
-                _currentTenant,
-                authorize.ClientType,
-                authorize.ClientId,
-                authorize.PermissionRequest);
-
-            if (needConsent)
+            if (authorize.ClientType == ClientType.app)
             {
+                var mustRegister = await _youAuthService.AppNeedsRegistration(
+                    authorize.ClientType,
+                    authorize.ClientId,
+                    authorize.PermissionRequest);
+
                 var returnUrl = WebUtility.UrlEncode(Request.GetDisplayUrl());
-                
+
                 // SEB:TODO use path const from..?
                 // SEB:TODO clientId, clientInfo, permissionRequest?
-                var consentPage = $"{Request.Scheme}://{Request.Host}/owner/consent?returnUrl={returnUrl}";
-                
-                return Redirect(consentPage);
+                // var appRegisterPage = $"{Request.Scheme}://{Request.Host}/owner/youauth/authorize?returnUrl={returnUrl}";
+
+                var appRegisterPage =
+                    $"{Request.Scheme}://{Request.Host}/owner/appreg?n=Odin%20-%20Photos&o=dev.dotyou.cloud%3A3005&appId=32f0bdbf-017f-4fc0-8004-2d4631182d1e&fn=Firefox%20%7C%20macOS&return=https%3A%2F%2Fdev.dotyou.cloud%3A3005%2Fauth%2Ffinalize%3FreturnUrl%3D%252F%26&d=%5B%7B%22a%22%3A%226483b7b1f71bd43eb6896c86148668cc%22%2C%22t%22%3A%222af68fe72fb84896f39f97c59d60813a%22%2C%22n%22%3A%22Photo%20Library%22%2C%22d%22%3A%22Place%20for%20your%20memories%22%2C%22p%22%3A3%7D%5D&pk=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA21Hd52i8IyhMbhR9EXM0iRRI5bD7Su5MpK5WmczEEK6p%2FAAqLPPHJsreYpQHBOchd1cOTlwj4C257gRI3S2jTkI%2Fjny2u0ShzXiGr8%2BgwgmhWQYPua3QJyf4FnWFDvNO70Vw7jIe2PfSEw%2FoW718Yq1fR%2FiRasYLbzFuApwMYi%2BiD75tgIeDBnMMdgmo9JqoUq2XP5y4j4IVenVjLQqtFJezINiJQjUe2KatlofweVrYfhs3BDoJ8bdLSbGfy413QRd%2BhE4UTebi%2FQxSdAwO4Fy82%2FyKIi80qnK%2FF4qFE3q60cBTULI826cSryAulA7xOe%2B5qbyAOYh76OsICegotwIDAQAB";
+
+                return Redirect(appRegisterPage);
             }
+
+            //
+            // Step [050] Consent needed?
+            //
+            // var needConsent = await _youAuthService.NeedConsent(
+            //     _currentTenant,
+            //     authorize.ClientType,
+            //     authorize.ClientId,
+            //     authorize.PermissionRequest);
+            //
+            // if (needConsent)
+            // {
+            //     var returnUrl = WebUtility.UrlEncode(Request.GetDisplayUrl());
+            //
+            //     // SEB:TODO use path const from..?
+            //     // SEB:TODO clientId, clientInfo, permissionRequest?
+            //     var consentPage = $"{Request.Scheme}://{Request.Host}/owner/consent?returnUrl={returnUrl}";
+            //
+            //     return Redirect(consentPage);
+            // }
 
             //
             // [060] Validate scopes.
@@ -93,8 +117,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 authorize.ClientId,
                 authorize.ClientInfo,
                 authorize.PermissionRequest,
-                authorize.CodeChallenge,
-                authorize.TokenDeliveryOption);
+                authorize.CodeChallenge);
 
             //
             // [080] Return authorization code to client
@@ -149,20 +172,21 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
         [Produces("application/json")]
         public async Task<ActionResult<YouAuthTokenResponse>> Token([FromBody] YouAuthTokenRequest tokenRequest)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
             //
             // [110] Exchange auth code for access token
             // [130] Create token
             //
-            var success = await _youAuthService.ExchangeCodeForToken(
-                tokenRequest.Code,
-                tokenRequest.CodeVerifier,
-                out var sharedSecret,
-                out var clientAuthToken);
+            var accessToken = await _youAuthService.ExchangeCodeForToken(tokenRequest.Code, tokenRequest.CodeVerifier);
 
             //
             // [120] Return 403 if code lookup failed
             //
-            if (!success)
+            if (accessToken == null)
             {
                 return Unauthorized();
             }
@@ -172,11 +196,24 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             //
             // [140] Return client access token to client
             //
-            var result = new YouAuthTokenResponse
+
+            var result = new YouAuthTokenResponse()
             {
-                Base64SharedSecret = sharedSecret == null ? null : Convert.ToBase64String(sharedSecret),
-                Base64ClientAccessToken = clientAuthToken == null ? null : Convert.ToBase64String(clientAuthToken)
+                Base64SharedSecret =
+                    Convert.ToBase64String(accessToken.SharedSecret.GetKey())
             };
+            if (tokenRequest.TokenDeliveryOption == TokenDeliveryOption.json)
+            {
+                result.Base64ClientAuthToken =
+                    Convert.ToBase64String(accessToken.ToAuthenticationToken().ToPortableBytes());
+            }
+            else if (tokenRequest.TokenDeliveryOption == TokenDeliveryOption.cookie)
+            {
+                AuthenticationCookieUtil.SetCookie(
+                    Response,
+                    YouAuthDefaults.XTokenCookieName,
+                    accessToken.ToAuthenticationToken());
+            }
 
             return await Task.FromResult(result);
         }
