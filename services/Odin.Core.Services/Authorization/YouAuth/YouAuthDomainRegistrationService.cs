@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Dawn;
 using MediatR;
 using Odin.Core.Exceptions;
+using Odin.Core.Identity;
 using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.ExchangeGrants;
@@ -23,26 +24,28 @@ namespace Odin.Core.Services.Authorization.YouAuth
         private readonly OdinContextAccessor _contextAccessor;
         private readonly ExchangeGrantService _exchangeGrantService;
         private readonly IcrKeyService _icrKeyService;
+        private readonly CircleNetworkService _circleNetworkService;
 
         private readonly GuidId _appRegistrationDataType = GuidId.FromString("__youauth_domain_reg");
         private readonly ThreeKeyValueStorage _registrationValueStorage;
 
         private readonly GuidId _appClientDataType = GuidId.FromString("__youauth_domain_client_reg");
         private readonly ThreeKeyValueStorage _youAuthDomainClientValueStorage;
-
+        
         private readonly OdinContextCache _cache;
         private readonly TenantContext _tenantContext;
 
         private readonly IMediator _mediator;
 
         public YouAuthDomainRegistrationService(OdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage,
-            ExchangeGrantService exchangeGrantService, OdinConfiguration config, TenantContext tenantContext, IMediator mediator, IcrKeyService icrKeyService)
+            ExchangeGrantService exchangeGrantService, OdinConfiguration config, TenantContext tenantContext, IMediator mediator, IcrKeyService icrKeyService, CircleNetworkService circleNetworkService)
         {
             _contextAccessor = contextAccessor;
             _exchangeGrantService = exchangeGrantService;
             _tenantContext = tenantContext;
             _mediator = mediator;
             _icrKeyService = icrKeyService;
+            _circleNetworkService = circleNetworkService;
 
             _registrationValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
             _youAuthDomainClientValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
@@ -154,6 +157,11 @@ namespace Odin.Core.Services.Authorization.YouAuth
             var reg = await this.GetDomainRegistrationInternal(domain);
 
             if (null == reg)
+            {
+                return true;
+            }
+
+            if (await _circleNetworkService.IsConnected((OdinId)domain.DomainName))
             {
                 return true;
             }
@@ -371,11 +379,11 @@ namespace Odin.Core.Services.Authorization.YouAuth
             await Task.CompletedTask;
         }
 
-        public async Task<List<RedactedAppRegistration>> GetRegisteredApps()
+        public async Task<List<RedactedYouAuthDomainRegistration>> GetRegisteredDomains()
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-            var apps = _registrationValueStorage.GetByKey3<AppRegistration>(_appRegistrationDataType);
+            var apps = _registrationValueStorage.GetByKey3<YouAuthDomainRegistration>(_appRegistrationDataType);
             var redactedList = apps.Select(app => app.Redacted()).ToList();
             return await Task.FromResult(redactedList);
         }

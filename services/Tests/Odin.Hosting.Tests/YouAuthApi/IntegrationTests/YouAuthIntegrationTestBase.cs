@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -64,32 +65,33 @@ public abstract class YouAuthIntegrationTestBase
     // 
 
     // Authenticate and return owner cookie and shared secret
-    protected async Task<(string, string)> AuthenticateOwnerReturnOwnerCookieAndSharedSecret(string identity)
+    protected async Task<(string, string)> AuthenticateOwnerReturnOwnerCookieAndSharedSecret(string identity, Guid? appId = null)
     {
         var apiClient = WebScaffold.CreateDefaultHttpClient();
 
-        // SEB:TODO enable this when testing apps
-        // var ownerClient = Scaffold.CreateOwnerApiClient(TestIdentities.All[identity]);
-        // var drive = TargetDrive.NewTargetDrive();
-        // var _ = await ownerClient.Drive.CreateDrive(drive, "", "", false, false, false);
-        // var appId = Guid.NewGuid();
-        // var appPermissionsGrant = new PermissionSetGrantRequest()
-        // {
-        //     Drives = new List<DriveGrantRequest>()
-        //     {
-        //         new()
-        //         {
-        //             PermissionedDrive = new PermissionedDrive()
-        //             {
-        //                 Drive = drive,
-        //                 Permission = DrivePermission.All
-        //             }
-        //         }
-        //     },
-        //     PermissionSet = new PermissionSet(PermissionKeys.All)
-        // };
-        // var appRegistration = await ownerClient.Apps.RegisterApp(appId, appPermissionsGrant);
+        var ownerClient = Scaffold.CreateOwnerApiClient(TestIdentities.All[identity]);
 
+        var drive = TargetDrive.NewTargetDrive();
+        var _ = await ownerClient.Drive.CreateDrive(drive, "Test Drive", "Test Drive", false, false, false);
+
+        var appPermissionsGrant = new PermissionSetGrantRequest()
+        {
+            Drives = new List<DriveGrantRequest>()
+            {
+                new()
+                {
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = drive,
+                        Permission = DrivePermission.All
+                    }
+                }
+            },
+            PermissionSet = new PermissionSet(PermissionKeys.All)
+        };
+
+        var appRegistration = await ownerClient.Apps.RegisterApp(appId.GetValueOrDefault(Guid.NewGuid()), appPermissionsGrant);
+        
         // Step 1:
         // Check owner cookie (we don't send any).
         // Backend will return false and we move on to owner-authentication in step 2.

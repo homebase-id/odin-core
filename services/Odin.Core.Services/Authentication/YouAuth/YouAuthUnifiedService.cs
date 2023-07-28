@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
@@ -26,6 +27,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
     private readonly IAppRegistrationService _appRegistrationService;
     private readonly OdinContextAccessor _contextAccessor;
     private readonly YouAuthDomainRegistrationService _domainRegistrationService;
+    private readonly Dictionary<string, bool> _tempConsent;
 
     public YouAuthUnifiedService(IAppRegistrationService appRegistrationService,
         OdinContextAccessor contextAccessor,
@@ -34,26 +36,27 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         _appRegistrationService = appRegistrationService;
         _contextAccessor = contextAccessor;
         _domainRegistrationService = domainRegistrationService;
+
+        _tempConsent = new Dictionary<string, bool>(StringComparer.InvariantCultureIgnoreCase);
     }
 
     //
 
     public async Task<bool> NeedConsent(string tenant, ClientType clientType, string clientIdOrDomain, string permissionRequest)
     {
-        if (_authorizations.ContainsKey(clientIdOrDomain))
-        {
-            // we end up here when user has POSTed consent
-            return false;
-        }
-
         await AssertCanAcquireConsent(clientType, clientIdOrDomain, permissionRequest);
 
+        if (_tempConsent.ContainsKey(clientIdOrDomain))
+        {
+            return false;
+        }
+        
         if (clientType == ClientType.domain)
         {
             return await _domainRegistrationService.IsConsentRequired(new AsciiDomainName(clientIdOrDomain));
         }
-
-        // clientType == app always needs consent
+        
+        //apps always require consent
         return true;
     }
 
@@ -69,7 +72,8 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         //TODO: i wonder if consent should be stored here or by the UI call on the backend.
         // if the latter, we need a mechanism proving the result of the consent
 
-        _authorizations[clientIdOrDomain] = permissionRequest;
+        //so for now i'll just use this dictionary
+        _tempConsent[clientIdOrDomain] = true;
         return Task.CompletedTask;
     }
 
@@ -89,7 +93,12 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             Guid appId = Guid.Parse(clientId);
             var deviceFriendlyName = clientInfo;
 
-            (token, _) = await _appRegistrationService.RegisterClientRaw(appId, deviceFriendlyName);
+            //TODO: Need to check if the app is registered, if not need redirect to get consent.
+            (token, _) = _appRegistrationService.RegisterClientRaw(
+                    appId,
+                    deviceFriendlyName)
+                .GetAwaiter()
+                .GetResult();
         }
         else if (clientType == ClientType.domain)
         {
@@ -159,8 +168,17 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
         var appId = Guid.Parse(clientIdOrDomain);
         var appReg = await _appRegistrationService.GetAppRegistration(appId);
+        if (appReg == null)
+        {
+            return true;
+        }
 
-        return appReg == null;
+        if (appReg.IsRevoked)
+        {
+            throw new OdinSecurityException("App is revoked");
+        }
+
+        return false;
     }
 
     //
