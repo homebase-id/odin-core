@@ -61,7 +61,8 @@ namespace Odin.Core.Storage.SQLite.BlockChainDatabase
         public override void CreateDatabase(bool dropExistingTables = true)
         {
             tblBlockChain.EnsureTableExists(dropExistingTables);
-            Vacuum();
+            if (dropExistingTables)
+                Vacuum();
         }
     }
 }

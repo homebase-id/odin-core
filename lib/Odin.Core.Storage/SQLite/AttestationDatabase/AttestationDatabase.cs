@@ -62,7 +62,8 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         public override void CreateDatabase(bool dropExistingTables = true)
         {
             tblAttestationRequest.EnsureTableExists(dropExistingTables);
-            Vacuum();
+            if (dropExistingTables)
+                Vacuum();
         }
     }
 }

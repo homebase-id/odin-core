@@ -114,7 +114,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
             tblFollowsMe.EnsureTableExists(dropExistingTables);
             tblConnections.EnsureTableExists(dropExistingTables);
 
-            Vacuum();
+            if (dropExistingTables)
+                Vacuum();
         }
     }
 }

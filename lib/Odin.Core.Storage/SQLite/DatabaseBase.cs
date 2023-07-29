@@ -164,7 +164,7 @@ namespace Odin.Core.Storage.SQLite
 
         public int ExecuteNonQuery(SqliteCommand command)
         {
-            lock (_transactionLock)
+            lock (_transactionLock) // Serialize all writes to avoid locks
             {
                 command.Transaction = _transaction;
                 var r = command.ExecuteNonQuery();

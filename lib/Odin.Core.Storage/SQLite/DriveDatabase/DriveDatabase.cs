@@ -126,7 +126,8 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
             TblTagIndex.EnsureTableExists(dropExistingTables);
             TblCmdMsgQueue.EnsureTableExists(dropExistingTables);
             TblReactions.EnsureTableExists(dropExistingTables);
-            Vacuum();
+            if (dropExistingTables)
+                Vacuum();
         }
 
 
