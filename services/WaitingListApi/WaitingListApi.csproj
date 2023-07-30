@@ -51,6 +51,14 @@
       <Content Include="..\.dockerignore">
         <Link>.dockerignore</Link>
       </Content>
+      <Content Update="ssl\youfoundation.id\certificate.crt">
+        <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
+      <Content Update="ssl\youfoundation.id\private.key">
+        <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
     </ItemGroup>
 
 </Project>

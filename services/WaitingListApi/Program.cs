@@ -60,7 +60,7 @@ namespace WaitingListApi
             if (string.IsNullOrEmpty(env))
             {
                 throw new OdinSystemException($"You must set an environment variable named [{envVar}] which specifies your environment.\n" +
-                                                  $"This must match your app settings file as follows 'appsettings.ENV.json'");
+                                              $"This must match your app settings file as follows 'appsettings.ENV.json'");
             }
 
             var appSettingsFile = $"appsettings.{env.ToLower()}.json";
@@ -197,7 +197,7 @@ namespace WaitingListApi
                 throw new Exception("No host name specified");
             }
 
-            var certificate = LoadFromFile(config.Host.SystemSslRootPath);
+            var certificate = LoadFromFile(Path.Combine(config.Host.SystemSslRootPath, hostName));
             if (null == certificate)
             {
                 throw new Exception("No certificate configured");
