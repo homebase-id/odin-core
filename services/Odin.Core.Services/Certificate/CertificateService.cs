@@ -130,9 +130,29 @@ namespace Odin.Core.Services.Certificate
                     domains.AddRange(sans);
                 }
 
-                var pems = await _certesAcme.CreateCertificate(account, domains.ToArray());
+                KeysAndCertificates pems = null;
+                var maxTries = 10;
+                while (pems == null)
+                {
+                    try
+                    {
+                        pems = await _certesAcme.CreateCertificate(account, domains.ToArray());
+                    }
+                    catch (OdinSystemException e)
+                    {
+                        if (--maxTries > 0)
+                        {
+                            _logger.LogWarning("{domain}: {error} (will retry)", domain, e.Message);
+                            await Task.Delay(TimeSpan.FromSeconds(2));
+                        }
+                        else
+                        {
+                            throw;
+                        }
+                    }
+                }
+
                 await SaveSslCertificate(domain, pems);
-                
                 var x509 = ResolveCertificate(domain);
                 if (x509 != null)
                 {

@@ -317,7 +317,7 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
             .ConfigureHttpClient(c =>
             {
                 // this is called everytime you request a httpclient
-                c.Timeout = TimeSpan.FromMinutes(5);
+                c.Timeout = TimeSpan.FromMinutes(20);
             })
             .ConfigurePrimaryHttpMessageHandler(() =>
             {
