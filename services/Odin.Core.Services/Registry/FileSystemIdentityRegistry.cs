@@ -307,6 +307,11 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     private void RegisterCertificateInitializerHttpClient()
     {
         _httpClientFactory.Register(nameof(RegisterCertificateInitializerHttpClient), builder => builder
+            .ConfigureHttpClient(c =>
+            {
+                // this is called everytime you request a httpclient
+                c.Timeout = TimeSpan.FromMinutes(10);
+            })
             .ConfigurePrimaryHttpMessageHandler(() =>
             {
                 var handler = new HttpClientHandler 
