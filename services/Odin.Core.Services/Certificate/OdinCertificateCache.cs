@@ -2,7 +2,9 @@
 using System;
 using System.Collections.Concurrent;
 using System.IO;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using Odin.Core.Exceptions;
 
 namespace Odin.Core.Services.Certificate;
 
@@ -38,7 +40,7 @@ public static class OdinCertificateCache
     
     public static X509Certificate2? LoadCertificate(string domain, string keyPemPath, string certificatePemPath)
     {
-        Cache.GetOrAdd(domain, _ => LoadFromFile(keyPemPath, certificatePemPath));
+        Cache.GetOrAdd(domain, _ => LoadFromFile(domain, keyPemPath, certificatePemPath));
         
         // Double look-up to take care of expiration 
         return LookupCertificate(domain);
@@ -70,7 +72,7 @@ public static class OdinCertificateCache
     
     //
 
-    private static X509Certificate2? LoadFromFile(string keyPemPath, string certificatePemPath)
+    private static X509Certificate2? LoadFromFile(string domain, string keyPemPath, string certificatePemPath)
     {
         string certPem;
         string keyPem;
@@ -89,15 +91,18 @@ public static class OdinCertificateCache
         // https://github.com/Azure/azure-iot-sdk-csharp/issues/2150
         using var temp = X509Certificate2.CreateFromPem(certPem, keyPem);
         var x509 = new X509Certificate2(temp.Export(X509ContentType.Pfx));
-        
+
+        // Sanity check certificate
+        ThrowIfBadCertificate(domain, x509);
+
         return x509;
     }
-    
+
     //
     
     private static void UpdateCertificate(string domain, string keyPemPath, string certificatePemPath)
     {
-        var x509 = LoadFromFile(keyPemPath, certificatePemPath);
+        var x509 = LoadFromFile(domain, keyPemPath, certificatePemPath);
         if (x509 == null)
         {
             Cache.TryRemove(domain, out _);
@@ -109,5 +114,41 @@ public static class OdinCertificateCache
     }
     
     //
+
+    private static void ThrowIfBadCertificate(string domain, X509Certificate2 x509)
+    {
+        byte[] data = { 1, 2, 3, 4, 5 };
+        byte[] signature;
+
+        // Compute a signature using the private key
+        using (var privateKey = x509.GetECDsaPrivateKey())
+        {
+            if (privateKey == null)
+            {
+                // SEB:NOTE if you get here all the time, double-check KeyAlgorithm when creating certificate.
+                throw new OdinSystemException($"{domain}: no private key in x509 certificate. This should not happen!");
+            }
+            signature = privateKey.SignData(data, HashAlgorithmName.SHA256);
+        }
+
+        // Verify the signature using the public key
+        using (var publicKey = x509.GetECDsaPublicKey())
+        {
+            if (publicKey == null)
+            {
+                // SEB:NOTE if you get here all the time, double-check KeyAlgorithm when creating certificate.
+                throw new OdinSystemException($"{domain}: no public key in x509 certificate. This should not happen!");
+            }
+
+            if (!publicKey.VerifyData(data, signature, HashAlgorithmName.SHA256))
+            {
+                throw new OdinSystemException(
+                    $"{domain}: the x509 private and public key do not work together. This should not happen!");
+            }
+        }
+    }
+
+    //
+
     
 }
