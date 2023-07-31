@@ -115,7 +115,7 @@ public sealed class CertesAcme : ICertesAcme
 
             await challenge.Validate();
         }
-        
+
         //
         // Wait for all authorizations to be valid
         //
@@ -123,7 +123,7 @@ public sealed class CertesAcme : ICertesAcme
         foreach (var authz in authzs)
         {
             var resource = await authz.Resource();
-            var maxAttempts = 300;
+            var maxAttempts = 120;
             while (--maxAttempts > 0 && resource.Status != AuthorizationStatus.Valid)
             {
                 await Task.Delay(1000);
@@ -143,7 +143,7 @@ public sealed class CertesAcme : ICertesAcme
         await order.Finalize(csr.Generate());
         {
             var resource = await order.Resource();
-            var maxAttempts = 300;
+            var maxAttempts = 120;
             while (--maxAttempts > 0 && resource.Status != OrderStatus.Valid)
             {
                 await Task.Delay(1000);
