@@ -301,7 +301,14 @@ public class FileSystemIdentityRegistry : IIdentityRegistry
     {
         var httpClient = _httpClientFactory.CreateClient(nameof(RegisterCertificateInitializerHttpClient));
         var uri = $"https://{domain}/.well-known/acme-challenge/ping";
-        await httpClient.GetAsync(uri);
+        try
+        {
+            await httpClient.GetAsync(uri);
+        }
+        catch (TaskCanceledException)
+        {
+            Log.Warning("InitializeCertificate took too long to complete and the http request was cancelled");
+        }
     }
 
     private void RegisterCertificateInitializerHttpClient()
