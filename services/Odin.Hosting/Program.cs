@@ -257,7 +257,7 @@ namespace Odin.Hosting
             //
             else
             {
-                Log.Debug("Cannot return certificate for {host} because it does not belong here", hostName);
+                Log.Debug("Cannot find nor create certificate for {host} since it's neither a tenant nor a known system on this identity host", hostName);
                 return null;
             }
 

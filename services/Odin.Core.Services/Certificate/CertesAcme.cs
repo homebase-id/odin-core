@@ -69,7 +69,7 @@ public sealed class CertesAcme : ICertesAcme
         // Sanity
         if (domains.Length == 0)
         {
-            throw new OdinSystemException("Missing damains");
+            throw new OdinSystemException("Missing domains");
         }
         
         _logger.LogDebug("Creating certificate for {domains}", string.Join(',', domains));
@@ -102,7 +102,7 @@ public sealed class CertesAcme : ICertesAcme
         var order = await acme.NewOrder(domains);
         
         //
-        // Authorize and challange
+        // Authorize and challenge
         //
         var authzs = await order.Authorizations();
         
@@ -115,7 +115,7 @@ public sealed class CertesAcme : ICertesAcme
 
             await challenge.Validate();
         }
-        
+
         //
         // Wait for all authorizations to be valid
         //
@@ -123,7 +123,7 @@ public sealed class CertesAcme : ICertesAcme
         foreach (var authz in authzs)
         {
             var resource = await authz.Resource();
-            var maxAttempts = 120;
+            var maxAttempts = 60;
             while (--maxAttempts > 0 && resource.Status != AuthorizationStatus.Valid)
             {
                 await Task.Delay(1000);
@@ -143,7 +143,7 @@ public sealed class CertesAcme : ICertesAcme
         await order.Finalize(csr.Generate());
         {
             var resource = await order.Resource();
-            var maxAttempts = 120;
+            var maxAttempts = 60;
             while (--maxAttempts > 0 && resource.Status != OrderStatus.Valid)
             {
                 await Task.Delay(1000);
@@ -271,7 +271,7 @@ public sealed class AcmeHttp01TokenCache : IAcmeHttp01TokenCache
 
     public void Set(string token, string keyAuth)
     {
-        _cache.Set(token, keyAuth, TimeSpan.FromMinutes(10));
+        _cache.Set(token, keyAuth, TimeSpan.FromMinutes(60));
     }
 
     //
