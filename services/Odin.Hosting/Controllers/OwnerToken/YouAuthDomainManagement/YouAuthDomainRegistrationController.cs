@@ -141,7 +141,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuthDomainManagement
         /// as it contains sensitive data.
         /// </remarks>
         [HttpPost("register/client")]
-        public async Task<AppClientRegistrationResponse> RegisterClient([FromBody] YouAuthDomainClientRegistrationRequest request)
+        public AppClientRegistrationResponse RegisterClient([FromBody] YouAuthDomainClientRegistrationRequest request)
         {
             // var b64 = HttpUtility.UrlDecode(request.ClientPublicKey64);
             // // var clientPublicKey = Convert.FromBase64String(b64);
@@ -167,7 +167,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuthDomainManagement
         /// as it contains sensitive data.
         /// </remarks>
         [HttpPost("register/hostedapp/client")]
-        public async Task<IActionResult> RegisterClientWithRedirect([FromBody] YouAuthDomainClientRegistrationRequest request)
+        public IActionResult RegisterClientWithRedirect([FromBody] YouAuthDomainClientRegistrationRequest request)
         {
             // var clientPublicKey = Convert.FromBase64String(request.ClientPublicKey64);
             // var (reg, corsHostName) = await _registrationService.RegisterClient(request., clientPublicKey, request.ClientFriendlyName);

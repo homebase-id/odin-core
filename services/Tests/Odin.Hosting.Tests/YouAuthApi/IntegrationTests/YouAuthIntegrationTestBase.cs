@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
@@ -65,33 +66,10 @@ public abstract class YouAuthIntegrationTestBase
     // 
 
     // Authenticate and return owner cookie and shared secret
-    protected async Task<(string, string)> AuthenticateOwnerReturnOwnerCookieAndSharedSecret(string identity, Guid? appId = null)
+    protected async Task<(string, string)> AuthenticateOwnerReturnOwnerCookieAndSharedSecret(string identity)
     {
         var apiClient = WebScaffold.CreateDefaultHttpClient();
 
-        var ownerClient = Scaffold.CreateOwnerApiClient(TestIdentities.All[identity]);
-
-        var drive = TargetDrive.NewTargetDrive();
-        var _ = await ownerClient.Drive.CreateDrive(drive, "Test Drive", "Test Drive", false, false, false);
-
-        var appPermissionsGrant = new PermissionSetGrantRequest()
-        {
-            Drives = new List<DriveGrantRequest>()
-            {
-                new()
-                {
-                    PermissionedDrive = new PermissionedDrive()
-                    {
-                        Drive = drive,
-                        Permission = DrivePermission.All
-                    }
-                }
-            },
-            PermissionSet = new PermissionSet(PermissionKeys.All)
-        };
-
-        var appRegistration = await ownerClient.Apps.RegisterApp(appId.GetValueOrDefault(Guid.NewGuid()), appPermissionsGrant);
-        
         // Step 1:
         // Check owner cookie (we don't send any).
         // Backend will return false and we move on to owner-authentication in step 2.
@@ -161,4 +139,43 @@ public abstract class YouAuthIntegrationTestBase
     }
 
     //
+
+    protected async Task<RedactedAppRegistration> RegisterApp(string identity, Guid appId)
+    {
+        var ownerClient = Scaffold.CreateOwnerApiClient(TestIdentities.All[identity]);
+
+        var drive = TargetDrive.NewTargetDrive();
+        var _ = await ownerClient.Drive.CreateDrive(drive, "Test Drive", "Test Drive", false, false, false);
+
+        var appPermissionsGrant = new PermissionSetGrantRequest()
+        {
+            Drives = new List<DriveGrantRequest>()
+            {
+                new()
+                {
+                    PermissionedDrive = new PermissionedDrive()
+                    {
+                        Drive = drive,
+                        Permission = DrivePermission.All
+                    }
+                }
+            },
+            PermissionSet = new PermissionSet(PermissionKeys.All)
+        };
+
+        var appRegistration = await ownerClient.Apps.RegisterApp(appId, appPermissionsGrant);
+
+        return appRegistration;
+    }
+
+    //
+
+    protected async Task ConnectHobbits()
+    {
+        var targetDrive = TargetDrive.NewTargetDrive();
+        await Scaffold.Scenarios.CreateConnectedHobbits(targetDrive);
+    }
+
+    //
+
 }

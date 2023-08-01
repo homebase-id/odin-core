@@ -115,8 +115,10 @@ namespace Odin.Core.Services.Authorization.YouAuth
             ResetPermissionContextCache();
         }
 
-        public async Task<(ClientAccessToken cat, string corsHostName)> RegisterClient(AsciiDomainName domain, string friendlyName,
-            YouAuthDomainRegistrationRequest request = null)
+        public async Task<(ClientAccessToken cat, string corsHostName)> RegisterClient(
+            AsciiDomainName domain,
+            string friendlyName,
+            YouAuthDomainRegistrationRequest request)
         {
             Guard.Argument(domain, nameof(domain)).Require(x => !string.IsNullOrEmpty(x.DomainName));
             Guard.Argument(friendlyName, nameof(friendlyName)).NotNull().NotEmpty();
@@ -408,6 +410,8 @@ namespace Odin.Core.Services.Authorization.YouAuth
             //     OldAppRegistration = oldAppRegistration,
             //     NewAppRegistration = newAppRegistration
             // });
+
+            await Task.CompletedTask;
         }
 
         /// <summary>

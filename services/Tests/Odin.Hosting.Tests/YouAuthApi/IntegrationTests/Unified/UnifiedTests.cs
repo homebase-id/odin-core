@@ -317,7 +317,8 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             const string hobbit = "sam.dotyou.cloud";
             var apiClient = WebScaffold.CreateDefaultHttpClient();
             var appId = Guid.NewGuid();
-            var (ownerCookie, ownerSharedSecret) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit, appId);
+            var appRegistration = RegisterApp(hobbit, appId);
+            var (ownerCookie, ownerSharedSecret) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit);
 
             //
             // [010] Generate code verifier
@@ -477,8 +478,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
         {
             const string hobbit = "sam.dotyou.cloud";
             var apiClient = WebScaffold.CreateDefaultHttpClient();
-            Guid appId = Guid.NewGuid();
-            var (ownerCookie, ownerSharedSecret) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit, appId);
+            var (ownerCookie, ownerSharedSecret) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit);
 
             //
             // [010] Generate code verifier
@@ -499,12 +499,12 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             {
                 var payload = new YouAuthAuthorizeRequest
                 {
-                    ClientId = appId.ToString(),
-                    ClientType = ClientType.app,
-                    ClientInfo = "My Awesome App",
+                    ClientId = thirdParty,
+                    ClientType = ClientType.domain,
+                    ClientInfo = "",
                     CodeChallenge = codeChallenge,
-                    PermissionRequest = "identity:read identity:write",
-                    RedirectUri = finalRedirectUri.ToString()
+                    PermissionRequest = "",
+                    RedirectUri = $"https://{thirdParty}/foo/code/callback"
                 };
 
                 var uri =
@@ -652,6 +652,10 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             const string hobbit = "sam.dotyou.cloud";
             var apiClient = WebScaffold.CreateDefaultHttpClient();
             var (ownerCookie, ownerSharedSecret) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit);
+
+            var appId = Guid.NewGuid();
+            var appRegistration = RegisterApp(hobbit, appId);
+            await ConnectHobbits();
 
             //
             // [010] Generate code verifier

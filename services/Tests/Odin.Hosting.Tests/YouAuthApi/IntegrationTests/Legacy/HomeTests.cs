@@ -125,12 +125,12 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Legacy
 
             // Step 8:
             // Finalize pseudo endpoint (see above explation)
-            // https://frodo.dotyou.cloud/home/youauth/finalize?ss64=<shared-secret>&returnUrl=https://frodo.dotyou.cloud/?identity=sam.dotyou.cloud
+            // https://frodo.dotyou.cloud/youauth/finalize?ss64=<shared-secret>&returnUrl=https://frodo.dotyou.cloud/?identity=sam.dotyou.cloud
             {
                 var response = await apiClient.GetAsync(finalizeBridgeUri);
                 Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
                 var finalizeUri = response.GetHeaderValue("Location");
-                Assert.That(finalizeUri, Does.StartWith($"https://{visitedHobbit}/home/youauth/finalize"));
+                Assert.That(finalizeUri, Does.StartWith($"https://{visitedHobbit}/youauth/finalize"));
                 var cookies = response.GetCookies();
                 Assert.That(cookies.ContainsKey(YouAuthTestHelper.HomeCookieName), Is.False);
 
