@@ -103,7 +103,7 @@ namespace Odin.Hosting.Authentication.ClientToken
             }
 
             odinContext.SetAuthContext(ClientTokenConstants.YouAuthScheme);
-            var youAuthRegService = this.Context.RequestServices.GetRequiredService<IYouAuthRegistrationService>();
+            var youAuthRegService = this.Context.RequestServices.GetRequiredService<IYouAuthRegistrationServiceClassic>();
             var ctx = await youAuthRegService.GetDotYouContext(clientAuthToken);
 
             if (ctx == null)

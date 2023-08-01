@@ -12,7 +12,7 @@ namespace Odin.Core.Services.Authentication.YouAuth
     /// <summary>
     /// Manages the registered <see cref="OdinId"/>'s  who are 'logged in' to this Identity
     /// </summary>
-    public interface IYouAuthRegistrationService : INotificationHandler<IdentityConnectionRegistrationChangedNotification>
+    public interface IYouAuthRegistrationServiceClassic : INotificationHandler<IdentityConnectionRegistrationChangedNotification>
     {
         /// <summary>
         /// Grants access to the <see cref="odinId"/>

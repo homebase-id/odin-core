@@ -17,9 +17,9 @@ using Odin.Core.Services.Contacts.Circle.Membership.Definition;
 
 namespace Odin.Core.Services.Authentication.YouAuth
 {
-    public sealed class YouAuthRegistrationService : IYouAuthRegistrationService
+    public sealed class YouAuthRegistrationServiceClassic : IYouAuthRegistrationServiceClassic
     {
-        private readonly ILogger<YouAuthRegistrationService> _logger;
+        private readonly ILogger<YouAuthRegistrationServiceClassic> _logger;
         private readonly IYouAuthRegistrationStorage _youAuthRegistrationStorage;
         private readonly CircleNetworkService _circleNetworkService;
         private readonly ExchangeGrantService _exchangeGrantService;
@@ -28,7 +28,7 @@ namespace Odin.Core.Services.Authentication.YouAuth
 
         private readonly OdinContextCache _cache;
 
-        public YouAuthRegistrationService(ILogger<YouAuthRegistrationService> logger, IYouAuthRegistrationStorage youAuthRegistrationStorage, ExchangeGrantService exchangeGrantService,
+        public YouAuthRegistrationServiceClassic(ILogger<YouAuthRegistrationServiceClassic> logger, IYouAuthRegistrationStorage youAuthRegistrationStorage, ExchangeGrantService exchangeGrantService,
             CircleNetworkService circleNetworkService, CircleDefinitionService circleDefinitionService, TenantContext tenantContext)
         {
             _logger = logger;

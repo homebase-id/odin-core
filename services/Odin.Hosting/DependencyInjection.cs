@@ -80,8 +80,8 @@ namespace Odin.Hosting
             cb.RegisterType<OdinHttpClientFactory>().As<IOdinHttpClientFactory>().SingleInstance();
 
             cb.RegisterType<YouAuthService>().As<IYouAuthService>().SingleInstance();
-            cb.RegisterType<YouAuthRegistrationService>()
-                .As<IYouAuthRegistrationService>()
+            cb.RegisterType<YouAuthRegistrationServiceClassic>()
+                .As<IYouAuthRegistrationServiceClassic>()
                 .As<INotificationHandler<IdentityConnectionRegistrationChangedNotification>>()
                 .SingleInstance();
             cb.RegisterType<YouAuthRegistrationStorage>().As<IYouAuthRegistrationStorage>().SingleInstance();

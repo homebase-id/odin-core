@@ -254,29 +254,29 @@ namespace Odin.Core.Services.Authorization.YouAuth
 
         public async Task RevokeDomain(AsciiDomainName domain)
         {
-            var appReg = await this.GetDomainRegistrationInternal(domain);
-            if (null != appReg)
+            var domainReg = await this.GetDomainRegistrationInternal(domain);
+            if (null != domainReg)
             {
                 //TODO: do we do anything with storage DEK here?
-                appReg.Grant.IsRevoked = true;
+                domainReg.Grant.IsRevoked = true;
             }
 
             //TODO: revoke all clients? or is the one flag enough?
-            _registrationValueStorage.Upsert(GetDomainKey(domain), GuidId.Empty, _appRegistrationDataType, appReg);
+            _registrationValueStorage.Upsert(GetDomainKey(domain), GuidId.Empty, _appRegistrationDataType, domainReg);
 
             ResetPermissionContextCache();
         }
 
         public async Task RemoveDomainRevocation(AsciiDomainName domain)
         {
-            var appReg = await this.GetDomainRegistrationInternal(domain);
-            if (null != appReg)
+            var domainReg = await this.GetDomainRegistrationInternal(domain);
+            if (null != domainReg)
             {
                 //TODO: do we do anything with storage DEK here?
-                appReg.Grant.IsRevoked = false;
+                domainReg.Grant.IsRevoked = false;
             }
 
-            _registrationValueStorage.Upsert(GetDomainKey(domain), GuidId.Empty, _appRegistrationDataType, appReg);
+            _registrationValueStorage.Upsert(GetDomainKey(domain), GuidId.Empty, _appRegistrationDataType, domainReg);
 
             ResetPermissionContextCache();
         }

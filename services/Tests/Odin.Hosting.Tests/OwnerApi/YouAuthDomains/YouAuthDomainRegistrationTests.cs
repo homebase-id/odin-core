@@ -1,24 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Generic;
 using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Odin.Core.Cryptography.Crypto;
-using Odin.Core.Cryptography.Data;
-using Odin.Core.Services.Authorization.Apps;
-using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
-using Odin.Core.Services.Authorization.YouAuth;
 using Odin.Core.Services.Base;
-using Odin.Core.Services.Drives;
 using Odin.Core.Util;
-using Odin.Core.Util.Fluff;
-using Odin.Hosting.Controllers.OwnerToken.AppManagement;
-using Odin.Hosting.Controllers.OwnerToken.YouAuthDomainManagement;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
-using Odin.Hosting.Tests.OwnerApi.Apps;
 
 namespace Odin.Hosting.Tests.OwnerApi.YouAuthDomains
 {
@@ -47,7 +35,7 @@ namespace Odin.Hosting.Tests.OwnerApi.YouAuthDomains
         [Test]
         public async Task RegisterNewDomain()
         {
-            var domain = new AsciiDomainName("amazoom.com");
+            var domain = new AsciiDomainName("amazoom2.com");
 
             var client = new YouAuthDomainApiClient(_scaffold.OldOwnerApi, _identity);
             var response = await client.RegisterDomain(domain, new PermissionSetGrantRequest());

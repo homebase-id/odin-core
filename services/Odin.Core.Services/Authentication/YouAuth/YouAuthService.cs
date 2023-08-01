@@ -15,7 +15,7 @@ namespace Odin.Core.Services.Authentication.YouAuth
         private readonly ILogger<YouAuthService> _logger;
         private readonly IYouAuthAuthorizationCodeManager _youAuthAuthorizationCodeManager;
         private readonly IOdinHttpClientFactory _odinHttpClientFactory;
-        private readonly IYouAuthRegistrationService _registrationService;
+        private readonly IYouAuthRegistrationServiceClassic _registrationServiceClassic;
         private readonly CircleNetworkService _circleNetwork;
 
         //
@@ -24,13 +24,13 @@ namespace Odin.Core.Services.Authentication.YouAuth
             ILogger<YouAuthService> logger,
             IYouAuthAuthorizationCodeManager youAuthAuthorizationCodeManager,
             IOdinHttpClientFactory odinHttpClientFactory,
-            CircleNetworkService circleNetwork, IYouAuthRegistrationService registrationService)
+            CircleNetworkService circleNetwork, IYouAuthRegistrationServiceClassic registrationServiceClassic)
         {
             _logger = logger;
             _youAuthAuthorizationCodeManager = youAuthAuthorizationCodeManager;
             _odinHttpClientFactory = odinHttpClientFactory;
             _circleNetwork = circleNetwork;
-            _registrationService = registrationService;
+            _registrationServiceClassic = registrationServiceClassic;
         }
 
         //
@@ -113,7 +113,7 @@ namespace Odin.Core.Services.Authentication.YouAuth
 
         public async ValueTask<ClientAccessToken> RegisterBrowserAccess(string odinId, ClientAuthenticationToken? remoteIcrClientAuthToken)
         {
-            var browserClientAccessToken = await _registrationService.RegisterYouAuthAccess(odinId, remoteIcrClientAuthToken!);
+            var browserClientAccessToken = await _registrationServiceClassic.RegisterYouAuthAccess(odinId, remoteIcrClientAuthToken!);
             return browserClientAccessToken;
         }
 
