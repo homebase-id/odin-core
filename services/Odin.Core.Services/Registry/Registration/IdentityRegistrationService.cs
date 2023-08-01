@@ -385,7 +385,9 @@ public class IdentityRegistrationService : IIdentityRegistrationService
 
             if (_configuration.Mailgun.Enabled)
             {
-                await SendProvisioningCompleteEmail(domain, email, firstRunToken.ToString());    
+                // SEB:TODO we should probably queue this on a Quartz worker instead
+                // and only send it once we're sure the certificate has been created
+                await SendProvisioningCompleteEmail(domain, email, firstRunToken.ToString());
             }
             
             return firstRunToken;

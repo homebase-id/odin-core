@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
+using Serilog;
 using WaitingListApi.Data;
 
 namespace WaitingListApi.Controllers;
@@ -26,6 +27,7 @@ public class NotifyListController : ControllerBase
         try
         {
             _storage.Insert(info);
+            Log.Information("Added email address to the list");
         }
         catch (SqliteException sqliteException)
         {
