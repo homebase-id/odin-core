@@ -199,6 +199,11 @@ namespace Odin.Hosting
                     throw new ConnectionAbortedException();
                 }
 
+                if (!cert.HasPrivateKey)
+                {
+                    Log.Error("https handshake: {host} private key is missing from certificate!", hostName);
+                }
+
                 var result = new SslServerAuthenticationOptions
                 {
                     ServerCertificate = cert
