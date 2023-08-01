@@ -79,7 +79,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var loginUri = new Uri(location);
                 Assert.That(loginUri.Scheme, Is.EqualTo("https"));
                 Assert.That(loginUri.Host, Is.EqualTo($"{hobbit}"));
-                Assert.That(loginUri.AbsolutePath, Is.EqualTo("/owner/login/youauth"));
+                Assert.That(loginUri.AbsolutePath, Is.EqualTo("/owner/login"));
 
                 // ... ?returnUrl= ...
                 var qs = YouAuthTestHelper.ParseQueryString(location);
