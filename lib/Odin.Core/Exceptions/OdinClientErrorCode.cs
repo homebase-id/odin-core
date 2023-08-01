@@ -66,8 +66,9 @@ public enum OdinClientErrorCode
     CannotSendMultipleConnectionRequestToTheSameIdentity = 5002,
     ConnectionRequestToYourself = 5003,
 
-    // App Errors 60xx
+    // App or YouAuth Domain Errors 60xx
     AppNotRegistered = 6001,
+    DomainNotRegistered = 6050,
     AppHasNoAuthorizedCircles = 6700,
     InvalidAccessRegistrationId = 6800,
     InvalidCorsHostName = 6850,
