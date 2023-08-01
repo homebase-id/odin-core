@@ -105,7 +105,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             var domain = new AsciiDomainName(clientId);
             var request = new YouAuthDomainRegistrationRequest()
             {
-                Domain = domain,
+                Domain = domain.DomainName,
                 Name = domain.DomainName,
                 CorsHostName = clientId,
                 Drives = default,

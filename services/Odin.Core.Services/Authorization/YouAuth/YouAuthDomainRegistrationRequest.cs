@@ -7,7 +7,7 @@ namespace Odin.Core.Services.Authorization.YouAuth
 {
     public class YouAuthDomainRegistrationRequest
     {
-        public AsciiDomainName Domain { get; set; }
+        public string Domain { get; set; }
 
         public string Name { get; set; }
         

@@ -37,7 +37,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuthDomainManagement
         /// Returns the information for a registered app; otherwise null
         /// </summary>
         [HttpPost("domain")]
-        public async Task<RedactedYouAuthDomainRegistration> GetRegisteredApp([FromBody] GetYouAuthDomainRequest request)
+        public async Task<RedactedYouAuthDomainRegistration> GetRegisteredDomain([FromBody] GetYouAuthDomainRequest request)
         {
             var reg = await _registrationService.GetRegistration(new AsciiDomainName(request.Domain));
             return reg;
@@ -48,7 +48,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuthDomainManagement
         /// </summary>
         /// <returns></returns>
         [HttpPost("register/domain")]
-        public async Task<RedactedYouAuthDomainRegistration> RegisterApp([FromBody] YouAuthDomainRegistrationRequest request)
+        public async Task<RedactedYouAuthDomainRegistration> RegisterDomain([FromBody] YouAuthDomainRegistrationRequest request)
         {
             var reg = await _registrationService.RegisterDomain(request);
             return reg;
@@ -59,7 +59,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuthDomainManagement
         /// </summary>
         /// <returns></returns>
         [HttpPost("register/updatepermissions")]
-        public async Task UpdateAppPermissions([FromBody] UpdateYouAuthDomainPermissionsRequest request)
+        public async Task UpdatePermissions([FromBody] UpdateYouAuthDomainPermissionsRequest request)
         {
             await _registrationService.UpdatePermissions(request);
         }

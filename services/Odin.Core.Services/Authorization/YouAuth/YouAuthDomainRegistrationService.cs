@@ -60,7 +60,7 @@ namespace Odin.Core.Services.Authorization.YouAuth
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
             Guard.Argument(request.Name, nameof(request.Name)).NotNull().NotEmpty();
-            Guard.Argument(request.Domain, nameof(request.Domain)).Require(!string.IsNullOrEmpty(request.Domain.DomainName));
+            Guard.Argument(request.Domain, nameof(request.Domain)).Require(!string.IsNullOrEmpty(request.Domain));
 
             if (!string.IsNullOrEmpty(request.CorsHostName))
             {
@@ -77,7 +77,7 @@ namespace Odin.Core.Services.Authorization.YouAuth
 
             var reg = new YouAuthDomainRegistration()
             {
-                Domain = request.Domain,
+                Domain = new AsciiDomainName(request.Domain),
                 Name = request.Name,
                 Grant = appGrant,
 

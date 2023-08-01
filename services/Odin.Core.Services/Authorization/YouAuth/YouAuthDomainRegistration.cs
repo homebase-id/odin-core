@@ -36,7 +36,7 @@ namespace Odin.Core.Services.Authorization.YouAuth
             //NOTE: we're not sharing the encrypted app dek, this is crucial
             return new RedactedYouAuthDomainRegistration()
             {
-                Domain = this.Domain,
+                Domain = this.Domain.DomainName,
                 Name = this.Name,
                 IsRevoked = this.Grant.IsRevoked,
                 Created = this.Grant.Created,
