@@ -202,9 +202,13 @@ namespace Odin.Core.Services.Authorization.YouAuth
                 }
 
                 var grantDictionary = new Dictionary<Guid, ExchangeGrant>
-                    { { ByteArrayUtil.ReduceSHA256Hash("app_exchange_grant"), domainRegistration.Grant } };
+                {
+                    {
+                        ByteArrayUtil.ReduceSHA256Hash("youauth_domain_exchange_grant"),
+                        domainRegistration.Grant
+                    }
+                };
 
-                //Note: isOwner = true because we passed ValidateClientAuthToken for an ap token above 
                 var permissionContext = await _exchangeGrantService.CreatePermissionContext(token, grantDictionary, accessReg, includeAnonymousDrives: true);
 
                 var dotYouContext = new OdinContext()
@@ -212,7 +216,7 @@ namespace Odin.Core.Services.Authorization.YouAuth
                     Caller = new CallerContext(
                         odinId: _tenantContext.HostOdinId,
                         masterKey: null,
-                        securityLevel: SecurityGroupType.Owner,
+                        securityLevel: SecurityGroupType.Authenticated,
                         youAuthContext: new OdinYouAuthContext()
                         {
                             CorsHostName = domainRegistration.CorsHostName,
