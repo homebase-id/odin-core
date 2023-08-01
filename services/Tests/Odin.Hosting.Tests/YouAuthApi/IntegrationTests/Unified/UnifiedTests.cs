@@ -653,8 +653,6 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             var apiClient = WebScaffold.CreateDefaultHttpClient();
             var (ownerCookie, ownerSharedSecret) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit);
 
-            var appId = Guid.NewGuid();
-            var appRegistration = RegisterApp(hobbit, appId);
             await ConnectHobbits();
 
             //
