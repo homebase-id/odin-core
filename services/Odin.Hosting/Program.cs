@@ -187,6 +187,7 @@ namespace Odin.Hosting
             {
                 // SEB:NOTE ToLower() should not be needed here, but better safe than sorry.
                 var hostName = clientHelloInfo.ServerName.ToLower();
+                Log.Debug("Beginning https handshake for {host}", hostName);
 
                 var serviceProvider = kestrelOptions.ApplicationServices;
                 var cert = await ServerCertificateSelector(hostName, odinConfig, serviceProvider);
@@ -206,6 +207,7 @@ namespace Odin.Hosting
                 // Require client certificate if domain prefix is "capi"
                 if (hostName.StartsWith(DnsConfigurationSet.PrefixCertApi))
                 {
+                    Log.Debug("https handshake: {host} requires client certificate", hostName);
                     result.AllowRenegotiation = true;
                     result.ClientCertificateRequired = true;
                     result.RemoteCertificateValidationCallback = (_, _, _, _) => true;
