@@ -1,5 +1,6 @@
 using Odin.Core.Storage.SQLite;
 using Odin.Core.Util;
+using Serilog;
 using WaitingListApi.Config;
 using WaitingListApi.Controllers;
 using WaitingListApi.Data.Database;
@@ -16,17 +17,17 @@ public class WaitingListStorage : IDisposable
     public WaitingListStorage(WaitingListConfig config)
     {
         string dbPath = config.Host.SystemDataRootPath;
-        
         string dbName = "waitinglist.db";
         if (!Directory.Exists(dbPath))
         {
             Directory.CreateDirectory(dbPath!);
         }
 
+        Log.Information($"Creating database at path {dbPath}");
+
         string finalPath = PathUtil.Combine(dbPath, $"{dbName}");
         _db = new WaitingListDatabase($"Data Source={finalPath}");
         _db.CreateDatabase(false);
-
     }
 
     public DatabaseBase.LogicCommitUnit CreateCommitUnitOfWork()

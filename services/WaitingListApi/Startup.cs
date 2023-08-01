@@ -112,8 +112,7 @@ namespace WaitingListApi
             app.UseAuthentication();
             app.UseAuthorization();
 
-            app.UseResponseCompression();
-            // app.UseHttpsRedirection();
+            app.UseHttpsRedirection();
 
             app.UseEndpoints(endpoints => { endpoints.MapControllers(); });
 

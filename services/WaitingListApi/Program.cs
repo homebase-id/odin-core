@@ -54,25 +54,33 @@ namespace WaitingListApi
 
         public static (WaitingListConfig, IConfiguration) LoadConfig()
         {
+            const string configPathOverrideVariable = "ODIN_CONFIG_PATH";
+
+            var cfgPathOverride = Environment.GetEnvironmentVariable(configPathOverrideVariable);
+            var configFolder = string.IsNullOrEmpty(cfgPathOverride) ? Environment.CurrentDirectory : cfgPathOverride;
+            Log.Information($"Looking for configuration in folder: {configFolder}");
+
             const string envVar = "DOTYOU_ENVIRONMENT";
             var env = Environment.GetEnvironmentVariable(envVar) ?? "";
 
             if (string.IsNullOrEmpty(env))
             {
                 throw new OdinSystemException($"You must set an environment variable named [{envVar}] which specifies your environment.\n" +
-                                                  $"This must match your app settings file as follows 'appsettings.ENV.json'");
+                                              $"This must match your app settings file as follows 'appsettings.ENV.json'");
             }
 
             var appSettingsFile = $"appsettings.{env.ToLower()}.json";
-            Log.Information($"Current Folder: {Environment.CurrentDirectory}");
-            if (!File.Exists(Path.Combine(Environment.CurrentDirectory, appSettingsFile)))
+            var configPath = Path.Combine(configFolder, appSettingsFile);
+            
+            if (!File.Exists(configPath))
             {
-                Log.Information($"Missing {appSettingsFile}");
+                throw new OdinSystemException($"Could not find configuration file [{configPath}]");
             }
+            
+            Log.Information($"Loading configuration at [{configPath}]");
 
             var config = new ConfigurationBuilder()
-                // .AddJsonFile("appsettings.json", optional: false)
-                .AddJsonFile(appSettingsFile, optional: false)
+                .AddJsonFile(configPath, optional: false)
                 .AddEnvironmentVariables()
                 .Build();
 
@@ -197,7 +205,7 @@ namespace WaitingListApi
                 throw new Exception("No host name specified");
             }
 
-            var certificate = LoadFromFile(config.Host.SystemSslRootPath);
+            var certificate = LoadFromFile(Path.Combine(config.Host.SystemSslRootPath, hostName));
             if (null == certificate)
             {
                 throw new Exception("No certificate configured");
