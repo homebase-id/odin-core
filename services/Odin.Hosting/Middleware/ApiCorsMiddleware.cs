@@ -37,7 +37,7 @@ namespace Odin.Hosting.Middleware
 
             if (odinContext.AuthContext == ClientTokenConstants.AppSchemeName)
             {
-                string appHostName = odinContext.Caller.AppContext.CorsAppName;
+                string appHostName = odinContext.Caller.YouAuthContext.CorsHostName;
                 if (!string.IsNullOrEmpty(appHostName))
                 {
                     shouldSetHeaders = true;

@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
+using Microsoft.OpenApi.Validations.Rules;
 using NUnit.Framework;
 using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
@@ -30,7 +32,7 @@ public class YouAuthDomainApiClient
         _identity = identity;
     }
 
-    
+
     public async Task<ApiResponse<RedactedYouAuthDomainRegistration>> RegisterDomain(
         AsciiDomainName domain,
         PermissionSetGrantRequest permissions)
@@ -63,5 +65,19 @@ public class YouAuthDomainApiClient
             return response;
         }
     }
-    
+
+    public async Task<ApiResponse<HttpContent>> UpdatePermissions(AsciiDomainName domain, PermissionSetGrantRequest grant)
+    {
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IYouAuthDomainRegistrationClient>(client, ownerSharedSecret);
+
+            return await svc.UpdatePermissions(new UpdateYouAuthDomainPermissionsRequest()
+            {
+                Domain = domain,
+                Drives = grant.Drives,
+                PermissionSet = grant.PermissionSet
+            });
+        }
+    }
 }

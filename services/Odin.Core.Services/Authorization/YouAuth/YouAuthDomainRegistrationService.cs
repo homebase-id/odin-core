@@ -31,14 +31,15 @@ namespace Odin.Core.Services.Authorization.YouAuth
 
         private readonly GuidId _appClientDataType = GuidId.FromString("__youauth_domain_client_reg");
         private readonly ThreeKeyValueStorage _youAuthDomainClientValueStorage;
-        
+
         private readonly OdinContextCache _cache;
         private readonly TenantContext _tenantContext;
 
         private readonly IMediator _mediator;
 
         public YouAuthDomainRegistrationService(OdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage,
-            ExchangeGrantService exchangeGrantService, OdinConfiguration config, TenantContext tenantContext, IMediator mediator, IcrKeyService icrKeyService, CircleNetworkService circleNetworkService)
+            ExchangeGrantService exchangeGrantService, OdinConfiguration config, TenantContext tenantContext, IMediator mediator, IcrKeyService icrKeyService,
+            CircleNetworkService circleNetworkService)
         {
             _contextAccessor = contextAccessor;
             _exchangeGrantService = exchangeGrantService;
@@ -62,31 +63,33 @@ namespace Odin.Core.Services.Authorization.YouAuth
             Guard.Argument(request.Name, nameof(request.Name)).NotNull().NotEmpty();
             Guard.Argument(request.Domain, nameof(request.Domain)).Require(!string.IsNullOrEmpty(request.Domain));
 
+            AssertValidPermissionSet(request.PermissionSet);
+
             if (!string.IsNullOrEmpty(request.CorsHostName))
             {
                 AppUtil.AssertValidCorsHeader(request.CorsHostName);
             }
 
+            if (null != await this.GetDomainRegistrationInternal(new AsciiDomainName(request.Domain)))
+            {
+                throw new OdinClientException("Domain already registered");
+            }
+
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-            var icrKey = (request.PermissionSet?.HasKey(PermissionKeys.UseTransit) ?? false) ? _icrKeyService.GetDecryptedIcrKey() : null;
-            var appGrant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, request.PermissionSet!, request.Drives, masterKey, icrKey);
-
-            //TODO: add check to ensure app name is unique
-            //TODO: add check if app is already registered
+            var exchangeGrant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, request.PermissionSet!, request.Drives, masterKey);
 
             var reg = new YouAuthDomainRegistration()
             {
                 Domain = new AsciiDomainName(request.Domain),
                 Name = request.Name,
-                Grant = appGrant,
-
+                Grant = exchangeGrant,
                 CorsHostName = request.CorsHostName,
             };
 
             _registrationValueStorage.Upsert(GetDomainKey(reg.Domain), GuidId.Empty, _appRegistrationDataType, reg);
 
-            await NotifyAppChanged(null, reg);
+            await NotifyDomainChanged(null, reg);
             return reg.Redacted();
         }
 
@@ -97,20 +100,20 @@ namespace Odin.Core.Services.Authorization.YouAuth
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-            var appReg = await this.GetDomainRegistrationInternal(request.Domain);
-            if (null == appReg)
+            AssertValidPermissionSet(request.PermissionSet);
+
+            var reg = await this.GetDomainRegistrationInternal(request.Domain);
+            if (null == reg)
             {
-                throw new OdinClientException("Invalid AppId", OdinClientErrorCode.AppNotRegistered);
+                throw new OdinClientException("Invalid Domain", OdinClientErrorCode.DomainNotRegistered);
             }
 
             //TODO: Should we regen the key store key?  
-
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-            var keyStoreKey = appReg.Grant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
-            var icrKey = request.PermissionSet?.HasKey(PermissionKeys.UseTransit) ?? false ? _icrKeyService.GetDecryptedIcrKey() : null;
-            appReg.Grant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, request.PermissionSet!, request.Drives, masterKey, icrKey);
+            var keyStoreKey = reg.Grant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
+            reg.Grant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, request.PermissionSet!, request.Drives, masterKey);
 
-            _registrationValueStorage.Upsert(GetDomainKey(request.Domain), GuidId.Empty, _appRegistrationDataType, appReg);
+            _registrationValueStorage.Upsert(GetDomainKey(request.Domain), GuidId.Empty, _appRegistrationDataType, reg);
 
             ResetPermissionContextCache();
         }
@@ -132,7 +135,7 @@ namespace Odin.Core.Services.Authorization.YouAuth
                 {
                     throw new OdinClientException($"{domain} not registered");
                 }
-                
+
                 await this.RegisterDomain(request);
                 reg = await this.GetDomainRegistrationInternal(domain);
             }
@@ -156,19 +159,18 @@ namespace Odin.Core.Services.Authorization.YouAuth
         /// </summary>
         public async Task<bool> IsConsentRequired(AsciiDomainName domain)
         {
-            
             if (await _circleNetworkService.IsConnected((OdinId)domain.DomainName))
             {
                 return true;
             }
-            
+
             var reg = await this.GetDomainRegistrationInternal(domain);
 
             if (null == reg)
             {
                 return true;
             }
-            
+
             if (reg.DeviceRegistrationConsentRequirement == ConsentRequirement.Always)
             {
                 return true;
@@ -181,25 +183,26 @@ namespace Odin.Core.Services.Authorization.YouAuth
 
             return true;
         }
-        
-        public async Task<OdinContext> GetAppPermissionContext(ClientAuthenticationToken token)
+
+        public async Task<OdinContext> GetDotYouContext(ClientAuthenticationToken token)
         {
             async Task<OdinContext> Creator()
             {
-                var (isValid, accessReg, appReg) = await ValidateClientAuthToken(token);
+                var (isValid, accessReg, domainRegistration) = await ValidateClientAuthToken(token);
 
-                if (!isValid || null == appReg || accessReg == null)
+                if (!isValid || null == domainRegistration || accessReg == null)
                 {
                     throw new OdinSecurityException("Invalid token");
                 }
 
-                if (!string.IsNullOrEmpty(appReg.CorsHostName))
+                if (!string.IsNullOrEmpty(domainRegistration.CorsHostName))
                 {
                     //just in case something changed in the db record
-                    AppUtil.AssertValidCorsHeader(appReg.CorsHostName);
+                    AppUtil.AssertValidCorsHeader(domainRegistration.CorsHostName);
                 }
 
-                var grantDictionary = new Dictionary<Guid, ExchangeGrant> { { ByteArrayUtil.ReduceSHA256Hash("app_exchange_grant"), appReg.Grant } };
+                var grantDictionary = new Dictionary<Guid, ExchangeGrant>
+                    { { ByteArrayUtil.ReduceSHA256Hash("app_exchange_grant"), domainRegistration.Grant } };
 
                 //Note: isOwner = true because we passed ValidateClientAuthToken for an ap token above 
                 var permissionContext = await _exchangeGrantService.CreatePermissionContext(token, grantDictionary, accessReg, includeAnonymousDrives: true);
@@ -210,9 +213,9 @@ namespace Odin.Core.Services.Authorization.YouAuth
                         odinId: _tenantContext.HostOdinId,
                         masterKey: null,
                         securityLevel: SecurityGroupType.Owner,
-                        appContext: new OdinAppContext()
+                        youAuthContext: new OdinYouAuthContext()
                         {
-                            CorsAppName = appReg.CorsHostName,
+                            CorsHostName = domainRegistration.CorsHostName,
                             AccessRegistrationId = accessReg.Id
                         })
                 };
@@ -312,10 +315,10 @@ namespace Odin.Core.Services.Authorization.YouAuth
         /// <summary>
         /// Deletes the current client calling into the system.  This is used to 'logout' an app
         /// </summary>
-        public async Task DeleteCurrentAppClient()
+        public async Task DeleteCurrentYouAuthDomainClient()
         {
             var context = _contextAccessor.GetCurrent();
-            var accessRegistrationId = context.Caller.AppContext?.AccessRegistrationId;
+            var accessRegistrationId = context.Caller.YouAuthContext?.AccessRegistrationId;
 
             var validAccess = accessRegistrationId != null &&
                               context.Caller.SecurityLevel == SecurityGroupType.Owner;
@@ -393,7 +396,8 @@ namespace Odin.Core.Services.Authorization.YouAuth
 
         private void SaveClient(YouAuthDomainClient youAuthDomainClient)
         {
-            _youAuthDomainClientValueStorage.Upsert(youAuthDomainClient.AccessRegistration.Id, GetDomainKey(youAuthDomainClient.Domain).ToByteArray(), _appClientDataType,
+            _youAuthDomainClientValueStorage.Upsert(youAuthDomainClient.AccessRegistration.Id, GetDomainKey(youAuthDomainClient.Domain).ToByteArray(),
+                _appClientDataType,
                 youAuthDomainClient);
         }
 
@@ -404,7 +408,7 @@ namespace Odin.Core.Services.Authorization.YouAuth
             return await Task.FromResult(reg);
         }
 
-        private async Task NotifyAppChanged(YouAuthDomainRegistration? oldAppRegistration, YouAuthDomainRegistration newAppRegistration)
+        private async Task NotifyDomainChanged(YouAuthDomainRegistration? oldAppRegistration, YouAuthDomainRegistration newAppRegistration)
         {
             // await _mediator.Publish(new AppRegistrationChangedNotification()
             // {
@@ -426,6 +430,14 @@ namespace Odin.Core.Services.Authorization.YouAuth
         private Guid GetDomainKey(AsciiDomainName domainName)
         {
             return GuidId.FromString(domainName.DomainName);
+        }
+
+        private void AssertValidPermissionSet(PermissionSet permissionSet)
+        {
+            if (permissionSet?.Keys?.Any(k => !PermissionKeyAllowance.IsValidYouAuthDomainPermission(k)) ?? false)
+            {
+                throw new OdinClientException("Invalid Permission key specified");
+            }
         }
     }
 }

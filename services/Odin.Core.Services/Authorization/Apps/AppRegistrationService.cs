@@ -198,9 +198,9 @@ namespace Odin.Core.Services.Authorization.Apps
                         odinId: _tenantContext.HostOdinId,
                         masterKey: null,
                         securityLevel: SecurityGroupType.Owner,
-                        appContext: new OdinAppContext()
+                        youAuthContext: new OdinYouAuthContext()
                         {
-                            CorsAppName = appReg.CorsHostName,
+                            CorsHostName = appReg.CorsHostName,
                             AccessRegistrationId = accessReg.Id
                         })
                 };
@@ -303,7 +303,7 @@ namespace Odin.Core.Services.Authorization.Apps
         public async Task DeleteCurrentAppClient()
         {
             var context = _contextAccessor.GetCurrent();
-            var accessRegistrationId = context.Caller.AppContext?.AccessRegistrationId;
+            var accessRegistrationId = context.Caller.YouAuthContext?.AccessRegistrationId;
 
             var validAccess = accessRegistrationId != null &&
                               context.Caller.SecurityLevel == SecurityGroupType.Owner;
