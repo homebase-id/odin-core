@@ -156,14 +156,15 @@ namespace Odin.Core.Services.Authorization.YouAuth
         /// </summary>
         public async Task<bool> IsConsentRequired(AsciiDomainName domain)
         {
-            var reg = await this.GetDomainRegistrationInternal(domain);
-
-            if (null == reg)
+            
+            if (await _circleNetworkService.IsConnected((OdinId)domain.DomainName))
             {
                 return true;
             }
+            
+            var reg = await this.GetDomainRegistrationInternal(domain);
 
-            if (await _circleNetworkService.IsConnected((OdinId)domain.DomainName))
+            if (null == reg)
             {
                 return true;
             }
