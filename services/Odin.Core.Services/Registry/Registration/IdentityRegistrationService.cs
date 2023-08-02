@@ -129,16 +129,6 @@ public class IdentityRegistrationService : IIdentityRegistrationService
             Description = $"WWW CNAME"
         });
         
-        // CNAME API
-        result.Add(new DnsConfig
-        {
-            Type = "CNAME",
-            Name = DnsConfigurationSet.PrefixApi,
-            Domain = $"{DnsConfigurationSet.PrefixApi}.{domain}",
-            Value = dns.ApiCnameTarget == "" ? domain : dns.ApiCnameTarget,
-           Description = $"API CNAME"
-        });
-
         // CNAME CAPI
         result.Add(new DnsConfig
         {
