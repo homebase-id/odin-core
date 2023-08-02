@@ -161,7 +161,7 @@ namespace Odin.Core.Services.Authorization.YouAuth
         {
             if (await _circleNetworkService.IsConnected((OdinId)domain.DomainName))
             {
-                return true;
+                return false;
             }
 
             var reg = await this.GetDomainRegistrationInternal(domain);
