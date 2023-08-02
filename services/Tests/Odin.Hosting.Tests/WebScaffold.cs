@@ -184,7 +184,7 @@ namespace Odin.Hosting.Tests
             var client = HttpClientFactory.CreateClient("AnonymousApiHttpClient");
             client.Timeout = TimeSpan.FromMinutes(15);
             client.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, Enum.GetName(fileSystemType));
-            client.BaseAddress = new Uri($"https://{DnsConfigurationSet.PrefixApi}.{identity}");
+            client.BaseAddress = new Uri($"https://{identity}");
             return client;
         }
 
