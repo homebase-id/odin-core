@@ -123,7 +123,7 @@ namespace Odin.Core.Services.Authentication.YouAuth
             {
                 try
                 {
-                    var (cc, permissionContext) = _circleNetworkService.CreateConnectedYouAuthClientContext(authToken).GetAwaiter().GetResult();
+                    var (cc, permissionContext) = _circleNetworkService.CreateConnectedYouAuthClientContextClassic(authToken).GetAwaiter().GetResult();
                     return new ValueTask<(CallerContext? callerContext, PermissionContext? permissionContext)>((cc, permissionContext));
                 }
                 catch (OdinSecurityException)

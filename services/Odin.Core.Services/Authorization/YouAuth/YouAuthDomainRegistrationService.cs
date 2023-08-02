@@ -195,37 +195,17 @@ namespace Odin.Core.Services.Authorization.YouAuth
                     throw new OdinSecurityException("Invalid token");
                 }
 
-                if (!string.IsNullOrEmpty(domainRegistration.CorsHostName))
+                //
+                // If the domain is from an odin identity that is connected, upgrade their permissions
+                //
+                var odinId = (OdinId)domainRegistration.Domain.DomainName;
+                var odinContext = await _circleNetworkService.TryCreateConnectedYouAuthContext(odinId, token, accessReg);
+                if (null != odinContext)
                 {
-                    //just in case something changed in the db record
-                    AppUtil.AssertValidCorsHeader(domainRegistration.CorsHostName);
+                    return odinContext;
                 }
 
-                var grantDictionary = new Dictionary<Guid, ExchangeGrant>
-                {
-                    {
-                        ByteArrayUtil.ReduceSHA256Hash("youauth_domain_exchange_grant"),
-                        domainRegistration.Grant
-                    }
-                };
-
-                var permissionContext = await _exchangeGrantService.CreatePermissionContext(token, grantDictionary, accessReg, includeAnonymousDrives: true);
-
-                var dotYouContext = new OdinContext()
-                {
-                    Caller = new CallerContext(
-                        odinId: _tenantContext.HostOdinId,
-                        masterKey: null,
-                        securityLevel: SecurityGroupType.Authenticated,
-                        youAuthContext: new OdinYouAuthContext()
-                        {
-                            CorsHostName = domainRegistration.CorsHostName,
-                            AccessRegistrationId = accessReg.Id
-                        })
-                };
-
-                dotYouContext.SetPermissionContext(permissionContext);
-                return dotYouContext;
+                return await CreateContextForYouAuthDomain(token, domainRegistration, accessReg);
             }
 
             var result = await _cache.GetOrAddContext(token, Creator);
@@ -442,6 +422,61 @@ namespace Odin.Core.Services.Authorization.YouAuth
             {
                 throw new OdinClientException("Invalid Permission key specified");
             }
+        }
+
+        private async Task<OdinContext> CreateContextForYouAuthDomain(
+            ClientAuthenticationToken authToken,
+            YouAuthDomainRegistration domainRegistration,
+            AccessRegistration accessReg)
+        {
+            if (!string.IsNullOrEmpty(domainRegistration.CorsHostName))
+            {
+                //just in case something changed in the db record
+                AppUtil.AssertValidCorsHeader(domainRegistration.CorsHostName);
+            }
+
+            List<int> permissionKeys = new List<int>();
+            if (_tenantContext.Settings.AuthenticatedIdentitiesCanViewConnections)
+            {
+                permissionKeys.Add(PermissionKeys.ReadConnections);
+            }
+
+            if (_tenantContext.Settings.AuthenticatedIdentitiesCanViewWhoIFollow)
+            {
+                permissionKeys.Add(PermissionKeys.ReadWhoIFollow);
+            }
+
+            var grantDictionary = new Dictionary<Guid, ExchangeGrant>
+            {
+                {
+                    ByteArrayUtil.ReduceSHA256Hash("youauth_domain_exchange_grant"),
+                    domainRegistration.Grant
+                }
+            };
+
+            //create permission context with anonymous drives only
+            var permissionContext = await _exchangeGrantService.CreatePermissionContext(
+                authToken: authToken,
+                grants: grantDictionary,
+                accessReg: accessReg,
+                additionalPermissionKeys: permissionKeys,
+                includeAnonymousDrives: true);
+
+            var dotYouContext = new OdinContext()
+            {
+                Caller = new CallerContext(
+                    odinId: new OdinId(domainRegistration.Domain.DomainName),
+                    masterKey: null,
+                    securityLevel: SecurityGroupType.Authenticated,
+                    youAuthContext: new OdinYouAuthContext()
+                    {
+                        CorsHostName = domainRegistration.CorsHostName,
+                        AccessRegistrationId = accessReg.Id
+                    })
+            };
+
+            dotYouContext.SetPermissionContext(permissionContext);
+            return dotYouContext;
         }
     }
 }

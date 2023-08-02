@@ -82,9 +82,50 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
         }
 
         /// <summary>
+        /// Tries to create caller and permission context for the given OdinId if is connected
+        /// </summary>
+        public async Task<OdinContext?> TryCreateConnectedYouAuthContext(OdinId odinId, ClientAuthenticationToken authToken, AccessRegistration accessReg)
+        {
+            var icr = await GetIdentityConnectionRegistrationInternal(odinId);
+            bool isValid = icr.AccessGrant?.IsValid() ?? false;
+            bool isConnected = icr.IsConnected();
+
+            if (icr.Status == ConnectionStatus.Blocked)
+            {
+                throw new OdinClientException($"ICR for domain {odinId} is blocked");
+            }
+
+            // Only return the permissions if the identity is connected.
+            if (isValid && isConnected)
+            {
+                var (permissionContext, enabledCircles) = await CreatePermissionContextInternal(
+                    icr: icr,
+                    accessReg: accessReg,
+                    authToken: authToken,
+                    applyAppCircleGrants: false);
+
+                var context = new OdinContext()
+                {
+                    Caller = new CallerContext(
+                        odinId: odinId,
+                        masterKey: null,
+                        securityLevel: SecurityGroupType.Connected,
+                        circleIds: enabledCircles)
+                };
+
+                context.SetPermissionContext(permissionContext);
+                return context;
+            }
+
+            //TODO: what about blocked??
+
+            return null;
+        }
+
+        /// <summary>
         /// Creates a caller and permission context for the caller based on the <see cref="IdentityConnectionRegistrationClient"/> resolved by the authToken
         /// </summary>
-        public async Task<(CallerContext callerContext, PermissionContext permissionContext)> CreateConnectedYouAuthClientContext(
+        public async Task<(CallerContext callerContext, PermissionContext permissionContext)> CreateConnectedYouAuthClientContextClassic(
             ClientAuthenticationToken authToken)
         {
             var client = await this.GetIdentityConnectionClient(authToken);
@@ -857,7 +898,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
                 }
             }
 
-            //TODO: only add this if I follow this identity
+            //TODO: only add this if I follow this identity and this is for transit
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var feedDriveWriteGrant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, new PermissionSet(), new List<DriveGrantRequest>()
             {
