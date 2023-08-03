@@ -17,7 +17,7 @@ namespace OdinsAttestation
             _ecc = new EccFullKeyData(_pwd, 1);
         }
 
-        public static void GenerateNewKeys()
+        private static void GenerateNewKeys()
         {
             _pwd = Guid.Empty.ToByteArray().ToSensitiveByteArray();
             _ecc = new EccFullKeyData(_pwd, 1);
@@ -32,6 +32,13 @@ namespace OdinsAttestation
             return _ecc.publicDerBase64();
         }
 
+        public static int GetDeliverAttestations(string attestations)
+        {
+            return 200;
+        }
+
+
+        // This is the function Frodo calls internally to generate a request
         public static SignedEnvelope RequestEnvelope(SortedDictionary<string, object> dataToAtttest)
         {
             // We create an empty envelope with a contentType of "request"
@@ -42,8 +49,14 @@ namespace OdinsAttestation
         }
 
 
-        // Todd this is a function on an identity that responds to Odin's key chain service and signs a nonce
-        //  _ecc would be the identity's signature key
+        /// <summary>
+        /// Todd this is a function on an identity that responds to Odin's key chain service and signs a nonce
+        ///  _ecc would be the identity's signature key.
+        /// </summary>
+        /// <param name="nonceBase64">The nonce to sign</param>
+        /// <param name="tempCodeBase64">A code proving we're going to sign it</param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public static string SignNonceForKeyChain(string nonceBase64, string tempCodeBase64)
         {
             // @Todd First sanity check the tempCode

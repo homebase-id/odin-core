@@ -39,8 +39,8 @@ namespace OdinsAttestation.Controllers
         }
 
         /// <summary>
-        /// This simulates that frodo makes a request for an attestation, remove for production
-        /// and put this functionality into the identity server when requesting an attestation
+        /// This simulates that frodobaggins.me makes a request for an attestation, remove for production
+        /// and put this functionality into the identity host when requesting an attestation.
         /// </summary>
         /// <returns></returns>
         [HttpGet("Simulator")]
@@ -56,8 +56,9 @@ namespace OdinsAttestation.Controllers
             };
 
             // Here we write all the attributes we want attested
-            var dataToAttest = new SortedDictionary<string, object>() 
-                    { { AttestationManagement.JsonKeyLegalName, "Frodo Baggins" },
+            var dataToAttest = new SortedDictionary<string, object>()
+                    { { AttestationManagement.JsonKeySubsetLegalName, "F. Baggins" },
+                      { AttestationManagement.JsonKeyLegalName, "Frodo Baggins" },
                       { AttestationManagement.JsonKeyNationality, "Middle Earth" },
                       { AttestationManagement.JsonKeyPhoneNumber, "+45 26 44 70 33"},
                       { AttestationManagement.JsonKeyBirthdate, "1073-10-29" },
@@ -74,9 +75,16 @@ namespace OdinsAttestation.Controllers
         }
 
 
+        /// <summary>
+        /// This is the endpoint that an identity calls with a signedEnvelope contract of the 
+        /// attestations that the identity would like to have made.
+        /// </summary>
+        /// <param name="requestSignedEnvelope"></param>
+        /// <returns></returns>
         [HttpGet("RequestAttestation")]
         public async Task<IActionResult> GetRequestAttestation(string requestSignedEnvelope)
         {
+            // First verify the validity of the signed envelope
             SignedEnvelope? signedEnvelope;
             try
             {
@@ -98,12 +106,12 @@ namespace OdinsAttestation.Controllers
             if (ByteArrayUtil.EquiByteArrayCompare(publicKey, signedEnvelope.Signatures[0].PublicKeyDer) == false)
                 return BadRequest($"Identity public key does not match the request");
 
-            // Ok, now we know for certain that the request came from Frodo
-            // We know it's a valid type of request
+            // Ok, now we know for certain that the request came from the same identity
+            // We know it's a valid request (envelope)
             // (we could later add more details to the request document)
             //
 
-            // Save request in database
+            // Save request in database for later administrative staff review
             //
             var r = new AttestationRequestRecord() { identity = requestorId.DomainName, requestEnvelope = signedEnvelope.GetCompactSortedJson(), timestamp = UnixTimeUtc.Now() };
 

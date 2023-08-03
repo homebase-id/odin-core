@@ -111,8 +111,8 @@ namespace Odin.Core.Cryptography.Signatures
         /// A SubsetLegalName for personal names must include the full last name (surname) from the legal name 
         /// and at least one other element (first name, middle name(s)) either in full or as an initial, excluding
         /// trivial parts such as honorifics, prefixes, and suffixes.
-        /// Valid "Sir Winston Leonard Spencer Churchill" examples: 
-        /// W. Churchill, Winston L. Churchill, W.L.S. Churchill, Leonard S. Churchill, Spencer Churchill, 
+        /// Example, given a fulle name of "Sir Winston Leonard Spencer Churchill":
+        /// Valid: W. Churchill, Winston L. Churchill, W.L.S. Churchill, Leonard S. Churchill, Spencer Churchill, 
         /// Leonard Spencer Churchill, Winston Leonard Spencer Churchill
         /// </summary>
         /// <param name="eccKey"></param>

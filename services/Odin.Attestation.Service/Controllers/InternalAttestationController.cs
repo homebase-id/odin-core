@@ -9,8 +9,7 @@ using Odin.Core.Util;
 using Odin.Core.Cryptography.Signatures;
 using Odin.Core.Cryptography.Data;
 using System.Text.Json;
-using System.Security.Cryptography.Xml;
-using System;
+
 
 namespace OdinsAttestation.Controllers
 {
@@ -37,17 +36,10 @@ namespace OdinsAttestation.Controllers
 
 
         /// <summary>
-        /// This simulates that an identity requests it's signature key to be added to the block chain
+        /// Internal: Delete the pending request from the database
         /// </summary>
+        /// <param name="identity"></param>
         /// <returns></returns>
-       [HttpGet("Simulator")]
-        public async Task<IActionResult> GetSimulator()
-        {
-            await Task.Delay(0);
-            return Ok();
-        }
-
-
         private IActionResult DeleteRequest(PunyDomainName identity)
         {
             try
@@ -66,6 +58,13 @@ namespace OdinsAttestation.Controllers
         }
 
 
+        /// <summary>
+        /// For administrative staff only. Call this function to delete a pending request from an identity.
+        /// Considering if it should be the nonce rather than the identity (IDK yet what we want to do about multiple requests,
+        /// retracting requests etc)
+        /// </summary>
+        /// <param name="identity"></param>
+        /// <returns></returns>
         [HttpGet("DeleteRequest")]
         public IActionResult GetDeleteRequest(string identity)
         {
@@ -84,9 +83,18 @@ namespace OdinsAttestation.Controllers
         }
 
 
-
+        /// <summary>
+        /// Based on a verified request contract from an identity, generate a list of attestations.
+        /// </summary>
+        /// <param name="identity"></param>
+        /// <param name="requestEnvelope"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="Exception"></exception>
         private List<SignedEnvelope> GenerateAttestationsFromRequest(PunyDomainName identity, SignedEnvelope requestEnvelope)
         {
+            if (identity.DomainName != requestEnvelope.Signatures[0].Identity.DomainName)
+                throw new ArgumentException("identity and envelope mismatch, impossible");
 
             if (!requestEnvelope.Envelope.AdditionalInfo.ContainsKey("data"))
                 throw new ArgumentException("The requestEnvelope doesn't have a data section");
@@ -121,6 +129,21 @@ namespace OdinsAttestation.Controllers
                 catch (Exception ex)
                 {
                     throw new Exception($"Unable to attest LegalName {ex.Message}");
+                }
+            }
+
+            // Let's check for subset legal name
+            if (dataObject!.TryGetValue(AttestationManagement.JsonKeySubsetLegalName, out var subsetLegalNameObject))
+            {
+                try
+                {
+                    string subsetLegalName = EnvelopeData.GetValueFromJsonObject<string>(subsetLegalNameObject);
+                    var attestation = AttestationManagement.AttestSubsetLegalName(_eccKey, _eccPwd, identity, subsetLegalName);
+                    attestationList.Add(attestation);
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Unable to attest SubsetLegalName {ex.Message}");
                 }
             }
 
@@ -206,6 +229,15 @@ namespace OdinsAttestation.Controllers
         }
 
 
+        /// <summary>
+        /// Adminstrative staff use only.
+        /// After carefully reviewing the data in an attestation request, the admininstrative staff calls this function
+        /// if approved. This function will generate the attestations requested, return the to the requestor, and store
+        /// records in the block chain database.
+        /// Considering if identity should instead be the nonce of the request.
+        /// </summary>
+        /// <param name="identity"></param>
+        /// <returns></returns>
         [HttpGet("ApproveRequest")]
         public IActionResult GetApproveRequest(string identity)
         {
@@ -260,15 +292,22 @@ namespace OdinsAttestation.Controllers
             // Now call identity and deliver the attested data
             //
 
+            // This is the code I need to build next
+            SimulateFrodo.GetDeliverAttestations(jsonArray);
 
-            //
-            // Now insert the block chain records
-            //
 
-            //
-            // Now delete the request from the database
-            //
+            using (_db.CreateCommitUnitOfWork())
+            {
+                //
+                // Now insert the block chain records
+                //
 
+
+                //
+                // Finally, delete the pending request
+                //
+                GetDeleteRequest(identity);
+            }
             return Ok();
         }
 
