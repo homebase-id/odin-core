@@ -66,7 +66,7 @@ namespace Odin.Hosting.Tests.AppAPI.Utils
             client.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, Enum.GetName(fileSystemType));
             client.Timeout = TimeSpan.FromMinutes(15);
             
-            client.BaseAddress = new Uri($"https://{DnsConfigurationSet.PrefixApi}.{identity}");
+            client.BaseAddress = new Uri($"https://{identity}");
             return client;
             
         }

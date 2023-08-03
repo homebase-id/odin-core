@@ -105,7 +105,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
             // SEB:TODO IHttpClientFactory, but we can't use HttpClientHandler
             using HttpClient authClient = new(handler);
-            authClient.BaseAddress = new Uri($"https://{DnsConfigurationSet.PrefixApi}.{identity}");
+            authClient.BaseAddress = new Uri($"https://{identity}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
             Console.WriteLine($"forcing new password on {authClient.BaseAddress}");
@@ -172,7 +172,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
         public HttpClient CreateAnonymousClient(string identity)
         {
             HttpClient authClient = new();
-            authClient.BaseAddress = new Uri($"https://{DnsConfigurationSet.PrefixApi}.{identity}");
+            authClient.BaseAddress = new Uri($"https://{identity}");
             return authClient;
         }
 
@@ -221,10 +221,10 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
 
             // SEB:TODO IHttpClientFactory, but we can't use HttpClientHandler
             using HttpClient authClient = new(handler);
-            authClient.BaseAddress = new Uri($"https://{DnsConfigurationSet.PrefixApi}.{identity}");
+            authClient.BaseAddress = new Uri($"https://{identity}");
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);
 
-            var uri = new Uri($"https://{DnsConfigurationSet.PrefixApi}.{identity}");
+            var uri = new Uri($"https://{identity}");
 
             Console.WriteLine($"authenticating to {uri}");
             // var nonceResponse = await svc.GenerateAuthenticationNonce();
@@ -327,7 +327,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Utils
             client.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, Enum.GetName(typeof(FileSystemType), fileSystemType));
             client.Timeout = TimeSpan.FromMinutes(15);
 
-            client.BaseAddress = new Uri($"https://{DnsConfigurationSet.PrefixApi}.{identity}");
+            client.BaseAddress = new Uri($"https://{identity}");
             return client;
         }
 

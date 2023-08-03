@@ -126,7 +126,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Authentication
         {
             using HttpClient authClient = new()
             {
-                BaseAddress = new Uri($"https://{DnsConfigurationSet.PrefixApi}.{identity}")
+                BaseAddress = new Uri($"https://{identity}")
             };
 
             var svc = RestService.For<IOwnerAuthenticationClient>(authClient);

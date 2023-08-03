@@ -125,7 +125,6 @@ namespace Odin.Core.Services.Configuration
                 DnsConfigurationSet = new DnsConfigurationSet(
                     config.Required<List<string>>("Registry:DnsRecordValues:BareARecords"),
                     config.GetOrDefault<string>("Registry:DnsRecordValues:WwwCnameTarget", ""),
-                    config.GetOrDefault<string>("Registry:DnsRecordValues:ApiCnameTarget", ""),
                     config.GetOrDefault<string>("Registry:DnsRecordValues:CApiCnameTarget", ""),
                     config.GetOrDefault<string>("Registry:DnsRecordValues:FileCnameTarget", ""));
             }

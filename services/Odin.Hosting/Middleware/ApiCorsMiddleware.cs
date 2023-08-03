@@ -46,14 +46,6 @@ namespace Odin.Hosting.Middleware
                     allowHeaders.Add(OdinHeaderNames.FileSystemTypeHeader);
                 }
             }
-            else if ( //if the browser gives me an origin that is this identity (i.e. the home or owner app) 
-                string.Equals(context.Request.Headers["Origin"], $"https://{odinContext.Tenant.DomainName}", StringComparison.InvariantCultureIgnoreCase) &&
-                string.Equals(context.Request.Host.Host, $"{DnsConfigurationSet.PrefixApi}.{odinContext.Tenant.DomainName}", StringComparison.InvariantCultureIgnoreCase))
-            {
-                context.Response.Headers.Add("Access-Control-Allow-Origin", $"https://{odinContext.Tenant.DomainName}");
-                allowHeaders.Add(OdinHeaderNames.FileSystemTypeHeader);
-                shouldSetHeaders = true;
-            }
 
             if (shouldSetHeaders)
             {

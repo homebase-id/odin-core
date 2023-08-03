@@ -187,21 +187,27 @@ namespace Odin.Hosting
             {
                 // SEB:NOTE ToLower() should not be needed here, but better safe than sorry.
                 var hostName = clientHelloInfo.ServerName.ToLower();
-                Log.Debug("Beginning https handshake for {host}", hostName);
 
                 var serviceProvider = kestrelOptions.ApplicationServices;
                 var cert = await ServerCertificateSelector(hostName, odinConfig, serviceProvider);
 
                 if (cert == null)
                 {
+                    //
                     // This is an escape hatch so runtime won't log an error
-                    // when no certificate could be found
-                    throw new ConnectionAbortedException();
-                }
+                    // when no certificate could be found.
+                    //
+                    // NOTE:
+                    // In some cases when hostName is empty and we therefore throw ConnectionAbortedException,
+                    // the runtime will throw this exception as a result:
+                    //   System.NotSupportedException:
+                    //     The server mode SSL must use a certificate with the associated private key.
+                    //
+                    // It makes no sense and must be a glitch in the runtime, but it doesn't hurt us (except
+                    // for putting errors in the log).
+                    //
 
-                if (!cert.HasPrivateKey)
-                {
-                    Log.Error("https handshake: {host} private key is missing from certificate!", hostName);
+                    throw new ConnectionAbortedException();
                 }
 
                 var result = new SslServerAuthenticationOptions
@@ -212,7 +218,6 @@ namespace Odin.Hosting
                 // Require client certificate if domain prefix is "capi"
                 if (hostName.StartsWith(DnsConfigurationSet.PrefixCertApi))
                 {
-                    Log.Debug("https handshake: {host} requires client certificate", hostName);
                     result.AllowRenegotiation = true;
                     result.ClientCertificateRequired = true;
                     result.RemoteCertificateValidationCallback = (_, _, _, _) => true;
