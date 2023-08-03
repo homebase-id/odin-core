@@ -17,7 +17,7 @@ namespace Odin.Core.Cryptography.Data
     {
         public byte[] publicKey { get; set; } // DER encoded public key
 
-        public uint crc32c { get; set; } // The CRC32C of the public key
+        public UInt32 crc32c { get; set; } // The CRC32C of the public key
         public UnixTimeUtc expiration { get; set; } // Time when this key expires
 
         public static EccPublicKeyData FromDerEncodedPublicKey(byte[] derEncodedPublicKey, int hours = 1)
@@ -52,12 +52,12 @@ namespace Odin.Core.Cryptography.Data
             return Convert.FromBase64String(publicKeyPEM);
         }
 
-        public static uint KeyCRC(byte[] keyDerEncoded)
+        public static UInt32 KeyCRC(byte[] keyDerEncoded)
         {
             return CRC32C.CalculateCRC32C(0, keyDerEncoded);
         }
 
-        public uint KeyCRC()
+        public UInt32 KeyCRC()
         {
             return KeyCRC(publicKey);
         }
@@ -218,8 +218,8 @@ namespace Odin.Core.Cryptography.Data
             if (createdTimeStamp.seconds <= 0)
                 throw new Exception("createdTimeStamp has not been initialized");
 
-            long t = UnixTimeUtc.Now().seconds;
-            long d = Math.Min(2 * (expiration.seconds - createdTimeStamp.seconds), 3600 * 24) + createdTimeStamp.seconds;
+            Int64 t = UnixTimeUtc.Now().seconds;
+            Int64 d = Math.Min(2 * (expiration.seconds - createdTimeStamp.seconds), 3600 * 24) + createdTimeStamp.seconds;
 
             if (t > d)
                 return true;
