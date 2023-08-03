@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Data;
+using System.Numerics;
 using System.Timers;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Cryptography.Crypto;
@@ -21,48 +22,9 @@ https://www.sqlitetutorial.net/sqlite-index/
 
 namespace Odin.Core.Storage.SQLite
 {
-    public class DatabaseBase : IDisposable
+    public partial class DatabaseBase : IDisposable
     {
-        public class IntCounter // Since I can't store a ref to an int, I make this hack.
-        {
-            public int _counter = 0;
-
-            public bool ReadyToCommit()
-            {
-                return (_counter == 0);
-            }
-        }
-
         public readonly IntCounter _counter = new IntCounter();
-
-        public class LogicCommitUnit : IDisposable
-        {
-            private bool _wasDisposed = false;
-            private IntCounter _counterObject = null;
-
-            public LogicCommitUnit(IntCounter counter)
-            {
-                _counterObject = counter;
-                _counterObject._counter++;
-            }
-
-            ~LogicCommitUnit()
-            {
-                if (!_wasDisposed)
-                    throw new Exception("aiai boom, a LogicCommitUnit was not disposed, catastrophe, data wont get written");
-            }
-
-            public void Dispose()
-            {
-                _counterObject._counter--;
-                _wasDisposed = true;
-            }
-
-            public bool ReadyToCommit()
-            {
-                return (_counterObject._counter == 0);
-            }
-        }
 
         private long _commitFrequency; // ms
         private string _connectionString;
@@ -70,7 +32,6 @@ namespace Odin.Core.Storage.SQLite
         private SqliteConnection _connection = null;
         private SqliteTransaction _transaction = null;
 
-        private readonly Object _connectionLock = new Object();
         private readonly Object _transactionLock = new Object();
 
         private UnixTimeUtc _lastCommit;
@@ -149,8 +110,8 @@ namespace Odin.Core.Storage.SQLite
 
         public void Vacuum()
         {
-            this._transaction.Commit();
-            this._transaction = null;
+            _transaction.Commit();
+            _transaction = null;
 
             using (var cmd = CreateCommand())
             {
