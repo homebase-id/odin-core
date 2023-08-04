@@ -1,5 +1,4 @@
 ﻿using NUnit.Framework;
-using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Crypto;
 using System;
 using System.Collections.Generic;
@@ -11,6 +10,8 @@ using Odin.Core.Util;
 using NodaTime;
 using Odin.Core.Time;
 using System.Globalization;
+using Odin.Core.Cryptography.Signatures;
+using Odin.Core.Cryptography.Data;
 
 namespace Odin.Tests
 {
@@ -31,8 +32,9 @@ namespace Odin.Tests
             var additionalInfo = new SortedDictionary<string, object> { { "title", "test document" }, { "serialno", 42 } };
 
             // Create an Envelope for this document
-            var envelope = new EnvelopeData();
-            envelope.CalculateContentHash(document, "test", additionalInfo);
+            var envelope = new EnvelopeData("test", "");
+            envelope.SetAdditionalInfo(additionalInfo);
+            envelope.CalculateContentHash(document);
 
             // Create an identity and keys needed
             OdinId testIdentity = new OdinId("odin.valhalla.com");
@@ -62,7 +64,7 @@ namespace Odin.Tests
 
             signedEnvelope.VerifyEnvelopeSignatures();
 
-            // string s = signedEnvelope.GetCompactSortedJson();
+            string s = signedEnvelope.GetCompactSortedJson();
         }
 
 
@@ -85,13 +87,18 @@ namespace Odin.Tests
             if (AttestationManagement.VerifyAttestation(attestation) != true)
                 throw new Exception("Email");
 
-            attestation = AttestationManagement.AttestBirthdate(eccKey, pwd, frodoPuny, new DateTime(2020,10,24));
+            attestation = AttestationManagement.AttestBirthdate(eccKey, pwd, frodoPuny, DateOnly.FromDateTime(new DateTime(2020,10,24)));
             if (AttestationManagement.VerifyAttestation(attestation) != true)
                 throw new Exception("Birthdate");
 
             attestation = AttestationManagement.AttestLegalName(eccKey, pwd, frodoPuny, "Frodo Baggins");
             if (AttestationManagement.VerifyAttestation(attestation) != true)
                 throw new Exception("Legal Name");
+
+            attestation = AttestationManagement.AttestSubsetLegalName(eccKey, pwd, frodoPuny, "F. Baggins");
+            if (AttestationManagement.VerifyAttestation(attestation) != true)
+                throw new Exception("Subset Legal Name");
+
             string s = attestation.GetCompactSortedJson(); // For michael to look at
 
             attestation = AttestationManagement.AttestPhoneNumber(eccKey, pwd, frodoPuny, "+45 12345678");
@@ -118,17 +125,18 @@ namespace Odin.Tests
             // Arrange
             byte[] document = new byte[] { 1, 2, 3, 4, 5 };
             var additionalInfo = new SortedDictionary<string, object> { { "title", "test document" }, { "serialno", 7 } };
-            var envelope = new EnvelopeData();
+            var envelope = new EnvelopeData("test", "");
 
             // Act
-            envelope.CalculateContentHash(document, "test", additionalInfo);
+            envelope.SetAdditionalInfo(additionalInfo);
+            envelope.CalculateContentHash(document);
 
             // Assert
             Assert.IsNotNull(envelope.ContentHash);
-            Assert.IsNotNull(envelope.Nonce);
+            Assert.IsNotNull(envelope.ContentNonce);
             Assert.AreEqual(HashUtil.SHA256Algorithm, envelope.ContentHashAlgorithm);
             Assert.IsNotNull(envelope.TimeStamp);
-            Assert.AreEqual(document.Length, envelope.Length);
+            Assert.AreEqual(document.Length, envelope.ContentLength);
             Assert.AreEqual(additionalInfo, envelope.AdditionalInfo);
         }
 
@@ -137,17 +145,17 @@ namespace Odin.Tests
         {
             // Arrange
             byte[] document = new byte[] { 1, 2, 3, 4, 5 };
-            var envelope = new EnvelopeData();
+            var envelope = new EnvelopeData("test", "");
 
             // Act
-            envelope.CalculateContentHash(document, "test", null);
+            envelope.CalculateContentHash(document);
 
             // Assert
             Assert.IsNotNull(envelope.ContentHash);
-            Assert.IsNotNull(envelope.Nonce);
+            Assert.IsNotNull(envelope.ContentNonce);
             Assert.AreEqual(HashUtil.SHA256Algorithm, envelope.ContentHashAlgorithm);
             Assert.IsNotNull(envelope.TimeStamp);
-            Assert.AreEqual(document.Length, envelope.Length);
+            Assert.AreEqual(document.Length, envelope.ContentLength);
             Assert.AreEqual(null, envelope.AdditionalInfo);
         }
 
@@ -158,17 +166,18 @@ namespace Odin.Tests
             string fileName = Path.GetTempFileName();
             File.WriteAllBytes(fileName, new byte[] { 1, 2, 3, 4, 5 });
             var additionalInfo = new SortedDictionary<string, object> { { "title", "test document" }, { "author", "Odin" } };
-            var envelope = new EnvelopeData();
+            var envelope = new EnvelopeData("test", "");
 
             // Act
-            envelope.CalculateContetntHash(fileName, "test", additionalInfo);
+            envelope.SetAdditionalInfo(additionalInfo);
+            envelope.CalculateContentHash(fileName);
 
             // Assert
             Assert.IsNotNull(envelope.ContentHash);
-            Assert.IsNotNull(envelope.Nonce);
+            Assert.IsNotNull(envelope.ContentNonce);
             Assert.AreEqual(HashUtil.SHA256Algorithm, envelope.ContentHashAlgorithm);
             Assert.IsNotNull(envelope.TimeStamp);
-            Assert.AreEqual(new FileInfo(fileName).Length, envelope.Length);
+            Assert.AreEqual(new FileInfo(fileName).Length, envelope.ContentLength);
             Assert.AreEqual(additionalInfo, envelope.AdditionalInfo);
 
             // Clean up

@@ -66,10 +66,38 @@ namespace Odin.Core.Time
         /// <summary>
         /// Returns a new UnixTimeUtc object with the seconds added.
         /// </summary>
-        /// <param name="s"></param>
+        /// <param name="s">Seconds</param>
         public UnixTimeUtc AddSeconds(Int64 s)
         {
             return new UnixTimeUtc((Int64)(((Int64)_milliseconds) + (s * 1000)));
+        }
+
+        /// <summary>
+        /// Returns a new UnixTimeUtc object with the minutes added.
+        /// </summary>
+        /// <param name="m">Minutes</param>
+        public UnixTimeUtc AddMinutes(Int64 m)
+        {
+            return new UnixTimeUtc((Int64)(((Int64)_milliseconds) + (m * 60 * 1000)));
+        }
+
+        /// <summary>
+        /// Returns a new UnixTimeUtc object with the hours added.
+        /// </summary>
+        /// <param name="h">Hours</param>
+        public UnixTimeUtc AddHours(Int64 h)
+        {
+            return new UnixTimeUtc((Int64)(((Int64)_milliseconds) + (h * 60 * 60 * 1000)));
+        }
+
+
+        /// <summary>
+        /// Returns a new UnixTimeUtc object with the hours added.
+        /// </summary>
+        /// <param name="d">Days</param>
+        public UnixTimeUtc AddDays(Int64 d)
+        {
+            return new UnixTimeUtc((Int64)(((Int64)_milliseconds) + (d * 24 * 60 * 60 * 1000)));
         }
 
         /// <summary>

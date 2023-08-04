@@ -5,71 +5,18 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Text;
 using Odin.Core;
-using Odin.Core.Cryptography.Data;
 using Odin.Core.Storage.SQLite.BlockChainDatabase;
 using Odin.Core.Util;
 using Odin.Core.Time;
 using Microsoft.Data.Sqlite;
+using Odin.KeyChain;
+using Odin.Core.Cryptography.Data;
+using Odin.Core.Cryptography.Signatures;
+using System.Security.Principal;
+using System.Text.Json;
 
 namespace OdinsChains.Controllers
 {
-    public static class SimulateFrodo
-    {
-        private static SensitiveByteArray _pwd;
-        private static EccFullKeyData _ecc;
-
-        static SimulateFrodo()
-        {
-            _pwd = Guid.Empty.ToByteArray().ToSensitiveByteArray();
-            _ecc = new EccFullKeyData(_pwd, 1);
-        }
-
-        public static void GenerateNewKeys()
-        {
-            _pwd = Guid.Empty.ToByteArray().ToSensitiveByteArray();
-            _ecc = new EccFullKeyData(_pwd, 1);
-        }
-
-        // Todd this is the function on an identity that should return Frodo's public (signature) key (ECC)
-        // For example https://frodo.baggins.me/api/v1/signature/publickey
-        public static string GetPublicKey()
-        {
-            return _ecc.publicDerBase64();
-        }
-
-        // Todd this is a function on an identity that responds to Odin's key chain service and signs a nonce
-        //  _ecc would be the identity's signature key
-        public static string SignNonceForKeyChain(string nonceBase64, string tempCodeBase64)
-        {
-            // @Todd First sanity check the tempCode
-            var tempCode = Convert.FromBase64String(tempCodeBase64);
-            if ((tempCode.Length < 16) || (tempCode.Length > 32))
-                throw new Exception("invalid nonce size");
-
-            // @Todd then load the tempCode from the DB
-            // var tempCode = identityDb.tblKeyValue.Get(CONST_..._ID);
-            // If the tempCode is more than 10 seconds old, fail
-            // DELETE the tempCode from the DB
-            // identityDb.tblKeyValue.Delete(CONST_..._ID);
-
-            // tempCode was OK, we continue
-            var nonce = Convert.FromBase64String(nonceBase64);
-
-            // Todd need to check this JIC 
-            if ((nonce.Length < 16) || (nonce.Length > 32))
-                throw new Exception("invalid nonce size");
-
-            // We sign the nonce with the signature key
-            var signature = _ecc.Sign(_pwd, nonce);
-
-            // We return the signed data to the requestor
-            return Convert.ToBase64String(signature);
-        }
-
-        // Todd Look in the simulator "Simulate..." for triggering the registration
-    }
-
-
     [ApiController]
     [Route("[controller]")]
     public class RegisterKeyController : ControllerBase
@@ -88,163 +35,24 @@ namespace OdinsChains.Controllers
         }
 
 
+#if DEBUG
         /// <summary>
-        /// Called once from the controller to make sure database is setup
-        /// Need to set drop to false in production
-        /// </summary>
-        /// <param name="_db"></param>
-        public static void InitializeDatabase(BlockChainDatabase _db)
-        {
-            _db.CreateDatabase(dropExistingTables: true);
-
-            var r = _db.tblBlockChain.GetLastLink();
-
-            // If the database is empty then we need to create the genesis record
-            if (r == null)
-            {
-                // Genesis ECC key
-                // 
-                var password = Guid.Empty.ToByteArray().ToSensitiveByteArray();
-                var eccGenesis = new EccFullKeyData(password, 1);
-
-                // Create the genesis block
-                //
-                var genesis = NewBlockChainRecord();
-
-                genesis.identity = "odin.valhalla.com.livesforever";
-                genesis.publicKey = eccGenesis.publicKey;
-                genesis.nonce = "May Odin's chain safeguard the identities of the many. Skål!".ToUtf8ByteArray();
-                var signature = eccGenesis.Sign(password, genesis.nonce);
-                genesis.signedNonce = signature;
-                genesis.previousHash = ByteArrayUtil.CalculateSHA256Hash(Guid.Empty.ToByteArray());
-                genesis.recordHash = CalculateRecordHash(genesis);
-                VerifyBlockChainRecord(genesis, null);
-                _db.tblBlockChain.Insert(genesis);
-            }
-        }
-
-        public static BlockChainRecord NewBlockChainRecord()
-        { 
-            var r = new BlockChainRecord();
-
-            r.nonce = ByteArrayUtil.GetRndByteArray(32);
-            r.timestamp = UnixTimeUtcUnique.Now();
-            r.algorithm = EccFullKeyData.eccSignatureAlgorithm;
-
-            return r;
-        }
-
-        private static byte[] CombineRecordBytes(BlockChainRecord record)
-        {
-            // Combine all columns, except ofc the recordHash, into a single byte array
-            return ByteArrayUtil.Combine(record.previousHash,
-                                         Encoding.UTF8.GetBytes(record.identity),
-                                         ByteArrayUtil.Int64ToBytes(record.timestamp.uniqueTime),
-                                         record.nonce,
-                                         record.signedNonce,
-                                         record.algorithm.ToUtf8ByteArray(),
-                                         record.publicKey);
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="record">Is the new record we want to insert into the chain</param>
-        /// <param name="previousHash">is the SHA-256 byte array of the last blockchain entry's hash value</param>
-        /// <returns></returns>
-        public static byte[] CalculateRecordHash(BlockChainRecord record)
-        {
-            // Compute hash for the combined byte array
-            var hash = ByteArrayUtil.CalculateSHA256Hash(CombineRecordBytes(record));
-
-            return hash;
-        }
-
-        /// <summary>
-        /// Verifies the integrity of the previousHash, the signature and the hash
-        /// </summary>
-        /// <param name="record"></param>
-        /// <param name="previousRowHash"></param>
-        /// <returns></returns>
-        public static bool VerifyBlockChainRecord(BlockChainRecord record, BlockChainRecord? previousRecord)
-        {
-            var publicKey = EccPublicKeyData.FromDerEncodedPublicKey(record.publicKey);
-            if (publicKey.VerifySignature(record.nonce, record.signedNonce) == false)
-                return false;
-
-            if (previousRecord != null)
-            {
-                if (ByteArrayUtil.EquiByteArrayCompare(previousRecord.recordHash, record.previousHash) == false)
-                    return false;
-
-                var hash = CalculateRecordHash(record);
-                if (ByteArrayUtil.EquiByteArrayCompare(hash, record.recordHash) == false)
-                    return false;
-
-                // Maybe we shouldn't do this. IDK.
-                if (record.timestamp.uniqueTime < previousRecord.timestamp.uniqueTime)
-                    return false;
-            }
-
-            return true;
-        }
-
-
-        // Verifies the entire chain
-        public static bool VerifyEntireBlockChain(BlockChainDatabase _db)
-        {
-            var _sqlcmd = _db.CreateCommand();
-            _sqlcmd.CommandText = "SELECT previousHash,identity,timestamp,nonce,signedNonce,algorithm,publicKey,recordHash FROM blockChain ORDER BY rowid ASC;";
-
-            using (SqliteDataReader rdr = _db.ExecuteReader(_sqlcmd, System.Data.CommandBehavior.SingleRow))
-            {
-                BlockChainRecord? previousRecord = null;
-
-                while (rdr.Read())
-                {
-                    var record = _db.tblBlockChain.ReadRecordFromReaderAll(rdr);
-                    if (VerifyBlockChainRecord(record, previousRecord) == false) 
-                        return false;
-                    previousRecord = record;
-                }
-            } // using
-
-            return true;
-
-        }
-
-        /// <summary>
-        /// This simulates that an identity requests it's signature key to be added to the block chain
+        /// This simulates that an identity requests it's signature key to be added to the block chain.
+        /// Remove from code in production.
         /// </summary>
         /// <returns></returns>
         [HttpGet("Simulator")]
         public async Task<IActionResult> GetSimulator()
         {
-            // @Todd first you generate a random temp code
-            var tempCode = ByteArrayUtil.GetRndByteArray(32);
-
-            // @Todd then you save it in the IdentityDatabase
-            // identityDb.tblKkeyValue.Upsert(CONST_SIGNATURE_TEMPCODE_ID, tempCode);
-
-            // @Todd then you call out over HTTPS to request it
-            var r1 = await GetRegister("frodo.baggins.me", Convert.ToBase64String(tempCode));
-
-            // If it's OK 200, then you're done.
-            // Done.
-
-
-            // Do another hacky one for testing
-            SimulateFrodo.GenerateNewKeys();
-            var r2 = await GetRegister("samwise.gamgee.me", Convert.ToBase64String("some temp code from Sam's server".ToUtf8ByteArray()));
-
-            if (VerifyEntireBlockChain(_db) == false)
-            {
-                return Problem("Fenris broke the chain");
-            }
-
-            return r2;
+            return await SimulateFrodo.InitiateRequestForKeyRegistration(this);
         }
+#endif
 
+        /// <summary>
+        /// This service takes an identity as parameter and returns the age of the identity
+        /// </summary>
+        /// <param name="identity">An Odin identity</param>
+        /// <returns>200 and seconds since Unix Epoch if successful, or NotFound or BadRequest</returns>
         [HttpGet("Verify")]
         public IActionResult GetVerify(string identity)
         {
@@ -267,6 +75,13 @@ namespace OdinsChains.Controllers
             return Ok(msg);
         }
 
+
+        /// <summary>
+        /// This service takes an identity and it's public key as parameter and checks if it exists.
+        /// </summary>
+        /// <param name="identity"></param>
+        /// <param name="publicKeyDerBase64"></param>
+        /// <returns>200 OK and key age in seconds since Unix Epoch, or Bad Request or Not Found</returns>
         [HttpGet("VerifyKey")]
         public IActionResult GetVerifyKey(string identity, string publicKeyDerBase64)
         {
@@ -304,7 +119,9 @@ namespace OdinsChains.Controllers
 
 
         /// <summary>
-        /// 010. Client calls Server.RegisterKey(identity, tempcode)
+        /// 005. Client calls Server.RegisterKey(identity, signedInstruction)
+        /// 010. Deserialize the json into a signedEnvelope
+        /// 015. Verify the envelope
         /// 020. Server calls Client.GetPublicKey() to get signature key
         /// 030. Server calls Client.SignNonce(tempcode, previousHash)
         /// 033. Client returns signedNonce
@@ -317,11 +134,13 @@ namespace OdinsChains.Controllers
         /// 090. Server frees semaphore
         /// </summary>
         /// <param name="identity"></param>
-        /// <param name="tempCode"></param>
+        /// <param name="signedInstructionEnvelopeJson"></param>
         /// <returns></returns>
         [HttpGet("Register")]
-        public async Task<IActionResult> GetRegister(string identity, string tempCode)
+        public async Task<IActionResult> GetRegister(string identity, string signedInstructionEnvelopeJson)
         {
+            // 05. Initialize and ensure high level integrity
+            //
             PunyDomainName domain;
             try
             {
@@ -332,13 +151,37 @@ namespace OdinsChains.Controllers
                 return BadRequest("Invalid identity, not a proper puny-code domain name");
             }
 
-            if ((tempCode.Length < 16) || (tempCode.Length > 64))
+            if ((signedInstructionEnvelopeJson.Length < 10) || (signedInstructionEnvelopeJson.Length > 65000))
             {
-                return BadRequest("Invalid temp-code, needs to be [16..64] characters");
+                return BadRequest("Invalid envelope, needs to be [10..65000] characters");
             }
 
 
-            var newRecordToInsert = NewBlockChainRecord();
+            SignedEnvelope? signedEnvelope;
+
+            // 10. Deserialize the JSON
+            //
+            try
+            {
+                signedEnvelope = JsonSerializer.Deserialize<SignedEnvelope>(signedInstructionEnvelopeJson);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"{ex.Message}");
+            }
+
+            if (signedEnvelope == null)
+                return BadRequest($"Unable to deserialize envelope");
+
+            // 015. Verify envelope
+            if (signedEnvelope.Envelope.EnvelopeType != EnvelopeData.EnvelopeTypeInstruction)
+                return BadRequest($"Envelope type must be {EnvelopeData.EnvelopeTypeInstruction}");
+            if (signedEnvelope.Envelope.EnvelopeSubType != InstructionSignedEnvelope.ENVELOPE_SUB_TYPE_KEY_REGISTRATION)
+                return BadRequest($"Instruction envelope subtype must be {InstructionSignedEnvelope.ENVELOPE_SUB_TYPE_KEY_REGISTRATION}");
+
+            // Begin building a block chain records to insert...
+            //
+            var newRecordToInsert = BlockChainDatabaseUtil.NewBlockChainRecord();
 
             newRecordToInsert.identity = identity;
 
@@ -373,14 +216,17 @@ namespace OdinsChains.Controllers
                 return BadRequest($"Getting the public key of [api.{domain.DomainName}] failed: {e.Message}");
             }
 
-            // 1a. Got a request to register a key, get the previous hash and get it signed
-            //     We need to lock here, so that each request is serialized
+            // Validate that the public key is the same in the request
+            if (ByteArrayUtil.EquiByteArrayCompare(signedEnvelope.Signatures[0].PublicKeyDer, publicKey.publicKey) == false)
+                return BadRequest($"The public key of [{domain.DomainName}] didn't match the public key in the instruction envelope");
 
-            newRecordToInsert.publicKey = publicKey.publicKey; // DER encoded
+
+            // Add the public key DER to the block chain record
+            newRecordToInsert.publicKey = publicKey.publicKey;
 
 
-            // 030. Sign nonce
-
+            // 030. Create the nonce we want to sign
+            //
             newRecordToInsert.nonce = ByteArrayUtil.GetRndByteArray(32);
 
             try
@@ -389,7 +235,7 @@ namespace OdinsChains.Controllers
 
                 if (_simulate)
                 {
-                    signedNonceBase64 = SimulateFrodo.SignNonceForKeyChain(newRecordToInsert.nonce.ToBase64(), tempCode);
+                    signedNonceBase64 = SimulateFrodo.SignNonceForKeyChain(newRecordToInsert.nonce.ToBase64(), signedEnvelope.Envelope.ContentNonce.ToBase64());
                 }
                 else
                 {
@@ -433,10 +279,10 @@ namespace OdinsChains.Controllers
                 newRecordToInsert.previousHash = previousRowRecord.recordHash;
 
                 // 060 calculate new hash
-                newRecordToInsert.recordHash = CalculateRecordHash(newRecordToInsert);
+                newRecordToInsert.recordHash = BlockChainDatabaseUtil.CalculateRecordHash(newRecordToInsert);
 
                 // 070 verify record
-                if (VerifyBlockChainRecord(newRecordToInsert, previousRowRecord) == false)
+                if (BlockChainDatabaseUtil.VerifyBlockChainRecord(newRecordToInsert, previousRowRecord) == false)
                 {
                     return Problem("Cannot verify");
                 }

@@ -1,4 +1,5 @@
 ﻿using NodaTime;
+using Odin.Core.Cryptography.Data;
 using Odin.Core.Identity;
 using Odin.Core.Time;
 using Odin.Core.Util;
@@ -7,39 +8,19 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 
-namespace Odin.Core.Cryptography.Data
+namespace Odin.Core.Cryptography.Signatures
 {
     public class AttestationManagement
     {
-        private static string StringifyData(SortedDictionary<string, object> data)
-        {
-            StringBuilder sb = new StringBuilder();
-
-            foreach (KeyValuePair<string, object> entry in data)
-            {
-                sb.Append(entry.Key);
-                sb.Append(":");
-
-                if (entry.Value is SortedDictionary<string, string> nestedDict)
-                {
-                    foreach (KeyValuePair<string, string> nestedEntry in nestedDict)
-                    {
-                        sb.Append(nestedEntry.Key);
-                        sb.Append("=");
-                        sb.Append(nestedEntry.Value);
-                        sb.Append(";");
-                    }
-                }
-                else
-                {
-                    sb.Append(entry.Value.ToString());
-                }
-
-                sb.Append(",");
-            }
-
-            return sb.ToString();
-        }
+        public const string AUTHORITY_IDENTITY = "heimdallr.odin.earth";
+        public const string JsonKeyIsHuman = "IsHuman";
+        public const string JsonKeyLegalName = "LegalName";
+        public const string JsonKeySubsetLegalName = "SubsetLegalName";
+        public const string JsonKeyResidentialAddress = "ResidentialAddress";
+        public const string JsonKeyEmailAddress = "EmailAddress";
+        public const string JsonKeyPhoneNumber = "PhoneNumber";
+        public const string JsonKeyBirthdate = "Birthdate";
+        public const string JsonKeyNationality = "Nationality";
 
         public static bool VerifyAttestation(SignedEnvelope attestation)
         {
@@ -51,7 +32,6 @@ namespace Odin.Core.Cryptography.Data
         private static SignedEnvelope Attestation(EccFullKeyData eccKey, SensitiveByteArray pwd, PunyDomainName identity, SortedDictionary<string, object> dataToAttest)
         {
             // There's something to sort out here
-            const string AUTHORITY_IDENTITY = "id.odin.earth";
             const string VERIFYURL = "https://heimdallr.odin.earth/api/v1/verify?prpt=$signature"; // Replace $signature with the signatureBase64 when calling
             const string ATTESTATIONTYPE_PERSONALINFO = "personalInfo";
             string USAGEPOLICY_URL = $"https://{identity.DomainName}/policies/attestation-usage-policy";
@@ -82,12 +62,13 @@ namespace Odin.Core.Cryptography.Data
             EnvelopeData.VerifyAdditionalInfoTypes(additionalInfo);
 
             SortedDictionary<string, object> data = (SortedDictionary<string, object>)additionalInfo["data"];
-            string doc = StringifyData(data);
+            string doc = EnvelopeData.StringifyData(data);
             byte[] content = doc.ToUtf8ByteArray();
 
-            // Create an Envelope for this document
-            var envelope = new EnvelopeData();
-            envelope.CalculateContentHash(content, CONTENTTYPE_ATTESTATION, additionalInfo);
+            // Create an Envelope for this document, we calculate the HASH based on the data attested
+            var envelope = new EnvelopeData(CONTENTTYPE_ATTESTATION, "");
+            envelope.SetAdditionalInfo(additionalInfo);
+            envelope.CalculateContentHash(content);
 
             // Create an identity and keys needed
             OdinId authorityIdentity = new OdinId(AUTHORITY_IDENTITY);
@@ -109,7 +90,7 @@ namespace Odin.Core.Cryptography.Data
         {
             var dataToAttest = new SortedDictionary<string, object>
             {
-                { "IsHuman", true }
+                { JsonKeyIsHuman, true }
             };
 
             return Attestation(eccKey, pwd, identity, dataToAttest);
@@ -120,7 +101,30 @@ namespace Odin.Core.Cryptography.Data
         {
             var dataToAttest = new SortedDictionary<string, object>
             {
-                { "LegalName", legalName }
+                { JsonKeyLegalName, legalName }
+            };
+
+            return Attestation(eccKey, pwd, identity, dataToAttest);
+        }
+
+        /// <summary>
+        /// A SubsetLegalName for personal names must include the full last name (surname) from the legal name 
+        /// and at least one other element (first name, middle name(s)) either in full or as an initial, excluding
+        /// trivial parts such as honorifics, prefixes, and suffixes.
+        /// Example, given a fulle name of "Sir Winston Leonard Spencer Churchill":
+        /// Valid: W. Churchill, Winston L. Churchill, W.L.S. Churchill, Leonard S. Churchill, Spencer Churchill, 
+        /// Leonard Spencer Churchill, Winston Leonard Spencer Churchill
+        /// </summary>
+        /// <param name="eccKey"></param>
+        /// <param name="pwd"></param>
+        /// <param name="identity"></param>
+        /// <param name="subsetLegalName"></param>
+        /// <returns></returns>
+        public static SignedEnvelope AttestSubsetLegalName(EccFullKeyData eccKey, SensitiveByteArray pwd, PunyDomainName identity, string subsetLegalName)
+        {
+            var dataToAttest = new SortedDictionary<string, object>
+            {
+                { JsonKeySubsetLegalName, subsetLegalName }
             };
 
             return Attestation(eccKey, pwd, identity, dataToAttest);
@@ -131,7 +135,7 @@ namespace Odin.Core.Cryptography.Data
         {
             var dataToAttest = new SortedDictionary<string, object>
             {
-                { "ResidentialAddress", address }
+                { JsonKeyResidentialAddress, address }
             };
 
             return Attestation(eccKey, pwd, identity, dataToAttest);
@@ -142,7 +146,7 @@ namespace Odin.Core.Cryptography.Data
         {
             var dataToAttest = new SortedDictionary<string, object>
             {
-                { "EmailAddress", emailAddress }
+                { JsonKeyEmailAddress, emailAddress }
             };
 
             return Attestation(eccKey, pwd, identity, dataToAttest);
@@ -153,18 +157,18 @@ namespace Odin.Core.Cryptography.Data
         {
             var dataToAttest = new SortedDictionary<string, object>
             {
-                { "PhoneNumber", phoneNumber }
+                { JsonKeyPhoneNumber, phoneNumber }
             };
 
             return Attestation(eccKey, pwd, identity, dataToAttest);
         }
 
         // This function attests to the birthdate of the owner of the OdinId.
-        public static SignedEnvelope AttestBirthdate(EccFullKeyData eccKey, SensitiveByteArray pwd, PunyDomainName identity, DateTime birthdate)
+        public static SignedEnvelope AttestBirthdate(EccFullKeyData eccKey, SensitiveByteArray pwd, PunyDomainName identity, DateOnly birthdate)
         {
             var dataToAttest = new SortedDictionary<string, object>
             {
-                { "Birthdate", birthdate }
+                { JsonKeyBirthdate, birthdate.ToString("yyyy-MM-dd") }
             };
 
             return Attestation(eccKey, pwd, identity, dataToAttest);
@@ -175,7 +179,7 @@ namespace Odin.Core.Cryptography.Data
         {
             var dataToAttest = new SortedDictionary<string, object>
             {
-                { "Nationality", nationality }
+                { JsonKeyNationality, nationality }
             };
 
             return Attestation(eccKey, pwd, identity, dataToAttest);
