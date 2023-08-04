@@ -21,9 +21,6 @@ namespace Odin.Core.Services.Authentication.YouAuth;
 public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 {
     private readonly IMemoryCache _codesAndTokens = new MemoryCache(new MemoryCacheOptions());
-    private readonly ConcurrentDictionary<string, string>
-        _authorizations = new(); // SEB:TODO this should go to the database instead
-
     private readonly IAppRegistrationService _appRegistrationService;
     private readonly OdinContextAccessor _contextAccessor;
     private readonly YouAuthDomainRegistrationService _domainRegistrationService;

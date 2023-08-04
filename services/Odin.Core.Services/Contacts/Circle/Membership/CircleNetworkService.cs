@@ -84,7 +84,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
         /// <summary>
         /// Tries to create caller and permission context for the given OdinId if is connected
         /// </summary>
-        public async Task<OdinContext?> TryCreateConnectedYouAuthContext(OdinId odinId, ClientAuthenticationToken authToken, AccessRegistration accessReg)
+        public async Task<OdinContext> TryCreateConnectedYouAuthContext(OdinId odinId, ClientAuthenticationToken authToken, AccessRegistration accessReg)
         {
             var icr = await GetIdentityConnectionRegistrationInternal(odinId);
             bool isValid = icr.AccessGrant?.IsValid() ?? false;

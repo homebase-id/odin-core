@@ -43,9 +43,7 @@ namespace Odin.Hosting.Authentication.Owner
             if (Request.Path.StartsWithSegments(OwnerApiPathConstants.YouAuthV1))
             {
                 var returnUrl = WebUtility.UrlEncode(Request.GetDisplayUrl());
-                // SEB:TODO constant?
-                //var loginUrl = $"{Request.Scheme}://{Request.Host}/owner/login/youauth?returnUrl={returnUrl}";
-                var loginUrl = $"{Request.Scheme}://{Request.Host}/owner/login?returnUrl={returnUrl}";
+                var loginUrl = $"{Request.Scheme}://{Request.Host}{OwnerFrontendPathConstants.Login}?returnUrl={returnUrl}";
                 Response.Redirect(loginUrl);
             }
             else

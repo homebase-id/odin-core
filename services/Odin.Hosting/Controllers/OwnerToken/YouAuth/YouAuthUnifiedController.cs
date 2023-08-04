@@ -31,9 +31,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
         }
 
         //
-        // Authorize
-        //
-        // OAUTH2 equivalent: https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow#request-an-authorization-code
+        // Authorize (GET)
         //
 
         [HttpGet(OwnerApiPathConstants.YouAuthV1Authorize)] // "authorize"
@@ -43,7 +41,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             // Step [030] Get authorization code
             // Validate parameters
             //
-            authorize.Validate(); // SEB:TODO call ModelState.IsValid instead
+
+            authorize.Validate();
             if (!Uri.TryCreate(authorize.RedirectUri, UriKind.Absolute, out var redirectUri))
             {
                 throw new BadRequestException(message: $"Bad {YouAuthAuthorizeRequest.RedirectUriName} '{authorize.RedirectUri}'");
@@ -62,6 +61,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 {
                     throw new BadRequestException(message: $"Bad {YouAuthAuthorizeRequest.PermissionRequestName}");
                 }
+
                 // SEB:TODO validate all params
                 authorize.ClientInfo = appParams.ClientFriendly;
             }
@@ -95,8 +95,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                     // var appRegisterPage =
                     //     $"{Request.Scheme}://{Request.Host}/owner/appreg?n=Odin%20-%20Photos&o=dev.dotyou.cloud%3A3005&appId=32f0bdbf-017f-4fc0-8004-2d4631182d1e&fn=Firefox%20%7C%20macOS&return=https%3A%2F%2Fdev.dotyou.cloud%3A3005%2Fauth%2Ffinalize%3FreturnUrl%3D%252F%26&d=%5B%7B%22a%22%3A%226483b7b1f71bd43eb6896c86148668cc%22%2C%22t%22%3A%222af68fe72fb84896f39f97c59d60813a%22%2C%22n%22%3A%22Photo%20Library%22%2C%22d%22%3A%22Place%20for%20your%20memories%22%2C%22p%22%3A3%7D%5D&pk=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA21Hd52i8IyhMbhR9EXM0iRRI5bD7Su5MpK5WmczEEK6p%2FAAqLPPHJsreYpQHBOchd1cOTlwj4C257gRI3S2jTkI%2Fjny2u0ShzXiGr8%2BgwgmhWQYPua3QJyf4FnWFDvNO70Vw7jIe2PfSEw%2FoW718Yq1fR%2FiRasYLbzFuApwMYi%2BiD75tgIeDBnMMdgmo9JqoUq2XP5y4j4IVenVjLQqtFJezINiJQjUe2KatlofweVrYfhs3BDoJ8bdLSbGfy413QRd%2BhE4UTebi%2FQxSdAwO4Fy82%2FyKIi80qnK%2FF4qFE3q60cBTULI826cSryAulA7xOe%2B5qbyAOYh76OsICegotwIDAQAB";
 
-                    // SEB:TODO use path const from..?
-                    var appRegisterPage = $"{Request.Scheme}://{Request.Host}/owner/appreg?{appParams.ToQueryString()}";
+                    var appRegisterPage =
+                        $"{Request.Scheme}://{Request.Host}{OwnerFrontendPathConstants.AppReg}?{appParams.ToQueryString()}";
 
                     return Redirect(appRegisterPage);
                 }
@@ -115,8 +115,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             {
                 var returnUrl = WebUtility.UrlEncode(Request.GetDisplayUrl());
 
-                // SEB:TODO use path const from..?
-                var consentPage = $"{Request.Scheme}://{Request.Host}/owner/youauth/consent?returnUrl={returnUrl}";
+                var consentPage =
+                    $"{Request.Scheme}://{Request.Host}{OwnerFrontendPathConstants.Consent}?returnUrl={returnUrl}";
                 return Redirect(consentPage);
             }
 
@@ -155,6 +155,10 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
 
         //
 
+        //
+        // Authorize (POST)
+        //
+
         [HttpPost(OwnerApiPathConstants.YouAuthV1Authorize)] // "authorize"
         public async Task<ActionResult> Consent(
             [FromForm(Name = YouAuthAuthorizeConsentGiven.ReturnUrlName)]
@@ -163,46 +167,47 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             // SEB:TODO CSRF ValidateAntiForgeryToken
             
             //
-            //
             // [055] Give consent and redirect back
             //
+
             if (!Uri.TryCreate(returnUrl, UriKind.Absolute, out var returnUri))
             {
                 throw new BadRequestException(message: $"Bad {YouAuthAuthorizeConsentGiven.ReturnUrlName} '{returnUrl}'");
             }
 
-            // Sanity 
+            // Sanity #1
             if (returnUri.Host != Request.Host.ToString())
             {
                 throw new BadRequestException("Host mismatch");
             }
 
+            // Sanity #2
+            if (returnUri.AbsolutePath != Request.Path)
+            {
+                throw new BadRequestException("Path mismatch");
+            }
+
             var authorize = YouAuthAuthorizeRequest.FromQueryString(returnUri.Query);
             
-            //TODO: this seems to be missing here (since it's done earlier in the process)?
-            // If we're authorizing a domain, overwrite ClientId with domain name
-            // if (authorize.ClientType == ClientType.domain)
-            // {
-            //     authorize.ClientId = redirectUri.Host;
-            // }
-
             authorize.Validate();
             
             await _youAuthService.StoreConsent(authorize.ClientId, authorize.PermissionRequest);
 
+            // Redirect back to authorize
             return Redirect(returnUrl);
         }
 
+        //
+
+        //
+        // Token (POST)
         //
 
         [HttpPost(OwnerApiPathConstants.YouAuthV1Token)] // "token"
         [Produces("application/json")]
         public async Task<ActionResult<YouAuthTokenResponse>> Token([FromBody] YouAuthTokenRequest tokenRequest)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
+            tokenRequest.Validate();
 
             //
             // [110] Exchange auth code for access token
@@ -218,7 +223,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 return Unauthorized();
             }
             
-            //SEB TODO: ECC encrypt response
+            // SEB:TODO ECC encrypt response
 
             //
             // [140] Return client access token to client

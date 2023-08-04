@@ -80,7 +80,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var loginUri = new Uri(location);
                 Assert.That(loginUri.Scheme, Is.EqualTo("https"));
                 Assert.That(loginUri.Host, Is.EqualTo($"{hobbit}"));
-                Assert.That(loginUri.AbsolutePath, Is.EqualTo("/owner/login"));
+                Assert.That(loginUri.AbsolutePath, Is.EqualTo(OwnerFrontendPathConstants.Login));
 
                 // ... ?returnUrl= ...
                 var qs = YouAuthTestHelper.ParseQueryString(location);
@@ -160,7 +160,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var consentUri = new Uri(location);
                 Assert.That(consentUri.Scheme, Is.EqualTo("https"));
                 Assert.That(consentUri.Host, Is.EqualTo($"{hobbit}"));
-                Assert.That(consentUri.AbsolutePath, Is.EqualTo("/owner/youauth/consent"));
+                Assert.That(consentUri.AbsolutePath, Is.EqualTo(OwnerFrontendPathConstants.Consent));
 
                 // ... ?returnUrl= ...
                 var qs = YouAuthTestHelper.ParseQueryString(location);
@@ -259,7 +259,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var appRegUri = new Uri(location);
                 Assert.That(appRegUri.Scheme, Is.EqualTo("https"));
                 Assert.That(appRegUri.Host, Is.EqualTo($"{hobbit}"));
-                Assert.That(appRegUri.AbsolutePath, Is.EqualTo("/owner/appreg"));
+                Assert.That(appRegUri.AbsolutePath, Is.EqualTo(OwnerFrontendPathConstants.AppReg));
 
                 // ... YouAuthAppParameters
                 var appComponents = YouAuthAppParameters.FromQueryString(appRegUri.Query);
@@ -362,7 +362,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var consentUri = new Uri(location);
                 Assert.That(consentUri.Scheme, Is.EqualTo("https"));
                 Assert.That(consentUri.Host, Is.EqualTo($"{hobbit}"));
-                Assert.That(consentUri.AbsolutePath, Is.EqualTo("/owner/youauth/consent"));
+                Assert.That(consentUri.AbsolutePath, Is.EqualTo(OwnerFrontendPathConstants.Consent));
 
                 // ... ?returnUrl= ...
                 var qs = YouAuthTestHelper.ParseQueryString(location);
@@ -441,7 +441,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var consentUri = new Uri(location);
                 Assert.That(consentUri.Scheme, Is.EqualTo("https"));
                 Assert.That(consentUri.Host, Is.EqualTo($"{hobbit}"));
-                Assert.That(consentUri.AbsolutePath, Is.EqualTo("/owner/youauth/consent"));
+                Assert.That(consentUri.AbsolutePath, Is.EqualTo(OwnerFrontendPathConstants.Consent));
 
                 // ... ?returnUrl= ...
                 var qs = YouAuthTestHelper.ParseQueryString(location);
@@ -654,7 +654,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var consentUri = new Uri(location);
                 Assert.That(consentUri.Scheme, Is.EqualTo("https"));
                 Assert.That(consentUri.Host, Is.EqualTo($"{hobbit}"));
-                Assert.That(consentUri.AbsolutePath, Is.EqualTo("/owner/youauth/consent"));
+                Assert.That(consentUri.AbsolutePath, Is.EqualTo(OwnerFrontendPathConstants.Consent));
 
                 // ... ?returnUrl= ...
                 var qs = YouAuthTestHelper.ParseQueryString(location);
@@ -1016,7 +1016,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var consentUri = new Uri(location);
                 Assert.That(consentUri.Scheme, Is.EqualTo("https"));
                 Assert.That(consentUri.Host, Is.EqualTo($"{hobbit}"));
-                Assert.That(consentUri.AbsolutePath, Is.EqualTo("/owner/youauth/consent"));
+                Assert.That(consentUri.AbsolutePath, Is.EqualTo(OwnerFrontendPathConstants.Consent));
 
                 // ... ?returnUrl= ...
                 var qs = YouAuthTestHelper.ParseQueryString(location);
@@ -1173,7 +1173,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var consentUri = new Uri(location);
                 Assert.That(consentUri.Scheme, Is.EqualTo("https"));
                 Assert.That(consentUri.Host, Is.EqualTo($"{hobbit}"));
-                Assert.That(consentUri.AbsolutePath, Is.EqualTo("/owner/youauth/consent"));
+                Assert.That(consentUri.AbsolutePath, Is.EqualTo(OwnerFrontendPathConstants.Consent));
 
                 // ... ?returnUrl= ...
                 var qs = YouAuthTestHelper.ParseQueryString(location);

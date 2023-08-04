@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Web;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Exceptions.Client;
@@ -8,7 +10,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth;
 
 #nullable enable
 
-public class YouAuthAuthorizeRequest
+public sealed class YouAuthAuthorizeRequest
 {
     public const string RedirectUriName = "redirect_uri";
     [BindProperty(Name = RedirectUriName, SupportsGet = true)]
@@ -95,10 +97,9 @@ public class YouAuthAuthorizeRequest
             permissionRequest: qs[PermissionRequestName] ?? string.Empty,
             clientInfo: qs[ClientInfoName] ?? string.Empty);
     }
-    
-    //
 
-    // SEB:TODO implement IValidatableObject instead of below
+    //
+    
     public void Validate()
     {
         if (ClientType != ClientType.app && ClientType != ClientType.domain)

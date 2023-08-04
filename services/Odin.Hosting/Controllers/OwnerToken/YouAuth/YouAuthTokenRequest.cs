@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using Odin.Core.Exceptions.Client;
 using Odin.Core.Services.Authentication.YouAuth;
 using NotImplementedException = System.NotImplementedException;
 
@@ -8,7 +9,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth;
 
 #nullable enable
 
-public class YouAuthTokenRequest : IValidatableObject
+public class YouAuthTokenRequest
 {
     public const string CodeName = "code";
     [JsonPropertyName(CodeName)]
@@ -25,11 +26,13 @@ public class YouAuthTokenRequest : IValidatableObject
     [Required(ErrorMessage = $"{TokenDeliveryOptionName} is required")]
     public TokenDeliveryOption TokenDeliveryOption { get; set; } = TokenDeliveryOption.unknown;
 
-    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    //
+
+    public void Validate()
     {
         if (TokenDeliveryOption != TokenDeliveryOption.json && TokenDeliveryOption != TokenDeliveryOption.cookie)
         {
-            yield return new ValidationResult($"{TokenDeliveryOptionName} is invalid {TokenDeliveryOption}");
+            throw new BadRequestException($"{TokenDeliveryOptionName} is invalid {TokenDeliveryOption}");
         }
     }
 }
