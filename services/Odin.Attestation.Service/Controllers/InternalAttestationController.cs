@@ -263,7 +263,7 @@ namespace OdinsAttestation.Controllers
             SignedEnvelope? requestEnvelope;
             try
             {
-                requestEnvelope = RequestSignedEnvelope.VerifyRequestEnvelope(r.requestEnvelope);
+                requestEnvelope = InstructionSignedEnvelope.VerifyInstructionEnvelope(r.requestEnvelope);
             }
             catch (Exception ex)
             {
@@ -289,12 +289,16 @@ namespace OdinsAttestation.Controllers
             var jsonArray = JsonSerializer.Serialize(jsonList);
 
             //
-            // Now call identity and deliver the attested data
+            // Now call an identity endpoint to deliver the attested data (json array)
             //
-
-            // This is the code I need to build next
             SimulateFrodo.GetDeliverAttestations(jsonArray);
 
+
+            //
+            //
+            // MAYBE ADD NONCE TO THE AttestationRequestTable
+            //
+            //
 
             using (_db.CreateCommitUnitOfWork())
             {

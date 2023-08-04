@@ -1,5 +1,10 @@
-﻿using Odin.Core;
+﻿using Microsoft.AspNetCore.Mvc;
+using Odin.Core;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Cryptography.Signatures;
+using Odin.Core.Util;
+using OdinsChains.Controllers;
+using System.Security.Principal;
 
 namespace Odin.KeyChain
 {
@@ -7,17 +12,59 @@ namespace Odin.KeyChain
     {
         private static SensitiveByteArray _pwd;
         private static EccFullKeyData _ecc;
+        private static PunyDomainName _identity; 
 
         static SimulateFrodo()
         {
             _pwd = Guid.Empty.ToByteArray().ToSensitiveByteArray();
             _ecc = new EccFullKeyData(_pwd, 1);
+            _identity = new PunyDomainName("frodobaggins.me");
         }
 
-        public static void GenerateNewKeys()
+        public static void SaveLocally(string nonceBase64)
         {
-            _pwd = Guid.Empty.ToByteArray().ToSensitiveByteArray();
-            _ecc = new EccFullKeyData(_pwd, 1);
+            // Save nonce in Frodo's database, the nonce could easily be the key
+            // Dont think we need to store the whole signed doc
+        }
+
+
+        // This creates a "Key Registration" instruction
+        public static SignedEnvelope InstructionEnvelope()
+        {
+            return InstructionSignedEnvelope.CreateInstructionKeyRegistration(_ecc, _pwd, _identity, null);
+        }
+
+        // This is how Frodo initiates a request for registering his public key
+        // with the Odin Key Chain. Ignore the "web api" parameter
+        public async static Task<IActionResult> InitiateRequestForKeyRegistration(RegisterKeyController webApi)
+        {
+            // First Frodo generates a smart contract request object
+            // This is the function Frodo calls internally to generate a request
+            // Here we write all the attributes we want attested
+
+            var signedInstruction = InstructionEnvelope();
+            var signedInstructionJson = signedInstruction.GetCompactSortedJson();
+
+            // @Todd then you save it in the IdentityDatabase
+            // identityDb.tblKkeyValue.Upsert(CONST_SIGNATURE_TEMPCODE_ID, tempCode);
+
+            // @Todd then you call out over HTTPS to request it
+            var r1 = await webApi.GetRegister("frodo.baggins.me", signedInstructionJson);
+
+            // Check it got received OK
+            var objectResult = r1 as ObjectResult;
+            if (objectResult != null)
+            {
+                int statusCode = objectResult.StatusCode ?? 0;
+                if (statusCode != StatusCodes.Status200OK)
+                    throw new Exception("Unable to register request");
+            }
+
+            SaveLocally(signedInstruction.Envelope.ContentNonce.ToBase64());
+
+            // Frodo is Done sending his request
+
+            return r1;
         }
 
         // Todd this is the function on an identity that should return Frodo's public (signature) key (ECC)

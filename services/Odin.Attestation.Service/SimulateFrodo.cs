@@ -2,6 +2,8 @@
 using Odin.Core.Util;
 using Odin.Core.Cryptography.Signatures;
 using Odin.Core.Cryptography.Data;
+using System.Text.Json.Nodes;
+using System.Text.Json;
 
 namespace OdinsAttestation
 {
@@ -32,9 +34,54 @@ namespace OdinsAttestation
             return _ecc.publicDerBase64();
         }
 
-        public static int GetDeliverAttestations(string attestations)
+        // Todd this is the endpoint on an identity that receives a jsonArray of attestations (signedEnvelopes)
+        public static void GetDeliverAttestations(string attestationListJsonArray)
         {
-            return 200;
+            if (attestationListJsonArray == null)
+                throw new ArgumentNullException(nameof(attestationListJsonArray));
+
+            List<string>? jsonList;
+
+            try
+            {
+                jsonList = JsonSerializer.Deserialize<List<string>>(attestationListJsonArray);
+            }
+            catch (Exception ex) 
+            {
+                throw new Exception($"Unable to deserialize attestation list {ex.Message}");
+            }
+
+            if (jsonList == null)
+                throw new Exception("The resulting deserialized json array is null");
+
+            List<SignedEnvelope> attestationList;
+            try
+            {
+                attestationList = jsonList.Select(json => JsonSerializer.Deserialize<SignedEnvelope>(json)!).ToList();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Unable to deserialize the array {ex.Message}");
+            }
+
+
+            // Verify the validitiy of the signatures and the signatory
+            //
+            for (int i = 0; i < attestationList.Count; i++)
+            {
+                if (attestationList[i].VerifyEnvelopeSignatures() == false)
+                    throw new Exception($"Unable to verify signature for element {i}");
+
+                if (attestationList[i].Signatures[0].Identity != AttestationManagement.AUTHORITY_IDENTITY)
+                    throw new Exception($"Incorrect signer {attestationList[i]!.Signatures[0].Identity} expected {AttestationManagement.AUTHORITY_IDENTITY}");
+            }
+
+            // Now we store these as N data profile attestation properties
+            // 
+            for (int i = 0; i < attestationList.Count; i++)
+            {
+                // Store it
+            }
         }
 
 
@@ -43,7 +90,7 @@ namespace OdinsAttestation
         {
             // We create an empty envelope with a contentType of "request"
             //
-            var signedEnvelope = RequestSignedEnvelope.CreateRequestAttestation(_ecc, _pwd, new PunyDomainName(Identity), dataToAtttest);
+            var signedEnvelope = InstructionSignedEnvelope.CreateInstructionAttestation(_ecc, _pwd, new PunyDomainName(Identity), dataToAtttest);
 
             return signedEnvelope;
         }

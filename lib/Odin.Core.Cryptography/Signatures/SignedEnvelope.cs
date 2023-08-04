@@ -98,6 +98,10 @@ namespace Odin.Core.Cryptography.Signatures
             Signatures = Signatures.OrderBy(s => s.TimeStamp.milliseconds).ToList();
         }
 
+        /// <summary>
+        /// Verifies all signatures within the envelope
+        /// </summary>
+        /// <returns>true is OK, false if not verified</returns>
         public bool VerifyEnvelopeSignatures()
         {
             foreach (var signature in Signatures)

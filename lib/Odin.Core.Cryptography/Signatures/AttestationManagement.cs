@@ -12,6 +12,7 @@ namespace Odin.Core.Cryptography.Signatures
 {
     public class AttestationManagement
     {
+        public const string AUTHORITY_IDENTITY = "heimdallr.odin.earth";
         public const string JsonKeyIsHuman = "IsHuman";
         public const string JsonKeyLegalName = "LegalName";
         public const string JsonKeySubsetLegalName = "SubsetLegalName";
@@ -31,7 +32,6 @@ namespace Odin.Core.Cryptography.Signatures
         private static SignedEnvelope Attestation(EccFullKeyData eccKey, SensitiveByteArray pwd, PunyDomainName identity, SortedDictionary<string, object> dataToAttest)
         {
             // There's something to sort out here
-            const string AUTHORITY_IDENTITY = "heimdallr.odin.earth";
             const string VERIFYURL = "https://heimdallr.odin.earth/api/v1/verify?prpt=$signature"; // Replace $signature with the signatureBase64 when calling
             const string ATTESTATIONTYPE_PERSONALINFO = "personalInfo";
             string USAGEPOLICY_URL = $"https://{identity.DomainName}/policies/attestation-usage-policy";
@@ -66,9 +66,9 @@ namespace Odin.Core.Cryptography.Signatures
             byte[] content = doc.ToUtf8ByteArray();
 
             // Create an Envelope for this document, we calculate the HASH based on the data attested
-            var envelope = new EnvelopeData();
+            var envelope = new EnvelopeData(CONTENTTYPE_ATTESTATION, "");
             envelope.SetAdditionalInfo(additionalInfo);
-            envelope.CalculateContentHash(content, CONTENTTYPE_ATTESTATION);
+            envelope.CalculateContentHash(content);
 
             // Create an identity and keys needed
             OdinId authorityIdentity = new OdinId(AUTHORITY_IDENTITY);

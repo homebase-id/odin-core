@@ -88,7 +88,7 @@ namespace OdinsAttestation.Controllers
             SignedEnvelope? signedEnvelope;
             try
             {
-                signedEnvelope = RequestSignedEnvelope.VerifyRequestEnvelope(requestSignedEnvelope);
+                signedEnvelope = InstructionSignedEnvelope.VerifyInstructionEnvelope(requestSignedEnvelope);
             }
             catch (Exception  ex)
             {

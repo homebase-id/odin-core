@@ -18,9 +18,11 @@ namespace Odin.Core.Cryptography.Signatures
     /// </summary>
     public class EnvelopeData
     {
-        public const string ContentTypeAttestation = "attestation";
-        public const string ContentTypeRequest = "request";
-        public const string ContentTypeDocument = "document";
+        public const string EnvelopeTypeDocument = "document";       // A document
+        public const string EnvelopeTypeContract = "contract";       // A contract between seveal parties
+        public const string EnvelopeTypeAttestation = "attestation"; // An attestation, e.g. attesting legal name.
+        public const string EnvelopeTypeInstruction = "instruction"; // Instruction to have something carried out
+        public const string EnvelopeTypeSmartContract = "smart contract"; // A smart contract
 
 
         [JsonPropertyOrder(1)]
@@ -39,21 +41,39 @@ namespace Odin.Core.Cryptography.Signatures
         public string ContentHashAlgorithm { get; set; }
 
         /// <summary>
-        /// ContentType should be one of the constants ContentType... above. More to come.
+        /// EnvelopeType should be one of the constants EnvelopeType... above. More to come.
         /// </summary>
         [JsonPropertyOrder(6)]
-        public string ContentType { get; set; }
+        public string EnvelopeType { get; set; }
 
         [JsonPropertyOrder(7)]
-        public UnixTimeUtc TimeStamp { get; set; }
+        public string EnvelopeSubType { get; set; }
 
         [JsonPropertyOrder(8)]
+        public UnixTimeUtc TimeStamp { get; set; }
+
+        [JsonPropertyOrder(9)]
         public SortedDictionary<string, object> AdditionalInfo { get; set; } // I had to drop checking validity here, too much trouble
 
 
         public EnvelopeData()
         {
-            // Default constructor for restoring via DB
+            // Default constructor for restoring via DB or deserializing
+        }
+
+        /// <summary>
+        /// Constructor to use.
+        /// After construction, possibly SetAdditionalInfo() and then finally remember to use CalculateContentHash()
+        /// even if you have an empty document
+        /// </summary>
+        /// <param name="envelopeType"></param>
+        /// <param name="envelopeSubType"></param>
+        public EnvelopeData(string envelopeType, string envelopeSubType)
+        {
+            EnvelopeType = envelopeType;
+            EnvelopeSubType = envelopeSubType;
+            TimeStamp = UnixTimeUtc.Now();
+            ContentNonce = ByteArrayUtil.GetRndByteArray(32);
         }
 
 
@@ -91,6 +111,10 @@ namespace Odin.Core.Cryptography.Signatures
                     sb.Append("{");
                     sb.Append(StringifyData(nestedDict));
                     sb.Append("}");
+                }
+                else if (entry.Value == null)
+                {
+                    sb.Append("null");
                 }
                 else
                 {
@@ -245,18 +269,19 @@ namespace Odin.Core.Cryptography.Signatures
         /// <param name="additionalInfo">Additional relevant information for the content. This could be metadata like 'author', 'title', etc.</param>
         /// <exception cref="ArgumentNullException">Thrown when the content stream is null.</exception>
         /// <exception cref="ArgumentException">Thrown when an invalid type is present in AdditionalInfo.</exception>
-        public void CalculateContentHash(Stream content, string contentType)
+        public void CalculateContentHash(Stream content)
         {
             if (content == null)
                 throw new ArgumentNullException(nameof(content));
 
-            if (ContentNonce != null)
+            if (ContentNonce == null)
+                throw new Exception("Was the constructor used incorrectly?");
+
+            if (ContentHash != null)
                 throw new Exception("You already calculated the content hash");
 
-            ContentNonce = ByteArrayUtil.GetRndByteArray(32);
             (ContentHash, ContentLength) = HashUtil.StreamSHA256(content, ContentNonce);
             ContentHashAlgorithm = HashUtil.SHA256Algorithm;
-            ContentType = contentType;
             TimeStamp = UnixTimeUtc.Now();
         }
 
@@ -266,14 +291,14 @@ namespace Odin.Core.Cryptography.Signatures
         /// <param name="documentFilename"></param>
         /// <param name="additionalInfo">For example, "author", "title", whatever is important for the document</param>
         /// <exception cref="ArgumentNullException"></exception>
-        public void CalculateContentHash(string contentFileName, string contentType)
+        public void CalculateContentHash(string contentFileName)
         {
             if (string.IsNullOrEmpty(contentFileName))
                 throw new ArgumentNullException(nameof(contentFileName));
 
             using (var fileStream = File.OpenRead(contentFileName))
             {
-                CalculateContentHash(fileStream, contentType);
+                CalculateContentHash(fileStream);
             }
         }
 
@@ -283,14 +308,14 @@ namespace Odin.Core.Cryptography.Signatures
         /// <param name="content"></param>
         /// <param name="additionalInfo"></param>
         /// <exception cref="ArgumentNullException"></exception>
-        public void CalculateContentHash(byte[] content, string contentType)
+        public void CalculateContentHash(byte[] content)
         {
             if (content == null)
                 throw new ArgumentNullException(nameof(content));
 
             using (var memoryStream = new MemoryStream(content))
             {
-                CalculateContentHash(memoryStream, contentType);
+                CalculateContentHash(memoryStream);
             }
         }
     }

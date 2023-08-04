@@ -11,6 +11,9 @@ using Odin.Core.Time;
 using Microsoft.Data.Sqlite;
 using Odin.KeyChain;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Cryptography.Signatures;
+using System.Security.Principal;
+using System.Text.Json;
 
 namespace OdinsChains.Controllers
 {
@@ -32,38 +35,24 @@ namespace OdinsChains.Controllers
         }
 
 
+#if DEBUG
         /// <summary>
-        /// This simulates that an identity requests it's signature key to be added to the block chain
+        /// This simulates that an identity requests it's signature key to be added to the block chain.
+        /// Remove from code in production.
         /// </summary>
         /// <returns></returns>
         [HttpGet("Simulator")]
         public async Task<IActionResult> GetSimulator()
         {
-            // @Todd first you generate a random temp code
-            var tempCode = ByteArrayUtil.GetRndByteArray(32);
-
-            // @Todd then you save it in the IdentityDatabase
-            // identityDb.tblKkeyValue.Upsert(CONST_SIGNATURE_TEMPCODE_ID, tempCode);
-
-            // @Todd then you call out over HTTPS to request it
-            var r1 = await GetRegister("frodo.baggins.me", Convert.ToBase64String(tempCode));
-
-            // If it's OK 200, then you're done.
-            // Done.
-
-
-            // Do another hacky one for testing
-            SimulateFrodo.GenerateNewKeys();
-            var r2 = await GetRegister("samwise.gamgee.me", Convert.ToBase64String("some temp code from Sam's server".ToUtf8ByteArray()));
-
-            if (BlockChainDatabaseUtil.VerifyEntireBlockChain(_db) == false)
-            {
-                return Problem("Fenris broke the chain");
-            }
-
-            return r2;
+            return await SimulateFrodo.InitiateRequestForKeyRegistration(this);
         }
+#endif
 
+        /// <summary>
+        /// This service takes an identity as parameter and returns the age of the identity
+        /// </summary>
+        /// <param name="identity">An Odin identity</param>
+        /// <returns>200 and seconds since Unix Epoch if successful, or NotFound or BadRequest</returns>
         [HttpGet("Verify")]
         public IActionResult GetVerify(string identity)
         {
@@ -87,6 +76,12 @@ namespace OdinsChains.Controllers
         }
 
 
+        /// <summary>
+        /// This service takes an identity and it's public key as parameter and checks if it exists.
+        /// </summary>
+        /// <param name="identity"></param>
+        /// <param name="publicKeyDerBase64"></param>
+        /// <returns>200 OK and key age in seconds since Unix Epoch, or Bad Request or Not Found</returns>
         [HttpGet("VerifyKey")]
         public IActionResult GetVerifyKey(string identity, string publicKeyDerBase64)
         {
@@ -124,7 +119,9 @@ namespace OdinsChains.Controllers
 
 
         /// <summary>
-        /// 010. Client calls Server.RegisterKey(identity, tempcode)
+        /// 005. Client calls Server.RegisterKey(identity, signedInstruction)
+        /// 010. Deserialize the json into a signedEnvelope
+        /// 015. Verify the envelope
         /// 020. Server calls Client.GetPublicKey() to get signature key
         /// 030. Server calls Client.SignNonce(tempcode, previousHash)
         /// 033. Client returns signedNonce
@@ -137,11 +134,13 @@ namespace OdinsChains.Controllers
         /// 090. Server frees semaphore
         /// </summary>
         /// <param name="identity"></param>
-        /// <param name="tempCode"></param>
+        /// <param name="signedInstructionEnvelopeJson"></param>
         /// <returns></returns>
         [HttpGet("Register")]
-        public async Task<IActionResult> GetRegister(string identity, string tempCode)
+        public async Task<IActionResult> GetRegister(string identity, string signedInstructionEnvelopeJson)
         {
+            // 05. Initialize and ensure high level integrity
+            //
             PunyDomainName domain;
             try
             {
@@ -152,12 +151,36 @@ namespace OdinsChains.Controllers
                 return BadRequest("Invalid identity, not a proper puny-code domain name");
             }
 
-            if ((tempCode.Length < 16) || (tempCode.Length > 64))
+            if ((signedInstructionEnvelopeJson.Length < 10) || (signedInstructionEnvelopeJson.Length > 65000))
             {
-                return BadRequest("Invalid temp-code, needs to be [16..64] characters");
+                return BadRequest("Invalid envelope, needs to be [10..65000] characters");
             }
 
 
+            SignedEnvelope? signedEnvelope;
+
+            // 10. Deserialize the JSON
+            //
+            try
+            {
+                signedEnvelope = JsonSerializer.Deserialize<SignedEnvelope>(signedInstructionEnvelopeJson);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"{ex.Message}");
+            }
+
+            if (signedEnvelope == null)
+                return BadRequest($"Unable to deserialize envelope");
+
+            // 015. Verify envelope
+            if (signedEnvelope.Envelope.EnvelopeType != EnvelopeData.EnvelopeTypeInstruction)
+                return BadRequest($"Envelope type must be {EnvelopeData.EnvelopeTypeInstruction}");
+            if (signedEnvelope.Envelope.EnvelopeSubType != InstructionSignedEnvelope.ENVELOPE_SUB_TYPE_KEY_REGISTRATION)
+                return BadRequest($"Instruction envelope subtype must be {InstructionSignedEnvelope.ENVELOPE_SUB_TYPE_KEY_REGISTRATION}");
+
+            // Begin building a block chain records to insert...
+            //
             var newRecordToInsert = BlockChainDatabaseUtil.NewBlockChainRecord();
 
             newRecordToInsert.identity = identity;
@@ -193,14 +216,17 @@ namespace OdinsChains.Controllers
                 return BadRequest($"Getting the public key of [api.{domain.DomainName}] failed: {e.Message}");
             }
 
-            // 1a. Got a request to register a key, get the previous hash and get it signed
-            //     We need to lock here, so that each request is serialized
+            // Validate that the public key is the same in the request
+            if (ByteArrayUtil.EquiByteArrayCompare(signedEnvelope.Signatures[0].PublicKeyDer, publicKey.publicKey) == false)
+                return BadRequest($"The public key of [{domain.DomainName}] didn't match the public key in the instruction envelope");
 
-            newRecordToInsert.publicKey = publicKey.publicKey; // DER encoded
+
+            // Add the public key DER to the block chain record
+            newRecordToInsert.publicKey = publicKey.publicKey;
 
 
-            // 030. Sign nonce
-
+            // 030. Create the nonce we want to sign
+            //
             newRecordToInsert.nonce = ByteArrayUtil.GetRndByteArray(32);
 
             try
@@ -209,7 +235,7 @@ namespace OdinsChains.Controllers
 
                 if (_simulate)
                 {
-                    signedNonceBase64 = SimulateFrodo.SignNonceForKeyChain(newRecordToInsert.nonce.ToBase64(), tempCode);
+                    signedNonceBase64 = SimulateFrodo.SignNonceForKeyChain(newRecordToInsert.nonce.ToBase64(), signedEnvelope.Envelope.ContentNonce.ToBase64());
                 }
                 else
                 {

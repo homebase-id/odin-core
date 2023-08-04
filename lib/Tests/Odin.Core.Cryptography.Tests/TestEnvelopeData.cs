@@ -32,9 +32,9 @@ namespace Odin.Tests
             var additionalInfo = new SortedDictionary<string, object> { { "title", "test document" }, { "serialno", 42 } };
 
             // Create an Envelope for this document
-            var envelope = new EnvelopeData();
+            var envelope = new EnvelopeData("test", "");
             envelope.SetAdditionalInfo(additionalInfo);
-            envelope.CalculateContentHash(document, "test");
+            envelope.CalculateContentHash(document);
 
             // Create an identity and keys needed
             OdinId testIdentity = new OdinId("odin.valhalla.com");
@@ -125,11 +125,11 @@ namespace Odin.Tests
             // Arrange
             byte[] document = new byte[] { 1, 2, 3, 4, 5 };
             var additionalInfo = new SortedDictionary<string, object> { { "title", "test document" }, { "serialno", 7 } };
-            var envelope = new EnvelopeData();
+            var envelope = new EnvelopeData("test", "");
 
             // Act
             envelope.SetAdditionalInfo(additionalInfo);
-            envelope.CalculateContentHash(document, "test");
+            envelope.CalculateContentHash(document);
 
             // Assert
             Assert.IsNotNull(envelope.ContentHash);
@@ -145,10 +145,10 @@ namespace Odin.Tests
         {
             // Arrange
             byte[] document = new byte[] { 1, 2, 3, 4, 5 };
-            var envelope = new EnvelopeData();
+            var envelope = new EnvelopeData("test", "");
 
             // Act
-            envelope.CalculateContentHash(document, "test");
+            envelope.CalculateContentHash(document);
 
             // Assert
             Assert.IsNotNull(envelope.ContentHash);
@@ -166,11 +166,11 @@ namespace Odin.Tests
             string fileName = Path.GetTempFileName();
             File.WriteAllBytes(fileName, new byte[] { 1, 2, 3, 4, 5 });
             var additionalInfo = new SortedDictionary<string, object> { { "title", "test document" }, { "author", "Odin" } };
-            var envelope = new EnvelopeData();
+            var envelope = new EnvelopeData("test", "");
 
             // Act
             envelope.SetAdditionalInfo(additionalInfo);
-            envelope.CalculateContentHash(fileName, "test");
+            envelope.CalculateContentHash(fileName);
 
             // Assert
             Assert.IsNotNull(envelope.ContentHash);

@@ -3,6 +3,7 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Identity;
 using Odin.Core.Time;
 using Odin.Core.Util;
+using Org.BouncyCastle.Asn1;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -12,18 +13,21 @@ using System.Text.Json;
 
 namespace Odin.Core.Cryptography.Signatures
 {
-    public class RequestSignedEnvelope
+    public class InstructionSignedEnvelope
     {
-        public static SignedEnvelope VerifyRequestEnvelope(string requestSignedEnvelope)
+        public const string ENVELOPE_SUB_TYPE_ATTESTATION = "attestation";
+        public const string ENVELOPE_SUB_TYPE_KEY_REGISTRATION = "key registration";
+
+        public static SignedEnvelope VerifyInstructionEnvelope(string instructionSignedEnvelope)
         {
-            if (requestSignedEnvelope.Length < 10)
+            if (instructionSignedEnvelope.Length < 10)
                 throw new ArgumentException("Too small, expecting an ODIN signed envelope JSON");
 
             SignedEnvelope signedEnvelope;
 
             try
             {
-                signedEnvelope = SignedEnvelope.Deserialize(requestSignedEnvelope);
+                signedEnvelope = SignedEnvelope.Deserialize(instructionSignedEnvelope);
             }
             catch (Exception ex)
             {
@@ -44,7 +48,7 @@ namespace Odin.Core.Cryptography.Signatures
                 throw new ArgumentException($"Invalid identity {ex.Message}");
             }
 
-            if (signedEnvelope.Envelope.ContentType != EnvelopeData.ContentTypeRequest)
+            if (signedEnvelope.Envelope.EnvelopeType != EnvelopeData.EnvelopeTypeInstruction)
                 throw new ArgumentException($"ContentType must be 'request'");
 
             if (signedEnvelope.Signatures[0].TimeStamp < UnixTimeUtc.Now().AddMinutes(-20) || signedEnvelope.Signatures[0].TimeStamp > UnixTimeUtc.Now().AddMinutes(+20))
@@ -54,12 +58,8 @@ namespace Odin.Core.Cryptography.Signatures
             return signedEnvelope;
         }
 
-        private static SignedEnvelope CreateRequestEnvelope(EccFullKeyData eccKey, SensitiveByteArray pwd, PunyDomainName identity, SortedDictionary<string, object> requestData)
+        private static SignedEnvelope CreateInstructionEnvelope(EccFullKeyData eccKey, SensitiveByteArray pwd, PunyDomainName identity, string envelopeSubType, SortedDictionary<string, object> instructionData)
         {
-            // Verify dataToAttest is not null and contains data
-            if (requestData == null || requestData.Count == 0)
-                throw new ArgumentException("Invalid data for request. Please ensure some data.");
-
             // There's something to sort out here
             string USAGEPOLICY_URL = $"https://{identity.DomainName}/policies/request-usage-policy";
 
@@ -71,19 +71,20 @@ namespace Odin.Core.Cryptography.Signatures
                 { "requestTimestampSeconds", UnixTimeUtc.Now().seconds },
                 { "expirationTimestampSeconds", UnixTimeUtc.Now().AddSeconds(3600*24*14).seconds },
                 { "usagePolicyUrl", USAGEPOLICY_URL },
-                { "data", requestData }  // Insert data relevant for the request here
+                { "data", instructionData }  // Insert data relevant for the request here
             };
 
             // Make sure it's valid
-            EnvelopeData.VerifyAdditionalInfoTypes(additionalInfo);
+            if (EnvelopeData.VerifyAdditionalInfoTypes(additionalInfo) == false)
+                throw new Exception("Invalid additional data");
 
             string doc = EnvelopeData.StringifyData(additionalInfo); // The document content is the whole of additionalInfo
             byte[] content = doc.ToUtf8ByteArray();
 
             // Create an Envelope for this document
-            var envelope = new EnvelopeData();
-            envelope.CalculateContentHash(content, EnvelopeData.ContentTypeRequest);
+            var envelope = new EnvelopeData(EnvelopeData.EnvelopeTypeInstruction, envelopeSubType);
             envelope.SetAdditionalInfo(additionalInfo);
+            envelope.CalculateContentHash(content);
 
             var signedEnvelope = new SignedEnvelope() { Envelope = envelope };
 
@@ -97,13 +98,16 @@ namespace Odin.Core.Cryptography.Signatures
             return signedEnvelope;
         }
 
-        // This function attests that the OdinId is associated with a human.
-        public static SignedEnvelope CreateRequestAttestation(EccFullKeyData eccKey, SensitiveByteArray pwd, PunyDomainName identity, SortedDictionary<string, object> dataToAtttest)
+        // Create an instruction to attest the supplied data
+        public static SignedEnvelope CreateInstructionAttestation(EccFullKeyData eccKey, SensitiveByteArray pwd, PunyDomainName identity, SortedDictionary<string, object> dataToAtttest)
         {
-            dataToAtttest.Add("Request", "ServiceRequest");
-            dataToAtttest.Add("RequestType", "Attestation");
+            return CreateInstructionEnvelope(eccKey, pwd, identity, ENVELOPE_SUB_TYPE_ATTESTATION, dataToAtttest);
+        }
 
-            return CreateRequestEnvelope(eccKey, pwd, identity, dataToAtttest);
+        // Create an instruction to attest the supplied data
+        public static SignedEnvelope CreateInstructionKeyRegistration(EccFullKeyData eccKey, SensitiveByteArray pwd, PunyDomainName identity, SortedDictionary<string, object> data)
+        {
+            return CreateInstructionEnvelope(eccKey, pwd, identity, ENVELOPE_SUB_TYPE_KEY_REGISTRATION, data);
         }
     }
 }
