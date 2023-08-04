@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Exceptions.Client;
+using Odin.Core.Serialization;
 using Odin.Core.Services.Authentication.YouAuth;
 using Odin.Core.Services.Tenant;
 using Odin.Hosting.Authentication.ClientToken;
@@ -48,10 +49,21 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 throw new BadRequestException(message: $"Bad {YouAuthAuthorizeRequest.RedirectUriName} '{authorize.RedirectUri}'");
             }
 
-            // If we're authorizing a domain, overwrite ClientId with domain name
             if (authorize.ClientType == ClientType.domain)
             {
+                // If we're authorizing a domain, overwrite ClientId with domain name
                 authorize.ClientId = redirectUri.Host;
+            }
+            else if (authorize.ClientType == ClientType.app)
+            {
+                // If we're authorizing an app, validate parameters in PermissionRequest
+                var appParams = OdinSystemSerializer.Deserialize<YouAuthAppParameters>(authorize.PermissionRequest);
+                if (appParams == null)
+                {
+                    throw new BadRequestException(message: $"Bad {YouAuthAuthorizeRequest.PermissionRequestName}");
+                }
+                // SEB:TODO validate all params
+                authorize.ClientInfo = appParams.ClientFriendly;
             }
 
             //
@@ -65,21 +77,29 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             //
             if (authorize.ClientType == ClientType.app)
             {
+                var appParams = OdinSystemSerializer.Deserialize<YouAuthAppParameters>(authorize.PermissionRequest);
+                if (appParams == null)
+                {
+                    throw new BadRequestException(message: $"Bad {YouAuthAuthorizeRequest.PermissionRequestName}");
+                }
+
                 var mustRegister = await _youAuthService.AppNeedsRegistration(
                     authorize.ClientType,
                     authorize.ClientId,
                     authorize.PermissionRequest);
 
-                var returnUrl = WebUtility.UrlEncode(Request.GetDisplayUrl());
+                if (mustRegister)
+                {
+                    appParams.Return = Request.GetDisplayUrl();
 
-                // SEB:TODO use path const from..?
-                // SEB:TODO clientId, clientInfo, permissionRequest?
-                // var appRegisterPage = $"{Request.Scheme}://{Request.Host}/owner/youauth/authorize?returnUrl={returnUrl}";
+                    // var appRegisterPage =
+                    //     $"{Request.Scheme}://{Request.Host}/owner/appreg?n=Odin%20-%20Photos&o=dev.dotyou.cloud%3A3005&appId=32f0bdbf-017f-4fc0-8004-2d4631182d1e&fn=Firefox%20%7C%20macOS&return=https%3A%2F%2Fdev.dotyou.cloud%3A3005%2Fauth%2Ffinalize%3FreturnUrl%3D%252F%26&d=%5B%7B%22a%22%3A%226483b7b1f71bd43eb6896c86148668cc%22%2C%22t%22%3A%222af68fe72fb84896f39f97c59d60813a%22%2C%22n%22%3A%22Photo%20Library%22%2C%22d%22%3A%22Place%20for%20your%20memories%22%2C%22p%22%3A3%7D%5D&pk=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA21Hd52i8IyhMbhR9EXM0iRRI5bD7Su5MpK5WmczEEK6p%2FAAqLPPHJsreYpQHBOchd1cOTlwj4C257gRI3S2jTkI%2Fjny2u0ShzXiGr8%2BgwgmhWQYPua3QJyf4FnWFDvNO70Vw7jIe2PfSEw%2FoW718Yq1fR%2FiRasYLbzFuApwMYi%2BiD75tgIeDBnMMdgmo9JqoUq2XP5y4j4IVenVjLQqtFJezINiJQjUe2KatlofweVrYfhs3BDoJ8bdLSbGfy413QRd%2BhE4UTebi%2FQxSdAwO4Fy82%2FyKIi80qnK%2FF4qFE3q60cBTULI826cSryAulA7xOe%2B5qbyAOYh76OsICegotwIDAQAB";
 
-                var appRegisterPage =
-                    $"{Request.Scheme}://{Request.Host}/owner/appreg?n=Odin%20-%20Photos&o=dev.dotyou.cloud%3A3005&appId=32f0bdbf-017f-4fc0-8004-2d4631182d1e&fn=Firefox%20%7C%20macOS&return=https%3A%2F%2Fdev.dotyou.cloud%3A3005%2Fauth%2Ffinalize%3FreturnUrl%3D%252F%26&d=%5B%7B%22a%22%3A%226483b7b1f71bd43eb6896c86148668cc%22%2C%22t%22%3A%222af68fe72fb84896f39f97c59d60813a%22%2C%22n%22%3A%22Photo%20Library%22%2C%22d%22%3A%22Place%20for%20your%20memories%22%2C%22p%22%3A3%7D%5D&pk=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA21Hd52i8IyhMbhR9EXM0iRRI5bD7Su5MpK5WmczEEK6p%2FAAqLPPHJsreYpQHBOchd1cOTlwj4C257gRI3S2jTkI%2Fjny2u0ShzXiGr8%2BgwgmhWQYPua3QJyf4FnWFDvNO70Vw7jIe2PfSEw%2FoW718Yq1fR%2FiRasYLbzFuApwMYi%2BiD75tgIeDBnMMdgmo9JqoUq2XP5y4j4IVenVjLQqtFJezINiJQjUe2KatlofweVrYfhs3BDoJ8bdLSbGfy413QRd%2BhE4UTebi%2FQxSdAwO4Fy82%2FyKIi80qnK%2FF4qFE3q60cBTULI826cSryAulA7xOe%2B5qbyAOYh76OsICegotwIDAQAB";
+                    // SEB:TODO use path const from..?
+                    var appRegisterPage = $"{Request.Scheme}://{Request.Host}/owner/appreg?{appParams.ToQueryString()}";
 
-                return Redirect(appRegisterPage);
+                    return Redirect(appRegisterPage);
+                }
             }
 
             //
@@ -96,7 +116,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 var returnUrl = WebUtility.UrlEncode(Request.GetDisplayUrl());
 
                 // SEB:TODO use path const from..?
-                // SEB:TODO clientId, clientInfo, permissionRequest?
                 var consentPage = $"{Request.Scheme}://{Request.Host}/owner/youauth/consent?returnUrl={returnUrl}";
                 return Redirect(consentPage);
             }

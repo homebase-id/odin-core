@@ -34,7 +34,6 @@ public class YouAuthAuthorizeRequest
     [BindProperty(Name = PermissionRequestName, SupportsGet = true)]
     public string PermissionRequest { get; set; } = ""; 
 
-
     //
 
     public YouAuthAuthorizeRequest()

@@ -10,12 +10,14 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Serialization;
 using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Hosting.Controllers.OwnerToken.Auth;
+using Odin.Hosting.Controllers.OwnerToken.YouAuth;
 
 //
 // OWNER AUTHENTICATION:
@@ -177,5 +179,50 @@ public abstract class YouAuthIntegrationTestBase
     }
 
     //
+
+    protected async Task DisconnectHobbits(TestIdentity a, TestIdentity b)
+    {
+        var ownerClient = Scaffold.CreateOwnerApiClient(a);
+        if (await ownerClient.Network.IsConnected(b))
+        {
+            await ownerClient.Network.DisconnectFrom(b);
+        }
+
+        ownerClient = Scaffold.CreateOwnerApiClient(b);
+        if (await ownerClient.Network.IsConnected(a))
+        {
+            await ownerClient.Network.DisconnectFrom(a);
+        }
+    }
+
+    //
+
+    protected YouAuthAppParameters GetAppPhotosParams()
+    {
+        var driveParams = new[]
+        {
+            new
+            {
+                a = "6483b7b1f71bd43eb6896c86148668cc",
+                t = "2af68fe72fb84896f39f97c59d60813a",
+                n = "Photo Library",
+                d = "Place for your memories",
+                p = 3
+            },
+        };
+        var appParams = new YouAuthAppParameters
+        {
+            AppName = "Odin - Photos",
+            AppOrigin = "dev.dotyou.cloud:3005",
+            AppId = "32f0bdbf-017f-4fc0-8004-2d4631182d1e",
+            ClientFriendly = "Firefox | macOS",
+            DrivesParam = OdinSystemSerializer.Serialize(driveParams),
+            Pk = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA21Hd52i8IyhMbhR9EXM0iRRI5bD7Su5MpK5WmczEEK6p%2FAAqLPPHJsreYpQHBOchd1cOTlwj4C257gRI3S2jTkI%2Fjny2u0ShzXiGr8%2BgwgmhWQYPua3QJyf4FnWFDvNO70Vw7jIe2PfSEw%2FoW718Yq1fR%2FiRasYLbzFuApwMYi%2BiD75tgIeDBnMMdgmo9JqoUq2XP5y4j4IVenVjLQqtFJezINiJQjUe2KatlofweVrYfhs3BDoJ8bdLSbGfy413QRd%2BhE4UTebi%2FQxSdAwO4Fy82%2FyKIi80qnK%2FF4qFE3q60cBTULI826cSryAulA7xOe%2B5qbyAOYh76OsICegotwIDAQAB",
+            Return = "backend-will-decide",
+        };
+
+        return appParams;
+    }
+
 
 }
