@@ -2,6 +2,7 @@
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Signatures;
+using Odin.Core.Time;
 using Odin.Core.Util;
 using OdinsChains.Controllers;
 using System.Security.Principal;
@@ -12,19 +13,41 @@ namespace Odin.KeyChain
     {
         private static SensitiveByteArray _pwd;
         private static EccFullKeyData _ecc;
-        private static PunyDomainName _identity; 
+        private static PunyDomainName _identity;
+        private static Dictionary<string, Int64> _database;
 
         static SimulateFrodo()
         {
             _pwd = Guid.Empty.ToByteArray().ToSensitiveByteArray();
             _ecc = new EccFullKeyData(_pwd, 1);
             _identity = new PunyDomainName("frodobaggins.me");
+            _database = new Dictionary<string, Int64> { };
         }
 
         public static void SaveLocally(string nonceBase64)
         {
             // Save nonce in Frodo's database, the nonce could easily be the key
             // Dont think we need to store the whole signed doc
+            // Todd this would easily go into the key-two-value database
+            _database.Add(nonceBase64, UnixTimeUtc.Now().seconds);
+        }
+
+        public static bool LoadLocally(string nonceBase64)
+        {
+            // Save nonce in Frodo's database, the nonce could easily be the key
+            // Dont think we need to store the whole signed doc
+            // Todd this would easily go into the key-two-value database
+            if (!_database.ContainsKey(nonceBase64))
+                return false;
+
+            var r = _database[nonceBase64];
+
+            if (UnixTimeUtc.Now().seconds - r > 60)
+                return false;
+
+            _database.Remove(nonceBase64);
+
+            return true;
         }
 
 
@@ -45,6 +68,8 @@ namespace Odin.KeyChain
             var signedInstruction = InstructionEnvelope();
             var signedInstructionJson = signedInstruction.GetCompactSortedJson();
 
+            SaveLocally(signedInstruction.Envelope.ContentNonce.ToBase64());
+
             // @Todd then you save it in the IdentityDatabase
             // identityDb.tblKkeyValue.Upsert(CONST_SIGNATURE_TEMPCODE_ID, tempCode);
 
@@ -60,7 +85,6 @@ namespace Odin.KeyChain
                     throw new Exception("Unable to register request");
             }
 
-            SaveLocally(signedInstruction.Envelope.ContentNonce.ToBase64());
 
             // Frodo is Done sending his request
 
@@ -76,10 +100,10 @@ namespace Odin.KeyChain
 
         // Todd this is a function on an identity that responds to Odin's key chain service and signs a nonce
         //  _ecc would be the identity's signature key
-        public static string SignNonceForKeyChain(string nonceBase64, string tempCodeBase64)
+        public static string SignNonceForKeyChain(string nonceToSignBase64, string contentNonceFromEnvelope)
         {
             // @Todd First sanity check the tempCode
-            var tempCode = Convert.FromBase64String(tempCodeBase64);
+            var tempCode = Convert.FromBase64String(contentNonceFromEnvelope);
             if ((tempCode.Length < 16) || (tempCode.Length > 32))
                 throw new Exception("invalid nonce size");
 
@@ -88,9 +112,11 @@ namespace Odin.KeyChain
             // If the tempCode is more than 10 seconds old, fail
             // DELETE the tempCode from the DB
             // identityDb.tblKeyValue.Delete(CONST_..._ID);
+            if (!LoadLocally(contentNonceFromEnvelope))
+                throw new Exception($"No such nonce");
 
             // tempCode was OK, we continue
-            var nonce = Convert.FromBase64String(nonceBase64);
+            var nonce = Convert.FromBase64String(nonceToSignBase64);
 
             // Todd need to check this JIC 
             if ((nonce.Length < 16) || (nonce.Length > 32))
