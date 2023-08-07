@@ -33,8 +33,7 @@ namespace Odin.Hosting.Middleware
             _next = next;
             _logger = logger;
             _correlationContext = correlationContext;
-            _sendInternalErrorDetailsToClient =
-                env.IsDevelopment() || Environment.GetEnvironmentVariable("DOTYOUCORE_EX_INFO") == "1";
+            _sendInternalErrorDetailsToClient = env.IsDevelopment();
         }
 
         //
@@ -138,8 +137,7 @@ namespace Odin.Hosting.Middleware
             string internalErrorMessage = "";
             string stackTrace = "";
 
-            var b = int.TryParse(Environment.GetEnvironmentVariable("DOTYOUCORE_EX_INFO"), out var env);
-            if (b && env == 1)
+            if (_sendInternalErrorDetailsToClient)
             {
                 internalErrorMessage = appException.Message;
                 stackTrace = appException.StackTrace ?? "";
@@ -174,8 +172,7 @@ namespace Odin.Hosting.Middleware
             string internalErrorMessage = "";
             string stackTrace = "";
 
-            var b = int.TryParse(Environment.GetEnvironmentVariable("DOTYOUCORE_EX_INFO"), out var env);
-            if (b && env == 1)
+            if (_sendInternalErrorDetailsToClient)
             {
                 internalErrorMessage = appException.Message;
                 stackTrace = appException.StackTrace ?? "";
