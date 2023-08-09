@@ -198,13 +198,13 @@ namespace Odin.Hosting
                     // when no certificate could be found.
                     //
                     // NOTE:
-                    // In some cases when hostName is empty and we therefore throw ConnectionAbortedException,
-                    // the runtime will throw this exception as a result:
+                    // When probing for SSLv2 support (which is unsecure and denied in Kestrel),
+                    // the runtime will throw the exception
                     //   System.NotSupportedException:
                     //     The server mode SSL must use a certificate with the associated private key.
+                    // without ever hitting this part of the code.
                     //
-                    // It makes no sense and must be a glitch in the runtime, but it doesn't hurt us (except
-                    // for putting errors in the log).
+                    // Reproducible with: $ testssl.sh --serial --protocols <identity-host>
                     //
 
                     throw new ConnectionAbortedException();
