@@ -176,9 +176,9 @@ namespace Odin.Core.Cryptography.Signatures
             return JsonSerializer.Serialize(this, options);
         }
 
-        public static SortedDictionary<string, string> ConvertJsonObjectToSortedDict(object jsonObject)
+        public static SortedDictionary<string, object> ConvertJsonObjectToSortedDict(object jsonObject)
         {
-            var result = new SortedDictionary<string, string>();
+            var result = new SortedDictionary<string, object>();
 
             if (jsonObject is JsonElement jsonElement && jsonElement.ValueKind == JsonValueKind.Object)
             {

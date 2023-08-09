@@ -4,6 +4,8 @@ using Odin.Core.Cryptography.Signatures;
 using Odin.Core.Cryptography.Data;
 using System.Text.Json.Nodes;
 using System.Text.Json;
+using Microsoft.AspNetCore.Mvc;
+using OdinsAttestation.Controllers;
 
 namespace OdinsAttestation
 {
@@ -32,6 +34,37 @@ namespace OdinsAttestation
             if (ByteArrayUtil.EquiByteArrayCompare(_ecc.publicKey, Convert.FromBase64String(_ecc.publicDerBase64())) == false)
                 throw new Exception("kaboom");
             return _ecc.publicDerBase64();
+        }
+
+        public async static Task<IActionResult> InitiateRequestForAttestation(AttestationRequestController webApi)
+        {
+            var address = new SortedDictionary<string, object>
+            {
+                { "street", "Bag End" },
+                { "city", "Hobbiton" },
+                { "region", "The Shire" },
+                { "postalCode", "4242" },
+                { "country", "Middle Earth" }
+            };
+
+            // Here we write all the attributes we want attested
+            var dataToAttest = new SortedDictionary<string, object>()
+                    { { AttestationManagement.JsonKeySubsetLegalName, "F. Baggins" },
+                      { AttestationManagement.JsonKeyLegalName, "Frodo Baggins" },
+                      { AttestationManagement.JsonKeyNationality, "Middle Earth" },
+                      { AttestationManagement.JsonKeyPhoneNumber, "+45 26 44 70 33"},
+                      { AttestationManagement.JsonKeyBirthdate, "1073-10-29" },
+                      { AttestationManagement.JsonKeyEmailAddress, "f@baggins.me" },
+                      { AttestationManagement.JsonKeyResidentialAddress, address } };
+
+            // Let's build the envelope that Frodo will send
+            var signedEnvelope = SimulateFrodo.RequestEnvelope(dataToAttest);
+
+            // Todd, call the attestation server via HttpClient(Factory)
+            // Here I had to hack it
+            var r1 = await webApi.GetRequestAttestation(signedEnvelope.GetCompactSortedJson());
+
+            return r1;
         }
 
         // Todd this is the endpoint on an identity that receives a jsonArray of attestations (signedEnvelopes)

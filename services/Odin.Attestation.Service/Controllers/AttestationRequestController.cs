@@ -46,32 +46,7 @@ namespace OdinsAttestation.Controllers
         [HttpGet("Simulator")]
         public async Task<IActionResult> GetSimulator()
         {
-            var address = new SortedDictionary<string, string>
-            {
-                { "street", "Bag End" },
-                { "city", "Hobbiton" },
-                { "region", "The Shire" },
-                { "postalCode", "4242" },
-                { "country", "Middle Earth" }
-            };
-
-            // Here we write all the attributes we want attested
-            var dataToAttest = new SortedDictionary<string, object>()
-                    { { AttestationManagement.JsonKeySubsetLegalName, "F. Baggins" },
-                      { AttestationManagement.JsonKeyLegalName, "Frodo Baggins" },
-                      { AttestationManagement.JsonKeyNationality, "Middle Earth" },
-                      { AttestationManagement.JsonKeyPhoneNumber, "+45 26 44 70 33"},
-                      { AttestationManagement.JsonKeyBirthdate, "1073-10-29" },
-                      { AttestationManagement.JsonKeyEmailAddress, "f@baggins.me" },
-                      { AttestationManagement.JsonKeyResidentialAddress, address } };
-
-            // Let's build the envelope that Frodo will send
-            var signedEnvelope = SimulateFrodo.RequestEnvelope(dataToAttest);
-
-            // Call the attestation server via HttpClient(Factory)
-            var r1 = await GetRequestAttestation(signedEnvelope.GetCompactSortedJson());
-
-            return r1;
+            return await SimulateFrodo.InitiateRequestForAttestation(this);
         }
 
 
@@ -127,6 +102,7 @@ namespace OdinsAttestation.Controllers
 
             await Task.Delay(0); // Only to not get into async hell.
 
+            // This means the request has been successfully registered
             return Ok("");
         }
     }

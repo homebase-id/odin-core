@@ -70,6 +70,10 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         private SqliteCommand _get0Command = null;
         private static Object _get0Lock = new Object();
         private SqliteParameter _get0Param1 = null;
+        private SqliteCommand _getPaging1Command = null;
+        private static Object _getPaging1Lock = new Object();
+        private SqliteParameter _getPaging1Param1 = null;
+        private SqliteParameter _getPaging1Param2 = null;
         private readonly CacheHelper _cache;
 
         public TableAttestationRequestCRUD(AttestationDatabase db, CacheHelper cache) : base(db)
@@ -94,6 +98,8 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             _delete0Command = null;
             _get0Command?.Dispose();
             _get0Command = null;
+            _getPaging1Command?.Dispose();
+            _getPaging1Command = null;
             _disposed = true;
         }
 
@@ -335,6 +341,54 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 } // using
             } // lock
         }
+
+        public List<AttestationRequestRecord> PagingByIdentity(int count, string inCursor, out string nextCursor)
+        {
+            if (count < 1)
+                throw new Exception("Count must be at least 1.");
+            if (inCursor == null)
+                inCursor = "";
+
+            lock (_getPaging1Lock)
+            {
+                if (_getPaging1Command == null)
+                {
+                    _getPaging1Command = _database.CreateCommand();
+                    _getPaging1Command.CommandText = "SELECT identity,requestEnvelope,timestamp FROM attestationRequest " +
+                                                 "WHERE identity > $identity ORDER BY identity ASC LIMIT $_count;";
+                    _getPaging1Param1 = _getPaging1Command.CreateParameter();
+                    _getPaging1Command.Parameters.Add(_getPaging1Param1);
+                    _getPaging1Param1.ParameterName = "$identity";
+                    _getPaging1Param2 = _getPaging1Command.CreateParameter();
+                    _getPaging1Command.Parameters.Add(_getPaging1Param2);
+                    _getPaging1Param2.ParameterName = "$_count";
+                    _getPaging1Command.Prepare();
+                }
+                _getPaging1Param1.Value = inCursor;
+                _getPaging1Param2.Value = count+1;
+
+                using (SqliteDataReader rdr = _database.ExecuteReader(_getPaging1Command, System.Data.CommandBehavior.Default))
+                {
+                    var result = new List<AttestationRequestRecord>();
+                    int n = 0;
+                    while ((n < count) && rdr.Read())
+                    {
+                        n++;
+                        result.Add(ReadRecordFromReaderAll(rdr));
+                    } // while
+                    if ((n > 0) && rdr.Read())
+                    {
+                            nextCursor = result[n - 1].identity;
+                    }
+                    else
+                    {
+                        nextCursor = null;
+                    }
+
+                    return result;
+                } // using
+            } // lock
+        } // PagingGet
 
     }
 }

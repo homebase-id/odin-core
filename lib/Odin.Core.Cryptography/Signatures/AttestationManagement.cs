@@ -131,7 +131,7 @@ namespace Odin.Core.Cryptography.Signatures
         }
 
         // This function attests to the residential address of the owner of the OdinId.
-        public static SignedEnvelope AttestResidentialAddress(EccFullKeyData eccKey, SensitiveByteArray pwd, PunyDomainName identity, SortedDictionary<string, string> address)
+        public static SignedEnvelope AttestResidentialAddress(EccFullKeyData eccKey, SensitiveByteArray pwd, PunyDomainName identity, SortedDictionary<string, object> address)
         {
             var dataToAttest = new SortedDictionary<string, object>
             {

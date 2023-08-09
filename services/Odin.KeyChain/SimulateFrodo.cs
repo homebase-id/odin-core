@@ -24,7 +24,7 @@ namespace Odin.KeyChain
             _database = new Dictionary<string, Int64> { };
         }
 
-        public static void SaveLocally(string nonceBase64)
+        private static void SaveLocally(string nonceBase64)
         {
             // Save nonce in Frodo's database, the nonce could easily be the key
             // Dont think we need to store the whole signed doc
@@ -32,7 +32,7 @@ namespace Odin.KeyChain
             _database.Add(nonceBase64, UnixTimeUtc.Now().seconds);
         }
 
-        public static bool LoadLocally(string nonceBase64)
+        private static bool LoadLocally(string nonceBase64)
         {
             // Save nonce in Frodo's database, the nonce could easily be the key
             // Dont think we need to store the whole signed doc
@@ -52,13 +52,13 @@ namespace Odin.KeyChain
 
 
         // This creates a "Key Registration" instruction
-        public static SignedEnvelope InstructionEnvelope()
+        private static SignedEnvelope InstructionEnvelope()
         {
             return InstructionSignedEnvelope.CreateInstructionKeyRegistration(_ecc, _pwd, _identity, null);
         }
 
-        // This is how Frodo initiates a request for registering his public key
-        // with the Odin Key Chain. Ignore the "web api" parameter
+        // Todd, This is how Frodo initiates a request for registering his public key
+        // with the Odin Key Chain. Ignore the "web api" parameter, that's just a hack.
         public async static Task<IActionResult> InitiateRequestForKeyRegistration(RegisterKeyController webApi)
         {
             // First Frodo generates a smart contract request object
@@ -91,12 +91,14 @@ namespace Odin.KeyChain
             return r1;
         }
 
+
         // Todd this is the function on an identity that should return Frodo's public (signature) key (ECC)
         // For example https://frodo.baggins.me/api/v1/signature/publickey
         public static string GetPublicKey()
         {
             return _ecc.publicDerBase64();
         }
+
 
         // Todd this is a function on an identity that responds to Odin's key chain service and signs a nonce
         //  _ecc would be the identity's signature key

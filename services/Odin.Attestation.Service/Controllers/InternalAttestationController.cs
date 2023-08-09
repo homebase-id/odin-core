@@ -9,7 +9,7 @@ using Odin.Core.Util;
 using Odin.Core.Cryptography.Signatures;
 using Odin.Core.Cryptography.Data;
 using System.Text.Json;
-
+using Microsoft.AspNetCore.Mvc.Routing;
 
 namespace OdinsAttestation.Controllers
 {
@@ -315,43 +315,17 @@ namespace OdinsAttestation.Controllers
             return Ok();
         }
 
-        /// <summary>
-        /// 010. Client calls Server.RegisterKey(identity, tempcode)
-        /// 020. Server calls Client.GetPublicKey() to get signature key
-        /// 030. Server calls Client.SignNonce(tempcode, previousHash)
-        /// 033. Client returns signedNonce
-        /// 037. Server verifies signature
-        /// 040. Server serializes each request from hereon in semaphore
-        /// 050. Server fetches last row
-        /// 060. Server calculates new block chain row
-        /// 070. Server verifies row data (hash and maybe timestamp)
-        /// 080. Server writes row
-        /// 090. Server frees semaphore
-        /// </summary>
-        /// <param name="identity"></param>
-        /// <param name="tempCode"></param>
-        /// <returns></returns>
-        [HttpGet("Register")]
-        public async Task<IActionResult> GetRegister(string identity, string tempCode)
+        [HttpGet("ListPendingRequests")]
+        public async Task<IActionResult> GetListPendingRequests()
         {
-            PunyDomainName domain;
-            try
-            {
-                domain = new PunyDomainName(identity);
-            }
-            catch (Exception)
-            {
-                return BadRequest("Invalid identity, not a proper puny-code domain name");
-            }
+            var r = _db.tblAttestationRequest.PagingByIdentity(100, null, out var nextCursor);
 
-            if ((tempCode.Length < 16) || (tempCode.Length > 64))
-            {
-                return BadRequest("Invalid temp-code, needs to be [16..64] characters");
-            }
+            // Using LINQ to convert the list of requests to a list of identities
+            var identities = r.Select(request => request.identity).ToList();
 
-            await Task.Delay(1);
+            await Task.Delay(1);  // You might not need this delay unless you have a specific reason for it.
 
-            return Ok("OK");
+            return Ok(identities);
         }
 
     }
