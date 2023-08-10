@@ -105,7 +105,13 @@ public class IdentityRegistrationService : IIdentityRegistrationService
         var dns = _configuration.Registry.DnsConfigurationSet; 
 
         var result = new List<DnsConfig>();
-       
+
+        // Sanity
+        if (dns.BareARecords.Count < 1)
+        {
+            throw new OdinSystemException("There are no A records. Check config.");
+        }
+
         // Bare A records
         for (var idx = 0; idx < dns.BareARecords.Count; idx++)
         {
