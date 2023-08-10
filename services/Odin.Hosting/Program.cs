@@ -28,14 +28,10 @@ namespace Odin.Hosting
 {
     public static class Program
     {
-        private static IConfiguration _appSettingsConfig;
-        private static OdinConfiguration _odinConfig;
-
-
         public static int Main(string[] args)
         {
-            (_odinConfig, _appSettingsConfig) = LoadConfig();
-            Log.Logger = CreateLogger(_appSettingsConfig).CreateBootstrapLogger();
+            var (odinConfig, appSettingsConfig) = LoadConfig();
+            Log.Logger = CreateLogger(appSettingsConfig, odinConfig).CreateBootstrapLogger();
 
             try
             {
@@ -97,6 +93,7 @@ namespace Odin.Hosting
 
         private static LoggerConfiguration CreateLogger(
             IConfiguration configuration,
+            OdinConfiguration odinConfig,
             IServiceProvider services = null,
             LoggerConfiguration loggerConfig = null)
         {
@@ -113,7 +110,7 @@ namespace Odin.Hosting
                 .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
                 .WriteTo.Async(sink => sink.Console(outputTemplate: logOutputTemplate, theme: logOutputTheme))
                 .WriteTo.Async(sink => sink.RollingFile(
-                    Path.Combine(_odinConfig.Logging.LogFilePath, "app-{Date}.log"), outputTemplate: logOutputTemplate));
+                    Path.Combine(odinConfig.Logging.LogFilePath, "app-{Date}.log"), outputTemplate: logOutputTemplate));
 
             if (services != null)
             {
@@ -127,26 +124,27 @@ namespace Odin.Hosting
 
         public static IHostBuilder CreateHostBuilder(string[] args)
         {
+            var (odinConfig, appSettingsConfig) = LoadConfig();
 
-            var loggingDirInfo = Directory.CreateDirectory(_odinConfig.Logging.LogFilePath);
+            var loggingDirInfo = Directory.CreateDirectory(odinConfig.Logging.LogFilePath);
             if (!loggingDirInfo.Exists)
             {
-                throw new OdinClientException($"Could not create logging folder at [{_odinConfig.Logging.LogFilePath}]");
+                throw new OdinClientException($"Could not create logging folder at [{odinConfig.Logging.LogFilePath}]");
             }
 
-            var dataRootDirInfo = Directory.CreateDirectory(_odinConfig.Host.TenantDataRootPath);
+            var dataRootDirInfo = Directory.CreateDirectory(odinConfig.Host.TenantDataRootPath);
             if (!dataRootDirInfo.Exists)
             {
-                throw new OdinClientException($"Could not create logging folder at [{_odinConfig.Host.TenantDataRootPath}]");
+                throw new OdinClientException($"Could not create logging folder at [{odinConfig.Host.TenantDataRootPath}]");
             }
 
-            Log.Information($"Root path:{_odinConfig.Host.TenantDataRootPath}");
+            Log.Information($"Root path:{odinConfig.Host.TenantDataRootPath}");
 
             var builder = Host.CreateDefaultBuilder(args)
-                .ConfigureAppConfiguration(builder => { builder.AddConfiguration(_appSettingsConfig); })
+                .ConfigureAppConfiguration(builder => { builder.AddConfiguration(appSettingsConfig); })
                 .UseSerilog((context, services, loggerConfiguration) =>
                 {
-                    CreateLogger(context.Configuration, services, loggerConfiguration);
+                    CreateLogger(context.Configuration, odinConfig, services, loggerConfiguration);
                 })
                 .UseSystemd() // SEB:TODO remove this when we're fully containerized
                 .UseServiceProviderFactory(new MultiTenantServiceProviderFactory(DependencyInjection.ConfigureMultiTenantServices,
@@ -157,12 +155,12 @@ namespace Odin.Hosting
                         {
                             kestrelOptions.Limits.MaxRequestBodySize = null;
 
-                            foreach (var address in _odinConfig.Host.IPAddressListenList)
+                            foreach (var address in odinConfig.Host.IPAddressListenList)
                             {
                                 var ip = address.GetIp();
                                 kestrelOptions.Listen(ip, address.HttpPort);
                                 kestrelOptions.Listen(ip, address.HttpsPort,
-                                    options => ConfigureHttpListenOptions(_odinConfig, kestrelOptions, options));
+                                    options => ConfigureHttpListenOptions(odinConfig, kestrelOptions, options));
                             }
                         })
                         .UseStartup<Startup>();
