@@ -9,11 +9,13 @@ public class UnauthorizedException : ClientException
 
     public UnauthorizedException(
         string message = DefaultErrorMessage,
+        OdinClientErrorCode odinClientErrorCode = OdinClientErrorCode.NoErrorCode,
         HttpStatusCode httpStatusCode = HttpStatusCode.Unauthorized,
         Exception inner = null
         ) : base(
             message,
             httpStatusCode,
+            odinClientErrorCode,
             inner
         )
     {

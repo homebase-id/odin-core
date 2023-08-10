@@ -229,53 +229,43 @@ namespace Odin.Hosting.Middleware
         
         private Task HandleExceptionAsync(HttpContext context, Exception exception)
         {
-            var status = 500;
-            var title = "Internal Server Error";
-            var stackTrace = _sendInternalErrorDetailsToClient ? exception.StackTrace : null;
-            var logException = true;
-
-            if (exception is ClientException ce)
-            {
-                logException = false;
-                status = (int)ce.HttpStatusCode;
-                title = ce.Message;
-            }
-            else if (exception is ServerException se)
-            {
-                status = (int)se.HttpStatusCode;
-                title = se.Message;
-            }
-            else if (_sendInternalErrorDetailsToClient)
-            {
-                title = exception.Message;
-            }
-
-            if (logException)
-            {
-                _logger.LogError(exception, "{ErrorText}", exception.Message);
-            }
-
             var problemDetails = new ProblemDetails
             {
-                Status = status,
-                Title = title,
+                Status = 500,
+                Title = "Internal Server Error",
                 Type = "https://tools.ietf.org/html/rfc7231",
                 Extensions =
                 {
                     ["correlationId"] = _correlationContext.Id
                 }
             };
+
+            if (exception is OdinApiException ae)
+            {
+                problemDetails.Status = (int)ae.HttpStatusCode;
+            }
+
+            if (exception is ClientException ce)
+            {
+                problemDetails.Title = ce.Message;
+                problemDetails.Extensions["errorCode"] = ce.OdinClientErrorCode;
+            }
+            else
+            {
+                _logger.LogError(exception, "{ErrorText}", exception.Message);
+            }
+
             if (_sendInternalErrorDetailsToClient)
             {
-                problemDetails.Extensions["stackTrace"] = stackTrace; 
+                problemDetails.Title = exception.Message;
+                problemDetails.Extensions["stackTrace"] = exception.StackTrace;
             }
 
             var result = JsonSerializer.Serialize(problemDetails);
             context.Response.ContentType = "application/problem+json";
-            context.Response.StatusCode = status;
+            context.Response.StatusCode = problemDetails.Status.Value;
 
             return context.Response.WriteAsync(result);
         }
-        
     }
 }

@@ -9,11 +9,13 @@ public class NotFoundException : ClientException
 
     public NotFoundException(
         string message = DefaultErrorMessage,
+        OdinClientErrorCode odinClientErrorCode = OdinClientErrorCode.NoErrorCode,
         HttpStatusCode httpStatusCode = HttpStatusCode.NotFound,
         Exception inner = null
         ) : base(
             message,
             httpStatusCode,
+            odinClientErrorCode,
             inner
         )
     {

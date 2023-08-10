@@ -9,11 +9,13 @@ public class BadRequestException : ClientException
 
     public BadRequestException(
         string message = DefaultErrorMessage,
+        OdinClientErrorCode odinClientErrorCode = OdinClientErrorCode.NoErrorCode,
         HttpStatusCode httpStatusCode = HttpStatusCode.BadRequest,
         Exception inner = null
     ) : base(
         message,
         httpStatusCode,
+        odinClientErrorCode,
         inner
     )
     {

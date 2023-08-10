@@ -2,6 +2,7 @@ namespace Odin.Core.Exceptions;
 
 public enum OdinClientErrorCode
 {
+    NoErrorCode = 0,
     UnhandledScenario = 1,
 
     // Auth Errors 10xx

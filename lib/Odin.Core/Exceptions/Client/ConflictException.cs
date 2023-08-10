@@ -9,11 +9,13 @@ public class ConflictException : ClientException
 
     public ConflictException(
         string message = DefaultErrorMessage,
+        OdinClientErrorCode odinClientErrorCode = OdinClientErrorCode.NoErrorCode,
         HttpStatusCode httpStatusCode = HttpStatusCode.Conflict,
         Exception inner = null
         ) : base(
             message,
             httpStatusCode,
+            odinClientErrorCode,
             inner
         )
     {
