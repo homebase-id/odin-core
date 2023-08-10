@@ -263,8 +263,6 @@ namespace Odin.Core.Services.Configuration
         {
             public string LogFilePath { get; init; }
 
-            public LoggingLevel Level { get; init; }
-
             public LoggingSection()
             {
                 // Mockable support
@@ -273,7 +271,6 @@ namespace Odin.Core.Services.Configuration
             public LoggingSection(IConfiguration config)
             {
                 LogFilePath = config.Required<string>("Logging:LogFilePath");
-                Level = Enum.Parse<LoggingLevel>(config.Required<string>("Logging:Level"));
             }
         }
 
@@ -340,11 +337,5 @@ namespace Odin.Core.Services.Configuration
         }
 
         //
-    }
-
-    public enum LoggingLevel
-    {
-        Verbose,
-        ErrorsOnly
     }
 }
