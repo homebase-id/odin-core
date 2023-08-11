@@ -6,8 +6,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
@@ -19,27 +19,41 @@ using Odin.Hosting.Middleware;
 
 namespace Odin.Hosting.Tests.Middleware;
 
+// https://adamstorr.azurewebsites.net/blog/mocking-ilogger-with-moq
+
 public class ExceptionHandlingMiddlewareTest
 {
     private const string MockCorrelationId = "helloworld";
-    private static TestServer CreateTestServer(string environment, RequestDelegate requestDelegate)
+    private static TestServer CreateTestServer(
+        string environment,
+        ILogger<ExceptionHandlingMiddleware> logger,
+        RequestDelegate requestDelegate)
     {
         var mockHostEnvironment = new Mock<IHostEnvironment>();
         mockHostEnvironment.Setup(env => env.EnvironmentName).Returns(environment);
 
-        var mockCorrelationIdGenerator = new Mock<ICorrelationIdGenerator>();
-        mockCorrelationIdGenerator.Setup(generator => generator.Generate()).Returns(MockCorrelationId);
+        var mockCorrelationId = new Mock<ICorrelationContext>();
+        mockCorrelationId.Setup(correlationId => correlationId.Id).Returns(MockCorrelationId);
 
         return new TestServer(new WebHostBuilder()
             .ConfigureServices(services =>
             {
-                services.AddSingleton<IHostEnvironment>(mockHostEnvironment.Object);
-                services.AddSingleton<ICorrelationIdGenerator>(mockCorrelationIdGenerator.Object);
-                services.AddSingleton<ICorrelationContext, CorrelationContext>();
+                // Add services here.
+                // We have to hardcode the logger instead, otherwise the mock isn't picked up.
             })
             .Configure(app =>
             {
-                app.UseMiddleware<ExceptionHandlingMiddleware>();
+                app.Use(async (context, next) =>
+                {
+                    var middleware = new ExceptionHandlingMiddleware(
+                        next,
+                        logger,
+                        mockCorrelationId.Object,
+                        mockHostEnvironment.Object);
+
+                    await middleware.Invoke(context);
+                });
+
                 app.Run(requestDelegate);
             }));
     }
@@ -48,7 +62,8 @@ public class ExceptionHandlingMiddlewareTest
     public async Task NoErrorHere()
     {
         // Arrange
-        var server = CreateTestServer(Environments.Production, async ctx =>
+        var loggerMock = new Mock<ILogger<ExceptionHandlingMiddleware>>();
+        var server = CreateTestServer(Environments.Production, loggerMock.Object, async ctx =>
         {
             await ctx.Response.WriteAsync("No error here!");
         });
@@ -61,13 +76,23 @@ public class ExceptionHandlingMiddlewareTest
         // Assert
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(content, Is.EqualTo("No error here!"));
+
+        loggerMock.Verify(x =>
+            x.Log(
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => true),
+                It.IsAny<Exception>(),
+                It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+            Times.Never);
     }
 
     [Test]
     public async Task NotFoundExceptionInProduction()
     {
         // Arrange
-        var server = CreateTestServer(Environments.Production, async ctx =>
+        var loggerMock = new Mock<ILogger<ExceptionHandlingMiddleware>>();
+        var server = CreateTestServer(Environments.Production, loggerMock.Object, async ctx =>
         {
             await Task.CompletedTask;
             throw new NotFoundException(message: "my-error-message");
@@ -88,13 +113,23 @@ public class ExceptionHandlingMiddlewareTest
             Is.EqualTo(OdinClientErrorCode.NoErrorCode));
         Assert.That(problems.Extensions["correlationId"].ToString(), Is.EqualTo(MockCorrelationId));
         Assert.That(problems.Extensions.ContainsKey("stackTrace"), Is.False);
+
+        loggerMock.Verify(x =>
+            x.Log(
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => true),
+                It.IsAny<Exception>(),
+                It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+            Times.Never);
     }
 
     [Test]
     public async Task NotFoundExceptionInDevelopment()
     {
         // Arrange
-        var server = CreateTestServer(Environments.Development, async ctx =>
+        var loggerMock = new Mock<ILogger<ExceptionHandlingMiddleware>>();
+        var server = CreateTestServer(Environments.Development, loggerMock.Object, async ctx =>
         {
             await Task.CompletedTask;
             throw new NotFoundException(
@@ -118,13 +153,23 @@ public class ExceptionHandlingMiddlewareTest
         Assert.That(problems.Extensions["correlationId"].ToString(), Is.EqualTo(MockCorrelationId));
         Assert.That(problems.Extensions.ContainsKey("stackTrace"), Is.True);
         Assert.That(problems.Extensions["stackTrace"].ToString(), Is.Not.Empty.And.Not.Null);
+
+        loggerMock.Verify(x =>
+            x.Log(
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => true),
+                It.IsAny<Exception>(),
+                It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+            Times.Never);
     }
 
     [Test]
     public async Task InternalServerErrorExceptionInProduction()
     {
         // Arrange
-        var server = CreateTestServer(Environments.Production, async ctx =>
+        var loggerMock = new Mock<ILogger<ExceptionHandlingMiddleware>>();
+        var server = CreateTestServer(Environments.Production, loggerMock.Object, async ctx =>
         {
             await Task.CompletedTask;
             throw new InternalServerErrorException(message: "this-will-not-reach-client-in-production");
@@ -143,13 +188,23 @@ public class ExceptionHandlingMiddlewareTest
         Assert.That(problems.Title, Is.EqualTo("Internal Server Error"));
         Assert.That(problems.Extensions["correlationId"].ToString(), Is.EqualTo(MockCorrelationId));
         Assert.That(problems.Extensions.ContainsKey("stackTrace"), Is.False);
+
+        loggerMock.Verify(x =>
+            x.Log(
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => true),
+                It.IsAny<Exception>(),
+                It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+            Times.Once);
     }
 
     [Test]
     public async Task InternalServerErrorExceptionInDevelopment()
     {
         // Arrange
-        var server = CreateTestServer(Environments.Development, async ctx =>
+        var loggerMock = new Mock<ILogger<ExceptionHandlingMiddleware>>();
+        var server = CreateTestServer(Environments.Development, loggerMock.Object, async ctx =>
         {
             await Task.CompletedTask;
             throw new InternalServerErrorException(message: "this-will-reach-client-in-development");
@@ -169,13 +224,23 @@ public class ExceptionHandlingMiddlewareTest
         Assert.That(problems.Extensions["correlationId"].ToString(), Is.EqualTo(MockCorrelationId));
         Assert.That(problems.Extensions.ContainsKey("stackTrace"), Is.True);
         Assert.That(problems.Extensions["stackTrace"].ToString(), Is.Not.Empty.And.Not.Null);
+
+        loggerMock.Verify(x =>
+            x.Log(
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => true),
+                It.IsAny<Exception>(),
+                It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+            Times.Once);
     }
 
     [Test]
     public async Task GenericExceptionInProduction()
     {
         // Arrange
-        var server = CreateTestServer(Environments.Production, async ctx =>
+        var loggerMock = new Mock<ILogger<ExceptionHandlingMiddleware>>();
+        var server = CreateTestServer(Environments.Production, loggerMock.Object, async ctx =>
         {
             // Division by zero:
             await ctx.Response.WriteAsync($"{1 / "".Length}");
@@ -194,13 +259,23 @@ public class ExceptionHandlingMiddlewareTest
         Assert.That(problems.Title, Is.EqualTo("Internal Server Error"));
         Assert.That(problems.Extensions["correlationId"].ToString(), Is.EqualTo(MockCorrelationId));
         Assert.That(problems.Extensions.ContainsKey("stackTrace"), Is.False);
+
+        loggerMock.Verify(x =>
+            x.Log(
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => true),
+                It.IsAny<Exception>(),
+                It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+            Times.Once);
     }
 
     [Test]
     public async Task GenericExceptionInDevelopment()
     {
         // Arrange
-        var server = CreateTestServer(Environments.Development, async ctx =>
+        var loggerMock = new Mock<ILogger<ExceptionHandlingMiddleware>>();
+        var server = CreateTestServer(Environments.Development, loggerMock.Object, async ctx =>
         {
             // Division by zero:
             await ctx.Response.WriteAsync($"{1 / "".Length}");
@@ -220,5 +295,14 @@ public class ExceptionHandlingMiddlewareTest
         Assert.That(problems.Extensions["correlationId"].ToString(), Is.EqualTo(MockCorrelationId));
         Assert.That(problems.Extensions.ContainsKey("stackTrace"), Is.True);
         Assert.That(problems.Extensions["stackTrace"].ToString(), Is.Not.Empty.And.Not.Null);
+
+        loggerMock.Verify(x =>
+            x.Log(
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => true),
+                It.IsAny<Exception>(),
+                It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
+            Times.Once);
     }
 }
