@@ -4,9 +4,9 @@ using Microsoft.Data.Sqlite;
 using Odin.Core.Time;
 using Odin.Core.Identity;
 
-namespace Odin.Core.Storage.SQLite.BlockChainDatabase
+namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 {
-    public class BlockChainRecord
+    public class KeyChainRecord
     {
         private byte[] _previousHash;
         public byte[] previousHash
@@ -109,9 +109,9 @@ namespace Odin.Core.Storage.SQLite.BlockChainDatabase
                   _recordHash = value;
                }
         }
-    } // End of class BlockChainRecord
+    } // End of class KeyChainRecord
 
-    public class TableBlockChainCRUD : TableBase
+    public class TableKeyChainCRUD : TableBase
     {
         private bool _disposed = false;
         private SqliteCommand _insertCommand = null;
@@ -154,14 +154,14 @@ namespace Odin.Core.Storage.SQLite.BlockChainDatabase
         private SqliteParameter _get0Param2 = null;
         private readonly CacheHelper _cache;
 
-        public TableBlockChainCRUD(BlockChainDatabase db, CacheHelper cache) : base(db)
+        public TableKeyChainCRUD(KeyChainDatabase db, CacheHelper cache) : base(db)
         {
             _cache = cache;
         }
 
-        ~TableBlockChainCRUD()
+        ~TableKeyChainCRUD()
         {
-            if (_disposed == false) throw new Exception("TableBlockChainCRUD Not disposed properly");
+            if (_disposed == false) throw new Exception("TableKeyChainCRUD Not disposed properly");
         }
 
         public override void Dispose()
@@ -185,11 +185,11 @@ namespace Odin.Core.Storage.SQLite.BlockChainDatabase
             {
                 if (dropExisting)
                 {
-                    cmd.CommandText = "DROP TABLE IF EXISTS blockChain;";
+                    cmd.CommandText = "DROP TABLE IF EXISTS keyChain;";
                     _database.ExecuteNonQuery(cmd);
                 }
                 cmd.CommandText =
-                    "CREATE TABLE IF NOT EXISTS blockChain("
+                    "CREATE TABLE IF NOT EXISTS keyChain("
                      +"previousHash BLOB NOT NULL UNIQUE, "
                      +"identity STRING NOT NULL, "
                      +"timestamp INT NOT NULL, "
@@ -206,14 +206,14 @@ namespace Odin.Core.Storage.SQLite.BlockChainDatabase
             }
         }
 
-        public virtual int Insert(BlockChainRecord item)
+        public virtual int Insert(KeyChainRecord item)
         {
             lock (_insertLock)
             {
                 if (_insertCommand == null)
                 {
                     _insertCommand = _database.CreateCommand();
-                    _insertCommand.CommandText = "INSERT INTO blockChain (previousHash,identity,timestamp,nonce,signedNonce,algorithm,publicKey,recordHash) " +
+                    _insertCommand.CommandText = "INSERT INTO keyChain (previousHash,identity,timestamp,nonce,signedNonce,algorithm,publicKey,recordHash) " +
                                                  "VALUES ($previousHash,$identity,$timestamp,$nonce,$signedNonce,$algorithm,$publicKey,$recordHash)";
                     _insertParam1 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam1);
@@ -251,19 +251,19 @@ namespace Odin.Core.Storage.SQLite.BlockChainDatabase
                 _insertParam8.Value = item.recordHash;
                 var count = _database.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
-                    _cache.AddOrUpdate("TableBlockChainCRUD", item.identity.ToString()+item.publicKey.ToString(), item);
+                    _cache.AddOrUpdate("TableKeyChainCRUD", item.identity.ToString()+item.publicKey.ToString(), item);
                 return count;
             } // Lock
         }
 
-        public virtual int Upsert(BlockChainRecord item)
+        public virtual int Upsert(KeyChainRecord item)
         {
             lock (_upsertLock)
             {
                 if (_upsertCommand == null)
                 {
                     _upsertCommand = _database.CreateCommand();
-                    _upsertCommand.CommandText = "INSERT INTO blockChain (previousHash,identity,timestamp,nonce,signedNonce,algorithm,publicKey,recordHash) " +
+                    _upsertCommand.CommandText = "INSERT INTO keyChain (previousHash,identity,timestamp,nonce,signedNonce,algorithm,publicKey,recordHash) " +
                                                  "VALUES ($previousHash,$identity,$timestamp,$nonce,$signedNonce,$algorithm,$publicKey,$recordHash)"+
                                                  "ON CONFLICT (identity,publicKey) DO UPDATE "+
                                                  "SET previousHash = $previousHash,timestamp = $timestamp,nonce = $nonce,signedNonce = $signedNonce,algorithm = $algorithm,recordHash = $recordHash;";
@@ -303,19 +303,19 @@ namespace Odin.Core.Storage.SQLite.BlockChainDatabase
                 _upsertParam8.Value = item.recordHash;
                 var count = _database.ExecuteNonQuery(_upsertCommand);
                 if (count > 0)
-                    _cache.AddOrUpdate("TableBlockChainCRUD", item.identity.ToString()+item.publicKey.ToString(), item);
+                    _cache.AddOrUpdate("TableKeyChainCRUD", item.identity.ToString()+item.publicKey.ToString(), item);
                 return count;
             } // Lock
         }
 
-        public virtual int Update(BlockChainRecord item)
+        public virtual int Update(KeyChainRecord item)
         {
             lock (_updateLock)
             {
                 if (_updateCommand == null)
                 {
                     _updateCommand = _database.CreateCommand();
-                    _updateCommand.CommandText = "UPDATE blockChain " +
+                    _updateCommand.CommandText = "UPDATE keyChain " +
                                                  "SET previousHash = $previousHash,timestamp = $timestamp,nonce = $nonce,signedNonce = $signedNonce,algorithm = $algorithm,recordHash = $recordHash "+
                                                  "WHERE (identity = $identity,publicKey = $publicKey)";
                     _updateParam1 = _updateCommand.CreateParameter();
@@ -354,21 +354,21 @@ namespace Odin.Core.Storage.SQLite.BlockChainDatabase
                 _updateParam8.Value = item.recordHash;
                 var count = _database.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
-                    _cache.AddOrUpdate("TableBlockChainCRUD", item.identity.ToString()+item.publicKey.ToString(), item);
+                    _cache.AddOrUpdate("TableKeyChainCRUD", item.identity.ToString()+item.publicKey.ToString(), item);
                 return count;
             } // Lock
         }
 
         // SELECT previousHash,identity,timestamp,nonce,signedNonce,algorithm,publicKey,recordHash
-        public BlockChainRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
+        public KeyChainRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
         {
-            var result = new List<BlockChainRecord>();
+            var result = new List<KeyChainRecord>();
             byte[] _tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
             var _guid = new byte[16];
-            var item = new BlockChainRecord();
+            var item = new KeyChainRecord();
 
             if (rdr.IsDBNull(0))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
@@ -471,7 +471,7 @@ namespace Odin.Core.Storage.SQLite.BlockChainDatabase
                 if (_delete0Command == null)
                 {
                     _delete0Command = _database.CreateCommand();
-                    _delete0Command.CommandText = "DELETE FROM blockChain " +
+                    _delete0Command.CommandText = "DELETE FROM keyChain " +
                                                  "WHERE identity = $identity AND publicKey = $publicKey";
                     _delete0Param1 = _delete0Command.CreateParameter();
                     _delete0Command.Parameters.Add(_delete0Param1);
@@ -485,12 +485,12 @@ namespace Odin.Core.Storage.SQLite.BlockChainDatabase
                 _delete0Param2.Value = publicKey;
                 var count = _database.ExecuteNonQuery(_delete0Command);
                 if (count > 0)
-                    _cache.Remove("TableBlockChainCRUD", identity.ToString()+publicKey.ToString());
+                    _cache.Remove("TableKeyChainCRUD", identity.ToString()+publicKey.ToString());
                 return count;
             } // Lock
         }
 
-        public BlockChainRecord ReadRecordFromReader0(SqliteDataReader rdr, string identity,byte[] publicKey)
+        public KeyChainRecord ReadRecordFromReader0(SqliteDataReader rdr, string identity,byte[] publicKey)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 0) throw new Exception("Too short");
@@ -498,13 +498,13 @@ namespace Odin.Core.Storage.SQLite.BlockChainDatabase
             if (publicKey == null) throw new Exception("Cannot be null");
             if (publicKey?.Length < 16) throw new Exception("Too short");
             if (publicKey?.Length > 500) throw new Exception("Too long");
-            var result = new List<BlockChainRecord>();
+            var result = new List<KeyChainRecord>();
             byte[] _tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
             long bytesRead;
 #pragma warning restore CS0168
             var _guid = new byte[16];
-            var item = new BlockChainRecord();
+            var item = new KeyChainRecord();
             item.identity = identity;
             item.publicKey = publicKey;
 
@@ -576,7 +576,7 @@ namespace Odin.Core.Storage.SQLite.BlockChainDatabase
             return item;
        }
 
-        public BlockChainRecord Get(string identity,byte[] publicKey)
+        public KeyChainRecord Get(string identity,byte[] publicKey)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 0) throw new Exception("Too short");
@@ -584,15 +584,15 @@ namespace Odin.Core.Storage.SQLite.BlockChainDatabase
             if (publicKey == null) throw new Exception("Cannot be null");
             if (publicKey?.Length < 16) throw new Exception("Too short");
             if (publicKey?.Length > 500) throw new Exception("Too long");
-            var (hit, cacheObject) = _cache.Get("TableBlockChainCRUD", identity.ToString()+publicKey.ToString());
+            var (hit, cacheObject) = _cache.Get("TableKeyChainCRUD", identity.ToString()+publicKey.ToString());
             if (hit)
-                return (BlockChainRecord)cacheObject;
+                return (KeyChainRecord)cacheObject;
             lock (_get0Lock)
             {
                 if (_get0Command == null)
                 {
                     _get0Command = _database.CreateCommand();
-                    _get0Command.CommandText = "SELECT previousHash,timestamp,nonce,signedNonce,algorithm,recordHash FROM blockChain " +
+                    _get0Command.CommandText = "SELECT previousHash,timestamp,nonce,signedNonce,algorithm,recordHash FROM keyChain " +
                                                  "WHERE identity = $identity AND publicKey = $publicKey LIMIT 1;";
                     _get0Param1 = _get0Command.CreateParameter();
                     _get0Command.Parameters.Add(_get0Param1);
@@ -608,11 +608,11 @@ namespace Odin.Core.Storage.SQLite.BlockChainDatabase
                 {
                     if (!rdr.Read())
                     {
-                        _cache.AddOrUpdate("TableBlockChainCRUD", identity.ToString()+publicKey.ToString(), null);
+                        _cache.AddOrUpdate("TableKeyChainCRUD", identity.ToString()+publicKey.ToString(), null);
                         return null;
                     }
                     var r = ReadRecordFromReader0(rdr, identity,publicKey);
-                    _cache.AddOrUpdate("TableBlockChainCRUD", identity.ToString()+publicKey.ToString(), r);
+                    _cache.AddOrUpdate("TableKeyChainCRUD", identity.ToString()+publicKey.ToString(), r);
                     return r;
                 } // using
             } // lock

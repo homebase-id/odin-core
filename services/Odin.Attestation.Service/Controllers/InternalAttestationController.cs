@@ -236,26 +236,15 @@ namespace OdinsAttestation.Controllers
         /// records in the block chain database.
         /// Considering if identity should instead be the nonce of the request.
         /// </summary>
-        /// <param name="identity"></param>
+        /// <param name="nonce"></param>
         /// <returns></returns>
         [HttpGet("ApproveRequest")]
-        public IActionResult GetApproveRequest(string identity)
+        public IActionResult GetApproveRequest(string nonce)
         {
-            PunyDomainName id;
-
-            try
-            {
-                id = new PunyDomainName(identity);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest($"Invalid identity {ex.Message}");
-            }
-
             //
             // First get the request from the database
             // 
-            var r = _db.tblAttestationRequest.Get(id.DomainName);
+            var r = _db.tblAttestationRequest.Get(nonce);
 
             if (r == null)
                 return BadRequest("No such request present");
@@ -274,7 +263,7 @@ namespace OdinsAttestation.Controllers
 
             try
             {
-                attestationList = GenerateAttestationsFromRequest(id, requestEnvelope);
+                attestationList = GenerateAttestationsFromRequest(requestEnvelope.Signatures[0].Identity.PunyDomain, requestEnvelope);
             }
             catch (Exception ex)
             {
@@ -291,13 +280,32 @@ namespace OdinsAttestation.Controllers
             //
             // Now call an identity endpoint to deliver the attested data (json array)
             //
-            SimulateFrodo.GetDeliverAttestations(jsonArray);
+            SimulateFrodo.DeliverAttestations(jsonArray);
 
 
+            // Block chain will contain
             //
+            // Option 1 - one record per attestation
             //
-            // MAYBE ADD NONCE TO THE AttestationRequestTable
+            // previousHash
+            // identity
+            // timestamp
+            // attestationNonce
+            // signedAttestationNonce
+            // algorithm
+            // publicKey
+            // recordHash
             //
+            // Option 2 - one record per request, attestations contain the request nonce in additionalInfo
+            //
+            // previousHash
+            // identity
+            // timestamp
+            // requestNonce
+            // signedRequestNonce
+            // algorithm
+            // publicKey
+            // recordHash
             //
 
             using (_db.CreateCommitUnitOfWork())
@@ -310,7 +318,7 @@ namespace OdinsAttestation.Controllers
                 //
                 // Finally, delete the pending request
                 //
-                GetDeleteRequest(identity);
+                GetDeleteRequest(nonce);
             }
             return Ok();
         }
@@ -318,10 +326,10 @@ namespace OdinsAttestation.Controllers
         [HttpGet("ListPendingRequests")]
         public async Task<IActionResult> GetListPendingRequests()
         {
-            var r = _db.tblAttestationRequest.PagingByIdentity(100, null, out var nextCursor);
+            var r = _db.tblAttestationRequest.PagingByNonce(100, null, out var nextCursor);
 
             // Using LINQ to convert the list of requests to a list of identities
-            var identities = r.Select(request => request.identity).ToList();
+            var identities = r.Select(request => request.nonce).ToList();
 
             await Task.Delay(1);  // You might not need this delay unless you have a specific reason for it.
 

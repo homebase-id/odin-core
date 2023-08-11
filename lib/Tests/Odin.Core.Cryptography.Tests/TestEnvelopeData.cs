@@ -105,7 +105,7 @@ namespace Odin.Tests
             if (AttestationManagement.VerifyAttestation(attestation) != true)
                 throw new Exception("Phone number");
 
-            var address = new SortedDictionary<string, string>
+            var address = new SortedDictionary<string, object>
             { 
                 { "street", "Bag End" },
                 { "city", "Hobbiton" },

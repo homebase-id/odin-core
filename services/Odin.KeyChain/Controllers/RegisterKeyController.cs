@@ -5,7 +5,7 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Text;
 using Odin.Core;
-using Odin.Core.Storage.SQLite.BlockChainDatabase;
+using Odin.Core.Storage.SQLite.KeyChainDatabase;
 using Odin.Core.Util;
 using Odin.Core.Time;
 using Microsoft.Data.Sqlite;
@@ -23,11 +23,11 @@ namespace OdinsChains.Controllers
     {
         private readonly ILogger<RegisterKeyController> _logger;
         private readonly IHttpClientFactory _httpClientFactory;
-        private readonly BlockChainDatabase _db;
+        private readonly KeyChainDatabase _db;
         private static SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
         private readonly bool _simulate = true;
 
-        public RegisterKeyController(ILogger<RegisterKeyController> logger, IHttpClientFactory httpClientFactory, BlockChainDatabase db)
+        public RegisterKeyController(ILogger<RegisterKeyController> logger, IHttpClientFactory httpClientFactory, KeyChainDatabase db)
         {
             _logger = logger;
             _httpClientFactory = httpClientFactory;
@@ -181,7 +181,7 @@ namespace OdinsChains.Controllers
 
             // Begin building a block chain records to insert...
             //
-            var newRecordToInsert = BlockChainDatabaseUtil.NewBlockChainRecord();
+            var newRecordToInsert = KeyChainDatabaseUtil.NewBlockChainRecord();
 
             newRecordToInsert.identity = identity;
 
@@ -263,7 +263,7 @@ namespace OdinsChains.Controllers
             try
             {
                 // 50 Retrieve the previous row and it's hash
-                BlockChainRecord previousRowRecord;
+                KeyChainRecord previousRowRecord;
 
                 try
                 {
@@ -279,10 +279,10 @@ namespace OdinsChains.Controllers
                 newRecordToInsert.previousHash = previousRowRecord.recordHash;
 
                 // 060 calculate new hash
-                newRecordToInsert.recordHash = BlockChainDatabaseUtil.CalculateRecordHash(newRecordToInsert);
+                newRecordToInsert.recordHash = KeyChainDatabaseUtil.CalculateRecordHash(newRecordToInsert);
 
                 // 070 verify record
-                if (BlockChainDatabaseUtil.VerifyBlockChainRecord(newRecordToInsert, previousRowRecord) == false)
+                if (KeyChainDatabaseUtil.VerifyBlockChainRecord(newRecordToInsert, previousRowRecord) == false)
                 {
                     return Problem("Cannot verify");
                 }

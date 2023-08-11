@@ -4,9 +4,9 @@
 @Todd - Give alias to @ms
 @Ms   - Setup CNAME or A in Google for "keychain.odin.earth"
 @Todd - create the service that triggers registration, see code prepped for you.
-@Todd - Create something we can use for a "red circle" if not registered.
+@Todd/@Stef - Create something we can use for a "red circle" if not registered.
 @Todd - Create a red circle if the ECC signature key is rotated (punt for now?)
-@Stef - Add a checkbox step to the initial wizard to register the signing key (checked by default)
+@Stef - Add a checkbox step to the initial wizard to register the signing key (not checked by default?)
 @Stef - Add a red circle in the owner console if registration is missing
 @Stef - Add a button to register the signature key (for when key is rotated or if it failed in the initial wizard)
 @Stef - Add a red circle / green checkmark in some kind of status overview where you can see
@@ -17,32 +17,26 @@
 # Basic Blockchain Service for Public Key Registration
 
 This project is a simple yet robust blockchain service designed to securely register and store identities' public signature keys. Each row in the blockchain consists of several crucial elements that help guarantee the integrity and authenticity of the stored data.
-<<<<<<< HEAD
-=======
-
 
 ## Web Services
 
 ### Verify(string identity)
-Returns HTTP 200 and the oldest registration timestamp of the provided identity, otherwise returns Not Found. 
+Returns HTTP 200 and the oldest registration timestamp of the provided identity (aka identity age), otherwise returns "Not Found". 
 
 ### VerifyKey(string identity, string publicKeyDerBase64)
 Returns HTTP 200 and the public key registration timestamp range of the provided identity, otherwise returns Not Found. 
 If the public key is still the last registered keu there is no end-range.
 
-### Register(string identity, string requestCode)
-Initiates a public key registration for the provided identity.
-The requestCode is a random value known only to the identity requesting registration.
+### Register(string identity, string instructionSignedEnvelope)
+Initiates a public key registration for the provided identity based on a signed instruction envelope.
 This service will:
-  - 020. Service calls Client.GetPublicKey() to get signature key
-  - 030. Service calls Client.SignNonce(requestCode, previousHash)
+  - 020. Service calls Client.GetPublicKey() to validate availability of the signature key
+  - 030. Service calls Client.SignNonce(randomNonce, Envelope.nonce)
   - 033. Client returns signedNonce
   - 037. Service verifies signature
 And the new record is added to the immutable block-chain.
->>>>>>> eb22e23ac8134ee6579e15e99122997712f04e34
 
 ## Data Structure
-
 Each row in the blockchain includes the following fields:
 
 - `previousHash` (BLOB): A unique SHA-256 hash of the previous row.
@@ -55,7 +49,6 @@ Each row in the blockchain includes the following fields:
 - `recordHash` (BLOB): A unique hash value of this record.
 
 ## Security Features
-
 The main security feature of this blockchain service is the `signedNonce` field. This value is the nonce signed by the entity registering its public key, which serves two essential purposes:
 
 1. **Authentication**: The signed nonce proves the identity of the entity making the request, as only the holder of the private key can produce a valid signature.
@@ -63,7 +56,6 @@ The main security feature of this blockchain service is the `signedNonce` field.
 2. **Integrity**: The blockchain's integrity is maintained as any modification to the blockchain would require all subsequent `signedNonce` values to be recalculated. Given that these signatures can only be produced by the respective identity, it effectively safeguards the blockchain against unauthorized modifications.
 
 ## Future Developments
-
 The next significant step for this project is to turn it into a distributed system, where multiple copies of the blockchain can be maintained across various nodes. This would provide additional security, transparency, and reliability for the registered data, thereby elevating the service to the next level.
 
 Contributions and suggestions towards this goal, or any other improvements, are warmly welcome. Enjoy using and improving this basic blockchain service!

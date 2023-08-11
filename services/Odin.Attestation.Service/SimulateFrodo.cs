@@ -68,7 +68,7 @@ namespace OdinsAttestation
         }
 
         // Todd this is the endpoint on an identity that receives a jsonArray of attestations (signedEnvelopes)
-        public static void GetDeliverAttestations(string attestationListJsonArray)
+        public static void DeliverAttestations(string attestationListJsonArray)
         {
             if (attestationListJsonArray == null)
                 throw new ArgumentNullException(nameof(attestationListJsonArray));

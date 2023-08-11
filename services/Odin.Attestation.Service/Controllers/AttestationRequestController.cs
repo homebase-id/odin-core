@@ -88,7 +88,7 @@ namespace OdinsAttestation.Controllers
 
             // Save request in database for later administrative staff review
             //
-            var r = new AttestationRequestRecord() { identity = requestorId.DomainName, requestEnvelope = signedEnvelope.GetCompactSortedJson(), timestamp = UnixTimeUtc.Now() };
+            var r = new AttestationRequestRecord() { nonce = signedEnvelope.Envelope.ContentNonce.ToBase64(), requestEnvelope = signedEnvelope.GetCompactSortedJson(), timestamp = UnixTimeUtc.Now() };
 
             try
             {

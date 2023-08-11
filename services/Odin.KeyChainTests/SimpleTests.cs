@@ -1,6 +1,6 @@
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
-using Odin.Core.Storage.SQLite.BlockChainDatabase;
+using Odin.Core.Storage.SQLite.KeyChainDatabase;
 using Odin.Core.Util;
 
 namespace ChainTests
@@ -15,7 +15,7 @@ namespace ChainTests
         [Test]
         public void Test1()
         {
-            var db = new BlockChainDatabase("");
+            var db = new KeyChainDatabase("");
             db.CreateDatabase();
 
             var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
@@ -23,7 +23,7 @@ namespace ChainTests
 
             var hash = ByteArrayUtil.CalculateSHA256Hash("odin".ToUtf8ByteArray());
             var key = ByteArrayUtil.CalculateSHA256Hash("someRsaPublicKeyDEREncoded".ToUtf8ByteArray());
-            var r = new BlockChainRecord()
+            var r = new KeyChainRecord()
             { 
                 previousHash = hash, 
                 identity = "frodo.baggins.me",
@@ -41,7 +41,7 @@ namespace ChainTests
         [Test]
         public void Test2()
         {
-            var db = new BlockChainDatabase("");
+            var db = new KeyChainDatabase("");
 
             var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
             var ecc = new EccFullKeyData(pwd, 1);
@@ -51,7 +51,7 @@ namespace ChainTests
             var hash = ByteArrayUtil.CalculateSHA256Hash("odin".ToUtf8ByteArray());
             var key = ByteArrayUtil.CalculateSHA256Hash("someRsaPublicKeyDEREncoded".ToUtf8ByteArray());
             // var r = new BlockChainRecord() { identity = "frodo.baggins.me", recordHash = hash, publicKey = key, signedNonce = key };
-            var r = new BlockChainRecord()
+            var r = new KeyChainRecord()
             {
                 previousHash = hash,
                 identity = "frodo.baggins.me",

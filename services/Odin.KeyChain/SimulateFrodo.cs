@@ -107,7 +107,7 @@ namespace Odin.KeyChain
             // @Todd First sanity check the tempCode
             var tempCode = Convert.FromBase64String(contentNonceFromEnvelope);
             if ((tempCode.Length < 16) || (tempCode.Length > 32))
-                throw new Exception("invalid nonce size");
+                throw new Exception("invalid envelope nonce size");
 
             // @Todd then load the tempCode from the DB
             // var tempCode = identityDb.tblKeyValue.Get(CONST_..._ID);
@@ -115,7 +115,7 @@ namespace Odin.KeyChain
             // DELETE the tempCode from the DB
             // identityDb.tblKeyValue.Delete(CONST_..._ID);
             if (!LoadLocally(contentNonceFromEnvelope))
-                throw new Exception($"No such nonce");
+                throw new Exception($"No such envelope nonce request made");
 
             // tempCode was OK, we continue
             var nonce = Convert.FromBase64String(nonceToSignBase64);

@@ -1,22 +1,22 @@
 ﻿using System;
 using Microsoft.Data.Sqlite;
 using Odin.Core.Storage.SQLite;
-using Odin.Core.Storage.SQLite.BlockChainDatabase;
+using Odin.Core.Storage.SQLite.KeyChainDatabase;
 
-namespace Odin.Core.Storage.SQLite.BlockChainDatabase
+namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 {
-    public class TableBlockChain : TableBlockChainCRUD
+    public class TableKeyChain : TableKeyChainCRUD
     {
 
         private SqliteCommand _get0Command = null;
         private SqliteCommand _get1Command = null;
         private SqliteParameter _get1Param1 = null;
 
-        public TableBlockChain(BlockChainDatabase db, CacheHelper cache) : base(db, cache)
+        public TableKeyChain(KeyChainDatabase db, CacheHelper cache) : base(db, cache)
         {
         }
 
-        ~TableBlockChain()
+        ~TableKeyChain()
         {
         }
 
@@ -27,7 +27,7 @@ namespace Odin.Core.Storage.SQLite.BlockChainDatabase
         /// <param name="rsakey"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public BlockChainRecord GetLastLink()
+        public KeyChainRecord GetLastLink()
         {
             if (_get0Command == null)
             {
@@ -47,7 +47,7 @@ namespace Odin.Core.Storage.SQLite.BlockChainDatabase
         }
 
         // Get oldest 
-        public BlockChainRecord Get(string identity)
+        public KeyChainRecord Get(string identity)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 0) throw new Exception("Too short");
