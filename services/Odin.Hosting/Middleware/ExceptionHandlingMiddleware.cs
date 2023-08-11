@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -115,8 +116,13 @@ namespace Odin.Hosting.Middleware
             }
 
             var result = JsonSerializer.Serialize(problemDetails);
-            context.Response.ContentType = "application/problem+json";
-            context.Response.StatusCode = problemDetails.Status.Value;
+
+            if (!context.Response.HasStarted)
+            {
+                // Avoids error "Headers are read-only, response has already started."
+                context.Response.ContentType = "application/problem+json";
+                context.Response.StatusCode = problemDetails.Status.Value;
+            }
 
             return context.Response.WriteAsync(result);
         }

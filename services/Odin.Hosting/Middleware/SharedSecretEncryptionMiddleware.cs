@@ -157,6 +157,13 @@ namespace Odin.Hosting.Middleware
 
         private async Task EncryptResponse(HttpContext context, Stream originalBody)
         {
+            if (context.Response.HasStarted)
+            {
+                // Avoids error "Headers are read-only, response has already started."
+                // We can't change or undo an already started response.
+                return;
+            }
+
             //if a controller tells us no content, write nothing to the stream
             if (context.Response.StatusCode == (int)HttpStatusCode.NoContent)
             {
