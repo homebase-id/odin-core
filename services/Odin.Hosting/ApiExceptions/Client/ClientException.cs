@@ -1,9 +1,10 @@
 using System;
 using System.Net;
+using Odin.Core.Exceptions;
 
-namespace Odin.Core.Exceptions.Client;
+namespace Odin.Hosting.ApiExceptions.Client;
 
-public abstract class ClientException : OdinApiException
+public abstract class ClientException : ApiException
 {
     public OdinClientErrorCode OdinClientErrorCode { get; set; }
 
@@ -11,11 +12,10 @@ public abstract class ClientException : OdinApiException
         string message,
         HttpStatusCode httpStatusCode,
         OdinClientErrorCode odinClientErrorCode = OdinClientErrorCode.NoErrorCode,
-        Exception inner = null
-    ) : base(
-        httpStatusCode,
-        message,
-        inner
+        Exception inner = null) : base(
+            httpStatusCode,
+            message,
+            inner
     )
     {
         OdinClientErrorCode = odinClientErrorCode;

@@ -1,7 +1,8 @@
 using System;
 using System.Net;
+using Odin.Core.Exceptions;
 
-namespace Odin.Core.Exceptions.Client;
+namespace Odin.Hosting.ApiExceptions.Client;
 
 public class BadRequestException : ClientException
 {
@@ -10,14 +11,12 @@ public class BadRequestException : ClientException
     public BadRequestException(
         string message = DefaultErrorMessage,
         OdinClientErrorCode odinClientErrorCode = OdinClientErrorCode.NoErrorCode,
-        HttpStatusCode httpStatusCode = HttpStatusCode.BadRequest,
-        Exception inner = null
-    ) : base(
-        message,
-        httpStatusCode,
-        odinClientErrorCode,
-        inner
-    )
+        Exception inner = null,
+        HttpStatusCode httpStatusCode = HttpStatusCode.BadRequest) : base(
+            message,
+            httpStatusCode,
+            odinClientErrorCode,
+            inner)
     {
     }
 }

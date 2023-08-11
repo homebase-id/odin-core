@@ -1,7 +1,7 @@
 using System;
 using System.Net;
 
-namespace Odin.Core.Exceptions.Server;
+namespace Odin.Hosting.ApiExceptions.Server;
 
 public class InternalServerErrorException : ServerException
 {
@@ -9,9 +9,8 @@ public class InternalServerErrorException : ServerException
 
     public InternalServerErrorException(
         string message = DefaultErrorMessage,
-        HttpStatusCode httpStatusCode = HttpStatusCode.InternalServerError,
-        Exception inner = null
-    ) : base (
+        Exception inner = null,
+        HttpStatusCode httpStatusCode = HttpStatusCode.InternalServerError) : base (
         message,
         httpStatusCode,
         inner

@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Net;
+using Odin.Core.Exceptions;
 
-namespace Odin.Core.Exceptions.Client;
+namespace Odin.Hosting.ApiExceptions.Client;
 
 public class UnauthorizedException : ClientException
 {
@@ -10,9 +11,8 @@ public class UnauthorizedException : ClientException
     public UnauthorizedException(
         string message = DefaultErrorMessage,
         OdinClientErrorCode odinClientErrorCode = OdinClientErrorCode.NoErrorCode,
-        HttpStatusCode httpStatusCode = HttpStatusCode.Unauthorized,
-        Exception inner = null
-        ) : base(
+        Exception inner = null,
+        HttpStatusCode httpStatusCode = HttpStatusCode.Unauthorized) : base(
             message,
             httpStatusCode,
             odinClientErrorCode,

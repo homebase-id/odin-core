@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Net;
+using Odin.Core.Exceptions;
 
-namespace Odin.Core.Exceptions.Client;
+namespace Odin.Hosting.ApiExceptions.Client;
 
 public class NotFoundException : ClientException
 {
@@ -10,9 +11,8 @@ public class NotFoundException : ClientException
     public NotFoundException(
         string message = DefaultErrorMessage,
         OdinClientErrorCode odinClientErrorCode = OdinClientErrorCode.NoErrorCode,
-        HttpStatusCode httpStatusCode = HttpStatusCode.NotFound,
-        Exception inner = null
-        ) : base(
+        Exception inner = null,
+        HttpStatusCode httpStatusCode = HttpStatusCode.NotFound) : base(
             message,
             httpStatusCode,
             odinClientErrorCode,

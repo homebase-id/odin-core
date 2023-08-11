@@ -1,6 +1,4 @@
 ﻿using System;
-using System.IO;
-using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -8,10 +6,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Exceptions;
-using Odin.Core.Exceptions.Client;
-using Odin.Core.Exceptions.Server;
 using Odin.Core.Logging.CorrelationId;
-using Odin.Core.Serialization;
+using Odin.Hosting.ApiExceptions;
+using Odin.Hosting.ApiExceptions.Client;
+using Odin.Hosting.ApiExceptions.Server;
 
 namespace Odin.Hosting.Middleware
 {
@@ -33,42 +31,46 @@ namespace Odin.Hosting.Middleware
             _next = next;
             _logger = logger;
             _correlationContext = correlationContext;
-            _sendInternalErrorDetailsToClient =
-                env.IsDevelopment() || Environment.GetEnvironmentVariable("DOTYOUCORE_EX_INFO") == "1";
+            _sendInternalErrorDetailsToClient = env.IsDevelopment();
         }
 
         //
 
-        /// <summary/>
         public async Task Invoke(HttpContext context)
         {
             try
             {
                 await _next(context);
             }
-            catch (OdinClientException eee)
+            catch (OdinClientException e) // => HTTP 400
             {
-                await HandleApplicationAccessException(context, eee);
+                // SEB:TODO
+                // OdinClientException is used in a lot of places.
+                // We need to go through them all and determine if any should map to something
+                // different than 404, in which case the code should throw a different exception.
+                await HandleExceptionAsync(context, new BadRequestException(e.Message, e.ErrorCode, e));
             }
-            catch (OdinRemoteIdentityException rie)
+            catch (OdinRemoteIdentityException e) // => HTTP 503
             {
-                await HandleRemoteServerException(context, rie);
+                var message = $"Remote identity host failed: {e.Message}";
+                await HandleExceptionAsync(context, new ServiceUnavailableException(message, e));
             }
-            catch (DriveSecurityException dex)
+            catch (DriveSecurityException e) // => HTTP 403
             {
-                await HandleDriveAccessException(context, dex);
+                // SEB:TODO
+                // Does it make sense to return 403 to client? Is it really an internal server error
+                // because of bad state?
+                var message = $"{ForbiddenException.DefaultErrorMessage}: {e.Message}";
+                await HandleExceptionAsync(context, new ForbiddenException(message, inner: e));
             }
-            catch (UnauthorizedAccessException uex)
+            catch (OdinSecurityException e) // => HTTP 403
             {
-                await HandleDriveAccessException(context, uex);
-            }
-            catch (OdinSecurityException yse)
-            {
-                await HandleSecurityException(context, yse);
-            }
-            catch (IOException iox)
-            {
-                await HandleIoException(context, iox);
+                // SEB:TODO
+                // OdinSecurityException is used in a lot of places.
+                // We need to go through them all and determine if any should map to something
+                // different than 403, in which case the code should throw a different exception.
+                var message = $"{ForbiddenException.DefaultErrorMessage}: {e.Message}";
+                await HandleExceptionAsync(context, new ForbiddenException(message, inner: e));
             }
             catch (Exception ex)
             {
@@ -76,157 +78,8 @@ namespace Odin.Hosting.Middleware
             }
         }
 
-        private Task HandleSecurityException(HttpContext context, OdinSecurityException exception)
-        {
-            const int status = 403;
-            const string title = "Security Error";
-
-            _logger.LogError(exception, "{ErrorText}", exception.Message);
-
-            var problemDetails = new ProblemDetails
-            {
-                Status = status,
-                Title = title,
-                Detail = "No access",
-                Extensions =
-                {
-                    ["correlationId"] = _correlationContext.Id
-                }
-            };
-
-            var result = JsonSerializer.Serialize(problemDetails, OdinSystemSerializer.JsonSerializerOptions);
-            context.Response.ContentType = "application/problem+json";
-            context.Response.StatusCode = status;
-
-            return context.Response.WriteAsync(result);
-        }
-
-        private Task HandleIoException(HttpContext context, IOException exception)
-        {
-            const int status = 404;
-            const string title = "Not Found";
-
-            _logger.LogError(exception, "{ErrorText}", $"IOException - {exception.GetType().Name} - {exception.Message}");
-
-            var problemDetails = new ProblemDetails
-            {
-                Status = status,
-                Title = title,
-                Detail = "File or directory not found",
-                Extensions =
-                {
-                    ["correlationId"] = _correlationContext.Id
-                }
-            };
-
-            var result = JsonSerializer.Serialize(problemDetails, OdinSystemSerializer.JsonSerializerOptions);
-            context.Response.ContentType = "application/problem+json";
-            context.Response.StatusCode = status;
-
-            return context.Response.WriteAsync(result);
-        }
-
         //
 
-        private Task HandleRemoteServerException(HttpContext context, OdinRemoteIdentityException appException)
-        {
-            const int status = (int)HttpStatusCode.ServiceUnavailable;
-            const string title = "Remote Identity Server failed";
-
-            _logger.LogError(appException, "{ErrorText}", appException.Message);
-
-            string internalErrorMessage = "";
-            string stackTrace = "";
-
-            var b = int.TryParse(Environment.GetEnvironmentVariable("DOTYOUCORE_EX_INFO"), out var env);
-            if (b && env == 1)
-            {
-                internalErrorMessage = appException.Message;
-                stackTrace = appException.StackTrace ?? "";
-            }
-
-            var problemDetails = new ProblemDetails
-            {
-                Status = status,
-                Title = title,
-                Extensions =
-                {
-                    ["errorCode"] = appException.ErrorCode,
-                    ["correlationId"] = _correlationContext.Id,
-                    ["internalErrorMessage"] = internalErrorMessage,
-                    ["stackTrace"] = stackTrace
-                }
-            };
-
-            var result = JsonSerializer.Serialize(problemDetails);
-            context.Response.ContentType = "application/problem+json";
-            context.Response.StatusCode = status;
-
-            return context.Response.WriteAsync(result);
-        }
-        private Task HandleApplicationAccessException(HttpContext context, OdinClientException appException)
-        {
-            const int status = (int)HttpStatusCode.BadRequest;
-            const string title = "Bad Request";
-
-            _logger.LogError(appException, "{ErrorText}", appException.Message);
-
-            string internalErrorMessage = "";
-            string stackTrace = "";
-
-            var b = int.TryParse(Environment.GetEnvironmentVariable("DOTYOUCORE_EX_INFO"), out var env);
-            if (b && env == 1)
-            {
-                internalErrorMessage = appException.Message;
-                stackTrace = appException.StackTrace ?? "";
-            }
-
-            var problemDetails = new ProblemDetails
-            {
-                Status = status,
-                Title = title,
-                Extensions =
-                {
-                    ["errorCode"] = appException.ErrorCode,
-                    ["correlationId"] = _correlationContext.Id,
-                    ["internalErrorMessage"] = internalErrorMessage,
-                    ["stackTrace"] = stackTrace
-                }
-            };
-
-            var result = JsonSerializer.Serialize(problemDetails);
-            context.Response.ContentType = "application/problem+json";
-            context.Response.StatusCode = status;
-
-            return context.Response.WriteAsync(result);
-        }
-
-        private Task HandleDriveAccessException(HttpContext context, Exception exception)
-        {
-            const int status = 403;
-            const string title = "Access Denied";
-
-            _logger.LogError(exception, "{ErrorText}", exception.Message);
-
-            var problemDetails = new ProblemDetails
-            {
-                Status = status,
-                Title = title,
-                Extensions =
-                {
-                    ["correlationId"] = _correlationContext.Id
-                }
-            };
-
-            var result = JsonSerializer.Serialize(problemDetails);
-            context.Response.ContentType = "application/problem+json";
-            context.Response.StatusCode = status;
-
-            return context.Response.WriteAsync(result);
-        }
-
-        //
-        
         private Task HandleExceptionAsync(HttpContext context, Exception exception)
         {
             var problemDetails = new ProblemDetails
@@ -240,7 +93,7 @@ namespace Odin.Hosting.Middleware
                 }
             };
 
-            if (exception is OdinApiException ae)
+            if (exception is ApiException ae)
             {
                 problemDetails.Status = (int)ae.HttpStatusCode;
             }

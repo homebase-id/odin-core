@@ -11,10 +11,10 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Odin.Core.Exceptions;
-using Odin.Core.Exceptions.Client;
-using Odin.Core.Exceptions.Server;
 using Odin.Core.Logging.CorrelationId;
 using Odin.Core.Serialization;
+using Odin.Hosting.ApiExceptions.Client;
+using Odin.Hosting.ApiExceptions.Server;
 using Odin.Hosting.Middleware;
 
 namespace Odin.Hosting.Tests.Middleware;
