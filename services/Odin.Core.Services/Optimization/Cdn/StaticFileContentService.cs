@@ -173,6 +173,10 @@ public class StaticFileContentService
 
         var config = _tenantSystemStorage.SingleKeyValueStorage.Get<StaticFileConfiguration>(GetConfigKey(filename));
 
+        if (!File.Exists(targetFile))
+        {
+            return Task.FromResult((config, (Stream)null));
+        }
 
         var fileStream = File.Open(targetFile, FileMode.Open, FileAccess.Read, FileShare.Read);
         return Task.FromResult((config, (Stream)fileStream));
