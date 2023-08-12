@@ -3,16 +3,12 @@
 
 
 using Microsoft.AspNetCore.Mvc;
-using System.Text;
 using Odin.Core;
 using Odin.Core.Storage.SQLite.KeyChainDatabase;
 using Odin.Core.Util;
-using Odin.Core.Time;
-using Microsoft.Data.Sqlite;
 using Odin.KeyChain;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Signatures;
-using System.Security.Principal;
 using System.Text.Json;
 
 namespace OdinsChains.Controllers
@@ -117,21 +113,41 @@ namespace OdinsChains.Controllers
             return Ok(msg);
         }
 
+        private KeyChainRecord TryGetLastLinkOrThrow()
+        {
+            try
+            {
+                KeyChainRecord? record = _db.tblKeyChain.GetLastLink();
+
+                if (record == null)
+                    throw new Exception("Block chain appears to be empty");
+
+                return record;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to retrieve the last link: {ex.Message}", ex);
+            }
+        }
+
 
         /// <summary>
-        /// 005. Client calls Server.RegisterKey(identity, signedInstruction)
-        /// 010. Deserialize the json into a signedEnvelope
-        /// 015. Verify the envelope
-        /// 020. Server calls Client.GetPublicKey() to get signature key (strictly speaking not needed)
-        /// 030. Server serializes each request from hereon in semaphore
-        /// 040. Server fetches last row
-        /// 050. Server calls Client.SignNonce(tempcode, previousHash)
-        /// 053. Client returns signedNonce (signed previousHash)
-        /// 057. Server verifies signature
-        /// 060. Server calculates new block chain row
-        /// 070. Server verifies row data (hash and maybe timestamp)
-        /// 080. Server writes row
-        /// 090. Server frees semaphore
+        /// 010. Client calls Server.RegisterKey(identity, signedInstruction)
+        /// 020. Deserialize the json into a signedEnvelope
+        /// 030. Verify the envelope
+        /// 040. Server calls Client.GetPublicKey() to get signature key (strictly speaking not needed)
+        /// 
+        /// 050. Server fetches last row
+        /// 060. Server optimistically calls Client.SignNonce(tempcode, previousHash)
+        /// 070. Client returns signedNonce (signed previousHash)
+        /// 080. Server verifies signature
+        ///
+        /// 100. Server serializes each request from hereon in semaphore
+        /// 110. Server checks if GetLastLink() has a matching previousHash, if not release the semaphore and retry in step 50 (max 2 retries)
+        /// 120. Server calculates new block chain row recordHash
+        /// 130. Server verifies row data (hash and maybe timestamp)
+        /// 140. Server writes row
+        /// 150. Server frees semaphore
         /// </summary>
         /// <param name="identity"></param>
         /// <param name="signedInstructionEnvelopeJson"></param>
@@ -139,7 +155,10 @@ namespace OdinsChains.Controllers
         [HttpGet("Register")]
         public async Task<IActionResult> GetRegister(string identity, string signedInstructionEnvelopeJson)
         {
-            // 05. Initialize and ensure high level integrity
+            const int MAX_TRIES = 3;
+            int attemptCount = 0;
+
+            // 010. Initialize and ensure high level integrity
             //
             PunyDomainName domain;
             try
@@ -159,7 +178,7 @@ namespace OdinsChains.Controllers
 
             SignedEnvelope? signedEnvelope;
 
-            // 10. Deserialize the JSON
+            // 020. Deserialize the JSON
             //
             try
             {
@@ -173,7 +192,7 @@ namespace OdinsChains.Controllers
             if (signedEnvelope == null)
                 return BadRequest($"Unable to deserialize envelope");
 
-            // 015. Verify envelope
+            // 030. Verify envelope
             if (signedEnvelope.Envelope.EnvelopeType != EnvelopeData.EnvelopeTypeInstruction)
                 return BadRequest($"Envelope type must be {EnvelopeData.EnvelopeTypeInstruction}");
             if (signedEnvelope.Envelope.EnvelopeSubType != InstructionSignedEnvelope.ENVELOPE_SUB_TYPE_KEY_REGISTRATION)
@@ -182,7 +201,6 @@ namespace OdinsChains.Controllers
             // Begin building a block chain records to insert...
             //
             var newRecordToInsert = KeyChainDatabaseUtil.NewBlockChainRecord();
-
             newRecordToInsert.identity = identity;
 
             // First be sure we can get the caller's public key so we
@@ -195,7 +213,7 @@ namespace OdinsChains.Controllers
 
             try
             {
-                // 020. Get the public ECC key for signing
+                // 040. Get the public ECC key for signing
                 // /api/v1/PublicKey/SignatureValidation
                 string publicKeyBase64;
 
@@ -220,35 +238,32 @@ namespace OdinsChains.Controllers
             if (ByteArrayUtil.EquiByteArrayCompare(signedEnvelope.Signatures[0].PublicKeyDer, publicKey.publicKey) == false)
                 return BadRequest($"The public key of [{domain.DomainName}] didn't match the public key in the instruction envelope");
 
-
             // Add the public key DER to the block chain record
             newRecordToInsert.publicKey = publicKey.publicKey;
 
 
-            // 030 semaphore
-            await _semaphore.WaitAsync();
-
+            // 050 Retrieve the previous row (we need it's hash to sign)
+            KeyChainRecord previousRowRecord;
             try
             {
-                // 40 Retrieve the previous row (we need it's hash)
-                KeyChainRecord previousRowRecord;
+                previousRowRecord = TryGetLastLinkOrThrow();
+            }
+            catch (Exception ex)
+            {
+                return Problem(ex.Message);
+            }
 
-                try
-                {
-                    previousRowRecord = _db.tblKeyChain.GetLastLink();
-                    if (previousRowRecord == null)
-                        return Problem("Database is broken");
-                }
-                catch (Exception)
-                {
-                    return Problem("Database is broken");
-                }
+            // 
+            // Begin the optimistic signature -> block chain insert process
+            //
+            while (attemptCount < MAX_TRIES)
+            {
+                attemptCount++;
 
                 newRecordToInsert.previousHash = previousRowRecord.recordHash;
 
-                // 050. Sign the previous Hash
+                // 060. Optimistically call out to get the previous Hash signed
                 //
-
                 try
                 {
                     string signedPreviousHashBase64;
@@ -265,7 +280,7 @@ namespace OdinsChains.Controllers
 
                     newRecordToInsert.signedPreviousHash = Convert.FromBase64String(signedPreviousHashBase64);
 
-                    // 057
+                    // 080
                     if (publicKey.VerifySignature(newRecordToInsert.previousHash, newRecordToInsert.signedPreviousHash) == false)
                     {
                         return BadRequest("Signature invalid.");
@@ -277,34 +292,59 @@ namespace OdinsChains.Controllers
                 }
 
 
-
-                // 060 calculate new hash
-                newRecordToInsert.recordHash = KeyChainDatabaseUtil.CalculateRecordHash(newRecordToInsert);
-
-                // 070 verify record
-                if (KeyChainDatabaseUtil.VerifyBlockChainRecord(newRecordToInsert, previousRowRecord) == false)
-                {
-                    return Problem("Cannot verify");
-                }
-
-                // 080 write row
                 try
                 {
-                    _db.tblKeyChain.Insert(newRecordToInsert);
-                }
-                catch (Exception e)
-                {
-                    return Problem($"Did you try to register a duplicate? {e.Message}");
-                }
-                _db.Commit(); // Flush immediately
-            }
-            finally
-            {
-                // 090 free semaphore
-                _semaphore.Release();
-            }
+                    //
+                    // 0100 - insert the blockchain, serialize here
+                    //
+                    await _semaphore.WaitAsync();
 
-            return Ok("OK");
+                    // 110 Retrieve the previous row AGAIN to make sure it's the same
+                    try
+                    {
+                        previousRowRecord = TryGetLastLinkOrThrow();
+                    }
+                    catch (Exception ex)
+                    {
+                        return Problem(ex.Message);
+                    }
+
+                    if (ByteArrayUtil.EquiByteArrayCompare(previousRowRecord.recordHash, newRecordToInsert.previousHash) == false)
+                    {
+                        newRecordToInsert.previousHash = previousRowRecord.recordHash;
+                        continue; // oh no, someone beat us to it, try again
+                    }
+
+                    // 120 calculate new hash
+                    newRecordToInsert.recordHash = KeyChainDatabaseUtil.CalculateRecordHash(newRecordToInsert);
+
+                    // 130 verify record
+                    if (KeyChainDatabaseUtil.VerifyBlockChainRecord(newRecordToInsert, previousRowRecord) == false)
+                    {
+                        return Problem("Cannot verify");
+                    }
+
+                    // 140 write row
+                    try
+                    {
+                        _db.tblKeyChain.Insert(newRecordToInsert);
+                    }
+                    catch (Exception e)
+                    {
+                        return Problem($"Did you try to register a duplicate? {e.Message}");
+                    }
+                    _db.Commit(); // Flush immediately
+
+                    return Ok("OK");
+                }
+                finally
+                {
+                    // 150 free semaphore
+                    _semaphore.Release();
+                }
+            } // while
+
+            return StatusCode(429, "Too Many Requests. Please try again later.");
         }
 
     }

@@ -1,7 +1,6 @@
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Storage.SQLite.KeyChainDatabase;
-using Odin.Core.Util;
 
 namespace ChainTests
 {
