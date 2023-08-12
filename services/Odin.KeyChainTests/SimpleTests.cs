@@ -27,13 +27,12 @@ namespace ChainTests
             { 
                 previousHash = hash, 
                 identity = "frodo.baggins.me",
-                nonce = Guid.NewGuid().ToByteArray(),
-                signedNonce = key,
+                signedPreviousHash = key,
                 algorithm = "ublah",
                 publicKey = ecc.publicKey,
                 recordHash = hash
             };
-            db.tblBlockChain.Insert(r);
+            db.tblKeyChain.Insert(r);
 
             Assert.Pass();
         }
@@ -55,23 +54,55 @@ namespace ChainTests
             {
                 previousHash = hash,
                 identity = "frodo.baggins.me",
-                nonce = Guid.NewGuid().ToByteArray(),
-                signedNonce = key,
+                signedPreviousHash = key,
                 algorithm = "ublah",
                 publicKey = ecc.publicKey,
                 recordHash = hash
             };
-            db.tblBlockChain.Insert(r);
+            db.tblKeyChain.Insert(r);
 
             try
             {
-                db.tblBlockChain.Insert(r);
+                db.tblKeyChain.Insert(r);
                 Assert.Fail();
             }
             catch (Exception)
             {
                 Assert.Pass();
             }
+        }
+
+        [Test]
+        public void Test3()
+        {
+            var db = new KeyChainDatabase("");
+            db.CreateDatabase();
+
+            var pwd = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
+            var ecc = new EccFullKeyData(pwd, 1);
+
+            var hash = ByteArrayUtil.CalculateSHA256Hash("odin".ToUtf8ByteArray());
+            var key = ByteArrayUtil.CalculateSHA256Hash("someRsaPublicKeyDEREncoded".ToUtf8ByteArray());
+            var r = new KeyChainRecord()
+            {
+                previousHash = hash,
+                identity = "frodo.baggins.me",
+                signedPreviousHash = key,
+                algorithm = "ublah",
+                publicKey = ecc.publicKey,
+                recordHash = hash
+            };
+
+            db.tblKeyChain.Insert(r);
+
+            // Make sure we can read a record even if we're in the semaphore lock 
+
+            using (db.CreateCommitUnitOfWork())
+            {
+                var r2 = db.tblKeyChain.Get(r.identity);
+            }
+
+            Assert.Pass();
         }
     }
 }

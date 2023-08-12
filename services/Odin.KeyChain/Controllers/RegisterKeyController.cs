@@ -64,7 +64,7 @@ namespace OdinsChains.Controllers
                 return BadRequest($"Invalid identity {ex.Message}");
             }
 
-            var r = _db.tblBlockChain.Get(identity);
+            var r = _db.tblKeyChain.Get(identity);
             if (r == null)
             {
                 return NotFound("No such identity found.");
@@ -106,7 +106,7 @@ namespace OdinsChains.Controllers
                 return BadRequest("Invalid public key");
             }
 
-            var r = _db.tblBlockChain.Get(identity, publicKey.publicKey);
+            var r = _db.tblKeyChain.Get(identity, publicKey.publicKey);
             if (r == null)
             {
                 return NotFound("No such identity,key found.");
@@ -122,12 +122,12 @@ namespace OdinsChains.Controllers
         /// 005. Client calls Server.RegisterKey(identity, signedInstruction)
         /// 010. Deserialize the json into a signedEnvelope
         /// 015. Verify the envelope
-        /// 020. Server calls Client.GetPublicKey() to get signature key
-        /// 030. Server calls Client.SignNonce(tempcode, previousHash)
-        /// 033. Client returns signedNonce
-        /// 037. Server verifies signature
-        /// 040. Server serializes each request from hereon in semaphore
-        /// 050. Server fetches last row
+        /// 020. Server calls Client.GetPublicKey() to get signature key (strictly speaking not needed)
+        /// 030. Server serializes each request from hereon in semaphore
+        /// 040. Server fetches last row
+        /// 050. Server calls Client.SignNonce(tempcode, previousHash)
+        /// 053. Client returns signedNonce (signed previousHash)
+        /// 057. Server verifies signature
         /// 060. Server calculates new block chain row
         /// 070. Server verifies row data (hash and maybe timestamp)
         /// 080. Server writes row
@@ -225,49 +225,17 @@ namespace OdinsChains.Controllers
             newRecordToInsert.publicKey = publicKey.publicKey;
 
 
-            // 030. Create the nonce we want to sign
-            //
-            newRecordToInsert.nonce = ByteArrayUtil.GetRndByteArray(32);
-
-            try
-            {
-                string signedNonceBase64;
-
-                if (_simulate)
-                {
-                    signedNonceBase64 = SimulateFrodo.SignNonceForKeyChain(newRecordToInsert.nonce.ToBase64(), signedEnvelope.Envelope.ContentNonce.ToBase64());
-                }
-                else
-                {
-                    var response = await _httpClient.GetAsync("/api/v1/PublicKey/SignNonce");
-                    signedNonceBase64 = await response.Content.ReadAsStringAsync();
-                }
-
-                newRecordToInsert.signedNonce = Convert.FromBase64String(signedNonceBase64);
-
-                // 037
-                if (publicKey.VerifySignature(newRecordToInsert.nonce, newRecordToInsert.signedNonce) == false)
-                {
-                    return BadRequest("Signature invalid.");
-                }
-            }
-            catch (Exception e)
-            {
-                return BadRequest($"Error getting the signed nonce of [api.{domain.DomainName}] failed: {e.Message}");
-            }
-
-            // 040 semaphore
+            // 030 semaphore
             await _semaphore.WaitAsync();
 
-
             try
             {
-                // 50 Retrieve the previous row and it's hash
+                // 40 Retrieve the previous row (we need it's hash)
                 KeyChainRecord previousRowRecord;
 
                 try
                 {
-                    previousRowRecord = _db.tblBlockChain.GetLastLink();
+                    previousRowRecord = _db.tblKeyChain.GetLastLink();
                     if (previousRowRecord == null)
                         return Problem("Database is broken");
                 }
@@ -277,6 +245,38 @@ namespace OdinsChains.Controllers
                 }
 
                 newRecordToInsert.previousHash = previousRowRecord.recordHash;
+
+                // 050. Sign the previous Hash
+                //
+
+                try
+                {
+                    string signedPreviousHashBase64;
+
+                    if (_simulate)
+                    {
+                        signedPreviousHashBase64 = SimulateFrodo.SignNonceForKeyChain(newRecordToInsert.previousHash.ToBase64(), signedEnvelope.Envelope.ContentNonce.ToBase64());
+                    }
+                    else
+                    {
+                        var response = await _httpClient.GetAsync("/api/v1/PublicKey/SignNonce");
+                        signedPreviousHashBase64 = await response.Content.ReadAsStringAsync();
+                    }
+
+                    newRecordToInsert.signedPreviousHash = Convert.FromBase64String(signedPreviousHashBase64);
+
+                    // 057
+                    if (publicKey.VerifySignature(newRecordToInsert.previousHash, newRecordToInsert.signedPreviousHash) == false)
+                    {
+                        return BadRequest("Signature invalid.");
+                    }
+                }
+                catch (Exception e)
+                {
+                    return BadRequest($"Error getting the signed nonce of [api.{domain.DomainName}] failed: {e.Message}");
+                }
+
+
 
                 // 060 calculate new hash
                 newRecordToInsert.recordHash = KeyChainDatabaseUtil.CalculateRecordHash(newRecordToInsert);
@@ -290,7 +290,7 @@ namespace OdinsChains.Controllers
                 // 080 write row
                 try
                 {
-                    _db.tblBlockChain.Insert(newRecordToInsert);
+                    _db.tblKeyChain.Insert(newRecordToInsert);
                 }
                 catch (Exception e)
                 {

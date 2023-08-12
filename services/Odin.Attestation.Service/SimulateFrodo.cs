@@ -6,6 +6,7 @@ using System.Text.Json.Nodes;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using OdinsAttestation.Controllers;
+using Odin.Core.Time;
 
 namespace OdinsAttestation
 {
@@ -14,11 +15,13 @@ namespace OdinsAttestation
         public static string Identity = "frodobaggins.me";
         private static SensitiveByteArray _pwd;
         private static EccFullKeyData _ecc;
+        private static Dictionary<string, Int64> _database;
 
         static SimulateFrodo()
         {
             _pwd = Guid.Empty.ToByteArray().ToSensitiveByteArray();
             _ecc = new EccFullKeyData(_pwd, 1);
+            _database = new Dictionary<string, Int64> { };
         }
 
         private static void GenerateNewKeys()
@@ -26,6 +29,34 @@ namespace OdinsAttestation
             _pwd = Guid.Empty.ToByteArray().ToSensitiveByteArray();
             _ecc = new EccFullKeyData(_pwd, 1);
         }
+
+        private static void SaveLocally(string nonceBase64)
+        {
+            // Save nonce in Frodo's database, the nonce could easily be the key
+            // Dont think we need to store the whole signed doc
+            // Todd this would easily go into the key-two-value database
+            _database.Add(nonceBase64, UnixTimeUtc.Now().seconds);
+        }
+
+        private static bool LoadLocally(string nonceBase64)
+        {
+            // Save nonce in Frodo's database, the nonce could easily be the key
+            // Dont think we need to store the whole signed doc
+            // Todd this would easily go into the key-two-value database
+            if (!_database.ContainsKey(nonceBase64))
+                return false;
+
+            var r = _database[nonceBase64];
+
+            if (UnixTimeUtc.Now().seconds - r > 60)
+                return false;
+
+            _database.Remove(nonceBase64);
+
+            return true;
+        }
+
+
 
         // Todd this is the function on an identity that should return Frodo's public (signature) key (ECC)
         // For example https://frodo.baggins.me/api/v1/signature/publickey
@@ -35,7 +66,7 @@ namespace OdinsAttestation
                 throw new Exception("kaboom");
             return _ecc.publicDerBase64();
         }
-
+        
         public async static Task<IActionResult> InitiateRequestForAttestation(AttestationRequestController webApi)
         {
             var address = new SortedDictionary<string, object>
@@ -60,6 +91,8 @@ namespace OdinsAttestation
             // Let's build the envelope that Frodo will send
             var signedEnvelope = SimulateFrodo.RequestEnvelope(dataToAttest);
 
+            SaveLocally(signedEnvelope.Envelope.ContentNonce.ToBase64());
+
             // Todd, call the attestation server via HttpClient(Factory)
             // Here I had to hack it
             var r1 = await webApi.GetRequestAttestation(signedEnvelope.GetCompactSortedJson());
@@ -68,7 +101,7 @@ namespace OdinsAttestation
         }
 
         // Todd this is the endpoint on an identity that receives a jsonArray of attestations (signedEnvelopes)
-        public static void DeliverAttestations(string attestationListJsonArray)
+        public static List<string> DeliverAttestations(string attestationListJsonArray, string tempCodeBase64)
         {
             if (attestationListJsonArray == null)
                 throw new ArgumentNullException(nameof(attestationListJsonArray));
@@ -109,12 +142,25 @@ namespace OdinsAttestation
                     throw new Exception($"Incorrect signer {attestationList[i]!.Signatures[0].Identity} expected {AttestationManagement.AUTHORITY_IDENTITY}");
             }
 
-            // Now we store these as N data profile attestation properties
+            //
+            // Verify this is in response to my own request
+            //
+            if (LoadLocally(tempCodeBase64) == false)
+                throw new Exception("Frodo unable to find request ID");
+
+            List<string> signatureList = new List<string>();
+
+            // Now we create a list of signatures and store these as N data profile attestation properties
             // 
             for (int i = 0; i < attestationList.Count; i++)
             {
-                // Store it
+                var signedNonceBase64 = SignNonceForKeyChain(attestationList[i].Envelope.ContentNonce.ToBase64());
+                signatureList.Add(signedNonceBase64);
+
+                // Todd TODO: Store it in Frodo's profile data
             }
+
+            return signatureList;
         }
 
 
@@ -137,19 +183,8 @@ namespace OdinsAttestation
         /// <param name="tempCodeBase64">A code proving we're going to sign it</param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        public static string SignNonceForKeyChain(string nonceBase64, string tempCodeBase64)
+        public static string SignNonceForKeyChain(string nonceBase64)
         {
-            // @Todd First sanity check the tempCode
-            var tempCode = Convert.FromBase64String(tempCodeBase64);
-            if ((tempCode.Length < 16) || (tempCode.Length > 32))
-                throw new Exception("invalid nonce size");
-
-            // @Todd then load the tempCode from the DB
-            // var tempCode = identityDb.tblKeyValue.Get(CONST_..._ID);
-            // If the tempCode is more than 10 seconds old, fail
-            // DELETE the tempCode from the DB
-            // identityDb.tblKeyValue.Delete(CONST_..._ID);
-
             // tempCode was OK, we continue
             var nonce = Convert.FromBase64String(nonceBase64);
 

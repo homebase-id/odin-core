@@ -18,7 +18,7 @@ namespace Odin.KeyChain
         {
             _db.CreateDatabase(dropExistingTables: true); // Remove "true" for production
 
-            var r = _db.tblBlockChain.GetLastLink();
+            var r = _db.tblKeyChain.GetLastLink();
 
             // If the database is empty then we need to create the genesis record
             if (r == null)
@@ -34,13 +34,12 @@ namespace Odin.KeyChain
 
                 genesis.identity = "id.odin.earth"; // or e.g. id.dot.one
                 genesis.publicKey = eccGenesis.publicKey; // Would be nice with a real public key here from the actual identity
-                genesis.nonce = "May Odin's chain safeguard the identities of the many. Skål!".ToUtf8ByteArray();
-                var signature = eccGenesis.Sign(password, genesis.nonce);
-                genesis.signedNonce = signature;
                 genesis.previousHash = ByteArrayUtil.CalculateSHA256Hash(Guid.Empty.ToByteArray());
+                var signature = eccGenesis.Sign(password, genesis.previousHash);
+                genesis.signedPreviousHash = signature;
                 genesis.recordHash = CalculateRecordHash(genesis);
                 VerifyBlockChainRecord(genesis, null);
-                _db.tblBlockChain.Insert(genesis);
+                _db.tblKeyChain.Insert(genesis);
             }
         }
 
@@ -49,7 +48,6 @@ namespace Odin.KeyChain
         {
             var r = new KeyChainRecord();
 
-            r.nonce = ByteArrayUtil.GetRndByteArray(32);
             r.timestamp = UnixTimeUtcUnique.Now();
             r.algorithm = EccFullKeyData.eccSignatureAlgorithm;
 
@@ -62,8 +60,7 @@ namespace Odin.KeyChain
             return ByteArrayUtil.Combine(record.previousHash,
                                          Encoding.UTF8.GetBytes(record.identity),
                                          ByteArrayUtil.Int64ToBytes(record.timestamp.uniqueTime),
-                                         record.nonce,
-                                         record.signedNonce,
+                                         record.signedPreviousHash,
                                          record.algorithm.ToUtf8ByteArray(),
                                          record.publicKey);
         }
@@ -91,7 +88,7 @@ namespace Odin.KeyChain
         public static bool VerifyBlockChainRecord(KeyChainRecord record, KeyChainRecord? previousRecord)
         {
             var publicKey = EccPublicKeyData.FromDerEncodedPublicKey(record.publicKey);
-            if (publicKey.VerifySignature(record.nonce, record.signedNonce) == false)
+            if (publicKey.VerifySignature(record.previousHash, record.signedPreviousHash) == false)
                 return false;
 
             if (previousRecord != null)
@@ -124,7 +121,7 @@ namespace Odin.KeyChain
 
                 while (rdr.Read())
                 {
-                    var record = _db.tblBlockChain.ReadRecordFromReaderAll(rdr);
+                    var record = _db.tblKeyChain.ReadRecordFromReaderAll(rdr);
                     if (VerifyBlockChainRecord(record, previousRecord) == false)
                         return false;
                     previousRecord = record;

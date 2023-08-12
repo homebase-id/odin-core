@@ -17,7 +17,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
 {
     public class KeyChainDatabase : DatabaseBase
     {
-        public readonly TableKeyChain tblBlockChain = null;
+        public readonly TableKeyChain tblKeyChain = null;
 
         public readonly string CN;
 
@@ -26,7 +26,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         private readonly int _line;
         public KeyChainDatabase(string connectionString, long commitFrequencyMs = 5000, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1) : base(connectionString, commitFrequencyMs)
         {
-            tblBlockChain = new TableKeyChain(this, _cache);
+            tblKeyChain = new TableKeyChain(this, _cache);
             CN = connectionString;
             _file = file;
             _line = line;
@@ -49,7 +49,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         {
             Commit();
 
-            tblBlockChain.Dispose();
+            tblKeyChain.Dispose();
 
             base.Dispose();
         }
@@ -60,7 +60,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         /// </summary>
         public override void CreateDatabase(bool dropExistingTables = true)
         {
-            tblBlockChain.EnsureTableExists(dropExistingTables);
+            tblKeyChain.EnsureTableExists(dropExistingTables);
             if (dropExistingTables)
                 Vacuum();
         }

@@ -124,6 +124,10 @@ namespace Odin.KeyChain
             if ((nonce.Length < 16) || (nonce.Length > 32))
                 throw new Exception("invalid nonce size");
 
+            //
+            // TO CONSIDER: Should we prepend e.g. "KEYCHAIN_" to the nonce signed? So we prove it's not some contentNonce we're signing
+            // XXX
+
             // We sign the nonce with the signature key
             var signature = _ecc.Sign(_pwd, nonce);
 

@@ -40,14 +40,14 @@ namespace OdinsAttestation.Controllers
         /// </summary>
         /// <param name="identity"></param>
         /// <returns></returns>
-        private IActionResult DeleteRequest(PunyDomainName identity)
+        private IActionResult DeleteRequest(string nonceBase64)
         {
             try
             {
-                var n = _db.tblAttestationRequest.Delete(identity.DomainName);
+                var n = _db.tblAttestationRequest.Delete(nonceBase64);
 
                 if (n < 1)
-                    return BadRequest($"No such identity found deleted");
+                    return BadRequest($"No such record found");
             }
             catch (Exception ex)
             {
@@ -66,20 +66,9 @@ namespace OdinsAttestation.Controllers
         /// <param name="identity"></param>
         /// <returns></returns>
         [HttpGet("DeleteRequest")]
-        public IActionResult GetDeleteRequest(string identity)
+        public IActionResult GetDeleteRequest(string nonceBase64)
         {
-            PunyDomainName id;
-
-            try
-            {
-                id = new PunyDomainName(identity);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest($"Invalid identity {ex.Message}");
-            }
-
-            return DeleteRequest(id);
+            return DeleteRequest(nonceBase64);
         }
 
 
@@ -236,15 +225,15 @@ namespace OdinsAttestation.Controllers
         /// records in the block chain database.
         /// Considering if identity should instead be the nonce of the request.
         /// </summary>
-        /// <param name="nonce"></param>
+        /// <param name="nonceBase64"></param>
         /// <returns></returns>
         [HttpGet("ApproveRequest")]
-        public IActionResult GetApproveRequest(string nonce)
+        public IActionResult GetApproveRequest(string nonceBase64)
         {
             //
             // First get the request from the database
             // 
-            var r = _db.tblAttestationRequest.Get(nonce);
+            var r = _db.tblAttestationRequest.Get(nonceBase64);
 
             if (r == null)
                 return BadRequest("No such request present");
@@ -279,8 +268,9 @@ namespace OdinsAttestation.Controllers
 
             //
             // Now call an identity endpoint to deliver the attested data (json array)
+            // In return we get a signature of the Envelope.contentNonce for each attestation provided
             //
-            SimulateFrodo.DeliverAttestations(jsonArray);
+            var signatureList = SimulateFrodo.DeliverAttestations(jsonArray, nonceBase64);
 
 
             // Block chain will contain
@@ -296,29 +286,18 @@ namespace OdinsAttestation.Controllers
             // publicKey
             // recordHash
             //
-            // Option 2 - one record per request, attestations contain the request nonce in additionalInfo
-            //
-            // previousHash
-            // identity
-            // timestamp
-            // requestNonce
-            // signedRequestNonce
-            // algorithm
-            // publicKey
-            // recordHash
-            //
 
             using (_db.CreateCommitUnitOfWork())
             {
                 //
-                // Now insert the block chain records
+                // Now we are fully ready to insert the block chain records, we have all the data needed
                 //
 
 
                 //
                 // Finally, delete the pending request
                 //
-                GetDeleteRequest(nonce);
+                GetDeleteRequest(nonceBase64);
             }
             return Ok();
         }

@@ -32,7 +32,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             if (_get0Command == null)
             {
                 _get0Command = _database.CreateCommand();
-                _get0Command.CommandText = "SELECT previousHash,identity,timestamp,nonce,signedNonce,algorithm,publicKey,recordHash FROM blockChain ORDER BY rowid DESC LIMIT 1;";
+                _get0Command.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKey,recordHash FROM keyChain ORDER BY rowid DESC LIMIT 1;";
             }
 
             using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
@@ -56,7 +56,7 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
             if (_get1Command == null)
             {
                 _get1Command = _database.CreateCommand();
-                _get1Command.CommandText = "SELECT previousHash,identity,timestamp,nonce,signedNonce,algorithm,publicKey,recordHash FROM blockChain " +
+                _get1Command.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKey,recordHash FROM keyChain " +
                                                 "WHERE identity = $identity ORDER BY rowid ASC LIMIT 1;";
                 _get1Param1 = _get1Command.CreateParameter();
                 _get1Command.Parameters.Add(_get1Param1);
