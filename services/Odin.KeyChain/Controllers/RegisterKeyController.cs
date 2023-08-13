@@ -10,6 +10,7 @@ using Odin.KeyChain;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Signatures;
 using System.Text.Json;
+using Odin.Core.Time;
 
 namespace Odin.Keychain
 {
@@ -241,6 +242,20 @@ namespace Odin.Keychain
             // Add the public key DER to the block chain record
             newRecordToInsert.publicKey = publicKey.publicKey;
 
+            //
+            // We could check that an idenity cannot insert too many keys, e.g. max one per month
+            //
+            var r = _db.tblKeyChain.Get(domain.DomainName);
+            if (r != null)
+            {
+                var d = UnixTimeUtc.Now().seconds - r.timestamp.ToUnixTimeUtc().seconds;
+
+                if (d > 3600 * 24 * 7)
+                {
+                    throw new Exception("Try again in a week's time");
+                }
+
+            }
 
             // 050 Retrieve the previous row (we need it's hash to sign)
             KeyChainRecord previousRowRecord;
@@ -252,6 +267,7 @@ namespace Odin.Keychain
             {
                 return Problem(ex.Message);
             }
+            newRecordToInsert.previousHash = previousRowRecord.recordHash;
 
             // 
             // Begin the optimistic signature -> block chain insert process
@@ -259,8 +275,6 @@ namespace Odin.Keychain
             while (attemptCount < MAX_TRIES)
             {
                 attemptCount++;
-
-                newRecordToInsert.previousHash = previousRowRecord.recordHash;
 
                 // 060. Optimistically call out to get the previous Hash signed
                 //
@@ -311,8 +325,9 @@ namespace Odin.Keychain
 
                     if (ByteArrayUtil.EquiByteArrayCompare(previousRowRecord.recordHash, newRecordToInsert.previousHash) == false)
                     {
+                        // oh no, someone beat us to it, try again
                         newRecordToInsert.previousHash = previousRowRecord.recordHash;
-                        continue; // oh no, someone beat us to it, try again
+                        continue;
                     }
 
                     // 120 calculate new hash
@@ -344,8 +359,7 @@ namespace Odin.Keychain
                 }
             } // while
 
-            return StatusCode(429, "Too Many Requests. Please try again later.");
+            return StatusCode(429, "Please try again later, someone else is too fast.");
         }
-
     }
 }

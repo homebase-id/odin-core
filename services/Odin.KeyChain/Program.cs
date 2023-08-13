@@ -1,7 +1,5 @@
-using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Storage.SQLite.KeyChainDatabase;
 using Odin.KeyChain;
-using OdinsChains.Controllers;
 
 var builder = WebApplication.CreateBuilder(args);
 
