@@ -11,7 +11,7 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Signatures;
 using System.Text.Json;
 
-namespace OdinsChains.Controllers
+namespace Odin.Keychain
 {
     [ApiController]
     [Route("[controller]")]
