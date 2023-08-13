@@ -250,11 +250,8 @@ namespace Odin.Keychain
             {
                 var d = UnixTimeUtc.Now().seconds - r.timestamp.ToUnixTimeUtc().seconds;
 
-                if (d > 3600 * 24 * 7)
-                {
-                    throw new Exception("Try again in a week's time");
-                }
-
+                if (d < 3600 * 24 * 30)
+                    return StatusCode(429, "Try again: at least 30 days between registrations");
             }
 
             // 050 Retrieve the previous row (we need it's hash to sign)
