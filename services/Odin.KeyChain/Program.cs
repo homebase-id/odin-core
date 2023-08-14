@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core.Storage.SQLite.BlockChainDatabase;
+using Odin.KeyChain;
 using OdinsChains.Controllers;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -14,7 +15,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var _db = new BlockChainDatabase(@"Data Source=blockchain.db");
-RegisterKeyController.InitializeDatabase(_db); // Only do this once per boot
+BlockChainDatabaseUtil.InitializeDatabase(_db); // Only do this once per boot
 
 builder.Services.AddSingleton<BlockChainDatabase>(_db);
 

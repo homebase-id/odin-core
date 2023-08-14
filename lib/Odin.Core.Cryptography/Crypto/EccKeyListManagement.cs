@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using Odin.Core.Cryptography.Data;
 using Odin.Core;
+using Odin.Core.Cryptography.Data;
 
 namespace Odin.Core.Cryptography.Crypto
 {

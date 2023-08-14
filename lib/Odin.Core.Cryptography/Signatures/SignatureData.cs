@@ -3,8 +3,9 @@ using Odin.Core.Identity;
 using Odin.Core.Time;
 using System.Text.Json.Serialization;
 using System;
+using Odin.Core.Cryptography.Data;
 
-namespace Odin.Core.Cryptography.Data
+namespace Odin.Core.Cryptography.Signatures
 {
     public class SignatureData
     {
@@ -76,7 +77,7 @@ namespace Odin.Core.Cryptography.Data
                 throw new ArgumentNullException(nameof(signatureData));
 
             var dataHash = ByteArrayUtil.CalculateSHA256Hash(dataOriginallySigned);
-            
+
             // Verify that the original data hash is the same as in the signature
             if (ByteArrayUtil.EquiByteArrayCompare(dataHash, signatureData.DataHash) == false)
                 return false;
@@ -84,11 +85,11 @@ namespace Odin.Core.Cryptography.Data
             // It's the same hash, validate the signature
             var publicKey = EccPublicKeyData.FromDerEncodedPublicKey(signatureData.PublicKeyDer);
             var bytesToSign = ByteArrayUtil.Combine(
-                                    signatureData.DataHash, 
+                                    signatureData.DataHash,
                                     signatureData.DataHashAlgorithm.ToUtf8ByteArray(),
                                     signatureData.Identity.ToByteArray(),
-                                    signatureData.PublicKeyDer, 
-                                    ByteArrayUtil.Int64ToBytes(signatureData.TimeStamp.milliseconds), 
+                                    signatureData.PublicKeyDer,
+                                    ByteArrayUtil.Int64ToBytes(signatureData.TimeStamp.milliseconds),
                                     signatureData.SignatureAlgorithm.ToUtf8ByteArray());
 
             return publicKey.VerifySignature(bytesToSign, signatureData.Signature);

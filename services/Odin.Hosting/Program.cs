@@ -22,26 +22,16 @@ using Odin.Core.Services.Registry;
 using Odin.Core.Services.Registry.Registration;
 using Odin.Hosting.Multitenant;
 using Serilog;
-using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
 
 namespace Odin.Hosting
 {
     public static class Program
     {
-        private const string
-            LogOutputTemplate = "{Timestamp:o} {Level:u3} {CorrelationId} {Hostname} {Message:lj}{NewLine}{Exception}"; // Add {SourceContext} to see source
-
-        private static readonly SystemConsoleTheme LogOutputTheme = SystemConsoleTheme.Literate;
-
         public static int Main(string[] args)
         {
-            Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Information()
-                .Enrich.WithHostname(new StickyHostnameGenerator())
-                .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
-                .WriteTo.Console(outputTemplate: LogOutputTemplate, theme: LogOutputTheme)
-                .CreateBootstrapLogger();
+            var (odinConfig, appSettingsConfig) = LoadConfig();
+            Log.Logger = CreateLogger(appSettingsConfig, odinConfig).CreateBootstrapLogger();
 
             try
             {
@@ -62,7 +52,9 @@ namespace Odin.Hosting
             return 0;
         }
 
-        public static (OdinConfiguration, IConfiguration) LoadConfig()
+        //
+
+        private static (OdinConfiguration, IConfiguration) LoadConfig()
         {
             const string configPathOverrideVariable = "ODIN_CONFIG_PATH";
 
@@ -97,6 +89,39 @@ namespace Odin.Hosting
             return (new OdinConfiguration(config), config);
         }
 
+        //
+
+        private static LoggerConfiguration CreateLogger(
+            IConfiguration configuration,
+            OdinConfiguration odinConfig,
+            IServiceProvider services = null,
+            LoggerConfiguration loggerConfig = null)
+        {
+            const string logOutputTemplate = // Add {SourceContext} to see source
+                "{Timestamp:o} {Level:u3} {CorrelationId} {Hostname} {Message:lj}{NewLine}{Exception}";
+            var logOutputTheme = SystemConsoleTheme.Literate;
+
+            loggerConfig ??= new LoggerConfiguration();
+
+            loggerConfig
+                .ReadFrom.Configuration(configuration)
+                .Enrich.FromLogContext()
+                .Enrich.WithHostname(new StickyHostnameGenerator())
+                .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
+                .WriteTo.Async(sink => sink.Console(outputTemplate: logOutputTemplate, theme: logOutputTheme))
+                .WriteTo.Async(sink => sink.RollingFile(
+                    Path.Combine(odinConfig.Logging.LogFilePath, "app-{Date}.log"), outputTemplate: logOutputTemplate));
+
+            if (services != null)
+            {
+                loggerConfig.ReadFrom.Services(services);
+            }
+
+            return loggerConfig;
+        }
+
+        //
+
         public static IHostBuilder CreateHostBuilder(string[] args)
         {
             var (odinConfig, appSettingsConfig) = LoadConfig();
@@ -110,14 +135,18 @@ namespace Odin.Hosting
             var dataRootDirInfo = Directory.CreateDirectory(odinConfig.Host.TenantDataRootPath);
             if (!dataRootDirInfo.Exists)
             {
-                throw new OdinClientException($"Could not create logging folder at [{odinConfig.Logging.LogFilePath}]");
+                throw new OdinClientException($"Could not create logging folder at [{odinConfig.Host.TenantDataRootPath}]");
             }
 
             Log.Information($"Root path:{odinConfig.Host.TenantDataRootPath}");
 
             var builder = Host.CreateDefaultBuilder(args)
                 .ConfigureAppConfiguration(builder => { builder.AddConfiguration(appSettingsConfig); })
-                .UseSystemd()
+                .UseSerilog((context, services, loggerConfiguration) =>
+                {
+                    CreateLogger(context.Configuration, odinConfig, services, loggerConfiguration);
+                })
+                .UseSystemd() // SEB:TODO remove this when we're fully containerized
                 .UseServiceProviderFactory(new MultiTenantServiceProviderFactory(DependencyInjection.ConfigureMultiTenantServices,
                     DependencyInjection.InitializeTenant))
                 .ConfigureWebHostDefaults(webBuilder =>
@@ -136,38 +165,6 @@ namespace Odin.Hosting
                         })
                         .UseStartup<Startup>();
                 });
-
-            if (odinConfig.Logging.Level == LoggingLevel.ErrorsOnly)
-            {
-                builder.UseSerilog((context, services, configuration) => configuration
-                    .ReadFrom.Services(services)
-                    .MinimumLevel.Error());
-
-                return builder;
-            }
-
-            if (odinConfig.Logging.Level == LoggingLevel.Verbose)
-            {
-                builder.UseSerilog((context, services, configuration) => configuration
-                    .ReadFrom.Services(services)
-                    .MinimumLevel.Debug()
-                    .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
-                    .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
-                    .MinimumLevel.Override("Microsoft.AspNetCore.Authentication", LogEventLevel.Error)
-                    .MinimumLevel.Override("Quartz", LogEventLevel.Warning)
-                    .MinimumLevel.Override("Odin.Hosting.Middleware.Logging.RequestLoggingMiddleware", LogEventLevel.Information)
-                    .MinimumLevel.Override("Odin.Core.Services.Transit.Outbox", LogEventLevel.Warning)
-                    .MinimumLevel.Override("Odin.Core.Services.Workers.Transit.StokeOutboxJob", LogEventLevel.Warning)
-                    .Enrich.FromLogContext()
-                    .Enrich.WithHostname(new StickyHostnameGenerator())
-                    .Enrich.WithCorrelationId(new CorrelationUniqueIdGenerator())
-                    // .WriteTo.Debug() // SEB:TODO only do this in debug builds
-                    .WriteTo.Async(sink => sink.Console(outputTemplate: LogOutputTemplate, theme: LogOutputTheme))
-                    .WriteTo.Async(sink =>
-                        sink.RollingFile(Path.Combine(odinConfig.Logging.LogFilePath, "app-{Date}.log"), outputTemplate: LogOutputTemplate)));
-
-                return builder;
-            }
 
             return builder;
         }
@@ -193,8 +190,20 @@ namespace Odin.Hosting
 
                 if (cert == null)
                 {
+                    //
                     // This is an escape hatch so runtime won't log an error
-                    // when no certificate could be found
+                    // when no certificate could be found.
+                    //
+                    // NOTE:
+                    // When probing for SSLv2 support (which is unsecure and denied in Kestrel),
+                    // the runtime will throw the exception
+                    //   System.NotSupportedException:
+                    //     The server mode SSL must use a certificate with the associated private key.
+                    // without ever hitting this part of the code.
+                    //
+                    // Reproducible with: $ testssl.sh --serial --protocols <identity-host>
+                    //
+
                     throw new ConnectionAbortedException();
                 }
 

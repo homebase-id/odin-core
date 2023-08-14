@@ -18,6 +18,17 @@ namespace Odin.Core.Storage.Tests.DriveDatabaseTests
         /// Expect null results in all cursors.
         /// Expect empty result set lists.
         /// </summary>
+
+        /*
+        [Test]
+        public void FileLineTest()
+        {
+            DriveDatabase _testDatabase = new DriveDatabase($"", DatabaseIndexKind.TimeSeries);
+            _testDatabase.CreateDatabase();
+            _testDatabase = null;
+        }*/
+
+
         [Test]
         public void CursorsEmpty01Test()
         {

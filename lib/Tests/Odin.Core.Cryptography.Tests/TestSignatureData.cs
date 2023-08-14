@@ -2,6 +2,7 @@
 using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Cryptography.Signatures;
 using Odin.Core.Identity;
 using Odin.Core.Time;
 using System;

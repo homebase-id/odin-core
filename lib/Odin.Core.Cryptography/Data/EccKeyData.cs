@@ -25,7 +25,7 @@ namespace Odin.Core.Cryptography.Data
             var publicKey = new EccPublicKeyData()
             {
                 publicKey = derEncodedPublicKey,
-                crc32c = EccPublicKeyData.KeyCRC(derEncodedPublicKey),
+                crc32c = KeyCRC(derEncodedPublicKey),
                 expiration = UnixTimeUtc.Now().AddSeconds(hours * 60 * 60)
             };
 
@@ -138,16 +138,16 @@ namespace Odin.Core.Cryptography.Data
             var publicKeyInfo = SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(keys.Public);
 
             // Save the DER encoded private and public keys in our own data structure
-            this.createdTimeStamp = UnixTimeUtc.Now();
-            this.expiration = this.createdTimeStamp;
-            this.expiration = this.expiration.AddSeconds(hours * 3600 + minutes * 60 + seconds);
-            if (this.expiration <= this.createdTimeStamp)
+            createdTimeStamp = UnixTimeUtc.Now();
+            expiration = createdTimeStamp;
+            expiration = expiration.AddSeconds(hours * 3600 + minutes * 60 + seconds);
+            if (expiration <= createdTimeStamp)
                 throw new Exception("Expiration must be > 0");
 
             CreatePrivate(key, privateKeyInfo.GetDerEncoded());  // TODO: Can we cleanup the generated key?
 
-            this.publicKey = publicKeyInfo.GetDerEncoded();
-            this.crc32c = this.KeyCRC();
+            publicKey = publicKeyInfo.GetDerEncoded();
+            crc32c = KeyCRC();
 
             EccKeyManagement.noKeysCreated++;
         }
@@ -169,13 +169,13 @@ namespace Odin.Core.Cryptography.Data
         }
 
 
-         
+
         private void CreatePrivate(SensitiveByteArray key, byte[] fullDerKey)
         {
-            this.iv = ByteArrayUtil.GetRndByteArray(16);
-            this.keyHash = ByteArrayUtil.ReduceSHA256Hash(key.GetKey());
-            this._privateKey = new SensitiveByteArray(fullDerKey);
-            this.storedKey = AesCbc.Encrypt(this._privateKey.GetKey(), ref key, this.iv);
+            iv = ByteArrayUtil.GetRndByteArray(16);
+            keyHash = ByteArrayUtil.ReduceSHA256Hash(key.GetKey());
+            _privateKey = new SensitiveByteArray(fullDerKey);
+            storedKey = AesCbc.Encrypt(_privateKey.GetKey(), ref key, iv);
         }
 
 
@@ -228,18 +228,18 @@ namespace Odin.Core.Cryptography.Data
         }
 
 
-        public SensitiveByteArray GetEcdhSharedSecret(SensitiveByteArray pwd, EccPublicKeyData publicKeyData, byte[] salt)
+        public SensitiveByteArray GetEcdhSharedSecret(SensitiveByteArray pwd, EccPublicKeyData remotePublicKey, byte[] randomSalt)
         {
-            if (publicKeyData == null)
-                throw new ArgumentNullException(nameof(publicKeyData));
+            if (remotePublicKey == null)
+                throw new ArgumentNullException(nameof(remotePublicKey));
 
-            if (publicKeyData.publicKey == null)
-                throw new ArgumentNullException(nameof(publicKeyData.publicKey));
+            if (remotePublicKey.publicKey == null)
+                throw new ArgumentNullException(nameof(remotePublicKey.publicKey));
 
-            if (salt == null)
-                throw new ArgumentNullException(nameof(salt));
+            if (randomSalt == null)
+                throw new ArgumentNullException(nameof(randomSalt));
 
-            if (salt.Length < 16)
+            if (randomSalt.Length < 16)
                 throw new ArgumentException("Salt must be at least 16 bytes");
 
             // Retrieve the private key from the secure storage
@@ -247,7 +247,7 @@ namespace Odin.Core.Cryptography.Data
             var privateKeyParameters = (ECPrivateKeyParameters)PrivateKeyFactory.CreateKey(privateKeyBytes);
 
             // Construct the public key parameters from the provided data
-            var publicKeyParameters = (ECPublicKeyParameters)PublicKeyFactory.CreateKey(publicKeyData.publicKey);
+            var publicKeyParameters = (ECPublicKeyParameters)PublicKeyFactory.CreateKey(remotePublicKey.publicKey);
 
             // Initialize ECDH basic agreement
             ECDHBasicAgreement ecdhUagree = new ECDHBasicAgreement();
@@ -260,7 +260,7 @@ namespace Odin.Core.Cryptography.Data
             var sharedSecretBytes = sharedSecret.ToByteArrayUnsigned().ToSensitiveByteArray();
 
             // Apply HKDF to derive a symmetric key from the shared secret
-            return HashUtil.Hkdf(sharedSecretBytes.GetKey(), salt, 16).ToSensitiveByteArray();
+            return HashUtil.Hkdf(sharedSecretBytes.GetKey(), randomSalt, 16).ToSensitiveByteArray();
         }
 
         [Obsolete("Use GetEcdhSharedSecret() instead and always use a random salt. Send the random salt over the wire.")]

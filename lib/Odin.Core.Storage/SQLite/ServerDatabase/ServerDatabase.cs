@@ -55,7 +55,8 @@ namespace Odin.Core.Storage.SQLite.ServerDatabase
         public override void CreateDatabase(bool dropExistingTables = true)
         {
             tblCron.EnsureTableExists(dropExistingTables);
-            Vacuum();
+            if (dropExistingTables)
+                Vacuum();
         }
     }
 }
