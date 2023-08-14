@@ -48,7 +48,7 @@ namespace Odin.Hosting.Middleware
                 // SEB:TODO
                 // OdinClientException is used in a lot of places.
                 // We need to go through them all and determine if any should map to something
-                // different than 404, in which case the code should throw a different exception.
+                // different than 400, in which case the code should throw a different exception.
                 await HandleExceptionAsync(context, new BadRequestException(e.Message, e.ErrorCode, e));
             }
             catch (OdinRemoteIdentityException e) // => HTTP 503
