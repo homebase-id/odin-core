@@ -38,6 +38,7 @@ namespace OdinsAttestation.Controllers
             return Convert.FromBase64String(pk64);
         }
 
+#if DEBUG
         /// <summary>
         /// This simulates that frodobaggins.me makes a request for an attestation, remove for production
         /// and put this functionality into the identity host when requesting an attestation.
@@ -48,7 +49,47 @@ namespace OdinsAttestation.Controllers
         {
             return await SimulateFrodo.InitiateRequestForAttestation(this);
         }
+#endif
 
+        /// <summary>
+        /// This service takes an identity and an attestationId and checks if it exists, returns seconds created (UnixEpoch).
+        /// </summary>
+        /// <param name="identity"></param>
+        /// <param name="attestationIdBase64"></param>
+        /// <returns>200 OK and attesation age in seconds (Unix Epoch), or Bad Request or Not Found</returns>
+        [HttpGet("VerifyAttestation")]
+        public IActionResult GetVerifyAttestaion(string identity, string attestationIdBase64)
+        {
+            try
+            {
+                var id = new PunyDomainName(identity);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Invalid identity {ex.Message}");
+            }
+
+            byte[] attestationId;
+
+            try
+            {
+                attestationId = Convert.FromBase64String(attestationIdBase64);
+            }
+            catch (Exception)
+            {
+                return BadRequest("Invalid attestationIdBase64");
+            }
+
+            var r = _db.tblAttestationChain.Get(identity, attestationId);
+            if (r == null)
+            {
+                return NotFound("No such identity,attestationId found.");
+            }
+
+            var msg = $"{r.timestamp.ToUnixTimeUtc().seconds}";
+
+            return Ok(msg);
+        }
 
         /// <summary>
         /// This is the endpoint that an identity calls with a signedEnvelope contract of the 

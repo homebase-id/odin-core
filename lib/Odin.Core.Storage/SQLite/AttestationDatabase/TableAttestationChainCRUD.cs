@@ -21,6 +21,16 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                   _previousHash = value;
                }
         }
+        private UnixTimeUtcUnique _timestamp;
+        public UnixTimeUtcUnique timestamp
+        {
+           get {
+                   return _timestamp;
+               }
+           set {
+                  _timestamp = value;
+               }
+        }
         private string _identity;
         public string identity
         {
@@ -34,40 +44,30 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                   _identity = value;
                }
         }
-        private UnixTimeUtcUnique _timestamp;
-        public UnixTimeUtcUnique timestamp
+        private byte[] _attestationId;
+        public byte[] attestationId
         {
            get {
-                   return _timestamp;
-               }
-           set {
-                  _timestamp = value;
-               }
-        }
-        private byte[] _attestationNonce;
-        public byte[] attestationNonce
-        {
-           get {
-                   return _attestationNonce;
+                   return _attestationId;
                }
            set {
                     if (value == null) throw new Exception("Cannot be null");
                     if (value?.Length < 16) throw new Exception("Too short");
                     if (value?.Length > 64) throw new Exception("Too long");
-                  _attestationNonce = value;
+                  _attestationId = value;
                }
         }
-        private byte[] _signedNonce;
-        public byte[] signedNonce
+        private byte[] _signedPreviousHash;
+        public byte[] signedPreviousHash
         {
            get {
-                   return _signedNonce;
+                   return _signedPreviousHash;
                }
            set {
                     if (value == null) throw new Exception("Cannot be null");
                     if (value?.Length < 16) throw new Exception("Too short");
                     if (value?.Length > 200) throw new Exception("Too long");
-                  _signedNonce = value;
+                  _signedPreviousHash = value;
                }
         }
         private string _algorithm;
@@ -191,14 +191,14 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 cmd.CommandText =
                     "CREATE TABLE IF NOT EXISTS attestationChain("
                      +"previousHash BLOB NOT NULL UNIQUE, "
-                     +"identity STRING NOT NULL, "
                      +"timestamp INT NOT NULL, "
-                     +"attestationNonce BLOB NOT NULL UNIQUE, "
-                     +"signedNonce BLOB NOT NULL UNIQUE, "
+                     +"identity STRING NOT NULL, "
+                     +"attestationId BLOB NOT NULL UNIQUE, "
+                     +"signedPreviousHash BLOB NOT NULL UNIQUE, "
                      +"algorithm STRING NOT NULL, "
                      +"publicKey BLOB NOT NULL UNIQUE, "
                      +"recordHash BLOB NOT NULL UNIQUE "
-                     +", PRIMARY KEY (identity,attestationNonce)"
+                     +", PRIMARY KEY (identity,attestationId)"
                      +");"
                      ;
                 _database.ExecuteNonQuery(cmd);
@@ -213,23 +213,23 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 if (_insertCommand == null)
                 {
                     _insertCommand = _database.CreateCommand();
-                    _insertCommand.CommandText = "INSERT INTO attestationChain (previousHash,identity,timestamp,attestationNonce,signedNonce,algorithm,publicKey,recordHash) " +
-                                                 "VALUES ($previousHash,$identity,$timestamp,$attestationNonce,$signedNonce,$algorithm,$publicKey,$recordHash)";
+                    _insertCommand.CommandText = "INSERT INTO attestationChain (previousHash,timestamp,identity,attestationId,signedPreviousHash,algorithm,publicKey,recordHash) " +
+                                                 "VALUES ($previousHash,$timestamp,$identity,$attestationId,$signedPreviousHash,$algorithm,$publicKey,$recordHash)";
                     _insertParam1 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam1);
                     _insertParam1.ParameterName = "$previousHash";
                     _insertParam2 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam2);
-                    _insertParam2.ParameterName = "$identity";
+                    _insertParam2.ParameterName = "$timestamp";
                     _insertParam3 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam3);
-                    _insertParam3.ParameterName = "$timestamp";
+                    _insertParam3.ParameterName = "$identity";
                     _insertParam4 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam4);
-                    _insertParam4.ParameterName = "$attestationNonce";
+                    _insertParam4.ParameterName = "$attestationId";
                     _insertParam5 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam5);
-                    _insertParam5.ParameterName = "$signedNonce";
+                    _insertParam5.ParameterName = "$signedPreviousHash";
                     _insertParam6 = _insertCommand.CreateParameter();
                     _insertCommand.Parameters.Add(_insertParam6);
                     _insertParam6.ParameterName = "$algorithm";
@@ -242,16 +242,16 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                     _insertCommand.Prepare();
                 }
                 _insertParam1.Value = item.previousHash;
-                _insertParam2.Value = item.identity;
-                _insertParam3.Value = item.timestamp.uniqueTime;
-                _insertParam4.Value = item.attestationNonce;
-                _insertParam5.Value = item.signedNonce;
+                _insertParam2.Value = item.timestamp.uniqueTime;
+                _insertParam3.Value = item.identity;
+                _insertParam4.Value = item.attestationId;
+                _insertParam5.Value = item.signedPreviousHash;
                 _insertParam6.Value = item.algorithm;
                 _insertParam7.Value = item.publicKey;
                 _insertParam8.Value = item.recordHash;
                 var count = _database.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
-                    _cache.AddOrUpdate("TableAttestationChainCRUD", item.identity.ToString()+item.attestationNonce.ToString(), item);
+                    _cache.AddOrUpdate("TableAttestationChainCRUD", item.identity.ToString()+item.attestationId.ToString(), item);
                 return count;
             } // Lock
         }
@@ -263,25 +263,25 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 if (_upsertCommand == null)
                 {
                     _upsertCommand = _database.CreateCommand();
-                    _upsertCommand.CommandText = "INSERT INTO attestationChain (previousHash,identity,timestamp,attestationNonce,signedNonce,algorithm,publicKey,recordHash) " +
-                                                 "VALUES ($previousHash,$identity,$timestamp,$attestationNonce,$signedNonce,$algorithm,$publicKey,$recordHash)"+
-                                                 "ON CONFLICT (identity,attestationNonce) DO UPDATE "+
-                                                 "SET previousHash = $previousHash,timestamp = $timestamp,signedNonce = $signedNonce,algorithm = $algorithm,publicKey = $publicKey,recordHash = $recordHash;";
+                    _upsertCommand.CommandText = "INSERT INTO attestationChain (previousHash,timestamp,identity,attestationId,signedPreviousHash,algorithm,publicKey,recordHash) " +
+                                                 "VALUES ($previousHash,$timestamp,$identity,$attestationId,$signedPreviousHash,$algorithm,$publicKey,$recordHash)"+
+                                                 "ON CONFLICT (identity,attestationId) DO UPDATE "+
+                                                 "SET previousHash = $previousHash,timestamp = $timestamp,signedPreviousHash = $signedPreviousHash,algorithm = $algorithm,publicKey = $publicKey,recordHash = $recordHash;";
                     _upsertParam1 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam1);
                     _upsertParam1.ParameterName = "$previousHash";
                     _upsertParam2 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam2);
-                    _upsertParam2.ParameterName = "$identity";
+                    _upsertParam2.ParameterName = "$timestamp";
                     _upsertParam3 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam3);
-                    _upsertParam3.ParameterName = "$timestamp";
+                    _upsertParam3.ParameterName = "$identity";
                     _upsertParam4 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam4);
-                    _upsertParam4.ParameterName = "$attestationNonce";
+                    _upsertParam4.ParameterName = "$attestationId";
                     _upsertParam5 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam5);
-                    _upsertParam5.ParameterName = "$signedNonce";
+                    _upsertParam5.ParameterName = "$signedPreviousHash";
                     _upsertParam6 = _upsertCommand.CreateParameter();
                     _upsertCommand.Parameters.Add(_upsertParam6);
                     _upsertParam6.ParameterName = "$algorithm";
@@ -294,16 +294,16 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                     _upsertCommand.Prepare();
                 }
                 _upsertParam1.Value = item.previousHash;
-                _upsertParam2.Value = item.identity;
-                _upsertParam3.Value = item.timestamp.uniqueTime;
-                _upsertParam4.Value = item.attestationNonce;
-                _upsertParam5.Value = item.signedNonce;
+                _upsertParam2.Value = item.timestamp.uniqueTime;
+                _upsertParam3.Value = item.identity;
+                _upsertParam4.Value = item.attestationId;
+                _upsertParam5.Value = item.signedPreviousHash;
                 _upsertParam6.Value = item.algorithm;
                 _upsertParam7.Value = item.publicKey;
                 _upsertParam8.Value = item.recordHash;
                 var count = _database.ExecuteNonQuery(_upsertCommand);
                 if (count > 0)
-                    _cache.AddOrUpdate("TableAttestationChainCRUD", item.identity.ToString()+item.attestationNonce.ToString(), item);
+                    _cache.AddOrUpdate("TableAttestationChainCRUD", item.identity.ToString()+item.attestationId.ToString(), item);
                 return count;
             } // Lock
         }
@@ -316,23 +316,23 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 {
                     _updateCommand = _database.CreateCommand();
                     _updateCommand.CommandText = "UPDATE attestationChain " +
-                                                 "SET previousHash = $previousHash,timestamp = $timestamp,signedNonce = $signedNonce,algorithm = $algorithm,publicKey = $publicKey,recordHash = $recordHash "+
-                                                 "WHERE (identity = $identity,attestationNonce = $attestationNonce)";
+                                                 "SET previousHash = $previousHash,timestamp = $timestamp,signedPreviousHash = $signedPreviousHash,algorithm = $algorithm,publicKey = $publicKey,recordHash = $recordHash "+
+                                                 "WHERE (identity = $identity,attestationId = $attestationId)";
                     _updateParam1 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam1);
                     _updateParam1.ParameterName = "$previousHash";
                     _updateParam2 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam2);
-                    _updateParam2.ParameterName = "$identity";
+                    _updateParam2.ParameterName = "$timestamp";
                     _updateParam3 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam3);
-                    _updateParam3.ParameterName = "$timestamp";
+                    _updateParam3.ParameterName = "$identity";
                     _updateParam4 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam4);
-                    _updateParam4.ParameterName = "$attestationNonce";
+                    _updateParam4.ParameterName = "$attestationId";
                     _updateParam5 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam5);
-                    _updateParam5.ParameterName = "$signedNonce";
+                    _updateParam5.ParameterName = "$signedPreviousHash";
                     _updateParam6 = _updateCommand.CreateParameter();
                     _updateCommand.Parameters.Add(_updateParam6);
                     _updateParam6.ParameterName = "$algorithm";
@@ -345,21 +345,21 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                     _updateCommand.Prepare();
                 }
                 _updateParam1.Value = item.previousHash;
-                _updateParam2.Value = item.identity;
-                _updateParam3.Value = item.timestamp.uniqueTime;
-                _updateParam4.Value = item.attestationNonce;
-                _updateParam5.Value = item.signedNonce;
+                _updateParam2.Value = item.timestamp.uniqueTime;
+                _updateParam3.Value = item.identity;
+                _updateParam4.Value = item.attestationId;
+                _updateParam5.Value = item.signedPreviousHash;
                 _updateParam6.Value = item.algorithm;
                 _updateParam7.Value = item.publicKey;
                 _updateParam8.Value = item.recordHash;
                 var count = _database.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
-                    _cache.AddOrUpdate("TableAttestationChainCRUD", item.identity.ToString()+item.attestationNonce.ToString(), item);
+                    _cache.AddOrUpdate("TableAttestationChainCRUD", item.identity.ToString()+item.attestationId.ToString(), item);
                 return count;
             } // Lock
         }
 
-        // SELECT previousHash,identity,timestamp,attestationNonce,signedNonce,algorithm,publicKey,recordHash
+        // SELECT previousHash,timestamp,identity,attestationId,signedPreviousHash,algorithm,publicKey,recordHash
         public AttestationChainRecord ReadRecordFromReaderAll(SqliteDataReader rdr)
         {
             var result = new List<AttestationChainRecord>();
@@ -387,14 +387,14 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.identity = rdr.GetString(1);
+                item.timestamp = new UnixTimeUtcUnique(rdr.GetInt64(1));
             }
 
             if (rdr.IsDBNull(2))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
             else
             {
-                item.timestamp = new UnixTimeUtcUnique(rdr.GetInt64(2));
+                item.identity = rdr.GetString(2);
             }
 
             if (rdr.IsDBNull(3))
@@ -403,11 +403,11 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             {
                 bytesRead = rdr.GetBytes(3, 0, _tmpbuf, 0, 64+1);
                 if (bytesRead > 64)
-                    throw new Exception("Too much data in attestationNonce...");
+                    throw new Exception("Too much data in attestationId...");
                 if (bytesRead < 16)
-                    throw new Exception("Too little data in attestationNonce...");
-                item.attestationNonce = new byte[bytesRead];
-                Buffer.BlockCopy(_tmpbuf, 0, item.attestationNonce, 0, (int) bytesRead);
+                    throw new Exception("Too little data in attestationId...");
+                item.attestationId = new byte[bytesRead];
+                Buffer.BlockCopy(_tmpbuf, 0, item.attestationId, 0, (int) bytesRead);
             }
 
             if (rdr.IsDBNull(4))
@@ -416,11 +416,11 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             {
                 bytesRead = rdr.GetBytes(4, 0, _tmpbuf, 0, 200+1);
                 if (bytesRead > 200)
-                    throw new Exception("Too much data in signedNonce...");
+                    throw new Exception("Too much data in signedPreviousHash...");
                 if (bytesRead < 16)
-                    throw new Exception("Too little data in signedNonce...");
-                item.signedNonce = new byte[bytesRead];
-                Buffer.BlockCopy(_tmpbuf, 0, item.signedNonce, 0, (int) bytesRead);
+                    throw new Exception("Too little data in signedPreviousHash...");
+                item.signedPreviousHash = new byte[bytesRead];
+                Buffer.BlockCopy(_tmpbuf, 0, item.signedPreviousHash, 0, (int) bytesRead);
             }
 
             if (rdr.IsDBNull(5))
@@ -458,46 +458,46 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             return item;
        }
 
-        public int Delete(string identity,byte[] attestationNonce)
+        public int Delete(string identity,byte[] attestationId)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 0) throw new Exception("Too short");
             if (identity?.Length > 65535) throw new Exception("Too long");
-            if (attestationNonce == null) throw new Exception("Cannot be null");
-            if (attestationNonce?.Length < 16) throw new Exception("Too short");
-            if (attestationNonce?.Length > 64) throw new Exception("Too long");
+            if (attestationId == null) throw new Exception("Cannot be null");
+            if (attestationId?.Length < 16) throw new Exception("Too short");
+            if (attestationId?.Length > 64) throw new Exception("Too long");
             lock (_delete0Lock)
             {
                 if (_delete0Command == null)
                 {
                     _delete0Command = _database.CreateCommand();
                     _delete0Command.CommandText = "DELETE FROM attestationChain " +
-                                                 "WHERE identity = $identity AND attestationNonce = $attestationNonce";
+                                                 "WHERE identity = $identity AND attestationId = $attestationId";
                     _delete0Param1 = _delete0Command.CreateParameter();
                     _delete0Command.Parameters.Add(_delete0Param1);
                     _delete0Param1.ParameterName = "$identity";
                     _delete0Param2 = _delete0Command.CreateParameter();
                     _delete0Command.Parameters.Add(_delete0Param2);
-                    _delete0Param2.ParameterName = "$attestationNonce";
+                    _delete0Param2.ParameterName = "$attestationId";
                     _delete0Command.Prepare();
                 }
                 _delete0Param1.Value = identity;
-                _delete0Param2.Value = attestationNonce;
+                _delete0Param2.Value = attestationId;
                 var count = _database.ExecuteNonQuery(_delete0Command);
                 if (count > 0)
-                    _cache.Remove("TableAttestationChainCRUD", identity.ToString()+attestationNonce.ToString());
+                    _cache.Remove("TableAttestationChainCRUD", identity.ToString()+attestationId.ToString());
                 return count;
             } // Lock
         }
 
-        public AttestationChainRecord ReadRecordFromReader0(SqliteDataReader rdr, string identity,byte[] attestationNonce)
+        public AttestationChainRecord ReadRecordFromReader0(SqliteDataReader rdr, string identity,byte[] attestationId)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 0) throw new Exception("Too short");
             if (identity?.Length > 65535) throw new Exception("Too long");
-            if (attestationNonce == null) throw new Exception("Cannot be null");
-            if (attestationNonce?.Length < 16) throw new Exception("Too short");
-            if (attestationNonce?.Length > 64) throw new Exception("Too long");
+            if (attestationId == null) throw new Exception("Cannot be null");
+            if (attestationId?.Length < 16) throw new Exception("Too short");
+            if (attestationId?.Length > 64) throw new Exception("Too long");
             var result = new List<AttestationChainRecord>();
             byte[] _tmpbuf = new byte[65535+1];
 #pragma warning disable CS0168
@@ -506,7 +506,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             var _guid = new byte[16];
             var item = new AttestationChainRecord();
             item.identity = identity;
-            item.attestationNonce = attestationNonce;
+            item.attestationId = attestationId;
 
             if (rdr.IsDBNull(0))
                 throw new Exception("Impossible, item is null in DB, but set as NOT NULL");
@@ -534,11 +534,11 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             {
                 bytesRead = rdr.GetBytes(2, 0, _tmpbuf, 0, 200+1);
                 if (bytesRead > 200)
-                    throw new Exception("Too much data in signedNonce...");
+                    throw new Exception("Too much data in signedPreviousHash...");
                 if (bytesRead < 16)
-                    throw new Exception("Too little data in signedNonce...");
-                item.signedNonce = new byte[bytesRead];
-                Buffer.BlockCopy(_tmpbuf, 0, item.signedNonce, 0, (int) bytesRead);
+                    throw new Exception("Too little data in signedPreviousHash...");
+                item.signedPreviousHash = new byte[bytesRead];
+                Buffer.BlockCopy(_tmpbuf, 0, item.signedPreviousHash, 0, (int) bytesRead);
             }
 
             if (rdr.IsDBNull(3))
@@ -576,15 +576,15 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             return item;
        }
 
-        public AttestationChainRecord Get(string identity,byte[] attestationNonce)
+        public AttestationChainRecord Get(string identity,byte[] attestationId)
         {
             if (identity == null) throw new Exception("Cannot be null");
             if (identity?.Length < 0) throw new Exception("Too short");
             if (identity?.Length > 65535) throw new Exception("Too long");
-            if (attestationNonce == null) throw new Exception("Cannot be null");
-            if (attestationNonce?.Length < 16) throw new Exception("Too short");
-            if (attestationNonce?.Length > 64) throw new Exception("Too long");
-            var (hit, cacheObject) = _cache.Get("TableAttestationChainCRUD", identity.ToString()+attestationNonce.ToString());
+            if (attestationId == null) throw new Exception("Cannot be null");
+            if (attestationId?.Length < 16) throw new Exception("Too short");
+            if (attestationId?.Length > 64) throw new Exception("Too long");
+            var (hit, cacheObject) = _cache.Get("TableAttestationChainCRUD", identity.ToString()+attestationId.ToString());
             if (hit)
                 return (AttestationChainRecord)cacheObject;
             lock (_get0Lock)
@@ -592,27 +592,27 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
                 if (_get0Command == null)
                 {
                     _get0Command = _database.CreateCommand();
-                    _get0Command.CommandText = "SELECT previousHash,timestamp,signedNonce,algorithm,publicKey,recordHash FROM attestationChain " +
-                                                 "WHERE identity = $identity AND attestationNonce = $attestationNonce LIMIT 1;";
+                    _get0Command.CommandText = "SELECT previousHash,timestamp,signedPreviousHash,algorithm,publicKey,recordHash FROM attestationChain " +
+                                                 "WHERE identity = $identity AND attestationId = $attestationId LIMIT 1;";
                     _get0Param1 = _get0Command.CreateParameter();
                     _get0Command.Parameters.Add(_get0Param1);
                     _get0Param1.ParameterName = "$identity";
                     _get0Param2 = _get0Command.CreateParameter();
                     _get0Command.Parameters.Add(_get0Param2);
-                    _get0Param2.ParameterName = "$attestationNonce";
+                    _get0Param2.ParameterName = "$attestationId";
                     _get0Command.Prepare();
                 }
                 _get0Param1.Value = identity;
-                _get0Param2.Value = attestationNonce;
+                _get0Param2.Value = attestationId;
                 using (SqliteDataReader rdr = _database.ExecuteReader(_get0Command, System.Data.CommandBehavior.SingleRow))
                 {
                     if (!rdr.Read())
                     {
-                        _cache.AddOrUpdate("TableAttestationChainCRUD", identity.ToString()+attestationNonce.ToString(), null);
+                        _cache.AddOrUpdate("TableAttestationChainCRUD", identity.ToString()+attestationId.ToString(), null);
                         return null;
                     }
-                    var r = ReadRecordFromReader0(rdr, identity,attestationNonce);
-                    _cache.AddOrUpdate("TableAttestationChainCRUD", identity.ToString()+attestationNonce.ToString(), r);
+                    var r = ReadRecordFromReader0(rdr, identity,attestationId);
+                    _cache.AddOrUpdate("TableAttestationChainCRUD", identity.ToString()+attestationId.ToString(), r);
                     return r;
                 } // using
             } // lock

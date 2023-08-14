@@ -4,7 +4,7 @@ using Odin.Core.Storage.SQLite;
 
 namespace Odin.Core.Storage.SQLite.AttestationDatabase
 {
-    public class TableAttestationChain : TableAttestationRequestCRUD
+    public class TableAttestationChain : TableAttestationChainCRUD
     {
         public TableAttestationChain(AttestationDatabase db, CacheHelper cache) : base(db, cache)
         {

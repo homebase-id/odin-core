@@ -1,5 +1,6 @@
 using Odin.Core.Storage.SQLite.KeyChainDatabase;
 using Odin.KeyChain;
+using System.Collections.Concurrent;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +17,9 @@ var _db = new KeyChainDatabase(@"Data Source=blockchain.db");
 KeyChainDatabaseUtil.InitializeDatabase(_db); // Only do this once per boot
 
 builder.Services.AddSingleton<KeyChainDatabase>(_db);
+
+var _pendingRegistrationsCache = new ConcurrentDictionary<byte[], PendingRegistrationData>();
+builder.Services.AddSingleton<ConcurrentDictionary<byte[], PendingRegistrationData>>(_pendingRegistrationsCache);
 
 var app = builder.Build();
 

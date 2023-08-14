@@ -11,6 +11,7 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Signatures;
 using System.Text.Json;
 using Odin.Core.Time;
+using System.Collections.Concurrent;
 
 namespace Odin.Keychain
 {
@@ -23,12 +24,14 @@ namespace Odin.Keychain
         private readonly KeyChainDatabase _db;
         private static SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
         private readonly bool _simulate = true;
+        private ConcurrentDictionary<byte[], PendingRegistrationData> _pendingRegistrationCache;
 
-        public RegisterKeyController(ILogger<RegisterKeyController> logger, IHttpClientFactory httpClientFactory, KeyChainDatabase db)
+        public RegisterKeyController(ILogger<RegisterKeyController> logger, IHttpClientFactory httpClientFactory, KeyChainDatabase db, ConcurrentDictionary<byte[], PendingRegistrationData> preregisteredCache)
         {
             _logger = logger;
             _httpClientFactory = httpClientFactory;
             _db = db;
+            _pendingRegistrationCache = preregisteredCache;
         }
 
 
@@ -57,7 +60,8 @@ namespace Odin.Keychain
             {
                 var id = new PunyDomainName(identity);
             }
-            catch (Exception ex) {
+            catch (Exception ex)
+            {
                 return BadRequest($"Invalid identity {ex.Message}");
             }
 
@@ -98,7 +102,7 @@ namespace Odin.Keychain
                 var publicKeyDerBytes = Convert.FromBase64String(publicKeyDerBase64);
                 publicKey = EccPublicKeyData.FromDerEncodedPublicKey(publicKeyDerBytes);
             }
-            catch(Exception)
+            catch (Exception)
             {
                 return BadRequest("Invalid public key");
             }
@@ -131,6 +135,216 @@ namespace Odin.Keychain
             }
         }
 
+
+        /// <summary>
+        /// 010. Client calls PublicKeyRegistrationBegin(signedInstruction)
+        /// 020. Deserialize the json into a signedEnvelope
+        /// 030. Verify the envelope and signature
+        /// 040. Server calls Client.GetPublicKey() to verify signature key (important)
+        /// 050. Make sure there's at least 30 days between registration attempts
+        /// 060. Server fetches last row
+        /// 070. Store in memory dictionary and return previousHash
+        /// 
+        /// Next step for the caller is to (quickly) sign the previousHash and call Finalize
+        /// </summary>
+        /// <param name="signedRegistrationInstructionEnvelopeJson"></param>
+        /// <returns></returns>
+        [HttpGet("PublicKeyRegistrationBegin")]
+        public async Task<IActionResult> GetPublicKeyRegistrationBegin(string signedRegistrationInstructionEnvelopeJson)
+        {
+            SignedEnvelope? signedEnvelope;
+
+            // 020. Deserialize the JSON
+            //
+            try
+            {
+                signedEnvelope = JsonSerializer.Deserialize<SignedEnvelope>(signedRegistrationInstructionEnvelopeJson);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"{ex.Message}");
+            }
+            if (signedEnvelope == null)
+                return BadRequest($"Unable to deserialize envelope");
+
+            // 030. Verify envelope
+            if (signedEnvelope.Envelope.EnvelopeType != EnvelopeData.EnvelopeTypeInstruction)
+                return BadRequest($"Envelope type must be {EnvelopeData.EnvelopeTypeInstruction}");
+            if (signedEnvelope.Envelope.EnvelopeSubType != InstructionSignedEnvelope.ENVELOPE_SUB_TYPE_KEY_REGISTRATION)
+                return BadRequest($"Instruction envelope subtype must be {InstructionSignedEnvelope.ENVELOPE_SUB_TYPE_KEY_REGISTRATION}");
+            if (signedEnvelope.Signatures.Count != 1)
+                return BadRequest($"Expecting precisely one signature, but found {signedEnvelope.Signatures.Count}");
+            if (signedEnvelope.VerifyEnvelopeSignatures() == false)
+                return BadRequest($"Unable to verify the signature");
+
+            var domain = new PunyDomainName(signedEnvelope.Signatures[0].Identity);
+
+            // 040. Fetch the requestor's public key to validate authenticity of the request and domain name.
+            //
+            var _httpClient = _httpClientFactory.CreateClient();
+            _httpClient.BaseAddress = new Uri("https://" + domain.DomainName);
+
+            EccPublicKeyData publicKey;
+
+            try
+            {
+                // Get the public ECC key for signing
+                // /api/v1/PublicKey/SignatureValidation
+                string publicKeyBase64;
+
+                if (_simulate)
+                {
+                    publicKeyBase64 = SimulateFrodo.GetPublicKey();
+                }
+                else
+                {
+                    var response = await _httpClient.GetAsync("/api/v1/PublicKey/SignatureValidation");
+                    publicKeyBase64 = await response.Content.ReadAsStringAsync();
+                }
+                var publicKeyBytes = Convert.FromBase64String(publicKeyBase64);
+                publicKey = EccPublicKeyData.FromDerEncodedPublicKey(publicKeyBytes);
+            }
+            catch (Exception e)
+            {
+                return BadRequest($"Getting the public key of [api.{domain.DomainName}] failed: {e.Message}");
+            }
+
+            // Validate that the public key is the same as in the request
+            if (ByteArrayUtil.EquiByteArrayCompare(signedEnvelope.Signatures[0].PublicKeyDer, publicKey.publicKey) == false)
+                return BadRequest($"The public key of [{domain.DomainName}] didn't match the public key in the instruction envelope");
+
+            //
+            // 050 We check that an idenity cannot insert too many public keys, e.g. max one per month
+            //
+            var r = _db.tblKeyChain.Get(domain.DomainName);
+            if (r != null)
+            {
+                var d = UnixTimeUtc.Now().seconds - r.timestamp.ToUnixTimeUtc().seconds;
+
+                if (d < 3600 * 24 * 30)
+                    return StatusCode(429, "Try again: at least 30 days between registrations");
+            }
+
+            // 060 Retrieve the previous row (we need it's hash to sign)
+            KeyChainRecord previousRowRecord;
+            try
+            {
+                previousRowRecord = TryGetLastLinkOrThrow();
+            }
+            catch (Exception ex)
+            {
+                return Problem(ex.Message);
+            }
+
+            // 070 Store it and return the previousHash
+            var previousHashBase64 = previousRowRecord.previousHash.ToBase64();
+
+            var preregisteredEntry = new PendingRegistrationData(signedEnvelope, previousHashBase64);
+            if (_pendingRegistrationCache.TryAdd(signedEnvelope.Envelope.ContentNonce, preregisteredEntry) == false)
+                return BadRequest("You appear to have sent a duplicate request");
+
+            return Ok(previousHashBase64);
+        }
+
+
+        /// <summary>
+        /// 060. Server optimistically calls Client.SignNonce(tempcode, previousHash)
+        /// 070. Client returns signedNonce (signed previousHash)
+        /// 080. Server verifies signature
+        ///
+        /// 100. Server serializes each request from hereon in semaphore
+        /// 110. Server checks if GetLastLink() has a matching previousHash, if not release the semaphore and retry in step 50 (max 2 retries)
+        /// 120. Server calculates new block chain row recordHash
+        /// 130. Server verifies row data (hash and maybe timestamp)
+        /// 140. Server writes row
+        /// 150. Server frees semaphore
+        /// </summary>
+        /// <param name="identity"></param>
+        /// <param name="signedInstructionEnvelopeJson"></param>
+        /// <returns></returns>
+        [HttpGet("PublicKeyRegistrationFinalize")]
+        public async Task<IActionResult> GetPublicKeyRegistrationFinalize(string envelopeIdBase64, string signedPreviousHashBase64)
+        {
+             if (_pendingRegistrationCache.TryGetValue(Convert.FromBase64String(envelopeIdBase64), out var preregisteredEntry) == false)
+                return NotFound("No such ID found");
+
+            if (UnixTimeUtc.Now().seconds - preregisteredEntry.timestamp.seconds > 60)
+            {
+                _pendingRegistrationCache.TryRemove(Convert.FromBase64String(envelopeIdBase64), out var _);
+                return BadRequest("Too old");
+            }
+
+            var newRecordToInsert = new KeyChainRecord()
+            {
+                publicKey = preregisteredEntry.envelope.Signatures[0].PublicKeyDer,
+                identity = preregisteredEntry.envelope.Signatures[0].Identity,
+                previousHash = Convert.FromBase64String(preregisteredEntry.previousHashBase64)
+            };
+
+            try
+            {
+                //
+                // 0100 - get ready to insert into the blockchain, serialize here
+                //
+                await _semaphore.WaitAsync();
+
+                // 0110 Retrieve the previous row
+                KeyChainRecord previousRowRecord;
+                try
+                {
+                    previousRowRecord = TryGetLastLinkOrThrow();
+                }
+                catch (Exception ex)
+                {
+                    return Problem(ex.Message);
+                }
+
+                if (ByteArrayUtil.EquiByteArrayCompare(newRecordToInsert.previousHash, previousRowRecord.previousHash) == false)
+                {
+                    preregisteredEntry.previousHashBase64 = previousRowRecord.previousHash.ToBase64();
+                    return StatusCode(429, preregisteredEntry.previousHashBase64); // Return "Try again" and the new hash value to try
+                }
+
+                newRecordToInsert.signedPreviousHash = Convert.FromBase64String(signedPreviousHashBase64);
+
+
+                // 0120 Verify the signed previousHash
+                var publicKey = EccPublicKeyData.FromDerEncodedPublicKey(preregisteredEntry.envelope.Signatures[0].PublicKeyDer);
+                if ( publicKey.VerifySignature(newRecordToInsert.previousHash, newRecordToInsert.signedPreviousHash) == false)
+                    return BadRequest("Signature invalid.");
+
+
+                if (ByteArrayUtil.EquiByteArrayCompare(previousRowRecord.recordHash, newRecordToInsert.previousHash) == false)
+                    return Problem("Impossible hash mismatch");
+
+                // 130 calculate new hash
+                newRecordToInsert.recordHash = KeyChainDatabaseUtil.CalculateRecordHash(newRecordToInsert);
+
+                // 140 verify record
+                if (KeyChainDatabaseUtil.VerifyBlockChainRecord(newRecordToInsert, previousRowRecord) == false)
+                {
+                    return Problem("Cannot verify");
+                }
+
+                // 150 write row
+                try
+                {
+                    _db.tblKeyChain.Insert(newRecordToInsert);
+                }
+                catch (Exception e)
+                {
+                    return Problem($"Did you try to register a duplicate? {e.Message}");
+                }
+                _db.Commit(); // Flush immediately
+
+                return Ok("OK");
+            }
+            finally
+            {
+                // 150 free semaphore
+                _semaphore.Release();
+            }
+        }
 
         /// <summary>
         /// 010. Client calls Server.RegisterKey(identity, signedInstruction)

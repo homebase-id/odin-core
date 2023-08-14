@@ -98,7 +98,7 @@ namespace OdinsAttestation.Controllers
             // We always verify the fact it's a human
             try
             {
-                var attestation = AttestationManagement.AttestHuman(_eccKey, _eccPwd, identity);
+                var attestation = AttestationManagement.AttestHuman(_eccKey, _eccPwd, identity, requestEnvelope.Envelope.ContentNonce);
                 attestationList.Add(attestation);
             }
             catch (Exception ex)
@@ -112,7 +112,7 @@ namespace OdinsAttestation.Controllers
                 try
                 {
                     string legalName = EnvelopeData.GetValueFromJsonObject<string>(legalNameObject);
-                    var attestation = AttestationManagement.AttestLegalName(_eccKey, _eccPwd, identity, legalName);
+                    var attestation = AttestationManagement.AttestLegalName(_eccKey, _eccPwd, identity, requestEnvelope.Envelope.ContentNonce, legalName);
                     attestationList.Add(attestation);
                 }
                 catch (Exception ex)
@@ -127,7 +127,7 @@ namespace OdinsAttestation.Controllers
                 try
                 {
                     string subsetLegalName = EnvelopeData.GetValueFromJsonObject<string>(subsetLegalNameObject);
-                    var attestation = AttestationManagement.AttestSubsetLegalName(_eccKey, _eccPwd, identity, subsetLegalName);
+                    var attestation = AttestationManagement.AttestSubsetLegalName(_eccKey, _eccPwd, identity, requestEnvelope.Envelope.ContentNonce, subsetLegalName);
                     attestationList.Add(attestation);
                 }
                 catch (Exception ex)
@@ -142,7 +142,7 @@ namespace OdinsAttestation.Controllers
                 try
                 {
                     string nationality = EnvelopeData.GetValueFromJsonObject<string>(nationalityObject);
-                    var attestation = AttestationManagement.AttestNationality(_eccKey, _eccPwd, identity, nationality);
+                    var attestation = AttestationManagement.AttestNationality(_eccKey, _eccPwd, identity, requestEnvelope.Envelope.ContentNonce, nationality);
                     attestationList.Add(attestation);
                 }
                 catch (Exception ex)
@@ -157,7 +157,7 @@ namespace OdinsAttestation.Controllers
                 try
                 {
                     string phoneNumber = EnvelopeData.GetValueFromJsonObject<string>(phoneObject);
-                    var attestation = AttestationManagement.AttestPhoneNumber(_eccKey, _eccPwd, identity, phoneNumber);
+                    var attestation = AttestationManagement.AttestPhoneNumber(_eccKey, _eccPwd, identity, requestEnvelope.Envelope.ContentNonce, phoneNumber);
                     attestationList.Add(attestation);
                 }
                 catch (Exception ex)
@@ -172,7 +172,7 @@ namespace OdinsAttestation.Controllers
                 try
                 {
                     string email = EnvelopeData.GetValueFromJsonObject<string>(emailObject);
-                    var attestation = AttestationManagement.AttestEmailAddress(_eccKey, _eccPwd, identity, email);
+                    var attestation = AttestationManagement.AttestEmailAddress(_eccKey, _eccPwd, identity, requestEnvelope.Envelope.ContentNonce, email);
                     attestationList.Add(attestation);
                 }
                 catch (Exception ex)
@@ -188,7 +188,7 @@ namespace OdinsAttestation.Controllers
                 {
                     string bday = EnvelopeData.GetValueFromJsonObject<string>(birthDateObject);
 
-                    var attestation = AttestationManagement.AttestBirthdate(_eccKey, _eccPwd, identity, DateOnly.FromDateTime(DateTime.Parse(bday)));
+                    var attestation = AttestationManagement.AttestBirthdate(_eccKey, _eccPwd, identity, requestEnvelope.Envelope.ContentNonce, DateOnly.FromDateTime(DateTime.Parse(bday)));
                     attestationList.Add(attestation);
                 }
                 catch (Exception ex)
@@ -205,7 +205,7 @@ namespace OdinsAttestation.Controllers
                     var addressDict = SignedEnvelope.ConvertJsonObjectToSortedDict(addressObject);
                     if (addressDict == null)
                         throw new Exception("address is null");
-                    var attestation = AttestationManagement.AttestResidentialAddress(_eccKey, _eccPwd, identity, addressDict);
+                    var attestation = AttestationManagement.AttestResidentialAddress(_eccKey, _eccPwd, identity, requestEnvelope.Envelope.ContentNonce, addressDict);
                     attestationList.Add(attestation);
                 }
                 catch (Exception ex)
@@ -270,8 +270,22 @@ namespace OdinsAttestation.Controllers
             // Now call an identity endpoint to deliver the attested data (json array)
             // In return we get a signature of the Envelope.contentNonce for each attestation provided
             //
-            var signatureList = SimulateFrodo.DeliverAttestations(jsonArray, nonceBase64);
+            if (attestationList[0].Envelope.AdditionalInfo.TryGetValue("attestationId", out var valueObject) == false)
+                throw new Exception("attestationId not present in additionalInfo");
 
+            if (valueObject == null)
+                throw new Exception("attestationId null in additionalInfo");
+
+            string? attestationIdBase64 = valueObject.ToString();
+
+            if (attestationIdBase64 == null)
+                throw new Exception("attestationId conversion null in additionalInfo");
+
+            // XXX TODO THIS SHOULDNT WORK
+            var signature = SimulateFrodo.SignPreviousHashForAttestationChain(attestationIdBase64);
+
+
+            SimulateFrodo.DeliverAttestations(jsonArray, nonceBase64);
 
             // Block chain will contain
             //
@@ -280,8 +294,8 @@ namespace OdinsAttestation.Controllers
             // previousHash
             // identity
             // timestamp
-            // attestationNonce
-            // signedAttestationNonce
+            // attestationId
+            // signedPreviousHash
             // algorithm
             // publicKey
             // recordHash
@@ -314,6 +328,5 @@ namespace OdinsAttestation.Controllers
 
             return Ok(identities);
         }
-
     }
 }

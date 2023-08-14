@@ -38,6 +38,14 @@ namespace OdinsAttestation
             _database.Add(nonceBase64, UnixTimeUtc.Now().seconds);
         }
 
+        private static void DeleteLocally(string nonceBase64)
+        {
+            // Save nonce in Frodo's database, the nonce could easily be the key
+            // Dont think we need to store the whole signed doc
+            // Todd this would easily go into the key-two-value database
+            _database.Remove(nonceBase64);
+        }
+
         private static bool LoadLocally(string nonceBase64)
         {
             // Save nonce in Frodo's database, the nonce could easily be the key
@@ -101,8 +109,15 @@ namespace OdinsAttestation
         }
 
         // Todd this is the endpoint on an identity that receives a jsonArray of attestations (signedEnvelopes)
-        public static List<string> DeliverAttestations(string attestationListJsonArray, string tempCodeBase64)
+        // Returns signed attestationId
+        public static void DeliverAttestations(string attestationListJsonArray, string tempCodeBase64)
         {
+            //
+            // Verify this is in response to my own request
+            //
+            if (LoadLocally(tempCodeBase64) == false)
+                throw new Exception("Frodo unable to find request ID");
+
             if (attestationListJsonArray == null)
                 throw new ArgumentNullException(nameof(attestationListJsonArray));
 
@@ -142,25 +157,15 @@ namespace OdinsAttestation
                     throw new Exception($"Incorrect signer {attestationList[i]!.Signatures[0].Identity} expected {AttestationManagement.AUTHORITY_IDENTITY}");
             }
 
-            //
-            // Verify this is in response to my own request
-            //
-            if (LoadLocally(tempCodeBase64) == false)
-                throw new Exception("Frodo unable to find request ID");
 
-            List<string> signatureList = new List<string>();
-
-            // Now we create a list of signatures and store these as N data profile attestation properties
+            // Now we store these as N data profile attestation properties
             // 
             for (int i = 0; i < attestationList.Count; i++)
             {
-                var signedNonceBase64 = SignNonceForKeyChain(attestationList[i].Envelope.ContentNonce.ToBase64());
-                signatureList.Add(signedNonceBase64);
-
                 // Todd TODO: Store it in Frodo's profile data
             }
 
-            return signatureList;
+            DeleteLocally(tempCodeBase64);
         }
 
 
@@ -179,14 +184,14 @@ namespace OdinsAttestation
         /// Todd this is a function on an identity that responds to Odin's key chain service and signs a nonce
         ///  _ecc would be the identity's signature key.
         /// </summary>
-        /// <param name="nonceBase64">The nonce to sign</param>
-        /// <param name="tempCodeBase64">A code proving we're going to sign it</param>
-        /// <returns></returns>
+        /// <param name="previousHashBase64">The nonce to sign</param>
+        /// <param name="previousHashBase64">A code proving we're going to sign it</param>
+        /// <returns>Base64 signature</returns>
         /// <exception cref="Exception"></exception>
-        public static string SignNonceForKeyChain(string nonceBase64)
+        public static string SignPreviousHashForAttestationChain(string previousHashBase64)
         {
             // tempCode was OK, we continue
-            var nonce = Convert.FromBase64String(nonceBase64);
+            var nonce = Convert.FromBase64String(previousHashBase64);
 
             // Todd need to check this JIC 
             if ((nonce.Length < 16) || (nonce.Length > 32))
