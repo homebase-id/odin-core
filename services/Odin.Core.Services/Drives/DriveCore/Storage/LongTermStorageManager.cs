@@ -81,6 +81,12 @@ namespace Odin.Core.Services.Drives.DriveCore.Storage
         public Task<Stream> GetFilePartStream(Guid fileId, FilePart filePart, FileChunk chunk = null)
         {
             string path = GetFilenameAndPath(fileId, filePart);
+
+            if (!File.Exists(path))
+            {
+                return Task.FromResult(Stream.Null);
+            }
+
             var fileStream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
             if (null != chunk)
