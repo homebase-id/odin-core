@@ -8,6 +8,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core;
 using Odin.Core.Cryptography;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Serialization;
@@ -222,6 +223,16 @@ public abstract class YouAuthIntegrationTestBase
         };
 
         return appParams;
+    }
+
+    //
+
+    protected static (EccFullKeyData keyPair, byte[] randomSalt) CreateEccKeyPair()
+    {
+        var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+        var keyPair = new EccFullKeyData(privateKey, 2);
+        var randomSalt = ByteArrayUtil.GetRndByteArray(16);
+        return (keyPair, randomSalt);
     }
 
 
