@@ -13,13 +13,14 @@ builder.Services.AddHttpClient();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-var _db = new KeyChainDatabase(@"Data Source=blockchain.db");
-KeyChainDatabaseUtil.InitializeDatabase(_db); // Only do this once per boot
+using var db = new KeyChainDatabase(@"Data Source=blockchain.db");
 
-builder.Services.AddSingleton<KeyChainDatabase>(_db);
+KeyChainDatabaseUtil.InitializeDatabase(db); // Only do this once per boot
 
-var _pendingRegistrationsCache = new ConcurrentDictionary<byte[], PendingRegistrationData>();
-builder.Services.AddSingleton<ConcurrentDictionary<byte[], PendingRegistrationData>>(_pendingRegistrationsCache);
+builder.Services.AddSingleton<KeyChainDatabase>(db);
+
+var pendingRegistrationsCache = new ConcurrentDictionary<byte[], PendingRegistrationData>();
+builder.Services.AddSingleton<ConcurrentDictionary<byte[], PendingRegistrationData>>(pendingRegistrationsCache);
 
 var app = builder.Build();
 

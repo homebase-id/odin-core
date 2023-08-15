@@ -1,8 +1,9 @@
+using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Storage.SQLite.KeyChainDatabase;
 
-namespace ChainTests
+namespace Odin.KeyChainTests
 {
     public class Tests
     {
