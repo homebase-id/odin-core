@@ -35,7 +35,7 @@ public class RegisterKeyControllerTest
     [Test]
     // Test that we can successfully begin a key registration
     // And added an extra little test that we cannot send the same registration twice.
-    public async Task BeginRegistration()
+    public async Task BeginRegistrationTest()
     {
         // Arrange
         var signedInstruction = SimulateFrodo.InstructionEnvelope();
@@ -103,40 +103,55 @@ public class RegisterKeyControllerTest
     // Test that Begin will fail if I already have a finished one
     //
 
+    /// <summary>
+    /// returns 
+    /// </summary>
+    /// <returns></returns>
+    private async Task<(string, string)> BeginRegistration()
+    {
+        // Arrange
+        var signedInstruction = SimulateFrodo.InstructionEnvelope();
+        var signedInstructionJson = signedInstruction.GetCompactSortedJson();
+
+        // Wrap the string inside a JSON object
+        var postBody = new
+        {
+            signedRegistrationInstructionEnvelopeJson = signedInstructionJson
+        };
+
+        // Convert the object to a StringContent with the appropriate content type
+        var postContent = new StringContent(JsonSerializer.Serialize(postBody), Encoding.UTF8, "application/json");
+
+        // Act
+        var response = await _client.PostAsync("/RegisterKey/PublicKeyRegistrationBegin", postContent);
+        var previousHashBase64 = await response.Content.ReadAsStringAsync();
+        byte[] previousHash = Convert.FromBase64String(previousHashBase64);
+
+        // Assert
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Debug.Assert(previousHashBase64.Length > 1);
+        Debug.Assert(previousHash.Length >= 16);
+        Debug.Assert(previousHash.Length <= 32);
+
+        return (previousHashBase64, signedInstruction.Envelope.ContentNonce.ToBase64());
+    }
+
 
     [Test]
     // Test that we can successfully begin and then finalize a key registration
     public async Task BeginFinalizeRegistration()
     {
-        // Arrange
-        var signedInstruction = SimulateFrodo.InstructionEnvelope();
-        var signedInstructionJson = signedInstruction.GetCompactSortedJson();
-        var postBodyBegin = new RegistrationBeginModel() { SignedRegistrationInstructionEnvelopeJson = signedInstructionJson };
-
-        // Convert the object to a StringContent with the appropriate content type
-        var postContent = new StringContent(JsonSerializer.Serialize(postBodyBegin), Encoding.UTF8, "application/json");
-
-        // Act
-        var response = await _client.PostAsync("/RegisterKey/PublicKeyRegistrationBegin", postContent);
-        var content = await response.Content.ReadAsStringAsync();
-        string previousHashBase64 = content;
-        byte[] previousHash = Convert.FromBase64String(previousHashBase64);
-
-        // Assert
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Debug.Assert(content.Length > 1);
-        Debug.Assert(previousHash.Length >= 16);
-        Debug.Assert(previousHash.Length <= 32);
+        var (previousHashBase64, envelopeIdBase64) = await BeginRegistration();
 
         //
         // Finalize
         //
         var signedPreviousHash = SimulateFrodo.SignPreviousHashForPublicKeyChain(previousHashBase64);
-        var postBodyFinalize = new RegistrationFinalizeModel() { EnvelopeIdBase64 = signedInstruction.Envelope.ContentNonce.ToBase64(), SignedPreviousHashBase64 = signedPreviousHash };
-        postContent = new StringContent(JsonSerializer.Serialize(postBodyFinalize), Encoding.UTF8, "application/json");
+        var postBodyFinalize = new RegistrationFinalizeModel() { EnvelopeIdBase64 = envelopeIdBase64, SignedPreviousHashBase64 = signedPreviousHash };
+        var postContent = new StringContent(JsonSerializer.Serialize(postBodyFinalize), Encoding.UTF8, "application/json");
 
-        response = await _client.PostAsync("/RegisterKey/PublicKeyRegistrationFinalize", postContent);
-        content = await response.Content.ReadAsStringAsync();
+        var response = await _client.PostAsync("/RegisterKey/PublicKeyRegistrationFinalize", postContent);
+        var content = await response.Content.ReadAsStringAsync();
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         //
@@ -148,6 +163,52 @@ public class RegisterKeyControllerTest
     }
 
 
+    [Test]
+    // TEST that we cannot begin a registration if we already have a record
+    public async Task BeginFinalizeRegistrationTooManyRequests()
+    {
+        var (previousHashBase64, envelopeIdBase64) = await BeginRegistration();
+
+        //
+        // Finalize
+        //
+        var signedPreviousHash = SimulateFrodo.SignPreviousHashForPublicKeyChain(previousHashBase64);
+        var postBodyFinalize = new RegistrationFinalizeModel() { EnvelopeIdBase64 = envelopeIdBase64, SignedPreviousHashBase64 = signedPreviousHash };
+        var postContent = new StringContent(JsonSerializer.Serialize(postBodyFinalize), Encoding.UTF8, "application/json");
+
+        var response = await _client.PostAsync("/RegisterKey/PublicKeyRegistrationFinalize", postContent);
+        var content = await response.Content.ReadAsStringAsync();
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        //
+        // Sneak in an extra test and make sure we cannot call it again
+        //
+        response = await _client.PostAsync("/RegisterKey/PublicKeyRegistrationFinalize", postContent);
+        content = await response.Content.ReadAsStringAsync();
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+
+        // Begin a new registration
+
+        // Arrange
+        var signedInstruction = SimulateFrodo.InstructionEnvelope();
+        var signedInstructionJson = signedInstruction.GetCompactSortedJson();
+
+        // Wrap the string inside a JSON object
+        var postBody = new
+        {
+            signedRegistrationInstructionEnvelopeJson = signedInstructionJson
+        };
+
+        // Convert the object to a StringContent with the appropriate content type
+        postContent = new StringContent(JsonSerializer.Serialize(postBody), Encoding.UTF8, "application/json");
+
+        // Act
+        response = await _client.PostAsync("/RegisterKey/PublicKeyRegistrationBegin", postContent);
+        content = await response.Content.ReadAsStringAsync();
+
+        // Assert
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.TooManyRequests));
+    }
 
 
     [Test]

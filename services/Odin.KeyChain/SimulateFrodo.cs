@@ -36,7 +36,7 @@ namespace Odin.KeyChain
 
         // Todd, This is how Frodo initiates a request for registering his public key
         // with the Odin Key Chain. Ignore the "web api" parameter, that's just a hack.
-        public async static Task<IActionResult> InitiateRequestForKeyRegistration(RegisterKeyController webApi)
+        public async static Task<ActionResult> InitiateRequestForKeyRegistration(RegisterKeyController webApi)
         {
             // First Frodo generates a smart contract request object
             // This is the function Frodo calls internally to generate a request
