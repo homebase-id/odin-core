@@ -5,6 +5,7 @@ using Odin.Core.Cryptography.Signatures;
 using Odin.Core.Time;
 using Odin.Core.Util;
 using Odin.Keychain;
+using static Odin.Keychain.RegisterKeyController;
 
 namespace Odin.KeyChain
 {
@@ -13,45 +14,22 @@ namespace Odin.KeyChain
         private static SensitiveByteArray _pwd;
         private static EccFullKeyData _ecc;
         private static PunyDomainName _identity;
-        private static Dictionary<string, Int64> _database;
 
         static SimulateFrodo()
         {
             _pwd = Guid.Empty.ToByteArray().ToSensitiveByteArray();
             _ecc = new EccFullKeyData(_pwd, 1);
             _identity = new PunyDomainName("frodobaggins.me");
-            _database = new Dictionary<string, Int64> { };
         }
 
-        private static void SaveLocally(string nonceBase64)
+        public static void NewKey()
         {
-            // Save nonce in Frodo's database, the nonce could easily be the key
-            // Dont think we need to store the whole signed doc
-            // Todd this would easily go into the key-two-value database
-            _database.Add(nonceBase64, UnixTimeUtc.Now().seconds);
+            _pwd = Guid.Empty.ToByteArray().ToSensitiveByteArray();
+            _ecc = new EccFullKeyData(_pwd, 1);
         }
-
-        private static bool LoadLocally(string nonceBase64)
-        {
-            // Save nonce in Frodo's database, the nonce could easily be the key
-            // Dont think we need to store the whole signed doc
-            // Todd this would easily go into the key-two-value database
-            if (!_database.ContainsKey(nonceBase64))
-                return false;
-
-            var r = _database[nonceBase64];
-
-            if (UnixTimeUtc.Now().seconds - r > 60)
-                return false;
-
-            _database.Remove(nonceBase64);
-
-            return true;
-        }
-
 
         // This creates a "Key Registration" instruction
-        private static SignedEnvelope InstructionEnvelope()
+        public static SignedEnvelope InstructionEnvelope()
         {
             return InstructionSignedEnvelope.CreateInstructionKeyRegistration(_ecc, _pwd, _identity, null);
         }
@@ -67,27 +45,39 @@ namespace Odin.KeyChain
             var signedInstruction = InstructionEnvelope();
             var signedInstructionJson = signedInstruction.GetCompactSortedJson();
 
-            SaveLocally(signedInstruction.Envelope.ContentNonce.ToBase64());
-
-            // @Todd then you save it in the IdentityDatabase
-            // identityDb.tblKkeyValue.Upsert(CONST_SIGNATURE_TEMPCODE_ID, tempCode);
+            // POST crap
+            var registrationModel = new RegistrationBeginModel() { SignedRegistrationInstructionEnvelopeJson = signedInstructionJson };
 
             // @Todd then you call out over HTTPS to request it
-            var r1 = await webApi.GetRegister("frodo.baggins.me", signedInstructionJson);
+            var r1 = await webApi.PostPublicKeyRegistrationBegin(registrationModel);
 
             // Check it got received OK
             var objectResult = r1 as ObjectResult;
-            if (objectResult != null)
-            {
-                int statusCode = objectResult.StatusCode ?? 0;
-                if (statusCode != StatusCodes.Status200OK)
-                    throw new Exception("Unable to register request");
-            }
+            if (objectResult == null)
+                throw new Exception("No result back");
 
+            int statusCode = objectResult.StatusCode ?? 0;
+            if (statusCode != StatusCodes.Status200OK)
+                throw new Exception("Unable to begin register request");
 
-            // Frodo is Done sending his request
+            if (objectResult.Value == null)
+                throw new Exception("No value result back");
 
-            return r1;
+            string? previousHashBase64 = objectResult.Value.ToString();
+
+            if (previousHashBase64 == null)
+                throw new Exception("No previousHashBase64");
+
+            //
+            // We are Done with the Begin request. Now let's finalize it
+            // 
+            var signatureBase64 = SimulateFrodo.SignPreviousHashForPublicKeyChain(previousHashBase64);
+            var model = new RegistrationFinalizeModel() { EnvelopeIdBase64 = signedInstruction.Envelope.ContentNonce.ToBase64(), SignedPreviousHashBase64 = signatureBase64 };
+            var r2 = await webApi.PostPublicKeyRegistrationFinalize(model);
+
+            // If we get 200 OK then we're done and all worked fine.
+
+            return r2;
         }
 
 
@@ -101,34 +91,20 @@ namespace Odin.KeyChain
 
         // Todd this is a function on an identity that responds to Odin's key chain service and signs a nonce
         //  _ecc would be the identity's signature key
-        public static string SignNonceForKeyChain(string nonceToSignBase64, string contentNonceFromEnvelope)
+        public static string SignPreviousHashForPublicKeyChain(string previousHashBase64)
         {
-            // @Todd First sanity check the tempCode
-            var tempCode = Convert.FromBase64String(contentNonceFromEnvelope);
-            if ((tempCode.Length < 16) || (tempCode.Length > 32))
-                throw new Exception("invalid envelope nonce size");
-
-            // @Todd then load the tempCode from the DB
-            // var tempCode = identityDb.tblKeyValue.Get(CONST_..._ID);
-            // If the tempCode is more than 10 seconds old, fail
-            // DELETE the tempCode from the DB
-            // identityDb.tblKeyValue.Delete(CONST_..._ID);
-            if (!LoadLocally(contentNonceFromEnvelope))
-                throw new Exception($"No such envelope nonce request made");
-
             // tempCode was OK, we continue
-            var nonce = Convert.FromBase64String(nonceToSignBase64);
+            var nonce = Convert.FromBase64String(previousHashBase64);
 
             // Todd need to check this JIC 
             if ((nonce.Length < 16) || (nonce.Length > 32))
                 throw new Exception("invalid nonce size");
 
-            //
-            // TO CONSIDER: Should we prepend e.g. "KEYCHAIN_" to the nonce signed? So we prove it's not some contentNonce we're signing
-            // XXX
+            // We shouldn't sign an arbitrary incoming value, so agreement here is to prepend constant
+            var combinedNonce = ByteArrayUtil.Combine("PublicKeyChain-".ToUtf8ByteArray(), nonce);
 
             // We sign the nonce with the signature key
-            var signature = _ecc.Sign(_pwd, nonce);
+            var signature = _ecc.Sign(_pwd, combinedNonce);
 
             // We return the signed data to the requestor
             return Convert.ToBase64String(signature);

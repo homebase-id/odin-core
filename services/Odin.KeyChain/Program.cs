@@ -19,8 +19,8 @@ KeyChainDatabaseUtil.InitializeDatabase(db); // Only do this once per boot
 
 builder.Services.AddSingleton<KeyChainDatabase>(db);
 
-var pendingRegistrationsCache = new ConcurrentDictionary<byte[], PendingRegistrationData>();
-builder.Services.AddSingleton<ConcurrentDictionary<byte[], PendingRegistrationData>>(pendingRegistrationsCache);
+var pendingRegistrationsCache = new ConcurrentDictionary<string, PendingRegistrationData>();
+builder.Services.AddSingleton<ConcurrentDictionary<string, PendingRegistrationData>>(pendingRegistrationsCache);
 
 var app = builder.Build();
 

@@ -4,6 +4,7 @@ using Odin.Core.Time;
 using Odin.Core;
 using System.Text;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Cryptography.Crypto;
 
 namespace Odin.KeyChain
 {
@@ -68,13 +69,15 @@ namespace Odin.KeyChain
         }
 
         /// <summary>
-        /// 
+        /// Sets the KeyChainRecrod algorithm to SHA-256 and calculates the SHA-256.
         /// </summary>
         /// <param name="record">Is the new record we want to insert into the chain</param>
         /// <param name="previousHash">is the SHA-256 byte array of the last blockchain entry's hash value</param>
         /// <returns></returns>
         public static byte[] CalculateRecordHash(KeyChainRecord record)
         {
+            record.algorithm = HashUtil.SHA256Algorithm;
+
             // Compute hash for the combined byte array
             var hash = ByteArrayUtil.CalculateSHA256Hash(CombineRecordBytes(record));
 
@@ -90,7 +93,7 @@ namespace Odin.KeyChain
         public static bool VerifyBlockChainRecord(KeyChainRecord record, KeyChainRecord? previousRecord)
         {
             var publicKey = EccPublicKeyData.FromDerEncodedPublicKey(record.publicKey);
-            if (publicKey.VerifySignature(record.previousHash, record.signedPreviousHash) == false)
+            if (publicKey.VerifySignature(ByteArrayUtil.Combine("PublicKeyChain-".ToUtf8ByteArray(), record.previousHash), record.signedPreviousHash) == false)
                 return false;
 
             if (previousRecord != null)

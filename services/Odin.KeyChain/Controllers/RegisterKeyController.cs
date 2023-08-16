@@ -12,6 +12,7 @@ using Odin.Core.Cryptography.Signatures;
 using System.Text.Json;
 using Odin.Core.Time;
 using System.Collections.Concurrent;
+using Odin.Core.Exceptions.Server;
 
 namespace Odin.Keychain
 {
@@ -24,9 +25,9 @@ namespace Odin.Keychain
         private readonly KeyChainDatabase _db;
         private static SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
         private readonly bool _simulate = true;
-        private ConcurrentDictionary<byte[], PendingRegistrationData> _pendingRegistrationCache;
+        private ConcurrentDictionary<string, PendingRegistrationData> _pendingRegistrationCache;
 
-        public RegisterKeyController(ILogger<RegisterKeyController> logger, IHttpClientFactory httpClientFactory, KeyChainDatabase db, ConcurrentDictionary<byte[], PendingRegistrationData> preregisteredCache)
+        public RegisterKeyController(ILogger<RegisterKeyController> logger, IHttpClientFactory httpClientFactory, KeyChainDatabase db, ConcurrentDictionary<string, PendingRegistrationData> preregisteredCache)
         {
             _logger = logger;
             _httpClientFactory = httpClientFactory;
@@ -135,6 +136,10 @@ namespace Odin.Keychain
             }
         }
 
+        public class RegistrationBeginModel
+        {
+            public string? SignedRegistrationInstructionEnvelopeJson { get; set; }
+        }
 
         /// <summary>
         /// 010. Client calls PublicKeyRegistrationBegin(signedInstruction)
@@ -149,20 +154,23 @@ namespace Odin.Keychain
         /// </summary>
         /// <param name="signedRegistrationInstructionEnvelopeJson"></param>
         /// <returns></returns>
-        [HttpGet("PublicKeyRegistrationBegin")]
-        public async Task<IActionResult> GetPublicKeyRegistrationBegin(string signedRegistrationInstructionEnvelopeJson)
+        [HttpPost("PublicKeyRegistrationBegin")]
+        public async Task<IActionResult> PostPublicKeyRegistrationBegin([FromBody] RegistrationBeginModel model)
         {
             SignedEnvelope? signedEnvelope;
+
+            if (model.SignedRegistrationInstructionEnvelopeJson == null)
+                return BadRequest($"Blank envelope");
 
             // 020. Deserialize the JSON
             //
             try
             {
-                signedEnvelope = JsonSerializer.Deserialize<SignedEnvelope>(signedRegistrationInstructionEnvelopeJson);
+                signedEnvelope = JsonSerializer.Deserialize<SignedEnvelope>(model.SignedRegistrationInstructionEnvelopeJson);
             }
             catch (Exception ex)
             {
-                return BadRequest($"{ex.Message}");
+                return BadRequest($"Can't deserialize: {ex.Message}");
             }
             if (signedEnvelope == null)
                 return BadRequest($"Unable to deserialize envelope");
@@ -226,26 +234,32 @@ namespace Odin.Keychain
             }
 
             // 060 Retrieve the previous row (we need it's hash to sign)
-            KeyChainRecord previousRowRecord;
+            KeyChainRecord lastRowRecord;
             try
             {
-                previousRowRecord = TryGetLastLinkOrThrow();
+                lastRowRecord = TryGetLastLinkOrThrow();
             }
             catch (Exception ex)
             {
                 return Problem(ex.Message);
             }
 
-            // 070 Store it and return the previousHash
-            var previousHashBase64 = previousRowRecord.previousHash.ToBase64();
+            // 070 Store it and return the last record's recordHash (which becomes the new record's previousHash)
+            var previousHashBase64 = lastRowRecord.recordHash.ToBase64();
 
             var preregisteredEntry = new PendingRegistrationData(signedEnvelope, previousHashBase64);
-            if (_pendingRegistrationCache.TryAdd(signedEnvelope.Envelope.ContentNonce, preregisteredEntry) == false)
+            if (_pendingRegistrationCache.TryAdd(signedEnvelope.Envelope.ContentNonce.ToBase64(), preregisteredEntry) == false)
                 return BadRequest("You appear to have sent a duplicate request");
 
             return Ok(previousHashBase64);
         }
 
+
+        public class RegistrationFinalizeModel
+        {
+            public string? EnvelopeIdBase64 { get; set; }
+            public string? SignedPreviousHashBase64 { get; set; }
+        }
 
         /// <summary>
         /// 060. Server optimistically calls Client.SignNonce(tempcode, previousHash)
@@ -262,15 +276,18 @@ namespace Odin.Keychain
         /// <param name="identity"></param>
         /// <param name="signedInstructionEnvelopeJson"></param>
         /// <returns></returns>
-        [HttpGet("PublicKeyRegistrationFinalize")]
-        public async Task<IActionResult> GetPublicKeyRegistrationFinalize(string envelopeIdBase64, string signedPreviousHashBase64)
+        [HttpPost("PublicKeyRegistrationFinalize")]
+        public async Task<IActionResult> PostPublicKeyRegistrationFinalize([FromBody] RegistrationFinalizeModel model)
         {
-             if (_pendingRegistrationCache.TryGetValue(Convert.FromBase64String(envelopeIdBase64), out var preregisteredEntry) == false)
+            if ((model.EnvelopeIdBase64 == null) || (model.SignedPreviousHashBase64 == null))
+                return BadRequest("Missing data in model");
+
+            if (_pendingRegistrationCache.TryGetValue(model.EnvelopeIdBase64, out var preregisteredEntry) == false)
                 return NotFound("No such ID found");
 
             if (UnixTimeUtc.Now().seconds - preregisteredEntry.timestamp.seconds > 60)
             {
-                _pendingRegistrationCache.TryRemove(Convert.FromBase64String(envelopeIdBase64), out var _);
+                _pendingRegistrationCache.TryRemove(model.EnvelopeIdBase64, out var _);
                 return BadRequest("Too old");
             }
 
@@ -278,10 +295,11 @@ namespace Odin.Keychain
             {
                 publicKey = preregisteredEntry.envelope.Signatures[0].PublicKeyDer,
                 identity = preregisteredEntry.envelope.Signatures[0].Identity,
-                previousHash = Convert.FromBase64String(preregisteredEntry.previousHashBase64)
+                previousHash = Convert.FromBase64String(preregisteredEntry.previousHashBase64),
+                timestamp = UnixTimeUtcUnique.Now()
             };
 
-            try
+            try  // Finally is the Semaphore release
             {
                 //
                 // 0100 - get ready to insert into the blockchain, serialize here
@@ -289,39 +307,39 @@ namespace Odin.Keychain
                 await _semaphore.WaitAsync();
 
                 // 0110 Retrieve the previous row
-                KeyChainRecord previousRowRecord;
+                KeyChainRecord lastRowRecord;
                 try
                 {
-                    previousRowRecord = TryGetLastLinkOrThrow();
+                    lastRowRecord = TryGetLastLinkOrThrow();
                 }
                 catch (Exception ex)
                 {
                     return Problem(ex.Message);
                 }
 
-                if (ByteArrayUtil.EquiByteArrayCompare(newRecordToInsert.previousHash, previousRowRecord.previousHash) == false)
+                if (ByteArrayUtil.EquiByteArrayCompare(newRecordToInsert.previousHash, lastRowRecord.recordHash) == false)
                 {
-                    preregisteredEntry.previousHashBase64 = previousRowRecord.previousHash.ToBase64();
+                    preregisteredEntry.previousHashBase64 = lastRowRecord.previousHash.ToBase64();
                     return StatusCode(429, preregisteredEntry.previousHashBase64); // Return "Try again" and the new hash value to try
                 }
 
-                newRecordToInsert.signedPreviousHash = Convert.FromBase64String(signedPreviousHashBase64);
+                newRecordToInsert.signedPreviousHash = Convert.FromBase64String(model.SignedPreviousHashBase64);
 
 
                 // 0120 Verify the signed previousHash
                 var publicKey = EccPublicKeyData.FromDerEncodedPublicKey(preregisteredEntry.envelope.Signatures[0].PublicKeyDer);
-                if ( publicKey.VerifySignature(newRecordToInsert.previousHash, newRecordToInsert.signedPreviousHash) == false)
+                if ( publicKey.VerifySignature(ByteArrayUtil.Combine("PublicKeyChain-".ToUtf8ByteArray(), newRecordToInsert.previousHash), newRecordToInsert.signedPreviousHash) == false)
                     return BadRequest("Signature invalid.");
 
 
-                if (ByteArrayUtil.EquiByteArrayCompare(previousRowRecord.recordHash, newRecordToInsert.previousHash) == false)
+                if (ByteArrayUtil.EquiByteArrayCompare(lastRowRecord.recordHash, newRecordToInsert.previousHash) == false)
                     return Problem("Impossible hash mismatch");
 
                 // 130 calculate new hash
                 newRecordToInsert.recordHash = KeyChainDatabaseUtil.CalculateRecordHash(newRecordToInsert);
 
                 // 140 verify record
-                if (KeyChainDatabaseUtil.VerifyBlockChainRecord(newRecordToInsert, previousRowRecord) == false)
+                if (KeyChainDatabaseUtil.VerifyBlockChainRecord(newRecordToInsert, lastRowRecord) == false)
                 {
                     return Problem("Cannot verify");
                 }
@@ -336,8 +354,14 @@ namespace Odin.Keychain
                     return Problem($"Did you try to register a duplicate? {e.Message}");
                 }
                 _db.Commit(); // Flush immediately
+                if (_pendingRegistrationCache.TryRemove(model.EnvelopeIdBase64, out var _) == false)
+                    return Problem("Unable to remove from memory cache");
 
                 return Ok("OK");
+            }
+            catch (Exception ex)
+            {
+                return Problem($"Unexpected: {ex.Message}");
             }
             finally
             {
@@ -495,7 +519,7 @@ namespace Odin.Keychain
 
                     if (_simulate)
                     {
-                        signedPreviousHashBase64 = SimulateFrodo.SignNonceForKeyChain(newRecordToInsert.previousHash.ToBase64(), signedEnvelope.Envelope.ContentNonce.ToBase64());
+                        signedPreviousHashBase64 = SimulateFrodo.SignPreviousHashForPublicKeyChain(newRecordToInsert.previousHash.ToBase64());
                     }
                     else
                     {
