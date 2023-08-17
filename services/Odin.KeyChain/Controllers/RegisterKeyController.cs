@@ -324,7 +324,7 @@ namespace Odin.Keychain
 
                 if (ByteArrayUtil.EquiByteArrayCompare(newRecordToInsert.previousHash, lastRowRecord.recordHash) == false)
                 {
-                    preregisteredEntry.previousHashBase64 = lastRowRecord.previousHash.ToBase64();
+                    preregisteredEntry.previousHashBase64 = lastRowRecord.recordHash.ToBase64();
                     return StatusCode(429, preregisteredEntry.previousHashBase64); // Return "Try again" and the new hash value to try
                 }
 

@@ -22,10 +22,22 @@ namespace Odin.KeyChain
             _identity = new PunyDomainName("frodobaggins.me");
         }
 
-        public static void NewKey()
+        public static void NewKey(string identity = "frodobaggins.me")
         {
+            _identity = new PunyDomainName(identity);
             _pwd = Guid.Empty.ToByteArray().ToSensitiveByteArray();
             _ecc = new EccFullKeyData(_pwd, 1);
+        }
+
+        public static (SensitiveByteArray, EccFullKeyData, PunyDomainName) GetKey()
+        {
+            return (_pwd, _ecc, _identity);
+        }
+        public static void SetKey(SensitiveByteArray pwd, EccFullKeyData ecc, PunyDomainName identity)
+        {
+            _pwd = pwd;
+            _ecc = ecc;
+            _identity = identity;
         }
 
         // This creates a "Key Registration" instruction
@@ -69,15 +81,32 @@ namespace Odin.KeyChain
                 throw new Exception("No previousHashBase64");
 
             //
-            // We are Done with the Begin request. Now let's finalize it
+            // We are Done with the Begin request. Now let's try to finalize it
             // 
-            var signatureBase64 = SimulateFrodo.SignPreviousHashForPublicKeyChain(previousHashBase64);
-            var model = new RegistrationFinalizeModel() { EnvelopeIdBase64 = signedInstruction.Envelope.ContentNonce.ToBase64(), SignedPreviousHashBase64 = signatureBase64 };
-            var r2 = await webApi.PostPublicKeyRegistrationFinalize(model);
 
-            // If we get 200 OK then we're done and all worked fine.
+            ActionResult r2 = new ObjectResult(null) { StatusCode = StatusCodes.Status500InternalServerError };
 
-            return r2;
+            for (int i = 0; i < 10 ; i++)
+            {
+                var signatureBase64 = SimulateFrodo.SignPreviousHashForPublicKeyChain(previousHashBase64);
+                var model = new RegistrationFinalizeModel() { EnvelopeIdBase64 = signedInstruction.Envelope.ContentNonce.ToBase64(), SignedPreviousHashBase64 = signatureBase64 };
+                r2 = await webApi.PostPublicKeyRegistrationFinalize(model);
+
+                // Check it got received OK
+                objectResult = r2 as ObjectResult;
+                if (objectResult == null)
+                    throw new Exception("No result back");
+
+                statusCode = objectResult.StatusCode ?? 0;
+                if (statusCode == StatusCodes.Status200OK)
+                    return r2; // Yay, done.
+                else if (statusCode == StatusCodes.Status429TooManyRequests)
+                    continue; // try again
+                else
+                    throw new Exception($"Unexpected HTTP status code: {statusCode}");
+            }
+
+            return r2; 
         }
 
 

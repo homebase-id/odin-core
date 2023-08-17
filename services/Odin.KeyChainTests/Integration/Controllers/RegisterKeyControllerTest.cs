@@ -8,6 +8,7 @@ using NUnit.Framework;
 using NUnit.Framework.Constraints;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
+using Odin.Core.Cryptography.Signatures;
 using Odin.Core.Storage.SQLite.KeyChainDatabase;
 using Odin.KeyChain;
 using static Odin.Keychain.RegisterKeyController;
@@ -37,8 +38,9 @@ public class RegisterKeyControllerTest
     // And added an extra little test that we cannot send the same registration twice.
     public async Task BeginRegistrationTest()
     {
-        // Arrange
-        var signedInstruction = SimulateFrodo.InstructionEnvelope();
+        var (previousHashBase64, signedInstruction) = await BeginRegistration();
+
+
         var signedInstructionJson = signedInstruction.GetCompactSortedJson();
 
         // Wrap the string inside a JSON object
@@ -107,7 +109,7 @@ public class RegisterKeyControllerTest
     /// returns 
     /// </summary>
     /// <returns></returns>
-    private async Task<(string, string)> BeginRegistration()
+    private async Task<(string, SignedEnvelope)> BeginRegistration()
     {
         // Arrange
         var signedInstruction = SimulateFrodo.InstructionEnvelope();
@@ -133,16 +135,13 @@ public class RegisterKeyControllerTest
         Debug.Assert(previousHash.Length >= 16);
         Debug.Assert(previousHash.Length <= 32);
 
-        return (previousHashBase64, signedInstruction.Envelope.ContentNonce.ToBase64());
+        return (previousHashBase64, signedInstruction);
     }
 
 
-    [Test]
     // Test that we can successfully begin and then finalize a key registration
-    public async Task BeginFinalizeRegistration()
+    public async Task<HttpResponseMessage> FinalizeRegistration(string previousHashBase64, string envelopeIdBase64)
     {
-        var (previousHashBase64, envelopeIdBase64) = await BeginRegistration();
-
         //
         // Finalize
         //
@@ -150,30 +149,19 @@ public class RegisterKeyControllerTest
         var postBodyFinalize = new RegistrationFinalizeModel() { EnvelopeIdBase64 = envelopeIdBase64, SignedPreviousHashBase64 = signedPreviousHash };
         var postContent = new StringContent(JsonSerializer.Serialize(postBodyFinalize), Encoding.UTF8, "application/json");
 
-        var response = await _client.PostAsync("/RegisterKey/PublicKeyRegistrationFinalize", postContent);
-        var content = await response.Content.ReadAsStringAsync();
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-
-        //
-        // Sneak in an extra test and make sure we cannot call it again
-        //
-        response = await _client.PostAsync("/RegisterKey/PublicKeyRegistrationFinalize", postContent);
-        content = await response.Content.ReadAsStringAsync();
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+        return await _client.PostAsync("/RegisterKey/PublicKeyRegistrationFinalize", postContent);
     }
 
 
     [Test]
-    // TEST that we cannot begin a registration if we already have a record
+    // TEST that we cannot begin a registration if we already have a recent public key record
     public async Task BeginFinalizeRegistrationTooManyRequests()
     {
-        var (previousHashBase64, envelopeIdBase64) = await BeginRegistration();
+        var (previousHashBase64, signedEnvelope) = await BeginRegistration();
 
-        //
-        // Finalize
-        //
+        // Finalize it
         var signedPreviousHash = SimulateFrodo.SignPreviousHashForPublicKeyChain(previousHashBase64);
-        var postBodyFinalize = new RegistrationFinalizeModel() { EnvelopeIdBase64 = envelopeIdBase64, SignedPreviousHashBase64 = signedPreviousHash };
+        var postBodyFinalize = new RegistrationFinalizeModel() { EnvelopeIdBase64 = signedEnvelope.Envelope.ContentNonce.ToBase64(), SignedPreviousHashBase64 = signedPreviousHash };
         var postContent = new StringContent(JsonSerializer.Serialize(postBodyFinalize), Encoding.UTF8, "application/json");
 
         var response = await _client.PostAsync("/RegisterKey/PublicKeyRegistrationFinalize", postContent);
@@ -187,7 +175,8 @@ public class RegisterKeyControllerTest
         content = await response.Content.ReadAsStringAsync();
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
 
-        // Begin a new registration
+        // Begin a new registration, also with Frodo, this will be denied because there must be
+        // at least 30 days between registering a key in the database.
 
         // Arrange
         var signedInstruction = SimulateFrodo.InstructionEnvelope();
@@ -208,6 +197,68 @@ public class RegisterKeyControllerTest
 
         // Assert
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.TooManyRequests));
+    }
+
+
+    [Test]
+    // TEST that if the same hash is returned, and one is done before the other, then we'll get a new hash to sign
+    // Do it with three so we're sure it'll work in "multiple rounds"
+    public async Task RegistrationRaceKeySign()
+    {
+        var (onePreviousHashBase64, oneSignedEnvelope) = await BeginRegistration();
+        var (p1, e1, i1) = SimulateFrodo.GetKey();
+        SimulateFrodo.NewKey("samwisegamgee.me");
+        var (twoPreviousHashBase64, twoSignedEnvelope) = await BeginRegistration();
+        var (p2, e2, i2) = SimulateFrodo.GetKey();
+        SimulateFrodo.NewKey("gandalf.me");
+        var (threePreviousHashBase64, threeSignedEnvelope) = await BeginRegistration();
+        var (p3, e3, i3) = SimulateFrodo.GetKey();
+        Assert.IsTrue(onePreviousHashBase64 == twoPreviousHashBase64);
+        Assert.IsTrue(onePreviousHashBase64 == threePreviousHashBase64);
+        Assert.IsTrue(oneSignedEnvelope.Envelope.ContentNonce.ToBase64() != twoSignedEnvelope.Envelope.ContentNonce.ToBase64());
+        Assert.IsTrue(oneSignedEnvelope.Envelope.ContentNonce.ToBase64() != threeSignedEnvelope.Envelope.ContentNonce.ToBase64());
+
+        // We now have three simultaneous Begin requests all with the same previousHash
+
+        // Let's finalize #2 first
+        SimulateFrodo.SetKey(p2, e2, i2);
+        var r2 = await FinalizeRegistration(twoPreviousHashBase64, twoSignedEnvelope.Envelope.ContentNonce.ToBase64());
+        Assert.That(r2.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        // Let's finalize #1 but fail
+        SimulateFrodo.SetKey(p1, e1, i1);
+        var r1 = await FinalizeRegistration(onePreviousHashBase64, oneSignedEnvelope.Envelope.ContentNonce.ToBase64());
+        Assert.That(r1.StatusCode, Is.EqualTo(HttpStatusCode.TooManyRequests));
+        onePreviousHashBase64 = await r1.Content.ReadAsStringAsync(); // Get the new hash to sign
+        Assert.IsTrue(onePreviousHashBase64 != twoPreviousHashBase64);
+        // Let's leave it non-finalized
+
+        // Let's finailize #3 but fail
+        SimulateFrodo.SetKey(p3, e3, i3);
+        var r3 = await FinalizeRegistration(threePreviousHashBase64, threeSignedEnvelope.Envelope.ContentNonce.ToBase64());
+        Assert.That(r3.StatusCode, Is.EqualTo(HttpStatusCode.TooManyRequests));
+        threePreviousHashBase64 = await r3.Content.ReadAsStringAsync(); // Get the new hash to sign
+        Assert.IsTrue(twoPreviousHashBase64 != threePreviousHashBase64);
+        Assert.IsTrue(onePreviousHashBase64 == threePreviousHashBase64);
+
+        // Let's do it again for #3 to get it done
+        r3 = await FinalizeRegistration(threePreviousHashBase64, threeSignedEnvelope.Envelope.ContentNonce.ToBase64());
+        Assert.That(r3.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        // Now let's finally complete #1
+        SimulateFrodo.SetKey(p1, e1, i1);
+        r1 = await FinalizeRegistration(onePreviousHashBase64, oneSignedEnvelope.Envelope.ContentNonce.ToBase64());
+        Assert.That(r1.StatusCode, Is.EqualTo(HttpStatusCode.TooManyRequests));
+        onePreviousHashBase64 = await r1.Content.ReadAsStringAsync(); // Get the new hash to sign
+        Assert.IsTrue(onePreviousHashBase64 != twoPreviousHashBase64);
+        Assert.IsTrue(onePreviousHashBase64 != threePreviousHashBase64);
+
+        // So do it again
+        r1 = await FinalizeRegistration(onePreviousHashBase64, oneSignedEnvelope.Envelope.ContentNonce.ToBase64());
+        Assert.That(r1.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        // HOW CAN I GET _db @seb?: KeyChainDatabaseUtil.VerifyEntireBlockChain(); ?
+
     }
 
 
