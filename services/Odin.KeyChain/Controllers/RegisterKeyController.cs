@@ -287,15 +287,11 @@ namespace Odin.Keychain
             if ((model.EnvelopeIdBase64 == null) || (model.SignedPreviousHashBase64 == null))
                 return BadRequest("Missing data in model");
 
-            // TODO: we could have a race condition here - fix
-            if (_pendingRegistrationCache.TryGetValue(model.EnvelopeIdBase64, out var preregisteredEntry) == false)
+            if (_pendingRegistrationCache.TryRemove(model.EnvelopeIdBase64, out var preregisteredEntry) == false)            // Remember to re-insert where a retry is valid
                 return NotFound("No such ID found");
 
             if (UnixTimeUtc.Now().seconds - preregisteredEntry.timestamp.seconds > 60)
-            {
-                _pendingRegistrationCache.TryRemove(model.EnvelopeIdBase64, out var _);
-                return BadRequest("Too old");
-            }
+                return BadRequest("Expired. Too old");
 
             var newRecordToInsert = new KeyChainRecord()
             {
@@ -326,7 +322,10 @@ namespace Odin.Keychain
                 if (ByteArrayUtil.EquiByteArrayCompare(newRecordToInsert.previousHash, lastRowRecord.recordHash) == false)
                 {
                     preregisteredEntry.previousHashBase64 = lastRowRecord.recordHash.ToBase64();
-                    return StatusCode(429, preregisteredEntry.previousHashBase64); // Return "Try again" and the new hash value to try
+                    if (_pendingRegistrationCache.TryAdd(model.EnvelopeIdBase64, preregisteredEntry) == true)
+                        return StatusCode(429, preregisteredEntry.previousHashBase64); // Return "Try again" and the new hash value to try
+                    else
+                        return Problem("Start over, unable to add back in");
                 }
 
                 newRecordToInsert.signedPreviousHash = Convert.FromBase64String(model.SignedPreviousHashBase64);
@@ -360,9 +359,6 @@ namespace Odin.Keychain
                     return Problem($"Did you try to register a duplicate? {e.Message}");
                 }
                 _db.Commit(); // Flush immediately
-                if (_pendingRegistrationCache.TryRemove(model.EnvelopeIdBase64, out var _) == false)
-                    return Problem("Unable to remove from memory cache");
-
                 return Ok("OK");
             }
             catch (Exception ex)
