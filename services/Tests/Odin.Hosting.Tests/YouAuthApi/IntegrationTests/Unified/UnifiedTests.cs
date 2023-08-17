@@ -35,6 +35,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             //
             var codeVerifier = Guid.NewGuid().ToString();
             var codeChallenge = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(codeVerifier)).ToBase64();
+            var stateMap = new Dictionary<string, string> { { codeChallenge, codeVerifier } };
 
             //
             // [030] Request authorization code
@@ -51,6 +52,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                     ClientInfo = "My Awesome App",
                     CodeChallenge = codeChallenge,
                     PermissionRequest = "identity:read identity:write",
+                    State = codeChallenge,
                     RedirectUri = $"https://{thirdParty}/foo/code/callback"
                 };
 
@@ -94,6 +96,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 Assert.That(returnUrlComponents.CodeChallenge, Is.EqualTo(payload.CodeChallenge));
                 Assert.That(returnUrlComponents.PermissionRequest, Is.EqualTo(payload.PermissionRequest));
                 Assert.That(returnUrlComponents.RedirectUri, Is.EqualTo(payload.RedirectUri));
+                Assert.That(returnUrlComponents.State, Is.EqualTo(payload.State));
                 Assert.That(returnUrlComponents.ClientInfo, Is.EqualTo(payload.ClientInfo));
             }
         }
@@ -114,6 +117,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             //
             var codeVerifier = Guid.NewGuid().ToString();
             var codeChallenge = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(codeVerifier)).ToBase64();
+            var stateMap = new Dictionary<string, string> { { codeChallenge, codeVerifier } };
 
             //
             // [030] Request authorization code
@@ -131,6 +135,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                     ClientInfo = "",
                     CodeChallenge = codeChallenge,
                     PermissionRequest = "",
+                    State = codeChallenge,
                     RedirectUri = $"https://{thirdParty}/foo/code/callback"
                 };
 
@@ -174,6 +179,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 Assert.That(returnUrlComponents.CodeChallenge, Is.EqualTo(payload.CodeChallenge));
                 Assert.That(returnUrlComponents.PermissionRequest, Is.EqualTo(payload.PermissionRequest));
                 Assert.That(returnUrlComponents.RedirectUri, Is.EqualTo(payload.RedirectUri));
+                Assert.That(returnUrlComponents.State, Is.EqualTo(payload.State));
                 Assert.That(returnUrlComponents.ClientInfo, Is.EqualTo(payload.ClientInfo));
             }
         }
@@ -192,6 +198,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             //
             var codeVerifier = Guid.NewGuid().ToString();
             var codeChallenge = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(codeVerifier)).ToBase64();
+            var stateMap = new Dictionary<string, string> { { codeChallenge, codeVerifier } };
 
             //
             // [030] Request authorization code
@@ -230,6 +237,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                     ClientInfo = "",
                     CodeChallenge = codeChallenge,
                     PermissionRequest = OdinSystemSerializer.Serialize(appParams),
+                    State = codeChallenge,
                     RedirectUri = $"https://app/foo/code/callback"
                 };
 
@@ -296,6 +304,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             //
             var codeVerifier = Guid.NewGuid().ToString();
             var codeChallenge = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(codeVerifier)).ToBase64();
+            var stateMap = new Dictionary<string, string> { { codeChallenge, codeVerifier } };
 
             //
             // [030] Request authorization code
@@ -333,6 +342,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                     ClientInfo = "",
                     CodeChallenge = codeChallenge,
                     PermissionRequest = OdinSystemSerializer.Serialize(appParams),
+                    State = codeChallenge,
                     RedirectUri = $"https://app/foo/code/callback"
                 };
 
@@ -376,6 +386,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 Assert.That(returnUrlComponents.CodeChallenge, Is.EqualTo(payload.CodeChallenge));
                 Assert.That(returnUrlComponents.PermissionRequest, Is.EqualTo(payload.PermissionRequest));
                 Assert.That(returnUrlComponents.RedirectUri, Is.EqualTo(payload.RedirectUri));
+                Assert.That(returnUrlComponents.State, Is.EqualTo(payload.State));
                 Assert.That(returnUrlComponents.ClientInfo, Is.EqualTo(payload.ClientInfo));
             }
         }
@@ -394,6 +405,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             //
             var codeVerifier = Guid.NewGuid().ToString();
             var codeChallenge = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(codeVerifier)).ToBase64();
+            var stateMap = new Dictionary<string, string> { { codeChallenge, codeVerifier } };
 
             var finalRedirectUri = new Uri("https://app/foo/code/callback");
             var appParams = GetAppPhotosParams();
@@ -404,6 +416,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 ClientInfo = "",
                 CodeChallenge = codeChallenge,
                 PermissionRequest = OdinSystemSerializer.Serialize(appParams),
+                State = codeChallenge,
                 RedirectUri = finalRedirectUri.ToString()
             };
 
@@ -455,6 +468,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 Assert.That(returnUrlComponents.CodeChallenge, Is.EqualTo(payload.CodeChallenge));
                 Assert.That(returnUrlComponents.PermissionRequest, Is.EqualTo(payload.PermissionRequest));
                 Assert.That(returnUrlComponents.RedirectUri, Is.EqualTo(payload.RedirectUri));
+                Assert.That(returnUrlComponents.State, Is.EqualTo(payload.State));
                 Assert.That(returnUrlComponents.ClientInfo, Is.EqualTo(payload.ClientInfo));
             }
 
@@ -495,7 +509,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             // [070] Create auth code
             // [080] return auth code to client
             //
-            string code;
+            string code, state;
             {
                 var uri =
                     new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}")
@@ -520,7 +534,9 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
 
                 var qs = HttpUtility.ParseQueryString(redirectUri.Query);
                 Assert.That(qs["code"], Is.Not.Null.And.Not.Empty);
+                Assert.That(qs["state"], Is.EqualTo(payload.State));
                 code = qs["code"]!;
+                state = qs["state"]!;
             }
 
             //
@@ -532,7 +548,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var tokenRequest = new YouAuthTokenRequest
                 {
                     Code = code,
-                    CodeVerifier = codeVerifier,
+                    CodeVerifier = stateMap[state],
                     TokenDeliveryOption = TokenDeliveryOption.cookie
                 };
                 var body = OdinSystemSerializer.Serialize(tokenRequest);
@@ -612,6 +628,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             //
             var codeVerifier = Guid.NewGuid().ToString();
             var codeChallenge = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(codeVerifier)).ToBase64();
+            var stateMap = new Dictionary<string, string> { { codeChallenge, codeVerifier } };
 
             //
             // [030] Request authorization code
@@ -631,6 +648,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                     ClientInfo = "",
                     CodeChallenge = codeChallenge,
                     PermissionRequest = "",
+                    State = codeChallenge,
                     RedirectUri = $"https://{thirdParty}/foo/code/callback"
                 };
 
@@ -699,7 +717,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             // [070] Create auth code
             // [080] return auth code to client
             //
-            string code;
+            string code, state;
             {
                 var payload = new YouAuthAuthorizeRequest
                 {
@@ -708,6 +726,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                     ClientInfo = "",
                     CodeChallenge = codeChallenge,
                     PermissionRequest = "",
+                    State = codeChallenge,
                     RedirectUri = $"https://{thirdParty}/foo/code/callback"
                 };
 
@@ -734,7 +753,9 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
 
                 var qs = HttpUtility.ParseQueryString(redirectUri.Query);
                 Assert.That(qs["code"], Is.Not.Null.And.Not.Empty);
+                Assert.That(qs["state"], Is.EqualTo(payload.State));
                 code = qs["code"]!;
+                state = qs["state"]!;
             }
 
             //
@@ -746,7 +767,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var tokenRequest = new YouAuthTokenRequest
                 {
                     Code = code,
-                    CodeVerifier = codeVerifier,
+                    CodeVerifier = stateMap[state],
                     TokenDeliveryOption = TokenDeliveryOption.cookie
                 };
                 var body = OdinSystemSerializer.Serialize(tokenRequest);
@@ -783,6 +804,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             //
             var codeVerifier = Guid.NewGuid().ToString();
             var codeChallenge = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(codeVerifier)).ToBase64();
+            var stateMap = new Dictionary<string, string> { { codeChallenge, codeVerifier } };
 
             const string thirdParty = "frodo.dotyou.cloud";
             var finalRedirectUri = new Uri($"https://{thirdParty}/foo/code/callback");
@@ -792,7 +814,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             // [070] Create auth code
             // [080] return auth code to client
             //
-            string code;
+            string code, state;
             {
                 var payload = new YouAuthAuthorizeRequest
                 {
@@ -801,6 +823,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                     ClientInfo = "",
                     CodeChallenge = codeChallenge,
                     PermissionRequest = "",
+                    State = codeChallenge,
                     RedirectUri = $"https://{thirdParty}/foo/code/callback"
                 };
 
@@ -827,26 +850,28 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
 
                 var qs = HttpUtility.ParseQueryString(redirectUri.Query);
                 Assert.That(qs["code"], Is.Not.Null.And.Not.Empty);
+                Assert.That(qs["state"], Is.EqualTo(payload.State));
                 code = qs["code"]!;
+                state = qs["state"]!;
             }
 
             //
             // [100] Exchange auth code for access token
             // [140] Return client access token to client
             //
+            string homeCookie, ss64;
             {
                 var uri = new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Token}");
                 var tokenRequest = new YouAuthTokenRequest
                 {
                     Code = code,
-                    CodeVerifier = codeVerifier,
+                    CodeVerifier = stateMap[state],
                     TokenDeliveryOption = TokenDeliveryOption.cookie
                 };
                 var body = OdinSystemSerializer.Serialize(tokenRequest);
 
                 var request = new HttpRequestMessage(HttpMethod.Post, uri.ToString())
                 {
-                    Headers = { { "Cookie", new Cookie(YouAuthTestHelper.OwnerCookieName, ownerCookie).ToString() } },
                     Content = new StringContent(body, Encoding.UTF8, "application/json")
                 };
 
@@ -858,12 +883,30 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
 
                 Assert.That(token!.Base64SharedSecret, Is.Not.Null.And.Not.Empty);
                 Assert.That(token.Base64ClientAuthToken, Is.Null.Or.Empty);
+                ss64 = token.Base64SharedSecret!;
 
                 var cookies = response.GetCookies();
                 Assert.That(cookies.ContainsKey(YouAuthTestHelper.HomeCookieName), Is.True);
-                var homeCookie = cookies[YouAuthTestHelper.HomeCookieName];
+                homeCookie = cookies[YouAuthTestHelper.HomeCookieName];
                 Assert.That(homeCookie, Is.Not.Null.And.Not.Empty);
             }
+
+            // Access resource using cat and shared secret
+            // SEB:TODO this is the same as old youauth, but it doesn't work. Something is  wrong way down
+            // int the youauth depths...
+            {
+                var uri = YouAuthTestHelper.UriWithEncryptedQueryString($"https://{hobbit}/api/youauth/v1/auth/ping?text=helloworld", ss64);
+                var request = new HttpRequestMessage(HttpMethod.Get, uri)
+                {
+                    Headers = { { "Cookie", new Cookie(YouAuthTestHelper.HomeCookieName, homeCookie).ToString() } }
+                };
+                var response = await apiClient.SendAsync(request);
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                var text = await YouAuthTestHelper.DecryptContent<string>(response, ss64);
+                Assert.That(text, Is.EqualTo($"ping from {hobbit}: helloworld"));
+            }
+
+
         }
 
         //
@@ -882,6 +925,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             //
             var codeVerifier = Guid.NewGuid().ToString();
             var codeChallenge = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(codeVerifier)).ToBase64();
+            var stateMap = new Dictionary<string, string> { { codeChallenge, codeVerifier } };
 
             const string thirdParty = "frodo.dotyou.cloud";
             var finalRedirectUri = new Uri($"https://{thirdParty}/foo/code/callback");
@@ -891,7 +935,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             // [070] Create auth code
             // [080] return auth code to client
             //
-            string code;
+            string code, state;
             {
                 var payload = new YouAuthAuthorizeRequest
                 {
@@ -900,6 +944,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                     ClientInfo = "",
                     CodeChallenge = codeChallenge,
                     PermissionRequest = "",
+                    State = codeChallenge,
                     RedirectUri = $"https://{thirdParty}/foo/code/callback"
                 };
 
@@ -926,7 +971,9 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
 
                 var qs = HttpUtility.ParseQueryString(redirectUri.Query);
                 Assert.That(qs["code"], Is.Not.Null.And.Not.Empty);
+                Assert.That(qs["state"], Is.EqualTo(payload.State));
                 code = qs["code"]!;
+                state = qs["state"]!;
             }
 
             //
@@ -938,14 +985,13 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var tokenRequest = new YouAuthTokenRequest
                 {
                     Code = code,
-                    CodeVerifier = codeVerifier,
+                    CodeVerifier = stateMap[state],
                     TokenDeliveryOption = TokenDeliveryOption.json
                 };
                 var body = OdinSystemSerializer.Serialize(tokenRequest);
 
                 var request = new HttpRequestMessage(HttpMethod.Post, uri.ToString())
                 {
-                    Headers = { { "Cookie", new Cookie(YouAuthTestHelper.OwnerCookieName, ownerCookie).ToString() } },
                     Content = new StringContent(body, Encoding.UTF8, "application/json")
                 };
 
@@ -977,6 +1023,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             //
             var codeVerifier = Guid.NewGuid().ToString();
             var codeChallenge = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(codeVerifier)).ToBase64();
+            var stateMap = new Dictionary<string, string> { { codeChallenge, codeVerifier } };
 
             Uri returnUrl;
             const string thirdParty = "frodo.dotyou.cloud";
@@ -985,17 +1032,17 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             //
             // [030] Request authorization code
             //
+            var payload = new YouAuthAuthorizeRequest
             {
-                var payload = new YouAuthAuthorizeRequest
-                {
-                    ClientId = thirdParty,
-                    ClientType = ClientType.domain,
-                    ClientInfo = "",
-                    CodeChallenge = codeChallenge,
-                    PermissionRequest = "",
-                    RedirectUri = $"https://{thirdParty}/foo/code/callback"
-                };
-
+                ClientId = thirdParty,
+                ClientType = ClientType.domain,
+                ClientInfo = "",
+                CodeChallenge = codeChallenge,
+                PermissionRequest = "",
+                State = codeChallenge,
+                RedirectUri = $"https://{thirdParty}/foo/code/callback"
+            };
+            {
                 var uri =
                     new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}")
                     {
@@ -1061,7 +1108,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             //
             // [070] Create auth code
             //
-            string code;
+            string code, state;
             {
                 var request = new HttpRequestMessage(HttpMethod.Get, authorizeUri.ToString())
                 {
@@ -1079,7 +1126,9 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
 
                 var qs = HttpUtility.ParseQueryString(redirectUri.Query);
                 Assert.That(qs["code"], Is.Not.Null.And.Not.Empty);
+                Assert.That(qs["state"], Is.EqualTo(payload.State));
                 code = qs["code"]!;
+                state = qs["state"]!;
             }
 
             //
@@ -1091,14 +1140,13 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var tokenRequest = new YouAuthTokenRequest
                 {
                     Code = code,
-                    CodeVerifier = codeVerifier,
+                    CodeVerifier = stateMap[state],
                     TokenDeliveryOption = TokenDeliveryOption.cookie
                 };
                 var body = OdinSystemSerializer.Serialize(tokenRequest);
 
                 var request = new HttpRequestMessage(HttpMethod.Post, uri.ToString())
                 {
-                    Headers = { { "Cookie", new Cookie(YouAuthTestHelper.OwnerCookieName, ownerCookie).ToString() } },
                     Content = new StringContent(body, Encoding.UTF8, "application/json")
                 };
 
@@ -1134,6 +1182,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             //
             var codeVerifier = Guid.NewGuid().ToString();
             var codeChallenge = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(codeVerifier)).ToBase64();
+            var stateMap = new Dictionary<string, string> { { codeChallenge, codeVerifier } };
 
             Uri returnUrl;
             const string thirdParty = "frodo.dotyou.cloud";
@@ -1142,17 +1191,17 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             //
             // [030] Request authorization code
             //
+            var payload = new YouAuthAuthorizeRequest
             {
-                var payload = new YouAuthAuthorizeRequest
-                {
-                    ClientId = thirdParty,
-                    ClientType = ClientType.domain,
-                    ClientInfo = "",
-                    CodeChallenge = codeChallenge,
-                    PermissionRequest = "",
-                    RedirectUri = $"https://{thirdParty}/foo/code/callback"
-                };
-
+                ClientId = thirdParty,
+                ClientType = ClientType.domain,
+                ClientInfo = "",
+                CodeChallenge = codeChallenge,
+                PermissionRequest = "",
+                State = codeChallenge,
+                RedirectUri = $"https://{thirdParty}/foo/code/callback"
+            };
+            {
                 var uri =
                     new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}")
                     {
@@ -1218,7 +1267,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             //
             // [070] Create auth code
             //
-            string code;
+            string code, state;
             {
                 var request = new HttpRequestMessage(HttpMethod.Get, authorizeUri.ToString())
                 {
@@ -1236,7 +1285,9 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
 
                 var qs = HttpUtility.ParseQueryString(redirectUri.Query);
                 Assert.That(qs["code"], Is.Not.Null.And.Not.Empty);
+                Assert.That(qs["state"], Is.EqualTo(payload.State));
                 code = qs["code"]!;
+                state = qs["state"]!;
             }
 
             //
@@ -1248,14 +1299,13 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var tokenRequest = new YouAuthTokenRequest
                 {
                     Code = code,
-                    CodeVerifier = codeVerifier,
+                    CodeVerifier = stateMap[state],
                     TokenDeliveryOption = TokenDeliveryOption.json
                 };
                 var body = OdinSystemSerializer.Serialize(tokenRequest);
 
                 var request = new HttpRequestMessage(HttpMethod.Post, uri.ToString())
                 {
-                    Headers = { { "Cookie", new Cookie(YouAuthTestHelper.OwnerCookieName, ownerCookie).ToString() } },
                     Content = new StringContent(body, Encoding.UTF8, "application/json")
                 };
 

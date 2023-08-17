@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
@@ -143,6 +144,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             var queryString = QueryString.Create(new Dictionary<string, string?>()
             {
                 { YouAuthDefaults.Code, code },
+                { YouAuthDefaults.State, authorize.State },
             });
 
             var uri = new UriBuilder(redirectUri)
@@ -203,6 +205,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
         // Token (POST)
         //
 
+        [AllowAnonymous]
         [HttpPost(OwnerApiPathConstants.YouAuthV1Token)] // "token"
         [Produces("application/json")]
         public async Task<ActionResult<YouAuthTokenResponse>> Token([FromBody] YouAuthTokenRequest tokenRequest)

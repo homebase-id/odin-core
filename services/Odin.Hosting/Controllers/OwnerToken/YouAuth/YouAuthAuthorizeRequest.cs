@@ -36,6 +36,10 @@ public sealed class YouAuthAuthorizeRequest
     [BindProperty(Name = PermissionRequestName, SupportsGet = true)]
     public string PermissionRequest { get; set; } = ""; 
 
+    public const string StateName = "state";
+    [BindProperty(Name = StateName, SupportsGet = true)]
+    public string State { get; set; } = "";
+
     //
 
     public YouAuthAuthorizeRequest()
@@ -51,8 +55,8 @@ public sealed class YouAuthAuthorizeRequest
         string clientId,
         string codeChallenge,
         string permissionRequest,
-        string clientInfo
-        )
+        string clientInfo,
+        string state)
     {
         RedirectUri = redirectUri;
         ClientType = clientType;
@@ -60,6 +64,7 @@ public sealed class YouAuthAuthorizeRequest
         CodeChallenge = codeChallenge;
         PermissionRequest = permissionRequest;
         ClientInfo = clientInfo;
+        State = state;
     }
     
     //
@@ -74,6 +79,7 @@ public sealed class YouAuthAuthorizeRequest
         qs[CodeChallengeName] = CodeChallenge;
         qs[RedirectUriName] = RedirectUri;
         qs[PermissionRequestName] = PermissionRequest;
+        qs[StateName] = State;
 
         return qs.ToString() ?? string.Empty;
     }
@@ -95,7 +101,8 @@ public sealed class YouAuthAuthorizeRequest
             clientId: qs[ClientIdName] ?? string.Empty,
             codeChallenge: qs[CodeChallengeName] ?? string.Empty,
             permissionRequest: qs[PermissionRequestName] ?? string.Empty,
-            clientInfo: qs[ClientInfoName] ?? string.Empty);
+            clientInfo: qs[ClientInfoName] ?? string.Empty,
+            state: qs[StateName] ?? string.Empty);
     }
 
     //
@@ -104,7 +111,7 @@ public sealed class YouAuthAuthorizeRequest
     {
         if (ClientType != ClientType.app && ClientType != ClientType.domain)
         {
-            throw new BadRequestException($"Bad or missing {ClientType}");
+            throw new BadRequestException($"Bad or missing {ClientTypeName}: {ClientType}");
         }
         if (ClientType == ClientType.app && string.IsNullOrWhiteSpace(ClientId))
         {

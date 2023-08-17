@@ -18,5 +18,6 @@ namespace Odin.Core.Services.Authentication.YouAuth
         public const string XTokenCookieName = "XT32";
         
         public const string Code = "code";
+        public const string State = "state";
     }
 }

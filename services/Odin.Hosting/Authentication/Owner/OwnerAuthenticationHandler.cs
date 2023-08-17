@@ -40,7 +40,7 @@ namespace Odin.Hosting.Authentication.Owner
         protected override Task HandleChallengeAsync(AuthenticationProperties properties)
         {
             // SEB:TODO we should split up these two into different handlers
-            if (Request.Path.StartsWithSegments(OwnerApiPathConstants.YouAuthV1))
+            if (Request.Path.StartsWithSegments(OwnerApiPathConstants.YouAuthV1Authorize))
             {
                 var returnUrl = WebUtility.UrlEncode(Request.GetDisplayUrl());
                 var loginUrl = $"{Request.Scheme}://{Request.Host}{OwnerFrontendPathConstants.Login}?returnUrl={returnUrl}";
