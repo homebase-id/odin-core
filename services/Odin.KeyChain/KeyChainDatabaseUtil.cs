@@ -36,7 +36,7 @@ namespace Odin.KeyChain
                 genesis.identity = "id.odin.earth"; // or e.g. id.dot.one
                 genesis.publicKey = eccGenesis.publicKey; // Would be nice with a real public key here from the actual identity
                 genesis.previousHash = ByteArrayUtil.CalculateSHA256Hash(Guid.Empty.ToByteArray());
-                var signature = eccGenesis.Sign(password, genesis.previousHash);
+                var signature = eccGenesis.Sign(password, ByteArrayUtil.Combine("PublicKeyChain-".ToUtf8ByteArray(), genesis.previousHash));
                 genesis.signedPreviousHash = signature;
                 genesis.recordHash = CalculateRecordHash(genesis);
                 VerifyBlockChainRecord(genesis, null);
@@ -98,6 +98,7 @@ namespace Odin.KeyChain
 
             if (previousRecord != null)
             {
+
                 if (ByteArrayUtil.EquiByteArrayCompare(previousRecord.recordHash, record.previousHash) == false)
                     return false;
 
@@ -118,7 +119,7 @@ namespace Odin.KeyChain
         public static bool VerifyEntireBlockChain(KeyChainDatabase _db)
         {
             var _sqlcmd = _db.CreateCommand();
-            _sqlcmd.CommandText = "SELECT previousHash,identity,timestamp,nonce,signedNonce,algorithm,publicKey,recordHash FROM blockChain ORDER BY rowid ASC;";
+            _sqlcmd.CommandText = "SELECT previousHash,identity,timestamp,signedPreviousHash,algorithm,publicKey,recordHash FROM keyChain ORDER BY rowid ASC;";
 
             using (SqliteDataReader rdr = _db.ExecuteReader(_sqlcmd, System.Data.CommandBehavior.SingleRow))
             {

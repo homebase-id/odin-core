@@ -287,6 +287,7 @@ namespace Odin.Keychain
             if ((model.EnvelopeIdBase64 == null) || (model.SignedPreviousHashBase64 == null))
                 return BadRequest("Missing data in model");
 
+            // TODO: we could have a race condition here - fix
             if (_pendingRegistrationCache.TryGetValue(model.EnvelopeIdBase64, out var preregisteredEntry) == false)
                 return NotFound("No such ID found");
 

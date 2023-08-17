@@ -39,36 +39,15 @@ public class RegisterKeyControllerTest
     public async Task BeginRegistrationTest()
     {
         var (previousHashBase64, signedInstruction) = await BeginRegistration();
-
-
         var signedInstructionJson = signedInstruction.GetCompactSortedJson();
 
-        // Wrap the string inside a JSON object
-        var postBody = new
-        {
-            signedRegistrationInstructionEnvelopeJson = signedInstructionJson
-        };
-
-        // Convert the object to a StringContent with the appropriate content type
+        //
+        // Cheat and do an extra test that we cannot begin the same Instruction request twice
+        //
+        var postBody = new { signedRegistrationInstructionEnvelopeJson = signedInstructionJson };
         var postContent = new StringContent(JsonSerializer.Serialize(postBody), Encoding.UTF8, "application/json");
-
-        // Act
         var response = await _client.PostAsync("/RegisterKey/PublicKeyRegistrationBegin", postContent);
         var content = await response.Content.ReadAsStringAsync();
-        byte[] previousHash = Convert.FromBase64String(content);
-
-        // Assert
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Debug.Assert(content.Length > 1);
-        Debug.Assert(previousHash.Length >= 16);
-        Debug.Assert(previousHash.Length <= 32);
-
-        //
-        // Cheat and do an extra test that we cannot begin the same request twice
-        //
-
-        response = await _client.PostAsync("/RegisterKey/PublicKeyRegistrationBegin", postContent);
-        content = await response.Content.ReadAsStringAsync();
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
 
@@ -257,8 +236,9 @@ public class RegisterKeyControllerTest
         r1 = await FinalizeRegistration(onePreviousHashBase64, oneSignedEnvelope.Envelope.ContentNonce.ToBase64());
         Assert.That(r1.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
-        // HOW CAN I GET _db @seb?: KeyChainDatabaseUtil.VerifyEntireBlockChain(); ?
-
+        var db = _factory.Services.GetRequiredService<KeyChainDatabase>();
+        if (KeyChainDatabaseUtil.VerifyEntireBlockChain(db) == false)
+            Assert.Fail();
     }
 
 
