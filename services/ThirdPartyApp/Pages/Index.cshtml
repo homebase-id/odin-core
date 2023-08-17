@@ -1,0 +1,30 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+<div class="row mt-5">
+  <div class="col-4">
+    <strong><p>@Model.LoggedInMessage</p></strong>
+  </div>
+</div>
+
+<div class="row mt-5">
+  <div class="col-4">
+    <form method="post">
+      <div class="mb-3">
+        @if (Model.LoggedInIdentity == "")
+        {
+          <label for="odinIdentity" class="form-label">Login with ODIN identity</label>
+          <input type="text" class="form-control" id="odinIdentity" name="formOdinIdentity" placeholder="ODIN Identity" value="sam.dotyou.cloud">
+        }
+      </div>
+      <button type="submit" class="btn btn-primary">@Model.ButtonCaption</button>
+    </form>
+  </div>
+</div>
+
+
+
+
