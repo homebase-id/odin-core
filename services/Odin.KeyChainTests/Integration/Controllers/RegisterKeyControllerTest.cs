@@ -2,14 +2,16 @@ using System.Diagnostics;
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using NodaTime;
 using NUnit.Framework;
-using NUnit.Framework.Constraints;
 using Odin.Core;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Cryptography.Signatures;
 using Odin.Core.Storage.SQLite.KeyChainDatabase;
+using Odin.Core.Time;
+using Odin.Keychain;
 using Odin.KeyChain;
 using static Odin.Keychain.RegisterKeyController;
 
@@ -245,17 +247,22 @@ public class RegisterKeyControllerTest
     [Test]
     public async Task GetVerifyShouldReturnIdentityAge()
     {
-        // Arrange
-        const string identity = "frodo.baggins.me";
-        SeedDatabase(identity);
+        // Create an entry
+        const string identity = "frodobaggins.me";
+        var (previousHashBase64, signedEnvelope) = await BeginRegistration();
+        var r = await FinalizeRegistration(previousHashBase64, signedEnvelope.Envelope.ContentNonce.ToBase64());
+        Assert.That(r.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         // Act
         var response = await _client.GetAsync($"/RegisterKey/Verify?identity={identity}");
         var content = await response.Content.ReadAsStringAsync();
+        var verifyResult = JsonSerializer.Deserialize<VerifyResult>(content);
+        var delta = UnixTimeUtc.Now().seconds - verifyResult?.keyCreatedTime;
 
         // Assert
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(int.Parse(content), Is.GreaterThanOrEqualTo(0));
+        Assert.That(delta, Is.GreaterThanOrEqualTo(0));
+        Assert.That(delta, Is.LessThanOrEqualTo(5));
     }
 
     //
@@ -263,17 +270,103 @@ public class RegisterKeyControllerTest
     [Test]
     public async Task GetVerifyShouldReturnNotFoundForUnknownIdentities()
     {
-        // Arrange
-        // ...
+        // Create an entry for frodobaggins.me
+        var (previousHashBase64, signedEnvelope) = await BeginRegistration();
+        var r = await FinalizeRegistration(previousHashBase64, signedEnvelope.Envelope.ContentNonce.ToBase64());
+        Assert.That(r.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         // Act
-        var response = await _client.GetAsync("/RegisterKey/Verify/?identity=frodo.baggins.me");
+        string identity2 = "gandalf.me";
+        var response = await _client.GetAsync($"/RegisterKey/Verify?identity={identity2}");
+        var content = await response.Content.ReadAsStringAsync();
 
         // Assert
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
 
-    //
+    [Test]
+    public async Task GetVerifyKeyShouldReturnRange()
+    {
+        // Create an entry
+        const string identity = "frodobaggins.me";
+
+        //
+        // Entry one
+        //
+        LocalDateTime localDateTime = new LocalDateTime(2020, 1, 1, 11, 59);
+        ZonedDateTime zonedDateTime = localDateTime.InZoneStrictly(DateTimeZone.Utc);
+        Instant instant1 = zonedDateTime.ToInstant();
+        RegisterKeyController.simulateTime = new UnixTimeUtc(instant1);
+
+        var (previousHashBase64, signedEnvelope) = await BeginRegistration();
+        var r = await FinalizeRegistration(previousHashBase64, signedEnvelope.Envelope.ContentNonce.ToBase64());
+        Assert.That(r.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        EccPublicKeyData eccPublicKeyData1 = EccPublicKeyData.FromDerEncodedPublicKey(signedEnvelope.Signatures[0].PublicKeyDer);
+
+        //
+        // Entry two
+        //
+        localDateTime = new LocalDateTime(2021, 1, 1, 11, 59);
+        zonedDateTime = localDateTime.InZoneStrictly(DateTimeZone.Utc);
+        var instant2 = zonedDateTime.ToInstant();
+        RegisterKeyController.simulateTime = new UnixTimeUtc(instant2);
+        SimulateFrodo.NewKey(identity);
+
+        (previousHashBase64, signedEnvelope) = await BeginRegistration();
+        r = await FinalizeRegistration(previousHashBase64, signedEnvelope.Envelope.ContentNonce.ToBase64());
+        Assert.That(r.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        EccPublicKeyData eccPublicKeyData2 = EccPublicKeyData.FromDerEncodedPublicKey(signedEnvelope.Signatures[0].PublicKeyDer);
+
+
+        //
+        // Entry three, "now"
+        //
+        localDateTime = new LocalDateTime(2023, 1, 1, 11, 00);
+        zonedDateTime = localDateTime.InZoneStrictly(DateTimeZone.Utc);
+        var instant3 = zonedDateTime.ToInstant();
+        RegisterKeyController.simulateTime = new UnixTimeUtc(instant3);
+        SimulateFrodo.NewKey(identity);
+
+        (previousHashBase64, signedEnvelope) = await BeginRegistration();
+        r = await FinalizeRegistration(previousHashBase64, signedEnvelope.Envelope.ContentNonce.ToBase64());
+        Assert.That(r.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        EccPublicKeyData eccPublicKeyData3 = EccPublicKeyData.FromDerEncodedPublicKey(signedEnvelope.Signatures[0].PublicKeyDer);
+
+        //
+        // Now we're ready to test VerifyKey on the three entries
+        //
+        var response = await _client.GetAsync($"/RegisterKey/VerifyKey?identity={identity}&publicKeyDerBase64={WebUtility.UrlEncode(eccPublicKeyData1.publicDerBase64())}");
+        var content = await response.Content.ReadAsStringAsync();
+        var verifyKeyResult = JsonSerializer.Deserialize<VerifyKeyResult>(content);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.NotNull(verifyKeyResult);
+        var tb = new UnixTimeUtc(instant1);
+        var te = new UnixTimeUtc(instant2);
+        Assert.That(verifyKeyResult.keyCreatedTime == tb.seconds);
+        Assert.That(verifyKeyResult.successorKeyCreatedTime == te.seconds);
+
+
+        // Test the second public key
+        response = await _client.GetAsync($"/RegisterKey/VerifyKey?identity={identity}&publicKeyDerBase64={WebUtility.UrlEncode(eccPublicKeyData2.publicDerBase64())}");
+        content = await response.Content.ReadAsStringAsync();
+        verifyKeyResult = JsonSerializer.Deserialize<VerifyKeyResult>(content);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.NotNull(verifyKeyResult);
+        tb = new UnixTimeUtc(instant2);
+        te = new UnixTimeUtc(instant3);
+        Assert.That(verifyKeyResult.keyCreatedTime == tb.seconds);
+        Assert.That(verifyKeyResult.successorKeyCreatedTime == te.seconds);
+
+        // Test the last public key
+        response = await _client.GetAsync($"/RegisterKey/VerifyKey?identity={identity}&publicKeyDerBase64={WebUtility.UrlEncode(eccPublicKeyData3.publicDerBase64())}");
+        content = await response.Content.ReadAsStringAsync();
+        verifyKeyResult = JsonSerializer.Deserialize<VerifyKeyResult>(content);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.NotNull(verifyKeyResult);
+        tb = new UnixTimeUtc(instant3);
+        Assert.That(verifyKeyResult.keyCreatedTime == tb.seconds);
+        Assert.That(verifyKeyResult.successorKeyCreatedTime == 0);
+    }
 
     private void SeedDatabase(string identity)
     {

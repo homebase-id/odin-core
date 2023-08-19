@@ -99,7 +99,7 @@ namespace Odin.KeyChainTests
 
             using (db.CreateCommitUnitOfWork())
             {
-                var r2 = db.tblKeyChain.Get(r.identity);
+                var r2 = db.tblKeyChain.GetOldest(r.identity);
             }
 
             Assert.Pass();

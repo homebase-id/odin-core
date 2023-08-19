@@ -29,8 +29,8 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
                }
            set {
                     if (value == null) throw new Exception("Cannot be null");
-                    if (value?.Length < 0) throw new Exception("Too short");
-                    if (value?.Length > 65535) throw new Exception("Too long");
+                    if (value?.Length < 3) throw new Exception("Too short");
+                    if (value?.Length > 256) throw new Exception("Too long");
                   _identity = value;
                }
         }
@@ -419,8 +419,8 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         public int Delete(string identity,byte[] publicKey)
         {
             if (identity == null) throw new Exception("Cannot be null");
-            if (identity?.Length < 0) throw new Exception("Too short");
-            if (identity?.Length > 65535) throw new Exception("Too long");
+            if (identity?.Length < 3) throw new Exception("Too short");
+            if (identity?.Length > 256) throw new Exception("Too long");
             if (publicKey == null) throw new Exception("Cannot be null");
             if (publicKey?.Length < 16) throw new Exception("Too short");
             if (publicKey?.Length > 500) throw new Exception("Too long");
@@ -451,8 +451,8 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         public KeyChainRecord ReadRecordFromReader0(SqliteDataReader rdr, string identity,byte[] publicKey)
         {
             if (identity == null) throw new Exception("Cannot be null");
-            if (identity?.Length < 0) throw new Exception("Too short");
-            if (identity?.Length > 65535) throw new Exception("Too long");
+            if (identity?.Length < 3) throw new Exception("Too short");
+            if (identity?.Length > 256) throw new Exception("Too long");
             if (publicKey == null) throw new Exception("Cannot be null");
             if (publicKey?.Length < 16) throw new Exception("Too short");
             if (publicKey?.Length > 500) throw new Exception("Too long");
@@ -524,8 +524,8 @@ namespace Odin.Core.Storage.SQLite.KeyChainDatabase
         public KeyChainRecord Get(string identity,byte[] publicKey)
         {
             if (identity == null) throw new Exception("Cannot be null");
-            if (identity?.Length < 0) throw new Exception("Too short");
-            if (identity?.Length > 65535) throw new Exception("Too long");
+            if (identity?.Length < 3) throw new Exception("Too short");
+            if (identity?.Length > 256) throw new Exception("Too long");
             if (publicKey == null) throw new Exception("Cannot be null");
             if (publicKey?.Length < 16) throw new Exception("Too short");
             if (publicKey?.Length > 500) throw new Exception("Too long");

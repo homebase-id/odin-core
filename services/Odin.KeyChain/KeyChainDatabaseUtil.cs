@@ -39,12 +39,10 @@ namespace Odin.KeyChain
                 var signature = eccGenesis.Sign(password, ByteArrayUtil.Combine("PublicKeyChain-".ToUtf8ByteArray(), genesis.previousHash));
                 genesis.signedPreviousHash = signature;
                 genesis.recordHash = CalculateRecordHash(genesis);
-                VerifyBlockChainRecord(genesis, null);
+                VerifyBlockChainRecord(genesis, null, false);
                 _db.tblKeyChain.Insert(genesis);
             }
         }
-
-
 
 
         public static KeyChainRecord NewBlockChainRecord()
@@ -90,7 +88,7 @@ namespace Odin.KeyChain
         /// <param name="record"></param>
         /// <param name="previousRowHash"></param>
         /// <returns></returns>
-        public static bool VerifyBlockChainRecord(KeyChainRecord record, KeyChainRecord? previousRecord)
+        public static bool VerifyBlockChainRecord(KeyChainRecord record, KeyChainRecord? previousRecord, bool checkTimeStamps)
         {
             var publicKey = EccPublicKeyData.FromDerEncodedPublicKey(record.publicKey);
             if (publicKey.VerifySignature(ByteArrayUtil.Combine("PublicKeyChain-".ToUtf8ByteArray(), record.previousHash), record.signedPreviousHash) == false)
@@ -107,7 +105,7 @@ namespace Odin.KeyChain
                     return false;
 
                 // Maybe we shouldn't do this. IDK.
-                if (record.timestamp.uniqueTime < previousRecord.timestamp.uniqueTime)
+                if (checkTimeStamps && (record.timestamp.uniqueTime < previousRecord.timestamp.uniqueTime))
                     return false;
             }
 
@@ -128,7 +126,7 @@ namespace Odin.KeyChain
                 while (rdr.Read())
                 {
                     var record = _db.tblKeyChain.ReadRecordFromReaderAll(rdr);
-                    if (VerifyBlockChainRecord(record, previousRecord) == false)
+                    if (VerifyBlockChainRecord(record, previousRecord, true) == false)
                         return false;
                     previousRecord = record;
                 }

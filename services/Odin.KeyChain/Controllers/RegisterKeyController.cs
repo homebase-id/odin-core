@@ -13,6 +13,8 @@ using System.Text.Json;
 using Odin.Core.Time;
 using System.Collections.Concurrent;
 using Odin.Core.Exceptions.Server;
+using System.Text;
+using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace Odin.Keychain
 {
@@ -25,6 +27,7 @@ namespace Odin.Keychain
         private readonly KeyChainDatabase _db;
         private static SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
         private readonly bool _simulate = true;
+        public static UnixTimeUtc simulateTime = 0;
         private ConcurrentDictionary<string, PendingRegistrationData> _pendingRegistrationCache;
 
         public RegisterKeyController(ILogger<RegisterKeyController> logger, IHttpClientFactory httpClientFactory, KeyChainDatabase db, ConcurrentDictionary<string, PendingRegistrationData> preregisteredCache)
@@ -49,6 +52,11 @@ namespace Odin.Keychain
         }
 #endif
 
+        public class VerifyResult
+        {
+            public long keyCreatedTime { get; set; }
+        }
+
         /// <summary>
         /// This service takes an identity as parameter and returns the age of the identity
         /// </summary>
@@ -66,17 +74,22 @@ namespace Odin.Keychain
                 return BadRequest($"Invalid identity {ex.Message}");
             }
 
-            var r = _db.tblKeyChain.Get(identity);
+            var r = _db.tblKeyChain.GetOldest(identity);
             if (r == null)
             {
                 return NotFound("No such identity found.");
             }
 
-            var msg = $"{r.timestamp.ToUnixTimeUtc().milliseconds / 1000}";
+            var vr = new VerifyResult() { keyCreatedTime = r.timestamp.ToUnixTimeUtc().seconds };
 
-            return Ok(msg);
+            return Ok(vr);
         }
 
+        public class VerifyKeyResult
+        {
+            public long keyCreatedTime { get; set; }
+            public long successorKeyCreatedTime { get; set; }
+        }
 
         /// <summary>
         /// This service takes an identity and it's public key as parameter and checks if it exists.
@@ -87,9 +100,10 @@ namespace Odin.Keychain
         [HttpGet("VerifyKey")]
         public ActionResult GetVerifyKey(string identity, string publicKeyDerBase64)
         {
+            PunyDomainName id;
             try
             {
-                var id = new PunyDomainName(identity);
+                id = new PunyDomainName(identity);
             }
             catch (Exception ex)
             {
@@ -108,15 +122,23 @@ namespace Odin.Keychain
                 return BadRequest("Invalid public key");
             }
 
-            var r = _db.tblKeyChain.Get(identity, publicKey.publicKey);
-            if (r == null)
+            // TODO some snowy day... have multiple entries and find the range
+            // for the given key {creationTime to replaceTime}. 
+            var list = _db.tblKeyChain.GetIdentity(id.DomainName);
+
+            for (int i=0; i < list.Count; i++)
             {
-                return NotFound("No such identity,key found.");
+                if (list[i].publicKey.ToBase64() == publicKeyDerBase64)
+                {
+                    var vr = new VerifyKeyResult() { keyCreatedTime = list[i].timestamp.ToUnixTimeUtc().seconds };
+                    if (i + 1 < list.Count)
+                        vr.successorKeyCreatedTime = list[i + 1].timestamp.ToUnixTimeUtc().seconds;
+
+                    return Ok(vr);
+                }
             }
 
-            var msg = $"{r.timestamp.ToUnixTimeUtc().milliseconds / 1000} key registration";
-
-            return Ok(msg);
+            return NotFound();
         }
 
         private KeyChainRecord TryGetLastLinkOrThrow()
@@ -141,6 +163,17 @@ namespace Odin.Keychain
             public string? SignedRegistrationInstructionEnvelopeJson { get; set; }
         }
 
+        private void CleanupPendingRegistrationCache()
+        {
+            UnixTimeUtc now = UnixTimeUtc.Now();
+
+            foreach (var entry in _pendingRegistrationCache)
+            {
+                if (now.seconds - entry.Value.timestamp.seconds > 60)
+                    _pendingRegistrationCache.TryRemove(entry.Key, out _);
+            }
+        }
+
         /// <summary>
         /// 010. Client calls PublicKeyRegistrationBegin(signedInstruction)
         /// 020. Deserialize the json into a signedEnvelope
@@ -161,11 +194,6 @@ namespace Odin.Keychain
 
             if (model.SignedRegistrationInstructionEnvelopeJson == null)
                 return BadRequest($"Blank envelope");
-
-            //
-            // TODO: Consider what if the client just floods us with (different) requests. Should
-            // we have a cleanup mechanism so memory doesn't get filled up.... ?
-            //
 
             // 020. Deserialize the JSON
             //
@@ -229,13 +257,13 @@ namespace Odin.Keychain
             //
             // 050 We check that an idenity cannot insert too many public keys, e.g. max one per month
             //
-            var r = _db.tblKeyChain.Get(domain.DomainName);
+            var r = _db.tblKeyChain.GetOldest(domain.DomainName);
             if (r != null)
             {
                 var d = UnixTimeUtc.Now().seconds - r.timestamp.ToUnixTimeUtc().seconds;
 
                 if (d < 3600 * 24 * 30)
-                    return StatusCode(429, "Try again: at least 30 days between registrations");
+                    return StatusCode(429, "Try again later: at least 30 days between registrations");
             }
 
             // 060 Retrieve the previous row (we need it's hash to sign)
@@ -256,6 +284,7 @@ namespace Odin.Keychain
             if (_pendingRegistrationCache.TryAdd(signedEnvelope.Envelope.ContentNonce.ToBase64(), preregisteredEntry) == false)
                 return BadRequest("You appear to have sent a duplicate request");
 
+            CleanupPendingRegistrationCache(); // Remove any old cache entries
             return Ok(previousHashBase64);
         }
 
@@ -301,6 +330,9 @@ namespace Odin.Keychain
                 timestamp = UnixTimeUtcUnique.Now()
             };
 
+            if (simulateTime != 0)
+                newRecordToInsert.timestamp = new UnixTimeUtcUnique(simulateTime.milliseconds << 16);
+
             try  // Finally is the Semaphore release
             {
                 //
@@ -344,7 +376,7 @@ namespace Odin.Keychain
                 newRecordToInsert.recordHash = KeyChainDatabaseUtil.CalculateRecordHash(newRecordToInsert);
 
                 // 140 verify record
-                if (KeyChainDatabaseUtil.VerifyBlockChainRecord(newRecordToInsert, lastRowRecord) == false)
+                if (KeyChainDatabaseUtil.VerifyBlockChainRecord(newRecordToInsert, lastRowRecord, simulateTime == 0) == false)
                 {
                     return Problem("Cannot verify");
                 }
