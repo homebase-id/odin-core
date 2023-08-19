@@ -15,6 +15,8 @@ using System.Collections.Concurrent;
 using Odin.Core.Exceptions.Server;
 using System.Text;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using System.Text.Json.Serialization;
+using System.ComponentModel.DataAnnotations;
 
 namespace Odin.Keychain
 {
@@ -85,10 +87,15 @@ namespace Odin.Keychain
             return Ok(vr);
         }
 
+        private JsonSerializerOptions options = new JsonSerializerOptions
+        {
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        };
+
         public class VerifyKeyResult
         {
             public long keyCreatedTime { get; set; }
-            public long successorKeyCreatedTime { get; set; }
+            public long? successorKeyCreatedTime { get; set; }
         }
 
         /// <summary>
@@ -134,7 +141,7 @@ namespace Odin.Keychain
                     if (i + 1 < list.Count)
                         vr.successorKeyCreatedTime = list[i + 1].timestamp.ToUnixTimeUtc().seconds;
 
-                    return Ok(vr);
+                    return Ok(JsonSerializer.Serialize(vr, options));
                 }
             }
 
@@ -160,7 +167,9 @@ namespace Odin.Keychain
 
         public class RegistrationBeginModel
         {
-            public string? SignedRegistrationInstructionEnvelopeJson { get; set; }
+            [Required]
+            public string SignedRegistrationInstructionEnvelopeJson { get; set; }
+            public RegistrationBeginModel() { SignedRegistrationInstructionEnvelopeJson = ""; }
         }
 
         private void CleanupPendingRegistrationCache()
@@ -291,8 +300,13 @@ namespace Odin.Keychain
 
         public class RegistrationFinalizeModel
         {
-            public string? EnvelopeIdBase64 { get; set; }
-            public string? SignedPreviousHashBase64 { get; set; }
+            [Required]
+            public string EnvelopeIdBase64 { get; set; }
+
+            [Required]
+            public string SignedPreviousHashBase64 { get; set; }
+
+            public RegistrationFinalizeModel() { EnvelopeIdBase64 = ""; SignedPreviousHashBase64 = ""; }
         }
 
         /// <summary>

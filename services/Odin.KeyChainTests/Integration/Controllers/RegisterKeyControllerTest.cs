@@ -239,8 +239,7 @@ public class RegisterKeyControllerTest
         Assert.That(r1.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         var db = _factory.Services.GetRequiredService<KeyChainDatabase>();
-        if (KeyChainDatabaseUtil.VerifyEntireBlockChain(db) == false)
-            Assert.Fail();
+        Assert.IsTrue(KeyChainDatabaseUtil.VerifyEntireBlockChain(db));
     }
 
 
@@ -365,7 +364,7 @@ public class RegisterKeyControllerTest
         Assert.NotNull(verifyKeyResult);
         tb = new UnixTimeUtc(instant3);
         Assert.That(verifyKeyResult.keyCreatedTime == tb.seconds);
-        Assert.That(verifyKeyResult.successorKeyCreatedTime == 0);
+        Assert.IsNull(verifyKeyResult.successorKeyCreatedTime);
     }
 
     private void SeedDatabase(string identity)
