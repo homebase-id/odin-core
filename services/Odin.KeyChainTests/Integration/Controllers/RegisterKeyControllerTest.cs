@@ -1,7 +1,9 @@
 using System.Diagnostics;
 using System.Net;
+using System.Runtime;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using Microsoft.AspNetCore.Mvc.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using NodaTime;
@@ -21,10 +23,13 @@ public class RegisterKeyControllerTest
 {
     private KeyChainWebApplicationFactory _factory = null!;
     private HttpClient _client = null!;
+    private static SemaphoreSlim _uglyKludge = new SemaphoreSlim(1, 1);
 
     [SetUp]
     public void Setup()
     {
+        if (_uglyKludge.Wait(TimeSpan.FromSeconds(100)) == false)
+            throw new Exception("kaboom");
         _factory = new KeyChainWebApplicationFactory();
         _client = _factory.CreateClient();
     }
@@ -33,6 +38,7 @@ public class RegisterKeyControllerTest
     public void TearDown()
     {
         _factory.Dispose(); // we need this to correctly dispose of the key chain database
+        _uglyKludge.Release();
     }
 
     [Test]
@@ -40,6 +46,7 @@ public class RegisterKeyControllerTest
     // And added an extra little test that we cannot send the same registration twice.
     public async Task BeginRegistrationTest()
     {
+        SimulateFrodo.NewKey();
         var (previousHashBase64, signedInstruction) = await BeginRegistration();
         var signedInstructionJson = signedInstruction.GetCompactSortedJson();
 
@@ -58,6 +65,7 @@ public class RegisterKeyControllerTest
     // Test that we cannot begin if the public key doesn't match the signature public key
     public async Task BeginRegistrationWrongPublicKey()
     {
+        SimulateFrodo.NewKey();
         // Arrange
         var signedInstruction = SimulateFrodo.InstructionEnvelope();
         var signedInstructionJson = signedInstruction.GetCompactSortedJson();
@@ -138,6 +146,7 @@ public class RegisterKeyControllerTest
     // TEST that we cannot begin a registration if we already have a recent public key record
     public async Task BeginFinalizeRegistrationTooManyRequests()
     {
+        SimulateFrodo.NewKey();
         var (previousHashBase64, signedEnvelope) = await BeginRegistration();
 
         // Finalize it
@@ -186,6 +195,8 @@ public class RegisterKeyControllerTest
     // Do it with three so we're sure it'll work in "multiple rounds"
     public async Task RegistrationRaceKeySign()
     {
+        SimulateFrodo.NewKey();
+
         var (onePreviousHashBase64, oneSignedEnvelope) = await BeginRegistration();
         var (p1, e1, i1) = SimulateFrodo.GetKey();
         SimulateFrodo.NewKey("samwisegamgee.me");
@@ -246,6 +257,7 @@ public class RegisterKeyControllerTest
     [Test]
     public async Task GetVerifyShouldReturnIdentityAge()
     {
+        SimulateFrodo.NewKey();
         // Create an entry
         const string identity = "frodobaggins.me";
         var (previousHashBase64, signedEnvelope) = await BeginRegistration();
@@ -269,6 +281,7 @@ public class RegisterKeyControllerTest
     [Test]
     public async Task GetVerifyShouldReturnNotFoundForUnknownIdentities()
     {
+        SimulateFrodo.NewKey();
         // Create an entry for frodobaggins.me
         var (previousHashBase64, signedEnvelope) = await BeginRegistration();
         var r = await FinalizeRegistration(previousHashBase64, signedEnvelope.Envelope.ContentNonce.ToBase64());
@@ -286,6 +299,7 @@ public class RegisterKeyControllerTest
     [Test]
     public async Task GetVerifyKeyShouldReturnRange()
     {
+        SimulateFrodo.NewKey();
         // Create an entry
         const string identity = "frodobaggins.me";
 
@@ -365,6 +379,8 @@ public class RegisterKeyControllerTest
         tb = new UnixTimeUtc(instant3);
         Assert.That(verifyKeyResult.keyCreatedTime == tb.seconds);
         Assert.IsNull(verifyKeyResult.successorKeyCreatedTime);
+
+        RegisterKeyController.simulateTime = 0;
     }
 
     private void SeedDatabase(string identity)
