@@ -138,7 +138,7 @@ public class RegisterKeyControllerTest
         var postBodyFinalize = new RegistrationCompleteModel() { EnvelopeIdBase64 = envelopeIdBase64, SignedPreviousHashBase64 = signedPreviousHash };
         var postContent = new StringContent(JsonSerializer.Serialize(postBodyFinalize), Encoding.UTF8, "application/json");
 
-        return await _client.PostAsync("/RegisterKey/PublicKeyRegistrationFinalize", postContent);
+        return await _client.PostAsync("/RegisterKey/PublicKeyRegistrationComplete", postContent);
     }
 
 
@@ -154,14 +154,14 @@ public class RegisterKeyControllerTest
         var postBodyFinalize = new RegistrationCompleteModel() { EnvelopeIdBase64 = signedEnvelope.Envelope.ContentNonce.ToBase64(), SignedPreviousHashBase64 = signedPreviousHash };
         var postContent = new StringContent(JsonSerializer.Serialize(postBodyFinalize), Encoding.UTF8, "application/json");
 
-        var response = await _client.PostAsync("/RegisterKey/PublicKeyRegistrationFinalize", postContent);
+        var response = await _client.PostAsync("/RegisterKey/PublicKeyRegistrationComplete", postContent);
         var content = await response.Content.ReadAsStringAsync();
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         //
         // Sneak in an extra test and make sure we cannot call it again
         //
-        response = await _client.PostAsync("/RegisterKey/PublicKeyRegistrationFinalize", postContent);
+        response = await _client.PostAsync("/RegisterKey/PublicKeyRegistrationComplete", postContent);
         content = await response.Content.ReadAsStringAsync();
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
 
