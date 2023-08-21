@@ -51,21 +51,8 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
         public AccessExchangeGrant AccessGrant { get; set; }
 
         /// <summary>
-        /// The Id of the <see cref="ClientAccessToken"/> to be sent when communicating with this OdinId's host
+        /// The encrypted <see cref="ClientAccessToken"/> token used when accessing another connected identity
         /// </summary>
-        public Guid ClientAccessTokenId { get; }
-
-        /// <summary>
-        /// The AccessTokenHalfKey of the <see cref="ClientAccessToken"/> to be sent when communicating with this OdinId's host
-        /// </summary>
-        public byte[] ClientAccessTokenHalfKey { get; }
-
-        /// <summary>
-        /// The SharedSecret of the <see cref="ClientAccessToken"/> used to encrypt payloads when
-        /// communicating with this OdinId's host.  This is never sent over the wire.
-        /// </summary>
-        public byte[] ClientAccessTokenSharedSecret { get; }
-
         public EncryptedClientAccessToken EncryptedClientAccessToken { get; set; }
 
         public long LastUpdated { get; set; }

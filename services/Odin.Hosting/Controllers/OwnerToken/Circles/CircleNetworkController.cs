@@ -41,13 +41,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Circles
             return result;
         }
 
-        //[HttpPost("notify")]
-        // public async Task<IActionResult> NotifyConnections(CircleNetworkNotification notification)
-        // {
-        //     await _circleNetworkNotificationService.NotifyConnections(notification);
-        //     return Ok();
-        // }
-
         [HttpPost("status")]
         public async Task<RedactedIdentityConnectionRegistration> GetConnectionInfo([FromBody] OdinIdRequest request, bool omitContactData = true)
         {
@@ -100,14 +93,5 @@ namespace Odin.Hosting.Controllers.OwnerToken.Circles
             return true;
         }
 
-        private PagedResult<RedactedIdentityConnectionRegistration> RedactIcr(PagedResult<IdentityConnectionRegistration> page, bool omitContactData)
-        {
-            return new PagedResult<RedactedIdentityConnectionRegistration>()
-            {
-                Request = page.Request,
-                TotalPages = page.TotalPages,
-                Results = page.Results.Select(c => c.Redacted(omitContactData)).ToList()
-            };
-        }
     }
 }

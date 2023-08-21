@@ -423,11 +423,6 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
                 LastUpdated = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 OriginalContactData = contactData,
                 AccessGrant = accessGrant,
-
-                // ClientAccessTokenId = remoteClientAccessToken.Id,
-                // ClientAccessTokenHalfKey = remoteClientAccessToken.AccessTokenHalfKey.GetKey(),
-                // ClientAccessTokenSharedSecret = remoteClientAccessToken.SharedSecret.GetKey(),
-
                 EncryptedClientAccessToken = encryptedCat
             };
 
