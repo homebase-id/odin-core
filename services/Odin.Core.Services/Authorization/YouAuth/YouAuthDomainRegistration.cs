@@ -20,7 +20,7 @@ namespace Odin.Core.Services.Authorization.YouAuth
 
         public RedactedYouAuthDomainRegistration Redacted()
         {
-            //NOTE: we do not share critcal information like encryption keys
+            //NOTE: we do not share critical information like encryption keys
             return new RedactedYouAuthDomainRegistration()
             {
                 Domain = this.Domain.DomainName,

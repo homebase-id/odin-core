@@ -6,6 +6,7 @@ using Odin.Core.Identity;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Contacts.Circle;
 using Odin.Core.Services.Contacts.Circle.Membership;
 using Odin.Core.Services.Contacts.Circle.Membership.Definition;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
@@ -20,13 +21,17 @@ namespace Odin.Core.Services.CircleMembership;
 /// </summary>
 public class CircleMembershipService
 {
+    private readonly OdinContextAccessor _contextAccessor;
     private readonly TenantSystemStorage _tenantSystemStorage;
     private readonly CircleDefinitionService _circleDefinitionService;
+    private readonly ExchangeGrantService _exchangeGrantService;
 
-    public CircleMembershipService(TenantSystemStorage tenantSystemStorage, CircleDefinitionService circleDefinitionService)
+    public CircleMembershipService(TenantSystemStorage tenantSystemStorage, CircleDefinitionService circleDefinitionService, ExchangeGrantService exchangeGrantService, OdinContextAccessor contextAccessor)
     {
         _tenantSystemStorage = tenantSystemStorage;
         _circleDefinitionService = circleDefinitionService;
+        _exchangeGrantService = exchangeGrantService;
+        _contextAccessor = contextAccessor;
     }
 
     public void DeleteMemberFromAllCircles(OdinId odinId)
@@ -79,7 +84,40 @@ public class CircleMembershipService
         _tenantSystemStorage.CircleMemberStorage.AddCircleMembers(new List<CircleMemberRecord>() { circleMemberRecord });
     }
 
+    public async Task<CircleGrant> CreateCircleGrant(CircleDefinition def, SensitiveByteArray keyStoreKey, SensitiveByteArray masterKey)
+    {
+        //map the exchange grant to a structure that matches ICR
+        var grant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, def.Permissions, def.DriveGrants, masterKey);
+        return new CircleGrant()
+        {
+            CircleId = def.Id,
+            KeyStoreKeyEncryptedDriveGrants = grant.KeyStoreKeyEncryptedDriveGrants,
+            PermissionSet = grant.PermissionSet,
+        };
+    }
 
+    public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantList(List<GuidId> circleIds, SensitiveByteArray keyStoreKey)
+    {
+        var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
+
+        var circleGrants = new Dictionary<Guid, CircleGrant>();
+
+        // Always put identities in the system circle
+        var list = circleIds ?? new List<GuidId>();
+        list.Add(CircleConstants.SystemCircleId);
+
+        foreach (var id in list)
+        {
+            var def = this.GetCircle(id);
+
+            var cg = await this.CreateCircleGrant(def, keyStoreKey, masterKey);
+            circleGrants.Add(id.Value, cg);
+        }
+
+        return circleGrants;
+    }
+
+    
     // Definitions
 
     /// <summary>

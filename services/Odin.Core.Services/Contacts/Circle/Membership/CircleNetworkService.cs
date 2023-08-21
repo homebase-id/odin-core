@@ -454,7 +454,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
             var circleDefinition = _circleMembershipService.GetCircle(circleId);
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
-            var circleGrant = await this.CreateCircleGrant(circleDefinition, keyStoreKey, masterKey);
+            var circleGrant = await _circleMembershipService.CreateCircleGrant(circleDefinition, keyStoreKey, masterKey);
 
             icr.AccessGrant.CircleGrants.Add(circleGrant.CircleId, circleGrant);
 
@@ -505,27 +505,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
             this.SaveIcr(icr);
         }
 
-        public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantList(List<GuidId> circleIds, SensitiveByteArray keyStoreKey)
-        {
-            var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-
-            var circleGrants = new Dictionary<Guid, CircleGrant>();
-
-            // Always put identities in the system circle
-            var list = circleIds ?? new List<GuidId>();
-            list.Add(CircleConstants.SystemCircleId);
-
-            foreach (var id in list)
-            {
-                var def = _circleMembershipService.GetCircle(id);
-
-                var cg = await this.CreateCircleGrant(def, keyStoreKey, masterKey);
-                circleGrants.Add(id.Value, cg);
-            }
-
-            return circleGrants;
-        }
-
+        
         public async Task<Dictionary<Guid, Dictionary<Guid, AppCircleGrant>>> CreateAppCircleGrantList(List<GuidId> circleIds,
             SensitiveByteArray keyStoreKey)
         {
@@ -582,7 +562,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
                 {
                     //rebuild the circle grant
                     var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
-                    icr.AccessGrant.CircleGrants[circleKey] = await this.CreateCircleGrant(circleDef, keyStoreKey, masterKey);
+                    icr.AccessGrant.CircleGrants[circleKey] = await _circleMembershipService.CreateCircleGrant(circleDef, keyStoreKey, masterKey);
                     keyStoreKey.Wipe();
                 }
                 else
@@ -755,17 +735,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
             await this.UpdateCircleDefinition(def);
         }
 
-        private async Task<CircleGrant> CreateCircleGrant(CircleDefinition def, SensitiveByteArray keyStoreKey, SensitiveByteArray masterKey)
-        {
-            //map the exchange grant to a structure that matches ICR
-            var grant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, def.Permissions, def.DriveGrants, masterKey);
-            return new CircleGrant()
-            {
-                CircleId = def.Id,
-                KeyStoreKeyEncryptedDriveGrants = grant.KeyStoreKeyEncryptedDriveGrants,
-                PermissionSet = grant.PermissionSet,
-            };
-        }
+        
 
         private async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreatePermissionContextInternal(
             IdentityConnectionRegistration icr,

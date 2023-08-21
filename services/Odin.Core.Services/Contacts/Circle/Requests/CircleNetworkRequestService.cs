@@ -13,6 +13,7 @@ using Odin.Core.Services.AppNotifications.ClientNotifications;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.CircleMembership;
 using Odin.Core.Services.Contacts.Circle.Membership;
 using Odin.Core.Services.EncryptionKeyService;
 using Odin.Core.Storage;
@@ -39,6 +40,8 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
         private readonly ExchangeGrantService _exchangeGrantService;
         private readonly IcrKeyService _icrKeyService;
 
+        private readonly CircleMembershipService _circleMembershipService;
+
         private readonly ThreeKeyValueStorage _pendingRequestValueStorage;
         private readonly ThreeKeyValueStorage _sentRequestValueStorage;
 
@@ -51,7 +54,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
             IMediator mediator,
             TenantContext tenantContext,
             PublicPrivateKeyService publicPrivateKeyService,
-            ExchangeGrantService exchangeGrantService, IcrKeyService icrKeyService)
+            ExchangeGrantService exchangeGrantService, IcrKeyService icrKeyService, CircleMembershipService circleMembershipService)
         {
             _contextAccessor = contextAccessor;
             _cns = cns;
@@ -62,6 +65,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
             _publicPrivateKeyService = publicPrivateKeyService;
             _exchangeGrantService = exchangeGrantService;
             _icrKeyService = icrKeyService;
+            _circleMembershipService = circleMembershipService;
             _contextAccessor = contextAccessor;
 
             _pendingRequestValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
@@ -203,7 +207,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
                 //TODO: encrypting the key store key here is wierd.  this should be done in the exchange grant service
                 MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey),
                 IsRevoked = false,
-                CircleGrants = await _cns.CreateCircleGrantList(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey),
+                CircleGrants = await _circleMembershipService.CreateCircleGrantList(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey),
                 AppGrants = await _cns.CreateAppCircleGrantList(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey),
                 AccessRegistration = accessRegistration
             };
@@ -335,7 +339,7 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
                 //TODO: encrypting the key store key here is wierd.  this should be done in the exchange grant service
                 MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey),
                 IsRevoked = false,
-                CircleGrants = await _cns.CreateCircleGrantList(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey),
+                CircleGrants = await _circleMembershipService.CreateCircleGrantList(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey),
                 AppGrants = await _cns.CreateAppCircleGrantList(header.CircleIds?.ToList() ?? new List<GuidId>(), keyStoreKey),
                 AccessRegistration = accessRegistration
             };
