@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using Odin.Core.Cryptography.Data;
@@ -8,6 +7,7 @@ using Odin.Core.Serialization;
 using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.CircleMembership;
 using Odin.Core.Services.Contacts.Circle.Requests;
 using Odin.Core.Storage.SQLite.IdentityDatabase;
 using Odin.Core.Time;
@@ -17,11 +17,13 @@ namespace Odin.Core.Services.Contacts.Circle.Membership;
 public class CircleNetworkStorage
 {
     private readonly GuidId _icrKeyStorageId = GuidId.FromString("icr_key");
+    private readonly CircleMembershipService _circleMembershipService;
     private readonly TenantSystemStorage _tenantSystemStorage;
 
-    public CircleNetworkStorage(TenantSystemStorage tenantSystemStorage)
+    public CircleNetworkStorage(TenantSystemStorage tenantSystemStorage, CircleMembershipService circleMembershipService)
     {
         _tenantSystemStorage = tenantSystemStorage;
+        _circleMembershipService = circleMembershipService;
     }
 
     public IdentityConnectionRegistration Get(OdinId odinId)
@@ -50,26 +52,15 @@ public class CircleNetworkStorage
             var odinHashId = icr.OdinId.ToHashId();
 
             //Reconcile circle grants in the table
-            _tenantSystemStorage.CircleMemberStorage.DeleteMembersFromAllCircles(new List<Guid> { odinHashId });
+            _circleMembershipService.DeleteMemberFromAllCircles(icr.OdinId);
             foreach (var (circleId, circleGrant) in icr.AccessGrant.CircleGrants)
             {
-                var circleMembers = _tenantSystemStorage.CircleMemberStorage.GetCircleMembers(circleId);
-                var isMember = circleMembers.Any(item => item.memberId == icr.OdinId.ToHashId());
+                var circleMembers = _circleMembershipService.GetCircleMembers(circleId);
+                var isMember = circleMembers.Any(odinId => odinId == icr.OdinId);
 
                 if (!isMember)
                 {
-                    var circleMemberRecord = new CircleMemberRecord()
-                    {
-                        circleId = circleId,
-                        memberId = icr.OdinId.ToHashId(),
-                        data = OdinSystemSerializer.Serialize(new CircleMemberStorageData
-                        {
-                            OdinId = icr.OdinId,
-                            CircleGrant = circleGrant
-                        }).ToUtf8ByteArray()
-                    };
-
-                    _tenantSystemStorage.CircleMemberStorage.AddCircleMembers(new List<CircleMemberRecord>() { circleMemberRecord });
+                    _circleMembershipService.AddCircleMember(circleId, icr.OdinId, circleGrant);
                 }
             }
 
@@ -116,7 +107,7 @@ public class CircleNetworkStorage
         {
             _tenantSystemStorage.Connections.Delete(odinId);
             _tenantSystemStorage.AppGrants.DeleteByIdentity(odinId.ToHashId());
-            _tenantSystemStorage.CircleMemberStorage.DeleteMembersFromAllCircles(new List<Guid>() { odinId.ToHashId() });
+            _circleMembershipService.DeleteMemberFromAllCircles(odinId);
         }
     }
 
@@ -127,20 +118,7 @@ public class CircleNetworkStorage
         var records = _tenantSystemStorage.Connections.PagingByCreated(count, (int)connectionStatus, adjustedCursor, out nextCursor);
         return records.Select(MapFromStorage);
     }
-    
-    public List<OdinId> GetCircleMembers(GuidId circleId)
-    {
-        //Note: this list is a cache of members for a circle.  the source of truth is the
-        //IdentityConnectionRegistration.AccessExchangeGrant.CircleGrants property for each OdinId
-        var memberBytesList = _tenantSystemStorage.CircleMemberStorage.GetCircleMembers(circleId);
-        var result = memberBytesList.Select(item =>
-        {
-            var data = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(item.data.ToStringFromUtf8Bytes());
-            return data.OdinId;
-        }).ToList();
 
-        return result;
-    }
 
     /// <summary>
     /// Creates a new icr key; fails if one already exists
@@ -171,7 +149,7 @@ public class CircleNetworkStorage
         var key = _tenantSystemStorage.SingleKeyValueStorage.Get<IcrKeyRecord>(_icrKeyStorageId);
         return key?.MasterKeyEncryptedIcrKey;
     }
-    
+
     private IdentityConnectionRegistration MapFromStorage(ConnectionsRecord record)
     {
         var json = record.data.ToStringFromUtf8Bytes();
@@ -179,14 +157,12 @@ public class CircleNetworkStorage
 
         var odinHashId = record.identity.ToHashId();
 
-        var circleMemberRecords = _tenantSystemStorage.CircleMemberStorage.GetMemberCirclesAndData(odinHashId);
-        foreach (var circleMemberRecord in circleMemberRecords)
+        var circleGrants = _circleMembershipService.GetCirclesByOdinId(record.identity);
+        foreach (var circleGrant in circleGrants)
         {
-            var sd = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(circleMemberRecord.data.ToStringFromUtf8Bytes());
-            data.AccessGrant.CircleGrants.Add(circleMemberRecord.circleId, sd.CircleGrant);
+            data.AccessGrant.CircleGrants.Add(circleGrant.CircleId, circleGrant);
         }
 
-        //TODO: this only returns one app grant. i need the whole list
         var allAppGrants = _tenantSystemStorage.AppGrants.GetByOdinHashId(odinHashId) ?? new List<AppGrantsRecord>();
 
         foreach (var appGrantRecord in allAppGrants)
@@ -205,17 +181,12 @@ public class CircleNetworkStorage
             AccessGrant = data.AccessGrant,
             OriginalContactData = data.OriginalContactData,
 
-            // ClientAccessTokenId = data.ClientAccessTokenId,
-            // ClientAccessTokenHalfKey = data.ClientAccessTokenHalfKey,
-            // ClientAccessTokenSharedSecret = data.ClientAccessTokenSharedSecret,
-
             EncryptedClientAccessToken = new EncryptedClientAccessToken()
             {
                 EncryptedData = data.EncryptedClientAccessToken
             }
         };
     }
-
 }
 
 public class IcrKeyRecord
@@ -230,7 +201,7 @@ public class IcrAccessRecord
     /// The drives and permissions granted to this connection
     /// </summary>
     public AccessExchangeGrant AccessGrant { get; set; }
-    
+
     // public byte[] EncryptedClientAccessToken { get; set; }
     public SymmetricKeyEncryptedAes EncryptedClientAccessToken { get; set; }
     public ContactRequestData OriginalContactData { get; set; }

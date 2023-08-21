@@ -13,6 +13,7 @@ using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.CircleMembership;
 using Odin.Core.Services.Contacts.Circle.Membership.Definition;
 using Odin.Core.Services.Contacts.Circle.Requests;
 using Odin.Core.Services.Drives;
@@ -32,7 +33,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
         private readonly OdinContextAccessor _contextAccessor;
         private readonly ExchangeGrantService _exchangeGrantService;
         private readonly CircleNetworkStorage _storage;
-        private readonly CircleDefinitionService _circleDefinitionService;
+        private readonly CircleMembershipService _circleMembershipService;
         private readonly TenantContext _tenantContext;
         private readonly IAppRegistrationService _appRegistrationService;
         private readonly GuidId _icrClientDataType = GuidId.FromString("__icr_client_reg");
@@ -40,16 +41,15 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
 
         public CircleNetworkService(OdinContextAccessor contextAccessor,
             ExchangeGrantService exchangeGrantService, TenantContext tenantContext,
-            CircleDefinitionService circleDefinitionService,
-            IAppRegistrationService appRegistrationService, TenantSystemStorage tenantSystemStorage)
+            IAppRegistrationService appRegistrationService, TenantSystemStorage tenantSystemStorage, CircleMembershipService circleMembershipService)
         {
             _contextAccessor = contextAccessor;
             _exchangeGrantService = exchangeGrantService;
             _tenantContext = tenantContext;
-            _circleDefinitionService = circleDefinitionService;
             _appRegistrationService = appRegistrationService;
+            _circleMembershipService = circleMembershipService;
 
-            _storage = new CircleNetworkStorage(tenantSystemStorage);
+            _storage = new CircleNetworkStorage(tenantSystemStorage, circleMembershipService);
 
             _icrClientValueStorage = tenantSystemStorage.IcrClientStorage;
         }
@@ -357,7 +357,9 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
         public async Task<IEnumerable<OdinId>> GetCircleMembers(GuidId circleId)
         {
             _contextAccessor.GetCurrent().PermissionsContext.AssertHasPermission(PermissionKeys.ReadCircleMembership);
-            var result = _storage.GetCircleMembers(circleId);
+            var result = _circleMembershipService.GetCircleMembers(circleId);
+
+
             return await Task.FromResult(result);
         }
 
@@ -449,7 +451,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
                 throw new OdinClientException($"{odinId} is already member of circle", OdinClientErrorCode.IdentityAlreadyMemberOfCircle);
             }
 
-            var circleDefinition = _circleDefinitionService.GetCircle(circleId);
+            var circleDefinition = _circleMembershipService.GetCircle(circleId);
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var keyStoreKey = icr.AccessGrant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
             var circleGrant = await this.CreateCircleGrant(circleDefinition, keyStoreKey, masterKey);
@@ -515,7 +517,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
 
             foreach (var id in list)
             {
-                var def = _circleDefinitionService.GetCircle(id);
+                var def = _circleMembershipService.GetCircle(id);
 
                 var cg = await this.CreateCircleGrant(def, keyStoreKey, masterKey);
                 circleGrants.Add(id.Value, cg);
@@ -553,36 +555,8 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
 
             return appGrants;
         }
-
-        /// <summary>
-        /// Gets a circle definition
-        /// </summary>
-        /// <param name="circleId"></param>
-        public CircleDefinition GetCircleDefinition(GuidId circleId)
-        {
-            Guard.Argument(circleId, nameof(circleId)).NotNull().Require(id => GuidId.IsValid(id));
-            var def = _circleDefinitionService.GetCircle(circleId);
-            return def;
-        }
-
-        /// <summary>
-        /// Gets a list of all circle definitions
-        /// </summary>
-        public async Task<IEnumerable<CircleDefinition>> GetCircleDefinitions(bool includeSystemCircle)
-        {
-            var circles = await _circleDefinitionService.GetCircles(includeSystemCircle);
-            return circles;
-        }
-
-        /// <summary>
-        /// Creates a circle definition
-        /// </summary>
-        /// <param name="request"></param>
-        public async Task CreateCircleDefinition(CreateCircleRequest request)
-        {
-            await _circleDefinitionService.Create(request);
-        }
-
+        
+        
         /// <summary>
         /// Updates a <see cref="CircleDefinition"/> and applies permission and drive changes to all existing circle members
         /// </summary>
@@ -591,7 +565,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
         {
             Guard.Argument(circleDef, nameof(circleDef)).NotNull();
 
-            _circleDefinitionService.AssertValidDriveGrants(circleDef.DriveGrants);
+            _circleMembershipService.AssertValidDriveGrants(circleDef.DriveGrants);
 
             var members = await GetCircleMembers(circleDef.Id);
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
@@ -621,7 +595,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
                 this.SaveIcr(icr);
             }
 
-            await _circleDefinitionService.Update(circleDef);
+            await _circleMembershipService.Update(circleDef);
 
             //TODO: determine how to handle invalidMembers - do we return to the UI?  do we remove from all circles?
         }
@@ -638,33 +612,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
                 throw new OdinClientException("Cannot delete a circle with members", OdinClientErrorCode.CannotDeleteCircleWithMembers);
             }
 
-            await _circleDefinitionService.Delete(circleId);
-        }
-
-        /// <summary>
-        /// Disables a circle without removing it.  The grants provided by the circle will not be available to the members
-        /// </summary>
-        /// <param name="circleId"></param>
-        public Task DisableCircle(GuidId circleId)
-        {
-            var circle = _circleDefinitionService.GetCircle(circleId);
-            circle.Disabled = true;
-            circle.LastUpdated = UnixTimeUtc.Now().milliseconds;
-            _circleDefinitionService.Update(circle);
-            return Task.CompletedTask;
-        }
-
-        /// <summary>
-        /// Enables a circle
-        /// </summary>
-        /// <param name="circleId"></param>
-        public Task EnableCircle(GuidId circleId)
-        {
-            var circle = _circleDefinitionService.GetCircle(circleId);
-            circle.Disabled = false;
-            circle.LastUpdated = UnixTimeUtc.Now().milliseconds;
-            _circleDefinitionService.Update(circle);
-            return Task.CompletedTask;
+            await _circleMembershipService.Delete(circleId);
         }
 
         /// <summary>
@@ -676,16 +624,6 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
         {
             var client = _icrClientValueStorage.Get<IdentityConnectionRegistrationClient>(authToken.Id);
             return Task.FromResult(client);
-        }
-
-        /// <summary>
-        /// Creates the system circle
-        /// </summary>
-        /// <returns></returns>
-        public Task CreateSystemCircle()
-        {
-            _circleDefinitionService.CreateSystemCircle();
-            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -772,7 +710,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
         private async Task HandleDriveUpdated(StorageDrive drive)
         {
             //examine system circle; remove drive if needed
-            CircleDefinition systemCircle = this.GetCircleDefinition(CircleConstants.SystemCircleId);
+            CircleDefinition systemCircle = _circleMembershipService.GetCircle(CircleConstants.SystemCircleId);
 
             var existingDriveGrant = systemCircle.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == drive.TargetDriveInfo);
             if (drive.AllowAnonymousReads == false && existingDriveGrant != null)
@@ -801,7 +739,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
                 return;
             }
 
-            CircleDefinition def = this.GetCircleDefinition(CircleConstants.SystemCircleId);
+            CircleDefinition def = _circleMembershipService.GetCircle(CircleConstants.SystemCircleId);
 
             var grants = def.DriveGrants.ToList();
             grants.Add(new DriveGrantRequest()
@@ -845,7 +783,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
             foreach (var kvp in icr.AccessGrant.CircleGrants)
             {
                 var cg = kvp.Value;
-                if (_circleDefinitionService.IsEnabled(cg.CircleId))
+                if (_circleMembershipService.IsEnabled(cg.CircleId))
                 {
                     enabledCircles.Add(cg.CircleId);
                     grants.Add(kvp.Key, new ExchangeGrant()
@@ -872,7 +810,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
                     foreach (var (_, appCg) in appCircleGrantDictionary)
                     {
                         var alreadyEnabledCircle = enabledCircles.Exists(cid => cid == appCg.CircleId);
-                        if (alreadyEnabledCircle || _circleDefinitionService.IsEnabled(appCg.CircleId))
+                        if (alreadyEnabledCircle || _circleMembershipService.IsEnabled(appCg.CircleId))
                         {
                             if (!alreadyEnabledCircle)
                             {

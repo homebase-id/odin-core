@@ -90,11 +90,6 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
                 AccessGrant = this.AccessGrant?.Redacted()
             };
         }
-
-        public IEnumerable<GuidId> GetCircleIds()
-        {
-            return this.AccessGrant?.CircleGrants?.Values.Select(cg => cg.CircleId) ?? new List<GuidId>();
-        }
     }
 
     public class RedactedIdentityConnectionRegistration

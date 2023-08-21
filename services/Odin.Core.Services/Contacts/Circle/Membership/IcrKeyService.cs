@@ -3,6 +3,8 @@ using System.Threading.Tasks;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.CircleMembership;
+using Org.BouncyCastle.Ocsp;
 
 namespace Odin.Core.Services.Contacts.Circle.Membership
 {
@@ -14,10 +16,10 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
         private readonly OdinContextAccessor _contextAccessor;
         private readonly CircleNetworkStorage _storage;
 
-        public IcrKeyService(OdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage)
+        public IcrKeyService(OdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage, CircleMembershipService circleMembershipService)
         {
             _contextAccessor = contextAccessor;
-            _storage = new CircleNetworkStorage(tenantSystemStorage);
+            _storage = new CircleNetworkStorage(tenantSystemStorage, circleMembershipService);
         }
 
         /// <summary>

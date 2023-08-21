@@ -17,6 +17,7 @@ using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.YouAuth;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.CircleMembership;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Contacts.Circle.Membership;
 using Odin.Core.Services.Contacts.Circle.Membership.Definition;
@@ -137,6 +138,7 @@ namespace Odin.Hosting
 
             cb.RegisterType<AppRegistrationService>().As<IAppRegistrationService>().SingleInstance();
 
+            cb.RegisterType<CircleMembershipService>().AsSelf().SingleInstance();
             cb.RegisterType<IcrKeyService>().AsSelf().SingleInstance();
             cb.RegisterType<CircleDefinitionService>().As<CircleDefinitionService>().SingleInstance();
             cb.RegisterType<CircleNetworkService>()

@@ -7,6 +7,7 @@ using Odin.Core.Services.Authentication.Owner;
 using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.CircleMembership;
 using Odin.Core.Services.Contacts.Circle;
 using Odin.Core.Services.Contacts.Circle.Membership;
 using Odin.Core.Services.Contacts.Circle.Membership.Definition;
@@ -34,6 +35,7 @@ public class TenantConfigService
     private readonly PublicPrivateKeyService _publicPrivateKeyService;
     private readonly RecoveryService _recoverService;
     private readonly IcrKeyService _icrKeyService;
+    private readonly CircleMembershipService _circleMembershipService;
 
     public TenantConfigService(CircleNetworkService cns, OdinContextAccessor contextAccessor,
         TenantSystemStorage storage, TenantContext tenantContext,
@@ -41,7 +43,8 @@ public class TenantConfigService
         DriveManager driveManager,
         PublicPrivateKeyService publicPrivateKeyService,
         IcrKeyService icrKeyService,
-        RecoveryService recoverService)
+        RecoveryService recoverService, 
+        CircleMembershipService circleMembershipService)
     {
         _cns = cns;
         _contextAccessor = contextAccessor;
@@ -51,6 +54,7 @@ public class TenantConfigService
         _driveManager = driveManager;
         _publicPrivateKeyService = publicPrivateKeyService;
         _recoverService = recoverService;
+        _circleMembershipService = circleMembershipService;
         _icrKeyService = icrKeyService;
         _configStorage = storage.SingleKeyValueStorage;
         _tenantContext.UpdateSystemConfig(this.GetTenantSettings());
@@ -92,7 +96,7 @@ public class TenantConfigService
 
         //Note: the order here is important.  if the request or system drives include any anonymous
         //drives, they should be added after the system circle exists
-        await _cns.CreateSystemCircle();
+        await _circleMembershipService.CreateSystemCircle();
 
         await CreateDriveIfNotExists(SystemDriveConstants.CreateContactDriveRequest);
         await CreateDriveIfNotExists(SystemDriveConstants.CreateProfileDriveRequest);
@@ -172,7 +176,7 @@ public class TenantConfigService
 
     private void UpdateSystemCirclePermission(int key, bool shouldGrantKey)
     {
-        var systemCircle = _cns.GetCircleDefinition(CircleConstants.SystemCircleId);
+        var systemCircle = _circleMembershipService.GetCircle(CircleConstants.SystemCircleId);
 
 
         if (shouldGrantKey)
@@ -244,10 +248,10 @@ public class TenantConfigService
     //
     private async Task<bool> CreateCircleIfNotExists(CreateCircleRequest request)
     {
-        var existingCircleDef = _cns.GetCircleDefinition(request.Id);
+        var existingCircleDef = _circleMembershipService.GetCircle(request.Id);
         if (null == existingCircleDef)
         {
-            await _cns.CreateCircleDefinition(request);
+            await _circleMembershipService.CreateCircleDefinition(request);
             return true;
         }
 
