@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Linq;
+using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -23,10 +25,10 @@ namespace Odin.Hosting.Controllers.ClientToken.Drive
     public class DriveStorageController : DriveStorageControllerBase
     {
         private readonly ILogger<DriveStorageController> _logger;
-        
+
         public DriveStorageController(
-            ILogger<DriveStorageController> logger, 
-            FileSystemResolver fileSystemResolver, 
+            ILogger<DriveStorageController> logger,
+            FileSystemResolver fileSystemResolver,
             ITransitService transitService) :
             base(logger, fileSystemResolver, transitService)
         {
@@ -46,7 +48,8 @@ namespace Odin.Hosting.Controllers.ClientToken.Drive
         }
 
         [HttpGet("files/header")]
-        public async Task<IActionResult> GetFileHeaderAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type)
+        public async Task<IActionResult> GetFileHeaderAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias,
+            [FromQuery] Guid type)
         {
             return await GetFileHeader(
                 new ExternalFileIdentifier()
@@ -74,16 +77,37 @@ namespace Odin.Hosting.Controllers.ClientToken.Drive
 
         [SwaggerOperation(Tags = new[] { ControllerConstants.ClientTokenDrive })]
         [HttpGet("files/payload")]
-        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] int? chunkStart, [FromQuery]int? chunkLength)
+        public async Task<IActionResult> GetPayloadAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] int? chunkStart, [FromQuery] int? chunkLength)
         {
-            var chunk = chunkStart.HasValue
-                ? new FileChunk()
+            FileChunk chunk = null;
+            if (Request.Headers.TryGetValue("Range", out var rangeHeaderValue) &&
+                RangeHeaderValue.TryParse(rangeHeaderValue, out var range))
+            {
+                var firstRange = range.Ranges.First();
+                if (firstRange.From != null && firstRange.To != null)
+                {
+                    HttpContext.Response.StatusCode = 206;
+
+                    int start = Convert.ToInt32(firstRange.From ?? 0);
+                    int end = Convert.ToInt32(firstRange.To ?? int.MaxValue);
+
+                    chunk = new FileChunk()
+                    {
+                        Start = start,
+                        Length = end - start + 1
+                    };
+                }
+            }
+            else if (chunkStart.HasValue)
+            {
+
+                chunk = new FileChunk()
                 {
                     Start = chunkStart.GetValueOrDefault(),
-                    Length =  chunkLength.GetValueOrDefault(int.MaxValue)
-                }
-                : null;
-            
+                    Length = chunkLength.GetValueOrDefault(int.MaxValue)
+                };
+            }
+
             return await base.GetPayloadStream(
                 new GetPayloadRequest()
                 {
@@ -107,12 +131,12 @@ namespace Odin.Hosting.Controllers.ClientToken.Drive
         [HttpPost("files/thumb")]
         public new async Task<IActionResult> GetThumbnail([FromBody] GetThumbnailRequest request)
         {
-            
             return await base.GetThumbnail(request);
         }
 
         [HttpGet("files/thumb")]
-        public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias, [FromQuery] Guid type, [FromQuery] int width,
+        public async Task<IActionResult> GetThumbnailAsGetRequest([FromQuery] Guid fileId, [FromQuery] Guid alias,
+            [FromQuery] Guid type, [FromQuery] int width,
             [FromQuery] int height)
         {
             return await GetThumbnail(new GetThumbnailRequest()
