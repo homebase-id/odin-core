@@ -135,7 +135,7 @@ public class RegisterKeyControllerTest
         // Finalize
         //
         var signedPreviousHash = SimulateFrodo.SignPreviousHashForPublicKeyChain(previousHashBase64);
-        var postBodyFinalize = new RegistrationFinalizeModel() { EnvelopeIdBase64 = envelopeIdBase64, SignedPreviousHashBase64 = signedPreviousHash };
+        var postBodyFinalize = new RegistrationCompleteModel() { EnvelopeIdBase64 = envelopeIdBase64, SignedPreviousHashBase64 = signedPreviousHash };
         var postContent = new StringContent(JsonSerializer.Serialize(postBodyFinalize), Encoding.UTF8, "application/json");
 
         return await _client.PostAsync("/RegisterKey/PublicKeyRegistrationFinalize", postContent);
@@ -151,7 +151,7 @@ public class RegisterKeyControllerTest
 
         // Finalize it
         var signedPreviousHash = SimulateFrodo.SignPreviousHashForPublicKeyChain(previousHashBase64);
-        var postBodyFinalize = new RegistrationFinalizeModel() { EnvelopeIdBase64 = signedEnvelope.Envelope.ContentNonce.ToBase64(), SignedPreviousHashBase64 = signedPreviousHash };
+        var postBodyFinalize = new RegistrationCompleteModel() { EnvelopeIdBase64 = signedEnvelope.Envelope.ContentNonce.ToBase64(), SignedPreviousHashBase64 = signedPreviousHash };
         var postContent = new StringContent(JsonSerializer.Serialize(postBodyFinalize), Encoding.UTF8, "application/json");
 
         var response = await _client.PostAsync("/RegisterKey/PublicKeyRegistrationFinalize", postContent);

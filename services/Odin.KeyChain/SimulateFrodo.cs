@@ -88,8 +88,8 @@ namespace Odin.KeyChain
             for (int i = 0; i < 10 ; i++)
             {
                 var signatureBase64 = SimulateFrodo.SignPreviousHashForPublicKeyChain(previousHashBase64);
-                var model = new RegistrationFinalizeModel() { EnvelopeIdBase64 = signedInstruction.Envelope.ContentNonce.ToBase64(), SignedPreviousHashBase64 = signatureBase64 };
-                r2 = await webApi.PostPublicKeyRegistrationFinalize(model);
+                var model = new RegistrationCompleteModel() { EnvelopeIdBase64 = signedInstruction.Envelope.ContentNonce.ToBase64(), SignedPreviousHashBase64 = signatureBase64 };
+                r2 = await webApi.PostPublicKeyRegistrationComplete(model);
 
                 // Check it got received OK
                 objectResult = r2 as ObjectResult;

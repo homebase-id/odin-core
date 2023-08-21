@@ -192,7 +192,7 @@ namespace Odin.Keychain
         /// 060. Server fetches last row
         /// 070. Store in memory dictionary and return previousHash
         /// 
-        /// Next step for the caller is to (quickly) sign the previousHash and call Finalize
+        /// Next step for the caller is to (quickly) sign the previousHash and call "Complete"
         /// </summary>
         /// <param name="signedRegistrationInstructionEnvelopeJson"></param>
         /// <returns></returns>
@@ -298,7 +298,7 @@ namespace Odin.Keychain
         }
 
 
-        public class RegistrationFinalizeModel
+        public class RegistrationCompleteModel
         {
             [Required]
             public string EnvelopeIdBase64 { get; set; }
@@ -306,7 +306,7 @@ namespace Odin.Keychain
             [Required]
             public string SignedPreviousHashBase64 { get; set; }
 
-            public RegistrationFinalizeModel() { EnvelopeIdBase64 = ""; SignedPreviousHashBase64 = ""; }
+            public RegistrationCompleteModel() { EnvelopeIdBase64 = ""; SignedPreviousHashBase64 = ""; }
         }
 
         /// <summary>
@@ -324,8 +324,8 @@ namespace Odin.Keychain
         /// <param name="identity"></param>
         /// <param name="signedInstructionEnvelopeJson"></param>
         /// <returns></returns>
-        [HttpPost("PublicKeyRegistrationFinalize")]
-        public async Task<ActionResult> PostPublicKeyRegistrationFinalize([FromBody] RegistrationFinalizeModel model)
+        [HttpPost("PublicKeyRegistrationComplete")]
+        public async Task<ActionResult> PostPublicKeyRegistrationComplete([FromBody] RegistrationCompleteModel model)
         {
             if ((model.EnvelopeIdBase64 == null) || (model.SignedPreviousHashBase64 == null))
                 return BadRequest("Missing data in model");
