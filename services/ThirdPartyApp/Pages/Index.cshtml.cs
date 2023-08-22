@@ -5,6 +5,7 @@ using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Odin.Core;
+using Odin.Core.Cryptography.Data;
 using Odin.Core.Services.Authentication.YouAuth;
 using Odin.Hosting.Controllers.OwnerToken;
 using Odin.Hosting.Controllers.OwnerToken.YouAuth;
@@ -72,16 +73,17 @@ public class IndexModel : PageModel
 
     private IActionResult LogIn()
     {
-        var codeVerifier = Guid.NewGuid().ToString();
-        var codeChallenge = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(codeVerifier)).ToBase64();
+        var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+        var keyPair = new EccFullKeyData(privateKey, 1);
+
         const string thirdParty = "thirdparty.dotyou.cloud";
 
         var state = Guid.NewGuid().ToString();
         _stateMap[state] = new State
         {
-            CodeChallenge = codeChallenge,
-            CodeVerifier = codeVerifier,
-            Identity = FormOdinIdentity
+            Identity = FormOdinIdentity,
+            PrivateKey = privateKey,
+            KeyPair = keyPair
         };
 
         var payload = new YouAuthAuthorizeRequest
@@ -89,7 +91,7 @@ public class IndexModel : PageModel
             ClientId = thirdParty,
             ClientType = ClientType.domain,
             ClientInfo = "",
-            CodeChallenge = codeChallenge,
+            PublicKey = keyPair.publicDerBase64(),
             PermissionRequest = "",
             State = state,
             RedirectUri = $"https://{Request.Host}/authorization-code-callback"

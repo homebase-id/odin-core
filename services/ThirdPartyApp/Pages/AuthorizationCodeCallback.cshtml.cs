@@ -1,8 +1,11 @@
 using System.Collections.Concurrent;
 using System.Net;
+using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Odin.Core;
+using Odin.Core.Cryptography.Data;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Authentication.YouAuth;
 using Odin.Hosting.Controllers.OwnerToken;
@@ -13,10 +16,20 @@ namespace ThirdPartyApp.Pages;
 public class AuthorizationCodeCallback : PageModel
 {
     [BindProperty(SupportsGet = true)]
+    [FromQuery(Name = YouAuthDefaults.Code)]
     public string Code { get; set; } = "";
 
     [BindProperty(SupportsGet = true)]
+    [FromQuery(Name = YouAuthDefaults.State)]
     public string? State { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    [FromQuery(Name = YouAuthDefaults.PublicKey)]
+    public string? PublicKey { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    [FromQuery(Name = YouAuthDefaults.Salt)]
+    public string? Salt { get; set; }
 
     private readonly ILogger<IndexModel> _logger;
     private readonly ConcurrentDictionary<string, State> _stateMap;
@@ -43,13 +56,22 @@ public class AuthorizationCodeCallback : PageModel
         // Exchange authorization code for token
         //
 
+        var privateKey = state.PrivateKey!;
+        var keyPair = state.KeyPair!;
+        var remotePublicKey = Convert.FromBase64String(PublicKey!);
+        var remoteSalt = Convert.FromBase64String(Salt!);
+
+        var remotePublicKeyDer = EccPublicKeyData.FromDerEncodedPublicKey(remotePublicKey);
+        var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyDer, remoteSalt);
+        var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
+
         var code = Code;
         var uri = new UriBuilder($"https://{state.Identity}{OwnerApiPathConstants.YouAuthV1Token}");
         var tokenRequest = new YouAuthTokenRequest
         {
             Code = code,
-            CodeVerifier = state.CodeVerifier,
-            TokenDeliveryOption = TokenDeliveryOption.cookie
+            TokenDeliveryOption = TokenDeliveryOption.cookie,
+            SecretDigest = exchangeSecretDigest
         };
         var body = OdinSystemSerializer.Serialize(tokenRequest);
 
@@ -74,7 +96,7 @@ public class AuthorizationCodeCallback : PageModel
         // Store thirdparty cookies
         //
 
-        // Save "sam was here" in cookie and this Sam is logged in with his ODIN identity! Hoorah!
+        // Save "sam was here" in cookie and then Sam is logged in with his ODIN identity! Hoorah!
         var cookies = response.GetCookies();
         var cat = cookies["XT32"];
 

@@ -35,10 +35,10 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             const string thirdParty = "frodo.dotyou.cloud";
 
             //
-            // [010] Generate code verifier
+            // [010] Generate key pair
             //
-            var codeVerifier = Guid.NewGuid().ToString();
-            var codeChallenge = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(codeVerifier)).ToBase64();
+            var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            var keyPair = new EccFullKeyData(privateKey, 1);
 
             //
             // [030] Request authorization code
@@ -54,7 +54,8 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                     ClientType = ClientType.app,
                     ClientInfo = "My Awesome App",
                     PermissionRequest = "identity:read identity:write",
-                    State = codeChallenge,
+                    PublicKey = keyPair.publicDerBase64(),
+                    State = "somestate",
                     RedirectUri = $"https://{thirdParty}/authorization/code/callback"
                 };
 
@@ -99,6 +100,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 Assert.That(returnUrlComponents.RedirectUri, Is.EqualTo(payload.RedirectUri));
                 Assert.That(returnUrlComponents.State, Is.EqualTo(payload.State));
                 Assert.That(returnUrlComponents.ClientInfo, Is.EqualTo(payload.ClientInfo));
+                Assert.That(returnUrlComponents.PublicKey, Is.EqualTo(payload.PublicKey));
             }
         }
 
@@ -114,11 +116,10 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             await DisconnectHobbits(TestIdentities.Frodo, TestIdentities.Samwise);
 
             //
-            // [010] Generate code verifier
+            // [010] Generate key pair
             //
-            var codeVerifier = Guid.NewGuid().ToString();
-            var codeChallenge = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(codeVerifier)).ToBase64();
-            var stateMap = new Dictionary<string, string> { { codeChallenge, codeVerifier } };
+            var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            var keyPair = new EccFullKeyData(privateKey, 1);
 
             //
             // [030] Request authorization code
@@ -134,9 +135,9 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                     ClientId = thirdParty,
                     ClientType = ClientType.domain,
                     ClientInfo = "",
-                    CodeChallenge = codeChallenge,
                     PermissionRequest = "",
-                    State = codeChallenge,
+                    PublicKey = keyPair.publicDerBase64(),
+                    State = "somestate",
                     RedirectUri = $"https://{thirdParty}/authorization/code/callback"
                 };
 
@@ -177,11 +178,11 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var returnUrlComponents = YouAuthAuthorizeRequest.FromQueryString(returnUrl.Query);
                 Assert.That(returnUrlComponents.ClientId, Is.EqualTo(payload.ClientId));
                 Assert.That(returnUrlComponents.ClientType, Is.EqualTo(payload.ClientType));
-                Assert.That(returnUrlComponents.CodeChallenge, Is.EqualTo(payload.CodeChallenge));
                 Assert.That(returnUrlComponents.PermissionRequest, Is.EqualTo(payload.PermissionRequest));
                 Assert.That(returnUrlComponents.RedirectUri, Is.EqualTo(payload.RedirectUri));
                 Assert.That(returnUrlComponents.State, Is.EqualTo(payload.State));
                 Assert.That(returnUrlComponents.ClientInfo, Is.EqualTo(payload.ClientInfo));
+                Assert.That(returnUrlComponents.PublicKey, Is.EqualTo(payload.PublicKey));
             }
         }
 
@@ -195,11 +196,10 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             var (ownerCookie, _) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit);
 
             //
-            // [010] Generate code verifier
+            // [010] Generate key pair
             //
-            var codeVerifier = Guid.NewGuid().ToString();
-            var codeChallenge = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(codeVerifier)).ToBase64();
-            var stateMap = new Dictionary<string, string> { { codeChallenge, codeVerifier } };
+            var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            var keyPair = new EccFullKeyData(privateKey, 1);
 
             //
             // [030] Request authorization code
@@ -236,9 +236,9 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                     ClientId = appId,
                     ClientType = ClientType.app,
                     ClientInfo = "",
-                    CodeChallenge = codeChallenge,
                     PermissionRequest = OdinSystemSerializer.Serialize(appParams),
-                    State = codeChallenge,
+                    PublicKey = keyPair.publicDerBase64(),
+                    State = "somestate",
                     RedirectUri = $"https://app/authorization/code/callback"
                 };
 
@@ -301,11 +301,10 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             await RegisterApp(hobbit, Guid.Parse(appId));
 
             //
-            // [010] Generate code verifier
+            // [010] Generate key pair
             //
-            var codeVerifier = Guid.NewGuid().ToString();
-            var codeChallenge = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(codeVerifier)).ToBase64();
-            var stateMap = new Dictionary<string, string> { { codeChallenge, codeVerifier } };
+            var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            var keyPair = new EccFullKeyData(privateKey, 1);
 
             //
             // [030] Request authorization code
@@ -341,9 +340,9 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                     ClientId = appId,
                     ClientType = ClientType.app,
                     ClientInfo = "",
-                    CodeChallenge = codeChallenge,
                     PermissionRequest = OdinSystemSerializer.Serialize(appParams),
-                    State = codeChallenge,
+                    PublicKey = keyPair.publicDerBase64(),
+                    State = "somestate",
                     RedirectUri = $"https://app/authorization/code/callback"
                 };
 
@@ -384,11 +383,11 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var returnUrlComponents = YouAuthAuthorizeRequest.FromQueryString(returnUrl.Query);
                 Assert.That(returnUrlComponents.ClientId, Is.EqualTo(payload.ClientId));
                 Assert.That(returnUrlComponents.ClientType, Is.EqualTo(payload.ClientType));
-                Assert.That(returnUrlComponents.CodeChallenge, Is.EqualTo(payload.CodeChallenge));
                 Assert.That(returnUrlComponents.PermissionRequest, Is.EqualTo(payload.PermissionRequest));
                 Assert.That(returnUrlComponents.RedirectUri, Is.EqualTo(payload.RedirectUri));
                 Assert.That(returnUrlComponents.State, Is.EqualTo(payload.State));
                 Assert.That(returnUrlComponents.ClientInfo, Is.EqualTo(payload.ClientInfo));
+                Assert.That(returnUrlComponents.PublicKey, Is.EqualTo(payload.PublicKey));
             }
         }
 
@@ -402,11 +401,10 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             var (ownerCookie, _) = await AuthenticateOwnerReturnOwnerCookieAndSharedSecret(hobbit);
 
             //
-            // [010] Generate code verifier
+            // [010] Generate key pair
             //
-            var codeVerifier = Guid.NewGuid().ToString();
-            var codeChallenge = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(codeVerifier)).ToBase64();
-            var stateMap = new Dictionary<string, string> { { codeChallenge, codeVerifier } };
+            var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            var keyPair = new EccFullKeyData(privateKey, 1);
 
             var finalRedirectUri = new Uri("https://app/authorization/code/callback");
             var appParams = GetAppPhotosParams();
@@ -415,9 +413,9 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 ClientId = appParams.AppId,
                 ClientType = ClientType.app,
                 ClientInfo = "",
-                CodeChallenge = codeChallenge,
                 PermissionRequest = OdinSystemSerializer.Serialize(appParams),
-                State = codeChallenge,
+                PublicKey = keyPair.publicDerBase64(),
+                State = "somestate",
                 RedirectUri = finalRedirectUri.ToString()
             };
 
@@ -466,11 +464,11 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var returnUrlComponents = YouAuthAuthorizeRequest.FromQueryString(returnUrl.Query);
                 Assert.That(returnUrlComponents.ClientId, Is.EqualTo(payload.ClientId));
                 Assert.That(returnUrlComponents.ClientType, Is.EqualTo(payload.ClientType));
-                Assert.That(returnUrlComponents.CodeChallenge, Is.EqualTo(payload.CodeChallenge));
                 Assert.That(returnUrlComponents.PermissionRequest, Is.EqualTo(payload.PermissionRequest));
                 Assert.That(returnUrlComponents.RedirectUri, Is.EqualTo(payload.RedirectUri));
                 Assert.That(returnUrlComponents.State, Is.EqualTo(payload.State));
                 Assert.That(returnUrlComponents.ClientInfo, Is.EqualTo(payload.ClientInfo));
+                Assert.That(returnUrlComponents.PublicKey, Is.EqualTo(payload.PublicKey));
             }
 
             //
@@ -510,7 +508,8 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             // [070] Create auth code
             // [080] return auth code to client
             //
-            string code, state;
+            string code;
+            byte[] remotePublicKey, remoteSalt;
             {
                 var uri =
                     new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Authorize}")
@@ -534,29 +533,38 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 Assert.That(redirectUri.AbsolutePath, Is.EqualTo(finalRedirectUri.AbsolutePath));
 
                 var qs = HttpUtility.ParseQueryString(redirectUri.Query);
-                Assert.That(qs["code"], Is.Not.Null.And.Not.Empty);
-                Assert.That(qs["state"], Is.EqualTo(payload.State));
-                code = qs["code"]!;
-                state = qs["state"]!;
+                var state = qs[YouAuthDefaults.State]!;
+                code = qs[YouAuthDefaults.Code]!;
+                remotePublicKey = Convert.FromBase64String(qs[YouAuthDefaults.PublicKey]!);
+                remoteSalt = Convert.FromBase64String(qs[YouAuthDefaults.Salt]!);
+
+                Assert.That(code, Is.Not.Null.And.Not.Empty);
+                Assert.That(state, Is.EqualTo(payload.State));
+                Assert.That(remotePublicKey, Is.Not.Null.And.Not.Empty);
+                Assert.That(remoteSalt, Is.Not.Null.And.Not.Empty);
             }
 
             //
+            // [90] Calculate shared secret and digtest for token exchange
             // [100] Exchange auth code for access token
             // [140] Return client access token to client
             //
             {
+                var remotePublicKeyDer = EccPublicKeyData.FromDerEncodedPublicKey(remotePublicKey);
+                var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyDer, remoteSalt);
+                var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
+
                 var uri = new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Token}");
                 var tokenRequest = new YouAuthTokenRequest
                 {
                     Code = code,
-                    CodeVerifier = stateMap[state],
-                    TokenDeliveryOption = TokenDeliveryOption.cookie
+                    TokenDeliveryOption = TokenDeliveryOption.json,
+                    SecretDigest = exchangeSecretDigest
                 };
                 var body = OdinSystemSerializer.Serialize(tokenRequest);
 
                 var request = new HttpRequestMessage(HttpMethod.Post, uri.ToString())
                 {
-                    Headers = { { "Cookie", new Cookie(YouAuthTestHelper.OwnerCookieName, ownerCookie).ToString() } },
                     Content = new StringContent(body, Encoding.UTF8, "application/json")
                 };
 
@@ -566,7 +574,22 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var content = await response.Content.ReadAsStringAsync();
                 var token = OdinSystemSerializer.Deserialize<YouAuthTokenResponse>(content);
 
-                Assert.That(token!.Base64SharedSecret, Is.Not.Null.And.Not.Empty);
+                Assert.That(token!.Base64SharedSecretCipher, Is.Not.Null.And.Not.Empty);
+                Assert.That(token!.Base64SharedSecretIv, Is.Not.Null.And.Not.Empty);
+                Assert.That(token.Base64ClientAuthTokenCipher, Is.Not.Null.And.Not.Empty);
+                Assert.That(token.Base64ClientAuthTokenIv, Is.Not.Null.And.Not.Empty);
+
+                var sharedSecretCipher = Convert.FromBase64String(token.Base64SharedSecretCipher!);
+                var sharedSecretIv = Convert.FromBase64String(token.Base64SharedSecretIv!);
+                var sharedSecret = AesCbc.Decrypt(sharedSecretCipher, ref exchangeSecret, sharedSecretIv);
+                Assert.That(sharedSecret, Is.Not.Null.And.Not.Empty);
+
+                var clientAuthTokenCipher = Convert.FromBase64String(token.Base64SharedSecretCipher!);
+                var clientAuthTokenIv = Convert.FromBase64String(token.Base64SharedSecretIv!);
+                var clientAuthToken = AesCbc.Decrypt(clientAuthTokenCipher, ref exchangeSecret, clientAuthTokenIv);
+                Assert.That(clientAuthToken, Is.Not.Null.And.Not.Empty);
+
+                // SEB:TODO test that token works
             }
         }
 
@@ -625,11 +648,10 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             await DisconnectHobbits(TestIdentities.Frodo, TestIdentities.Samwise);
 
             //
-            // [010] Generate code verifier
+            // [010] Generate key pair
             //
-            var codeVerifier = Guid.NewGuid().ToString();
-            var codeChallenge = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(codeVerifier)).ToBase64();
-            var stateMap = new Dictionary<string, string> { { codeChallenge, codeVerifier } };
+            var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            var keyPair = new EccFullKeyData(privateKey, 1);
 
             //
             // [030] Request authorization code
@@ -647,9 +669,9 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                     ClientId = thirdParty,
                     ClientType = ClientType.domain,
                     ClientInfo = "",
-                    CodeChallenge = codeChallenge,
                     PermissionRequest = "",
-                    State = codeChallenge,
+                    PublicKey = keyPair.publicDerBase64(),
+                    State = "somestate",
                     RedirectUri = $"https://{thirdParty}/authorization/code/callback"
                 };
 
@@ -718,16 +740,17 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             // [070] Create auth code
             // [080] return auth code to client
             //
-            string code, state;
+            string code;
+            byte[] remotePublicKey, remoteSalt;
             {
                 var payload = new YouAuthAuthorizeRequest
                 {
                     ClientId = thirdParty,
                     ClientType = ClientType.domain,
                     ClientInfo = "",
-                    CodeChallenge = codeChallenge,
                     PermissionRequest = "",
-                    State = codeChallenge,
+                    PublicKey = keyPair.publicDerBase64(),
+                    State = "somestate",
                     RedirectUri = $"https://{thirdParty}/authorization/code/callback"
                 };
 
@@ -753,29 +776,40 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 Assert.That(redirectUri.AbsolutePath, Is.EqualTo(finalRedirectUri.AbsolutePath));
 
                 var qs = HttpUtility.ParseQueryString(redirectUri.Query);
-                Assert.That(qs["code"], Is.Not.Null.And.Not.Empty);
-                Assert.That(qs["state"], Is.EqualTo(payload.State));
-                code = qs["code"]!;
-                state = qs["state"]!;
+                var state = qs[YouAuthDefaults.State]!;
+                code = qs[YouAuthDefaults.Code]!;
+                remotePublicKey = Convert.FromBase64String(qs[YouAuthDefaults.PublicKey]!);
+                remoteSalt = Convert.FromBase64String(qs[YouAuthDefaults.Salt]!);
+
+                Assert.That(code, Is.Not.Null.And.Not.Empty);
+                Assert.That(state, Is.EqualTo(payload.State));
+                Assert.That(remotePublicKey, Is.Not.Null.And.Not.Empty);
+                Assert.That(remoteSalt, Is.Not.Null.And.Not.Empty);
             }
 
             //
+            // [90] Calculate shared secret and digtest for token exchange
             // [100] Exchange auth code for access token
             // [140] Return client access token to client
             //
+            string homeCookie;
+            byte[] sharedSecret;
             {
+                var remotePublicKeyDer = EccPublicKeyData.FromDerEncodedPublicKey(remotePublicKey);
+                var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyDer, remoteSalt);
+                var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
+
                 var uri = new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Token}");
                 var tokenRequest = new YouAuthTokenRequest
                 {
                     Code = code,
-                    CodeVerifier = stateMap[state],
-                    TokenDeliveryOption = TokenDeliveryOption.cookie
+                    TokenDeliveryOption = TokenDeliveryOption.cookie,
+                    SecretDigest = exchangeSecretDigest
                 };
                 var body = OdinSystemSerializer.Serialize(tokenRequest);
 
                 var request = new HttpRequestMessage(HttpMethod.Post, uri.ToString())
                 {
-                    Headers = { { "Cookie", new Cookie(YouAuthTestHelper.OwnerCookieName, ownerCookie).ToString() } },
                     Content = new StringContent(body, Encoding.UTF8, "application/json")
                 };
 
@@ -785,7 +819,22 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var content = await response.Content.ReadAsStringAsync();
                 var token = OdinSystemSerializer.Deserialize<YouAuthTokenResponse>(content);
 
-                Assert.That(token!.Base64SharedSecret, Is.Not.Null.And.Not.Empty);
+                Assert.That(token!.Base64SharedSecretCipher, Is.Not.Null.And.Not.Empty);
+                Assert.That(token!.Base64SharedSecretIv, Is.Not.Null.And.Not.Empty);
+                Assert.That(token.Base64ClientAuthTokenCipher, Is.Null.Or.Empty);
+                Assert.That(token.Base64ClientAuthTokenIv, Is.Null.Or.Empty);
+
+                var cookies = response.GetCookies();
+                Assert.That(cookies.ContainsKey(YouAuthTestHelper.HomeCookieName), Is.True);
+                homeCookie = cookies[YouAuthTestHelper.HomeCookieName];
+                Assert.That(homeCookie, Is.Not.Null.And.Not.Empty);
+
+                var sharedSecretCipher = Convert.FromBase64String(token.Base64SharedSecretCipher!);
+                var sharedSecretIv = Convert.FromBase64String(token.Base64SharedSecretIv!);
+                sharedSecret = AesCbc.Decrypt(sharedSecretCipher, ref exchangeSecret, sharedSecretIv);
+                Assert.That(sharedSecret, Is.Not.Null.And.Not.Empty);
+
+                // SEB:TODO test that token works
             }
         }
 
@@ -939,11 +988,10 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             await ConnectHobbits();
 
             //
-            // [010] Generate code verifier
+            // [010] Generate key pair
             //
-            var codeVerifier = Guid.NewGuid().ToString();
-            var codeChallenge = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(codeVerifier)).ToBase64();
-            var stateMap = new Dictionary<string, string> { { codeChallenge, codeVerifier } };
+            var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            var keyPair = new EccFullKeyData(privateKey, 1);
 
             const string thirdParty = "frodo.dotyou.cloud";
             var finalRedirectUri = new Uri($"https://{thirdParty}/authorization/code/callback");
@@ -953,16 +1001,17 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             // [070] Create auth code
             // [080] return auth code to client
             //
-            string code, state;
+            string code;
+            byte[] remotePublicKey, remoteSalt;
             {
                 var payload = new YouAuthAuthorizeRequest
                 {
                     ClientId = thirdParty,
                     ClientType = ClientType.domain,
                     ClientInfo = "",
-                    CodeChallenge = codeChallenge,
                     PermissionRequest = "",
-                    State = codeChallenge,
+                    PublicKey = keyPair.publicDerBase64(),
+                    State = "somestate",
                     RedirectUri = $"https://{thirdParty}/authorization/code/callback"
                 };
 
@@ -988,23 +1037,33 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 Assert.That(redirectUri.AbsolutePath, Is.EqualTo(finalRedirectUri.AbsolutePath));
 
                 var qs = HttpUtility.ParseQueryString(redirectUri.Query);
-                Assert.That(qs["code"], Is.Not.Null.And.Not.Empty);
-                Assert.That(qs["state"], Is.EqualTo(payload.State));
-                code = qs["code"]!;
-                state = qs["state"]!;
+                var state = qs[YouAuthDefaults.State]!;
+                code = qs[YouAuthDefaults.Code]!;
+                remotePublicKey = Convert.FromBase64String(qs[YouAuthDefaults.PublicKey]!);
+                remoteSalt = Convert.FromBase64String(qs[YouAuthDefaults.Salt]!);
+
+                Assert.That(code, Is.Not.Null.And.Not.Empty);
+                Assert.That(state, Is.EqualTo(payload.State));
+                Assert.That(remotePublicKey, Is.Not.Null.And.Not.Empty);
+                Assert.That(remoteSalt, Is.Not.Null.And.Not.Empty);
             }
 
             //
+            // [90] Calculate shared secret and digtest for token exchange
             // [100] Exchange auth code for access token
             // [140] Return client access token to client
             //
             {
+                var remotePublicKeyDer = EccPublicKeyData.FromDerEncodedPublicKey(remotePublicKey);
+                var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyDer, remoteSalt);
+                var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
+
                 var uri = new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Token}");
                 var tokenRequest = new YouAuthTokenRequest
                 {
                     Code = code,
-                    CodeVerifier = stateMap[state],
-                    TokenDeliveryOption = TokenDeliveryOption.json
+                    TokenDeliveryOption = TokenDeliveryOption.json,
+                    SecretDigest = exchangeSecretDigest
                 };
                 var body = OdinSystemSerializer.Serialize(tokenRequest);
 
@@ -1019,11 +1078,22 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var content = await response.Content.ReadAsStringAsync();
                 var token = OdinSystemSerializer.Deserialize<YouAuthTokenResponse>(content);
 
-                Assert.That(token!.Base64SharedSecret, Is.Not.Null.And.Not.Empty);
-                Assert.That(token.Base64ClientAuthToken, Is.Not.Null.And.Not.Empty);
+                Assert.That(token!.Base64SharedSecretCipher, Is.Not.Null.And.Not.Empty);
+                Assert.That(token!.Base64SharedSecretIv, Is.Not.Null.And.Not.Empty);
+                Assert.That(token.Base64ClientAuthTokenCipher, Is.Not.Null.And.Not.Empty);
+                Assert.That(token.Base64ClientAuthTokenIv, Is.Not.Null.And.Not.Empty);
 
-                var cookies = response.GetCookies();
-                Assert.That(cookies.ContainsKey(YouAuthTestHelper.HomeCookieName), Is.False);
+                var sharedSecretCipher = Convert.FromBase64String(token.Base64SharedSecretCipher!);
+                var sharedSecretIv = Convert.FromBase64String(token.Base64SharedSecretIv!);
+                var sharedSecret = AesCbc.Decrypt(sharedSecretCipher, ref exchangeSecret, sharedSecretIv);
+                Assert.That(sharedSecret, Is.Not.Null.And.Not.Empty);
+
+                var clientAuthTokenCipher = Convert.FromBase64String(token.Base64SharedSecretCipher!);
+                var clientAuthTokenIv = Convert.FromBase64String(token.Base64SharedSecretIv!);
+                var clientAuthToken = AesCbc.Decrypt(clientAuthTokenCipher, ref exchangeSecret, clientAuthTokenIv);
+                Assert.That(clientAuthToken, Is.Not.Null.And.Not.Empty);
+
+                // SEB:TODO test that token works
             }
         }
 
@@ -1037,11 +1107,10 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             await DisconnectHobbits(TestIdentities.Frodo, TestIdentities.Samwise);
 
             //
-            // [010] Generate code verifier
+            // [010] Generate key pair
             //
-            var codeVerifier = Guid.NewGuid().ToString();
-            var codeChallenge = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(codeVerifier)).ToBase64();
-            var stateMap = new Dictionary<string, string> { { codeChallenge, codeVerifier } };
+            var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            var keyPair = new EccFullKeyData(privateKey, 1);
 
             Uri returnUrl;
             const string thirdParty = "frodo.dotyou.cloud";
@@ -1055,9 +1124,9 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 ClientId = thirdParty,
                 ClientType = ClientType.domain,
                 ClientInfo = "",
-                CodeChallenge = codeChallenge,
                 PermissionRequest = "",
-                State = codeChallenge,
+                PublicKey = keyPair.publicDerBase64(),
+                State = "somestate",
                 RedirectUri = $"https://{thirdParty}/authorization/code/callback"
             };
             {
@@ -1126,7 +1195,8 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             //
             // [070] Create auth code
             //
-            string code, state;
+            string code;
+            byte[] remotePublicKey, remoteSalt;
             {
                 var request = new HttpRequestMessage(HttpMethod.Get, authorizeUri.ToString())
                 {
@@ -1143,23 +1213,35 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 Assert.That(redirectUri.AbsolutePath, Is.EqualTo(finalRedirectUri.AbsolutePath));
 
                 var qs = HttpUtility.ParseQueryString(redirectUri.Query);
-                Assert.That(qs["code"], Is.Not.Null.And.Not.Empty);
-                Assert.That(qs["state"], Is.EqualTo(payload.State));
-                code = qs["code"]!;
-                state = qs["state"]!;
+                var state = qs[YouAuthDefaults.State]!;
+                code = qs[YouAuthDefaults.Code]!;
+                remotePublicKey = Convert.FromBase64String(qs[YouAuthDefaults.PublicKey]!);
+                remoteSalt = Convert.FromBase64String(qs[YouAuthDefaults.Salt]!);
+
+                Assert.That(code, Is.Not.Null.And.Not.Empty);
+                Assert.That(state, Is.EqualTo(payload.State));
+                Assert.That(remotePublicKey, Is.Not.Null.And.Not.Empty);
+                Assert.That(remoteSalt, Is.Not.Null.And.Not.Empty);
             }
 
             //
+            // [90] Calculate shared secret and digtest for token exchange
             // [100] Exchange auth code for access token
             // [140] Return client access token to client
             //
+            string homeCookie;
+            byte[] sharedSecret;
             {
+                var remotePublicKeyDer = EccPublicKeyData.FromDerEncodedPublicKey(remotePublicKey);
+                var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyDer, remoteSalt);
+                var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
+
                 var uri = new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Token}");
                 var tokenRequest = new YouAuthTokenRequest
                 {
                     Code = code,
-                    CodeVerifier = stateMap[state],
-                    TokenDeliveryOption = TokenDeliveryOption.cookie
+                    TokenDeliveryOption = TokenDeliveryOption.cookie,
+                    SecretDigest = exchangeSecretDigest
                 };
                 var body = OdinSystemSerializer.Serialize(tokenRequest);
 
@@ -1174,13 +1256,20 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var content = await response.Content.ReadAsStringAsync();
                 var token = OdinSystemSerializer.Deserialize<YouAuthTokenResponse>(content);
 
-                Assert.That(token!.Base64SharedSecret, Is.Not.Null.And.Not.Empty);
-                Assert.That(token.Base64ClientAuthToken, Is.Null.Or.Empty);
+                Assert.That(token!.Base64SharedSecretCipher, Is.Not.Null.And.Not.Empty);
+                Assert.That(token!.Base64SharedSecretIv, Is.Not.Null.And.Not.Empty);
+                Assert.That(token.Base64ClientAuthTokenCipher, Is.Null.Or.Empty);
+                Assert.That(token.Base64ClientAuthTokenIv, Is.Null.Or.Empty);
 
                 var cookies = response.GetCookies();
                 Assert.That(cookies.ContainsKey(YouAuthTestHelper.HomeCookieName), Is.True);
-                var homeCookie = cookies[YouAuthTestHelper.HomeCookieName];
+                homeCookie = cookies[YouAuthTestHelper.HomeCookieName];
                 Assert.That(homeCookie, Is.Not.Null.And.Not.Empty);
+
+                var sharedSecretCipher = Convert.FromBase64String(token.Base64SharedSecretCipher!);
+                var sharedSecretIv = Convert.FromBase64String(token.Base64SharedSecretIv!);
+                sharedSecret = AesCbc.Decrypt(sharedSecretCipher, ref exchangeSecret, sharedSecretIv);
+                Assert.That(sharedSecret, Is.Not.Null.And.Not.Empty);
             }
         }
 
@@ -1196,11 +1285,10 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             await DisconnectHobbits(TestIdentities.Frodo, TestIdentities.Samwise);
 
             //
-            // [010] Generate code verifier
+            // [010] Generate key pair
             //
-            var codeVerifier = Guid.NewGuid().ToString();
-            var codeChallenge = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(codeVerifier)).ToBase64();
-            var stateMap = new Dictionary<string, string> { { codeChallenge, codeVerifier } };
+            var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            var keyPair = new EccFullKeyData(privateKey, 1);
 
             Uri returnUrl;
             const string thirdParty = "frodo.dotyou.cloud";
@@ -1214,9 +1302,9 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 ClientId = thirdParty,
                 ClientType = ClientType.domain,
                 ClientInfo = "",
-                CodeChallenge = codeChallenge,
                 PermissionRequest = "",
-                State = codeChallenge,
+                PublicKey = keyPair.publicDerBase64(),
+                State = "somestate",
                 RedirectUri = $"https://{thirdParty}/authorization/code/callback"
             };
             {
@@ -1285,7 +1373,8 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             //
             // [070] Create auth code
             //
-            string code, state;
+            string code;
+            byte[] remotePublicKey, remoteSalt;
             {
                 var request = new HttpRequestMessage(HttpMethod.Get, authorizeUri.ToString())
                 {
@@ -1302,23 +1391,35 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 Assert.That(redirectUri.AbsolutePath, Is.EqualTo(finalRedirectUri.AbsolutePath));
 
                 var qs = HttpUtility.ParseQueryString(redirectUri.Query);
-                Assert.That(qs["code"], Is.Not.Null.And.Not.Empty);
-                Assert.That(qs["state"], Is.EqualTo(payload.State));
-                code = qs["code"]!;
-                state = qs["state"]!;
+                var state = qs[YouAuthDefaults.State]!;
+                code = qs[YouAuthDefaults.Code]!;
+                remotePublicKey = Convert.FromBase64String(qs[YouAuthDefaults.PublicKey]!);
+                remoteSalt = Convert.FromBase64String(qs[YouAuthDefaults.Salt]!);
+
+                Assert.That(code, Is.Not.Null.And.Not.Empty);
+                Assert.That(state, Is.EqualTo(payload.State));
+                Assert.That(remotePublicKey, Is.Not.Null.And.Not.Empty);
+                Assert.That(remoteSalt, Is.Not.Null.And.Not.Empty);
             }
 
             //
+            // [90] Calculate shared secret and digtest for token exchange
             // [100] Exchange auth code for access token
             // [140] Return client access token to client
             //
+            string homeCookie;
+            byte[] sharedSecret;
             {
+                var remotePublicKeyDer = EccPublicKeyData.FromDerEncodedPublicKey(remotePublicKey);
+                var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyDer, remoteSalt);
+                var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
+
                 var uri = new UriBuilder($"https://{hobbit}{OwnerApiPathConstants.YouAuthV1Token}");
                 var tokenRequest = new YouAuthTokenRequest
                 {
                     Code = code,
-                    CodeVerifier = stateMap[state],
-                    TokenDeliveryOption = TokenDeliveryOption.json
+                    TokenDeliveryOption = TokenDeliveryOption.json,
+                    SecretDigest = exchangeSecretDigest
                 };
                 var body = OdinSystemSerializer.Serialize(tokenRequest);
 
@@ -1333,11 +1434,22 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var content = await response.Content.ReadAsStringAsync();
                 var token = OdinSystemSerializer.Deserialize<YouAuthTokenResponse>(content);
 
-                Assert.That(token!.Base64SharedSecret, Is.Not.Null.And.Not.Empty);
-                Assert.That(token.Base64ClientAuthToken, Is.Not.Null.And.Not.Empty);
+                Assert.That(token!.Base64SharedSecretCipher, Is.Not.Null.And.Not.Empty);
+                Assert.That(token!.Base64SharedSecretIv, Is.Not.Null.And.Not.Empty);
+                Assert.That(token.Base64ClientAuthTokenCipher, Is.Not.Null.And.Not.Empty);
+                Assert.That(token.Base64ClientAuthTokenIv, Is.Not.Null.And.Not.Empty);
 
-                var cookies = response.GetCookies();
-                Assert.That(cookies.ContainsKey(YouAuthTestHelper.HomeCookieName), Is.False);
+                var sharedSecretCipher = Convert.FromBase64String(token.Base64SharedSecretCipher!);
+                var sharedSecretIv = Convert.FromBase64String(token.Base64SharedSecretIv!);
+                sharedSecret = AesCbc.Decrypt(sharedSecretCipher, ref exchangeSecret, sharedSecretIv);
+                Assert.That(sharedSecret, Is.Not.Null.And.Not.Empty);
+
+                var clientAuthTokenCipher = Convert.FromBase64String(token.Base64SharedSecretCipher!);
+                var clientAuthTokenIv = Convert.FromBase64String(token.Base64SharedSecretIv!);
+                var clientAuthToken = AesCbc.Decrypt(clientAuthTokenCipher, ref exchangeSecret, clientAuthTokenIv);
+                Assert.That(clientAuthToken, Is.Not.Null.And.Not.Empty);
+
+                // SEB:TODO test that token works
             }
         }
     }
