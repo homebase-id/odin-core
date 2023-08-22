@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using MediatR;
+using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Identity;
 using Odin.Core.Services.Authorization.Acl;
@@ -12,9 +13,11 @@ using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.CircleMembership;
 using Odin.Core.Services.Configuration;
 using Odin.Core.Services.Contacts.Circle.Membership;
 using Odin.Core.Storage;
+using Odin.Core.Time;
 using Odin.Core.Util;
 
 namespace Odin.Core.Services.Authorization.YouAuth
@@ -25,6 +28,7 @@ namespace Odin.Core.Services.Authorization.YouAuth
         private readonly ExchangeGrantService _exchangeGrantService;
         private readonly IcrKeyService _icrKeyService;
         private readonly CircleNetworkService _circleNetworkService;
+        private readonly CircleMembershipService _circleMembershipService;
 
         private readonly GuidId _appRegistrationDataType = GuidId.FromString("__youauth_domain_reg");
         private readonly ThreeKeyValueStorage _registrationValueStorage;
@@ -39,7 +43,7 @@ namespace Odin.Core.Services.Authorization.YouAuth
 
         public YouAuthDomainRegistrationService(OdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage,
             ExchangeGrantService exchangeGrantService, OdinConfiguration config, TenantContext tenantContext, IMediator mediator, IcrKeyService icrKeyService,
-            CircleNetworkService circleNetworkService)
+            CircleNetworkService circleNetworkService, CircleMembershipService circleMembershipService)
         {
             _contextAccessor = contextAccessor;
             _exchangeGrantService = exchangeGrantService;
@@ -47,6 +51,7 @@ namespace Odin.Core.Services.Authorization.YouAuth
             _mediator = mediator;
             _icrKeyService = icrKeyService;
             _circleNetworkService = circleNetworkService;
+            _circleMembershipService = circleMembershipService;
 
             _registrationValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
             _youAuthDomainClientValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
@@ -63,7 +68,7 @@ namespace Odin.Core.Services.Authorization.YouAuth
             Guard.Argument(request.Name, nameof(request.Name)).NotNull().NotEmpty();
             Guard.Argument(request.Domain, nameof(request.Domain)).Require(!string.IsNullOrEmpty(request.Domain));
 
-            AssertValidPermissionSet(request.PermissionSet);
+            // AssertValidPermissionSet(request.PermissionSet);
 
             if (!string.IsNullOrEmpty(request.CorsHostName))
             {
@@ -77,14 +82,17 @@ namespace Odin.Core.Services.Authorization.YouAuth
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
             var keyStoreKey = ByteArrayUtil.GetRndByteArray(16).ToSensitiveByteArray();
-            var exchangeGrant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, request.PermissionSet!, request.Drives, masterKey);
+            var grants = await _circleMembershipService.CreateCircleGrantList(request.CircleIds ?? new List<GuidId>(), keyStoreKey);
 
             var reg = new YouAuthDomainRegistration()
             {
                 Domain = new AsciiDomainName(request.Domain),
+                Created = UnixTimeUtc.Now().milliseconds,
+                Modified = UnixTimeUtc.Now().milliseconds,
                 Name = request.Name,
-                Grant = exchangeGrant,
                 CorsHostName = request.CorsHostName,
+                MasterKeyEncryptedKeyStoreKey = new SymmetricKeyEncryptedAes(ref masterKey, ref keyStoreKey),
+                CircleGrants = grants
             };
 
             _registrationValueStorage.Upsert(GetDomainKey(reg.Domain), GuidId.Empty, _appRegistrationDataType, reg);
@@ -100,7 +108,7 @@ namespace Odin.Core.Services.Authorization.YouAuth
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-            AssertValidPermissionSet(request.PermissionSet);
+            // AssertValidPermissionSet(request.PermissionSet);
 
             var reg = await this.GetDomainRegistrationInternal(request.Domain);
             if (null == reg)
@@ -110,8 +118,8 @@ namespace Odin.Core.Services.Authorization.YouAuth
 
             //TODO: Should we regen the key store key?  
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-            var keyStoreKey = reg.Grant.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
-            reg.Grant = await _exchangeGrantService.CreateExchangeGrant(keyStoreKey, request.PermissionSet!, request.Drives, masterKey);
+            var keyStoreKey = reg.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
+            reg.CircleGrants = await _circleMembershipService.CreateCircleGrantList(request.CircleIds ?? new List<GuidId>(), keyStoreKey);
 
             _registrationValueStorage.Upsert(GetDomainKey(request.Domain), GuidId.Empty, _appRegistrationDataType, reg);
 
@@ -141,7 +149,8 @@ namespace Odin.Core.Services.Authorization.YouAuth
             }
 
             var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
-            var (accessRegistration, cat) = await _exchangeGrantService.CreateClientAccessToken(reg!.Grant, masterKey, ClientTokenType.Other);
+            var keyStoreKey = reg!.MasterKeyEncryptedKeyStoreKey.DecryptKeyClone(ref masterKey);
+            var (accessRegistration, cat) = await _exchangeGrantService.CreateClientAccessToken(keyStoreKey, ClientTokenType.TempUnknown);
 
             var youAuthDomainClient = new YouAuthDomainClient(domain, friendlyName, accessRegistration);
             this.SaveClient(youAuthDomainClient);
@@ -218,19 +227,19 @@ namespace Odin.Core.Services.Authorization.YouAuth
             var appClient = _youAuthDomainClientValueStorage.Get<YouAuthDomainClient>(authToken.Id);
             if (null == appClient)
             {
-                return (false, null, null)!;
+                return (false, null, null);
             }
 
             var reg = await this.GetDomainRegistrationInternal(appClient.Domain);
 
-            if (null == reg || null == reg.Grant)
+            if (null == reg)
             {
-                return (false, null, null)!;
+                return (false, null, null);
             }
 
-            if (appClient.AccessRegistration.IsRevoked || reg.Grant.IsRevoked)
+            if (appClient.AccessRegistration.IsRevoked || reg.IsRevoked)
             {
-                return (false, null, null)!;
+                return (false, null, null);
             }
 
             return (true, appClient.AccessRegistration, reg);
@@ -242,7 +251,7 @@ namespace Odin.Core.Services.Authorization.YouAuth
             if (null != domainReg)
             {
                 //TODO: do we do anything with storage DEK here?
-                domainReg.Grant.IsRevoked = true;
+                domainReg.IsRevoked = true;
             }
 
             //TODO: revoke all clients? or is the one flag enough?
@@ -257,7 +266,7 @@ namespace Odin.Core.Services.Authorization.YouAuth
             if (null != domainReg)
             {
                 //TODO: do we do anything with storage DEK here?
-                domainReg.Grant.IsRevoked = false;
+                domainReg.IsRevoked = false;
             }
 
             _registrationValueStorage.Upsert(GetDomainKey(domain), GuidId.Empty, _appRegistrationDataType, domainReg);
@@ -418,7 +427,7 @@ namespace Odin.Core.Services.Authorization.YouAuth
 
         private void AssertValidPermissionSet(PermissionSet permissionSet)
         {
-            if (permissionSet?.Keys?.Any(k => !PermissionKeyAllowance.IsValidYouAuthDomainPermission(k)) ?? false)
+            if (permissionSet.Keys?.Any(k => !PermissionKeyAllowance.IsValidYouAuthDomainPermission(k)) ?? false)
             {
                 throw new OdinClientException("Invalid Permission key specified");
             }
@@ -446,18 +455,11 @@ namespace Odin.Core.Services.Authorization.YouAuth
                 permissionKeys.Add(PermissionKeys.ReadWhoIFollow);
             }
 
-            var grantDictionary = new Dictionary<Guid, ExchangeGrant>
-            {
-                {
-                    ByteArrayUtil.ReduceSHA256Hash("youauth_domain_exchange_grant"),
-                    domainRegistration.Grant
-                }
-            };
+            var (grants, enabledCircles) = _circleMembershipService.MapCircleGrantsToExchangeGrants(domainRegistration.CircleGrants.Values.ToList());
 
-            //create permission context with anonymous drives only
             var permissionContext = await _exchangeGrantService.CreatePermissionContext(
                 authToken: authToken,
-                grants: grantDictionary,
+                grants: grants,
                 accessReg: accessReg,
                 additionalPermissionKeys: permissionKeys,
                 includeAnonymousDrives: true);
@@ -468,6 +470,7 @@ namespace Odin.Core.Services.Authorization.YouAuth
                     odinId: new OdinId(domainRegistration.Domain.DomainName),
                     masterKey: null,
                     securityLevel: SecurityGroupType.Authenticated,
+                    circleIds: enabledCircles,
                     youAuthContext: new OdinYouAuthContext()
                     {
                         CorsHostName = domainRegistration.CorsHostName,

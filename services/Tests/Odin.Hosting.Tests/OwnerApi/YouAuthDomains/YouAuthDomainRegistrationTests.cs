@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -88,8 +89,10 @@ namespace Odin.Hosting.Tests.OwnerApi.YouAuthDomains
             Assert.IsTrue(updateResponse.StatusCode == HttpStatusCode.BadRequest, $"Status code should be bad request but was ${updateResponse.StatusCode}");
 
             var domainRegistrationResponse = await client.GetDomainRegistration(domain);
+
+            var redactedDomainReg = domainRegistrationResponse.Content;
             //be sure the key was not added
-            Assert.IsFalse(domainRegistrationResponse.Content.Grant.PermissionSet?.Keys?.Contains(PermissionKeys.UseTransit) ?? false);
+            Assert.IsFalse(redactedDomainReg.CircleGrants.Any(cg => cg.PermissionSet?.Keys?.Contains(PermissionKeys.UseTransit) ?? false));
         }
     }
 }

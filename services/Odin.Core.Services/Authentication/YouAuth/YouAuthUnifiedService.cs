@@ -101,8 +101,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
                 Domain = domain.DomainName,
                 Name = domain.DomainName,
                 CorsHostName = clientId,
-                Drives = default,
-                PermissionSet = default
+                CircleIds = default //TODO: should we set a circle here?
             };
 
             (token, _) = await _domainRegistrationService.RegisterClient(domain, domain.DomainName, request);

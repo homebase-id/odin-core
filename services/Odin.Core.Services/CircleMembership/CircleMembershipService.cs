@@ -26,7 +26,8 @@ public class CircleMembershipService
     private readonly CircleDefinitionService _circleDefinitionService;
     private readonly ExchangeGrantService _exchangeGrantService;
 
-    public CircleMembershipService(TenantSystemStorage tenantSystemStorage, CircleDefinitionService circleDefinitionService, ExchangeGrantService exchangeGrantService, OdinContextAccessor contextAccessor)
+    public CircleMembershipService(TenantSystemStorage tenantSystemStorage, CircleDefinitionService circleDefinitionService,
+        ExchangeGrantService exchangeGrantService, OdinContextAccessor contextAccessor)
     {
         _tenantSystemStorage = tenantSystemStorage;
         _circleDefinitionService = circleDefinitionService;
@@ -117,7 +118,38 @@ public class CircleMembershipService
         return circleGrants;
     }
 
-    
+    public (Dictionary<Guid, ExchangeGrant> exchangeGrants, List<GuidId> enabledCircles) MapCircleGrantsToExchangeGrants(List<CircleGrant> circleGrants)
+    {
+        //TODO: this code needs to be refactored to avoid all the mapping
+
+        //Map CircleGrants and AppCircleGrants to Exchange grants
+        // Note: remember that all connected users are added to a system
+        // circle; this circle has grants to all drives marked allowAnonymous == true
+        
+        var grants = new Dictionary<Guid, ExchangeGrant>();
+        var enabledCircles = new List<GuidId>();
+        foreach (var cg in circleGrants)
+        {
+            if (this.IsEnabled(cg.CircleId))
+            {
+                enabledCircles.Add(cg.CircleId);
+                grants.Add(cg.CircleId, new ExchangeGrant()
+                {
+                    Created = 0,
+                    Modified = 0,
+                    IsRevoked = false, //TODO
+
+                    KeyStoreKeyEncryptedDriveGrants = cg.KeyStoreKeyEncryptedDriveGrants,
+                    KeyStoreKeyEncryptedIcrKey = null, // not allowed to use the icr CAT because you're not sending over
+                    MasterKeyEncryptedKeyStoreKey = null, //not required since this is not being created for the owner
+                    PermissionSet = cg.PermissionSet
+                });
+            }
+        }
+
+        return (grants, enabledCircles);
+    }
+
     // Definitions
 
     /// <summary>
@@ -198,5 +230,4 @@ public class CircleMembershipService
     {
         return _circleDefinitionService.IsEnabled(circleId);
     }
-    
 }

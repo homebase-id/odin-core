@@ -15,15 +15,11 @@ namespace Odin.Core.Services.Authorization.YouAuth
         /// The host name used for CORS to allow the app to access the identity from a browser
         /// </summary>
         public string CorsHostName { get; set; }
-
+        
         /// <summary>
-        /// Permissions to be granted to this domain
+        /// The circles to be granted to the domain
         /// </summary>
-        public PermissionSet PermissionSet { get; set; }
-
-        /// <summary>
-        /// The list of drives of which this domain should receive access
-        /// </summary>
-        public List<DriveGrantRequest> Drives { get; set; }
+        public List<GuidId> CircleIds { get; set; }
+        
     }
 }

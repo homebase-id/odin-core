@@ -1,5 +1,9 @@
-﻿using Odin.Core.Util;
-using Odin.Core.Services.Authorization.ExchangeGrants;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using Odin.Core.Cryptography.Data;
+using Odin.Core.Util;
+using Odin.Core.Services.Contacts.Circle.Membership;
 
 namespace Odin.Core.Services.Authorization.YouAuth
 {
@@ -8,14 +12,22 @@ namespace Odin.Core.Services.Authorization.YouAuth
         public AsciiDomainName Domain { get; set; }
 
         public string Name { get; set; }
+        
+        public bool IsRevoked { get; set; }
 
+        public Int64 Created { get; set; }
+
+        public Int64 Modified { get; set; }
+        
+        public SymmetricKeyEncryptedAes MasterKeyEncryptedKeyStoreKey { get; set; }
+        
         /// <summary>
-        /// Permissions and drives granted to this app and only this app as used by the Identity Owner
+        /// The permissions granted from a given circle.  The key is the circle Id.
         /// </summary>
-        public ExchangeGrant Grant { get; set; }
+        public Dictionary<Guid, CircleGrant> CircleGrants { get; set; }
 
         public string CorsHostName { get; set; }
-        
+
         public ConsentRequirement DeviceRegistrationConsentRequirement { get; set; }
 
         public RedactedYouAuthDomainRegistration Redacted()
@@ -25,11 +37,11 @@ namespace Odin.Core.Services.Authorization.YouAuth
             {
                 Domain = this.Domain.DomainName,
                 Name = this.Name,
-                IsRevoked = this.Grant.IsRevoked,
-                Created = this.Grant.Created,
-                Modified = this.Grant.Modified,
+                IsRevoked = this.IsRevoked,
+                Created = this.Created,
+                Modified = this.Modified,
                 CorsHostName = this.CorsHostName,
-                Grant = this.Grant.Redacted()
+                CircleGrants = this.CircleGrants.Values.Select(cg => cg.Redacted()).ToList(),
             };
         }
     }

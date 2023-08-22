@@ -36,10 +36,9 @@ namespace Odin.Core.Services.Contacts.Circle.Requests
         /// Text to be sent with the invite explaining why you should connect with me.
         /// </summary>
         public string Message { get; set; }
-
-
+        
         /// <summary>
-        /// The circles 
+        /// The circles to be granted to the recipient
         /// </summary>
         public List<GuidId> CircleIds { get; set; }
     }

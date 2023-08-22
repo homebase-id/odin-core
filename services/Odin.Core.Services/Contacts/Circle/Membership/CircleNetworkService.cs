@@ -505,7 +505,7 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
             this.SaveIcr(icr);
         }
 
-        
+
         public async Task<Dictionary<Guid, Dictionary<Guid, AppCircleGrant>>> CreateAppCircleGrantList(List<GuidId> circleIds,
             SensitiveByteArray keyStoreKey)
         {
@@ -535,8 +535,8 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
 
             return appGrants;
         }
-        
-        
+
+
         /// <summary>
         /// Updates a <see cref="CircleDefinition"/> and applies permission and drive changes to all existing circle members
         /// </summary>
@@ -735,7 +735,6 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
             await this.UpdateCircleDefinition(def);
         }
 
-        
 
         private async Task<(PermissionContext permissionContext, List<GuidId> circleIds)> CreatePermissionContextInternal(
             IdentityConnectionRegistration icr,
@@ -748,27 +747,29 @@ namespace Odin.Core.Services.Contacts.Circle.Membership
             //Map CircleGrants and AppCircleGrants to Exchange grants
             // Note: remember that all connected users are added to a system
             // circle; this circle has grants to all drives marked allowAnonymous == true
-            var grants = new Dictionary<Guid, ExchangeGrant>();
-            var enabledCircles = new List<GuidId>();
-            foreach (var kvp in icr.AccessGrant.CircleGrants)
-            {
-                var cg = kvp.Value;
-                if (_circleMembershipService.IsEnabled(cg.CircleId))
-                {
-                    enabledCircles.Add(cg.CircleId);
-                    grants.Add(kvp.Key, new ExchangeGrant()
-                    {
-                        Created = 0,
-                        Modified = 0,
-                        IsRevoked = false, //TODO
+            // var grants = new Dictionary<Guid, ExchangeGrant>();
+            // var enabledCircles = new List<GuidId>();
+            // foreach (var kvp in icr.AccessGrant.CircleGrants)
+            // {
+            //     var cg = kvp.Value;
+            //     if (_circleMembershipService.IsEnabled(cg.CircleId))
+            //     {
+            //         enabledCircles.Add(cg.CircleId);
+            //         grants.Add(kvp.Key, new ExchangeGrant()
+            //         {
+            //             Created = 0,
+            //             Modified = 0,
+            //             IsRevoked = false, //TODO
+            //
+            //             KeyStoreKeyEncryptedDriveGrants = cg.KeyStoreKeyEncryptedDriveGrants,
+            //             KeyStoreKeyEncryptedIcrKey = null, // not allowed to use the icr CAT because you're not sending over
+            //             MasterKeyEncryptedKeyStoreKey = null, //not required since this is not being created for the owner
+            //             PermissionSet = cg.PermissionSet
+            //         });
+            //     }
+            // }
 
-                        KeyStoreKeyEncryptedDriveGrants = cg.KeyStoreKeyEncryptedDriveGrants,
-                        KeyStoreKeyEncryptedIcrKey = null, // not allowed to use the icr CAT because you're not sending over
-                        MasterKeyEncryptedKeyStoreKey = null, //not required since this is not being created for the owner
-                        PermissionSet = cg.PermissionSet
-                    });
-                }
-            }
+            var (grants, enabledCircles) = _circleMembershipService.MapCircleGrantsToExchangeGrants(icr.AccessGrant.CircleGrants.Values.ToList());
 
             if (applyAppCircleGrants)
             {

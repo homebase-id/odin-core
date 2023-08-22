@@ -45,8 +45,7 @@ public class YouAuthDomainApiClient
             {
                 Name = $"Test_{domain.DomainName}",
                 Domain = domain.DomainName,
-                PermissionSet = permissions.PermissionSet,
-                Drives = permissions.Drives?.ToList(),
+                CircleIds = default
             };
 
             var response = await svc.RegisterDomain(request);
@@ -75,8 +74,7 @@ public class YouAuthDomainApiClient
             return await svc.UpdatePermissions(new UpdateYouAuthDomainPermissionsRequest()
             {
                 Domain = domain,
-                Drives = grant.Drives,
-                PermissionSet = grant.PermissionSet
+                CircleIds = default
             });
         }
     }

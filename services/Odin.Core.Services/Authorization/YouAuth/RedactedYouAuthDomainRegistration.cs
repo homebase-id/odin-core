@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using Odin.Core.Services.Authorization.ExchangeGrants;
+using Odin.Core.Services.Contacts.Circle.Membership;
 
 namespace Odin.Core.Services.Authorization.YouAuth
 {
@@ -17,7 +19,6 @@ namespace Odin.Core.Services.Authorization.YouAuth
         
         public string CorsHostName { get; set; }
         
-        public RedactedExchangeGrant Grant { get; set; }
-
+        public List<RedactedCircleGrant> CircleGrants { get; set; }
     }
 }

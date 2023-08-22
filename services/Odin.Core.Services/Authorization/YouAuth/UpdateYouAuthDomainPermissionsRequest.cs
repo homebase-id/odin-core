@@ -10,13 +10,8 @@ public class UpdateYouAuthDomainPermissionsRequest
     public AsciiDomainName Domain { get; set; }
 
     /// <summary>
-    /// Permissions to be granted to this app
+    /// The circles to be granted to the domain
     /// </summary>
-    public PermissionSet PermissionSet { get; set; }
-
-    /// <summary>
-    /// The list of drives of which this app should receive access
-    /// </summary>
-    public IEnumerable<DriveGrantRequest> Drives { get; set; }
+    public List<GuidId> CircleIds { get; set; }
 
 }
