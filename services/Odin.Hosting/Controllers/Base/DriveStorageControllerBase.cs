@@ -1,9 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Net.Http.Headers;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Apps;
 using Odin.Core.Services.Base;
@@ -25,7 +27,7 @@ namespace Odin.Hosting.Controllers.Base
 
         protected DriveStorageControllerBase(
             ILogger logger,
-            FileSystemResolver fileSystemResolver, 
+            FileSystemResolver fileSystemResolver,
             ITransitService transitService
             )
         {
@@ -40,7 +42,7 @@ namespace Odin.Hosting.Controllers.Base
         protected async Task<IActionResult> GetFileHeader(ExternalFileIdentifier request)
         {
             _logger.LogInformation("(TODO:deleteme) entering GetFileHeader");
-            
+
             _logger.LogInformation("(TODO:deleteme) MapToInternalFile {fileId}", request.FileId);
             var result = await this.GetFileSystemResolver().ResolveFileSystem().Storage.GetSharedSecretEncryptedHeader(MapToInternalFile(request));
 
@@ -50,7 +52,7 @@ namespace Odin.Hosting.Controllers.Base
             }
 
             AddCacheHeader();
-            
+
             _logger.LogInformation("(TODO:deleteme) exiting GetFileHeader");
             return new JsonResult(result);
         }
@@ -61,7 +63,7 @@ namespace Odin.Hosting.Controllers.Base
         protected async Task<IActionResult> GetPayloadStream(GetPayloadRequest request)
         {
             _logger.LogInformation("(TODO:deleteme) entering GetPayloadStream");
-            
+
             _logger.LogInformation("(TODO:deleteme) MapToInternalFile {fileId}", request.File.FileId);
             var file = MapToInternalFile(request.File);
 
@@ -82,12 +84,18 @@ namespace Odin.Hosting.Controllers.Base
             HttpContext.Response.Headers.Add(HttpHeaderConstants.PayloadEncrypted, header.FileMetadata.PayloadIsEncrypted.ToString());
             HttpContext.Response.Headers.Add(HttpHeaderConstants.DecryptedContentType, header.FileMetadata.ContentType);
             HttpContext.Response.Headers.Add(HttpHeaderConstants.SharedSecretEncryptedHeader64, encryptedKeyHeader64);
+            if (null != request.Chunk)
+            {
+                var to = request.Chunk.Start + request.Chunk.Length - 1;
+                HttpContext.Response.Headers.Add("Content-Range", new ContentRangeHeaderValue(request.Chunk.Start, Math.Min(to, header.FileMetadata.PayloadSize), header.FileMetadata.PayloadSize).ToString());
+            }
+
             AddCacheHeader();
-            
-            var result = new FileStreamResult(payload, header.FileMetadata.PayloadIsEncrypted 
-                ? "application/octet-stream" 
-                : header.FileMetadata.ContentType); 
-            
+
+            var result = new FileStreamResult(payload, header.FileMetadata.PayloadIsEncrypted
+                ? "application/octet-stream"
+                : header.FileMetadata.ContentType);
+
             _logger.LogInformation("(TODO:deleteme) exiting GetPayloadStream");
             return result;
         }
@@ -98,13 +106,13 @@ namespace Odin.Hosting.Controllers.Base
         protected async Task<IActionResult> GetThumbnail(GetThumbnailRequest request)
         {
             _logger.LogInformation("(TODO:deleteme) entering GetThumbnail");
-            
+
             _logger.LogInformation("(TODO:deleteme) MapToInternalFile {fileId}", request.File.FileId);
             var file = MapToInternalFile(request.File);
 
             _logger.LogInformation("(TODO:deleteme) ResolveFileSystem");
             var fs = this.GetFileSystemResolver().ResolveFileSystem();
-            
+
             _logger.LogInformation("(TODO:deleteme) GetThumbnailPayloadStream");
             var (thumbPayload, thumbHeader) =
                 await fs.Storage.GetThumbnailPayloadStream(file, request.Width, request.Height,
@@ -132,7 +140,7 @@ namespace Odin.Hosting.Controllers.Base
 
             _logger.LogInformation("(TODO:deleteme) AddCacheHeader");
             AddCacheHeader();
-            
+
             _logger.LogInformation("(TODO:deleteme) FileStreamResult");
             var result = new FileStreamResult(thumbPayload, header.FileMetadata.PayloadIsEncrypted
                     ? "application/octet-stream"
