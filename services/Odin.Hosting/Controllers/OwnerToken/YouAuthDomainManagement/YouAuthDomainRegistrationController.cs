@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Fluff;
-using Odin.Core.Serialization;
 using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.YouAuth;
 using Odin.Core.Util;
@@ -58,17 +55,21 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuthDomainManagement
             var reg = await _registrationService.RegisterDomain(request);
             return reg;
         }
-
-        /// <summary>
-        /// Updates the app's permissions
-        /// </summary>
-        /// <returns></returns>
-        [HttpPost("register/updatepermissions")]
-        public async Task<IActionResult> UpdatePermissions([FromBody] UpdateYouAuthDomainPermissionsRequest request)
+        
+        [HttpPost("circles/add")]
+        public async Task<bool> GrantCircle([FromBody] GrantYouAuthDomainCircleRequest request)
         {
-            await _registrationService.UpdatePermissions(request);
-            return Ok();
+            await _registrationService.GrantCircle(request.CircleId, new AsciiDomainName(request.Domain));
+            return true;
         }
+
+        [HttpPost("circles/revoke")]
+        public async Task<bool> RevokeCircle([FromBody] RevokeYouAuthDomainCircleRequest request)
+        {
+            await _registrationService.RevokeCircleAccess(request.CircleId, new AsciiDomainName(request.Domain));
+            return true;
+        }
+
 
         [HttpPost("revoke")]
         public async Task<IActionResult> RevokeDomain([FromBody] GetYouAuthDomainRequest request)
@@ -83,7 +84,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuthDomainManagement
             await _registrationService.RemoveDomainRevocation(new AsciiDomainName(request.Domain));
             return Ok();
         }
-
 
         [HttpPost("deleteDomain")]
         public async Task<IActionResult> DeleteDomain([FromBody] GetYouAuthDomainRequest request)

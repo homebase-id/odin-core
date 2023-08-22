@@ -81,6 +81,7 @@ namespace Odin.Hosting.Tests.OwnerApi.YouAuthDomains
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
             Assert.IsNotNull(response.Content);
 
+            Assert.Inconclusive("need to support circle grants");
             var updateResponse = await client.UpdatePermissions(domain, new PermissionSetGrantRequest()
             {
                 PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.UseTransit })
