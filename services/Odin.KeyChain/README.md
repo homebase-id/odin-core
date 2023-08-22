@@ -26,6 +26,9 @@
         (e.g. does it prepend "PublicKeyChain-" to the signature hash? Or is it generic and we rely on Stef doing that 
         (security issue)
            public static string SignPreviousHashForPublicKeyChain(string previousHashBase64)
+        We should think about if it's possible to make sure that signing stuff can't happen on the wrong stuff. For example,
+        for the keychain I prepend "PublicKeyChain-" to any signature of a hash. This ensures that you can't trick a signature
+        for a generic document. 
         
 @Todd/@Stef - Create something we can use for a "red circle" if not registered?
 @Todd - Create a red circle if the ECC signature key is rotated (punt for now?)
