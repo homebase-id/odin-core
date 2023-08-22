@@ -444,6 +444,8 @@ namespace Odin.Core.Services.Authorization.YouAuth
                 AppUtil.AssertValidCorsHeader(domainRegistration.CorsHostName);
             }
 
+            //TODO: do we want allow youauthdomains to have these permissions?
+            
             List<int> permissionKeys = new List<int>();
             if (_tenantContext.Settings.AuthenticatedIdentitiesCanViewConnections)
             {

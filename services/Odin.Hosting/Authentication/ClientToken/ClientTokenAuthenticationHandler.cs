@@ -19,6 +19,7 @@ using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
+using Odin.Core.Services.Authorization.YouAuth;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Drives.Management;
@@ -103,7 +104,8 @@ namespace Odin.Hosting.Authentication.ClientToken
             }
 
             odinContext.SetAuthContext(ClientTokenConstants.YouAuthScheme);
-            var youAuthRegService = this.Context.RequestServices.GetRequiredService<IYouAuthRegistrationServiceClassic>();
+            // var youAuthRegService = this.Context.RequestServices.GetRequiredService<IYouAuthRegistrationServiceClassic>();
+            var youAuthRegService = this.Context.RequestServices.GetRequiredService<YouAuthDomainRegistrationService>();
             var ctx = await youAuthRegService.GetDotYouContext(clientAuthToken);
 
             if (ctx == null)
