@@ -2,12 +2,21 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing.Constraints;
+using Microsoft.Extensions.Logging;
+using Odin.Core;
+using Odin.Core.Cryptography;
+using Odin.Core.Cryptography.Crypto;
+using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions.Client;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Authentication.YouAuth;
@@ -22,13 +31,21 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
     [Route(OwnerApiPathConstants.YouAuthV1)]
     public class YouAuthUnifiedController : Controller
     {
+        private readonly ILogger<YouAuthUnifiedController> _logger;
         private readonly IYouAuthUnifiedService _youAuthService;
+        private readonly YouAuthSharedSecrets _sharedSecrets;
         private readonly string _currentTenant;
 
-        public YouAuthUnifiedController(ITenantProvider tenantProvider, IYouAuthUnifiedService youAuthService)
+        public YouAuthUnifiedController(
+            ILogger<YouAuthUnifiedController> logger,
+            ITenantProvider tenantProvider,
+            IYouAuthUnifiedService youAuthService,
+            YouAuthSharedSecrets sharedSecrets)
         {
+            _logger = logger;
             _currentTenant = tenantProvider.GetCurrentTenant()!.Name;
             _youAuthService = youAuthService;
+            _sharedSecrets = sharedSecrets;
         }
 
         //
@@ -135,15 +152,30 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 authorize.ClientType,
                 authorize.ClientId,
                 authorize.ClientInfo,
-                authorize.PermissionRequest,
-                authorize.CodeChallenge);
+                authorize.PermissionRequest);
 
             //
-            // [080] Return authorization code to client
+            // [075] Create ECC key pair, random salt and shared secret.
+            //
+
+            var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
+            var keyPair = new EccFullKeyData(privateKey, 1);
+            var salt = ByteArrayUtil.GetRndByteArray(16);
+
+            var remotePublicKey = EccPublicKeyData.FromDerEncodedPublicKey(Convert.FromBase64String(authorize.PublicKey));
+            var sharedSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKey, salt);
+            var sharedSecretDigest = SHA256.Create().ComputeHash(sharedSecret.GetKey()).ToBase64();
+
+            _sharedSecrets.SetSecret(sharedSecretDigest, sharedSecret);
+
+            //
+            // [080] Return authorization code, public key and salt to client
             //
             var queryString = QueryString.Create(new Dictionary<string, string?>()
             {
                 { YouAuthDefaults.Code, code },
+                { YouAuthDefaults.PublicKey, keyPair.publicDerBase64() },
+                { YouAuthDefaults.Salt, Convert.ToBase64String(salt) },
                 { YouAuthDefaults.State, authorize.State },
             });
 
@@ -213,36 +245,49 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             tokenRequest.Validate();
 
             //
+            // [105] Look up ECC keypair from secret digest
+            //
+            if (!_sharedSecrets.TryGetSecret(tokenRequest.SecretDigest, out SensitiveByteArray exchangeSecret))
+            {
+                throw new BadRequestException($"Invalid digest {tokenRequest.SecretDigest}");
+            }
+
+            //
             // [110] Exchange auth code for access token
             // [130] Create token
             //
-            var accessToken = await _youAuthService.ExchangeCodeForToken(tokenRequest.Code, tokenRequest.CodeVerifier);
+            var accessToken = await _youAuthService.ExchangeCodeForToken(tokenRequest.Code);
 
             //
-            // [120] Return 403 if code lookup failed
+            // [120] Return 404 if code lookup failed
             //
             if (accessToken == null)
             {
-                return Unauthorized();
+                return NotFound();
             }
-            
-            // SEB:TODO ECC encrypt response
 
+            //
             //
             // [140] Return client access token to client
             //
 
-            var result = new YouAuthTokenResponse()
+            var sharedSecretPlain = accessToken.SharedSecret.GetKey();
+            var (sharedSecretIv, sharedSecretCipher) = AesCbc.Encrypt(sharedSecretPlain, ref exchangeSecret);
+            var result = new YouAuthTokenResponse
             {
-                Base64SharedSecret =
-                    Convert.ToBase64String(accessToken.SharedSecret.GetKey())
+                Base64SharedSecretCipher = Convert.ToBase64String(sharedSecretCipher),
+                Base64SharedSecretIv = Convert.ToBase64String(sharedSecretIv),
             };
+
             if (tokenRequest.TokenDeliveryOption == TokenDeliveryOption.json)
             {
-                result.Base64ClientAuthToken =
-                    Convert.ToBase64String(accessToken.ToAuthenticationToken().ToPortableBytes());
+                var (clientAuthTokenIv, clientAuthTokenCipher) =
+                    AesCbc.Encrypt(accessToken.ToAuthenticationToken().ToPortableBytes(), ref exchangeSecret);
+
+                result.Base64ClientAuthTokenCipher = Convert.ToBase64String(clientAuthTokenCipher);
+                result.Base64ClientAuthTokenIv = Convert.ToBase64String(clientAuthTokenIv);
             }
-            else if (tokenRequest.TokenDeliveryOption == TokenDeliveryOption.cookie)
+            else // (tokenRequest.TokenDeliveryOption == TokenDeliveryOption.cookie)
             {
                 AuthenticationCookieUtil.SetCookie(
                     Response,

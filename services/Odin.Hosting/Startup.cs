@@ -18,6 +18,7 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Odin.Core.Serialization;
+using Odin.Core.Services.Authentication.YouAuth;
 using Odin.Core.Services.Background.Certificate;
 using Odin.Core.Services.Background.DefaultCron;
 using Odin.Core.Services.Base;
@@ -219,6 +220,8 @@ namespace Odin.Hosting
                 config.Mailgun.ApiKey,
                 config.Mailgun.EmailDomain,
                 config.Mailgun.DefaultFrom));
+
+            services.AddSingleton<YouAuthSharedSecrets>();
         }
 
         // ConfigureContainer is where you can register things directly

@@ -79,8 +79,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
     public async Task<string> CreateAuthorizationCode(ClientType clientType,
         string clientId,
         string clientInfo,
-        string permissionRequest,
-        string codeChallenge)
+        string permissionRequest)
     {
         _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
@@ -118,7 +117,6 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
             code,
             clientType,
             permissionRequest,
-            codeChallenge,
             token);
 
         _codesAndTokens.Set(code, ac, TimeSpan.FromMinutes(5));
@@ -128,17 +126,11 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
 
     //
 
-    public Task<ClientAccessToken?> ExchangeCodeForToken(string code, string codeVerifier)
+    public Task<ClientAccessToken?> ExchangeCodeForToken(string code)
     {
         var ac = _codesAndTokens.Get<AuthorizationCodeAndToken>(code);
 
         if (ac == null)
-        {
-            return Task.FromResult<ClientAccessToken?>(null);
-        }
-
-        var codeChallenge = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(codeVerifier)).ToBase64();
-        if (codeChallenge != ac.CodeChallenge)
         {
             return Task.FromResult<ClientAccessToken?>(null);
         }
@@ -232,20 +224,17 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         public string Code { get; }
         public ClientType ClientType { get; }
         public string PermissionRequest { get; }
-        public string CodeChallenge { get; }
 
         public ClientAccessToken PreCreatedClientAccessToken { get; }
 
         public AuthorizationCodeAndToken(string code,
             ClientType clientType,
             string permissionRequest,
-            string codeChallenge,
             ClientAccessToken clientAccessToken)
         {
             Code = code;
             ClientType = clientType;
             PermissionRequest = permissionRequest;
-            CodeChallenge = codeChallenge;
             PreCreatedClientAccessToken = clientAccessToken;
         }
     }

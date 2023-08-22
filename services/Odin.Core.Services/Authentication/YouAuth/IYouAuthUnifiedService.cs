@@ -38,8 +38,7 @@ public interface IYouAuthUnifiedService
     Task<string> CreateAuthorizationCode(ClientType clientType,
         string clientId,
         string clientInfo,
-        string permissionRequest,
-        string codeChallenge);
+        string permissionRequest);
 
-    Task<ClientAccessToken?> ExchangeCodeForToken(string code, string codeVerifier);
+    Task<ClientAccessToken?> ExchangeCodeForToken(string code);
 }

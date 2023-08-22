@@ -28,10 +28,10 @@ public sealed class YouAuthAuthorizeRequest
     [BindProperty(Name = ClientInfoName, SupportsGet = true)]
     public string ClientInfo { get; set; } = "";
     
-    public const string CodeChallengeName = "code_challenge";
-    [BindProperty(Name = CodeChallengeName, SupportsGet = true)]
-    public string CodeChallenge { get; set; } = "";
-    
+    public const string PublicKeyName = "public_key";
+    [BindProperty(Name = PublicKeyName, SupportsGet = true)]
+    public string PublicKey { get; set; } = "";
+
     public const string PermissionRequestName = "permission_request";
     [BindProperty(Name = PermissionRequestName, SupportsGet = true)]
     public string PermissionRequest { get; set; } = ""; 
@@ -53,7 +53,7 @@ public sealed class YouAuthAuthorizeRequest
         string redirectUri,
         ClientType clientType,
         string clientId,
-        string codeChallenge,
+        string publicKey,
         string permissionRequest,
         string clientInfo,
         string state)
@@ -61,7 +61,7 @@ public sealed class YouAuthAuthorizeRequest
         RedirectUri = redirectUri;
         ClientType = clientType;
         ClientId = clientId;
-        CodeChallenge = codeChallenge;
+        PublicKey = publicKey;
         PermissionRequest = permissionRequest;
         ClientInfo = clientInfo;
         State = state;
@@ -76,7 +76,7 @@ public sealed class YouAuthAuthorizeRequest
         qs[ClientIdName] = ClientId;
         qs[ClientTypeName] = ClientType.ToString();
         qs[ClientInfoName] = ClientInfo;
-        qs[CodeChallengeName] = CodeChallenge;
+        qs[PublicKeyName] = PublicKey;
         qs[RedirectUriName] = RedirectUri;
         qs[PermissionRequestName] = PermissionRequest;
         qs[StateName] = State;
@@ -99,7 +99,7 @@ public sealed class YouAuthAuthorizeRequest
             redirectUri: qs[RedirectUriName] ?? string.Empty,
             clientType: clientType,
             clientId: qs[ClientIdName] ?? string.Empty,
-            codeChallenge: qs[CodeChallengeName] ?? string.Empty,
+            publicKey: qs[PublicKeyName] ?? string.Empty,
             permissionRequest: qs[PermissionRequestName] ?? string.Empty,
             clientInfo: qs[ClientInfoName] ?? string.Empty,
             state: qs[StateName] ?? string.Empty);
@@ -117,9 +117,9 @@ public sealed class YouAuthAuthorizeRequest
         {
             throw new BadRequestException($"{ClientIdName} is required when {ClientTypeName} is {ClientType.app}");
         }
-        if (string.IsNullOrWhiteSpace(CodeChallenge))
+        if (string.IsNullOrWhiteSpace(PublicKey))
         {
-            throw new BadRequestException($"Bad or missing {CodeChallengeName}");
+            throw new BadRequestException($"Bad or missing {PublicKeyName}");
         }
         if (string.IsNullOrWhiteSpace(RedirectUri))
         {

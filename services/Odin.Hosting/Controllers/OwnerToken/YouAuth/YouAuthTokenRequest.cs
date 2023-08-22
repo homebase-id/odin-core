@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
@@ -16,15 +17,15 @@ public class YouAuthTokenRequest
     [Required(ErrorMessage = $"{CodeName} is required")]
     public string Code { get; set; } = "";
 
-    public const string CodeVerifierName = "code_verifier";
-    [JsonPropertyName(CodeVerifierName)]
-    [Required(ErrorMessage = $"{CodeVerifierName} is required")]
-    public string CodeVerifier { get; set; } = "";
-
     public const string TokenDeliveryOptionName = "token_delivery_option";
     [JsonPropertyName(TokenDeliveryOptionName)]
     [Required(ErrorMessage = $"{TokenDeliveryOptionName} is required")]
     public TokenDeliveryOption TokenDeliveryOption { get; set; } = TokenDeliveryOption.unknown;
+
+    public const string SecretDigestName = "secret_digest";
+    [JsonPropertyName(SecretDigestName)]
+    [Required(ErrorMessage = $"{SecretDigestName} is required")]
+    public string SecretDigest { get; set; } = "";
 
     //
 

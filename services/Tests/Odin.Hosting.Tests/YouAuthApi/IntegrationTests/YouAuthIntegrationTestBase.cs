@@ -227,13 +227,4 @@ public abstract class YouAuthIntegrationTestBase
 
     //
 
-    protected static (EccFullKeyData keyPair, byte[] randomSalt) CreateEccKeyPair()
-    {
-        var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
-        var keyPair = new EccFullKeyData(privateKey, 2);
-        var randomSalt = ByteArrayUtil.GetRndByteArray(16);
-        return (keyPair, randomSalt);
-    }
-
-
 }
