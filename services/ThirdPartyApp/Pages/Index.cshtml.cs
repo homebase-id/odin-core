@@ -40,7 +40,7 @@ public class IndexModel : PageModel
 
     //
 
-    public async Task OnGet()
+    public void OnGet()
     {
         if (LoggedInIdentity == "")
         {

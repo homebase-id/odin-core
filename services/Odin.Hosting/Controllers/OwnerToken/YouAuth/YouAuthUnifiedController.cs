@@ -156,6 +156,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
 
             //
             // [075] Create ECC key pair, random salt and shared secret.
+            // SEB:TODO consider using one of identity's ECC keys instead of creating a new one
             //
 
             var privateKey = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
@@ -266,7 +267,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 return NotFound();
             }
 
-            //
             //
             // [140] Return client access token to client
             //

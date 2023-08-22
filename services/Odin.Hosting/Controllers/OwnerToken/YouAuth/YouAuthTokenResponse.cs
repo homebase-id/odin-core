@@ -6,11 +6,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth;
 
 public class YouAuthTokenResponse
 {
-    [Obsolete("SEB:TODO delete me")]
-    public string? Base64SharedSecret { get; set; }
-    [Obsolete("SEB:TODO delete me")]
-    public string? Base64ClientAuthToken { get; set; }
-
     public string? Base64SharedSecretCipher { get; set; }
     public string? Base64SharedSecretIv { get; set; }
 
