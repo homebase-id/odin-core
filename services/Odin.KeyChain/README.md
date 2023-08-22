@@ -1,7 +1,9 @@
 # KEY-CHAIN TODO
 
-@Todd - Create a space for the service on the same server as the Mail API ("keychain.odin.earth") - @seb reverse proxy?
-@Todd - Give alias to @ms
+@Seb - dockerize it
+@ms - identity service secrets (there are none AFAIR...)
+@Todd - Create a space for the service on the same server as the Mail API (e.g. "keychain.odin.earth") - @seb reverse proxy?
+@Todd - Give Hetzner DNS alias to @ms
 @Ms   - Setup CNAME or A in Google for "keychain.odin.earth"
 @Todd - create the service that triggers registration, see code prepped for you.
 @Todd/@Stef - Create something we can use for a "red circle" if not registered.

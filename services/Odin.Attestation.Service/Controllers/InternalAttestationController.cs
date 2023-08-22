@@ -40,11 +40,11 @@ namespace OdinsAttestation.Controllers
         /// </summary>
         /// <param name="identity"></param>
         /// <returns></returns>
-        private IActionResult DeleteRequest(string nonceBase64)
+        private IActionResult DeleteRequest(string attestationIdBase64)
         {
             try
             {
-                var n = _db.tblAttestationRequest.Delete(nonceBase64);
+                var n = _db.tblAttestationRequest.Delete(attestationIdBase64);
 
                 if (n < 1)
                     return BadRequest($"No such record found");
@@ -66,9 +66,9 @@ namespace OdinsAttestation.Controllers
         /// <param name="identity"></param>
         /// <returns></returns>
         [HttpGet("DeleteRequest")]
-        public IActionResult GetDeleteRequest(string nonceBase64)
+        public IActionResult GetDeleteRequest(string attestationIdBase64)
         {
-            return DeleteRequest(nonceBase64);
+            return DeleteRequest(attestationIdBase64);
         }
 
 
@@ -221,19 +221,19 @@ namespace OdinsAttestation.Controllers
         /// <summary>
         /// Adminstrative staff use only.
         /// After carefully reviewing the data in an attestation request, the admininstrative staff calls this function
-        /// if approved. This function will generate the attestations requested, return the to the requestor, and store
+        /// if it is approved. This function will generate the attestations requested, return the to the requestor, and store
         /// records in the block chain database.
         /// Considering if identity should instead be the nonce of the request.
         /// </summary>
-        /// <param name="nonceBase64"></param>
+        /// <param name="attestationIdBase64"></param>
         /// <returns></returns>
         [HttpGet("ApproveRequest")]
-        public IActionResult GetApproveRequest(string nonceBase64)
+        public IActionResult GetApproveRequest(string attestationIdBase64)
         {
             //
             // First get the request from the database
             // 
-            var r = _db.tblAttestationRequest.Get(nonceBase64);
+            var r = _db.tblAttestationRequest.Get(attestationIdBase64);
 
             if (r == null)
                 return BadRequest("No such request present");
@@ -263,7 +263,6 @@ namespace OdinsAttestation.Controllers
             // This is the JSON array of JSON
             //
             var jsonList = attestationList.Select(item => item.GetCompactSortedJson()).ToList();
-
             var jsonArray = JsonSerializer.Serialize(jsonList);
 
             //
@@ -276,29 +275,23 @@ namespace OdinsAttestation.Controllers
             if (valueObject == null)
                 throw new Exception("attestationId null in additionalInfo");
 
-            string? attestationIdBase64 = valueObject.ToString();
+            string? attestationIdCopyBase64 = valueObject.ToString();
 
-            if (attestationIdBase64 == null)
+            if (attestationIdCopyBase64 == null)
                 throw new Exception("attestationId conversion null in additionalInfo");
 
-            // XXX TODO THIS SHOULDNT WORK
-            var signature = SimulateFrodo.SignPreviousHashForAttestationChain(attestationIdBase64);
+            if (attestationIdCopyBase64 != attestationIdBase64)
+                throw new Exception("Impossible attestation id mismatch");
 
-
-            SimulateFrodo.DeliverAttestations(jsonArray, nonceBase64);
-
-            // Block chain will contain
             //
-            // Option 1 - one record per attestation
+            // Now we deliver the attestation records to the requestor.
             //
-            // previousHash
-            // identity
-            // timestamp
-            // attestationId
-            // signedPreviousHash
-            // algorithm
-            // publicKey
-            // recordHash
+            SimulateFrodo.DeliverAttestations(attestationIdBase64, jsonArray);
+
+
+
+            // 
+            // Now store it in the database
             //
 
             using (_db.CreateCommitUnitOfWork())
@@ -307,11 +300,12 @@ namespace OdinsAttestation.Controllers
                 // Now we are fully ready to insert the block chain records, we have all the data needed
                 //
 
+                // _db.tblAttestationChain.Insert();
 
                 //
                 // Finally, delete the pending request
                 //
-                GetDeleteRequest(nonceBase64);
+                GetDeleteRequest(attestationIdBase64);
             }
             return Ok();
         }

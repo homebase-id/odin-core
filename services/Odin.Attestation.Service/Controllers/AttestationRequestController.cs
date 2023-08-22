@@ -98,7 +98,7 @@ namespace OdinsAttestation.Controllers
         /// <param name="requestSignedEnvelope"></param>
         /// <returns></returns>
         [HttpGet("RequestAttestation")]
-        public async Task<IActionResult> GetRequestAttestation(string requestSignedEnvelope)
+        public async Task<IActionResult> GetRequestAttestation(string requestSignedEnvelope) // TODO: Change to POST
         {
             // First verify the validity of the signed envelope
             SignedEnvelope? signedEnvelope;

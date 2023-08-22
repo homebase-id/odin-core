@@ -110,12 +110,12 @@ namespace OdinsAttestation
 
         // Todd this is the endpoint on an identity that receives a jsonArray of attestations (signedEnvelopes)
         // Returns signed attestationId
-        public static void DeliverAttestations(string attestationListJsonArray, string tempCodeBase64)
+        public static void DeliverAttestations(string attestationIdBase64, string attestationListJsonArray)
         {
             //
             // Verify this is in response to my own request
             //
-            if (LoadLocally(tempCodeBase64) == false)
+            if (LoadLocally(attestationIdBase64) == false)
                 throw new Exception("Frodo unable to find request ID");
 
             if (attestationListJsonArray == null)
@@ -165,7 +165,7 @@ namespace OdinsAttestation
                 // Todd TODO: Store it in Frodo's profile data
             }
 
-            DeleteLocally(tempCodeBase64);
+            DeleteLocally(attestationIdBase64);
         }
 
 
