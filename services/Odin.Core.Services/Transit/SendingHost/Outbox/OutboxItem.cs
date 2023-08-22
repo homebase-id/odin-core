@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using Odin.Core.Identity;
-using Odin.Core.Services.Contacts.Circle.Membership;
 using Odin.Core.Services.Drives;
+using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Transit.Encryption;
 using Odin.Core.Time;
 

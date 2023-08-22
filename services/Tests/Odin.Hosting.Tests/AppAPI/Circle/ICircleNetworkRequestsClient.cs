@@ -1,6 +1,6 @@
 ﻿using System.Threading.Tasks;
 using Odin.Core;
-using Odin.Core.Services.Contacts.Circle.Requests;
+using Odin.Core.Services.Membership.Connections.Requests;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.ClientToken;
 using Refit;

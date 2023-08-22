@@ -12,8 +12,8 @@ using Odin.Core.Services.Authorization.Acl;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
-using Odin.Core.Services.Contacts.Circle.Membership;
-using Odin.Core.Services.Contacts.Circle.Membership.Definition;
+using Odin.Core.Services.Membership.Circles;
+using Odin.Core.Services.Membership.Connections;
 
 namespace Odin.Core.Services.Authentication.YouAuth
 {

@@ -7,12 +7,12 @@ using NUnit.Framework;
 using Odin.Core;
 using Odin.Core.Identity;
 using Odin.Core.Services.Configuration;
-using Odin.Core.Services.Contacts.Circle.Membership;
-using Odin.Core.Services.Contacts.Circle.Membership.Definition;
-using Odin.Core.Services.Contacts.Circle.Requests;
+using Odin.Core.Services.Membership.Circles;
+using Odin.Core.Services.Membership.Connections;
+using Odin.Core.Services.Membership.Connections.Requests;
 using Odin.Hosting.Controllers;
-using Odin.Hosting.Controllers.OwnerToken.Circles;
-using Odin.Hosting.Tests.OwnerApi.Circle;
+using Odin.Hosting.Controllers.OwnerToken.Membership.Connections;
+using Odin.Hosting.Tests.OwnerApi.Membership.Connections;
 
 namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit;
 

@@ -13,8 +13,8 @@ using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Configuration;
-using Odin.Core.Services.Contacts.Circle.Membership;
 using Odin.Core.Services.Mediator;
+using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Storage;
 
 

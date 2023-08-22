@@ -10,8 +10,8 @@ using Odin.Core.Exceptions;
 using Odin.Core.Exceptions.Client;
 using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.ExchangeGrants;
-using Odin.Core.Services.Authorization.YouAuth;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Membership.YouAuth;
 using Odin.Core.Util;
 
 namespace Odin.Core.Services.Authentication.YouAuth;

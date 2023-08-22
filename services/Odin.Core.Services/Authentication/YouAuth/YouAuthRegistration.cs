@@ -1,7 +1,7 @@
 ﻿#nullable enable
 using System;
 using System.Collections.Generic;
-using Odin.Core.Services.Contacts.Circle.Membership;
+using Odin.Core.Services.Membership.Connections;
 
 namespace Odin.Core.Services.Authentication.YouAuth
 {

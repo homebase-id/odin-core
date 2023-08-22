@@ -61,6 +61,16 @@ namespace Odin.Core.Identity
         {
             return new OdinId(id);
         }
+        
+        public static implicit operator AsciiDomainName(OdinId dy)
+        {
+            return dy._domainName;
+        }
+
+        public static explicit operator OdinId(AsciiDomainName id)
+        {
+            return new OdinId(id);
+        }
 
         public static implicit operator Guid(OdinId odinId)
         {
@@ -92,6 +102,11 @@ namespace Odin.Core.Identity
             return this._hash;
         }
 
+        public static Guid ToHashId(AsciiDomainName domainName)
+        {
+            return new Guid(ByteArrayUtil.ReduceSHA256Hash(domainName.DomainName.ToUtf8ByteArray()));
+        }
+        
         public byte[] ToByteArray()
         {
             var key = _domainName.DomainName.ToUtf8ByteArray();

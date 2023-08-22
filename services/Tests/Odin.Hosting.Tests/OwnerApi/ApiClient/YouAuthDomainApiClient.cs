@@ -9,14 +9,14 @@ using Odin.Core.Cryptography.Crypto;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.ExchangeGrants;
-using Odin.Core.Services.Authorization.YouAuth;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Membership.YouAuth;
 using Odin.Core.Util;
 using Odin.Hosting.Controllers.OwnerToken.AppManagement;
-using Odin.Hosting.Controllers.OwnerToken.YouAuthDomainManagement;
+using Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth;
 using Odin.Hosting.Tests.OwnerApi.Apps;
+using Odin.Hosting.Tests.OwnerApi.Membership.YouAuth;
 using Odin.Hosting.Tests.OwnerApi.Utils;
-using Odin.Hosting.Tests.OwnerApi.YouAuthDomains;
 using Refit;
 
 namespace Odin.Hosting.Tests.OwnerApi.ApiClient;
@@ -34,8 +34,7 @@ public class YouAuthDomainApiClient
 
 
     public async Task<ApiResponse<RedactedYouAuthDomainRegistration>> RegisterDomain(
-        AsciiDomainName domain,
-        PermissionSetGrantRequest permissions)
+        AsciiDomainName domain, List<GuidId> circleIds = null)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
@@ -45,7 +44,7 @@ public class YouAuthDomainApiClient
             {
                 Name = $"Test_{domain.DomainName}",
                 Domain = domain.DomainName,
-                CircleIds = default
+                CircleIds = circleIds?? new List<GuidId>()
             };
 
             var response = await svc.RegisterDomain(request);
