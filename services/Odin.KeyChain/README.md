@@ -5,8 +5,29 @@
 @Todd - Create a space for the service on the same server as the Mail API (e.g. "keychain.odin.earth") - @seb reverse proxy?
 @Todd - Give Hetzner DNS alias to @ms
 @Ms   - Setup CNAME or A in Google for "keychain.odin.earth"
-@Todd - create the service that triggers registration, see code prepped for you.
-@Todd/@Stef - Create something we can use for a "red circle" if not registered.
+
+-- Goal: To do this almost purely in front-end code, with as little, and as generic server code as possible
+         The approach outlined here creates just two very small services on the owner API.
+
+@Stef - design UI that let's the user fill in data to attest. Code template is in here (you shouldn't code the signing, see below)
+        Call the owner API to get an instruction envelope (Todd will make this call, you just pass the dataToAttest):
+           public static SignedEnvelope RequestEnvelope(SortedDictionary<string, object> dataToAtttest)
+        Then you have the instruction envelope and send POST it to the keychain.odin.earth API:
+           public async Task<ActionResult> PostPublicKeyRegistrationBegin([FromBody] RegistrationBeginModel model)
+        Then you get a hash code back that you need to sign (Todd will make this call, you just need to pass the hash):
+           public static string SignPreviousHashForPublicKeyChain(string previousHashBase64)
+        and send it to finalize (loop N times and resign as long as you get 429):
+            public async Task<ActionResult> PostPublicKeyRegistrationComplete([FromBody] RegistrationCompleteModel model)
+        Finally, save each signed attribute as a profile attribute.
+
+@Todd - make generic owner only API that essentially exposes this and returns the owner signed instruction envelope
+           public static SignedEnvelope RequestEnvelope(SortedDictionary<string, object> dataToAtttest)
+        make generic owner only API that signs the keychain hash. Let's discuss how specialized we want it
+        (e.g. does it prepend "PublicKeyChain-" to the signature hash? Or is it generic and we rely on Stef doing that 
+        (security issue)
+           public static string SignPreviousHashForPublicKeyChain(string previousHashBase64)
+        
+@Todd/@Stef - Create something we can use for a "red circle" if not registered?
 @Todd - Create a red circle if the ECC signature key is rotated (punt for now?)
 @Stef - Add a checkbox step to the initial wizard to register the signing key (not checked by default?)
 @Stef - Add a red circle in the owner console if registration is missing
