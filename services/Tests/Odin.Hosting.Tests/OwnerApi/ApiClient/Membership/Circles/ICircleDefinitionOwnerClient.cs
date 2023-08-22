@@ -5,7 +5,7 @@ using Odin.Core.Services.Membership.Circles;
 using Odin.Hosting.Controllers.OwnerToken;
 using Refit;
 
-namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
+namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles
 {
     public interface ICircleDefinitionOwnerClient
     {

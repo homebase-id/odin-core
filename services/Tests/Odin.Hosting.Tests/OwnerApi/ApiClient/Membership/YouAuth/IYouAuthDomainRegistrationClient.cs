@@ -8,7 +8,7 @@ using Odin.Hosting.Controllers.OwnerToken;
 using Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth;
 using Refit;
 
-namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
+namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.YouAuth
 {
     public interface IYouAuthDomainRegistrationClient
     {
@@ -23,9 +23,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
 
         [Post(RootPath + "/register/domain")]
         Task<ApiResponse<RedactedYouAuthDomainRegistration>> RegisterDomain([Body] YouAuthDomainRegistrationRequest registration);
+        
+        
+        [Post(RootPath + "/circles/add")]
+        Task<ApiResponse<bool>> GrantCircle([Body] GrantYouAuthDomainCircleRequest request);
+        
+        [Post(RootPath + "/circles/revoke")]
+        Task<ApiResponse<bool>> RevokeCircle([Body] RevokeYouAuthDomainCircleRequest request);
 
-        [Post(RootPath + "/register/updatepermissions")]
-        Task<ApiResponse<HttpContent>> UpdatePermissions([Body] UpdateYouAuthDomainPermissionsRequest request);
         
         [Post(RootPath + "/revoke")]
         Task<ApiResponse<HttpContent>> RevokeDomain([Body] GetYouAuthDomainRequest request);

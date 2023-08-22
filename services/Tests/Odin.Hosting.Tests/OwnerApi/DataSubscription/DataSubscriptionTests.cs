@@ -290,7 +290,7 @@ public class DataSubscriptionTests
 
         await frodoOwnerClient.Drive.CreateDrive(frodoChannelDrive, "A Channel Drive", "", false, ownerOnly: false, allowSubscriptions: true);
 
-        var securedChannelCircle = await frodoOwnerClient.Network.CreateCircle("Secured channel content", new PermissionSetGrantRequest()
+        var securedChannelCircle = await frodoOwnerClient.Membership.CreateCircle("Secured channel content", new PermissionSetGrantRequest()
         {
             Drives = new List<DriveGrantRequest>()
             {
@@ -516,7 +516,7 @@ public class DataSubscriptionTests
 
         await frodoOwnerClient.Drive.CreateDrive(frodoChannelDrive, "A Channel Drive", "", false, ownerOnly: false, allowSubscriptions: true);
 
-        var securedChannelCircle = await frodoOwnerClient.Network.CreateCircle("Secured channel content", new PermissionSetGrantRequest()
+        var securedChannelCircle = await frodoOwnerClient.Membership.CreateCircle("Secured channel content", new PermissionSetGrantRequest()
         {
             Drives = new List<DriveGrantRequest>()
             {
@@ -657,7 +657,7 @@ public class DataSubscriptionTests
 
         await frodoOwnerClient.Drive.CreateDrive(frodoChannelDrive, "A Channel Drive", "", false, ownerOnly: false, allowSubscriptions: true);
 
-        var securedChannelCircle = await frodoOwnerClient.Network.CreateCircle("Secured channel content", new PermissionSetGrantRequest()
+        var securedChannelCircle = await frodoOwnerClient.Membership.CreateCircle("Secured channel content", new PermissionSetGrantRequest()
         {
             Drives = new List<DriveGrantRequest>()
             {

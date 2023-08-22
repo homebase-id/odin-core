@@ -44,6 +44,8 @@ using Odin.Hosting.Controllers.OwnerToken.Drive;
 using Odin.Hosting.Tests.AppAPI.Transit;
 using Odin.Hosting.Tests.AppAPI.Utils;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Connections;
 using Odin.Hosting.Tests.OwnerApi.Apps;
 using Odin.Hosting.Tests.OwnerApi.Authentication;
 using Odin.Hosting.Tests.OwnerApi.Configuration;

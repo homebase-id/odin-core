@@ -4,8 +4,11 @@ using System.Net;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Drives;
+using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Util;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
 
@@ -38,67 +41,77 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
         {
             var domain = new AsciiDomainName("amazoom2.com");
 
-            var client = new YouAuthDomainApiClient(_scaffold.OldOwnerApi, _identity);
-            var response = await client.RegisterDomain(domain);
+            var client = new OwnerApiClient(_scaffold.OldOwnerApi, _identity);
+            var response = await client.YouAuth.RegisterDomain(domain);
 
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
             Assert.IsNotNull(response.Content);
 
-            var domainRegistrationResponse = await client.GetDomainRegistration(domain);
+            var domainRegistrationResponse = await client.YouAuth.GetDomainRegistration(domain);
             Assert.That(domainRegistrationResponse.IsSuccessStatusCode, Is.True);
             Assert.That(domainRegistrationResponse.Content, Is.Not.Null);
             Assert.That(domainRegistrationResponse.Content.Domain, Is.EqualTo(domain.DomainName));
         }
 
         [Test]
-        public async Task FailWhenUseTransitPermissionWhenCreatingYouAuthDomain()
+        public async Task RegisterNewDomainWithCircle()
         {
-            var domain = new AsciiDomainName("amazoomius.com");
+            var domain = new AsciiDomainName("amazoom2.com");
 
+            var client = new OwnerApiClient(_scaffold.OldOwnerApi, _identity);
 
-            //TODO: add a circle that has UseTransit
-            // PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.UseTransit }),
-            var circleIds = new List<GuidId>();
+            var circle1 = await client.Membership.CreateCircle("Circle with valid permissions", new PermissionSetGrantRequest()
+            {
+                PermissionSet = new PermissionSet(new[] { PermissionKeys.ReadConnections })
+            });
 
-            var client = new YouAuthDomainApiClient(_scaffold.OldOwnerApi, _identity);
-            var response = await client.RegisterDomain(domain, circleIds);
+            var someDrive = await client.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Some drive",
+                metadata: "",
+                allowAnonymousReads: false,
+                allowSubscriptions: false,
+                ownerOnly: false);
 
-            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), $"Status code should be Bad Request but was {response.StatusCode}");
-            Assert.IsNull(response.Content);
+            var circle2 = await client.Membership.CreateCircle("Circle with valid permissions", new PermissionSetGrantRequest()
+            {
+                PermissionSet = new PermissionSet(new[] { PermissionKeys.ReadCircleMembership }),
+                Drives = new List<DriveGrantRequest>()
+                {
+                    new()
+                    {
+                        PermissionedDrive = new PermissionedDrive()
+                        {
+                            Drive = someDrive.TargetDriveInfo,
+                            Permission = DrivePermission.Write & DrivePermission.WriteReactionsAndComments
+                        }
+                    }
+                }
+            });
 
-            var domainRegistrationResponse = await client.GetDomainRegistration(domain);
-            Assert.That(domainRegistrationResponse.StatusCode, Is.EqualTo(HttpStatusCode.NotFound),
-                $"Status code should be not found but was {response.StatusCode}");
-        }
-
-        [Test]
-        public async Task FailWhenUseTransitPermissionWhenUpdatingYouAuthDomainPermissions()
-        {
-            var domain = new AsciiDomainName("amazoom.com");
-
-            var client = new YouAuthDomainApiClient(_scaffold.OldOwnerApi, _identity);
-            
-            var circleIds = new List<GuidId>();
-            
-            
-            var response = await client.RegisterDomain(domain, circleIds);
+            var response = await client.YouAuth.RegisterDomain(domain, new List<GuidId>() { circle1.Id, circle2.Id });
 
             Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
             Assert.IsNotNull(response.Content);
 
-            Assert.Inconclusive("need to support circle grants");
-            var updateResponse = await client.UpdatePermissions(domain, new PermissionSetGrantRequest()
-            {
-                PermissionSet = new PermissionSet(new List<int>() { PermissionKeys.UseTransit })
-            });
+            var domainRegistrationResponse = await client.YouAuth.GetDomainRegistration(domain);
+            Assert.That(domainRegistrationResponse.IsSuccessStatusCode, Is.True);
 
-            Assert.IsTrue(updateResponse.StatusCode == HttpStatusCode.BadRequest, $"Status code should be bad request but was ${updateResponse.StatusCode}");
+            var domainRegistration = domainRegistrationResponse.Content;
+            Assert.That(domainRegistration, Is.Not.Null);
+            Assert.That(domainRegistration.Domain, Is.EqualTo(domain.DomainName));
+            Assert.IsFalse(domainRegistration.IsRevoked);
+            Assert.IsTrue(domainRegistration.Created > 0);
+            // Assert.IsNotNull(domainRegistration.CorsHostName);
 
-            var domainRegistrationResponse = await client.GetDomainRegistration(domain);
+            var circle1Grant = domainRegistration.CircleGrants.SingleOrDefault(cg => cg.CircleId == circle1.Id);
+            Assert.IsNotNull(circle1Grant);
+            Assert.IsTrue(circle1Grant.DriveGrants.Count == (circle1.DriveGrants?.Count() ?? 0));
+            Assert.IsTrue(circle1Grant.PermissionSet.Keys.Count == 1);
+            CollectionAssert.AreEquivalent(circle1Grant.PermissionSet.Keys, circle1.Permissions.Keys);
 
-            var redactedDomainReg = domainRegistrationResponse.Content;
-            //be sure the key was not added
-            Assert.IsFalse(redactedDomainReg.CircleGrants.Any(cg => cg.PermissionSet?.Keys?.Contains(PermissionKeys.UseTransit) ?? false));
+            var circle2Grant = domainRegistration.CircleGrants.SingleOrDefault(cg => cg.CircleId == circle2.Id);
+            Assert.IsNotNull(circle2Grant);
+            Assert.IsTrue(circle2Grant.DriveGrants.Count == circle2.DriveGrants.Count());
+            CollectionAssert.AreEquivalent(circle2Grant.PermissionSet.Keys, circle2.Permissions.Keys);
         }
     }
 }

@@ -67,8 +67,6 @@ namespace Odin.Core.Services.Membership.YouAuth
             Guard.Argument(request.Name, nameof(request.Name)).NotNull().NotEmpty();
             Guard.Argument(request.Domain, nameof(request.Domain)).Require(!string.IsNullOrEmpty(request.Domain));
 
-            AssertCirclesHaveValidPermissionSet(request.CircleIds);
-
             if (!string.IsNullOrEmpty(request.CorsHostName))
             {
                 AppUtil.AssertValidCorsHeader(request.CorsHostName);
@@ -374,7 +372,7 @@ namespace Odin.Core.Services.Membership.YouAuth
                 throw new OdinSecurityException($"{domainName} is not registered");
             }
 
-            if (registration.CircleGrants.TryGetValue(circleId, out var _))
+            if (registration.CircleGrants.TryGetValue(circleId, out _))
             {
                 //TODO: Here we should ensure it's in the _circleMemberStorage just in case this was called because it's out of sync
                 throw new OdinClientException($"{domainName} is already member of circle", OdinClientErrorCode.IdentityAlreadyMemberOfCircle);
@@ -469,19 +467,7 @@ namespace Odin.Core.Services.Membership.YouAuth
                 _registrationValueStorage.Upsert(GetDomainKey(registration.Domain), GuidId.Empty, _domainRegistrationDataType, registration);
             }
         }
-
-        private void AssertCirclesHaveValidPermissionSet(List<GuidId> circleIds)
-        {
-            foreach (var circleId in circleIds ?? new List<GuidId>())
-            {
-                var def = _circleMembershipService.GetCircle(circleId);
-
-                if (def.Permissions.Keys?.Any(k => !PermissionKeyAllowance.IsValidYouAuthDomainPermission(k)) ?? false)
-                {
-                    throw new OdinClientException($"The circleId {circleId} has a permission key not with-in the allowable YouAuth Domain permissions.");
-                }
-            }
-        }
+        
 
         private async Task<OdinContext> CreateContextForYouAuthDomain(
             ClientAuthenticationToken authToken,

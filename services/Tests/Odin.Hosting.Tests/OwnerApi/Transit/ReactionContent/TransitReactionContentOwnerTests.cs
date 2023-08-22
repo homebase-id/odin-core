@@ -52,7 +52,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
             var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
             await samOwnerClient.Follower.FollowIdentity(pippinOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
 
-            var targetCircle = await pippinOwnerClient.Network.CreateCircle("Garden channel circle", new PermissionSetGrantRequest()
+            var targetCircle = await pippinOwnerClient.Membership.CreateCircle("Garden channel circle", new PermissionSetGrantRequest()
             {
                 Drives = new List<DriveGrantRequest>()
                 {
@@ -119,7 +119,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.ReactionContent
             var samOwnerClient = _scaffold.CreateOwnerApiClient(TestIdentities.Samwise);
             await samOwnerClient.Follower.FollowIdentity(pippinOwnerClient.Identity, FollowerNotificationType.AllNotifications, null);
 
-            var targetCircle = await pippinOwnerClient.Network.CreateCircle("Garden channel circle", new PermissionSetGrantRequest()
+            var targetCircle = await pippinOwnerClient.Membership.CreateCircle("Garden channel circle", new PermissionSetGrantRequest()
             {
                 Drives = new List<DriveGrantRequest>()
                 {

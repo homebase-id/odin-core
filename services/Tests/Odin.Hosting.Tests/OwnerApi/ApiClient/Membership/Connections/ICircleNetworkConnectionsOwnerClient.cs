@@ -8,7 +8,7 @@ using Odin.Hosting.Controllers.OwnerToken;
 using Odin.Hosting.Controllers.OwnerToken.Membership.Connections;
 using Refit;
 
-namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
+namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Connections
 {
     public interface ICircleNetworkConnectionsOwnerClient
     {

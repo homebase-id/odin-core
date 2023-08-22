@@ -45,7 +45,7 @@ public class CircleNetworkServiceAppTests
         var circleDrive = await frodoOwnerClient.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Random Circle Drive", "", false);
 
         // Create the chat friends circle and give it read/write to the circle drive
-        var chatFriendsCircle = await frodoOwnerClient.Network.CreateCircle("Chat Friends Circle", new PermissionSetGrantRequest()
+        var chatFriendsCircle = await frodoOwnerClient.Membership.CreateCircle("Chat Friends Circle", new PermissionSetGrantRequest()
         {
             PermissionSet = new PermissionSet(),
             Drives = new[]
@@ -61,7 +61,7 @@ public class CircleNetworkServiceAppTests
             }
         });
 
-        var documentSharingCircle = await frodoOwnerClient.Network.CreateCircle("Document Sharing Circle", new PermissionSetGrantRequest()
+        var documentSharingCircle = await frodoOwnerClient.Membership.CreateCircle("Document Sharing Circle", new PermissionSetGrantRequest()
         {
             PermissionSet = new PermissionSet(),
             Drives = new[]
@@ -190,7 +190,7 @@ public class CircleNetworkServiceAppTests
         var circleDrive = await frodoOwnerClient.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Random Circle Drive", "", false);
 
         // Create the chat friends circle and give it read/write to the circle drive
-        var chatFriendsCircle = await frodoOwnerClient.Network.CreateCircle("Chat Friends Circle", new PermissionSetGrantRequest()
+        var chatFriendsCircle = await frodoOwnerClient.Membership.CreateCircle("Chat Friends Circle", new PermissionSetGrantRequest()
         {
             PermissionSet = new PermissionSet(),
             Drives = new[]
@@ -312,7 +312,7 @@ public class CircleNetworkServiceAppTests
         var circleDrive = await frodoOwnerClient.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Random Circle Drive", "", false);
 
         // Create the chat friends circle and give it read/write to the circle drive
-        var chatFriendsCircle = await frodoOwnerClient.Network.CreateCircle("Chat Friends Circle", new PermissionSetGrantRequest()
+        var chatFriendsCircle = await frodoOwnerClient.Membership.CreateCircle("Chat Friends Circle", new PermissionSetGrantRequest()
         {
             PermissionSet = new PermissionSet(),
             Drives = new[]
@@ -419,7 +419,7 @@ public class CircleNetworkServiceAppTests
         //
 
         // Creat a new circle
-        var someNewCircle = await frodoOwnerClient.Network.CreateCircle("Another Circle", new PermissionSetGrantRequest()
+        var someNewCircle = await frodoOwnerClient.Membership.CreateCircle("Another Circle", new PermissionSetGrantRequest()
         {
             PermissionSet = new PermissionSet(),
             Drives = new[]
@@ -500,7 +500,7 @@ public class CircleNetworkServiceAppTests
         var circleDrive = await frodoOwnerClient.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Random Circle Drive", "", false);
 
         // Create the chat friends circle and give it read/write to the circle drive
-        var chatFriendsCircle = await frodoOwnerClient.Network.CreateCircle("Chat Friends Circle", new PermissionSetGrantRequest()
+        var chatFriendsCircle = await frodoOwnerClient.Membership.CreateCircle("Chat Friends Circle", new PermissionSetGrantRequest()
         {
             PermissionSet = new PermissionSet(),
             Drives = new[]
@@ -607,7 +607,7 @@ public class CircleNetworkServiceAppTests
         //
 
         // Creat a new circle
-        var someNewCircle = await frodoOwnerClient.Network.CreateCircle("Another Circle", new PermissionSetGrantRequest()
+        var someNewCircle = await frodoOwnerClient.Membership.CreateCircle("Another Circle", new PermissionSetGrantRequest()
         {
             PermissionSet = new PermissionSet(),
             Drives = new[]
@@ -687,7 +687,7 @@ public class CircleNetworkServiceAppTests
         var circleDrive = await frodoOwnerClient.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Random Circle Drive", "", false);
 
         // Create the chat friends circle and give it read/write to the circle drive
-        var chatFriendsCircle = await frodoOwnerClient.Network.CreateCircle("Chat Friends Circle", new PermissionSetGrantRequest()
+        var chatFriendsCircle = await frodoOwnerClient.Membership.CreateCircle("Chat Friends Circle", new PermissionSetGrantRequest()
         {
             PermissionSet = new PermissionSet(),
             Drives = new[]
@@ -703,7 +703,7 @@ public class CircleNetworkServiceAppTests
             }
         });
 
-        var documentShareCircle = await frodoOwnerClient.Network.CreateCircle("Circle for document sharing", new PermissionSetGrantRequest()
+        var documentShareCircle = await frodoOwnerClient.Membership.CreateCircle("Circle for document sharing", new PermissionSetGrantRequest()
         {
             PermissionSet = new PermissionSet(),
             Drives = new[]

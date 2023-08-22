@@ -48,7 +48,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
                 Permission = DrivePermission.Write & DrivePermission.WriteReactionsAndComments
             };
 
-            var senderChatCircle = await senderOwnerClient.Network.CreateCircle("Chat Participants", new PermissionSetGrantRequest()
+            var senderChatCircle = await senderOwnerClient.Membership.CreateCircle("Chat Participants", new PermissionSetGrantRequest()
             {
                 Drives = new List<DriveGrantRequest>()
                 {
@@ -60,7 +60,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
             });
 
             await senderOwnerClient.Network.SendConnectionRequest(recipient, new List<GuidId>() { senderChatCircle.Id });
-            await recipientOwnerClient.Network.AcceptConnectionRequest(sender, new List<GuidId>() { });
+            await recipientOwnerClient.Network.AcceptConnectionRequest(sender, new List<GuidId>());
 
             // Test
             // At this point: recipient should have an ICR record on sender's identity that does not have a key
@@ -99,7 +99,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
                 Permission = DrivePermission.Read | DrivePermission.Write | DrivePermission.WriteReactionsAndComments
             };
 
-            var senderChatCircle = await senderOwnerClient.Network.CreateCircle("Chat Participants", new PermissionSetGrantRequest()
+            var senderChatCircle = await senderOwnerClient.Membership.CreateCircle("Chat Participants", new PermissionSetGrantRequest()
             {
                 Drives = new List<DriveGrantRequest>()
                 {
@@ -111,7 +111,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
             });
 
             await senderOwnerClient.Network.SendConnectionRequest(recipient, new List<GuidId>() { senderChatCircle.Id });
-            await recipientOwnerClient.Network.AcceptConnectionRequest(sender, new List<GuidId>() { });
+            await recipientOwnerClient.Network.AcceptConnectionRequest(sender, new List<GuidId>());
 
             // Test
             // At this point: recipient should have an ICR record on sender's identity that does not have a key

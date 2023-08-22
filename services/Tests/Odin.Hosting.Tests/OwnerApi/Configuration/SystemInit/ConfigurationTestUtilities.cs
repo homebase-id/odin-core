@@ -12,6 +12,7 @@ using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Membership.Connections.Requests;
 using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.OwnerToken.Membership.Connections;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Connections;
 using Odin.Hosting.Tests.OwnerApi.Membership.Connections;
 
 namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit;

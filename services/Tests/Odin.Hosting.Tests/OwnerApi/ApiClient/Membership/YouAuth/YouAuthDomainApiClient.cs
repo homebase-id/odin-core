@@ -1,21 +1,11 @@
-using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Microsoft.OpenApi.Validations.Rules;
-using NUnit.Framework;
-using Odin.Core.Cryptography.Crypto;
-using Odin.Core.Cryptography.Data;
-using Odin.Core.Services.Authorization.Apps;
-using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Membership.YouAuth;
 using Odin.Core.Util;
-using Odin.Hosting.Controllers.OwnerToken.AppManagement;
 using Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth;
-using Odin.Hosting.Tests.OwnerApi.Apps;
-using Odin.Hosting.Tests.OwnerApi.Membership.YouAuth;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.YouAuth;
 using Odin.Hosting.Tests.OwnerApi.Utils;
 using Refit;
 
@@ -44,7 +34,7 @@ public class YouAuthDomainApiClient
             {
                 Name = $"Test_{domain.DomainName}",
                 Domain = domain.DomainName,
-                CircleIds = circleIds?? new List<GuidId>()
+                CircleIds = circleIds ?? new List<GuidId>()
             };
 
             var response = await svc.RegisterDomain(request);
@@ -64,16 +54,30 @@ public class YouAuthDomainApiClient
         }
     }
 
-    public async Task<ApiResponse<HttpContent>> UpdatePermissions(AsciiDomainName domain, PermissionSetGrantRequest grant)
+    public async Task<ApiResponse<bool>> GrantCircle(AsciiDomainName domain, GuidId circleId)
     {
         var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
         {
             var svc = RefitCreator.RestServiceFor<IYouAuthDomainRegistrationClient>(client, ownerSharedSecret);
 
-            return await svc.UpdatePermissions(new UpdateYouAuthDomainPermissionsRequest()
+            return await svc.GrantCircle(new GrantYouAuthDomainCircleRequest()
             {
-                Domain = domain,
-                CircleIds = default
+                Domain = domain.DomainName,
+                CircleId = circleId
+            });
+        }
+    }
+
+    public async Task<ApiResponse<bool>> RevokeCircle(AsciiDomainName domain, GuidId circleId)
+    {
+        var client = _ownerApi.CreateOwnerApiHttpClient(_identity, out var ownerSharedSecret);
+        {
+            var svc = RefitCreator.RestServiceFor<IYouAuthDomainRegistrationClient>(client, ownerSharedSecret);
+
+            return await svc.RevokeCircle(new RevokeYouAuthDomainCircleRequest()
+            {
+                Domain = domain.DomainName,
+                CircleId = circleId
             });
         }
     }

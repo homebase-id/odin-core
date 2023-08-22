@@ -9,8 +9,11 @@ using Odin.Core.Exceptions;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
+using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Membership.Circles;
+using Odin.Hosting.Tests.OwnerApi.ApiClient;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
 using Refit;
 
 namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
@@ -143,15 +146,16 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                         }
                     }
                 };
-                
+
                 circle.Permissions = new PermissionSet(new List<int>() { PermissionKeys.ReadConnections });
 
                 var updateCircleResponse = await svc.UpdateCircleDefinition(circle);
                 Assert.IsTrue(updateCircleResponse.StatusCode == HttpStatusCode.Forbidden, $"Actual response {updateCircleResponse.StatusCode}");
 
                 var getUpdatedCircleDefinitionsResponse = await svc.GetCircleDefinitions();
-                Assert.IsTrue(getUpdatedCircleDefinitionsResponse.IsSuccessStatusCode, $"Failed.  Actual response {getUpdatedCircleDefinitionsResponse.StatusCode}");
-                
+                Assert.IsTrue(getUpdatedCircleDefinitionsResponse.IsSuccessStatusCode,
+                    $"Failed.  Actual response {getUpdatedCircleDefinitionsResponse.StatusCode}");
+
                 var updatedDefinitionList = getUpdatedCircleDefinitionsResponse.Content;
                 Assert.IsNotNull(updatedDefinitionList);
 
@@ -195,12 +199,25 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
 
                 var createCircleResponse = await svc.CreateCircleDefinition(requestWithNoPermissionsOrDrives);
                 Assert.IsTrue(createCircleResponse.StatusCode == HttpStatusCode.BadRequest, $"Failed.  Actual response {createCircleResponse.StatusCode}");
-                Assert.IsTrue(int.TryParse(OdinSystemSerializer.Deserialize<ProblemDetails>(createCircleResponse!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
+                Assert.IsTrue(
+                    int.TryParse(OdinSystemSerializer.Deserialize<ProblemDetails>(createCircleResponse!.Error!.Content!)!.Extensions["errorCode"].ToString(),
+                        out var code),
                     "Could not parse problem result");
                 Assert.IsTrue(code == (int)OdinClientErrorCode.AtLeastOneDriveOrPermissionRequiredForCircle);
-                
-                
             }
+        }
+
+        [Test]
+        public async Task FailToCreateCircleWithUseTransitPermissions()
+        {
+            var client = new OwnerApiClient(_scaffold.OldOwnerApi, TestIdentities.Frodo);
+            var grant = new PermissionSetGrantRequest()
+            {
+                PermissionSet = new PermissionSet(new[] { PermissionKeys.UseTransit })
+            };
+            
+            var createCircleResponse = await client.Membership.CreateCircleRaw("Circle with UseTransit", grant);
+            Assert.IsTrue(createCircleResponse.StatusCode == HttpStatusCode.BadRequest, $"Failed.  Actual response {createCircleResponse.StatusCode}");
         }
 
         [Test]
@@ -374,7 +391,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                 Assert.IsTrue(updateCircleResponse.IsSuccessStatusCode, $"Actual response {updateCircleResponse.StatusCode}");
 
                 var getUpdatedCircleDefinitionsResponse = await svc.GetCircleDefinitions();
-                Assert.IsTrue(getUpdatedCircleDefinitionsResponse.IsSuccessStatusCode, $"Failed.  Actual response {getUpdatedCircleDefinitionsResponse.StatusCode}");
+                Assert.IsTrue(getUpdatedCircleDefinitionsResponse.IsSuccessStatusCode,
+                    $"Failed.  Actual response {getUpdatedCircleDefinitionsResponse.StatusCode}");
 
                 var updatedDefinitionList = getUpdatedCircleDefinitionsResponse.Content;
                 Assert.IsNotNull(updatedDefinitionList);
@@ -482,12 +500,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                 circle.Permissions = null;
 
                 var updateCircleResponse = await svc.UpdateCircleDefinition(circle);
-                
+
                 Assert.IsTrue(updateCircleResponse.StatusCode == HttpStatusCode.BadRequest, $"Failed.  Actual response {createCircleResponse.StatusCode}");
-                Assert.IsTrue(int.TryParse(OdinSystemSerializer.Deserialize<ProblemDetails>(updateCircleResponse!.Error!.Content!)!.Extensions["errorCode"].ToString(), out var code),
+                Assert.IsTrue(
+                    int.TryParse(OdinSystemSerializer.Deserialize<ProblemDetails>(updateCircleResponse!.Error!.Content!)!.Extensions["errorCode"].ToString(),
+                        out var code),
                     "Could not parse problem result");
                 Assert.IsTrue(code == (int)OdinClientErrorCode.AtLeastOneDriveOrPermissionRequiredForCircle);
-                
+
                 await svc.DeleteCircleDefinition(circle.Id);
             }
         }
@@ -521,7 +541,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Circles
                 Assert.IsTrue(deleteCircleResponse.IsSuccessStatusCode, $"Failed.  Actual response {deleteCircleResponse.StatusCode}");
 
                 var secondGetCircleDefinitionsResponse = await svc.GetCircleDefinitions();
-                Assert.IsTrue(secondGetCircleDefinitionsResponse.IsSuccessStatusCode, $"Failed.  Actual response {secondGetCircleDefinitionsResponse.StatusCode}");
+                Assert.IsTrue(secondGetCircleDefinitionsResponse.IsSuccessStatusCode,
+                    $"Failed.  Actual response {secondGetCircleDefinitionsResponse.StatusCode}");
                 var emptyDefinitionList = secondGetCircleDefinitionsResponse.Content;
                 Assert.IsNotNull(emptyDefinitionList);
                 Assert.IsTrue(!emptyDefinitionList.Any());

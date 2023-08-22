@@ -40,7 +40,7 @@ public class CircleMembershipService
         _tenantSystemStorage.CircleMemberStorage.DeleteMembersFromAllCircles(new List<Guid>() { OdinId.ToHashId(domainName) });
     }
     
-    public IEnumerable<CircleGrant> GetCirclesByOdinId(AsciiDomainName domainName)
+    public IEnumerable<CircleGrant> GetCirclesByDomain(AsciiDomainName domainName)
     {
         var circleMemberRecords = _tenantSystemStorage.CircleMemberStorage.GetMemberCirclesAndData(OdinId.ToHashId(domainName));
         foreach (var circleMemberRecord in circleMemberRecords)

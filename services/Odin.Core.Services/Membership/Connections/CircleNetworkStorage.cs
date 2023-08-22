@@ -156,7 +156,7 @@ public class CircleNetworkStorage
 
         var odinHashId = record.identity.ToHashId();
 
-        var circleGrants = _circleMembershipService.GetCirclesByOdinId(record.identity);
+        var circleGrants = _circleMembershipService.GetCirclesByDomain(record.identity);
         foreach (var circleGrant in circleGrants)
         {
             data.AccessGrant.CircleGrants.Add(circleGrant.CircleId, circleGrant);

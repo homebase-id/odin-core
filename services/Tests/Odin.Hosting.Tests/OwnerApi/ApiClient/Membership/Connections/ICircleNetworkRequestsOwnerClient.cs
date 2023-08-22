@@ -5,7 +5,7 @@ using Odin.Hosting.Controllers;
 using Odin.Hosting.Controllers.OwnerToken;
 using Refit;
 
-namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
+namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Connections
 {
     public interface ICircleNetworkRequestsOwnerClient
     {
