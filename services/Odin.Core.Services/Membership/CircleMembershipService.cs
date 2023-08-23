@@ -14,6 +14,19 @@ using Odin.Core.Util;
 
 namespace Odin.Core.Services.Membership;
 
+public class CircleDomainResult
+{
+    public AsciiDomainName Domain { get; set; }
+
+    public DomainType DomainType { get; set; }
+}
+
+public enum DomainType
+{
+    Identity = 1,
+    YouAuth = 2
+}
+
 /// <summary>
 /// Manages circle definitions and their membership.
 /// Note, the list of domains in a circle is a cache, the source of truth is with
@@ -39,7 +52,7 @@ public class CircleMembershipService
     {
         _tenantSystemStorage.CircleMemberStorage.DeleteMembersFromAllCircles(new List<Guid>() { OdinId.ToHashId(domainName) });
     }
-    
+
     public IEnumerable<CircleGrant> GetCirclesByDomain(AsciiDomainName domainName)
     {
         var circleMemberRecords = _tenantSystemStorage.CircleMemberStorage.GetMemberCirclesAndData(OdinId.ToHashId(domainName));
@@ -50,21 +63,23 @@ public class CircleMembershipService
         }
     }
 
-    public List<AsciiDomainName> GetCircleMembers(GuidId circleId)
+    public List<CircleDomainResult> GetDomainsInCircle(GuidId circleId)
     {
-        //Note: this list is a cache of members for a circle.  the source of truth is the
-        //IdentityConnectionRegistration.AccessExchangeGrant.CircleGrants property for each OdinId
         var memberBytesList = _tenantSystemStorage.CircleMemberStorage.GetCircleMembers(circleId);
         var result = memberBytesList.Select(item =>
         {
             var data = OdinSystemSerializer.Deserialize<CircleMemberStorageData>(item.data.ToStringFromUtf8Bytes());
-            return data.DomainName;
+            return new CircleDomainResult()
+            {
+                DomainType = data.DomainType,
+                Domain = data.DomainName
+            };
         }).ToList();
 
         return result;
     }
 
-    public void AddCircleMember(Guid circleId, AsciiDomainName domainName, CircleGrant circleGrant)
+    public void AddCircleMember(Guid circleId, AsciiDomainName domainName, CircleGrant circleGrant, DomainType domainType)
     {
         var circleMemberRecord = new CircleMemberRecord()
         {
@@ -72,13 +87,16 @@ public class CircleMembershipService
             memberId = OdinId.ToHashId(domainName),
             data = OdinSystemSerializer.Serialize(new CircleMemberStorageData
             {
+                DomainType = domainType,
                 DomainName = domainName,
                 CircleGrant = circleGrant
             }).ToUtf8ByteArray()
         };
 
         _tenantSystemStorage.CircleMemberStorage.AddCircleMembers(new List<CircleMemberRecord>() { circleMemberRecord });
-    }   
+    }
+
+    // Grants
 
     public async Task<CircleGrant> CreateCircleGrant(CircleDefinition def, SensitiveByteArray keyStoreKey, SensitiveByteArray masterKey)
     {
@@ -100,7 +118,7 @@ public class CircleMembershipService
 
         return await this.CreateCircleGrantList(circleIds, keyStoreKey);
     }
-    
+
     public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantList(List<GuidId> circleIds, SensitiveByteArray keyStoreKey)
     {
         var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
@@ -128,7 +146,7 @@ public class CircleMembershipService
         //Map CircleGrants and AppCircleGrants to Exchange grants
         // Note: remember that all connected users are added to a system
         // circle; this circle has grants to all drives marked allowAnonymous == true
-        
+
         var grants = new Dictionary<Guid, ExchangeGrant>();
         var enabledCircles = new List<GuidId>();
         foreach (var cg in circleGrants)

@@ -38,17 +38,14 @@ namespace Odin.Core.Services.Membership.YouAuth
         private readonly OdinContextCache _cache;
         private readonly TenantContext _tenantContext;
 
-        private readonly IMediator _mediator;
-
         public YouAuthDomainRegistrationService(OdinContextAccessor contextAccessor, TenantSystemStorage tenantSystemStorage,
-            ExchangeGrantService exchangeGrantService, OdinConfiguration config, TenantContext tenantContext, IMediator mediator,
+            ExchangeGrantService exchangeGrantService, OdinConfiguration config, TenantContext tenantContext,
             CircleNetworkService circleNetworkService, CircleMembershipService circleMembershipService)
         {
             _contextAccessor = contextAccessor;
             _tenantSystemStorage = tenantSystemStorage;
             _exchangeGrantService = exchangeGrantService;
             _tenantContext = tenantContext;
-            _mediator = mediator;
             _circleNetworkService = circleNetworkService;
             _circleMembershipService = circleMembershipService;
 
@@ -96,7 +93,6 @@ namespace Odin.Core.Services.Membership.YouAuth
 
             return reg.Redacted();
         }
-
 
         public async Task<(ClientAccessToken cat, string corsHostName)> RegisterClient(
             AsciiDomainName domain,
@@ -410,6 +406,14 @@ namespace Odin.Core.Services.Membership.YouAuth
         {
             var key = GuidId.FromString(domain.DomainName);
             var reg = _domainStorage.Get<YouAuthDomainRegistration>(key);
+
+            if(null != reg)
+            {
+                //get the circle grants for this domain
+                var circles = _circleMembershipService.GetCirclesByDomain(reg.Domain);
+                reg.CircleGrants = circles.ToDictionary(cg => cg.CircleId.Value, cg => cg);
+            }
+            
             return await Task.FromResult(reg);
         }
 
@@ -432,23 +436,25 @@ namespace Odin.Core.Services.Membership.YouAuth
 
             using (_tenantSystemStorage.CreateCommitUnitOfWork())
             {
-                //Reconcile circle grants in the table
+                //Store the circles for this registration
                 _circleMembershipService.DeleteMemberFromAllCircles(registration.Domain);
                 foreach (var (circleId, circleGrant) in registration.CircleGrants)
                 {
-                    var circleMembers = _circleMembershipService.GetCircleMembers(circleId);
-                    var isMember = circleMembers.Any(domainName => OdinId.ToHashId(domainName) == OdinId.ToHashId(registration.Domain));
+                    var circleMembers = _circleMembershipService.GetDomainsInCircle(circleId).Where(d => d.DomainType == DomainType.YouAuth);
+                    var isMember = circleMembers.Any(d => OdinId.ToHashId(d.Domain) == OdinId.ToHashId(registration.Domain));
 
                     if (!isMember)
                     {
-                        _circleMembershipService.AddCircleMember(circleId, domain, circleGrant);
+                        _circleMembershipService.AddCircleMember(circleId, domain, circleGrant, DomainType.YouAuth);
                     }
                 }
+
+                //clear them here so we don't hve two locations
+                registration.CircleGrants.Clear();
 
                 _domainStorage.Upsert(GetDomainKey(registration.Domain), GuidId.Empty, _domainRegistrationDataType, registration);
             }
         }
-
 
         private async Task<OdinContext> CreateContextForYouAuthDomain(
             ClientAuthenticationToken authToken,

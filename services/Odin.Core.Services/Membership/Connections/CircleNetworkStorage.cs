@@ -54,12 +54,12 @@ public class CircleNetworkStorage
             _circleMembershipService.DeleteMemberFromAllCircles(icr.OdinId);
             foreach (var (circleId, circleGrant) in icr.AccessGrant.CircleGrants)
             {
-                var circleMembers = _circleMembershipService.GetCircleMembers(circleId);
-                var isMember = circleMembers.Any(domainName => OdinId.ToHashId(domainName) == icr.OdinId.ToHashId());
+                var circleMembers = _circleMembershipService.GetDomainsInCircle(circleId);
+                var isMember = circleMembers.Any(d => OdinId.ToHashId(d.Domain) == icr.OdinId.ToHashId());
 
                 if (!isMember)
                 {
-                    _circleMembershipService.AddCircleMember(circleId, icr.OdinId, circleGrant);
+                    _circleMembershipService.AddCircleMember(circleId, icr.OdinId, circleGrant, DomainType.Identity);
                 }
             }
 

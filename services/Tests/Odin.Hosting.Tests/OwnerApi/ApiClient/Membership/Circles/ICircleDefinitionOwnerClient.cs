@@ -13,8 +13,7 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles
 
         [Get(RootPath + "/list")]
         Task<ApiResponse<IEnumerable<CircleDefinition>>> GetCircleDefinitions(bool includeSystemCircle = false);
-
-
+        
         [Post(RootPath + "/get")]
         Task<ApiResponse<CircleDefinition>> GetCircleDefinition([Body] Guid id);
 
