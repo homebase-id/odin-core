@@ -3,8 +3,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Configuration;
-using Odin.Core.Services.Contacts.Circle;
-using Odin.Hosting.Tests.OwnerApi.Circle;
+using Odin.Core.Services.Membership.Circles;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Circles;
+using Odin.Hosting.Tests.OwnerApi.Membership.Circles;
 
 namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
 {

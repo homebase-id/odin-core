@@ -1,5 +1,5 @@
 using System;
-using Odin.Core.Services.Contacts.Circle.Requests;
+using Odin.Core.Services.Membership.Connections.Requests;
 
 namespace Odin.Hosting.Controllers;
 

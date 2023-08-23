@@ -4,9 +4,9 @@ using System.Threading.Tasks;
 using MediatR;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Base;
-using Odin.Core.Services.Contacts.Circle.Membership;
 using Odin.Core.Services.Drives;
 using Odin.Core.Services.Mediator.Owner;
+using Odin.Core.Services.Membership.Connections;
 using Odin.Core.Services.Transit.ReceivingHost.Incoming;
 using Odin.Core.Services.Transit.SendingHost;
 

@@ -1,4 +1,4 @@
-using Odin.Core.Services.Contacts.Circle.Membership;
+using Odin.Core.Services.Membership.Connections;
 
 namespace Odin.Hosting.Controllers.ClientToken.Circles;
 

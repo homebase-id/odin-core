@@ -2,7 +2,7 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Odin.Core;
-using Odin.Core.Services.Contacts.Circle.Requests;
+using Odin.Core.Services.Membership.Connections.Requests;
 
 namespace Odin.Hosting.Controllers.ClientToken.Circles
 {

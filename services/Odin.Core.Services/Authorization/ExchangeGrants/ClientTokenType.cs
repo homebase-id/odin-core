@@ -11,7 +11,11 @@ public enum ClientTokenType
     /// The bearer is using the CircleNetwork Connection via transit
     /// </summary>
     IdentityConnectionRegistration = 2,
-    
+
+    /// <summary>
+    /// temp unknown as I intend on removing this
+    /// </summary>
+    TempUnknown = 222,
 
     Other = 3,
 
@@ -19,7 +23,7 @@ public enum ClientTokenType
     /// The bearer was granted access to send data to this identity 
     /// </summary>
     DataProvider = 7,
-    
+
     /// <summary>
     /// The bearer was granted access to send data to this identity 
     /// </summary>

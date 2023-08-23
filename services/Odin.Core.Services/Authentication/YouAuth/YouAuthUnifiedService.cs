@@ -10,8 +10,8 @@ using Odin.Core.Exceptions;
 using Odin.Core.Exceptions.Client;
 using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.ExchangeGrants;
-using Odin.Core.Services.Authorization.YouAuth;
 using Odin.Core.Services.Base;
+using Odin.Core.Services.Membership.YouAuth;
 using Odin.Core.Util;
 
 namespace Odin.Core.Services.Authentication.YouAuth;
@@ -100,8 +100,7 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
                 Domain = domain.DomainName,
                 Name = domain.DomainName,
                 CorsHostName = clientId,
-                Drives = default,
-                PermissionSet = default
+                CircleIds = default //TODO: should we set a circle here?
             };
 
             (token, _) = await _domainRegistrationService.RegisterClient(domain, domain.DomainName, request);

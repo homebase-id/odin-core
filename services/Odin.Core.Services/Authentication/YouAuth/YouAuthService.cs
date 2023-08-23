@@ -6,7 +6,7 @@ using Odin.Core.Cryptography.Data;
 using Odin.Core.Identity;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
-using Odin.Core.Services.Contacts.Circle.Membership;
+using Odin.Core.Services.Membership.Connections;
 
 namespace Odin.Core.Services.Authentication.YouAuth
 {

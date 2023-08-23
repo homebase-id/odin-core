@@ -606,7 +606,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Transit.TransitOnly
                 Permission = drivePermissions
             };
 
-            var recipientCircle = await recipientOwnerClient.Network.CreateCircle("Circle with drive access", new PermissionSetGrantRequest()
+            var recipientCircle = await recipientOwnerClient.Membership.CreateCircle("Circle with drive access", new PermissionSetGrantRequest()
             {
                 Drives = new List<DriveGrantRequest>()
                 {

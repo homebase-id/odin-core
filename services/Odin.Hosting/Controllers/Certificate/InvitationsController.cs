@@ -5,8 +5,8 @@ using Odin.Core;
 using Odin.Core.Fluff;
 using Odin.Core.Serialization;
 using Odin.Core.Services.Base;
-using Odin.Core.Services.Contacts.Circle.Requests;
 using Odin.Core.Services.EncryptionKeyService;
+using Odin.Core.Services.Membership.Connections.Requests;
 using Odin.Hosting.Authentication.Perimeter;
 
 namespace Odin.Hosting.Controllers.Certificate
