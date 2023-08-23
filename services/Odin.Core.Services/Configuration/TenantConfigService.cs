@@ -175,7 +175,7 @@ public class TenantConfigService
 
     private void UpdateSystemCirclePermission(int key, bool shouldGrantKey)
     {
-        var systemCircle = _circleMembershipService.GetCircle(CircleConstants.SystemCircleId);
+        var systemCircle = _circleMembershipService.GetCircle(CircleConstants.ConnectedIdentitiesSystemCircleId);
 
 
         if (shouldGrantKey)

@@ -846,7 +846,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
             var client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(sam.Identity, out var ownerSharedSecret);
             {
                 var circleDefSvc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
-                var getSystemCircleDefinitionResponse = await circleDefSvc.GetCircleDefinition(CircleConstants.SystemCircleId);
+                var getSystemCircleDefinitionResponse = await circleDefSvc.GetCircleDefinition(CircleConstants.ConnectedIdentitiesSystemCircleId);
                 Assert.IsTrue(getSystemCircleDefinitionResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(getSystemCircleDefinitionResponse.Content);
                 var systemCircleDef = getSystemCircleDefinitionResponse.Content;
@@ -861,7 +861,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
                 Assert.IsTrue(getFrodoInfoResponse.Content.Status == ConnectionStatus.Connected);
 
                 var frodoAccess = getFrodoInfoResponse.Content.AccessGrant;
-                var frodoAccessFromSystemCircle = frodoAccess.CircleGrants.SingleOrDefault(c => c.CircleId == CircleConstants.SystemCircleId);
+                var frodoAccessFromSystemCircle = frodoAccess.CircleGrants.SingleOrDefault(c => c.CircleId == CircleConstants.ConnectedIdentitiesSystemCircleId);
                 Assert.NotNull(frodoAccessFromSystemCircle);
 
                 AssertAllDrivesGrantedFromCircle(systemCircleDef, frodoAccessFromSystemCircle);
@@ -876,7 +876,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
                 // Frodo should show up in the member list for each circle
                 //
-                await AssertIdentityIsInCircle(client, ownerSharedSecret, CircleConstants.SystemCircleId, frodo.Identity);
+                await AssertIdentityIsInCircle(client, ownerSharedSecret, CircleConstants.ConnectedIdentitiesSystemCircleId, frodo.Identity);
             }
 
 
@@ -886,7 +886,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
             client = _scaffold.OldOwnerApi.CreateOwnerApiHttpClient(frodo.Identity, out ownerSharedSecret);
             {
                 var circleDefSvc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ownerSharedSecret);
-                var getSystemCircleDefinitionResponse = await circleDefSvc.GetCircleDefinition(CircleConstants.SystemCircleId);
+                var getSystemCircleDefinitionResponse = await circleDefSvc.GetCircleDefinition(CircleConstants.ConnectedIdentitiesSystemCircleId);
                 Assert.IsTrue(getSystemCircleDefinitionResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(getSystemCircleDefinitionResponse.Content);
                 var systemCircleDef = getSystemCircleDefinitionResponse.Content;
@@ -901,7 +901,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
                 Assert.IsTrue(getSamInfoResponse.Content.Status == ConnectionStatus.Connected);
 
                 var samAccess = getSamInfoResponse.Content.AccessGrant;
-                var samAccessFromSystemCircle = samAccess.CircleGrants.SingleOrDefault(c => c.CircleId == CircleConstants.SystemCircleId);
+                var samAccessFromSystemCircle = samAccess.CircleGrants.SingleOrDefault(c => c.CircleId == CircleConstants.ConnectedIdentitiesSystemCircleId);
                 Assert.NotNull(samAccessFromSystemCircle);
 
                 AssertAllDrivesGrantedFromCircle(systemCircleDef, samAccessFromSystemCircle);
@@ -916,7 +916,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.Connections
 
                 // Frodo should show up in the member list for each circle
                 //
-                await AssertIdentityIsInCircle(client, ownerSharedSecret, CircleConstants.SystemCircleId, sam.Identity);
+                await AssertIdentityIsInCircle(client, ownerSharedSecret, CircleConstants.ConnectedIdentitiesSystemCircleId, sam.Identity);
             }
 
             await DisconnectIdentities(frodo, sam);

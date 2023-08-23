@@ -92,6 +92,15 @@ public class CircleMembershipService
         };
     }
 
+    public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantListWithSystemCircle(List<GuidId> circleIds, SensitiveByteArray keyStoreKey)
+    {
+        // Always put identities in the system circle
+        var list = circleIds ?? new List<GuidId>();
+        list.Add(CircleConstants.ConnectedIdentitiesSystemCircleId);
+
+        return await this.CreateCircleGrantList(circleIds, keyStoreKey);
+    }
+    
     public async Task<Dictionary<Guid, CircleGrant>> CreateCircleGrantList(List<GuidId> circleIds, SensitiveByteArray keyStoreKey)
     {
         var masterKey = _contextAccessor.GetCurrent().Caller.GetMasterKey();
@@ -100,12 +109,11 @@ public class CircleMembershipService
 
         // Always put identities in the system circle
         var list = circleIds ?? new List<GuidId>();
-        list.Add(CircleConstants.SystemCircleId);
+        // list.Add(CircleConstants.ConnectedIdentitiesSystemCircleId);
 
         foreach (var id in list)
         {
             var def = this.GetCircle(id);
-
             var cg = await this.CreateCircleGrant(def, keyStoreKey, masterKey);
             circleGrants.Add(id.Value, cg);
         }

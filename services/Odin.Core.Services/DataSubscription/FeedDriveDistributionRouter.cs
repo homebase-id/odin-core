@@ -220,7 +220,7 @@ namespace Odin.Core.Services.DataSubscription
             }
 
             //find all followers that are connected, return those which are not to be processed differently
-            var connectedIdentities = await _circleNetworkService.GetCircleMembers(CircleConstants.SystemCircleId);
+            var connectedIdentities = await _circleNetworkService.GetCircleMembers(CircleConstants.ConnectedIdentitiesSystemCircleId);
             var connectedRecipients = recipients.Intersect(connectedIdentities).ToList();
 
             if (connectedRecipients.Any())

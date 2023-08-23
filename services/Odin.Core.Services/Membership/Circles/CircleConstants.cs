@@ -6,9 +6,9 @@ namespace Odin.Core.Services.Membership.Circles;
 
 public static class CircleConstants
 {
-    public static readonly GuidId SystemCircleId = GuidId.FromString("we_are_connected");
+    public static readonly GuidId ConnectedIdentitiesSystemCircleId = GuidId.FromString("we_are_connected");
 
-    public static readonly List<DriveGrantRequest> InitialSystemCircleDrives = new()
+    public static readonly List<DriveGrantRequest> ConnectedIdentitiesSystemCircleInitialDrives = new()
     {
         new DriveGrantRequest()
         {

@@ -687,7 +687,7 @@ namespace Odin.Core.Services.Membership.Connections
         private async Task HandleDriveUpdated(StorageDrive drive)
         {
             //examine system circle; remove drive if needed
-            CircleDefinition systemCircle = _circleMembershipService.GetCircle(CircleConstants.SystemCircleId);
+            CircleDefinition systemCircle = _circleMembershipService.GetCircle(CircleConstants.ConnectedIdentitiesSystemCircleId);
 
             var existingDriveGrant = systemCircle.DriveGrants.SingleOrDefault(dg => dg.PermissionedDrive.Drive == drive.TargetDriveInfo);
             if (drive.AllowAnonymousReads == false && existingDriveGrant != null)
@@ -716,7 +716,7 @@ namespace Odin.Core.Services.Membership.Connections
                 return;
             }
 
-            CircleDefinition def = _circleMembershipService.GetCircle(CircleConstants.SystemCircleId);
+            CircleDefinition def = _circleMembershipService.GetCircle(CircleConstants.ConnectedIdentitiesSystemCircleId);
 
             var grants = def.DriveGrants.ToList();
             grants.Add(new DriveGrantRequest()

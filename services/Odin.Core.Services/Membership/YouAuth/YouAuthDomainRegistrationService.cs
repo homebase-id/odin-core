@@ -101,7 +101,7 @@ namespace Odin.Core.Services.Membership.YouAuth
         public async Task<(ClientAccessToken cat, string corsHostName)> RegisterClient(
             AsciiDomainName domain,
             string friendlyName,
-            YouAuthDomainRegistrationRequest request)
+            YouAuthDomainRegistrationRequest? request)
         {
             Guard.Argument(domain, nameof(domain)).Require(x => !string.IsNullOrEmpty(x.DomainName));
             Guard.Argument(friendlyName, nameof(friendlyName)).NotNull().NotEmpty();

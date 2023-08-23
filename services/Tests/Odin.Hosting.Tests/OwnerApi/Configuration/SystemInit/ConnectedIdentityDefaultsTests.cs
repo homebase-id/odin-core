@@ -59,7 +59,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             {
                 var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ss);
 
-                var getSystemCircleResponse = await svc.GetCircleDefinition(CircleConstants.SystemCircleId);
+                var getSystemCircleResponse = await svc.GetCircleDefinition(CircleConstants.ConnectedIdentitiesSystemCircleId);
                 Assert.IsTrue(getSystemCircleResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(getSystemCircleResponse.Content);
                 var systemCircle = getSystemCircleResponse.Content;
@@ -76,7 +76,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Configuration.SystemInit
             {
                 var svc = RefitCreator.RestServiceFor<ICircleDefinitionOwnerClient>(client, ss);
 
-                var getSystemCircleResponse = await svc.GetCircleDefinition(CircleConstants.SystemCircleId);
+                var getSystemCircleResponse = await svc.GetCircleDefinition(CircleConstants.ConnectedIdentitiesSystemCircleId);
                 Assert.IsTrue(getSystemCircleResponse.IsSuccessStatusCode);
                 Assert.IsNotNull(getSystemCircleResponse.Content);
                 var systemCircle = getSystemCircleResponse.Content;

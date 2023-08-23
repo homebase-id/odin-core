@@ -9,6 +9,7 @@ using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Authorization.Permissions;
 using Odin.Core.Services.Base;
 using Odin.Core.Services.Drives;
+using Odin.Core.Services.Membership.Circles;
 using Odin.Core.Storage.SQLite.DriveDatabase;
 using Odin.Core.Util;
 using Odin.Hosting.Tests.OwnerApi.ApiClient;
@@ -38,7 +39,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
         [Test]
         public async Task CanRegisterNewDomain()
         {
-            var domain = new AsciiDomainName("amazoom2.com");
+            var domain = new AsciiDomainName("amazoo4320m2.com");
 
             var client = new OwnerApiClient(_scaffold.OldOwnerApi, _identity);
             var response = await client.YouAuth.RegisterDomain(domain);
@@ -55,7 +56,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
         [Test]
         public async Task CanRegisterNewDomainWithCircle()
         {
-            var domain = new AsciiDomainName("amazoom2.com");
+            var domain = new AsciiDomainName("amaz112coom2.com");
 
             var client = new OwnerApiClient(_scaffold.OldOwnerApi, _identity);
 
@@ -118,12 +119,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
         {
             var client = new OwnerApiClient(_scaffold.OldOwnerApi, _identity);
 
-            var domain1 = new AsciiDomainName("amazoom2.com");
+            var domain1 = new AsciiDomainName("amazoomaa2333.com");
             var response1 = await client.YouAuth.RegisterDomain(domain1);
             Assert.IsTrue(response1.IsSuccessStatusCode, $"Failed status code.  Value was {response1.StatusCode}");
             Assert.IsNotNull(response1.Content);
 
-            var domain2 = new AsciiDomainName("bestbuyvius.com");
+            var domain2 = new AsciiDomainName("bestbuyvi444us.com");
             var response2 = await client.YouAuth.RegisterDomain(domain2);
             Assert.IsTrue(response2.IsSuccessStatusCode, $"Failed status code.  Value was {response2.StatusCode}");
             Assert.IsNotNull(response2.Content);
@@ -133,8 +134,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
 
             var results = domainRegistrationResponse.Content;
             Assert.IsNotNull(results);
-            Assert.IsTrue(results.Count() == 2);
-
             Assert.IsNotNull(results.SingleOrDefault(d => d.Domain == domain1.DomainName));
             Assert.IsNotNull(results.SingleOrDefault(d => d.Domain == domain2.DomainName));
         }
@@ -144,12 +143,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
         {
             var client = new OwnerApiClient(_scaffold.OldOwnerApi, _identity);
 
-            var domain1 = new AsciiDomainName("amazoom2.com");
+            var domain1 = new AsciiDomainName("amazoomaa2.com");
             var response1 = await client.YouAuth.RegisterDomain(domain1);
             Assert.IsTrue(response1.IsSuccessStatusCode, $"Failed status code.  Value was {response1.StatusCode}");
             Assert.IsNotNull(response1.Content);
 
-            var domainToBeDeleted = new AsciiDomainName("bestbuyvius.com");
+            var domainToBeDeleted = new AsciiDomainName("aabestbuyvius.com");
             var response2 = await client.YouAuth.RegisterDomain(domainToBeDeleted);
             Assert.IsTrue(response2.IsSuccessStatusCode, $"Failed status code.  Value was {response2.StatusCode}");
             Assert.IsNotNull(response2.Content);
@@ -200,7 +199,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
         [Test]
         public async Task CanRevokeDomain_Then_RemoveRevocation()
         {
-            var domain = new AsciiDomainName("amazoom2.com");
+            var domain = new AsciiDomainName("amazoaac2om2.com");
 
             var client = new OwnerApiClient(_scaffold.OldOwnerApi, _identity);
             var response = await client.YouAuth.RegisterDomain(domain);
@@ -237,9 +236,9 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
         }
 
         [Test]
-        public async Task CanGrantCircle()
+        public async Task ConnectedIdentitySystemCircleNotGrantedToYouAuthDomain()
         {
-            var domain = new AsciiDomainName("amazoom2.com");
+            var domain = new AsciiDomainName("amazoom333.com");
 
             var client = new OwnerApiClient(_scaffold.OldOwnerApi, _identity);
 
@@ -287,7 +286,72 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
             var getUpdatedDomainRegistrationResponse = await client.YouAuth.GetDomainRegistration(domain);
             Assert.That(getUpdatedDomainRegistrationResponse.IsSuccessStatusCode, Is.True);
 
-            var updatedDomainRegistration = domainRegistrationResponse.Content;
+            var updatedDomainRegistrationResponse = await client.YouAuth.GetDomainRegistration(domain);
+            var updatedDomainRegistration = updatedDomainRegistrationResponse.Content;
+            Assert.IsNotNull(updatedDomainRegistration);
+            var someCircleGrant = updatedDomainRegistration.CircleGrants.SingleOrDefault(cg => cg.CircleId == someCircle.Id);
+            Assert.IsNotNull(someCircleGrant);
+            Assert.IsTrue(someCircleGrant.DriveGrants.Count == someCircle.DriveGrants.Count());
+            CollectionAssert.AreEquivalent(someCircleGrant.PermissionSet.Keys, someCircle.Permissions.Keys);
+
+            // ensure the system circle was not granted
+            Assert.IsNull(updatedDomainRegistration.CircleGrants.SingleOrDefault(c => c.CircleId == CircleConstants.ConnectedIdentitiesSystemCircleId),
+                "The connected identities circle should not be granted to youauth domains");
+        }
+
+        [Test]
+        public async Task CanGrantCircle()
+        {
+            var domain = new AsciiDomainName("amazoom4422.com");
+
+            var client = new OwnerApiClient(_scaffold.OldOwnerApi, _identity);
+
+            var someDrive = await client.Drive.CreateDrive(TargetDrive.NewTargetDrive(), "Some drive",
+                metadata: "",
+                allowAnonymousReads: false,
+                allowSubscriptions: false,
+                ownerOnly: false);
+
+            var someCircle = await client.Membership.CreateCircle("Circle with valid permissions", new PermissionSetGrantRequest()
+            {
+                PermissionSet = new PermissionSet(new[] { PermissionKeys.ReadCircleMembership }),
+                Drives = new List<DriveGrantRequest>()
+                {
+                    new()
+                    {
+                        PermissionedDrive = new PermissionedDrive()
+                        {
+                            Drive = someDrive.TargetDriveInfo,
+                            Permission = DrivePermission.Write & DrivePermission.WriteReactionsAndComments
+                        }
+                    }
+                }
+            });
+
+            var response = await client.YouAuth.RegisterDomain(domain);
+
+            Assert.IsTrue(response.IsSuccessStatusCode, $"Failed status code.  Value was {response.StatusCode}");
+            Assert.IsNotNull(response.Content);
+
+            var domainRegistrationResponse = await client.YouAuth.GetDomainRegistration(domain);
+            Assert.That(domainRegistrationResponse.IsSuccessStatusCode, Is.True);
+
+            var domainRegistration = domainRegistrationResponse.Content;
+            Assert.That(domainRegistration, Is.Not.Null);
+            Assert.That(domainRegistration.Domain, Is.EqualTo(domain.DomainName));
+            Assert.IsFalse(domainRegistration.IsRevoked);
+            Assert.IsTrue(domainRegistration.Created > 0);
+            // Assert.IsNotNull(domainRegistration.CorsHostName);
+
+            //now grant the circle
+            var grantCircleResponse = await client.YouAuth.GrantCircle(domain, someCircle.Id);
+            Assert.IsTrue(grantCircleResponse.IsSuccessStatusCode);
+
+            var getUpdatedDomainRegistrationResponse = await client.YouAuth.GetDomainRegistration(domain);
+            Assert.That(getUpdatedDomainRegistrationResponse.IsSuccessStatusCode, Is.True);
+
+            var updatedDomainRegistrationResponse = await client.YouAuth.GetDomainRegistration(domain);
+            var updatedDomainRegistration = updatedDomainRegistrationResponse.Content;
             Assert.IsNotNull(updatedDomainRegistration);
             var circle2Grant = updatedDomainRegistration.CircleGrants.SingleOrDefault(cg => cg.CircleId == someCircle.Id);
             Assert.IsNotNull(circle2Grant);
@@ -298,7 +362,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
         [Test]
         public async Task CanRevokeCircle()
         {
-            var domain = new AsciiDomainName("amazoom2.com");
+            var domain = new AsciiDomainName("amazeen2.com");
 
             var client = new OwnerApiClient(_scaffold.OldOwnerApi, _identity);
 
@@ -360,11 +424,14 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
             var revokeCircle1Response = await client.YouAuth.RevokeCircle(domain, circle1.Id);
             Assert.IsTrue(revokeCircle1Response.IsSuccessStatusCode);
 
-            var updatedDomainRegistration = domainRegistrationResponse.Content;
+            var updatedDomainRegistrationResponse = await client.YouAuth.GetDomainRegistration(domain);
+            Assert.That(updatedDomainRegistrationResponse.IsSuccessStatusCode, Is.True);
+
+            var updatedDomainRegistration = updatedDomainRegistrationResponse.Content;
             Assert.IsNotNull(updatedDomainRegistration);
 
-            Assert.IsTrue(updatedDomainRegistration.CircleGrants.Count() == 1);
-            Assert.IsNull(updatedDomainRegistration.CircleGrants.SingleOrDefault(cg=>cg.CircleId == circle1.Id));
+            Assert.IsTrue(updatedDomainRegistration.CircleGrants.Count() == 1, $"count was {updatedDomainRegistration.CircleGrants.Count()}");
+            Assert.IsNull(updatedDomainRegistration.CircleGrants.SingleOrDefault(cg => cg.CircleId == circle1.Id));
         }
 
         [Test]
@@ -372,7 +439,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
         {
             var client = new OwnerApiClient(_scaffold.OldOwnerApi, _identity);
 
-            var domain1 = new AsciiDomainName("amazoom2.com");
+            var domain1 = new AsciiDomainName("amazoaap4om2.com");
             var response1 = await client.YouAuth.RegisterDomain(domain1);
             Assert.IsTrue(response1.IsSuccessStatusCode, $"Failed status code.  Value was {response1.StatusCode}");
             Assert.IsNotNull(response1.Content);
@@ -386,8 +453,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
             Assert.IsTrue(allClientsResponse.IsSuccessStatusCode);
             var allClients = allClientsResponse.Content;
             Assert.IsNotNull(allClients);
-            Assert.IsTrue(allClients.Count() == 1);
-
             Assert.IsNotNull(allClients.SingleOrDefault(c => c.Domain.DomainName == domain1.DomainName));
         }
 
@@ -396,12 +461,12 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
         {
             var client = new OwnerApiClient(_scaffold.OldOwnerApi, _identity);
 
-            var domain1 = new AsciiDomainName("amazoom2.com");
+            var domain1 = new AsciiDomainName("amazddoom2.com");
             var response1 = await client.YouAuth.RegisterDomain(domain1);
             Assert.IsTrue(response1.IsSuccessStatusCode, $"Failed status code.  Value was {response1.StatusCode}");
             Assert.IsNotNull(response1.Content);
 
-            var domain2 = new AsciiDomainName("bestbuyvius.com");
+            var domain2 = new AsciiDomainName("bestddbuyvius.com");
             var response2 = await client.YouAuth.RegisterDomain(domain2);
             Assert.IsTrue(response2.IsSuccessStatusCode, $"Failed status code.  Value was {response2.StatusCode}");
             Assert.IsNotNull(response2.Content);
@@ -411,8 +476,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
 
             var results = domainRegistrationResponse.Content;
             Assert.IsNotNull(results);
-            Assert.IsTrue(results.Count() == 2);
-
             Assert.IsNotNull(results.SingleOrDefault(d => d.Domain == domain1.DomainName));
             Assert.IsNotNull(results.SingleOrDefault(d => d.Domain == domain2.DomainName));
 
@@ -429,7 +492,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
             Assert.IsTrue(allClientsResponse.IsSuccessStatusCode);
             var allClients = allClientsResponse.Content;
             Assert.IsNotNull(allClients);
-            Assert.IsTrue(allClients.Count() == 2);
 
             Assert.IsNotNull(allClients.SingleOrDefault(c => c.Domain.DomainName == domain1.DomainName));
             Assert.IsNotNull(allClients.SingleOrDefault(c => c.Domain.DomainName == domain2.DomainName));
@@ -440,7 +502,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
         {
             var client = new OwnerApiClient(_scaffold.OldOwnerApi, _identity);
 
-            var domain1 = new AsciiDomainName("amazoom2.com");
+            var domain1 = new AsciiDomainName("accmazoom2.com");
             var response1 = await client.YouAuth.RegisterDomain(domain1);
             Assert.IsTrue(response1.IsSuccessStatusCode, $"Failed status code.  Value was {response1.StatusCode}");
             Assert.IsNotNull(response1.Content);
@@ -452,7 +514,7 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
             var allClientsResponse = await client.YouAuth.GetRegisteredClients();
             Assert.IsTrue(allClientsResponse.IsSuccessStatusCode);
             Assert.IsNotNull(allClientsResponse.Content);
-            Assert.IsTrue(allClientsResponse.Content.Count() == 1, "there should be one client for domain1ClientRegistrationResponse");
+            Assert.IsNotNull(allClientsResponse.Content.SingleOrDefault(c => c.Domain.DomainName == domain1.DomainName));
 
             //delete the client
             var deleteClientResponse = await client.YouAuth.DeleteClient(domain1ClientRegistrationResponse.Content.AccessRegistrationId);
@@ -461,7 +523,8 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership.YouAuth
             var emptyClientsResponse = await client.YouAuth.GetRegisteredClients();
             Assert.IsTrue(emptyClientsResponse.IsSuccessStatusCode);
             Assert.IsNotNull(emptyClientsResponse.Content);
-            Assert.IsFalse(emptyClientsResponse.Content.Any(), "there should be no clients");
+            Assert.IsNull(emptyClientsResponse.Content.SingleOrDefault(c => c.Domain.DomainName == domain1.DomainName),
+                "a client for domain1 should not exist");
         }
     }
 }

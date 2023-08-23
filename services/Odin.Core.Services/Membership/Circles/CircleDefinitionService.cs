@@ -34,14 +34,14 @@ namespace Odin.Core.Services.Membership.Circles
 
         public void CreateSystemCircle()
         {
-            if (null == this.GetCircle(CircleConstants.SystemCircleId))
+            if (null == this.GetCircle(CircleConstants.ConnectedIdentitiesSystemCircleId))
             {
                 this.CreateCircleInternal(new CreateCircleRequest()
                 {
-                    Id = CircleConstants.SystemCircleId.Value,
-                    Name = "System Circle",
+                    Id = CircleConstants.ConnectedIdentitiesSystemCircleId.Value,
+                    Name = "Connected Identities System Circle",
                     Description = "All Connected Identities",
-                    DriveGrants = CircleConstants.InitialSystemCircleDrives,
+                    DriveGrants = CircleConstants.ConnectedIdentitiesSystemCircleInitialDrives,
                     Permissions = new PermissionSet()
                     {
                         Keys = new List<int>() { }
@@ -93,7 +93,7 @@ namespace Odin.Core.Services.Membership.Circles
             var circles = _circleValueStorage.GetByKey3<CircleDefinition>(_circleDataType);
             if (!includeSystemCircle)
             {
-                return Task.FromResult(circles.Where(c => c.Id != CircleConstants.SystemCircleId.Value));
+                return Task.FromResult(circles.Where(c => c.Id != CircleConstants.ConnectedIdentitiesSystemCircleId.Value));
             }
 
             return Task.FromResult(circles);
