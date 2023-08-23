@@ -4,6 +4,7 @@ using Odin.Core.Services.Configuration;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Cron;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.Connections;
+using Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.YouAuth;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Rsa;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Security;
 using Odin.Hosting.Tests.OwnerApi.ApiClient.Transit;

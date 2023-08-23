@@ -30,10 +30,10 @@ namespace Odin.Core.Services.Membership.YouAuth
         private readonly TenantSystemStorage _tenantSystemStorage;
 
         private readonly GuidId _domainRegistrationDataType = GuidId.FromString("__youauth_domain_reg");
-        private readonly ThreeKeyValueStorage _registrationValueStorage;
+        private readonly ThreeKeyValueStorage _domainStorage;
 
         private readonly GuidId _clientDataType = GuidId.FromString("__youauth_domain_client_reg");
-        private readonly ThreeKeyValueStorage _youAuthDomainClientValueStorage;
+        private readonly ThreeKeyValueStorage _clientStorage;
 
         private readonly OdinContextCache _cache;
         private readonly TenantContext _tenantContext;
@@ -52,8 +52,8 @@ namespace Odin.Core.Services.Membership.YouAuth
             _circleNetworkService = circleNetworkService;
             _circleMembershipService = circleMembershipService;
 
-            _registrationValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
-            _youAuthDomainClientValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
+            _domainStorage = tenantSystemStorage.ThreeKeyValueStorage;
+            _clientStorage = tenantSystemStorage.ThreeKeyValueStorage;
             _cache = new OdinContextCache(config.Host.CacheSlidingExpirationSeconds);
         }
 
@@ -196,25 +196,25 @@ namespace Odin.Core.Services.Membership.YouAuth
         public async Task<(bool isValid, AccessRegistration? accessReg, YouAuthDomainRegistration? youAuthDomainRegistration)> ValidateClientAuthToken(
             ClientAuthenticationToken authToken)
         {
-            var appClient = _youAuthDomainClientValueStorage.Get<YouAuthDomainClient>(authToken.Id);
-            if (null == appClient)
+            var domainClient = _clientStorage.Get<YouAuthDomainClient>(authToken.Id);
+            if (null == domainClient)
             {
                 return (false, null, null);
             }
 
-            var reg = await this.GetDomainRegistrationInternal(appClient.Domain);
+            var reg = await this.GetDomainRegistrationInternal(domainClient.Domain);
 
             if (null == reg)
             {
                 return (false, null, null);
             }
 
-            if (appClient.AccessRegistration.IsRevoked || reg.IsRevoked)
+            if (domainClient.AccessRegistration.IsRevoked || reg.IsRevoked)
             {
                 return (false, null, null);
             }
 
-            return (true, appClient.AccessRegistration, reg);
+            return (true, domainClient.AccessRegistration, reg);
         }
 
         public async Task RevokeDomain(AsciiDomainName domain)
@@ -247,37 +247,22 @@ namespace Odin.Core.Services.Membership.YouAuth
 
         public async Task<List<RedactedYouAuthDomainClient>> GetRegisteredClients()
         {
-            var list = _youAuthDomainClientValueStorage.GetByKey3<YouAuthDomainClient>(_clientDataType);
-            var resp = list.Select(appClient => new RedactedYouAuthDomainClient()
+            var list = _clientStorage.GetByKey3<YouAuthDomainClient>(_clientDataType);
+            var resp = list.Select(domainClient => new RedactedYouAuthDomainClient()
             {
-                Domain = appClient.Domain,
-                AccessRegistrationId = appClient.AccessRegistration.Id,
-                FriendlyName = appClient.FriendlyName,
-                IsRevoked = appClient.AccessRegistration.IsRevoked,
-                Created = appClient.AccessRegistration.Created,
-                AccessRegistrationClientType = appClient.AccessRegistration.AccessRegistrationClientType
+                Domain = domainClient.Domain,
+                AccessRegistrationId = domainClient.AccessRegistration.Id,
+                FriendlyName = domainClient.FriendlyName,
+                IsRevoked = domainClient.AccessRegistration.IsRevoked,
+                Created = domainClient.AccessRegistration.Created,
+                AccessRegistrationClientType = domainClient.AccessRegistration.AccessRegistrationClientType
             }).ToList();
 
             return await Task.FromResult(resp);
         }
 
-        public async Task RevokeClient(GuidId accessRegistrationId)
-        {
-            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-            var client = _youAuthDomainClientValueStorage.Get<YouAuthDomainClient>(accessRegistrationId);
-
-            if (null == client)
-            {
-                throw new OdinClientException("Invalid access reg id", OdinClientErrorCode.InvalidAccessRegistrationId);
-            }
-
-            client.AccessRegistration.IsRevoked = true;
-            SaveClient(client);
-            await Task.CompletedTask;
-        }
-
         /// <summary>
-        /// Deletes the current client calling into the system.  This is used to 'logout' an app
+        /// Deletes the current client calling into the system.  This is used to 'logout' an domain
         /// </summary>
         public async Task DeleteCurrentYouAuthDomainClient()
         {
@@ -289,17 +274,17 @@ namespace Odin.Core.Services.Membership.YouAuth
 
             if (!validAccess)
             {
-                throw new OdinSecurityException("Invalid call to Delete app client");
+                throw new OdinSecurityException("Invalid call to Delete domain client");
             }
 
-            var client = _youAuthDomainClientValueStorage.Get<YouAuthDomainClient>(accessRegistrationId);
+            var client = _clientStorage.Get<YouAuthDomainClient>(accessRegistrationId);
 
             if (null == client)
             {
                 throw new OdinClientException("Invalid access reg id", OdinClientErrorCode.InvalidAccessRegistrationId);
             }
 
-            _youAuthDomainClientValueStorage.Delete(accessRegistrationId);
+            _clientStorage.Delete(accessRegistrationId);
             await Task.CompletedTask;
         }
 
@@ -307,30 +292,14 @@ namespace Odin.Core.Services.Membership.YouAuth
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-            var client = _youAuthDomainClientValueStorage.Get<YouAuthDomainClient>(accessRegistrationId);
+            var client = _clientStorage.Get<YouAuthDomainClient>(accessRegistrationId);
 
             if (null == client)
             {
                 throw new OdinClientException("Invalid access reg id", OdinClientErrorCode.InvalidAccessRegistrationId);
             }
 
-            _youAuthDomainClientValueStorage.Delete(accessRegistrationId);
-            await Task.CompletedTask;
-        }
-
-        public async Task AllowClient(GuidId accessRegistrationId)
-        {
-            _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
-
-            var client = _youAuthDomainClientValueStorage.Get<YouAuthDomainClient>(accessRegistrationId);
-
-            if (null == client)
-            {
-                throw new OdinClientException("Invalid access reg id", OdinClientErrorCode.InvalidAccessRegistrationId);
-            }
-
-            client.AccessRegistration.IsRevoked = false;
-            SaveClient(client);
+            _clientStorage.Delete(accessRegistrationId);
             await Task.CompletedTask;
         }
 
@@ -338,14 +307,26 @@ namespace Odin.Core.Services.Membership.YouAuth
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-            var app = await GetDomainRegistrationInternal(domain);
+            var reg = await GetDomainRegistrationInternal(domain);
 
-            if (null == app)
+            if (null == reg)
             {
-                throw new OdinClientException("Invalid App Id", OdinClientErrorCode.AppNotRegistered);
+                throw new OdinClientException("Invalid domain", OdinClientErrorCode.DomainNotRegistered);
             }
 
-            _registrationValueStorage.Delete(GetDomainKey(domain));
+            //delete the clients
+            var clientsByDomain = _clientStorage.GetByKey2<YouAuthDomainClient>(GetDomainKey(domain).ToByteArray());
+
+            using (_tenantSystemStorage.CreateCommitUnitOfWork())
+            {
+                foreach (var c in clientsByDomain)
+                {
+                    _clientStorage.Delete(c.AccessRegistration.Id);
+                }
+
+                _domainStorage.Delete(GetDomainKey(domain));
+            }
+
             await Task.CompletedTask;
         }
 
@@ -353,8 +334,8 @@ namespace Odin.Core.Services.Membership.YouAuth
         {
             _contextAccessor.GetCurrent().Caller.AssertHasMasterKey();
 
-            var apps = _registrationValueStorage.GetByKey3<YouAuthDomainRegistration>(_domainRegistrationDataType);
-            var redactedList = apps.Select(app => app.Redacted()).ToList();
+            var domains = _domainStorage.GetByKey3<YouAuthDomainRegistration>(_domainRegistrationDataType);
+            var redactedList = domains.Select(d => d.Redacted()).ToList();
             return await Task.FromResult(redactedList);
         }
 
@@ -420,7 +401,7 @@ namespace Odin.Core.Services.Membership.YouAuth
 
         private void SaveClient(YouAuthDomainClient youAuthDomainClient)
         {
-            _youAuthDomainClientValueStorage.Upsert(youAuthDomainClient.AccessRegistration.Id, GetDomainKey(youAuthDomainClient.Domain).ToByteArray(),
+            _clientStorage.Upsert(youAuthDomainClient.AccessRegistration.Id, GetDomainKey(youAuthDomainClient.Domain).ToByteArray(),
                 _clientDataType,
                 youAuthDomainClient);
         }
@@ -428,7 +409,7 @@ namespace Odin.Core.Services.Membership.YouAuth
         private async Task<YouAuthDomainRegistration?> GetDomainRegistrationInternal(AsciiDomainName domain)
         {
             var key = GuidId.FromString(domain.DomainName);
-            var reg = _registrationValueStorage.Get<YouAuthDomainRegistration>(key);
+            var reg = _domainStorage.Get<YouAuthDomainRegistration>(key);
             return await Task.FromResult(reg);
         }
 
@@ -464,10 +445,10 @@ namespace Odin.Core.Services.Membership.YouAuth
                     }
                 }
 
-                _registrationValueStorage.Upsert(GetDomainKey(registration.Domain), GuidId.Empty, _domainRegistrationDataType, registration);
+                _domainStorage.Upsert(GetDomainKey(registration.Domain), GuidId.Empty, _domainRegistrationDataType, registration);
             }
         }
-        
+
 
         private async Task<OdinContext> CreateContextForYouAuthDomain(
             ClientAuthenticationToken authToken,

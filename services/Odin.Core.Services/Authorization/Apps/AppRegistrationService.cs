@@ -5,7 +5,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dawn;
 using MediatR;
-using Microsoft.Extensions.Logging;
 using Odin.Core.Cryptography.Data;
 using Odin.Core.Exceptions;
 using Odin.Core.Services.Authorization.Acl;
@@ -26,6 +25,8 @@ namespace Odin.Core.Services.Authorization.Apps
         private readonly ExchangeGrantService _exchangeGrantService;
         private readonly IcrKeyService _icrKeyService;
 
+        private readonly TenantSystemStorage _tenantSystemStorage;
+
         private readonly GuidId _appRegistrationDataType = GuidId.FromString("__app_reg");
         private readonly ThreeKeyValueStorage _appRegistrationValueStorage;
 
@@ -45,6 +46,8 @@ namespace Odin.Core.Services.Authorization.Apps
             _tenantContext = tenantContext;
             _mediator = mediator;
             _icrKeyService = icrKeyService;
+
+            _tenantSystemStorage = tenantSystemStorage;
 
             _appRegistrationValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
             _appClientValueStorage = tenantSystemStorage.ThreeKeyValueStorage;
@@ -219,19 +222,19 @@ namespace Odin.Core.Services.Authorization.Apps
             var appClient = _appClientValueStorage.Get<AppClient>(authToken.Id);
             if (null == appClient)
             {
-                return (false, null, null)!;
+                return (false, null, null);
             }
 
             var appReg = await this.GetAppRegistrationInternal(appClient.AppId);
 
             if (null == appReg || null == appReg.Grant)
             {
-                return (false, null, null)!;
+                return (false, null, null);
             }
 
             if (appClient.AccessRegistration.IsRevoked || appReg.Grant.IsRevoked)
             {
-                return (false, null, null)!;
+                return (false, null, null);
             }
 
             return (true, appClient.AccessRegistration, appReg);
@@ -365,8 +368,23 @@ namespace Odin.Core.Services.Authorization.Apps
             {
                 throw new OdinClientException("Invalid App Id", OdinClientErrorCode.AppNotRegistered);
             }
-
+            
             _appRegistrationValueStorage.Delete(appId);
+
+            //TODO: reenable this after youauth domain work
+            
+            //
+            // var clientsByApp = _appClientValueStorage.GetByKey2<AppClient>(appId);
+            // using (_tenantSystemStorage.CreateCommitUnitOfWork())
+            // {
+            //     foreach (var c in clientsByApp)
+            //     {
+            //         _appClientValueStorage.Delete(c.AccessRegistration.Id);
+            //     }
+            //
+            //     _appRegistrationValueStorage.Delete(appId);
+            // }
+            
             await Task.CompletedTask;
         }
 

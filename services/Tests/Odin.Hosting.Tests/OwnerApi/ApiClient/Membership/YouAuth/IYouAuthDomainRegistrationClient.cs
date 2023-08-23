@@ -13,48 +13,38 @@ namespace Odin.Hosting.Tests.OwnerApi.ApiClient.Membership.YouAuth
     public interface IYouAuthDomainRegistrationClient
     {
         private const string RootPath = OwnerApiPathConstants.YouAuthDomainManagementV1;
-
         
         [Get(RootPath + "/list")]
-        Task<ApiResponse<PagedResult<RedactedYouAuthDomainRegistration>>> GetRegisteredDomains([Query] int pageNumber, [Query] int pageSize);
+        Task<ApiResponse<List<RedactedYouAuthDomainRegistration>>> GetRegisteredDomains();
         
         [Post(RootPath + "/domain")]
         Task<ApiResponse<RedactedYouAuthDomainRegistration>> GetRegisteredDomain([Body] GetYouAuthDomainRequest request);
 
         [Post(RootPath + "/register/domain")]
         Task<ApiResponse<RedactedYouAuthDomainRegistration>> RegisterDomain([Body] YouAuthDomainRegistrationRequest registration);
-        
+       
+        [Post(RootPath + "/deletedomain")]
+        Task<ApiResponse<HttpContent>> DeleteDomain([Body] GetYouAuthDomainRequest request);
         
         [Post(RootPath + "/circles/add")]
         Task<ApiResponse<bool>> GrantCircle([Body] GrantYouAuthDomainCircleRequest request);
         
         [Post(RootPath + "/circles/revoke")]
         Task<ApiResponse<bool>> RevokeCircle([Body] RevokeYouAuthDomainCircleRequest request);
-
         
         [Post(RootPath + "/revoke")]
         Task<ApiResponse<HttpContent>> RevokeDomain([Body] GetYouAuthDomainRequest request);
         
-        [Post(RootPath + "/deletedomain")]
-        Task<ApiResponse<HttpContent>> DeleteDomain([Body] GetYouAuthDomainRequest request);
-
         [Post(RootPath + "/allow")]
         Task<ApiResponse<HttpContent>> RemoveDomainRevocation([Body] GetYouAuthDomainRequest request);
 
         [Get(RootPath + "/clients")]
         Task<ApiResponse<List<RedactedYouAuthDomainClient>>> GetRegisteredClients();
+    
+        [Post(RootPath + "/register/client")]
+        Task<ApiResponse<YouAuthDomainClientRegistrationResponse>> RegisterClient([Body] YouAuthDomainClientRegistrationRequest clientRegistrationRequest);
         
-        [Post(RootPath + "/revokeClient")]
-        Task<ApiResponse<HttpContent>> RevokeClient([Body] GetYouAuthDomainClientRequest accessRegistrationId);
-
-        [Post(RootPath + "/allowClient")]
-        Task<ApiResponse<HttpContent>> AllowClient([Body] GetYouAuthDomainClientRequest accessRegistrationId);
-
         [Post(RootPath + "/deleteClient")]
         Task<ApiResponse<HttpContent>> DeleteClient([Body] GetYouAuthDomainClientRequest accessRegistrationId);
-
-        [Post(RootPath + "/register/client")]
-        Task<ApiResponse<AppClientRegistrationResponse>> RegisterAppOnClient([Body] YouAuthDomainClientRegistrationRequest appClientRegistration);
-        
     }
 }

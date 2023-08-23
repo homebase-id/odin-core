@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Membership.YouAuth;
 using Odin.Core.Util;
 
@@ -19,15 +18,14 @@ namespace Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth
             _registrationService = registrationService;
         }
 
-
         /// <summary>
         /// Returns a list of registered domains
         /// </summary>
         [HttpGet("list")]
         public async Task<List<RedactedYouAuthDomainRegistration>> GetRegisteredDomains()
         {
-            var apps = await _registrationService.GetRegisteredDomains();
-            return apps;
+            var domains = await _registrationService.GetRegisteredDomains();
+            return domains;
         }
 
         /// <summary>
@@ -55,7 +53,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth
             var reg = await _registrationService.RegisterDomain(request);
             return reg;
         }
-        
+
         [HttpPost("circles/add")]
         public async Task<bool> GrantCircle([FromBody] GrantYouAuthDomainCircleRequest request)
         {
@@ -92,7 +90,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth
             return Ok();
         }
 
-
         /// <summary>
         /// Gets a list of registered clients
         /// </summary>
@@ -103,25 +100,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth
             var result = await _registrationService.GetRegisteredClients();
             return result;
         }
-
-        /// <summary>
-        /// Revokes the client by it's access registration Id
-        /// </summary>
-        [HttpPost("revokeClient")]
-        public async Task RevokeClient(GetYouAuthDomainClientRequest request)
-        {
-            await _registrationService.RevokeClient(request.AccessRegistrationId);
-        }
-
-        /// <summary>
-        /// Re-enables the client by it's access registration Id
-        /// </summary>
-        [HttpPost("allowClient")]
-        public async Task EnableClient(GetYouAuthDomainClientRequest request)
-        {
-            await _registrationService.AllowClient(request.AccessRegistrationId);
-        }
-
+        
         /// <summary>
         /// Deletes the client by it's access registration Id
         /// </summary>
@@ -147,14 +126,19 @@ namespace Odin.Hosting.Controllers.OwnerToken.Membership.YouAuth
         /// as it contains sensitive data.
         /// </remarks>
         [HttpPost("register/client")]
-        public AppClientRegistrationResponse RegisterClient([FromBody] YouAuthDomainClientRegistrationRequest request)
+        public async Task<YouAuthDomainClientRegistrationResponse> RegisterClient([FromBody] YouAuthDomainClientRegistrationRequest request)
         {
-            // var b64 = HttpUtility.UrlDecode(request.ClientPublicKey64);
-            // // var clientPublicKey = Convert.FromBase64String(b64);
-            // var clientPublicKey = Convert.FromBase64String(request.ClientPublicKey64);
-            // var (reg, corsHostName) = await _registrationService.RegisterClient(new AsciiDomainName(request.Domain), request.ClientPublicKey, request.ClientFriendlyName);
-            // return reg;
-            return null;
+            //TODO: how are we going to encrypt this?
+
+            YouAuthDomainRegistrationRequest domainRequest = null;
+            var (token, corsHostName) =
+                await _registrationService.RegisterClient(new AsciiDomainName(request.Domain), request.ClientFriendlyName, domainRequest);
+
+            return new YouAuthDomainClientRegistrationResponse()
+            {
+                AccessRegistrationId = token.Id,
+                Data = token.ToPortableBytes()
+            };
         }
     }
 }
