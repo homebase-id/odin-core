@@ -19,6 +19,8 @@ public class CircleDomainResult
     public AsciiDomainName Domain { get; set; }
 
     public DomainType DomainType { get; set; }
+    
+    public RedactedCircleGrant CircleGrant { get; set; }
 }
 
 public enum DomainType
@@ -72,7 +74,8 @@ public class CircleMembershipService
             return new CircleDomainResult()
             {
                 DomainType = data.DomainType,
-                Domain = data.DomainName
+                Domain = data.DomainName,
+                CircleGrant = data.CircleGrant.Redacted()
             };
         }).ToList();
 
