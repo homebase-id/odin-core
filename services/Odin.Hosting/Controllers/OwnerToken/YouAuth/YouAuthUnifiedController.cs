@@ -73,14 +73,8 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             }
             else if (authorize.ClientType == ClientType.app)
             {
-                // If we're authorizing an app, validate parameters in PermissionRequest
-                var appParams = OdinSystemSerializer.Deserialize<YouAuthAppParameters>(authorize.PermissionRequest);
-                if (appParams == null)
-                {
-                    throw new BadRequestException(message: $"Bad {YouAuthAuthorizeRequest.PermissionRequestName}");
-                }
-
-                // SEB:TODO validate all params
+                // If we're authorizing an app, overwrite ClientInfo with ClientFriendly
+                var appParams = GetYouAuthAppParameters(authorize.PermissionRequest);
                 authorize.ClientInfo = appParams.ClientFriendly;
             }
 
@@ -95,11 +89,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             //
             if (authorize.ClientType == ClientType.app)
             {
-                var appParams = OdinSystemSerializer.Deserialize<YouAuthAppParameters>(authorize.PermissionRequest);
-                if (appParams == null)
-                {
-                    throw new BadRequestException(message: $"Bad {YouAuthAuthorizeRequest.PermissionRequestName}");
-                }
+                var appParams = GetYouAuthAppParameters(authorize.PermissionRequest);
 
                 var mustRegister = await _youAuthService.AppNeedsRegistration(
                     authorize.ClientType,
@@ -109,9 +99,6 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
                 if (mustRegister)
                 {
                     appParams.Return = Request.GetDisplayUrl();
-
-                    // var appRegisterPage =
-                    //     $"{Request.Scheme}://{Request.Host}/owner/appreg?n=Odin%20-%20Photos&o=dev.dotyou.cloud%3A3005&appId=32f0bdbf-017f-4fc0-8004-2d4631182d1e&fn=Firefox%20%7C%20macOS&return=https%3A%2F%2Fdev.dotyou.cloud%3A3005%2Fauth%2Ffinalize%3FreturnUrl%3D%252F%26&d=%5B%7B%22a%22%3A%226483b7b1f71bd43eb6896c86148668cc%22%2C%22t%22%3A%222af68fe72fb84896f39f97c59d60813a%22%2C%22n%22%3A%22Photo%20Library%22%2C%22d%22%3A%22Place%20for%20your%20memories%22%2C%22p%22%3A3%7D%5D&pk=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA21Hd52i8IyhMbhR9EXM0iRRI5bD7Su5MpK5WmczEEK6p%2FAAqLPPHJsreYpQHBOchd1cOTlwj4C257gRI3S2jTkI%2Fjny2u0ShzXiGr8%2BgwgmhWQYPua3QJyf4FnWFDvNO70Vw7jIe2PfSEw%2FoW718Yq1fR%2FiRasYLbzFuApwMYi%2BiD75tgIeDBnMMdgmo9JqoUq2XP5y4j4IVenVjLQqtFJezINiJQjUe2KatlofweVrYfhs3BDoJ8bdLSbGfy413QRd%2BhE4UTebi%2FQxSdAwO4Fy82%2FyKIi80qnK%2FF4qFE3q60cBTULI826cSryAulA7xOe%2B5qbyAOYh76OsICegotwIDAQAB";
 
                     var appRegisterPage =
                         $"{Request.Scheme}://{Request.Host}{OwnerFrontendPathConstants.AppReg}?{appParams.ToQueryString()}";
@@ -297,5 +284,31 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
 
             return await Task.FromResult(result);
         }
+
+        //
+
+        private YouAuthAppParameters GetYouAuthAppParameters(string json)
+        {
+            YouAuthAppParameters appParams;
+
+            try
+            {
+                appParams = OdinSystemSerializer.Deserialize<YouAuthAppParameters>(json)!;
+            }
+            catch (Exception e)
+            {
+                throw new BadRequestException(message: $"Bad {YouAuthAuthorizeRequest.PermissionRequestName}", inner: e);
+            }
+            if (appParams == null)
+            {
+                throw new BadRequestException(message: $"Bad {YouAuthAuthorizeRequest.PermissionRequestName}");
+            }
+
+            appParams.Validate();
+
+            return appParams;
+        }
+
+        //
     }
 }

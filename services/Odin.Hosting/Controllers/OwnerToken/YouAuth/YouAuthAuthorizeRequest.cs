@@ -27,14 +27,14 @@ public sealed class YouAuthAuthorizeRequest
     public const string ClientInfoName = "client_info";
     [BindProperty(Name = ClientInfoName, SupportsGet = true)]
     public string ClientInfo { get; set; } = "";
-    
-    public const string PublicKeyName = "public_key";
-    [BindProperty(Name = PublicKeyName, SupportsGet = true)]
-    public string PublicKey { get; set; } = "";
 
     public const string PermissionRequestName = "permission_request";
     [BindProperty(Name = PermissionRequestName, SupportsGet = true)]
-    public string PermissionRequest { get; set; } = ""; 
+    public string PermissionRequest { get; set; } = "";
+
+    public const string PublicKeyName = "public_key";
+    [BindProperty(Name = PublicKeyName, SupportsGet = true)]
+    public string PublicKey { get; set; } = "";
 
     public const string StateName = "state";
     [BindProperty(Name = StateName, SupportsGet = true)]
@@ -76,9 +76,9 @@ public sealed class YouAuthAuthorizeRequest
         qs[ClientIdName] = ClientId;
         qs[ClientTypeName] = ClientType.ToString();
         qs[ClientInfoName] = ClientInfo;
-        qs[PublicKeyName] = PublicKey;
         qs[RedirectUriName] = RedirectUri;
         qs[PermissionRequestName] = PermissionRequest;
+        qs[PublicKeyName] = PublicKey;
         qs[StateName] = State;
 
         return qs.ToString() ?? string.Empty;
@@ -96,12 +96,12 @@ public sealed class YouAuthAuthorizeRequest
         }
         
         return new YouAuthAuthorizeRequest(
-            redirectUri: qs[RedirectUriName] ?? string.Empty,
             clientType: clientType,
             clientId: qs[ClientIdName] ?? string.Empty,
-            publicKey: qs[PublicKeyName] ?? string.Empty,
-            permissionRequest: qs[PermissionRequestName] ?? string.Empty,
             clientInfo: qs[ClientInfoName] ?? string.Empty,
+            permissionRequest: qs[PermissionRequestName] ?? string.Empty,
+            publicKey: qs[PublicKeyName] ?? string.Empty,
+            redirectUri: qs[RedirectUriName] ?? string.Empty,
             state: qs[StateName] ?? string.Empty);
     }
 
@@ -109,13 +109,17 @@ public sealed class YouAuthAuthorizeRequest
     
     public void Validate()
     {
+        if (ClientType == ClientType.app && string.IsNullOrWhiteSpace(ClientId))
+        {
+            throw new BadRequestException($"{ClientIdName} is required when {ClientTypeName} is {ClientType.app}");
+        }
         if (ClientType != ClientType.app && ClientType != ClientType.domain)
         {
             throw new BadRequestException($"Bad or missing {ClientTypeName}: {ClientType}");
         }
-        if (ClientType == ClientType.app && string.IsNullOrWhiteSpace(ClientId))
+        if (ClientType == ClientType.app && string.IsNullOrWhiteSpace(PermissionRequest))
         {
-            throw new BadRequestException($"{ClientIdName} is required when {ClientTypeName} is {ClientType.app}");
+            throw new BadRequestException($"{PermissionRequestName} is required when {ClientTypeName} is {ClientType.app}");
         }
         if (string.IsNullOrWhiteSpace(PublicKey))
         {

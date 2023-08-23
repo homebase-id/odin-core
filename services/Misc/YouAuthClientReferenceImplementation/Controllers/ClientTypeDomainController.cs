@@ -13,6 +13,7 @@ using YouAuthClientReferenceImplementation.Models;
 
 namespace YouAuthClientReferenceImplementation.Controllers;
 
+[Route("ClientTypeDomain")]
 public class ClientTypeDomainController : BaseController
 {
     private const string IdentityCookieName = "OdinDomainIdentity";
@@ -87,15 +88,16 @@ public class ClientTypeDomainController : BaseController
             KeyPair = keyPair
         };
 
+        var controllerRoute = ControllerContext.RouteData.Values["controller"]?.ToString() ?? "";
         var payload = new YouAuthAuthorizeRequest
         {
             ClientId = thirdParty,
-            ClientType = ClientType.domain,
             ClientInfo = "",
-            PublicKey = keyPair.publicDerBase64(),
+            ClientType = ClientType.domain,
             PermissionRequest = "",
+            PublicKey = keyPair.publicDerBase64(),
+            RedirectUri = $"https://{Request.Host}/{controllerRoute}/authorization-code-callback",
             State = state,
-            RedirectUri = $"https://{Request.Host}/authorization-code-callback"
         };
 
         var uri =
