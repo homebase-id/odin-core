@@ -1,0 +1,30 @@
+﻿@model ClientTypeDomainIndexViewModel
+
+@{
+    ViewData["Title"] = "ClientTypeDomain";
+}
+
+<div class="row mt-5">
+    <div class="col-4">
+        <strong><p>@Model.LoggedInMessage</p></strong>
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-4">
+        <form method="post">
+            <div class="mb-3">
+                @if (Model.LoggedInIdentity == "")
+                {
+                    <label asp-for="LoggedInIdentity" class="form-label">Login with ODIN identity</label>
+                    <input asp-for="LoggedInIdentity" class="form-control" placeholder="ODIN Identity" value="sam.dotyou.cloud" />
+                }
+            </div>
+            <button type="submit" class="btn btn-primary">@Model.ButtonCaption</button>
+        </form>
+    </div>
+</div>
+
+
+
+
