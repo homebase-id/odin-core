@@ -18,7 +18,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
     public class AttestationDatabase : DatabaseBase
     {
         public readonly TableAttestationRequest tblAttestationRequest = null;
-        public readonly TableAttestationChain tblAttestationChain = null;
+        public readonly TableAttestationStatus tblAttestationStatus = null;
 
         public readonly string CN;
 
@@ -29,7 +29,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         public AttestationDatabase(string connectionString, long commitFrequencyMs = 5000, [CallerFilePath] string file = "", [CallerLineNumber] int line = -1) : base(connectionString, commitFrequencyMs)
         {
             tblAttestationRequest = new TableAttestationRequest(this, _cache);
-            tblAttestationChain = new TableAttestationChain(this, _cache);
+            tblAttestationStatus = new TableAttestationStatus(this, _cache);
             CN = connectionString;
             _file = file;
             _line = line;
@@ -53,7 +53,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
             Commit();
 
             tblAttestationRequest.Dispose();
-            tblAttestationChain.Dispose();
+            tblAttestationStatus.Dispose();
 
             base.Dispose();
         }
@@ -65,7 +65,7 @@ namespace Odin.Core.Storage.SQLite.AttestationDatabase
         public override void CreateDatabase(bool dropExistingTables = true)
         {
             tblAttestationRequest.EnsureTableExists(dropExistingTables);
-            tblAttestationChain.EnsureTableExists(dropExistingTables);
+            tblAttestationStatus.EnsureTableExists(dropExistingTables);
             if (dropExistingTables)
                 Vacuum();
         }

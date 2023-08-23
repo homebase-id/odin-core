@@ -4,13 +4,13 @@ using Odin.Core.Storage.SQLite;
 
 namespace Odin.Core.Storage.SQLite.AttestationDatabase
 {
-    public class TableAttestationChain : TableAttestationChainCRUD
+    public class TableAttestationStatus : TableAttestationStatusCRUD
     {
-        public TableAttestationChain(AttestationDatabase db, CacheHelper cache) : base(db, cache)
+        public TableAttestationStatus(AttestationDatabase db, CacheHelper cache) : base(db, cache)
         {
         }
 
-        ~TableAttestationChain()
+        ~TableAttestationStatus()
         {
         }
 

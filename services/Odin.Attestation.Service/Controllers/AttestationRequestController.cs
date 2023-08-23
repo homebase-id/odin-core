@@ -5,6 +5,8 @@ using Odin.Core.Cryptography.Signatures;
 using Odin.Core.Storage.SQLite.AttestationDatabase;
 using Odin.Core.Time;
 using Odin.Core.Util;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace OdinsAttestation.Controllers
 {
@@ -45,30 +47,32 @@ namespace OdinsAttestation.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpGet("Simulator")]
-        public async Task<IActionResult> GetSimulator()
+        public async Task<ActionResult> GetSimulator()
         {
             return await SimulateFrodo.InitiateRequestForAttestation(this);
         }
 #endif
 
+        public class VerifyAttestationResult
+        {
+            public Int64 created { get; set; }
+            public Int64? modified { get; set; }
+            public Int32 status { get; set; }
+        };
+
+        private JsonSerializerOptions options = new JsonSerializerOptions
+        {
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        };
+
         /// <summary>
         /// This service takes an identity and an attestationId and checks if it exists, returns seconds created (UnixEpoch).
         /// </summary>
-        /// <param name="identity"></param>
         /// <param name="attestationIdBase64"></param>
         /// <returns>200 OK and attesation age in seconds (Unix Epoch), or Bad Request or Not Found</returns>
         [HttpGet("VerifyAttestation")]
-        public IActionResult GetVerifyAttestaion(string identity, string attestationIdBase64)
+        public ActionResult GetVerifyAttestaion(string attestationIdBase64)
         {
-            try
-            {
-                var id = new PunyDomainName(identity);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest($"Invalid identity {ex.Message}");
-            }
-
             byte[] attestationId;
 
             try
@@ -80,15 +84,15 @@ namespace OdinsAttestation.Controllers
                 return BadRequest("Invalid attestationIdBase64");
             }
 
-            var r = _db.tblAttestationChain.Get(identity, attestationId);
+            var r = _db.tblAttestationStatus.Get(attestationId);
             if (r == null)
             {
-                return NotFound("No such identity,attestationId found.");
+                return NotFound("No such attestationId found.");
             }
 
-            var msg = $"{r.timestamp.ToUnixTimeUtc().seconds}";
+            var result = new VerifyAttestationResult() { created = r.created.ToUnixTimeUtc().seconds, modified = r.modified?.ToUnixTimeUtc().seconds, status = r.status };
 
-            return Ok(msg);
+            return Ok(JsonSerializer.Serialize(result, options));
         }
 
         /// <summary>
@@ -98,7 +102,7 @@ namespace OdinsAttestation.Controllers
         /// <param name="requestSignedEnvelope"></param>
         /// <returns></returns>
         [HttpGet("RequestAttestation")]
-        public async Task<IActionResult> GetRequestAttestation(string requestSignedEnvelope) // TODO: Change to POST
+        public async Task<ActionResult> GetRequestAttestation(string requestSignedEnvelope) // TODO: Change to POST
         {
             // First verify the validity of the signed envelope
             SignedEnvelope? signedEnvelope;

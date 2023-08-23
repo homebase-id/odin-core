@@ -75,7 +75,7 @@ namespace OdinsAttestation
             return _ecc.publicDerBase64();
         }
         
-        public async static Task<IActionResult> InitiateRequestForAttestation(AttestationRequestController webApi)
+        public async static Task<ActionResult> InitiateRequestForAttestation(AttestationRequestController webApi)
         {
             var address = new SortedDictionary<string, object>
             {

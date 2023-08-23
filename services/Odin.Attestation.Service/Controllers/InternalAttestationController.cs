@@ -40,11 +40,11 @@ namespace OdinsAttestation.Controllers
         /// </summary>
         /// <param name="identity"></param>
         /// <returns></returns>
-        private IActionResult DeleteRequest(string attestationIdBase64)
+        private ActionResult DeleteRequest(string nonceBase64)
         {
             try
             {
-                var n = _db.tblAttestationRequest.Delete(attestationIdBase64);
+                var n = _db.tblAttestationRequest.Delete(nonceBase64);
 
                 if (n < 1)
                     return BadRequest($"No such record found");
@@ -66,10 +66,44 @@ namespace OdinsAttestation.Controllers
         /// <param name="identity"></param>
         /// <returns></returns>
         [HttpGet("DeleteRequest")]
-        public IActionResult GetDeleteRequest(string attestationIdBase64)
+        public ActionResult GetDeleteRequest(string attestationIdBase64)
         {
             return DeleteRequest(attestationIdBase64);
         }
+
+
+        [HttpGet("InvalidateAttestation")]
+        public async Task<ActionResult> GetInvalidateAttestation(string attestationIdBase64)
+        {
+            byte[] attestationId;
+
+            try
+            {
+                attestationId = Convert.FromBase64String(attestationIdBase64);
+            }
+            catch (Exception)
+            {
+                return BadRequest("Invalid attestationIdBase64");
+            }
+
+            var r = _db.tblAttestationStatus.Get(attestationId);
+
+            if (r == null)
+                return NotFound();
+
+            if (r.status != 1)
+                return Conflict();
+
+            r.status = 0;
+
+            _db.tblAttestationStatus.Update(r);
+
+            await Task.Delay(1);
+
+            return Ok();
+        }
+
+
 
 
         /// <summary>
@@ -228,7 +262,7 @@ namespace OdinsAttestation.Controllers
         /// <param name="attestationIdBase64"></param>
         /// <returns></returns>
         [HttpGet("ApproveRequest")]
-        public IActionResult GetApproveRequest(string attestationIdBase64)
+        public ActionResult GetApproveRequest(string attestationIdBase64)
         {
             //
             // First get the request from the database
@@ -286,9 +320,17 @@ namespace OdinsAttestation.Controllers
             //
             // Now we deliver the attestation records to the requestor.
             //
+            // The goal here must be to have as much on the client code as possible, as little on the server
+            // as possible. So perhaps the owner client fetches the attested data. In that case all we need 
+            // do here is somehow tell the server that we have some data it can fetch. 
+            // It opens the question if we have a generic owner API for stuff like this, e.g. 
+            //    RaiseEvent(id, message)
+            // so in this example, it might be RaiseEvent(attestationId, "Your attestations are ready to be delivered")
+            // Alternately, I suppose we could deliver them:
+            //    RaiseEvent(id, message, data), i.e. RaiseEvent(attestationId, jsonList, "Here are your attestations.")
+            // (That's probably less of an event)
+
             SimulateFrodo.DeliverAttestations(attestationIdBase64, jsonArray);
-
-
 
             // 
             // Now store it in the database
@@ -300,7 +342,8 @@ namespace OdinsAttestation.Controllers
                 // Now we are fully ready to insert the block chain records, we have all the data needed
                 //
 
-                // _db.tblAttestationChain.Insert();
+                var record = new AttestationStatusRecord() { attestationId = Convert.FromBase64String(attestationIdBase64), status = 1 };
+                _db.tblAttestationStatus.Insert(record);
 
                 //
                 // Finally, delete the pending request
@@ -311,7 +354,7 @@ namespace OdinsAttestation.Controllers
         }
 
         [HttpGet("ListPendingRequests")]
-        public async Task<IActionResult> GetListPendingRequests()
+        public async Task<ActionResult> GetListPendingRequests()
         {
             var r = _db.tblAttestationRequest.PagingByNonce(100, null, out var nextCursor);
 
