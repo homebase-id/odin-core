@@ -53,7 +53,6 @@ namespace Odin.Hosting.Tests.OwnerApi.Membership
             const string youAuthDomain = "amazoonius.org";
             await AddYouAuthDomain(youAuthDomain, new List<GuidId>() { circle1.Id });
 
-            // await ConnectIdentity()
             //Add an identity
             await client.Network.SendConnectionRequest(recipient, new List<GuidId>() { circle1.Id });
             await recipientClient.Network.AcceptConnectionRequest(_identity, new List<GuidId>());
