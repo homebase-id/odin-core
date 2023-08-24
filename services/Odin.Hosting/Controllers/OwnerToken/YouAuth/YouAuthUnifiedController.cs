@@ -152,7 +152,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             var keyPair = new EccFullKeyData(privateKey, 1);
             var salt = ByteArrayUtil.GetRndByteArray(16);
 
-            var remotePublicKey = EccPublicKeyData.FromDerEncodedPublicKey(Convert.FromBase64String(authorize.PublicKey));
+            var remotePublicKey = EccPublicKeyData.FromJwkBase64UrlPublicKey(authorize.PublicKey);
             var sharedSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKey, salt);
             var sharedSecretDigest = SHA256.Create().ComputeHash(sharedSecret.GetKey()).ToBase64();
 
@@ -165,7 +165,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             {
                 { YouAuthDefaults.Code, code },
                 { YouAuthDefaults.Identity, _currentTenant },
-                { YouAuthDefaults.PublicKey, keyPair.publicDerBase64() },
+                { YouAuthDefaults.PublicKey, keyPair.PublicKeyJwkBase64Url() },
                 { YouAuthDefaults.Salt, Convert.ToBase64String(salt) },
                 { YouAuthDefaults.State, authorize.State },
             });

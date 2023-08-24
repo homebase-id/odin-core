@@ -54,7 +54,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                     ClientType = ClientType.app,
                     ClientInfo = "My Awesome App",
                     PermissionRequest = "identity:read identity:write",
-                    PublicKey = keyPair.publicDerBase64(),
+                    PublicKey = keyPair.PublicKeyJwkBase64Url(),
                     State = "somestate",
                     RedirectUri = $"https://{thirdParty}/authorization/code/callback"
                 };
@@ -136,7 +136,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                     ClientType = ClientType.domain,
                     ClientInfo = "",
                     PermissionRequest = "",
-                    PublicKey = keyPair.publicDerBase64(),
+                    PublicKey = keyPair.PublicKeyJwkBase64Url(),
                     State = "somestate",
                     RedirectUri = $"https://{thirdParty}/authorization/code/callback"
                 };
@@ -237,7 +237,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                     ClientType = ClientType.app,
                     ClientInfo = "",
                     PermissionRequest = OdinSystemSerializer.Serialize(appParams),
-                    PublicKey = keyPair.publicDerBase64(),
+                    PublicKey = keyPair.PublicKeyJwkBase64Url(),
                     State = "somestate",
                     RedirectUri = $"https://app/authorization/code/callback"
                 };
@@ -341,7 +341,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                     ClientType = ClientType.app,
                     ClientInfo = "",
                     PermissionRequest = OdinSystemSerializer.Serialize(appParams),
-                    PublicKey = keyPair.publicDerBase64(),
+                    PublicKey = keyPair.PublicKeyJwkBase64Url(),
                     State = "somestate",
                     RedirectUri = $"https://app/authorization/code/callback"
                 };
@@ -414,7 +414,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 ClientType = ClientType.app,
                 ClientInfo = "",
                 PermissionRequest = OdinSystemSerializer.Serialize(appParams),
-                PublicKey = keyPair.publicDerBase64(),
+                PublicKey = keyPair.PublicKeyJwkBase64Url(),
                 State = "somestate",
                 RedirectUri = finalRedirectUri.ToString()
             };
@@ -552,7 +552,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             // [140] Return client access token to client
             //
             {
-                var remotePublicKeyDer = EccPublicKeyData.FromDerEncodedPublicKey(remotePublicKey);
+                var remotePublicKeyDer = EccPublicKeyData.FromJwkBase64UrlPublicKey(Convert.ToBase64String(remotePublicKey));
                 var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyDer, remoteSalt);
                 var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
 
@@ -672,7 +672,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                     ClientType = ClientType.domain,
                     ClientInfo = "",
                     PermissionRequest = "",
-                    PublicKey = keyPair.publicDerBase64(),
+                    PublicKey = keyPair.PublicKeyJwkBase64Url(),
                     State = "somestate",
                     RedirectUri = $"https://{thirdParty}/authorization/code/callback"
                 };
@@ -751,7 +751,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                     ClientType = ClientType.domain,
                     ClientInfo = "",
                     PermissionRequest = "",
-                    PublicKey = keyPair.publicDerBase64(),
+                    PublicKey = keyPair.PublicKeyJwkBase64Url(),
                     State = "somestate",
                     RedirectUri = $"https://{thirdParty}/authorization/code/callback"
                 };
@@ -799,7 +799,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             string homeCookie;
             byte[] sharedSecret;
             {
-                var remotePublicKeyDer = EccPublicKeyData.FromDerEncodedPublicKey(remotePublicKey);
+                var remotePublicKeyDer = EccPublicKeyData.FromJwkBase64UrlPublicKey(Convert.ToBase64String(remotePublicKey));
                 var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyDer, remoteSalt);
                 var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
 
@@ -887,7 +887,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                     ClientType = ClientType.domain,
                     ClientInfo = "",
                     PermissionRequest = "",
-                    PublicKey = keyPair.publicDerBase64(),
+                    PublicKey = keyPair.PublicKeyJwkBase64Url(),
                     State = "somestate",
                     RedirectUri = $"https://{thirdParty}/authorization/code/callback"
                 };
@@ -935,7 +935,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             string homeCookie;
             byte[] sharedSecret;
             {
-                var remotePublicKeyDer = EccPublicKeyData.FromDerEncodedPublicKey(remotePublicKey);
+                var remotePublicKeyDer = EccPublicKeyData.FromJwkBase64UrlPublicKey(Convert.ToBase64String(remotePublicKey));
                 var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyDer, remoteSalt);
                 var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
 
@@ -1023,7 +1023,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                     ClientType = ClientType.domain,
                     ClientInfo = "",
                     PermissionRequest = "",
-                    PublicKey = keyPair.publicDerBase64(),
+                    PublicKey = keyPair.PublicKeyJwkBase64Url(),
                     State = "somestate",
                     RedirectUri = $"https://{thirdParty}/authorization/code/callback"
                 };
@@ -1070,7 +1070,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             //
             byte[] sharedSecret, clientAuthToken;
             {
-                var remotePublicKeyDer = EccPublicKeyData.FromDerEncodedPublicKey(remotePublicKey);
+                var remotePublicKeyDer = EccPublicKeyData.FromJwkBase64UrlPublicKey(Convert.ToBase64String(remotePublicKey));
                 var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyDer, remoteSalt);
                 var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
 
@@ -1153,7 +1153,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 ClientType = ClientType.domain,
                 ClientInfo = "",
                 PermissionRequest = "",
-                PublicKey = keyPair.publicDerBase64(),
+                PublicKey = keyPair.PublicKeyJwkBase64Url(),
                 State = "somestate",
                 RedirectUri = $"https://{thirdParty}/authorization/code/callback"
             };
@@ -1262,7 +1262,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             string homeCookie;
             byte[] sharedSecret;
             {
-                var remotePublicKeyDer = EccPublicKeyData.FromDerEncodedPublicKey(remotePublicKey);
+                var remotePublicKeyDer = EccPublicKeyData.FromJwkBase64UrlPublicKey(Convert.ToBase64String(remotePublicKey));
                 var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyDer, remoteSalt);
                 var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
 
@@ -1346,7 +1346,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 ClientType = ClientType.domain,
                 ClientInfo = "",
                 PermissionRequest = "",
-                PublicKey = keyPair.publicDerBase64(),
+                PublicKey = keyPair.PublicKeyJwkBase64Url(),
                 State = "somestate",
                 RedirectUri = $"https://{thirdParty}/authorization/code/callback"
             };
@@ -1454,7 +1454,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             //
             byte[] sharedSecret, clientAuthToken;
             {
-                var remotePublicKeyDer = EccPublicKeyData.FromDerEncodedPublicKey(remotePublicKey);
+                var remotePublicKeyDer = EccPublicKeyData.FromJwkBase64UrlPublicKey(Convert.ToBase64String(remotePublicKey));
                 var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyDer, remoteSalt);
                 var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
 

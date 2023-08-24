@@ -88,7 +88,7 @@ public class ClientTypeAppController : BaseController
             ClientInfo = "",
             ClientType = ClientType.app,
             PermissionRequest = OdinSystemSerializer.Serialize(appParams),
-            PublicKey = keyPair.publicDerBase64(),
+            PublicKey = keyPair.PublicKeyJwkBase64Url(),
             RedirectUri = $"https://{Request.Host}/{controllerRoute}/authorization-code-callback",
             State = state,
         };
@@ -130,10 +130,10 @@ public class ClientTypeAppController : BaseController
 
         var privateKey = state.PrivateKey!;
         var keyPair = state.KeyPair!;
-        var remotePublicKey = Convert.FromBase64String(publicKey!);
+        var remotePublicKey = publicKey;
         var remoteSalt = Convert.FromBase64String(salt);
 
-        var remotePublicKeyDer = EccPublicKeyData.FromDerEncodedPublicKey(remotePublicKey);
+        var remotePublicKeyDer = EccPublicKeyData.FromJwkBase64UrlPublicKey(remotePublicKey);
         var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyDer, remoteSalt);
         var exchangeSecretDigest = SHA256.Create().ComputeHash(exchangeSecret.GetKey()).ToBase64();
 
