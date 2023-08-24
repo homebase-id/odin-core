@@ -8,7 +8,6 @@ using Certes;
 using Microsoft.Extensions.Caching.Memory;
 using Odin.Core.Exceptions;
 using Odin.Core.Exceptions.Client;
-using Odin.Core.Identity;
 using Odin.Core.Services.Authorization.Apps;
 using Odin.Core.Services.Authorization.ExchangeGrants;
 using Odin.Core.Services.Base;
@@ -51,12 +50,12 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         {
             return false;
         }
-
+        
         if (clientType == ClientType.domain)
         {
             return await _domainRegistrationService.IsConsentRequired(new AsciiDomainName(clientIdOrDomain));
         }
-
+        
         //apps always require consent
         return true;
     }
@@ -99,6 +98,27 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         else if (clientType == ClientType.domain)
         {
             var domain = new AsciiDomainName(clientId);
+            
+            
+            //
+            // [136] Detect if caller is an identity via transit
+            //
+            if (_contextAccessor.GetCurrent().Caller.IsInOdinNetwork)
+            {
+                // if caller is connected
+
+                byte[] clientAuthTokenBytes = Array.Empty<byte>();
+                var odinId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
+                var info = await _circleNetwork.GetIdentityConnectionRegistration(odinId);
+                if (info.IsConnected())
+                {
+                    clientAuthTokenBytes = info.CreateClientAuthToken(_contextAccessor.GetCurrent().Caller.).ToString().ToUtf8ByteArray();
+                    // tempIcrKey?.Wipe();
+                }
+            }
+            
+            
+            
             var request = new YouAuthDomainRegistrationRequest()
             {
                 Domain = domain.DomainName,
@@ -139,24 +159,6 @@ public sealed class YouAuthUnifiedService : IYouAuthUnifiedService
         }
 
         _codesAndTokens.Remove(code);
-
-        //
-        // [136] Detect if caller is an identity via transit
-        //
-        if (_contextAccessor.GetCurrent().Caller.IsInOdinNetwork)
-        {
-            // if caller is connected
-
-            byte[] clientAuthTokenBytes = Array.Empty<byte>();
-            var odinId = _contextAccessor.GetCurrent().GetCallerOdinIdOrFail();
-            var info = _circleNetwork.GetIdentityConnectionRegistration(odinId, true).GetAwaiter().GetResult();
-            if (info.IsConnected())
-            {
-                //TODO: RSA Encrypt or used shared secret?
-                // clientAuthTokenBytes = info.CreateClientAuthToken(tempIcrKey).ToString().ToUtf8ByteArray();
-                // tempIcrKey?.Wipe();
-            }
-        }
 
         var accessToken = ac.PreCreatedClientAccessToken;
 
