@@ -43,16 +43,20 @@ namespace Odin.Core.Cryptography.Data
             return Convert.ToBase64String(input.ToUtf8ByteArray()).Split('=')[0].Replace('+', '-').Replace('/', '_');
         }
 
-        public static string Base64UrlDecodeString(string input)
-        {
-            string base64 = input.Replace('-', '+').Replace('_', '/');
-            return Convert.FromBase64String(base64).ToStringFromUtf8Bytes();
-        }
-
         public static byte[] Base64UrlDecode(string input)
         {
             string base64 = input.Replace('-', '+').Replace('_', '/');
+            switch (base64.Length % 4)
+            {
+                case 2: base64 += "=="; break;
+                case 3: base64 += "="; break;
+            }
             return Convert.FromBase64String(base64);
+        }
+
+        public static string Base64UrlDecodeString(string input)
+        {
+            return Base64UrlDecode(input).ToStringFromUtf8Bytes();
         }
 
 
@@ -95,7 +99,6 @@ namespace Odin.Core.Cryptography.Data
         {
             return FromJwkPublicKey(Base64UrlDecodeString(jwkbase64Url) , hours);
         }
-
 
         public string PublicKeyJwk()
         {
