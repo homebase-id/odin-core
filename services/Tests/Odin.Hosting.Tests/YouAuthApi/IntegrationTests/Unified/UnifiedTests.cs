@@ -584,8 +584,8 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var sharedSecret = AesCbc.Decrypt(sharedSecretCipher, ref exchangeSecret, sharedSecretIv);
                 Assert.That(sharedSecret, Is.Not.Null.And.Not.Empty);
 
-                var clientAuthTokenCipher = Convert.FromBase64String(token.Base64SharedSecretCipher!);
-                var clientAuthTokenIv = Convert.FromBase64String(token.Base64SharedSecretIv!);
+                var clientAuthTokenCipher = Convert.FromBase64String(token.Base64ClientAuthTokenCipher!);
+                var clientAuthTokenIv = Convert.FromBase64String(token.Base64ClientAuthTokenIv!);
                 var clientAuthToken = AesCbc.Decrypt(clientAuthTokenCipher, ref exchangeSecret, clientAuthTokenIv);
                 Assert.That(clientAuthToken, Is.Not.Null.And.Not.Empty);
 
@@ -833,8 +833,19 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 var sharedSecretIv = Convert.FromBase64String(token.Base64SharedSecretIv!);
                 sharedSecret = AesCbc.Decrypt(sharedSecretCipher, ref exchangeSecret, sharedSecretIv);
                 Assert.That(sharedSecret, Is.Not.Null.And.Not.Empty);
+            }
 
-                // SEB:TODO test that token works
+            // Access resource using cat and shared secret
+            {
+                var uri = YouAuthTestHelper.UriWithEncryptedQueryString($"https://{hobbit}/api/youauth/v1/auth/ping?text=helloworld", sharedSecret);
+                var request = new HttpRequestMessage(HttpMethod.Get, uri)
+                {
+                    Headers = { { "Cookie", new Cookie(YouAuthTestHelper.HomeCookieName, homeCookie).ToString() } }
+                };
+                var response = await apiClient.SendAsync(request);
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                var text = await YouAuthTestHelper.DecryptContent<string>(response, sharedSecret);
+                Assert.That(text, Is.EqualTo($"ping from {hobbit}: helloworld"));
             }
         }
 
@@ -959,21 +970,17 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             }
 
             // Access resource using cat and shared secret
-            // SEB:TODO this is the same as old youauth, but it doesn't work. Something is  wrong way down
-            // int the youauth depths...
-            // {
-            //     var uri = YouAuthTestHelper.UriWithEncryptedQueryString($"https://{hobbit}/api/youauth/v1/auth/ping?text=helloworld", ss64);
-            //     var request = new HttpRequestMessage(HttpMethod.Get, uri)
-            //     {
-            //         Headers = { { "Cookie", new Cookie(YouAuthTestHelper.HomeCookieName, homeCookie).ToString() } }
-            //     };
-            //     var response = await apiClient.SendAsync(request);
-            //     Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-            //     var text = await YouAuthTestHelper.DecryptContent<string>(response, ss64);
-            //     Assert.That(text, Is.EqualTo($"ping from {hobbit}: helloworld"));
-            // }
-
-
+            {
+                var uri = YouAuthTestHelper.UriWithEncryptedQueryString($"https://{hobbit}/api/youauth/v1/auth/ping?text=helloworld", sharedSecret);
+                var request = new HttpRequestMessage(HttpMethod.Get, uri)
+                {
+                    Headers = { { "Cookie", new Cookie(YouAuthTestHelper.HomeCookieName, homeCookie).ToString() } }
+                };
+                var response = await apiClient.SendAsync(request);
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                var text = await YouAuthTestHelper.DecryptContent<string>(response, sharedSecret);
+                Assert.That(text, Is.EqualTo($"ping from {hobbit}: helloworld"));
+            }
         }
 
         //
@@ -1053,6 +1060,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             // [100] Exchange auth code for access token
             // [140] Return client access token to client
             //
+            byte[] sharedSecret, clientAuthToken;
             {
                 var remotePublicKeyDer = EccPublicKeyData.FromDerEncodedPublicKey(remotePublicKey);
                 var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyDer, remoteSalt);
@@ -1085,15 +1093,27 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
 
                 var sharedSecretCipher = Convert.FromBase64String(token.Base64SharedSecretCipher!);
                 var sharedSecretIv = Convert.FromBase64String(token.Base64SharedSecretIv!);
-                var sharedSecret = AesCbc.Decrypt(sharedSecretCipher, ref exchangeSecret, sharedSecretIv);
+                sharedSecret = AesCbc.Decrypt(sharedSecretCipher, ref exchangeSecret, sharedSecretIv);
                 Assert.That(sharedSecret, Is.Not.Null.And.Not.Empty);
 
-                var clientAuthTokenCipher = Convert.FromBase64String(token.Base64SharedSecretCipher!);
-                var clientAuthTokenIv = Convert.FromBase64String(token.Base64SharedSecretIv!);
-                var clientAuthToken = AesCbc.Decrypt(clientAuthTokenCipher, ref exchangeSecret, clientAuthTokenIv);
+                var clientAuthTokenCipher = Convert.FromBase64String(token.Base64ClientAuthTokenCipher!);
+                var clientAuthTokenIv = Convert.FromBase64String(token.Base64ClientAuthTokenIv!);
+                clientAuthToken = AesCbc.Decrypt(clientAuthTokenCipher, ref exchangeSecret, clientAuthTokenIv);
                 Assert.That(clientAuthToken, Is.Not.Null.And.Not.Empty);
+            }
 
-                // SEB:TODO test that token works
+            // Access resource using cat and shared secret
+            {
+                var catBase64 = Convert.ToBase64String(clientAuthToken);
+                var uri = YouAuthTestHelper.UriWithEncryptedQueryString($"https://{hobbit}/api/youauth/v1/auth/ping?text=helloworld", sharedSecret);
+                var request = new HttpRequestMessage(HttpMethod.Get, uri)
+                {
+                    Headers = { { "Cookie", new Cookie(YouAuthTestHelper.HomeCookieName, catBase64).ToString() } }
+                };
+                var response = await apiClient.SendAsync(request);
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                var text = await YouAuthTestHelper.DecryptContent<string>(response, sharedSecret);
+                Assert.That(text, Is.EqualTo($"ping from {hobbit}: helloworld"));
             }
         }
 
@@ -1271,6 +1291,19 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 sharedSecret = AesCbc.Decrypt(sharedSecretCipher, ref exchangeSecret, sharedSecretIv);
                 Assert.That(sharedSecret, Is.Not.Null.And.Not.Empty);
             }
+
+            // Access resource using cat and shared secret
+            {
+                var uri = YouAuthTestHelper.UriWithEncryptedQueryString($"https://{hobbit}/api/youauth/v1/auth/ping?text=helloworld", sharedSecret);
+                var request = new HttpRequestMessage(HttpMethod.Get, uri)
+                {
+                    Headers = { { "Cookie", new Cookie(YouAuthTestHelper.HomeCookieName, homeCookie).ToString() } }
+                };
+                var response = await apiClient.SendAsync(request);
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                var text = await YouAuthTestHelper.DecryptContent<string>(response, sharedSecret);
+                Assert.That(text, Is.EqualTo($"ping from {hobbit}: helloworld"));
+            }
         }
 
         //
@@ -1407,8 +1440,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
             // [100] Exchange auth code for access token
             // [140] Return client access token to client
             //
-            string homeCookie;
-            byte[] sharedSecret;
+            byte[] sharedSecret, clientAuthToken;
             {
                 var remotePublicKeyDer = EccPublicKeyData.FromDerEncodedPublicKey(remotePublicKey);
                 var exchangeSecret = keyPair.GetEcdhSharedSecret(privateKey, remotePublicKeyDer, remoteSalt);
@@ -1444,13 +1476,26 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 sharedSecret = AesCbc.Decrypt(sharedSecretCipher, ref exchangeSecret, sharedSecretIv);
                 Assert.That(sharedSecret, Is.Not.Null.And.Not.Empty);
 
-                var clientAuthTokenCipher = Convert.FromBase64String(token.Base64SharedSecretCipher!);
-                var clientAuthTokenIv = Convert.FromBase64String(token.Base64SharedSecretIv!);
-                var clientAuthToken = AesCbc.Decrypt(clientAuthTokenCipher, ref exchangeSecret, clientAuthTokenIv);
+                var clientAuthTokenCipher = Convert.FromBase64String(token.Base64ClientAuthTokenCipher!);
+                var clientAuthTokenIv = Convert.FromBase64String(token.Base64ClientAuthTokenIv!);
+                clientAuthToken = AesCbc.Decrypt(clientAuthTokenCipher, ref exchangeSecret, clientAuthTokenIv);
                 Assert.That(clientAuthToken, Is.Not.Null.And.Not.Empty);
-
-                // SEB:TODO test that token works
             }
+
+            // Access resource using cat and shared secret
+            {
+                var catBase64 = Convert.ToBase64String(clientAuthToken);
+                var uri = YouAuthTestHelper.UriWithEncryptedQueryString($"https://{hobbit}/api/youauth/v1/auth/ping?text=helloworld", sharedSecret);
+                var request = new HttpRequestMessage(HttpMethod.Get, uri)
+                {
+                    Headers = { { "Cookie", new Cookie(YouAuthTestHelper.HomeCookieName, catBase64).ToString() } }
+                };
+                var response = await apiClient.SendAsync(request);
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                var text = await YouAuthTestHelper.DecryptContent<string>(response, sharedSecret);
+                Assert.That(text, Is.EqualTo($"ping from {hobbit}: helloworld"));
+            }
+
         }
     }
 }

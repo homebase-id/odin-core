@@ -86,17 +86,21 @@ public static class YouAuthTestHelper
 
     public static string UriWithEncryptedQueryString(string uri, string sharedSecretBase64)
     {
+        return UriWithEncryptedQueryString(uri, Base64.Decode(sharedSecretBase64));
+    }
+
+    public static string UriWithEncryptedQueryString(string uri, byte[] sharedSecret)
+    {
         var queryIndex = uri.IndexOf('?');
         if (queryIndex == -1 || queryIndex == uri.Length - 1)
         {
             return uri;
         }
-        
+
         var path = uri[..queryIndex];
         var query = uri[(queryIndex + 1)..];
-        
-        var keyBytes = Base64.Decode(sharedSecretBase64);
-        var key = new SensitiveByteArray(keyBytes);
+
+        var key = new SensitiveByteArray(sharedSecret);
 
         var iv = ByteArrayUtil.GetRndByteArray(16);
         var encryptedBytes = AesCbc.Encrypt(query.ToUtf8ByteArray(), ref key, iv);
@@ -111,10 +115,16 @@ public static class YouAuthTestHelper
 
         return uri;
     }
-    
+
+
     //
 
     public static async Task<T> DecryptContent<T>(HttpResponseMessage response, string sharedSecretBase64)
+    {
+        return await DecryptContent<T>(response, Base64.Decode(sharedSecretBase64));
+    }
+    
+    public static async Task<T> DecryptContent<T>(HttpResponseMessage response, byte[] sharedSecret)
     {
         var cipherJson = await response.Content.ReadAsStringAsync();
         var payload = OdinSystemSerializer.Deserialize<SharedSecretEncryptedPayload>(cipherJson);
@@ -122,18 +132,18 @@ public static class YouAuthTestHelper
         {
             throw new Exception("Error deserializing");
         }
-        
-        var keyBytes = Base64.Decode(sharedSecretBase64);
-        var key = new SensitiveByteArray(keyBytes);
-        
+
+        var key = new SensitiveByteArray(sharedSecret);
+
         var plainBytes = AesCbc.Decrypt(Convert.FromBase64String(payload.Data), ref key, payload.Iv);
         var plainJson = System.Text.Encoding.UTF8.GetString(plainBytes);
-        
+
         var result = Deserialize<T>(plainJson);
 
         return result;
     }
-    
+
+
     //
 
     public static HttpContent EncryptContent<T>(T item, string sharedSecretBase64)
