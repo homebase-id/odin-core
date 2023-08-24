@@ -64,13 +64,14 @@ namespace Odin.Core.Services.Authorization.Acl
                 }
             }
 
-            if (RequiredSecurityGroup == SecurityGroupType.Authenticated)
-            {
-                if ((this.CircleIdList?.Count() ?? 0) > 0)
-                {
-                    throw new OdinClientException("Cannot specify circle list when required security group is authenticated", OdinClientErrorCode.CannotAllowCirclesOnAuthenticatedOnly);
-                }
-            }
+            //Note: this is now allowed because of YouAuth Domains`
+            // if (RequiredSecurityGroup == SecurityGroupType.Authenticated)
+            // {
+            //     if ((this.CircleIdList?.Count() ?? 0) > 0)
+            //     {
+            //         throw new OdinClientException("Cannot specify circle list when required security group is authenticated", OdinClientErrorCode.CannotAllowCirclesOnAuthenticatedOnly);
+            //     }
+            // }
         }
     }
 }

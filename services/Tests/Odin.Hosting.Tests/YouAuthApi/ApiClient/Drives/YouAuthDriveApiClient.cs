@@ -55,7 +55,7 @@ public class YouAuthDriveApiClient
         }
     }
     
-    public async Task<SharedSecretEncryptedFileHeader> GetFileHeader(ExternalFileIdentifier file, FileSystemType fileSystemType = FileSystemType.Standard)
+    public async Task<ApiResponse<SharedSecretEncryptedFileHeader>> GetFileHeader(ExternalFileIdentifier file, FileSystemType fileSystemType = FileSystemType.Standard)
     {
         var client = CreateYouAuthApiHttpClient(_token, fileSystemType);
         {
@@ -63,7 +63,7 @@ public class YouAuthDriveApiClient
             var svc = CreateDriveService(client);
             // var apiResponse = await svc.GetFileHeader(file.FileId, file.TargetDrive.Alias, file.TargetDrive.Type);
             var apiResponse = await svc.GetFileHeader(file);
-            return apiResponse.Content;
+            return apiResponse;
         }
     }
 
@@ -124,7 +124,7 @@ public class YouAuthDriveApiClient
         client.DefaultRequestHeaders.Add(OdinHeaderNames.FileSystemTypeHeader, Enum.GetName(fileSystemType));
         client.Timeout = TimeSpan.FromMinutes(15);
             
-        client.BaseAddress = new Uri($"https://{this._identity}");
+        client.BaseAddress = new Uri($"https://{this._identity.OdinId}");
         return client;    }
 
     private IDriveTestHttpClientForYouAuth CreateDriveService(HttpClient client)

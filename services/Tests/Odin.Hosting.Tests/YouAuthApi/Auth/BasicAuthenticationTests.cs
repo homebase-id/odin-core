@@ -38,7 +38,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Auth
         }
 
         [Test]
-        public async Task YouAuthDomainCanAccessAuthorizedContent()
+        public async Task YouAuthDomainCanAccessAuthorizedContentViaCircle()
         {
             const string domain = "amazoom.org";
             const string jsonContent = "some content";
@@ -73,15 +73,10 @@ namespace Odin.Hosting.Tests.YouAuthApi.Auth
 
             var youAuthApiClient = new YouAuthApiClient(identity, cat);
 
-            var fileHeader = await youAuthApiClient.Drives.GetFileHeader(uploadResult.File);
-
+            var getFileHeaderResponse = await youAuthApiClient.Drives.GetFileHeader(uploadResult.File);
+            Assert.IsTrue(getFileHeaderResponse.IsSuccessStatusCode, $"Status code returned: {getFileHeaderResponse.StatusCode}");
+            var fileHeader = getFileHeaderResponse.Content;
             Assert.IsTrue(fileHeader.FileMetadata.AppData.JsonContent == jsonContent);
-
-            // make a request using this client
-            // the Circle has access
-            // create a youauth domain
-            //
-            // create a file which only the circle can read
         }
 
         private async Task<UploadResult> UploadFile(TestIdentity identity, TargetDrive targetDrive, GuidId circleId, string jsonContent)
@@ -104,7 +99,7 @@ namespace Odin.Hosting.Tests.YouAuthApi.Auth
                 },
                 AccessControlList = new AccessControlList()
                 {
-                    // RequiredSecurityGroup = SecurityGroupType.Authenticated,
+                    RequiredSecurityGroup = SecurityGroupType.Authenticated,
                     CircleIdList = new List<Guid>() { circleId }
                 }
             };
