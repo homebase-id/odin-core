@@ -40,6 +40,7 @@ namespace Odin.Core.Identity
 
 
         [JsonIgnore] public string DomainName => _domainName.DomainName;
+        [JsonIgnore] public PunyDomainName PunyDomain => _domainName;
 
         public bool HasValue()
         {

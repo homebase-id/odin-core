@@ -74,38 +74,39 @@ namespace Odin.Tests
             var pwd = new SensitiveByteArray(Guid.NewGuid().ToByteArray());
             var eccKey = new EccFullKeyData(pwd, 1);
             var frodoPuny = new PunyDomainName("frodo.baggins.me");
+            var attestationId = Guid.NewGuid().ToByteArray();
 
-            var attestation = AttestationManagement.AttestHuman(eccKey, pwd, frodoPuny);
+            var attestation = AttestationManagement.AttestHuman(eccKey, pwd, frodoPuny, attestationId);
             if (AttestationManagement.VerifyAttestation(attestation) != true)
                 throw new Exception("Humaaaan");
 
-            attestation = AttestationManagement.AttestNationality(eccKey, pwd, frodoPuny, "DK");
+            attestation = AttestationManagement.AttestNationality(eccKey, pwd, frodoPuny, attestationId, "DK");
             if (AttestationManagement.VerifyAttestation(attestation) != true)
                 throw new Exception("Nationality");
 
-            attestation = AttestationManagement.AttestEmailAddress(eccKey, pwd, frodoPuny, "frodo@baggins.me");
+            attestation = AttestationManagement.AttestEmailAddress(eccKey, pwd, frodoPuny, attestationId, "frodo@baggins.me");
             if (AttestationManagement.VerifyAttestation(attestation) != true)
                 throw new Exception("Email");
 
-            attestation = AttestationManagement.AttestBirthdate(eccKey, pwd, frodoPuny, DateOnly.FromDateTime(new DateTime(2020,10,24)));
+            attestation = AttestationManagement.AttestBirthdate(eccKey, pwd, frodoPuny, attestationId, DateOnly.FromDateTime(new DateTime(2020,10,24)));
             if (AttestationManagement.VerifyAttestation(attestation) != true)
                 throw new Exception("Birthdate");
 
-            attestation = AttestationManagement.AttestLegalName(eccKey, pwd, frodoPuny, "Frodo Baggins");
+            attestation = AttestationManagement.AttestLegalName(eccKey, pwd, frodoPuny, attestationId, "Frodo Baggins");
             if (AttestationManagement.VerifyAttestation(attestation) != true)
                 throw new Exception("Legal Name");
 
-            attestation = AttestationManagement.AttestSubsetLegalName(eccKey, pwd, frodoPuny, "F. Baggins");
+            attestation = AttestationManagement.AttestSubsetLegalName(eccKey, pwd, frodoPuny, attestationId, "F. Baggins");
             if (AttestationManagement.VerifyAttestation(attestation) != true)
                 throw new Exception("Subset Legal Name");
 
             string s = attestation.GetCompactSortedJson(); // For michael to look at
 
-            attestation = AttestationManagement.AttestPhoneNumber(eccKey, pwd, frodoPuny, "+45 12345678");
+            attestation = AttestationManagement.AttestPhoneNumber(eccKey, pwd, frodoPuny, attestationId, "+45 12345678");
             if (AttestationManagement.VerifyAttestation(attestation) != true)
                 throw new Exception("Phone number");
 
-            var address = new SortedDictionary<string, string>
+            var address = new SortedDictionary<string, object>
             { 
                 { "street", "Bag End" },
                 { "city", "Hobbiton" },
@@ -113,7 +114,7 @@ namespace Odin.Tests
                 { "postalCode", "4242" },
                 { "country", "Middle Earth" }
             };
-            attestation = AttestationManagement.AttestResidentialAddress(eccKey, pwd, frodoPuny, address);
+            attestation = AttestationManagement.AttestResidentialAddress(eccKey, pwd, frodoPuny, attestationId, address);
             if (AttestationManagement.VerifyAttestation(attestation) != true)
                 throw new Exception("Address");
         }

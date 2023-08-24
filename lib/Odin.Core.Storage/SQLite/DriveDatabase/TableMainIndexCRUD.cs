@@ -351,7 +351,9 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 _insertParam11.Value = item.senderId ?? (object)DBNull.Value;
                 _insertParam12.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
                 _insertParam13.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
-                _insertParam14.Value = UnixTimeUtcUnique.Now().uniqueTime;
+                item.created = UnixTimeUtcUnique.Now();
+                _insertParam14.Value = item.created.uniqueTime;
+                item.modified = null;
                 _insertParam15.Value = DBNull.Value;
                 var count = _database.ExecuteNonQuery(_insertCommand);
                 return count;
@@ -429,8 +431,10 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 _upsertParam11.Value = item.senderId ?? (object)DBNull.Value;
                 _upsertParam12.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
                 _upsertParam13.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
-                _upsertParam14.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _upsertParam15.Value = UnixTimeUtcUnique.Now().uniqueTime;
+                if (item.created.uniqueTime == 0) item.created = UnixTimeUtcUnique.Now();
+                _upsertParam14.Value = item.created.uniqueTime;
+                item.modified = UnixTimeUtcUnique.Now();
+                _upsertParam15.Value = item.modified.HasValue ? item.modified.Value.uniqueTime : DBNull.Value;
                 var count = _database.ExecuteNonQuery(_upsertCommand);
                 return count;
             } // Lock
@@ -507,7 +511,8 @@ namespace Odin.Core.Storage.SQLite.DriveDatabase
                 _updateParam12.Value = item.groupId?.ToByteArray() ?? (object)DBNull.Value;
                 _updateParam13.Value = item.uniqueId?.ToByteArray() ?? (object)DBNull.Value;
                 _updateParam14.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _updateParam15.Value = UnixTimeUtcUnique.Now().uniqueTime;
+                item.modified = UnixTimeUtcUnique.Now();
+                _updateParam15.Value = item.modified.HasValue ? item.modified.Value.uniqueTime : DBNull.Value;
                 var count = _database.ExecuteNonQuery(_updateCommand);
                 return count;
             } // Lock

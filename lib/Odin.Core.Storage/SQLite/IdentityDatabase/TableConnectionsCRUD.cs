@@ -224,7 +224,9 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _insertParam3.Value = item.status;
                 _insertParam4.Value = item.accessIsRevoked;
                 _insertParam5.Value = item.data ?? (object)DBNull.Value;
-                _insertParam6.Value = UnixTimeUtcUnique.Now().uniqueTime;
+                item.created = UnixTimeUtcUnique.Now();
+                _insertParam6.Value = item.created.uniqueTime;
+                item.modified = null;
                 _insertParam7.Value = DBNull.Value;
                 var count = _database.ExecuteNonQuery(_insertCommand);
                 if (count > 0)
@@ -272,8 +274,10 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _upsertParam3.Value = item.status;
                 _upsertParam4.Value = item.accessIsRevoked;
                 _upsertParam5.Value = item.data ?? (object)DBNull.Value;
-                _upsertParam6.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _upsertParam7.Value = UnixTimeUtcUnique.Now().uniqueTime;
+                if (item.created.uniqueTime == 0) item.created = UnixTimeUtcUnique.Now();
+                _upsertParam6.Value = item.created.uniqueTime;
+                item.modified = UnixTimeUtcUnique.Now();
+                _upsertParam7.Value = item.modified.HasValue ? item.modified.Value.uniqueTime : DBNull.Value;
                 var count = _database.ExecuteNonQuery(_upsertCommand);
                 if (count > 0)
                     _cache.AddOrUpdate("TableConnectionsCRUD", item.identity.ToString(), item);
@@ -320,7 +324,8 @@ namespace Odin.Core.Storage.SQLite.IdentityDatabase
                 _updateParam4.Value = item.accessIsRevoked;
                 _updateParam5.Value = item.data ?? (object)DBNull.Value;
                 _updateParam6.Value = UnixTimeUtcUnique.Now().uniqueTime;
-                _updateParam7.Value = UnixTimeUtcUnique.Now().uniqueTime;
+                item.modified = UnixTimeUtcUnique.Now();
+                _updateParam7.Value = item.modified.HasValue ? item.modified.Value.uniqueTime : DBNull.Value;
                 var count = _database.ExecuteNonQuery(_updateCommand);
                 if (count > 0)
                     _cache.AddOrUpdate("TableConnectionsCRUD", item.identity.ToString(), item);

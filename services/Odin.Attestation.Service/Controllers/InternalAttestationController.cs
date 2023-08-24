@@ -9,7 +9,7 @@ using Odin.Core.Util;
 using Odin.Core.Cryptography.Signatures;
 using Odin.Core.Cryptography.Data;
 using System.Text.Json;
-
+using Microsoft.AspNetCore.Mvc.Routing;
 
 namespace OdinsAttestation.Controllers
 {
@@ -40,14 +40,14 @@ namespace OdinsAttestation.Controllers
         /// </summary>
         /// <param name="identity"></param>
         /// <returns></returns>
-        private IActionResult DeleteRequest(PunyDomainName identity)
+        private ActionResult DeleteRequest(string nonceBase64)
         {
             try
             {
-                var n = _db.tblAttestationRequest.Delete(identity.DomainName);
+                var n = _db.tblAttestationRequest.Delete(nonceBase64);
 
                 if (n < 1)
-                    return BadRequest($"No such identity found deleted");
+                    return BadRequest($"No such record found");
             }
             catch (Exception ex)
             {
@@ -66,21 +66,44 @@ namespace OdinsAttestation.Controllers
         /// <param name="identity"></param>
         /// <returns></returns>
         [HttpGet("DeleteRequest")]
-        public IActionResult GetDeleteRequest(string identity)
+        public ActionResult GetDeleteRequest(string attestationIdBase64)
         {
-            PunyDomainName id;
+            return DeleteRequest(attestationIdBase64);
+        }
+
+
+        [HttpGet("InvalidateAttestation")]
+        public async Task<ActionResult> GetInvalidateAttestation(string attestationIdBase64)
+        {
+            byte[] attestationId;
 
             try
             {
-                id = new PunyDomainName(identity);
+                attestationId = Convert.FromBase64String(attestationIdBase64);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return BadRequest($"Invalid identity {ex.Message}");
+                return BadRequest("Invalid attestationIdBase64");
             }
 
-            return DeleteRequest(id);
+            var r = _db.tblAttestationStatus.Get(attestationId);
+
+            if (r == null)
+                return NotFound();
+
+            if (r.status != 1)
+                return Conflict();
+
+            r.status = 0;
+
+            _db.tblAttestationStatus.Update(r);
+
+            await Task.Delay(1);
+
+            return Ok();
         }
+
+
 
 
         /// <summary>
@@ -109,7 +132,7 @@ namespace OdinsAttestation.Controllers
             // We always verify the fact it's a human
             try
             {
-                var attestation = AttestationManagement.AttestHuman(_eccKey, _eccPwd, identity);
+                var attestation = AttestationManagement.AttestHuman(_eccKey, _eccPwd, identity, requestEnvelope.Envelope.ContentNonce);
                 attestationList.Add(attestation);
             }
             catch (Exception ex)
@@ -123,7 +146,7 @@ namespace OdinsAttestation.Controllers
                 try
                 {
                     string legalName = EnvelopeData.GetValueFromJsonObject<string>(legalNameObject);
-                    var attestation = AttestationManagement.AttestLegalName(_eccKey, _eccPwd, identity, legalName);
+                    var attestation = AttestationManagement.AttestLegalName(_eccKey, _eccPwd, identity, requestEnvelope.Envelope.ContentNonce, legalName);
                     attestationList.Add(attestation);
                 }
                 catch (Exception ex)
@@ -138,7 +161,7 @@ namespace OdinsAttestation.Controllers
                 try
                 {
                     string subsetLegalName = EnvelopeData.GetValueFromJsonObject<string>(subsetLegalNameObject);
-                    var attestation = AttestationManagement.AttestSubsetLegalName(_eccKey, _eccPwd, identity, subsetLegalName);
+                    var attestation = AttestationManagement.AttestSubsetLegalName(_eccKey, _eccPwd, identity, requestEnvelope.Envelope.ContentNonce, subsetLegalName);
                     attestationList.Add(attestation);
                 }
                 catch (Exception ex)
@@ -153,7 +176,7 @@ namespace OdinsAttestation.Controllers
                 try
                 {
                     string nationality = EnvelopeData.GetValueFromJsonObject<string>(nationalityObject);
-                    var attestation = AttestationManagement.AttestNationality(_eccKey, _eccPwd, identity, nationality);
+                    var attestation = AttestationManagement.AttestNationality(_eccKey, _eccPwd, identity, requestEnvelope.Envelope.ContentNonce, nationality);
                     attestationList.Add(attestation);
                 }
                 catch (Exception ex)
@@ -168,7 +191,7 @@ namespace OdinsAttestation.Controllers
                 try
                 {
                     string phoneNumber = EnvelopeData.GetValueFromJsonObject<string>(phoneObject);
-                    var attestation = AttestationManagement.AttestPhoneNumber(_eccKey, _eccPwd, identity, phoneNumber);
+                    var attestation = AttestationManagement.AttestPhoneNumber(_eccKey, _eccPwd, identity, requestEnvelope.Envelope.ContentNonce, phoneNumber);
                     attestationList.Add(attestation);
                 }
                 catch (Exception ex)
@@ -183,7 +206,7 @@ namespace OdinsAttestation.Controllers
                 try
                 {
                     string email = EnvelopeData.GetValueFromJsonObject<string>(emailObject);
-                    var attestation = AttestationManagement.AttestEmailAddress(_eccKey, _eccPwd, identity, email);
+                    var attestation = AttestationManagement.AttestEmailAddress(_eccKey, _eccPwd, identity, requestEnvelope.Envelope.ContentNonce, email);
                     attestationList.Add(attestation);
                 }
                 catch (Exception ex)
@@ -199,7 +222,7 @@ namespace OdinsAttestation.Controllers
                 {
                     string bday = EnvelopeData.GetValueFromJsonObject<string>(birthDateObject);
 
-                    var attestation = AttestationManagement.AttestBirthdate(_eccKey, _eccPwd, identity, DateOnly.FromDateTime(DateTime.Parse(bday)));
+                    var attestation = AttestationManagement.AttestBirthdate(_eccKey, _eccPwd, identity, requestEnvelope.Envelope.ContentNonce, DateOnly.FromDateTime(DateTime.Parse(bday)));
                     attestationList.Add(attestation);
                 }
                 catch (Exception ex)
@@ -216,7 +239,7 @@ namespace OdinsAttestation.Controllers
                     var addressDict = SignedEnvelope.ConvertJsonObjectToSortedDict(addressObject);
                     if (addressDict == null)
                         throw new Exception("address is null");
-                    var attestation = AttestationManagement.AttestResidentialAddress(_eccKey, _eccPwd, identity, addressDict);
+                    var attestation = AttestationManagement.AttestResidentialAddress(_eccKey, _eccPwd, identity, requestEnvelope.Envelope.ContentNonce, addressDict);
                     attestationList.Add(attestation);
                 }
                 catch (Exception ex)
@@ -232,30 +255,19 @@ namespace OdinsAttestation.Controllers
         /// <summary>
         /// Adminstrative staff use only.
         /// After carefully reviewing the data in an attestation request, the admininstrative staff calls this function
-        /// if approved. This function will generate the attestations requested, return the to the requestor, and store
+        /// if it is approved. This function will generate the attestations requested, return the to the requestor, and store
         /// records in the block chain database.
         /// Considering if identity should instead be the nonce of the request.
         /// </summary>
-        /// <param name="identity"></param>
+        /// <param name="attestationIdBase64"></param>
         /// <returns></returns>
         [HttpGet("ApproveRequest")]
-        public IActionResult GetApproveRequest(string identity)
+        public ActionResult GetApproveRequest(string attestationIdBase64)
         {
-            PunyDomainName id;
-
-            try
-            {
-                id = new PunyDomainName(identity);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest($"Invalid identity {ex.Message}");
-            }
-
             //
             // First get the request from the database
             // 
-            var r = _db.tblAttestationRequest.Get(id.DomainName);
+            var r = _db.tblAttestationRequest.Get(attestationIdBase64);
 
             if (r == null)
                 return BadRequest("No such request present");
@@ -274,7 +286,7 @@ namespace OdinsAttestation.Controllers
 
             try
             {
-                attestationList = GenerateAttestationsFromRequest(id, requestEnvelope);
+                attestationList = GenerateAttestationsFromRequest(requestEnvelope.Signatures[0].Identity.PunyDomain, requestEnvelope);
             }
             catch (Exception ex)
             {
@@ -285,74 +297,73 @@ namespace OdinsAttestation.Controllers
             // This is the JSON array of JSON
             //
             var jsonList = attestationList.Select(item => item.GetCompactSortedJson()).ToList();
-
             var jsonArray = JsonSerializer.Serialize(jsonList);
 
             //
             // Now call an identity endpoint to deliver the attested data (json array)
+            // In return we get a signature of the Envelope.contentNonce for each attestation provided
             //
-            SimulateFrodo.GetDeliverAttestations(jsonArray);
+            if (attestationList[0].Envelope.AdditionalInfo.TryGetValue("attestationId", out var valueObject) == false)
+                throw new Exception("attestationId not present in additionalInfo");
 
+            if (valueObject == null)
+                throw new Exception("attestationId null in additionalInfo");
+
+            string? attestationIdCopyBase64 = valueObject.ToString();
+
+            if (attestationIdCopyBase64 == null)
+                throw new Exception("attestationId conversion null in additionalInfo");
+
+            if (attestationIdCopyBase64 != attestationIdBase64)
+                throw new Exception("Impossible attestation id mismatch");
 
             //
+            // Now we deliver the attestation records to the requestor.
             //
-            // MAYBE ADD NONCE TO THE AttestationRequestTable
-            //
+            // The goal here must be to have as much on the client code as possible, as little on the server
+            // as possible. So perhaps the owner client fetches the attested data. In that case all we need 
+            // do here is somehow tell the server that we have some data it can fetch. 
+            // It opens the question if we have a generic owner API for stuff like this, e.g. 
+            //    RaiseEvent(id, message)
+            // so in this example, it might be RaiseEvent(attestationId, "Your attestations are ready to be delivered")
+            // Alternately, I suppose we could deliver them:
+            //    RaiseEvent(id, message, data), i.e. RaiseEvent(attestationId, jsonList, "Here are your attestations.")
+            // (That's probably less of an event)
+
+            SimulateFrodo.DeliverAttestations(attestationIdBase64, jsonArray);
+
+            // 
+            // Now store it in the database
             //
 
             using (_db.CreateCommitUnitOfWork())
             {
                 //
-                // Now insert the block chain records
+                // Now we are fully ready to insert the block chain records, we have all the data needed
                 //
 
+                var record = new AttestationStatusRecord() { attestationId = Convert.FromBase64String(attestationIdBase64), status = 1 };
+                _db.tblAttestationStatus.Insert(record);
 
                 //
                 // Finally, delete the pending request
                 //
-                GetDeleteRequest(identity);
+                GetDeleteRequest(attestationIdBase64);
             }
             return Ok();
         }
 
-        /// <summary>
-        /// 010. Client calls Server.RegisterKey(identity, tempcode)
-        /// 020. Server calls Client.GetPublicKey() to get signature key
-        /// 030. Server calls Client.SignNonce(tempcode, previousHash)
-        /// 033. Client returns signedNonce
-        /// 037. Server verifies signature
-        /// 040. Server serializes each request from hereon in semaphore
-        /// 050. Server fetches last row
-        /// 060. Server calculates new block chain row
-        /// 070. Server verifies row data (hash and maybe timestamp)
-        /// 080. Server writes row
-        /// 090. Server frees semaphore
-        /// </summary>
-        /// <param name="identity"></param>
-        /// <param name="tempCode"></param>
-        /// <returns></returns>
-        [HttpGet("Register")]
-        public async Task<IActionResult> GetRegister(string identity, string tempCode)
+        [HttpGet("ListPendingRequests")]
+        public async Task<ActionResult> GetListPendingRequests()
         {
-            PunyDomainName domain;
-            try
-            {
-                domain = new PunyDomainName(identity);
-            }
-            catch (Exception)
-            {
-                return BadRequest("Invalid identity, not a proper puny-code domain name");
-            }
+            var r = _db.tblAttestationRequest.PagingByAttestationId(100, null, out var nextCursor);
 
-            if ((tempCode.Length < 16) || (tempCode.Length > 64))
-            {
-                return BadRequest("Invalid temp-code, needs to be [16..64] characters");
-            }
+            // Using LINQ to convert the list of requests to a list of identities
+            var identities = r.Select(request => request.attestationId).ToList();
 
-            await Task.Delay(1);
+            await Task.Delay(1);  // You might not need this delay unless you have a specific reason for it.
 
-            return Ok("OK");
+            return Ok(identities);
         }
-
     }
 }

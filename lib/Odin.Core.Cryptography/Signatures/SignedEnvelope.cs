@@ -99,11 +99,14 @@ namespace Odin.Core.Cryptography.Signatures
         }
 
         /// <summary>
-        /// Verifies all signatures within the envelope
+        /// Verifies all signatures within the envelope. Returns false if no signatures
         /// </summary>
         /// <returns>true is OK, false if not verified</returns>
         public bool VerifyEnvelopeSignatures()
         {
+            if ((Signatures == null) || (Signatures.Count < 1))
+                return false;
+
             foreach (var signature in Signatures)
             {
                 if (Envelope.VerifyEnvelopeSignature(signature) == false)
@@ -176,9 +179,9 @@ namespace Odin.Core.Cryptography.Signatures
             return JsonSerializer.Serialize(this, options);
         }
 
-        public static SortedDictionary<string, string> ConvertJsonObjectToSortedDict(object jsonObject)
+        public static SortedDictionary<string, object> ConvertJsonObjectToSortedDict(object jsonObject)
         {
-            var result = new SortedDictionary<string, string>();
+            var result = new SortedDictionary<string, object>();
 
             if (jsonObject is JsonElement jsonElement && jsonElement.ValueKind == JsonValueKind.Object)
             {
