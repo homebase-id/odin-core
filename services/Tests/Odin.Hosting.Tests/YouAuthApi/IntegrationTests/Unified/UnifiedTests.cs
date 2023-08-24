@@ -533,12 +533,14 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 Assert.That(redirectUri.AbsolutePath, Is.EqualTo(finalRedirectUri.AbsolutePath));
 
                 var qs = HttpUtility.ParseQueryString(redirectUri.Query);
+                var identity = qs[YouAuthDefaults.Identity]!;
                 var state = qs[YouAuthDefaults.State]!;
                 code = qs[YouAuthDefaults.Code]!;
                 remotePublicKey = Convert.FromBase64String(qs[YouAuthDefaults.PublicKey]!);
                 remoteSalt = Convert.FromBase64String(qs[YouAuthDefaults.Salt]!);
 
                 Assert.That(code, Is.Not.Null.And.Not.Empty);
+                Assert.That(identity, Is.EqualTo(hobbit));
                 Assert.That(state, Is.EqualTo(payload.State));
                 Assert.That(remotePublicKey, Is.Not.Null.And.Not.Empty);
                 Assert.That(remoteSalt, Is.Not.Null.And.Not.Empty);
@@ -777,11 +779,13 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
 
                 var qs = HttpUtility.ParseQueryString(redirectUri.Query);
                 var state = qs[YouAuthDefaults.State]!;
+                var identity = qs[YouAuthDefaults.Identity]!;
                 code = qs[YouAuthDefaults.Code]!;
                 remotePublicKey = Convert.FromBase64String(qs[YouAuthDefaults.PublicKey]!);
                 remoteSalt = Convert.FromBase64String(qs[YouAuthDefaults.Salt]!);
 
                 Assert.That(code, Is.Not.Null.And.Not.Empty);
+                Assert.That(identity, Is.EqualTo(hobbit));
                 Assert.That(state, Is.EqualTo(payload.State));
                 Assert.That(remotePublicKey, Is.Not.Null.And.Not.Empty);
                 Assert.That(remoteSalt, Is.Not.Null.And.Not.Empty);
@@ -911,11 +915,13 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
 
                 var qs = HttpUtility.ParseQueryString(redirectUri.Query);
                 var state = qs[YouAuthDefaults.State]!;
+                var identity = qs[YouAuthDefaults.Identity]!;
                 code = qs[YouAuthDefaults.Code]!;
                 remotePublicKey = Convert.FromBase64String(qs[YouAuthDefaults.PublicKey]!);
                 remoteSalt = Convert.FromBase64String(qs[YouAuthDefaults.Salt]!);
 
                 Assert.That(code, Is.Not.Null.And.Not.Empty);
+                Assert.That(identity, Is.EqualTo(hobbit));
                 Assert.That(state, Is.EqualTo(payload.State));
                 Assert.That(remotePublicKey, Is.Not.Null.And.Not.Empty);
                 Assert.That(remoteSalt, Is.Not.Null.And.Not.Empty);
@@ -1044,12 +1050,14 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 Assert.That(redirectUri.AbsolutePath, Is.EqualTo(finalRedirectUri.AbsolutePath));
 
                 var qs = HttpUtility.ParseQueryString(redirectUri.Query);
+                var identity = qs[YouAuthDefaults.Identity]!;
                 var state = qs[YouAuthDefaults.State]!;
                 code = qs[YouAuthDefaults.Code]!;
                 remotePublicKey = Convert.FromBase64String(qs[YouAuthDefaults.PublicKey]!);
                 remoteSalt = Convert.FromBase64String(qs[YouAuthDefaults.Salt]!);
 
                 Assert.That(code, Is.Not.Null.And.Not.Empty);
+                Assert.That(identity, Is.EqualTo(hobbit));
                 Assert.That(state, Is.EqualTo(payload.State));
                 Assert.That(remotePublicKey, Is.Not.Null.And.Not.Empty);
                 Assert.That(remoteSalt, Is.Not.Null.And.Not.Empty);
@@ -1233,12 +1241,14 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 Assert.That(redirectUri.AbsolutePath, Is.EqualTo(finalRedirectUri.AbsolutePath));
 
                 var qs = HttpUtility.ParseQueryString(redirectUri.Query);
+                var identity = qs[YouAuthDefaults.Identity]!;
                 var state = qs[YouAuthDefaults.State]!;
                 code = qs[YouAuthDefaults.Code]!;
                 remotePublicKey = Convert.FromBase64String(qs[YouAuthDefaults.PublicKey]!);
                 remoteSalt = Convert.FromBase64String(qs[YouAuthDefaults.Salt]!);
 
                 Assert.That(code, Is.Not.Null.And.Not.Empty);
+                Assert.That(identity, Is.EqualTo(hobbit));
                 Assert.That(state, Is.EqualTo(payload.State));
                 Assert.That(remotePublicKey, Is.Not.Null.And.Not.Empty);
                 Assert.That(remoteSalt, Is.Not.Null.And.Not.Empty);
@@ -1424,12 +1434,14 @@ namespace Odin.Hosting.Tests.YouAuthApi.IntegrationTests.Unified
                 Assert.That(redirectUri.AbsolutePath, Is.EqualTo(finalRedirectUri.AbsolutePath));
 
                 var qs = HttpUtility.ParseQueryString(redirectUri.Query);
+                var identity = qs[YouAuthDefaults.Identity]!;
                 var state = qs[YouAuthDefaults.State]!;
                 code = qs[YouAuthDefaults.Code]!;
                 remotePublicKey = Convert.FromBase64String(qs[YouAuthDefaults.PublicKey]!);
                 remoteSalt = Convert.FromBase64String(qs[YouAuthDefaults.Salt]!);
 
                 Assert.That(code, Is.Not.Null.And.Not.Empty);
+                Assert.That(identity, Is.EqualTo(hobbit));
                 Assert.That(state, Is.EqualTo(payload.State));
                 Assert.That(remotePublicKey, Is.Not.Null.And.Not.Empty);
                 Assert.That(remoteSalt, Is.Not.Null.And.Not.Empty);

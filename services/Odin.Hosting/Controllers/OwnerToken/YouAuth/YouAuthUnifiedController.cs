@@ -162,6 +162,7 @@ namespace Odin.Hosting.Controllers.OwnerToken.YouAuth
             var queryString = QueryString.Create(new Dictionary<string, string?>()
             {
                 { YouAuthDefaults.Code, code },
+                { YouAuthDefaults.Identity, _currentTenant },
                 { YouAuthDefaults.PublicKey, keyPair.publicDerBase64() },
                 { YouAuthDefaults.Salt, Convert.ToBase64String(salt) },
                 { YouAuthDefaults.State, authorize.State },

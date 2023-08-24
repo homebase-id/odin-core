@@ -21,5 +21,6 @@ namespace Odin.Core.Services.Authentication.YouAuth
         public const string PublicKey = "public_key";
         public const string Salt = "salt";
         public const string State = "state";
+        public const string Identity = "identity";
     }
 }
