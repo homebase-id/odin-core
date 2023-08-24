@@ -38,9 +38,10 @@ namespace Odin.Core.Cryptography.Data
         {
             return Convert.ToBase64String(input).Split('=')[0].Replace('+', '-').Replace('/', '_');
         }
+ 
         public static string Base64UrlEncode(string input)
         {
-            return Convert.ToBase64String(input.ToUtf8ByteArray()).Split('=')[0].Replace('+', '-').Replace('/', '_');
+            return Base64UrlEncode(input.ToUtf8ByteArray());
         }
 
         public static byte[] Base64UrlDecode(string input)
