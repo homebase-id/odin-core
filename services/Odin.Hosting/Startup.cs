@@ -288,6 +288,7 @@ namespace Odin.Hosting
 
             app.UseMiddleware<OdinContextMiddleware>();
             app.UseResponseCompression();
+            app.UseCors();
             app.UseApiCors();
             app.UseMiddleware<SharedSecretEncryptionMiddleware>();
             app.UseMiddleware<StaticFileCachingMiddleware>();
